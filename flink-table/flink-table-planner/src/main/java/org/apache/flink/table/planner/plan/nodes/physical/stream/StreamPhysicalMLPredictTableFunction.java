@@ -36,8 +36,6 @@ import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FunctionParam;
 import org.apache.flink.table.planner.plan.utils.MLPredictUtils;
-import org.apache.flink.table.planner.plan.utils.UpsertKeyUtil;
-import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 

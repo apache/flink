@@ -36,6 +36,7 @@ import org.apache.calcite.rex.RexLiteral;
 
 import java.util.Objects;
 
+/** Common utils for function call, e.g. ML_PREDICT and Lookup Join. */
 public abstract class FunctionCallUtils {
 
     /** A field used as an equal condition when querying content from a dimension table. */

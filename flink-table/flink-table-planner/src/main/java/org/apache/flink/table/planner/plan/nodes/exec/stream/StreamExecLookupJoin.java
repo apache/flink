@@ -46,7 +46,6 @@ import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.AsyncOptions;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FunctionParam;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
-import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.RetryLookupOptions;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;

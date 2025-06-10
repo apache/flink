@@ -35,24 +35,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FunctionParamSerdeTest {
 
     @Test
-    void testLookupKey() throws IOException {
+    void testSerdeFunctionParams() throws IOException {
         SerdeContext serdeCtx = JsonSerdeTestUtil.configuredSerdeContext();
         ObjectReader objectReader = CompiledPlanSerdeUtil.createJsonObjectReader(serdeCtx);
         ObjectWriter objectWriter = CompiledPlanSerdeUtil.createJsonObjectWriter(serdeCtx);
 
-        FunctionCallUtils.FunctionParam[] lookupKeys =
+        FunctionCallUtils.FunctionParam[] functionParams =
                 new FunctionCallUtils.FunctionParam[] {
                     new FunctionCallUtils.Constant(
                             new BigIntType(),
                             new RexBuilder(serdeCtx.getTypeFactory()).makeLiteral("a")),
                     new FunctionCallUtils.FieldRef(3)
                 };
-        for (FunctionCallUtils.FunctionParam lookupKey : lookupKeys) {
+        for (FunctionCallUtils.FunctionParam param : functionParams) {
             FunctionCallUtils.FunctionParam result =
                     objectReader.readValue(
-                            objectWriter.writeValueAsString(lookupKey),
+                            objectWriter.writeValueAsString(param),
                             FunctionCallUtils.FunctionParam.class);
-            assertThat(result).isEqualTo(lookupKey);
+            assertThat(result).isEqualTo(param);
         }
     }
 }
