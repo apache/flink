@@ -112,6 +112,12 @@ public class DescriptorProperties {
 
     public static final String PRIMARY_KEY_COLUMNS = "primary-key.columns";
 
+    public static final String INDEX = "index";
+
+    public static final String INDEX_NAME = "index-name";
+
+    public static final String INDEX_COLUMNS = "index-columns";
+
     public static final String COMMENT = "comment";
 
     private static final Pattern SCHEMA_COLUMN_NAME_SUFFIX = Pattern.compile("\\d+\\.name");

@@ -21,6 +21,7 @@ package org.apache.flink.table.sql;
 import org.apache.flink.formats.json.debezium.DebeziumJsonDeserializationSchema;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.test.util.SQLJobSubmission;
@@ -44,7 +45,8 @@ public class CreateTableAsITCase extends SqlITCaseBase {
                             Column.physical("order_cnt", DataTypes.BIGINT())),
                     Collections.emptyList(),
                     UniqueConstraint.primaryKey("pk", Collections.singletonList("user_name")),
-                    Collections.emptyList());
+                    Collections.singletonList(
+                            DefaultIndex.newIndex("idx", Collections.singletonList("user_name"))));
 
     private static final DebeziumJsonDeserializationSchema DESERIALIZATION_SCHEMA =
             createDebeziumDeserializationSchema(SINK_TABLE_SCHEMA);

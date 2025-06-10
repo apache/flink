@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -88,7 +89,8 @@ class DynamicTableSinkSpecSerdeTest {
                         Collections.singletonList(Column.physical("a", DataTypes.BIGINT())),
                         Collections.emptyList(),
                         null,
-                        Collections.emptyList());
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
         final CatalogTable catalogTable1 =
                 CatalogTable.newBuilder()
                         .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build())
@@ -119,7 +121,8 @@ class DynamicTableSinkSpecSerdeTest {
                                 Column.physical("p", DataTypes.STRING())),
                         Collections.emptyList(),
                         null,
-                        Collections.emptyList());
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
         final CatalogTable catalogTable2 =
                 CatalogTable.newBuilder()
                         .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema2).build())
@@ -156,7 +159,8 @@ class DynamicTableSinkSpecSerdeTest {
                                 Column.metadata("m", DataTypes.STRING(), null, false)),
                         Collections.emptyList(),
                         null,
-                        Collections.emptyList());
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
         final CatalogTable catalogTable3 =
                 CatalogTable.newBuilder()
                         .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema3).build())
@@ -190,7 +194,8 @@ class DynamicTableSinkSpecSerdeTest {
                                 Column.metadata("p", DataTypes.STRING(), null, false)),
                         Collections.emptyList(),
                         null,
-                        Collections.emptyList());
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
         final CatalogTable catalogTable4 =
                 CatalogTable.newBuilder()
                         .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema4).build())

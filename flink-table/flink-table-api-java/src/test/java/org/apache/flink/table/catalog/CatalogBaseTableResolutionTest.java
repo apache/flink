@@ -85,6 +85,7 @@ class CatalogBaseTableResolutionTest {
                     .withComment("This is a computed column")
                     .watermark("ts", WATERMARK_SQL)
                     .primaryKeyNamed("primary_constraint", "id")
+                    .indexNamed("idx", Collections.singletonList("id"))
                     .build();
 
     private static final Schema MATERIALIZED_TABLE_SCHEMA =
@@ -96,6 +97,7 @@ class CatalogBaseTableResolutionTest {
                     .column("topic", DataTypes.VARCHAR(200))
                     .withComment("") // empty column comment
                     .primaryKeyNamed("primary_constraint", "id")
+                    .indexNamed("idx", Collections.singletonList("id"))
                     .build();
 
     private static final TableSchema LEGACY_TABLE_SCHEMA =
@@ -132,7 +134,8 @@ class CatalogBaseTableResolutionTest {
                     Collections.singletonList(WatermarkSpec.of("ts", WATERMARK_RESOLVED)),
                     UniqueConstraint.primaryKey(
                             "primary_constraint", Collections.singletonList("id")),
-                    Collections.emptyList());
+                    Collections.singletonList(
+                            DefaultIndex.newIndex("idx", Collections.singletonList("id"))));
 
     private static final ResolvedSchema RESOLVED_MATERIALIZED_TABLE_SCHEMA =
             new ResolvedSchema(
@@ -145,7 +148,8 @@ class CatalogBaseTableResolutionTest {
                     Collections.emptyList(),
                     UniqueConstraint.primaryKey(
                             "primary_constraint", Collections.singletonList("id")),
-                    Collections.emptyList());
+                    Collections.singletonList(
+                            DefaultIndex.newIndex("idx", Collections.singletonList("id"))));
 
     private static final ContinuousRefreshHandler CONTINUOUS_REFRESH_HANDLER =
             new ContinuousRefreshHandler(
@@ -383,6 +387,8 @@ class CatalogBaseTableResolutionTest {
         properties.put("schema.watermark.0.strategy.expr", "ts - INTERVAL '5' SECOND");
         properties.put("schema.primary-key.name", "primary_constraint");
         properties.put("schema.primary-key.columns", "id");
+        properties.put("schema.index.0.index-name", "idx");
+        properties.put("schema.index.0.index-columns", "id");
         properties.put("partition.keys.0.name", "region");
         properties.put("partition.keys.1.name", "county");
         properties.put("version", "12");
@@ -408,6 +414,8 @@ class CatalogBaseTableResolutionTest {
         properties.put("schema.3.comment", "");
         properties.put("schema.primary-key.name", "primary_constraint");
         properties.put("schema.primary-key.columns", "id");
+        properties.put("schema.index.0.index-name", "idx");
+        properties.put("schema.index.0.index-columns", "id");
         properties.put("freshness-interval", "30");
         properties.put("freshness-unit", "SECOND");
         properties.put("logical-refresh-mode", "CONTINUOUS");

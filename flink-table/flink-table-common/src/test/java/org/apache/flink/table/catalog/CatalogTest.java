@@ -1622,7 +1622,8 @@ public abstract class CatalogTest {
                         Column.physical("third", DataTypes.STRING())),
                 Collections.emptyList(),
                 null,
-                Collections.emptyList());
+                Collections.singletonList(
+                        DefaultIndex.newIndex("idx", Collections.singletonList("first"))));
     }
 
     protected ResolvedSchema createAnotherSchema() {
@@ -1633,7 +1634,8 @@ public abstract class CatalogTest {
                         Column.physical("third", DataTypes.STRING())),
                 Collections.emptyList(),
                 null,
-                Collections.emptyList());
+                Collections.singletonList(
+                        DefaultIndex.newIndex("idx", Collections.singletonList("first"))));
     }
 
     protected List<String> createPartitionKeys() {

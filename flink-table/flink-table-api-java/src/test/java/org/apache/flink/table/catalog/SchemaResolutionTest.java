@@ -109,6 +109,7 @@ class SchemaResolutionTest {
                     .columnByExpression("ts1", callSql(COMPUTED_SQL_WITH_TS_LTZ))
                     .columnByMetadata("ts_ltz", DataTypes.TIMESTAMP_LTZ(3), "timestamp")
                     .watermark("ts1", WATERMARK_SQL_WITH_TS_LTZ)
+                    .indexNamed("idx", Collections.singletonList("id"))
                     .build();
 
     @Test
@@ -170,7 +171,8 @@ class SchemaResolutionTest {
                         Collections.singletonList(
                                 WatermarkSpec.of("ts1", WATERMARK_RESOLVED_WITH_TS_LTZ)),
                         null,
-                        Collections.emptyList());
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("id"))));
 
         final ResolvedSchema actualStreamSchema = resolveSchema(SCHEMA_WITH_TS_LTZ, true);
         {
@@ -199,12 +201,14 @@ class SchemaResolutionTest {
                                                 Collections.emptyList(),
                                                 DataTypes.TIMESTAMP_LTZ(1)))),
                         null,
-                        Collections.emptyList());
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("ts_ltz"))));
         final ResolvedSchema resolvedSchema =
                 resolveSchema(
                         Schema.newBuilder()
                                 .column("ts_ltz", DataTypes.TIMESTAMP_LTZ(1))
                                 .watermark("ts_ltz", sourceWatermark())
+                                .indexNamed("idx", Collections.singletonList("ts_ltz"))
                                 .build());
 
         assertThat(resolvedSchema).isEqualTo(expectedSchema);

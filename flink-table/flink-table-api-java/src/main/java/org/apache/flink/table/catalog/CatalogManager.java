@@ -1882,7 +1882,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                     .collect(Collectors.toList()),
                             resolvedSchema.getWatermarkSpecs(),
                             resolvedSchema.getPrimaryKey().orElse(null),
-                            Collections.emptyList());
+                            resolvedSchema.getIndexes());
             return new ResolvedCatalogView(
                     // pass a view that has the query parsed and
                     // validated already

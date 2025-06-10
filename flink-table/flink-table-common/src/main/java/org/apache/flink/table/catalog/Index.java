@@ -26,9 +26,6 @@ import java.util.List;
  * An index is a copy of selected columns of data, from a table, that is designed to enable very
  * efficient search. An index normally includes a "key" or direct link to the original row of data
  * from which it was copied, to allow the complete row to be retrieved efficiently.
- *
- * <p>Currently, this interface is only exposed to developers. In the future, when we introduce
- * Index during lexical parsing, this can be marked as {@link PublicEvolving}.
  */
 @PublicEvolving
 public interface Index {

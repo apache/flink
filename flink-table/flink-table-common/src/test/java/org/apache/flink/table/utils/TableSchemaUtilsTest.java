@@ -21,6 +21,7 @@ package org.apache.flink.table.utils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.WatermarkSpec;
@@ -102,7 +103,8 @@ class TableSchemaUtilsTest {
                         Collections.singletonList(
                                 WatermarkSpec.of("t", ResolvedExpressionMock.of(rowTimeType, "t"))),
                         UniqueConstraint.primaryKey("test-pk", Collections.singletonList("id")),
-                        Collections.emptyList());
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("id"))));
         assertThat(TableSchemaUtils.removeTimeAttributeFromResolvedSchema(schema))
                 .isEqualTo(
                         new ResolvedSchema(
@@ -120,6 +122,8 @@ class TableSchemaUtilsTest {
                                                 "t", ResolvedExpressionMock.of(rowTimeType, "t"))),
                                 UniqueConstraint.primaryKey(
                                         "test-pk", Collections.singletonList("id")),
-                                Collections.emptyList()));
+                                Collections.singletonList(
+                                        DefaultIndex.newIndex(
+                                                "idx", Collections.singletonList("id")))));
     }
 }

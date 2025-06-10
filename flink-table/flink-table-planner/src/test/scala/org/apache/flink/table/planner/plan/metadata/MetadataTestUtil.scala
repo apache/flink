@@ -321,7 +321,7 @@ object MetadataTestUtil {
       ),
       Collections.emptyList(),
       UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "d")),
-      Collections.emptyList())
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
@@ -366,7 +366,7 @@ object MetadataTestUtil {
       ),
       Collections.emptyList(),
       UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")),
-      Collections.emptyList())
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val typeFactory = new FlinkTypeFactory(Thread.currentThread().getContextClassLoader)
     val rowType = typeFactory.buildRelNodeRowType(
@@ -394,7 +394,7 @@ object MetadataTestUtil {
       ),
       Collections.emptyList(),
       UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("b")),
-      Collections.emptyList())
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
@@ -424,7 +424,7 @@ object MetadataTestUtil {
       ),
       Collections.emptyList(),
       null,
-      Collections.emptyList())
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
@@ -451,7 +451,7 @@ object MetadataTestUtil {
         Column.physical("b", DataTypes.BIGINT().notNull())),
       Collections.emptyList(),
       UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")),
-      Collections.emptyList())
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val catalogTable = getCatalogTable(resolvedSchema)
 

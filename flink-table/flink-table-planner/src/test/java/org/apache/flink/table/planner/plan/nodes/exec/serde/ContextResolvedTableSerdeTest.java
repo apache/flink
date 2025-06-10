@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -81,7 +82,8 @@ public class ContextResolvedTableSerdeTest {
                             Column.physical("c", DataTypes.BOOLEAN())),
                     Collections.emptyList(),
                     null,
-                    Collections.emptyList());
+                    Collections.singletonList(
+                            DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
     private static final Schema CATALOG_TABLE_SCHEMA =
             Schema.newBuilder().fromResolvedSchema(CATALOG_TABLE_RESOLVED_SCHEMA).build();
 
@@ -412,7 +414,9 @@ public class ContextResolvedTableSerdeTest {
                                         Column.physical("c", DataTypes.STRING())),
                                 Collections.emptyList(),
                                 null,
-                                Collections.emptyList());
+                                Collections.singletonList(
+                                        DefaultIndex.newIndex(
+                                                "idx", Collections.singletonList("a"))));
                 final ContextResolvedTable spec =
                         ContextResolvedTable.permanent(
                                 PERMANENT_TABLE_IDENTIFIER,

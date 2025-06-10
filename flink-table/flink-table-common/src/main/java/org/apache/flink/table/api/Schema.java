@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.ComputedColumn;
@@ -1128,7 +1127,6 @@ public final class Schema {
     }
 
     /** Declaration of an index that will be resolved to {@link Index} during schema resolution. */
-    @Experimental
     @PublicEvolving
     public static final class UnresolvedIndex {
         private final String indexName;
