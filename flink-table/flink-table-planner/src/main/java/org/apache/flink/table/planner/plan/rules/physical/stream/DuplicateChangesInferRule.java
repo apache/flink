@@ -19,6 +19,11 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.legacy.table.sinks.RetractStreamTableSink;
+import org.apache.flink.legacy.table.sinks.StreamTableSink;
+import org.apache.flink.legacy.table.sinks.UpsertStreamTableSink;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.legacy.sinks.TableSink;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCalcBase;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDataStreamScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
@@ -35,6 +40,8 @@ import org.apache.flink.table.planner.plan.trait.DuplicateChanges;
 import org.apache.flink.table.planner.plan.trait.DuplicateChangesTrait;
 import org.apache.flink.table.planner.plan.trait.DuplicateChangesTraitDef;
 import org.apache.flink.table.planner.plan.utils.DuplicateChangesUtils;
+import org.apache.flink.table.planner.sinks.DataStreamTableSink;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -51,6 +58,9 @@ import java.util.stream.Collectors;
 
 /**
  * A rule that infers the {@link DuplicateChanges} for each {@link StreamPhysicalRel} node.
+ *
+ * <p>The derivation of the trait {@link DuplicateChanges} flows from the root to the leaf, that is,
+ * from the sink to the source.
  *
  * <p>Notes: This rule only supports HepPlanner with TOP_DOWN match order.
  */
@@ -156,22 +166,40 @@ public class DuplicateChangesInferRule extends RelRule<DuplicateChangesInferRule
         return !calcProgram.getExprList().stream().allMatch(RexUtil::isDeterministic);
     }
 
-    private List<DuplicateChangesTrait> getRequireDuplicateChangeTraits(
-            boolean allowDuplicateChanges) {
-        List<DuplicateChangesTrait> requireDuplicateChangeTraits = new ArrayList<>();
-        if (allowDuplicateChanges) {
-            requireDuplicateChangeTraits.add(DuplicateChangesTrait.ALLOW);
-        }
-        requireDuplicateChangeTraits.add(DuplicateChangesTrait.DISALLOW);
-        return requireDuplicateChangeTraits;
-    }
-
     private boolean canConsumeDuplicateChanges(StreamPhysicalSink sink) {
-        return sink.contextResolvedTable().getResolvedSchema().getPrimaryKey().isPresent();
+        boolean onlyAcceptInsertOnly = false;
+        try {
+            ChangelogMode sinkProvidedChangelogMode =
+                    sink.tableSink().getChangelogMode(ChangelogMode.all());
+            if (sinkProvidedChangelogMode.containsOnly(RowKind.INSERT)) {
+                onlyAcceptInsertOnly = true;
+            }
+        } catch (Throwable t) {
+            onlyAcceptInsertOnly = true;
+        }
+
+        return !onlyAcceptInsertOnly
+                && sink.contextResolvedTable().getResolvedSchema().getPrimaryKey().isPresent();
     }
 
     private boolean canConsumeDuplicateChanges(StreamPhysicalLegacySink<?> sink) {
-        return sink.sink().getTableSchema().getPrimaryKey().isPresent();
+        boolean onlyAcceptInsertOnly;
+        TableSink tableSink = sink.sink();
+        if (tableSink instanceof UpsertStreamTableSink
+                || tableSink instanceof RetractStreamTableSink) {
+            // if sink is upsert or retract
+            onlyAcceptInsertOnly = false;
+        } else if (tableSink instanceof StreamTableSink) {
+            // if sink is append or other stream table sink
+            onlyAcceptInsertOnly = true;
+        } else if (tableSink instanceof DataStreamTableSink) {
+            onlyAcceptInsertOnly = !((DataStreamTableSink) tableSink).withChangeFlag();
+        } else {
+            throw new IllegalStateException(
+                    "Unknown legacy sink type: " + sink.getClass().getSimpleName());
+        }
+
+        return !onlyAcceptInsertOnly && sink.sink().getTableSchema().getPrimaryKey().isPresent();
     }
 
     private List<RelNode> getInputs(RelNode parent) {

@@ -304,8 +304,6 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
         case DuplicateChanges.ALLOW => true
         case DuplicateChanges.DISALLOW => false
         case DuplicateChanges.NONE => true
-        case DuplicateChanges.UNKNOWN =>
-          throw new IllegalStateException("The duplicateChanges is not inferred")
         case _ =>
           throw new IllegalStateException(
             s"Unknown duplicateChanges: ${duplicateChangesTrait.getDuplicateChanges}"

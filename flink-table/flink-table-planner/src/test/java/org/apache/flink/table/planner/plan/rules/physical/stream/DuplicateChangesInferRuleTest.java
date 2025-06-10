@@ -40,6 +40,7 @@ import java.util.Collection;
 
 import scala.Enumeration;
 
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static scala.runtime.BoxedUnit.UNIT;
 
@@ -515,6 +516,22 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
         stmtSet.addInsertSql("insert into pk_snk select a, max(b), sum(c) from my_view group by a");
         stmtSet.addInsertSql("insert into pk_snk select a, min(b), max(c) from my_view group by a");
         verifyRelPlanInsert(stmtSet);
+    }
+
+    @TestTemplate
+    void testAppendOnlySinkWithPk() {
+        assumeFalse(testSinkWithPk);
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE append_only_sink_with_pk (\n"
+                                + "   primary key (a) not enforced\n"
+                                + ") LIKE no_pk_snk (\n"
+                                + "   OVERWRITING OPTIONS\n"
+                                + ")");
+
+        String sql = "insert into append_only_sink_with_pk select a, b, c from append_src1";
+        verifyRelPlanInsert(sql);
     }
 
     private void verifyRelPlanInsert(String insert) {

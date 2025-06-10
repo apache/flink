@@ -29,7 +29,6 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.planner.plan.trait.DuplicateChanges.ALLOW;
 import static org.apache.flink.table.planner.plan.trait.DuplicateChanges.DISALLOW;
 import static org.apache.flink.table.planner.plan.trait.DuplicateChanges.NONE;
-import static org.apache.flink.table.planner.plan.trait.DuplicateChanges.UNKNOWN;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DuplicateChangesUtils}. */
@@ -51,22 +50,14 @@ class DuplicateChangesUtilsTest {
                 // -------------------------------------
                 Tuple3.of(ALLOW, ALLOW, ALLOW),
                 Tuple3.of(ALLOW, DISALLOW, DISALLOW),
-                Tuple3.of(ALLOW, NONE, NONE),
-                Tuple3.of(ALLOW, UNKNOWN, ALLOW),
+                Tuple3.of(ALLOW, NONE, ALLOW),
                 // -------------------------------------
                 Tuple3.of(DISALLOW, ALLOW, DISALLOW),
                 Tuple3.of(DISALLOW, DISALLOW, DISALLOW),
-                Tuple3.of(DISALLOW, NONE, NONE),
-                Tuple3.of(DISALLOW, UNKNOWN, DISALLOW),
+                Tuple3.of(DISALLOW, NONE, DISALLOW),
                 // -------------------------------------
-                Tuple3.of(NONE, ALLOW, NONE),
-                Tuple3.of(NONE, DISALLOW, NONE),
-                Tuple3.of(NONE, NONE, NONE),
-                Tuple3.of(NONE, UNKNOWN, NONE),
-                // -------------------------------------
-                Tuple3.of(UNKNOWN, ALLOW, ALLOW),
-                Tuple3.of(UNKNOWN, DISALLOW, DISALLOW),
-                Tuple3.of(UNKNOWN, NONE, NONE),
-                Tuple3.of(UNKNOWN, UNKNOWN, UNKNOWN));
+                Tuple3.of(NONE, ALLOW, ALLOW),
+                Tuple3.of(NONE, DISALLOW, DISALLOW),
+                Tuple3.of(NONE, NONE, NONE));
     }
 }

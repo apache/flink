@@ -28,9 +28,6 @@ import org.apache.calcite.plan.RelTraitDef;
  */
 public class DuplicateChangesTrait implements RelTrait {
 
-    public static final DuplicateChangesTrait UNKNOWN =
-            new DuplicateChangesTrait(DuplicateChanges.UNKNOWN);
-
     public static final DuplicateChangesTrait ALLOW =
             new DuplicateChangesTrait(DuplicateChanges.ALLOW);
 

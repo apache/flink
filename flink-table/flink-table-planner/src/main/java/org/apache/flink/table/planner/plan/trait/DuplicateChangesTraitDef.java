@@ -57,6 +57,6 @@ public class DuplicateChangesTraitDef extends RelTraitDef<DuplicateChangesTrait>
 
     @Override
     public DuplicateChangesTrait getDefault() {
-        return DuplicateChangesTrait.UNKNOWN;
+        return DuplicateChangesTrait.NONE;
     }
 }

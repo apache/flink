@@ -19,8 +19,11 @@
 package org.apache.flink.table.planner.plan.trait;
 
 /**
- * Lists all kinds of all behaviors that handle consume redundant data produced by upstream
- * operators.
+ * Lists all kinds of all behaviors to describe whether the node can produce duplicated changes for
+ * downstream operators to consume.
+ *
+ * <p>The trait in each operator is determined by its downstream operators, meaning that downstream
+ * defines whether the operator is allowed to output duplicate changes.
  */
 public enum DuplicateChanges {
 
@@ -30,9 +33,9 @@ public enum DuplicateChanges {
     /** Disallow to produce duplicated data for downstream operators to consume. */
     DISALLOW,
 
-    /** There are no operators downstream of the operator like sink. */
-    NONE,
-
-    /** The {@link DuplicateChanges} is not inferred yet. */
-    UNKNOWN
+    /**
+     * The {@link DuplicateChanges} is not inferred yet or there are no operators downstream of the
+     * operator like sink.
+     */
+    NONE
 }

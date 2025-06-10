@@ -521,8 +521,6 @@ object FlinkStreamRuleSets {
     IncrementalAggregateRule.INSTANCE,
     // optimize window agg rule
     TwoStageOptimizedWindowAggregateRule.INSTANCE
-    // delta join redundant data acceptable infer rule
-
   )
 
 }

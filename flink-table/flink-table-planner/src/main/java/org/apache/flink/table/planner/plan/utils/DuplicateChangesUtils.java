@@ -48,33 +48,25 @@ public class DuplicateChangesUtils {
      *
      * <p>The logic matrix is following:
      *
-     * <p>ANY`(xxx) means any duplicate changes except xxx.
-     *
      * <pre>
      *       +-------------+-------------+---------------+
      *       | origin_1    | origin_2    | merge result  |
      *       +-------------+-------------+---------------+
-     *       | UNKNOWN     | `ANY`       |   `ANY`       |
-     *       | `ANY`       |  UNKNOWN    |   `ANY`       |
-     *       | NONE        | `ANY`       |   `NONE`      |
-     *       | `ANY`       |  NONE       |   `NONE`      |
-     *       | DISALLOW    | `ANY`(NONE) |   DISALLOW    |
-     *       | `ANY`(NONE) |  DISALLOW   |   DISALLOW    |
-     *       | ALLOW       | ALLOW       |   ALLOW       |
+     *       | NONE        | `ANY`       |   `ANY`      |
+     *       | `ANY`       |  NONE       |   `ANY`      |
+     *       | DISALLOW    | `ANY`       |   DISALLOW   |
+     *       | `ANY`       |  DISALLOW   |   DISALLOW   |
+     *       | ALLOW       | ALLOW       |   ALLOW      |
      *       +-------------+-------------+--------------+
      * </pre>
      */
     public static DuplicateChanges mergeDuplicateChanges(
             DuplicateChanges duplicateChanges1, DuplicateChanges duplicateChanges2) {
-        if (duplicateChanges1 == DuplicateChanges.UNKNOWN
-                || duplicateChanges2 == DuplicateChanges.UNKNOWN) {
-            return duplicateChanges1 == DuplicateChanges.UNKNOWN
-                    ? duplicateChanges2
-                    : duplicateChanges1;
-        }
         if (duplicateChanges1 == DuplicateChanges.NONE
                 || duplicateChanges2 == DuplicateChanges.NONE) {
-            return DuplicateChanges.NONE;
+            return duplicateChanges1 == DuplicateChanges.NONE
+                    ? duplicateChanges2
+                    : duplicateChanges1;
         }
         if (duplicateChanges1 == DuplicateChanges.DISALLOW
                 || duplicateChanges2 == DuplicateChanges.DISALLOW) {
