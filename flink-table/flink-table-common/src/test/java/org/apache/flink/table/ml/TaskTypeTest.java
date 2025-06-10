@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.ml;
 
+import org.apache.flink.table.api.ValidationException;
+
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,7 +59,8 @@ public class TaskTypeTest {
     @Test
     public void testFromNameWithInvalidName() {
         assertThatThrownBy(() -> TaskType.fromName("invalid_task_type"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Unknown task type: invalid_task_type.");
     }
 
     @Test

@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -54,7 +55,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                                 + "  b BIGINT,\n"
                                 + "  c STRING,\n"
                                 + "  d DECIMAL(10, 3),\n"
-                                + "  label STRING,\n"
+                                + "  label FLOAT,\n"
                                 + "  rowtime TIMESTAMP(3),\n"
                                 + "  proctime as PROCTIME(),\n"
                                 + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND\n"
@@ -67,7 +68,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                 .executeSql(
                         "CREATE MODEL MyModel\n"
                                 + "INPUT (a INT, b BIGINT)\n"
-                                + "OUTPUT(prediction STRING)\n"
+                                + "OUTPUT(prediction DOUBLE)\n"
                                 + "with (\n"
                                 + "  'provider' = 'test-model',\n"
                                 + "  'endpoint' = 'someendpoint',\n"
@@ -77,6 +78,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
 
     @Test
     public void testNamedArguments() {
+        Assertions.setMaxStackTraceElementsDisplayed(100);
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_EVALUATE("
@@ -85,7 +87,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "LABEL => DESCRIPTOR(label), "
                         + "TASK => 'classification', "
                         + "ARGS => DESCRIPTOR(a, b)))";
-        assertReachOptimizer(sql);
+        util.verifyRelPlan(sql);
     }
 
     @Test
@@ -98,7 +100,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "LABEL => DESCRIPTOR(label), "
                         + "ARGS => DESCRIPTOR(a, b), "
                         + "TASK => 'classification'))";
-        assertReachOptimizer(sql);
+        util.verifyRelPlan(sql);
     }
 
     @Test
@@ -112,7 +114,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "ARGS => DESCRIPTOR(a, b), "
                         + "TASK => 'classification', "
                         + "CONFIG => MAP['metrics', 'accuracy,f1']))";
-        assertReachOptimizer(sql);
+        util.verifyRelPlan(sql);
     }
 
     @Test
@@ -120,7 +122,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), DESCRIPTOR(a, b), 'classification'))";
-        assertReachOptimizer(sql);
+        util.verifyRelPlan(sql);
     }
 
     @Test
@@ -259,7 +261,18 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "'unsupported_task'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .hasMessageContaining(
-                        "Unsupported task: unsupported_task. Supported tasks are: [REGRESSION, CLUSTERING, CLASSIFICATION, EMBEDDING, TEXT_GENERATION].");
+                        "Invalid task type: 'unsupported_task'. Supported task types are: [regression, clustering, classification, embedding, text_generation].");
+    }
+
+    @Test
+    public void testWrongConfigType() {
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_EVALUATE("
+                        + "TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), DESCRIPTOR(a, b), "
+                        + "'classification', 10))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .hasMessageContaining("Config param should be a MAP.");
     }
 
     @Test
@@ -294,7 +307,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         String.format(
                                 "CREATE TABLE TypeTable (\n"
                                         + "  col %s,\n"
-                                        + "  label STRING\n"
+                                        + "  label double\n"
                                         + ") with (\n"
                                         + "  'connector' = 'values'\n"
                                         + ")",
@@ -306,7 +319,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         String.format(
                                 "CREATE MODEL TypeModel\n"
                                         + "INPUT (col %s)\n"
-                                        + "OUTPUT(prediction STRING)\n"
+                                        + "OUTPUT(prediction double)\n"
                                         + "with (\n"
                                         + "  'provider' = 'test-model',\n"
                                         + "  'endpoint' = 'someendpoint',\n"
@@ -317,7 +330,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col), 'classification'))";
-        assertReachOptimizer(sql);
+        util.verifyRelPlan(sql);
     }
 
     @ParameterizedTest
@@ -389,7 +402,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col), 'classification'))";
-        assertReachOptimizer(sql);
+        util.verifyRelPlan(sql);
     }
 
     @ParameterizedTest
@@ -497,23 +510,13 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                 Arguments.of("INT", "INT"),
                 Arguments.of("BIGINT", "BIGINT"),
                 Arguments.of("DOUBLE", "DOUBLE"),
-                Arguments.of("STRING", "STRING"),
-                Arguments.of("BOOLEAN", "BOOLEAN"),
                 // Numeric type widening
                 Arguments.of("TINYINT", "SMALLINT"),
                 Arguments.of("SMALLINT", "INT"),
                 Arguments.of("INT", "BIGINT"),
                 Arguments.of("BIGINT", "DECIMAL(19,0)"),
                 Arguments.of("DECIMAL(10,2)", "DOUBLE"),
-                Arguments.of("FLOAT", "DOUBLE"),
-                // String type compatibility
-                Arguments.of("CHAR(10)", "STRING"),
-                Arguments.of("VARCHAR(10)", "STRING"),
-                Arguments.of("STRING", "STRING"),
-                // Array types
-                Arguments.of("ARRAY<INT>", "ARRAY<INT>"),
-                Arguments.of("ARRAY<DOUBLE>", "ARRAY<DOUBLE>"),
-                Arguments.of("ARRAY<STRING>", "ARRAY<STRING>"));
+                Arguments.of("FLOAT", "DOUBLE"));
     }
 
     private static Stream<Arguments> incompatibleOutputTypeProvider() {
