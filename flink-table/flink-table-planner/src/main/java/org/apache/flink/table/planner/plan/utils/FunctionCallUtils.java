@@ -44,16 +44,16 @@ public abstract class FunctionCallUtils {
         @JsonSubTypes.Type(value = Constant.class),
         @JsonSubTypes.Type(value = FieldRef.class)
     })
-    public static class Variable {
-        private Variable() {
+    public static class FunctionParam {
+        private FunctionParam() {
             // sealed class
         }
     }
 
-    /** A {@link Variable} whose value is constant. */
+    /** A {@link FunctionParam} whose value is constant. */
     @JsonIgnoreProperties(ignoreUnknown = true)
     @JsonTypeName("Constant")
-    public static class Constant extends Variable {
+    public static class Constant extends FunctionParam {
         public static final String FIELD_NAME_SOURCE_TYPE = "sourceType";
         public static final String FIELD_NAME_LITERAL = "literal";
 
@@ -90,10 +90,10 @@ public abstract class FunctionCallUtils {
         }
     }
 
-    /** A {@link Variable} whose value comes from the left table field. */
+    /** A {@link FunctionParam} whose value comes from the left table field. */
     @JsonIgnoreProperties(ignoreUnknown = true)
     @JsonTypeName("FieldRef")
-    public static class FieldRef extends Variable {
+    public static class FieldRef extends FunctionParam {
         public static final String FIELD_NAME_INDEX = "index";
 
         @JsonProperty(FIELD_NAME_INDEX)

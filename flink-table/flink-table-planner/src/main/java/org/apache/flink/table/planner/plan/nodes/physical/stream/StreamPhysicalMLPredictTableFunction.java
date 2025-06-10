@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMLPredict
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.Variable;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FunctionParam;
 import org.apache.flink.table.planner.plan.utils.MLPredictUtils;
 import org.apache.flink.table.planner.plan.utils.UpsertKeyUtil;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
@@ -126,7 +126,7 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
         for (int i = 0; i < fieldNames.size(); i++) {
             column2Index.put(fieldNames.get(i), i);
         }
-        List<Variable> features =
+        List<FunctionParam> features =
                 descriptorCall.getOperands().stream()
                         .map(
                                 operand -> {

@@ -22,7 +22,7 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.Constant;
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.Variable;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FunctionParam;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -42,7 +42,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 @Internal
 public class LookupCallContext extends AbstractSqlCallContext {
 
-    private final List<Variable> lookupKeys;
+    private final List<FunctionParam> lookupKeys;
 
     private final List<DataType> argumentDataTypes;
 
@@ -52,7 +52,7 @@ public class LookupCallContext extends AbstractSqlCallContext {
             DataTypeFactory dataTypeFactory,
             UserDefinedFunction function,
             LogicalType inputType,
-            List<Variable> lookupKeys,
+            List<FunctionParam> lookupKeys,
             LogicalType lookupType) {
         super(dataTypeFactory, function, generateInlineFunctionName(function), false);
         this.lookupKeys = lookupKeys;
@@ -60,7 +60,7 @@ public class LookupCallContext extends AbstractSqlCallContext {
                 new AbstractList<>() {
                     @Override
                     public DataType get(int index) {
-                        final Variable key = getKey(index);
+                        final FunctionParam key = getKey(index);
                         final LogicalType keyType;
                         if (key instanceof Constant) {
                             keyType = ((Constant) key).sourceType;
@@ -117,7 +117,7 @@ public class LookupCallContext extends AbstractSqlCallContext {
 
     // --------------------------------------------------------------------------------------------
 
-    private Variable getKey(int pos) {
+    private FunctionParam getKey(int pos) {
         return lookupKeys.get(pos);
     }
 }

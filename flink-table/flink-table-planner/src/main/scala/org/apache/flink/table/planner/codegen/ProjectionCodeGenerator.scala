@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.codegen.GenerateUtils.{generateLiteral, ge
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens
 import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, RexLiteralUtil}
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.{Constant, Variable}
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.{Constant, FunctionParam}
 import org.apache.flink.table.runtime.generated.{GeneratedProjection, Projection}
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType, RowType}
 
@@ -371,7 +371,7 @@ object ProjectionCodeGenerator {
    *   the GeneratedProjection
    */
   def generateProjectionForLookupKeysFromLeftTable(
-      orderedLookupKeys: Array[Variable],
+      orderedLookupKeys: Array[FunctionParam],
       ctx: CodeGeneratorContext,
       name: String,
       inputType: RowType,

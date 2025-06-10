@@ -175,7 +175,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
      * or field from right table.
      */
     @JsonProperty(FIELD_NAME_LOOKUP_KEYS)
-    private final Map<Integer, FunctionCallUtils.Variable> lookupKeys;
+    private final Map<Integer, FunctionCallUtils.FunctionParam> lookupKeys;
 
     @JsonProperty(FIELD_NAME_TEMPORAL_TABLE)
     private final TemporalTableSourceSpec temporalTableSourceSpec;
@@ -218,7 +218,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             @Nullable RexNode remainingJoinCondition,
             // TODO: refactor this into TableSourceTable, once legacy TableSource is removed
             TemporalTableSourceSpec temporalTableSourceSpec,
-            Map<Integer, FunctionCallUtils.Variable> lookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> lookupKeys,
             @Nullable List<RexNode> projectionOnTemporalTable,
             @Nullable RexNode filterOnTemporalTable,
             @Nullable FunctionCallUtils.AsyncOptions asyncLookupOptions,
@@ -376,7 +376,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, FunctionCallUtils.Variable> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             AsyncTableFunction<Object> asyncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,
@@ -390,7 +390,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, FunctionCallUtils.Variable> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             TableFunction<?> syncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,
@@ -401,7 +401,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             boolean lookupKeyContainsPrimaryKey);
 
     protected void validateLookupKeyType(
-            final Map<Integer, FunctionCallUtils.Variable> lookupKeys,
+            final Map<Integer, FunctionCallUtils.FunctionParam> lookupKeys,
             final RowType inputRowType,
             final RowType tableSourceRowType) {
         final List<String> imCompatibleConditions = new LinkedList<>();
@@ -438,7 +438,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, FunctionCallUtils.Variable> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             AsyncTableFunction<Object> asyncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,
@@ -451,7 +451,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         DataTypeFactory dataTypeFactory =
                 ShortcutUtils.unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
 
-        List<FunctionCallUtils.Variable> convertedKeys =
+        List<FunctionCallUtils.FunctionParam> convertedKeys =
                 Arrays.stream(LookupJoinUtil.getOrderedLookupKeys(allLookupKeys.keySet()))
                         .mapToObj(allLookupKeys::get)
                         .collect(Collectors.toList());
@@ -540,7 +540,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, FunctionCallUtils.Variable> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             TableFunction<?> syncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,
@@ -581,7 +581,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, FunctionCallUtils.Variable> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             TableFunction<?> syncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,
@@ -593,7 +593,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         DataTypeFactory dataTypeFactory =
                 ShortcutUtils.unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
 
-        List<FunctionCallUtils.Variable> convertedKeys =
+        List<FunctionCallUtils.FunctionParam> convertedKeys =
                 Arrays.stream(LookupJoinUtil.getOrderedLookupKeys(allLookupKeys.keySet()))
                         .mapToObj(allLookupKeys::get)
                         .collect(Collectors.toList());

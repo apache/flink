@@ -32,7 +32,7 @@ import java.io.IOException;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test LookupKey json ser/de. */
-class VariableSerdeTest {
+class FunctionParamSerdeTest {
 
     @Test
     void testLookupKey() throws IOException {
@@ -40,18 +40,18 @@ class VariableSerdeTest {
         ObjectReader objectReader = CompiledPlanSerdeUtil.createJsonObjectReader(serdeCtx);
         ObjectWriter objectWriter = CompiledPlanSerdeUtil.createJsonObjectWriter(serdeCtx);
 
-        FunctionCallUtils.Variable[] lookupKeys =
-                new FunctionCallUtils.Variable[] {
+        FunctionCallUtils.FunctionParam[] lookupKeys =
+                new FunctionCallUtils.FunctionParam[] {
                     new FunctionCallUtils.Constant(
                             new BigIntType(),
                             new RexBuilder(serdeCtx.getTypeFactory()).makeLiteral("a")),
                     new FunctionCallUtils.FieldRef(3)
                 };
-        for (FunctionCallUtils.Variable lookupKey : lookupKeys) {
-            FunctionCallUtils.Variable result =
+        for (FunctionCallUtils.FunctionParam lookupKey : lookupKeys) {
+            FunctionCallUtils.FunctionParam result =
                     objectReader.readValue(
                             objectWriter.writeValueAsString(lookupKey),
-                            FunctionCallUtils.Variable.class);
+                            FunctionCallUtils.FunctionParam.class);
             assertThat(result).isEqualTo(lookupKey);
         }
     }

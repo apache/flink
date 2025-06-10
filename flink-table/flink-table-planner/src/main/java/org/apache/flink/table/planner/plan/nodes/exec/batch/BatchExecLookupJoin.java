@@ -71,7 +71,7 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
             @Nullable RexNode preFilterCondition,
             @Nullable RexNode remainingJoinCondition,
             TemporalTableSourceSpec temporalTableSourceSpec,
-            Map<Integer, FunctionCallUtils.Variable> lookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> lookupKeys,
             @Nullable List<RexNode> projectionOnTemporalTable,
             @Nullable RexNode filterOnTemporalTable,
             @Nullable FunctionCallUtils.AsyncOptions asyncLookupOptions,
@@ -112,7 +112,7 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
             @JsonProperty(FIELD_NAME_TEMPORAL_TABLE)
                     TemporalTableSourceSpec temporalTableSourceSpec,
             @JsonProperty(FIELD_NAME_LOOKUP_KEYS)
-                    Map<Integer, FunctionCallUtils.Variable> lookupKeys,
+                    Map<Integer, FunctionCallUtils.FunctionParam> lookupKeys,
             @JsonProperty(FIELD_NAME_PROJECTION_ON_TEMPORAL_TABLE) @Nullable
                     List<RexNode> projectionOnTemporalTable,
             @JsonProperty(FIELD_NAME_FILTER_ON_TEMPORAL_TABLE) @Nullable
@@ -159,7 +159,7 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, FunctionCallUtils.Variable> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             TableFunction<?> syncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,

@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.verifyFunctionAwareImplementation
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.inference.LookupCallContext
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.{Constant, FieldRef, Variable}
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.{Constant, FieldRef, FunctionParam}
 import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.{ListenableCollector, TableFunctionResultFuture}
@@ -71,7 +71,7 @@ object LookupJoinCodeGenerator {
       inputType: LogicalType,
       tableSourceType: LogicalType,
       returnType: LogicalType,
-      lookupKeys: util.List[Variable],
+      lookupKeys: util.List[FunctionParam],
       syncLookupFunction: TableFunction[_],
       functionName: String,
       fieldCopy: Boolean): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
@@ -109,7 +109,7 @@ object LookupJoinCodeGenerator {
       inputType: LogicalType,
       tableSourceType: LogicalType,
       returnType: LogicalType,
-      lookupKeys: util.List[Variable],
+      lookupKeys: util.List[FunctionParam],
       asyncLookupFunction: AsyncTableFunction[_],
       functionName: String): GeneratedTableFunctionWithDataType[AsyncFunction[RowData, AnyRef]] = {
 
@@ -138,7 +138,7 @@ object LookupJoinCodeGenerator {
       inputType: LogicalType,
       tableSourceType: LogicalType,
       returnType: LogicalType,
-      lookupKeys: util.List[Variable],
+      lookupKeys: util.List[FunctionParam],
       lookupFunctionBase: Class[_],
       lookupFunction: UserDefinedFunction,
       functionName: String,
@@ -195,7 +195,7 @@ object LookupJoinCodeGenerator {
   private def prepareOperands(
       ctx: CodeGeneratorContext,
       inputType: LogicalType,
-      lookupKeys: util.List[Variable],
+      lookupKeys: util.List[FunctionParam],
       fieldCopy: Boolean): Seq[GeneratedExpression] = {
 
     lookupKeys.asScala

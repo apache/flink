@@ -527,7 +527,7 @@ public final class LookupJoinUtil extends FunctionCallUtils {
             PlannerBase planner,
             RelOptTable table,
             RowType inputRowType,
-            Map<Integer, Variable> allLookupKeys,
+            Map<Integer, FunctionParam> allLookupKeys,
             Transformation<RowData> inputTransformation,
             ChangelogMode inputChangelogMode,
             TransformationMetadata metadata) {

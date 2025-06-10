@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalR
 import org.apache.flink.table.planner.plan.schema.{IntermediateRelTable, LegacyTableSourceTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, ExpressionFormat, InputRefVisitor, JoinTypeUtil, LookupJoinUtil, RelExplainUtil, TemporalJoinUtil}
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.{AsyncOptions, Constant, FieldRef, Variable}
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.{AsyncOptions, Constant, FieldRef, FunctionParam}
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
@@ -95,7 +95,7 @@ abstract class CommonPhysicalLookupJoin(
   extends SingleRel(cluster, traitSet, inputRel)
   with FlinkRelNode {
 
-  val allLookupKeys: Map[Int, Variable] = {
+  val allLookupKeys: Map[Int, FunctionParam] = {
     // join key pairs from left input field index to temporal table field index
     val joinKeyPairs: Array[IntPair] =
       TemporalJoinUtil.getTemporalTableJoinKeyPairs(joinInfo, calcOnTemporalTable)
@@ -227,7 +227,7 @@ abstract class CommonPhysicalLookupJoin(
   private def splitJoinCondition(
       rexBuilder: RexBuilder,
       leftRelDataType: RelDataType,
-      leftKeys: List[Variable],
+      leftKeys: List[FunctionParam],
       joinInfo: JoinInfo): (Option[RexNode], Option[RexNode]) = {
     // indexes of left key fields
     val leftKeyIndexes =
@@ -297,7 +297,7 @@ abstract class CommonPhysicalLookupJoin(
   private def analyzeLookupKeys(
       rexBuilder: RexBuilder,
       joinKeyPairs: Array[IntPair],
-      calcOnTemporalTable: Option[RexProgram]): Map[Int, Variable] = {
+      calcOnTemporalTable: Option[RexProgram]): Map[Int, FunctionParam] = {
     // field_index_in_table_source => constant_lookup_key
     val constantLookupKeys = new mutable.HashMap[Int, Constant]
     // analyze constant lookup keys
@@ -309,7 +309,7 @@ abstract class CommonPhysicalLookupJoin(
       extractConstantFieldsFromEquiCondition(condition, constantLookupKeys)
     }
     val fieldRefLookupKeys = joinKeyPairs.map(p => (p.target, new FieldRef(p.source)))
-    constantLookupKeys.toMap[Int, Variable] ++ fieldRefLookupKeys.toMap[Int, Variable]
+    constantLookupKeys.toMap[Int, FunctionParam] ++ fieldRefLookupKeys.toMap[Int, FunctionParam]
   }
 
   /** Check if lookup key contains primary key, include constant lookup keys. */
