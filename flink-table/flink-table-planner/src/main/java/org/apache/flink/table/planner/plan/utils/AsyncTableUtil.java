@@ -51,14 +51,13 @@ public class AsyncTableUtil extends FunctionCallUtils {
     public static AsyncRetryStrategy<RowData> getResultRetryStrategy(ExecNodeConfig config) {
         ExecutionConfigOptions.RetryStrategy retryStrategy =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_RETRY_STRATEGY);
-        Duration retryDelay =
-                config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_RETRY_DELAY);
+        Duration retryDelay = config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_RETRY_DELAY);
         int retryMaxAttempts =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_TABLE_MAX_RETRIES);
         // Only fixed delay is allowed at the moment, so just ignore the config.
         if (retryStrategy == ExecutionConfigOptions.RetryStrategy.FIXED_DELAY) {
             return new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder<RowData>(
-                    retryMaxAttempts, retryDelay.toMillis())
+                            retryMaxAttempts, retryDelay.toMillis())
                     .ifResult(EMPTY_RESPONSE)
                     .ifException(ANY_EXCEPTION)
                     .build();

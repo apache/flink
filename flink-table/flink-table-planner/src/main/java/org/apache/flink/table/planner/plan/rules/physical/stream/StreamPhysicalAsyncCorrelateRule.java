@@ -24,7 +24,6 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalAsyncCorrelate;
-import org.apache.flink.table.planner.plan.utils.AsyncTableUtil;
 import org.apache.flink.table.planner.plan.utils.AsyncUtil;
 
 import org.apache.calcite.plan.RelOptRule;
