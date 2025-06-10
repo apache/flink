@@ -23,6 +23,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 
+import java.util.List;
+
 /**
  * A factory for creating {@link RelDataType} instances including Flink-specific extensions.
  *
@@ -33,4 +35,10 @@ public interface ExtendedRelTypeFactory extends RelDataTypeFactory {
 
     /** Creates a RAW type such as {@code RAW('org.my.Class', 'sW3Djsds...')}. */
     RelDataType createRawType(String className, String serializerString);
+
+    /**
+     * Creates a STRUCTURED type such as {@code STRUCTURED('org.my.Class', name STRING, age INT)}.
+     */
+    RelDataType createStructuredType(
+            String className, List<RelDataType> typeList, List<String> fieldNameList);
 }

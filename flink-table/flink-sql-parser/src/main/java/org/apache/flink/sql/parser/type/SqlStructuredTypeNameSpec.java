@@ -18,62 +18,45 @@
 
 package org.apache.flink.sql.parser.type;
 
+import org.apache.flink.table.calcite.ExtendedRelTypeFactory;
+
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlRowTypeNameSpec;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlTypeNameSpec;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.util.Litmus;
+import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * A sql type name specification of ROW type.
- *
- * <p>The difference with {@link SqlRowTypeNameSpec}:
- *
- * <ul>
- *   <li>Support comment syntax for every field
- *   <li>Field data type default is nullable
- *   <li>Support ROW type with empty fields, e.g. ROW()
- * </ul>
- */
-public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
+/** A SQL type name specification of STRUCTURED type. */
+public class SqlStructuredTypeNameSpec extends SqlTypeNameSpec {
 
+    private final SqlNode className;
     private final List<SqlIdentifier> fieldNames;
     private final List<SqlDataTypeSpec> fieldTypes;
     private final List<SqlCharStringLiteral> comments;
 
-    private final boolean unparseAsStandard;
-
-    /**
-     * Creates a ROW type specification.
-     *
-     * @param pos parser position
-     * @param fieldNames field names
-     * @param fieldTypes field data types
-     * @param comments field comments
-     * @param unparseAsStandard whether to unparse as standard SQL style
-     */
-    public ExtendedSqlRowTypeNameSpec(
+    public SqlStructuredTypeNameSpec(
             SqlParserPos pos,
+            SqlNode className,
             List<SqlIdentifier> fieldNames,
             List<SqlDataTypeSpec> fieldTypes,
-            List<SqlCharStringLiteral> comments,
-            boolean unparseAsStandard) {
-        super(new SqlIdentifier(SqlTypeName.ROW.getName(), pos), pos);
+            List<SqlCharStringLiteral> comments) {
+        super(new SqlIdentifier(SqlTypeName.STRUCTURED.getName(), pos), pos);
+        this.className = className;
         this.fieldNames = fieldNames;
         this.fieldTypes = fieldTypes;
         this.comments = comments;
-        this.unparseAsStandard = unparseAsStandard;
     }
 
     public List<SqlIdentifier> getFieldNames() {
@@ -88,51 +71,39 @@ public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
         return comments;
     }
 
-    public boolean unparseAsStandard() {
-        return unparseAsStandard;
-    }
-
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.print("ROW");
-        if (fieldNames.isEmpty()) {
-            if (unparseAsStandard) {
-                writer.print("()");
-            } else {
-                writer.print("<>");
+        writer.print("STRUCTURED");
+        final SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "<", ">");
+        writer.sep(","); // configures the writer
+        className.unparse(writer, leftPrec, rightPrec);
+        int i = 0;
+        for (Pair<SqlIdentifier, SqlDataTypeSpec> p : Pair.zip(fieldNames, fieldTypes)) {
+            assert p.left != null;
+            assert p.right != null;
+            writer.sep(",");
+            p.left.unparse(writer, 0, 0);
+            p.right.unparse(writer, leftPrec, rightPrec);
+            if (p.right.getNullable() != null && !p.right.getNullable()) {
+                writer.keyword("NOT NULL");
             }
-        } else {
-            final SqlWriter.Frame frame;
-            if (unparseAsStandard) {
-                frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "(", ")");
-            } else {
-                frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "<", ">");
+            if (comments.get(i) != null) {
+                comments.get(i).unparse(writer, leftPrec, rightPrec);
             }
-            int i = 0;
-            for (Pair<SqlIdentifier, SqlDataTypeSpec> p : Pair.zip(fieldNames, fieldTypes)) {
-                assert p.left != null;
-                assert p.right != null;
-                writer.sep(",", false);
-                p.left.unparse(writer, 0, 0);
-                p.right.unparse(writer, leftPrec, rightPrec);
-                if (p.right.getNullable() != null && !p.right.getNullable()) {
-                    writer.keyword("NOT NULL");
-                }
-                if (comments.get(i) != null) {
-                    comments.get(i).unparse(writer, leftPrec, rightPrec);
-                }
-                i += 1;
-            }
-            writer.endList(frame);
+            i += 1;
         }
+        writer.endList(frame);
     }
 
     @Override
     public boolean equalsDeep(SqlTypeNameSpec spec, Litmus litmus) {
-        if (!(spec instanceof SqlRowTypeNameSpec)) {
+        if (!(spec instanceof SqlStructuredTypeNameSpec)) {
             return litmus.fail("{} != {}", this, spec);
         }
-        final ExtendedSqlRowTypeNameSpec that = (ExtendedSqlRowTypeNameSpec) spec;
+        final SqlStructuredTypeNameSpec that = (SqlStructuredTypeNameSpec) spec;
+        if (!this.className.equalsDeep(that.className, litmus)) {
+            return litmus.fail("{} != {}", this, spec);
+        }
         if (this.fieldNames.size() != that.fieldNames.size()) {
             return litmus.fail("{} != {}", this, spec);
         }
@@ -153,9 +124,12 @@ public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
     }
 
     @Override
+    @SuppressWarnings("DataFlowIssue")
     public RelDataType deriveType(SqlValidator sqlValidator) {
-        final RelDataTypeFactory typeFactory = sqlValidator.getTypeFactory();
-        return typeFactory.createStructType(
+        final ExtendedRelTypeFactory typeFactory =
+                (ExtendedRelTypeFactory) sqlValidator.getTypeFactory();
+        return typeFactory.createStructuredType(
+                ((NlsString) SqlLiteral.value(className)).getValue(),
                 fieldTypes.stream()
                         .map(dt -> dt.deriveType(sqlValidator))
                         .collect(Collectors.toList()),
