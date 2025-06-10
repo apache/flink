@@ -33,7 +33,7 @@ LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 +- Calc(select=[a, name, age])
-   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, 180000ms, 100])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, KEY_ORDERED: false, 180000ms, 100])
       +- Calc(select=[a])
          +- GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])
             +- Exchange(distribution=[hash[b]])
@@ -43,7 +43,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 +- Calc(select=[a, name, age])
-   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, 180000ms, 100])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, KEY_ORDERED: false, 180000ms, 100])
       +- Calc(select=[a])
          +- GroupAggregate(groupBy=[b], select=[b, MAX(a) AS a])
             +- Exchange(distribution=[hash[b]])
@@ -106,7 +106,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
     "id" : ,
     "type" : "LookupJoin[]",
     "pact" : "Operator",
-    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, 180000ms, 100])",
+    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[LeftOuterJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, KEY_ORDERED: false, 180000ms, 100])",
     "parallelism" : 4,
     "predecessors" : [ {
       "id" : ,
@@ -153,14 +153,14 @@ LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 +- Calc(select=[a, name, age])
-   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, 180000ms, 100])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, KEY_ORDERED: false, 180000ms, 100])
       +- Calc(select=[a])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 +- Calc(select=[a, name, age])
-   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, 180000ms, 100])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, KEY_ORDERED: false, 180000ms, 100])
       +- Calc(select=[a])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 
@@ -198,7 +198,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
     "id" : ,
     "type" : "LookupJoin[]",
     "pact" : "Operator",
-    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, 180000ms, 100])",
+    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[ORDERED, KEY_ORDERED: false, 180000ms, 100])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -293,7 +293,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[ORDERED, 180000ms, 100])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[ORDERED, KEY_ORDERED: false, 180000ms, 100])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -315,7 +315,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[ORDERED, 180000ms, 100])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[ORDERED, KEY_ORDERED: false, 180000ms, 100])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -352,9 +352,9 @@ LogicalProject(a=[$0])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
-+- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id], async=[ORDERED, 180000ms, 200])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id], async=[ORDERED, KEY_ORDERED: false, 180000ms, 200])
    +- Calc(select=[a])
-      +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id], async=[UNORDERED, 180000ms, 1000])
+      +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 1000])
          +- Calc(select=[a])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -462,14 +462,14 @@ LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 +- Calc(select=[a, name, age])
-   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[UNORDERED, 180000ms, 300], retry=[lookup_miss, FIXED_DELAY, 10000ms, 3])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 300], retry=[lookup_miss, FIXED_DELAY, 10000ms, 3])
       +- Calc(select=[a])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 +- Calc(select=[a, name, age])
-   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[UNORDERED, 180000ms, 300], retry=[lookup_miss, FIXED_DELAY, 10000ms, 3])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 300], retry=[lookup_miss, FIXED_DELAY, 10000ms, 3])
       +- Calc(select=[a])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 
@@ -507,7 +507,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
     "id" : ,
     "type" : "LookupJoin[]",
     "pact" : "Operator",
-    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[UNORDERED, 180000ms, 300], retry=[lookup_miss, FIXED_DELAY, 10000ms, 3])",
+    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 300], retry=[lookup_miss, FIXED_DELAY, 10000ms, 3])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -568,6 +568,27 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testJoinAsyncTableKeyOrderedWithCdcSource">
+		<Resource name="optimized exec plan">
+		<![CDATA[
+Calc(select=[id, name, age, PROCTIME_MATERIALIZE(proctime) AS proctime, id0, name0, age0])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=id], select=[id, name, age, proctime, id0, name0, age0], async=[ORDERED, KEY_ORDERED: true, 180000ms, 100])
+   +- Calc(select=[id, name, age, PROCTIME() AS proctime])
+      +- DropUpdateBefore
+         +- TableSourceScan(table=[[default_catalog, default_database, UpsertTable]], fields=[id, name, age])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinAsyncTableKeyOrderedWithAppendOnlySource">
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[id, name, age, PROCTIME_MATERIALIZE(proctime) AS proctime, id0, name0, age0])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=id], select=[id, name, age, proctime, id0, name0, age0], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 100])
+   +- Calc(select=[id, name, age, PROCTIME() AS proctime])
+      +- TableSourceScan(table=[[default_catalog, default_database, AppendOnlyTable]], fields=[id, name, age])
+]]>
+		</Resource>
+	</TestCase>
   <TestCase name="testJoinTemporalTableWithComputedColumn">
     <Resource name="sql">
       <![CDATA[
@@ -1257,14 +1278,14 @@ LogicalSink(table=[default_catalog.default_database.Sink1], fields=[a, name, age
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 +- Calc(select=[a, name, age])
-   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[UNORDERED, 180000ms, 300])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 300])
       +- Calc(select=[a])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
 +- Calc(select=[a, name, age])
-   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[UNORDERED, 180000ms, 300])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 300])
       +- Calc(select=[a])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 
@@ -1302,7 +1323,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
     "id" : ,
     "type" : "LookupJoin[]",
     "pact" : "Operator",
-    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[UNORDERED, 180000ms, 300])",
+    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, id, name, age], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 300])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -1482,7 +1503,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[UNORDERED, 180000ms, 100])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 100])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -1539,7 +1560,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, id0, name0, age0])
 +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age, id0, name0, age0], retry=[lookup_miss, FIXED_DELAY, 10000ms, 3])
-   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[UNORDERED, 180000ms, 100])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 100])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -1567,7 +1588,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[UNORDERED, 180000ms, 100])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 100])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -1602,7 +1623,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], id=[$5], nam
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, name, age, id0, name0, age0])
 +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age, id0, name0, age0], retry=[lookup_miss, FIXED_DELAY, 10000ms, 3])
-   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[UNORDERED, 180000ms, 100])
+   +- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, rowtime, id, name, age], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 100])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>

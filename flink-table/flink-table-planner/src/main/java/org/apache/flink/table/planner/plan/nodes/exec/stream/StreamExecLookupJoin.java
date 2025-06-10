@@ -24,11 +24,13 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
@@ -67,8 +69,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink.PARTITIONER_TRANSFORMATION;
-
 /** {@link StreamExecNode} for temporal table join that implemented by lookup. */
 @ExecNodeMetadata(
         name = "stream-exec-lookup-join",
@@ -79,6 +79,8 @@ import static org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSi
 public class StreamExecLookupJoin extends CommonExecLookupJoin
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
     public static final String FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE = "requireUpsertMaterialize";
+
+    public static final String PARTITIONER_TRANSFORMATION_LOOKUP_JOIN = "partitioner";
 
     public static final String FIELD_NAME_LOOKUP_KEY_CONTAINS_PRIMARY_KEY =
             "lookupKeyContainsPrimaryKey";
@@ -212,6 +214,56 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
     }
 
     @Override
+    protected Transformation<RowData> createKeyOrderedAsyncLookupJoin(
+            Transformation<RowData> inputTransformation,
+            RelOptTable temporalTable,
+            ExecNodeConfig config,
+            ClassLoader classLoader,
+            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            AsyncTableFunction<Object> asyncLookupFunction,
+            RelBuilder relBuilder,
+            RowType inputRowType,
+            RowType tableSourceRowType,
+            RowType resultRowType,
+            boolean isLeftOuterJoin,
+            LookupJoinUtil.AsyncLookupOptions asyncLookupOptions) {
+        RowDataKeySelector keySelector = getKeySelector(classLoader, inputRowType);
+
+        Transformation<RowData> partitionedTransform =
+                createPartitionTransformation(keySelector, inputTransformation, config);
+
+        StreamOperatorFactory<RowData> operatorFactory;
+
+        operatorFactory =
+                createAsyncLookupJoin(
+                        temporalTable,
+                        config,
+                        classLoader,
+                        allLookupKeys,
+                        asyncLookupFunction,
+                        relBuilder,
+                        inputRowType,
+                        tableSourceRowType,
+                        resultRowType,
+                        isLeftOuterJoin,
+                        asyncLookupOptions,
+                        keySelector);
+
+        OneInputTransformation<RowData, RowData> transform =
+                ExecNodeUtil.createOneInputTransformation(
+                        partitionedTransform,
+                        createTransformationMeta(LOOKUP_JOIN_KEY_ORDERED_TRANSFORMATION, config),
+                        operatorFactory,
+                        InternalTypeInfo.of(resultRowType),
+                        partitionedTransform.getParallelism(),
+                        false);
+
+        transform.setStateKeySelector(keySelector);
+        transform.setStateKeyType(keySelector.getProducedType());
+        return transform;
+    }
+
+    @Override
     protected Transformation<RowData> createSyncLookupJoinWithState(
             Transformation<RowData> inputTransformation,
             RelOptTable temporalTable,
@@ -259,28 +311,10 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(keyedLookupJoinWrapper);
 
-        int[] shuffleKeys;
-        if (inputUpsertKey == null || inputUpsertKey.length == 0) {
-            // input has no upsertKeys, then use all columns for key selector
-            shuffleKeys = IntStream.range(0, inputRowType.getFieldCount()).toArray();
-        } else {
-            shuffleKeys = inputUpsertKey;
-            // make it a deterministic asc order
-            Arrays.sort(shuffleKeys);
-        }
+        RowDataKeySelector keySelector = getKeySelector(classLoader, inputRowType);
 
-        RowDataKeySelector keySelector;
-        keySelector =
-                KeySelectorUtil.getRowDataSelector(
-                        classLoader, shuffleKeys, InternalTypeInfo.of(inputRowType));
-        final KeyGroupStreamPartitioner<RowData, RowData> partitioner =
-                new KeyGroupStreamPartitioner<>(
-                        keySelector, KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
         Transformation<RowData> partitionedTransform =
-                new PartitionTransformation<>(inputTransformation, partitioner);
-        createTransformationMeta(PARTITIONER_TRANSFORMATION, "Partitioner", "Partitioner", config)
-                .fill(partitionedTransform);
-        partitionedTransform.setParallelism(inputTransformation.getParallelism(), false);
+                createPartitionTransformation(keySelector, inputTransformation, config);
 
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
@@ -293,5 +327,47 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
         transform.setStateKeySelector(keySelector);
         transform.setStateKeyType(keySelector.getProducedType());
         return transform;
+    }
+
+    private RowDataKeySelector getKeySelector(ClassLoader classLoader, RowType inputRowType) {
+        RowDataKeySelector keySelector;
+        int[] shuffleKeys = inputUpsertKey;
+        // Two cases the upsertKeys could be null
+        // 1. If the job is restored from exec plan then upsertKeys could be null
+        // 2. If planner could not deduce the upsertKeys then upsertKeys could also be null.
+        if (shuffleKeys == null || shuffleKeys.length == 0) {
+            shuffleKeys = IntStream.range(0, inputRowType.getFieldCount()).toArray();
+        } else {
+            // make it a deterministic asc order
+            Arrays.sort(shuffleKeys);
+        }
+        keySelector =
+                KeySelectorUtil.getRowDataSelector(
+                        classLoader, shuffleKeys, InternalTypeInfo.of(inputRowType));
+
+        return keySelector;
+    }
+
+    private Transformation<RowData> createPartitionTransformation(
+            RowDataKeySelector keySelector,
+            Transformation<RowData> inputTransformation,
+            ExecNodeConfig config) {
+
+        final KeyGroupStreamPartitioner<RowData, RowData> partitioner =
+                new KeyGroupStreamPartitioner<>(
+                        keySelector, KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
+        Transformation<RowData> partitionedTransform =
+                new PartitionTransformation<>(inputTransformation, partitioner);
+
+        createTransformationMeta(
+                        PARTITIONER_TRANSFORMATION_LOOKUP_JOIN,
+                        "Partitioner",
+                        "Partitioner",
+                        config)
+                .fill(partitionedTransform);
+
+        partitionedTransform.setParallelism(inputTransformation.getParallelism(), false);
+
+        return partitionedTransform;
     }
 }

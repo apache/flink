@@ -15,6 +15,12 @@
             <td>The max number of async i/o operation that the async lookup join can trigger.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.async-lookup.key-ordered-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>When true, async lookup joins would follow the upsert key order in cdc streams. If there is no defined upsert key, then the total record is considered as the upsert key. Setting this for insert-only streams has no effect because record in insert-only streams is independent and does not affect the state of previous records. Besides, since records in insert-only streams typically do not involve a primary key then no upsertKey can be derived. This makes them be unordered processed even if key ordered enabled.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.async-lookup.output-mode</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">ORDERED</td>
             <td><p>Enum</p></td>
