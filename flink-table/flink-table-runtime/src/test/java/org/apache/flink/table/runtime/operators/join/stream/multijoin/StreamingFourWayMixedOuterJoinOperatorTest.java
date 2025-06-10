@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
-import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -104,10 +104,10 @@ class StreamingFourWayMixedOuterJoinOperatorTest extends StreamingMultiJoinOpera
                 stateBackendMode,
                 4, // numInputs
                 List.of(
-                        JoinType.INNER, // Placeholder for Users (Input 0)
-                        JoinType.LEFT, // Orders (Input 1)
-                        JoinType.INNER, // Payments (Input 2)
-                        JoinType.LEFT // Shipments (Input 3)
+                        FlinkJoinType.INNER, // Placeholder for Users (Input 0)
+                        FlinkJoinType.LEFT, // Orders (Input 1)
+                        FlinkJoinType.INNER, // Payments (Input 2)
+                        FlinkJoinType.LEFT // Shipments (Input 3)
                         ),
                 customJoinConditions,
                 customAttributeMap,

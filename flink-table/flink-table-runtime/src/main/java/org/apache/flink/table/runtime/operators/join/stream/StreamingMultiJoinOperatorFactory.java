@@ -24,7 +24,8 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.generated.MultiJoinCondition;
-import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -43,24 +44,22 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
 
     private final List<InternalTypeInfo<RowData>> inputTypeInfos;
     private final List<JoinInputSideSpec> inputSideSpecs;
-    private final List<StreamingMultiJoinOperator.JoinType> joinTypes;
+    private final List<FlinkJoinType> joinTypes;
     private final MultiJoinCondition multiJoinCondition;
     private final long[] stateRetentionTime;
     private final JoinCondition[] joinConditions;
     private final JoinKeyExtractor keyExtractor;
-    private final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
-            joinAttributeMap;
+    private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
 
     public StreamingMultiJoinOperatorFactory(
             final List<InternalTypeInfo<RowData>> inputTypeInfos,
             final List<JoinInputSideSpec> inputSideSpecs,
-            final List<StreamingMultiJoinOperator.JoinType> joinTypes,
+            final List<FlinkJoinType> joinTypes,
             @Nullable final MultiJoinCondition multiJoinCondition,
             final long[] stateRetentionTime,
             final JoinCondition[] joinConditions,
             final JoinKeyExtractor keyExtractor,
-            final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
-                    joinAttributeMap) {
+            final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
         this.inputTypeInfos = inputTypeInfos;
         this.inputSideSpecs = inputSideSpecs;
         this.joinTypes = joinTypes;

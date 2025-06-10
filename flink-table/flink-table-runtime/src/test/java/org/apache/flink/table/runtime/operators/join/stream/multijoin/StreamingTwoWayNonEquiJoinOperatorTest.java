@@ -23,8 +23,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator;
-import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -69,7 +69,7 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
         super(
                 stateBackendMode,
                 2, // numInputs
-                List.of(JoinType.INNER, JoinType.INNER), // joinTypes
+                List.of(FlinkJoinType.INNER, FlinkJoinType.INNER), // joinTypes
                 customJoinConditions,
                 customAttributeMap,
                 false // isFullOuterJoin

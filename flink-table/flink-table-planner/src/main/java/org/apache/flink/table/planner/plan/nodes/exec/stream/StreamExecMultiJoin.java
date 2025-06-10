@@ -39,7 +39,7 @@ import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
-import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperatorFactory;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
@@ -83,11 +83,10 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     private static final String FIELD_NAME_JOIN_CONDITIONS = "joinConditions";
     private static final String FIELD_NAME_JOIN_ATTRIBUTE_MAP = "joinAttributeMap";
     private static final String FIELD_NAME_INPUT_UPSERT_KEYS = "inputUpsertKeys";
-    private static final String FIELD_NAME_STATE_METADATA_LIST = "stateMetadataList";
     private static final String FIELD_NAME_MULTI_JOIN_CONDITION = "multiJoinCondition";
 
     @JsonProperty(FIELD_NAME_JOIN_TYPES)
-    private final List<JoinType> joinTypes;
+    private final List<FlinkJoinType> joinTypes;
 
     @JsonProperty(FIELD_NAME_JOIN_CONDITIONS)
     private final List<? extends @Nullable RexNode> joinConditions;
@@ -106,19 +105,18 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     // multiple upsert (unique) keys per input
     private final List<List<int[]>> inputUpsertKeys;
 
-    @JsonProperty(FIELD_NAME_STATE_METADATA_LIST)
-    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonProperty(FIELD_NAME_STATE)
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
     private final List<StateMetadata> stateMetadataList;
 
     public StreamExecMultiJoin(
             final ReadableConfig tableConfig,
-            final List<JoinType> joinTypes,
+            final List<FlinkJoinType> joinTypes,
             final List<? extends @Nullable RexNode> joinConditions,
             @Nullable final RexNode multiJoinCondition,
-            final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
-                    joinAttributeMap,
+            final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
             final List<List<int[]>> inputUpsertKeys,
-            final Map<Integer, Long> stateTtl,
+            final Map<Integer, Long> stateTtlFromHint,
             final List<InputProperty> inputProperties,
             final RowType outputType,
             final String description) {
@@ -132,7 +130,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 joinAttributeMap,
                 inputUpsertKeys,
                 StateMetadata.getMultiInputOperatorDefaultMeta(
-                        stateTtl, tableConfig, generateStateNames(inputProperties.size())),
+                        stateTtlFromHint, tableConfig, generateStateNames(inputProperties.size())),
                 inputProperties,
                 outputType,
                 description);
@@ -143,17 +141,15 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_ID) final int id,
             @JsonProperty(FIELD_NAME_TYPE) final ExecNodeContext context,
             @JsonProperty(FIELD_NAME_CONFIGURATION) final ReadableConfig persistedConfig,
-            @JsonProperty(FIELD_NAME_JOIN_TYPES) final List<JoinType> joinTypes,
+            @JsonProperty(FIELD_NAME_JOIN_TYPES) final List<FlinkJoinType> joinTypes,
             @JsonProperty(FIELD_NAME_JOIN_CONDITIONS)
                     final List<? extends @Nullable RexNode> joinConditions,
             @Nullable @JsonProperty(FIELD_NAME_MULTI_JOIN_CONDITION)
                     final RexNode multiJoinCondition,
             @JsonProperty(FIELD_NAME_JOIN_ATTRIBUTE_MAP)
-                    final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
-                            joinAttributeMap,
+                    final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
             @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEYS) final List<List<int[]>> inputUpsertKeys,
-            @Nullable @JsonProperty(FIELD_NAME_STATE_METADATA_LIST)
-                    final List<StateMetadata> stateMetadataList,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) final List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) final List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) final RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) final String description) {
@@ -169,7 +165,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
 
     private void validateInputs(
             final List<InputProperty> inputProperties,
-            final List<JoinType> joinTypes,
+            final List<FlinkJoinType> joinTypes,
             final List<? extends @Nullable RexNode> joinConditions,
             final List<List<int[]>> inputUpsertKeys) {
         checkArgument(

@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
-import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
@@ -62,9 +62,9 @@ class StreamingThreeWayOuterJoinCustomConditionOperatorTest
                 stateBackendMode,
                 3, // numInputs
                 List.of(
-                        JoinType.INNER,
-                        JoinType.LEFT,
-                        JoinType.LEFT), // joinTypes (first is placeholder)
+                        FlinkJoinType.INNER,
+                        FlinkJoinType.LEFT,
+                        FlinkJoinType.LEFT), // joinTypes (first is placeholder)
                 customJoinCondition, // Pass custom conditions
                 customAttributeMap, // Pass the corresponding map
                 false); // isFullOuterJoin

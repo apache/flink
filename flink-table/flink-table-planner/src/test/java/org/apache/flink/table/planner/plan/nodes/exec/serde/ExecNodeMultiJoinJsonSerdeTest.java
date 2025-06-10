@@ -25,8 +25,8 @@ import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultiJoin;
-import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
-import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -103,7 +103,6 @@ class ExecNodeMultiJoinJsonSerdeTest {
         JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "joinAttributeMap");
         JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "inputUpsertKeys");
         JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "joinConditions");
-        JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "stateMetadataList");
 
         // Verify specific field values
         JsonNode node = jsonNode.get("nodes").get(0);
@@ -134,13 +133,12 @@ class ExecNodeMultiJoinJsonSerdeTest {
                         new RexInputRef(0, varCharType),
                         new RexInputRef(1, varCharType));
 
-        final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
-                joinAttributeMap = createJoinAttributeMap();
+        final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap = createJoinAttributeMap();
 
         final var execNode =
                 new StreamExecMultiJoin(
                         new Configuration(),
-                        Arrays.asList(JoinType.INNER, JoinType.INNER),
+                        Arrays.asList(FlinkJoinType.INNER, FlinkJoinType.INNER),
                         Arrays.asList(null, condition),
                         null,
                         joinAttributeMap,
@@ -156,25 +154,17 @@ class ExecNodeMultiJoinJsonSerdeTest {
         return execNode;
     }
 
-    private static Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
-            createJoinAttributeMap() {
-        final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
-                joinAttributeMap = new HashMap<>();
+    private static Map<Integer, List<ConditionAttributeRef>> createJoinAttributeMap() {
+        final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap = new HashMap<>();
 
         // Corresponds to a join between input 0 and 1 on their first fields.
-        final List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>
-                attributesForJoinWithInput1 =
-                        List.of(
-                                new AttributeBasedJoinKeyExtractor.ConditionAttributeRef(
-                                        0, 0, 1, 0));
+        final List<ConditionAttributeRef> attributesForJoinWithInput1 =
+                List.of(new ConditionAttributeRef(0, 0, 1, 0));
         joinAttributeMap.put(1, attributesForJoinWithInput1); // Key is the right-side input index.
 
         // Corresponds to a join between input 0 and 2 on their first fields.
-        final List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>
-                attributesForJoinWithInput2 =
-                        List.of(
-                                new AttributeBasedJoinKeyExtractor.ConditionAttributeRef(
-                                        0, 0, 2, 0));
+        final List<ConditionAttributeRef> attributesForJoinWithInput2 =
+                List.of(new ConditionAttributeRef(0, 0, 2, 0));
         joinAttributeMap.put(2, attributesForJoinWithInput2); // Key is the right-side input index.
         return joinAttributeMap;
     }

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
-import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
 import org.junit.jupiter.api.TestTemplate;
@@ -34,7 +34,7 @@ class StreamingTwoWayInnerMultiJoinOperatorTest extends StreamingMultiJoinOperat
         super(
                 stateBackendMode,
                 2,
-                List.of(JoinType.INNER, JoinType.INNER),
+                List.of(FlinkJoinType.INNER, FlinkJoinType.INNER),
                 defaultConditions(),
                 false);
     }

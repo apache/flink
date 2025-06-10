@@ -30,6 +30,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.generated.MultiJoinCondition;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.state.MultiJoinStateView;
@@ -336,14 +337,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         implements MultipleInputStreamOperator<RowData> {
     private static final long serialVersionUID = 1L;
 
-    /** List of supported join types. */
-    public enum JoinType {
-        INNER,
-        LEFT
-    }
-
     private final List<JoinInputSideSpec> inputSpecs;
-    private final List<JoinType> joinTypes;
+    private final List<FlinkJoinType> joinTypes;
     private final List<RowType> inputTypes;
     private final long[] stateRetentionTime;
     private final List<Input<RowData>> typedInputs;
@@ -364,7 +359,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             StreamOperatorParameters<RowData> parameters,
             List<RowType> inputTypes,
             List<JoinInputSideSpec> inputSpecs,
-            List<JoinType> joinTypes,
+            List<FlinkJoinType> joinTypes,
             MultiJoinCondition multiJoinCondition,
             long[] stateRetentionTime,
             JoinCondition[] joinConditions,
@@ -849,7 +844,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     }
 
     private boolean isLeftJoinAtDepth(int depth) {
-        return depth > 0 && joinTypes.get(depth) == JoinType.LEFT;
+        return depth > 0 && joinTypes.get(depth) == FlinkJoinType.LEFT;
     }
 
     /** Checks if the join condition specific to the current depth holds true. */

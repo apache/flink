@@ -26,7 +26,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperatorFactory;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
@@ -77,7 +77,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
     protected final List<RowType> inputTypeInfos;
     protected final List<RowDataKeySelector> keySelectors;
     protected final List<JoinInputSideSpec> inputSpecs;
-    protected final List<JoinType> joinTypes;
+    protected final List<FlinkJoinType> joinTypes;
     protected final List<GeneratedJoinCondition> joinConditions;
     protected final boolean isFullOuterJoin;
     protected final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
@@ -97,7 +97,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
     protected StreamingMultiJoinOperatorTestBase(
             StateBackendMode stateBackendMode,
             int numInputs,
-            List<JoinType> joinTypes,
+            List<FlinkJoinType> joinTypes,
             List<GeneratedJoinCondition> joinConditions,
             boolean isFullOuterJoin) {
         super(stateBackendMode);
@@ -120,7 +120,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
     protected StreamingMultiJoinOperatorTestBase(
             StateBackendMode stateBackendMode,
             int numInputs,
-            List<JoinType> joinTypes,
+            List<FlinkJoinType> joinTypes,
             List<GeneratedJoinCondition> joinConditions,
             Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
             boolean isFullOuterJoin) {
