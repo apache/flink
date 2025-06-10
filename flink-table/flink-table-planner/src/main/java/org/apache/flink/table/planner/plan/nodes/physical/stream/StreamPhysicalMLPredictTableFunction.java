@@ -26,7 +26,6 @@ import org.apache.flink.table.ml.PredictRuntimeProvider;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexModelCall;
 import org.apache.flink.table.planner.calcite.RexTableArgCall;
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.MLPredictSpec;
@@ -35,7 +34,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMLPredict
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
-import org.apache.flink.table.planner.plan.utils.UpsertKeyUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 
@@ -88,18 +86,12 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
 
     @Override
     public ExecNode<?> translateToExecNode() {
-        int[] upsertKeys =
-                UpsertKeyUtil.smallestKey(
-                                FlinkRelMetadataQuery.reuseOrCreate(getCluster().getMetadataQuery())
-                                        .getUpsertKeys(getInput()))
-                        .orElse(null);
         RexModelCall modelCall = extractOperand(operand -> operand instanceof RexModelCall);
         return new StreamExecMLPredictTableFunction(
                 ShortcutUtils.unwrapTableConfig(this),
                 buildMLPredictSpec(),
                 buildModelSpec(modelCall),
                 buildAsyncOptions(modelCall),
-                upsertKeys,
                 InputProperty.DEFAULT,
                 FlinkTypeFactory.toLogicalRowType(getRowType()),
                 getRelDetailedDescription());

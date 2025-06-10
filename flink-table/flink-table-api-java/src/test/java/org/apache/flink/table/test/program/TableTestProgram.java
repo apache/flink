@@ -163,6 +163,14 @@ public class TableTestProgram {
     }
 
     /** A helper method to avoid casting. It assumes that the order of steps is not important. */
+    public List<ModelTestStep> getSetupModelTestSteps() {
+        return setupSteps.stream()
+                .filter(s -> s.getKind() == TestKind.MODEL)
+                .map(ModelTestStep.class::cast)
+                .collect(Collectors.toList());
+    }
+
+    /** A helper method to avoid casting. It assumes that the order of steps is not important. */
     public List<ConfigOptionTestStep<?>> getSetupConfigOptionTestSteps() {
         return setupSteps.stream()
                 .filter(s -> s.getKind() == TestKind.CONFIG)
@@ -316,6 +324,16 @@ public class TableTestProgram {
          */
         public Builder setupTableSink(SinkTestStep sinkTestStep) {
             setupSteps.add(sinkTestStep);
+            return this;
+        }
+
+        /**
+         * Setup step for a model.
+         *
+         * <p>Use {@link ModelTestStep.Builder} to construct this step.
+         */
+        public Builder setupModel(ModelTestStep modelTestStep) {
+            setupSteps.add(modelTestStep);
             return this;
         }
 
