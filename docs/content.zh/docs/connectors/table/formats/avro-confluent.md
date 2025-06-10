@@ -280,6 +280,13 @@ Format 参数
             <td>String</td>
             <td>The URL of the Confluent Schema Registry to fetch/register schemas.</td>
         </tr>
+        <tr>
+            <td><h5>auto.register.schemas</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to automatically register schemas with the Confluent Schema Registry if they don't exist. When set to <code>false</code>, schemas must be manually registered in the Schema Registry before being used. When set to <code>true</code>, schemas will be automatically registered during serialization if they don't already exist.</td>
+        </tr>
     </tbody>
 </table>
 
