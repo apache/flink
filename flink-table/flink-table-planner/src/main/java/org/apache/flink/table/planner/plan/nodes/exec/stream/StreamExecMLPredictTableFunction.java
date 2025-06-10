@@ -81,8 +81,8 @@ import java.util.Optional;
         name = "stream-exec-ml-predict-table-function",
         version = 1,
         producedTransformations = StreamExecMLPredictTableFunction.ML_PREDICT_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.V2_1,
-        minStateVersion = FlinkVersion.V2_1)
+        minPlanVersion = FlinkVersion.v2_1,
+        minStateVersion = FlinkVersion.v2_1)
 public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
         implements MultipleTransformationTranslator<RowData>, StreamExecNode<RowData> {
 
