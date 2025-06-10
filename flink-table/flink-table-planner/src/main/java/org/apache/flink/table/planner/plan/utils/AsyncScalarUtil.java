@@ -32,13 +32,12 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
 import java.time.Duration;
-import java.util.Objects;
 
 import static org.apache.flink.table.runtime.operators.calc.async.RetryPredicates.ANY_EXCEPTION;
 import static org.apache.flink.table.runtime.operators.calc.async.RetryPredicates.EMPTY_RESPONSE;
 
 /** Contains utilities for {@link org.apache.flink.table.functions.AsyncScalarFunction}. */
-public class AsyncUtil {
+public class AsyncScalarUtil extends FunctionCallUtils {
 
     /**
      * Checks whether it contains the specified kind of async function call in the specified node.
@@ -86,66 +85,22 @@ public class AsyncUtil {
      * @param config The config from which to fetch the options
      * @return Extracted options
      */
-    public static AsyncUtil.Options getAsyncOptions(ExecNodeConfig config) {
-        return new AsyncUtil.Options(
+    public static AsyncOptions getAsyncOptions(ExecNodeConfig config) {
+        return new AsyncOptions(
                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_BUFFER_CAPACITY),
                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_TIMEOUT).toMillis(),
-                AsyncDataStream.OutputMode.ORDERED,
-                getResultRetryStrategy(
-                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_RETRY_STRATEGY),
-                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_RETRY_DELAY),
-                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_MAX_ATTEMPTS)));
-    }
-
-    /** Options for configuring async behavior. */
-    public static class Options {
-
-        public final int asyncBufferCapacity;
-        public final long asyncTimeout;
-        public final AsyncDataStream.OutputMode asyncOutputMode;
-        public final AsyncRetryStrategy<RowData> asyncRetryStrategy;
-
-        public Options(
-                int asyncBufferCapacity,
-                long asyncTimeout,
-                AsyncDataStream.OutputMode asyncOutputMode,
-                AsyncRetryStrategy<RowData> asyncRetryStrategy) {
-            this.asyncBufferCapacity = asyncBufferCapacity;
-            this.asyncTimeout = asyncTimeout;
-            this.asyncOutputMode = asyncOutputMode;
-            this.asyncRetryStrategy = asyncRetryStrategy;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            Options that = (Options) o;
-            return asyncBufferCapacity == that.asyncBufferCapacity
-                    && asyncTimeout == that.asyncTimeout
-                    && asyncOutputMode == that.asyncOutputMode;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(asyncBufferCapacity, asyncTimeout, asyncOutputMode);
-        }
-
-        @Override
-        public String toString() {
-            return asyncOutputMode + ", " + asyncTimeout + "ms, " + asyncBufferCapacity;
-        }
+                false,
+                AsyncDataStream.OutputMode.ORDERED);
     }
 
     @SuppressWarnings("unchecked")
-    private static AsyncRetryStrategy<RowData> getResultRetryStrategy(
-            ExecutionConfigOptions.RetryStrategy retryStrategy,
-            Duration retryDelay,
-            int retryMaxAttempts) {
+    public static AsyncRetryStrategy<RowData> getResultRetryStrategy(ExecNodeConfig config) {
+        ExecutionConfigOptions.RetryStrategy retryStrategy =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_RETRY_STRATEGY);
+        Duration retryDelay =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_RETRY_DELAY);
+        int retryMaxAttempts =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_MAX_ATTEMPTS);
         // Only fixed delay is allowed at the moment, so just ignore the config.
         if (retryStrategy == ExecutionConfigOptions.RetryStrategy.FIXED_DELAY) {
             return new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder<RowData>(

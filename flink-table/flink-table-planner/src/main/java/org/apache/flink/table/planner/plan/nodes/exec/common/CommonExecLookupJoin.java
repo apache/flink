@@ -57,6 +57,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSp
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
@@ -174,7 +175,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
      * or field from right table.
      */
     @JsonProperty(FIELD_NAME_LOOKUP_KEYS)
-    private final Map<Integer, LookupJoinUtil.LookupKey> lookupKeys;
+    private final Map<Integer, FunctionCallUtils.FunctionParam> lookupKeys;
 
     @JsonProperty(FIELD_NAME_TEMPORAL_TABLE)
     private final TemporalTableSourceSpec temporalTableSourceSpec;
@@ -199,7 +200,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
 
     @JsonProperty(FIELD_NAME_ASYNC_OPTIONS)
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private final @Nullable LookupJoinUtil.AsyncLookupOptions asyncLookupOptions;
+    private final @Nullable FunctionCallUtils.AsyncOptions asyncLookupOptions;
 
     @JsonProperty(FIELD_NAME_RETRY_OPTIONS)
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -217,10 +218,10 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             @Nullable RexNode remainingJoinCondition,
             // TODO: refactor this into TableSourceTable, once legacy TableSource is removed
             TemporalTableSourceSpec temporalTableSourceSpec,
-            Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> lookupKeys,
             @Nullable List<RexNode> projectionOnTemporalTable,
             @Nullable RexNode filterOnTemporalTable,
-            @Nullable LookupJoinUtil.AsyncLookupOptions asyncLookupOptions,
+            @Nullable FunctionCallUtils.AsyncOptions asyncLookupOptions,
             @Nullable LookupJoinUtil.RetryLookupOptions retryOptions,
             ChangelogMode inputChangelogMode,
             List<InputProperty> inputProperties,
@@ -375,21 +376,21 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             AsyncTableFunction<Object> asyncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,
             RowType tableSourceRowType,
             RowType resultRowType,
             boolean isLeftOuterJoin,
-            LookupJoinUtil.AsyncLookupOptions asyncLookupOptions);
+            LookupJoinUtil.AsyncOptions asyncLookupOptions);
 
     protected abstract Transformation<RowData> createSyncLookupJoinWithState(
             Transformation<RowData> inputTransformation,
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             TableFunction<?> syncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,
@@ -400,17 +401,16 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             boolean lookupKeyContainsPrimaryKey);
 
     protected void validateLookupKeyType(
-            final Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
+            final Map<Integer, FunctionCallUtils.FunctionParam> lookupKeys,
             final RowType inputRowType,
             final RowType tableSourceRowType) {
         final List<String> imCompatibleConditions = new LinkedList<>();
         lookupKeys.entrySet().stream()
-                .filter(entry -> entry.getValue() instanceof LookupJoinUtil.FieldRefLookupKey)
+                .filter(entry -> entry.getValue() instanceof FunctionCallUtils.FieldRef)
                 .forEach(
                         entry -> {
                             int rightKey = entry.getKey();
-                            int leftKey =
-                                    ((LookupJoinUtil.FieldRefLookupKey) entry.getValue()).index;
+                            int leftKey = ((FunctionCallUtils.FieldRef) entry.getValue()).index;
                             LogicalType leftType = inputRowType.getTypeAt(leftKey);
                             LogicalType rightType = tableSourceRowType.getTypeAt(rightKey);
                             boolean isCompatible =
@@ -438,20 +438,20 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             AsyncTableFunction<Object> asyncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,
             RowType tableSourceRowType,
             RowType resultRowType,
             boolean isLeftOuterJoin,
-            LookupJoinUtil.AsyncLookupOptions asyncLookupOptions,
+            LookupJoinUtil.AsyncOptions asyncLookupOptions,
             @Nullable RowDataKeySelector keySelector) {
 
         DataTypeFactory dataTypeFactory =
                 ShortcutUtils.unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
 
-        List<LookupJoinUtil.LookupKey> convertedKeys =
+        List<FunctionCallUtils.FunctionParam> convertedKeys =
                 Arrays.stream(LookupJoinUtil.getOrderedLookupKeys(allLookupKeys.keySet()))
                         .mapToObj(allLookupKeys::get)
                         .collect(Collectors.toList());
@@ -540,7 +540,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             TableFunction<?> syncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,
@@ -581,7 +581,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             TableFunction<?> syncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,
@@ -593,7 +593,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         DataTypeFactory dataTypeFactory =
                 ShortcutUtils.unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
 
-        List<LookupJoinUtil.LookupKey> convertedKeys =
+        List<FunctionCallUtils.FunctionParam> convertedKeys =
                 Arrays.stream(LookupJoinUtil.getOrderedLookupKeys(allLookupKeys.keySet()))
                         .mapToObj(allLookupKeys::get)
                         .collect(Collectors.toList());

@@ -42,8 +42,11 @@ import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.AsyncOptions;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FunctionParam;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
-import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
+import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.RetryLookupOptions;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.lookup.KeyedLookupJoinWrapper;
@@ -111,13 +114,13 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
             @Nullable RexNode preFilterCondition,
             @Nullable RexNode remainingJoinCondition,
             TemporalTableSourceSpec temporalTableSourceSpec,
-            Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
+            Map<Integer, FunctionParam> lookupKeys,
             @Nullable List<RexNode> projectionOnTemporalTable,
             @Nullable RexNode filterOnTemporalTable,
             boolean lookupKeyContainsPrimaryKey,
             boolean upsertMaterialize,
-            @Nullable LookupJoinUtil.AsyncLookupOptions asyncLookupOptions,
-            @Nullable LookupJoinUtil.RetryLookupOptions retryOptions,
+            @Nullable AsyncOptions asyncLookupOptions,
+            @Nullable RetryLookupOptions retryOptions,
             ChangelogMode inputChangelogMode,
             @Nullable int[] inputUpsertKey,
             InputProperty inputProperty,
@@ -162,7 +165,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                     RexNode remainingJoinCondition,
             @JsonProperty(FIELD_NAME_TEMPORAL_TABLE)
                     TemporalTableSourceSpec temporalTableSourceSpec,
-            @JsonProperty(FIELD_NAME_LOOKUP_KEYS) Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
+            @JsonProperty(FIELD_NAME_LOOKUP_KEYS) Map<Integer, FunctionParam> lookupKeys,
             @JsonProperty(FIELD_NAME_PROJECTION_ON_TEMPORAL_TABLE) @Nullable
                     List<RexNode> projectionOnTemporalTable,
             @JsonProperty(FIELD_NAME_FILTER_ON_TEMPORAL_TABLE) @Nullable
@@ -170,10 +173,8 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
             @JsonProperty(FIELD_NAME_LOOKUP_KEY_CONTAINS_PRIMARY_KEY)
                     boolean lookupKeyContainsPrimaryKey,
             @JsonProperty(FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE) boolean upsertMaterialize,
-            @JsonProperty(FIELD_NAME_ASYNC_OPTIONS) @Nullable
-                    LookupJoinUtil.AsyncLookupOptions asyncLookupOptions,
-            @JsonProperty(FIELD_NAME_RETRY_OPTIONS) @Nullable
-                    LookupJoinUtil.RetryLookupOptions retryOptions,
+            @JsonProperty(FIELD_NAME_ASYNC_OPTIONS) @Nullable AsyncOptions asyncLookupOptions,
+            @JsonProperty(FIELD_NAME_RETRY_OPTIONS) @Nullable RetryLookupOptions retryOptions,
             @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODE) @Nullable
                     ChangelogMode inputChangelogMode,
             @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEY) @Nullable int[] inputUpsertKey,
@@ -219,14 +220,14 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             AsyncTableFunction<Object> asyncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,
             RowType tableSourceRowType,
             RowType resultRowType,
             boolean isLeftOuterJoin,
-            LookupJoinUtil.AsyncLookupOptions asyncLookupOptions) {
+            FunctionCallUtils.AsyncOptions asyncLookupOptions) {
         RowDataKeySelector keySelector = getKeySelector(classLoader, inputRowType);
 
         Transformation<RowData> partitionedTransform =
@@ -269,7 +270,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            Map<Integer, FunctionParam> allLookupKeys,
             TableFunction<?> syncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,

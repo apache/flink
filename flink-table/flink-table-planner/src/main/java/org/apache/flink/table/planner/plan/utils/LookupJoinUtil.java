@@ -23,7 +23,6 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
-import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.util.retryable.RetryPredicates;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
@@ -67,7 +66,6 @@ import org.apache.flink.table.runtime.operators.join.lookup.RetryableLookupFunct
 import org.apache.flink.table.runtime.partitioner.RowDataCustomStreamPartitioner;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
@@ -75,15 +73,11 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rex.RexLiteral;
 
 import javax.annotation.Nullable;
 
@@ -110,164 +104,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Utilities for lookup joins using {@link LookupTableSource}. */
 @Internal
-public final class LookupJoinUtil {
-
-    /** A field used as an equal condition when querying content from a dimension table. */
-    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-    @JsonSubTypes({
-        @JsonSubTypes.Type(value = ConstantLookupKey.class),
-        @JsonSubTypes.Type(value = FieldRefLookupKey.class)
-    })
-    public static class LookupKey {
-        private LookupKey() {
-            // sealed class
-        }
-    }
-
-    /** A {@link LookupKey} whose value is constant. */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    @JsonTypeName("Constant")
-    public static class ConstantLookupKey extends LookupKey {
-        public static final String FIELD_NAME_SOURCE_TYPE = "sourceType";
-        public static final String FIELD_NAME_LITERAL = "literal";
-
-        @JsonProperty(FIELD_NAME_SOURCE_TYPE)
-        public final LogicalType sourceType;
-
-        @JsonProperty(FIELD_NAME_LITERAL)
-        public final RexLiteral literal;
-
-        @JsonCreator
-        public ConstantLookupKey(
-                @JsonProperty(FIELD_NAME_SOURCE_TYPE) LogicalType sourceType,
-                @JsonProperty(FIELD_NAME_LITERAL) RexLiteral literal) {
-            this.sourceType = sourceType;
-            this.literal = literal;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            ConstantLookupKey that = (ConstantLookupKey) o;
-            return Objects.equals(sourceType, that.sourceType)
-                    && Objects.equals(literal, that.literal);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(sourceType, literal);
-        }
-    }
-
-    /** A {@link LookupKey} whose value comes from the left table field. */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    @JsonTypeName("FieldRef")
-    public static class FieldRefLookupKey extends LookupKey {
-        public static final String FIELD_NAME_INDEX = "index";
-
-        @JsonProperty(FIELD_NAME_INDEX)
-        public final int index;
-
-        @JsonCreator
-        public FieldRefLookupKey(@JsonProperty(FIELD_NAME_INDEX) int index) {
-            this.index = index;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            FieldRefLookupKey that = (FieldRefLookupKey) o;
-            return index == that.index;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(index);
-        }
-    }
+public final class LookupJoinUtil extends FunctionCallUtils {
 
     /** ShuffleLookupOptions includes shuffle related options. */
     @JsonIgnoreProperties(ignoreUnknown = true)
     @JsonTypeName("ShuffleOptions")
     public static class ShuffleLookupOptions {
         public static final String FIELD_NAME_SHUFFLE = "shuffle";
-    }
-
-    /** AsyncLookupOptions includes async related options. */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    @JsonTypeName("AsyncOptions")
-    public static class AsyncLookupOptions {
-        public static final String FIELD_NAME_CAPACITY = "capacity ";
-        public static final String FIELD_NAME_TIMEOUT = "timeout";
-        public static final String FIELD_NAME_OUTPUT_MODE = "output-mode";
-        public static final String FIELD_NAME_IS_KEY_ORDERED = "is-key-ordered";
-
-        @JsonProperty(FIELD_NAME_CAPACITY)
-        public final int asyncBufferCapacity;
-
-        @JsonProperty(FIELD_NAME_TIMEOUT)
-        public final long asyncTimeout;
-
-        @JsonInclude(JsonInclude.Include.NON_DEFAULT)
-        @JsonProperty(FIELD_NAME_IS_KEY_ORDERED)
-        public final boolean keyOrdered;
-
-        @JsonProperty(FIELD_NAME_OUTPUT_MODE)
-        public final AsyncDataStream.OutputMode asyncOutputMode;
-
-        @JsonCreator
-        public AsyncLookupOptions(
-                @JsonProperty(FIELD_NAME_CAPACITY) int asyncBufferCapacity,
-                @JsonProperty(FIELD_NAME_TIMEOUT) long asyncTimeout,
-                @JsonProperty(FIELD_NAME_IS_KEY_ORDERED) boolean keyOrdered,
-                @JsonProperty(FIELD_NAME_OUTPUT_MODE) AsyncDataStream.OutputMode asyncOutputMode) {
-            this.asyncBufferCapacity = asyncBufferCapacity;
-            this.asyncTimeout = asyncTimeout;
-            this.keyOrdered = keyOrdered;
-            this.asyncOutputMode = asyncOutputMode;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            AsyncLookupOptions that = (AsyncLookupOptions) o;
-            return asyncBufferCapacity == that.asyncBufferCapacity
-                    && asyncTimeout == that.asyncTimeout
-                    && keyOrdered == that.keyOrdered
-                    && asyncOutputMode == that.asyncOutputMode;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(asyncBufferCapacity, asyncTimeout, keyOrdered, asyncOutputMode);
-        }
-
-        @Override
-        public String toString() {
-            return asyncOutputMode
-                    + ", "
-                    + "KEY_ORDERED: "
-                    + keyOrdered
-                    + ", "
-                    + asyncTimeout
-                    + "ms, "
-                    + asyncBufferCapacity;
-        }
     }
 
     /** RetryOptions includes retry lookup related options. */
@@ -383,7 +226,7 @@ public final class LookupJoinUtil {
         return lookupKeyIndicesInOrder.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    public static AsyncLookupOptions getMergedAsyncOptions(
+    public static AsyncOptions getMergedAsyncOptions(
             RelHint lookupHint, TableConfig config, ChangelogMode inputChangelogMode) {
         Configuration confFromHint;
         if (lookupHint == null) {
@@ -402,7 +245,7 @@ public final class LookupJoinUtil {
                         asyncOutputMode,
                         config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED));
 
-        return new AsyncLookupOptions(
+        return new AsyncOptions(
                 coalesce(
                         confFromHint.get(ASYNC_CAPACITY),
                         config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY)),
@@ -411,31 +254,6 @@ public final class LookupJoinUtil {
                                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT))
                         .toMillis(),
                 keyOrdered,
-                convert(inputChangelogMode, asyncOutputMode));
-    }
-
-    public static AsyncLookupOptions getMergedMLPredictAsyncOptions(
-            Map<String, String> runtimeConfig,
-            TableConfig config,
-            ChangelogMode inputChangelogMode) {
-        Configuration queryConf = Configuration.fromMap(runtimeConfig);
-        ExecutionConfigOptions.AsyncOutputMode asyncOutputMode =
-                coalesce(
-                        queryConf.get(ASYNC_OUTPUT_MODE),
-                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE));
-
-        return new AsyncLookupOptions(
-                coalesce(
-                        queryConf.get(ASYNC_CAPACITY),
-                        config.get(
-                                ExecutionConfigOptions
-                                        .TABLE_EXEC_ASYNC_ML_PREDICT_BUFFER_CAPACITY)),
-                coalesce(
-                                queryConf.get(ASYNC_TIMEOUT),
-                                config.get(
-                                        ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_TIMEOUT))
-                        .toMillis(),
-                false,
                 convert(inputChangelogMode, asyncOutputMode));
     }
 
@@ -559,20 +377,6 @@ public final class LookupJoinUtil {
         Configuration conf = Configuration.fromMap(lookupHint.kvOptions);
         Boolean async = conf.get(ASYNC_LOOKUP);
         return null == async || async;
-    }
-
-    private static <T> T coalesce(T t1, T t2) {
-        return t1 != null ? t1 : t2;
-    }
-
-    private static AsyncDataStream.OutputMode convert(
-            ChangelogMode inputChangelogMode,
-            ExecutionConfigOptions.AsyncOutputMode asyncOutputMode) {
-        if (inputChangelogMode.containsOnly(RowKind.INSERT)
-                && asyncOutputMode == ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED) {
-            return AsyncDataStream.OutputMode.UNORDERED;
-        }
-        return AsyncDataStream.OutputMode.ORDERED;
     }
 
     /**
@@ -721,7 +525,7 @@ public final class LookupJoinUtil {
             PlannerBase planner,
             RelOptTable table,
             RowType inputRowType,
-            Map<Integer, LookupKey> allLookupKeys,
+            Map<Integer, FunctionParam> allLookupKeys,
             Transformation<RowData> inputTransformation,
             ChangelogMode inputChangelogMode,
             TransformationMetadata metadata) {

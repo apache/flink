@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
 import org.apache.flink.table.types.logical.BigIntType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
@@ -32,27 +32,27 @@ import java.io.IOException;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test LookupKey json ser/de. */
-class LookupKeySerdeTest {
+class FunctionParamSerdeTest {
 
     @Test
-    void testLookupKey() throws IOException {
+    void testSerdeFunctionParams() throws IOException {
         SerdeContext serdeCtx = JsonSerdeTestUtil.configuredSerdeContext();
         ObjectReader objectReader = CompiledPlanSerdeUtil.createJsonObjectReader(serdeCtx);
         ObjectWriter objectWriter = CompiledPlanSerdeUtil.createJsonObjectWriter(serdeCtx);
 
-        LookupJoinUtil.LookupKey[] lookupKeys =
-                new LookupJoinUtil.LookupKey[] {
-                    new LookupJoinUtil.ConstantLookupKey(
+        FunctionCallUtils.FunctionParam[] functionParams =
+                new FunctionCallUtils.FunctionParam[] {
+                    new FunctionCallUtils.Constant(
                             new BigIntType(),
                             new RexBuilder(serdeCtx.getTypeFactory()).makeLiteral("a")),
-                    new LookupJoinUtil.FieldRefLookupKey(3)
+                    new FunctionCallUtils.FieldRef(3)
                 };
-        for (LookupJoinUtil.LookupKey lookupKey : lookupKeys) {
-            LookupJoinUtil.LookupKey result =
+        for (FunctionCallUtils.FunctionParam param : functionParams) {
+            FunctionCallUtils.FunctionParam result =
                     objectReader.readValue(
-                            objectWriter.writeValueAsString(lookupKey),
-                            LookupJoinUtil.LookupKey.class);
-            assertThat(result).isEqualTo(lookupKey);
+                            objectWriter.writeValueAsString(param),
+                            FunctionCallUtils.FunctionParam.class);
+            assertThat(result).isEqualTo(param);
         }
     }
 }

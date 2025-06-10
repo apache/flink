@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
-import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FunctionParam;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -33,20 +33,20 @@ public class MLPredictSpec {
     public static final String FIELD_NAME_RUNTIME_CONFIG = "runtimeConfig";
 
     @JsonProperty(FIELD_NAME_FEATURES)
-    private final List<LookupJoinUtil.LookupKey> features;
+    private final List<FunctionParam> features;
 
     @JsonProperty(FIELD_NAME_RUNTIME_CONFIG)
     private final Map<String, String> runtimeConfig;
 
     @JsonCreator
     public MLPredictSpec(
-            @JsonProperty(FIELD_NAME_FEATURES) List<LookupJoinUtil.LookupKey> features,
+            @JsonProperty(FIELD_NAME_FEATURES) List<FunctionParam> features,
             @JsonProperty(FIELD_NAME_RUNTIME_CONFIG) Map<String, String> runtimeConfig) {
         this.features = features;
         this.runtimeConfig = runtimeConfig;
     }
 
-    public List<LookupJoinUtil.LookupKey> getFeatures() {
+    public List<FunctionParam> getFeatures() {
         return features;
     }
 

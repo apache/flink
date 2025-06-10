@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.codegen.GenerateUtils.{generateLiteral, ge
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens
 import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, RexLiteralUtil}
-import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.{ConstantLookupKey, LookupKey}
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.{Constant, FunctionParam}
 import org.apache.flink.table.runtime.generated.{GeneratedProjection, Projection}
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType, RowType}
 
@@ -371,7 +371,7 @@ object ProjectionCodeGenerator {
    *   the GeneratedProjection
    */
   def generateProjectionForLookupKeysFromLeftTable(
-      orderedLookupKeys: Array[LookupKey],
+      orderedLookupKeys: Array[FunctionParam],
       ctx: CodeGeneratorContext,
       name: String,
       inputType: RowType,
@@ -382,7 +382,7 @@ object ProjectionCodeGenerator {
       new Array[GeneratedExpression](orderedLookupKeys.length)
     for (i <- orderedLookupKeys.indices) {
       orderedLookupKeys(i) match {
-        case constantLookupKey: ConstantLookupKey =>
+        case constantLookupKey: Constant =>
           val res = RexLiteralUtil.toFlinkInternalValue(constantLookupKey.literal)
           constantExpressions(i) = generateLiteral(ctx, res.f0, res.f1)
         case _ =>
