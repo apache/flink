@@ -34,7 +34,6 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -350,7 +349,7 @@ public class TableAsyncExecutionControllerTest {
             outputProcessedInputIndexes.add(inputIndex);
         }
 
-        @NotNull
+        @Nonnull
         @Override
         public StreamElement getInputElement() {
             return inputRecord;
