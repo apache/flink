@@ -22,9 +22,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.Objects;
 
-/**
- * The record used in {@link TableAsyncExecutionController} to contains info about {@link Epoch}.
- */
+/** The record used in {@link TableAsyncExecutionController} to contain info about {@link Epoch}. */
 public class AecRecord<IN, OUT> {
 
     private StreamRecord<IN> record;

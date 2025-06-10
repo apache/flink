@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.join.lookup.keyordered;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEntry;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -41,10 +42,12 @@ import java.util.function.Function;
 /**
  * The {@link TableAsyncExecutionController} is used to keep key ordered process mode for async
  * operator. It allows for out of order processing on different keys and sequential processing of
- * {@link StreamElement} on the same key. And exist {@link
- * org.apache.flink.runtime.asyncprocessing.AsyncExecutionController} could meet the requirements
- * directly which is why we add {@link TableAsyncExecutionController}. TODO: Refactor this for less
- * deduplication in the FLINK-37921.
+ * {@link StreamElement} on the same key.
+ *
+ * <p>Existing {@link AsyncExecutionController} is tightly coupled with the concept of state and
+ * this is why we add {@link TableAsyncExecutionController}.
+ *
+ * <p>TODO: Refactor this for less deduplication in the FLINK-37921.
  *
  * @param <IN> Input type for the controller.
  * @param <OUT> Output type for the controller.
