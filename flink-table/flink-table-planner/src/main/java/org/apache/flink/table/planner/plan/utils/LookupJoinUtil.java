@@ -435,6 +435,7 @@ public final class LookupJoinUtil {
                                 config.get(
                                         ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_TIMEOUT))
                         .toMillis(),
+                false,
                 convert(inputChangelogMode, asyncOutputMode));
     }
 
