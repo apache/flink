@@ -142,13 +142,13 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecIncrementalGroupAggregate.class);
                     add(StreamExecIntervalJoin.class);
                     add(StreamExecJoin.class);
-                    add(StreamExecMultiJoin.class);
                     add(StreamExecLimit.class);
                     add(StreamExecLocalGroupAggregate.class);
                     add(StreamExecLocalWindowAggregate.class);
                     add(StreamExecLookupJoin.class);
                     add(StreamExecMatch.class);
                     add(StreamExecMiniBatchAssigner.class);
+                    add(StreamExecMultiJoin.class);
                     add(StreamExecOverAggregate.class);
                     add(StreamExecRank.class);
                     add(StreamExecSink.class);

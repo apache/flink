@@ -33,6 +33,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.TextNode;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -109,16 +110,15 @@ class ExecNodeMultiJoinJsonSerdeTest {
         assertThat(node.get("type").asText()).isEqualTo("stream-exec-multi-join_1");
         assertThat(node.get("description").asText()).isEqualTo("test-multi-join");
         assertThat(node.get("joinTypes").isArray()).isTrue();
-        assertThat(node.get("joinTypes").size()).isEqualTo(2);
-        assertThat(node.get("joinTypes").get(0).asText()).isEqualTo("INNER");
-        assertThat(node.get("joinTypes").get(1).asText()).isEqualTo("INNER");
+        assertThat(node.get("joinTypes"))
+                .containsExactly(new TextNode("INNER"), new TextNode("INNER"));
         assertThat(node.get("joinAttributeMap").isObject()).isTrue();
         assertThat(node.get("inputUpsertKeys").isArray()).isTrue();
-        assertThat(node.get("inputUpsertKeys").size()).isEqualTo(2);
+        assertThat(node.get("inputUpsertKeys")).hasSize(2);
         assertThat(node.get("joinConditions").isArray()).isTrue();
-        assertThat(node.get("joinConditions").size()).isEqualTo(2);
+        assertThat(node.get("joinConditions")).hasSize(2);
         assertThat(node.get("inputProperties").isArray()).isTrue();
-        assertThat(node.get("inputProperties").size()).isEqualTo(2);
+        assertThat(node.get("inputProperties")).hasSize(2);
     }
 
     private StreamExecMultiJoin createTestMultiJoinNode() {
