@@ -88,6 +88,61 @@ SELECT * FROM StreamingTable;
 !ok
 
 # ==========================================================================
+# test streaming execute insert
+# ==========================================================================
+
+create table StreamingTable2 (
+  id int,
+  str string
+) with (
+  'connector' = 'filesystem',
+  'path' = '$VAR_STREAMING_PATH2',
+  'format' = 'csv'
+);
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+EXPLAIN EXECUTE INSERT INTO StreamingTable2 SELECT * FROM (VALUES (1, 'EXECUTE'), (2, 'INSERT'), (3, 'TEST'));
+!output
+== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.StreamingTable2], fields=[EXPR$0, EXPR$1])
++- LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
+   +- LogicalValues(tuples=[[{ 1, _UTF-16LE'EXECUTE' }, { 2, _UTF-16LE'INSERT' }, { 3, _UTF-16LE'TEST' }]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.StreamingTable2], fields=[EXPR$0, EXPR$1])
++- Values(type=[RecordType(INTEGER EXPR$0, VARCHAR(7) EXPR$1)], tuples=[[{ 1, _UTF-16LE'EXECUTE' }, { 2, _UTF-16LE'INSERT' }, { 3, _UTF-16LE'TEST' }]])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.StreamingTable2], fields=[EXPR$0, EXPR$1])
++- Values(tuples=[[{ 1, _UTF-16LE'EXECUTE' }, { 2, _UTF-16LE'INSERT' }, { 3, _UTF-16LE'TEST' }]])
+!ok
+
+EXECUTE INSERT INTO StreamingTable2 SELECT * FROM (VALUES (1, 'EXECUTE'), (2, 'INSERT'), (3, 'TEST'));
+!output
+Job ID:
+!info
+
+SELECT * FROM StreamingTable2;
+!output
++----+----+---------+
+| op | id |     str |
++----+----+---------+
+| +I |  1 | EXECUTE |
+| +I |  2 |  INSERT |
+| +I |  3 |    TEST |
++----+----+---------+
+3 rows in set
+!ok
+
+
+# ==========================================================================
 # test streaming insert through compiled plan
 # ==========================================================================
 
