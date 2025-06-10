@@ -88,7 +88,7 @@ class ModelDescriptorTest {
                         .option("task", "embedding")
                         .build();
 
-        assertThat(descriptor.getOptions()).hasSize(5);
+        assertThat(descriptor.getOptions()).hasSize(4);
         assertThat(descriptor.getOptions().get("provider")).isEqualTo("test-provider");
         assertThat(descriptor.getOptions().get("a")).isEqualTo("false");
         assertThat(descriptor.getOptions().get("b")).isEqualTo("42");
@@ -212,7 +212,7 @@ class ModelDescriptorTest {
         assertThat(original.getOptions()).doesNotContainKey("new-option");
         assertThat(modified.getComment().orElse(null)).isEqualTo("Modified Comment");
         assertThat(modified.getOptions()).containsEntry("new-option", "new-value");
-        assertThat(modified.getOptions()).containsEntry("task", "regression");
+        assertThat(modified.getOptions()).containsEntry("task", "classification");
         assertThat(modified.getOptions()).containsEntry("provider", "test-provider");
 
         // Schemas should be preserved

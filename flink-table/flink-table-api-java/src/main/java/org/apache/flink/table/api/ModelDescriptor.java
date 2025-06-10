@@ -115,7 +115,7 @@ public class ModelDescriptor {
     public static Builder forProvider(String provider) {
         Preconditions.checkNotNull(provider, "Model descriptors require a provider value.");
         final Builder descriptorBuilder = new Builder();
-        descriptorBuilder.option(FactoryUtil.MODEL_PROVIDER, provider);
+        descriptorBuilder.option(FactoryUtil.PROVIDER, provider);
         return descriptorBuilder;
     }
 
