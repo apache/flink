@@ -200,7 +200,7 @@ public abstract class AbstractRecoverableWriterTest {
         final Map<String, RecoverableWriter.ResumeRecoverable> recoverables = new HashMap<>(4);
         RecoverableFsDataOutputStream stream = null;
         try {
-            // This is just for locate  the root cause:
+            // This is just to provide diagnostics to locate the root cause:
             // https://issues.apache.org/jira/browse/FLINK-37703
             // After the fix, this logic should be reverted.
             int times = 0;
