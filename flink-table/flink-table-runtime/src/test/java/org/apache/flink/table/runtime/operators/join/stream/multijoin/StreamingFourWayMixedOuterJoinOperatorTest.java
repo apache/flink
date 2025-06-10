@@ -19,9 +19,9 @@
 package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
-import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
-import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -34,6 +34,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,19 +60,19 @@ import java.util.Map;
 @ExtendWith(ParameterizedTestExtension.class)
 class StreamingFourWayMixedOuterJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
-    private static final List<GeneratedMultiJoinCondition> customJoinConditions;
+    private static final List<GeneratedJoinCondition> customJoinConditions;
 
     static {
         // Condition for Input 3 (Shipments) LEFT JOIN Input 0 (Users)
         // ON u.user_id_0 = s.user_id_3 AND u.details_0 > s.details_3
-        GeneratedMultiJoinCondition shipmentsJoinCondition =
+        GeneratedJoinCondition shipmentsJoinCondition =
                 createAndCondition(
                         createJoinCondition(
                                 3, 0), // equi-join on user_id (field 0 of input 3 with field 0 of
                         // input 0)
                         createFieldLongGreaterThanCondition(
-                                0, 2, 3,
-                                2) // non-equi: users.details_0 (field 2) > shipments.details_3
+                                2, 2) // non-equi: users.details_0 (field 2 from left side) >
+                        // shipments.details_3 (field 2 from right side)
                         // (field 2)
                         );
 
@@ -87,27 +88,15 @@ class StreamingFourWayMixedOuterJoinOperatorTest extends StreamingMultiJoinOpera
                         );
     }
 
-    private static final Map<Integer, Map<AttributeRef, AttributeRef>> customAttributeMap =
+    private static final Map<Integer, List<ConditionAttributeRef>> customAttributeMap =
             new HashMap<>();
 
     static {
-        Map<AttributeRef, AttributeRef> map1 = new HashMap<>();
-        map1.put(
-                new AttributeRef(0, 0),
-                new AttributeRef(1, 0)); // Users.user_id_0 = Orders.user_id_1
-        customAttributeMap.put(1, map1);
+        customAttributeMap.put(1, Collections.singletonList(new ConditionAttributeRef(0, 0, 1, 0)));
 
-        Map<AttributeRef, AttributeRef> map2 = new HashMap<>();
-        map2.put(
-                new AttributeRef(0, 0),
-                new AttributeRef(2, 0)); // Users.user_id_0 = Payments.user_id_2
-        customAttributeMap.put(2, map2);
+        customAttributeMap.put(2, Collections.singletonList(new ConditionAttributeRef(0, 0, 2, 0)));
 
-        Map<AttributeRef, AttributeRef> map3 = new HashMap<>();
-        map3.put(
-                new AttributeRef(0, 0),
-                new AttributeRef(3, 0)); // Users.user_id_0 = Shipments.user_id_3
-        customAttributeMap.put(3, map3);
+        customAttributeMap.put(3, Collections.singletonList(new ConditionAttributeRef(0, 0, 3, 0)));
     }
 
     public StreamingFourWayMixedOuterJoinOperatorTest(StateBackendMode stateBackendMode) {
@@ -115,10 +104,10 @@ class StreamingFourWayMixedOuterJoinOperatorTest extends StreamingMultiJoinOpera
                 stateBackendMode,
                 4, // numInputs
                 List.of(
-                        JoinType.INNER, // Placeholder for Users (Input 0)
-                        JoinType.LEFT, // Orders (Input 1)
-                        JoinType.INNER, // Payments (Input 2)
-                        JoinType.LEFT // Shipments (Input 3)
+                        FlinkJoinType.INNER, // Placeholder for Users (Input 0)
+                        FlinkJoinType.LEFT, // Orders (Input 1)
+                        FlinkJoinType.INNER, // Payments (Input 2)
+                        FlinkJoinType.LEFT // Shipments (Input 3)
                         ),
                 customJoinConditions,
                 customAttributeMap,

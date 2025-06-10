@@ -74,6 +74,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoi
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMiniBatchAssigner;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultiJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate;
@@ -148,6 +149,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecLookupJoin.class);
                     add(StreamExecMatch.class);
                     add(StreamExecMiniBatchAssigner.class);
+                    add(StreamExecMultiJoin.class);
                     add(StreamExecOverAggregate.class);
                     add(StreamExecRank.class);
                     add(StreamExecSink.class);

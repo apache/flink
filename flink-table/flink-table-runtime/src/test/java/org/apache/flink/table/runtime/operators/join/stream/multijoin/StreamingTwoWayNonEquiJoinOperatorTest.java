@@ -20,12 +20,12 @@ package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
-import org.apache.flink.table.runtime.generated.MultiJoinCondition;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator;
-import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
-import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -39,6 +39,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,32 +48,32 @@ import java.util.Map;
 @ExtendWith(ParameterizedTestExtension.class)
 class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
-    // Condition: Users.amount > Orders.amount
-    private static final GeneratedMultiJoinCondition EqualIdAndGreaterAmountCondition =
-            createEqAndGreatJoinCondition(0, 0, 1, 1, 0, 1);
+    private static final GeneratedJoinCondition EqualIdAndGreaterAmountCondition =
+            createAndCondition(
+                    createJoinCondition(1, 0), // equi-join on user_id
+                    createFieldLongGreaterThanCondition(
+                            1, 1) // non-equi: users.amount > orders.amount
+                    );
 
-    private static final Map<Integer, Map<AttributeRef, AttributeRef>> customAttributeMap =
+    private static final List<GeneratedJoinCondition> customJoinConditions =
+            Arrays.asList(null, EqualIdAndGreaterAmountCondition);
+
+    private static final Map<Integer, List<ConditionAttributeRef>> customAttributeMap =
             new HashMap<>();
 
     static {
-        Map<AttributeRef, AttributeRef> map1 = new HashMap<>();
-        map1.put(new AttributeRef(0, 0), new AttributeRef(1, 0)); // user[0] -> order[0]
-
-        customAttributeMap.put(1, map1);
+        customAttributeMap.put(1, Collections.singletonList(new ConditionAttributeRef(0, 0, 1, 0)));
     }
 
     public StreamingTwoWayNonEquiJoinOperatorTest(StateBackendMode stateBackendMode) {
-        // Inner join, 2 inputs, custom non-equi condition
         super(
                 stateBackendMode,
-                2,
-                List.of(JoinType.INNER, JoinType.INNER),
-                // Maybe make the join conditions more generic
-                Arrays.asList(
-                        null,
-                        EqualIdAndGreaterAmountCondition), // Use custom condition for the join step
+                2, // numInputs
+                List.of(FlinkJoinType.INNER, FlinkJoinType.INNER), // joinTypes
+                customJoinConditions,
                 customAttributeMap,
-                false);
+                false // isFullOuterJoin
+                );
     }
 
     /**
@@ -284,7 +285,7 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
      * Assumes amount is at field index 1.
      */
     private static class AmountGreaterThanConditionImpl extends AbstractRichFunction
-            implements MultiJoinCondition {
+            implements JoinCondition {
         private final int leftInputIndex; // Index of the row for the left side of '>' in inputs[]
         private final int leftAmountFieldIndex; // Field index of amount in the left side row
         private final int rightInputIndex; // Index of the row for the right side of '>' in inputs[]
@@ -302,25 +303,20 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
         }
 
         @Override
-        public boolean apply(RowData[] inputs) {
-            if (inputs == null
-                    || inputs.length <= Math.max(leftInputIndex, rightInputIndex)
-                    || inputs[leftInputIndex] == null
-                    || inputs[rightInputIndex] == null) {
+        public boolean apply(RowData left, RowData right) {
+            if (left == null || right == null) {
                 return false;
             }
-            if (inputs[leftInputIndex].isNullAt(leftAmountFieldIndex)
-                    || inputs[rightInputIndex].isNullAt(rightAmountFieldIndex)) {
+            if (left.isNullAt(leftAmountFieldIndex) || right.isNullAt(rightAmountFieldIndex)) {
                 return false;
             }
-            return inputs[leftInputIndex].getLong(leftAmountFieldIndex)
-                    > inputs[rightInputIndex].getLong(rightAmountFieldIndex);
+            return left.getLong(leftAmountFieldIndex) > right.getLong(rightAmountFieldIndex);
         }
     }
 
     /** Condition for u.user_id = o.user_id. */
     private static class UserIdEqualsConditionImpl extends AbstractRichFunction
-            implements MultiJoinCondition {
+            implements JoinCondition {
         private final int usersInputId; // e.g., 0 if inputs[0] is User row
         private final int usersIdField; // e.g., 0 for user_id
         private final int ordersInputId; // e.g., 1 if inputs[1] is Order row
@@ -335,42 +331,38 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
         }
 
         @Override
-        public boolean apply(RowData[] inputs) {
-            if (inputs == null
-                    || inputs.length <= Math.max(usersInputId, ordersInputId)
-                    || inputs[usersInputId] == null
-                    || inputs[ordersInputId] == null) {
+        public boolean apply(RowData left, RowData right) {
+            if (left == null || right == null) {
                 return false;
             }
             // Assuming IDs are strings and not null for this example.
             // Add comprehensive null checks as per your data model.
-            if (inputs[usersInputId].isNullAt(usersIdField)
-                    || inputs[ordersInputId].isNullAt(ordersIdField)) {
+            if (left.isNullAt(usersIdField) || right.isNullAt(ordersIdField)) {
                 // SQL null semantics: null != null is true, null = null is false.
                 // For equals, if either is null, it's not equal unless both are null (which we'd
                 // typically treat as false for join keys).
                 return false;
             }
             // Assuming user_id is String. Adjust if it's another type.
-            String userId = inputs[usersInputId].getString(usersIdField).toString();
-            String orderUserId = inputs[ordersInputId].getString(ordersIdField).toString();
+            String userId = left.getString(usersIdField).toString();
+            String orderUserId = right.getString(ordersIdField).toString();
             return userId.equals(orderUserId);
         }
     }
 
-    /** Combines multiple MultiJoinConditions with AND logic. */
-    private static class AndMultiJoinConditionImpl extends AbstractRichFunction
-            implements MultiJoinCondition {
-        private final List<MultiJoinCondition> conditions;
+    /** Combines multiple JoinConditions with AND logic. */
+    private static class AndJoinConditionImpl extends AbstractRichFunction
+            implements JoinCondition {
+        private final List<JoinCondition> conditions;
 
-        public AndMultiJoinConditionImpl(MultiJoinCondition... conditions) {
+        public AndJoinConditionImpl(JoinCondition... conditions) {
             this.conditions = Arrays.asList(conditions);
         }
 
         @Override
-        public boolean apply(RowData[] inputs) {
-            for (MultiJoinCondition condition : conditions) {
-                if (!condition.apply(inputs)) {
+        public boolean apply(RowData left, RowData right) {
+            for (JoinCondition condition : conditions) {
+                if (!condition.apply(left, right)) {
                     return false;
                 }
             }
@@ -379,50 +371,26 @@ class StreamingTwoWayNonEquiJoinOperatorTest extends StreamingMultiJoinOperatorT
     }
 
     /**
-     * Creates a GeneratedMultiJoinCondition that checks Users.amount > Orders.amount. For
+     * Creates a GeneratedJoinCondition that checks Users.amount > Orders.amount. For
      * StreamingMultiJoinOperator, when input 1 (Orders) joins input 0 (Users), in
-     * MultiJoinCondition.apply(RowData[] inputs): inputs[0] is User data, inputs[1] is Order data.
+     * JoinCondition.apply(RowData[] inputs): inputs[0] is User data, inputs[1] is Order data.
      *
      * @param usersInputInArray Index for Users row in the `inputs` array of `apply` method.
      * @param usersAmountField Field index for amount in Users row.
      * @param ordersInputInArray Index for Orders row in the `inputs` array.
      * @param ordersAmountField Field index for amount in Orders row.
      */
-    protected static GeneratedMultiJoinCondition createAmountGreaterThanCondition(
+    protected static GeneratedJoinCondition createAmountGreaterThanCondition(
             int usersInputInArray,
             int usersAmountField,
             int ordersInputInArray,
             int ordersAmountField) {
         String generatedClassName = "AmountGreaterThanCondition_manual";
-        return new GeneratedMultiJoinCondition(generatedClassName, "", new Object[0]) {
+        return new GeneratedJoinCondition(generatedClassName, "", new Object[0]) {
             @Override
-            public MultiJoinCondition newInstance(ClassLoader classLoader) {
+            public JoinCondition newInstance(ClassLoader classLoader) {
                 return new AmountGreaterThanConditionImpl(
                         usersInputInArray, usersAmountField, ordersInputInArray, ordersAmountField);
-            }
-        };
-    }
-
-    // Example of creating a combined condition (for illustration or if joinAttributeMap is not used
-    // for equi-join)
-    protected static GeneratedMultiJoinCondition createEqAndGreatJoinCondition(
-            int usersInputId,
-            int usersIdField,
-            int usersAmountField,
-            int ordersInputId,
-            int ordersIdField,
-            int ordersAmountField) {
-        String generatedClassName = "FullJoinCondition_manual";
-        return new GeneratedMultiJoinCondition(generatedClassName, "", new Object[0]) {
-            @Override
-            public MultiJoinCondition newInstance(ClassLoader classLoader) {
-                MultiJoinCondition userIdCond =
-                        new UserIdEqualsConditionImpl(
-                                usersInputId, usersIdField, ordersInputId, ordersIdField);
-                MultiJoinCondition amountCond =
-                        new AmountGreaterThanConditionImpl(
-                                usersInputId, usersAmountField, ordersInputId, ordersAmountField);
-                return new AndMultiJoinConditionImpl(userIdCond, amountCond);
             }
         };
     }

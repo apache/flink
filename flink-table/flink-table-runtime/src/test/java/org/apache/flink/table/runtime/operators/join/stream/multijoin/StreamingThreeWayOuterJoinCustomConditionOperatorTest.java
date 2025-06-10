@@ -18,15 +18,16 @@
 
 package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
-import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
-import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
-import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,23 +38,19 @@ class StreamingThreeWayOuterJoinCustomConditionOperatorTest
 
     // Condition 1: input[1] (Orders) joins with input[0] (Users) ON user_id (field 0)
     // Condition 2: input[2] (Payments) joins with input[0] (Users) ON user_id (field 0)
-    private static final List<GeneratedMultiJoinCondition> customJoinCondition =
+    private static final List<GeneratedJoinCondition> customJoinCondition =
             Arrays.asList(null, createJoinCondition(1, 0), createJoinCondition(2, 0));
 
     // Define the corresponding attribute map
-    private static final Map<Integer, Map<AttributeRef, AttributeRef>> customAttributeMap =
+    private static final Map<Integer, List<ConditionAttributeRef>> customAttributeMap =
             new HashMap<>();
 
     static {
         // Mapping for join between input 1 (Orders) and input 0 (Users)
-        Map<AttributeRef, AttributeRef> map1 = new HashMap<>();
-        map1.put(new AttributeRef(0, 0), new AttributeRef(1, 0)); // user[0] -> order[0]
-        customAttributeMap.put(1, map1); // Key is the right-side input index (1)
+        customAttributeMap.put(1, Collections.singletonList(new ConditionAttributeRef(0, 0, 1, 0)));
 
         // Mapping for join between input 2 (Payments) and input 0 (Users)
-        Map<AttributeRef, AttributeRef> map2 = new HashMap<>();
-        map2.put(new AttributeRef(0, 0), new AttributeRef(2, 0)); // user[0] -> payment[0]
-        customAttributeMap.put(2, map2); // Key is the right-side input index (2)
+        customAttributeMap.put(2, Collections.singletonList(new ConditionAttributeRef(0, 0, 2, 0)));
     }
 
     public StreamingThreeWayOuterJoinCustomConditionOperatorTest(
@@ -65,9 +62,9 @@ class StreamingThreeWayOuterJoinCustomConditionOperatorTest
                 stateBackendMode,
                 3, // numInputs
                 List.of(
-                        JoinType.INNER,
-                        JoinType.LEFT,
-                        JoinType.LEFT), // joinTypes (first is placeholder)
+                        FlinkJoinType.INNER,
+                        FlinkJoinType.LEFT,
+                        FlinkJoinType.LEFT), // joinTypes (first is placeholder)
                 customJoinCondition, // Pass custom conditions
                 customAttributeMap, // Pass the corresponding map
                 false); // isFullOuterJoin

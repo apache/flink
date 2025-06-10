@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.join.stream.multijoin;
 
-import org.apache.flink.table.runtime.generated.GeneratedMultiJoinCondition;
-import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperator.JoinType;
-import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.AttributeRef;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.generated.JoinCondition;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
 import org.junit.jupiter.api.TestTemplate;
@@ -39,23 +40,27 @@ import java.util.Map;
 class StreamingMultiConditionJoinOperatorTest extends StreamingMultiJoinOperatorTestBase {
 
     // Condition for A JOIN B ON A.f0 = B.f0 AND A.f2 = B.f2
-    private static final GeneratedMultiJoinCondition joinConditionAB = createMultiCondition(1, 0);
+    private static final GeneratedJoinCondition multiCondition =
+            createAndCondition(
+                    createJoinCondition(1, 0), // equi-join on user_id
+                    createCustomIndexJoinCondition(2, 2) // custom condition on details;
+                    );
 
-    private static final List<GeneratedMultiJoinCondition> customJoinConditions =
-            Arrays.asList(null, joinConditionAB); // null for the first input
+    private static final List<GeneratedJoinCondition> customJoinConditions =
+            Arrays.asList(null, multiCondition); // null for the first input
 
     // Attribute map reflecting A.f0=B.f0 and A.f2=B.f2
-    private static final Map<Integer, Map<AttributeRef, AttributeRef>> customAttributeMap =
+    private static final Map<Integer, List<ConditionAttributeRef>> customAttributeMap =
             new HashMap<>();
 
     static {
         // Mapping for join between input 1 (B) and input 0 (A)
-        Map<AttributeRef, AttributeRef> map1 = new HashMap<>();
-        // A.f0 -> B.f0 (using user_id fields from base schema)
-        map1.put(new AttributeRef(0, 0), new AttributeRef(1, 0));
-        // A.f2 -> B.f2 (using details fields from base schema)
-        map1.put(new AttributeRef(0, 2), new AttributeRef(1, 2));
-        customAttributeMap.put(1, map1); // Key is the right-side input index (1)
+        customAttributeMap.put(
+                1,
+                Arrays.asList(
+                        new ConditionAttributeRef(0, 0, 1, 0), // A.f0 -> B.f0
+                        new ConditionAttributeRef(0, 2, 1, 2) // A.f2 -> B.f2
+                        ));
     }
 
     public StreamingMultiConditionJoinOperatorTest(StateBackendMode stateBackendMode) {
@@ -63,7 +68,9 @@ class StreamingMultiConditionJoinOperatorTest extends StreamingMultiJoinOperator
         super(
                 stateBackendMode,
                 2, // numInputs
-                List.of(JoinType.INNER, JoinType.INNER), // joinTypes (first is placeholder)
+                List.of(
+                        FlinkJoinType.INNER,
+                        FlinkJoinType.INNER), // joinTypes (first is placeholder)
                 customJoinConditions, // Pass custom conditions
                 customAttributeMap, // Pass the corresponding map
                 false); // isFullOuterJoin
@@ -176,43 +183,17 @@ class StreamingMultiConditionJoinOperatorTest extends StreamingMultiJoinOperator
     }
 
     /**
-     * Creates a GeneratedMultiJoinCondition that compares fields 0 and 2 between the input at
-     * `index` and the input at `indexToCompare`.
+     * Creates a GeneratedJoinCondition that compares fields 0 and 2 between the input at `index`
+     * and the input at `indexToCompare`.
      */
-    private static GeneratedMultiJoinCondition createMultiCondition(int index, int indexToCompare) {
-        String funcCode =
-                String.format(
-                        "public class MultiConditionFunction_%1$d_%2$d extends org.apache.flink.api.common.functions.AbstractRichFunction "
-                                + "implements org.apache.flink.table.runtime.generated.MultiJoinCondition {\n"
-                                + "    private final int index = %1$d;\n"
-                                + "    private final int indexToCompare = %2$d;\n"
-                                + "    public MultiConditionFunction_%1$d_%2$d(Object[] reference) {}\n"
-                                + "    @Override\n"
-                                + "    public boolean apply(org.apache.flink.table.data.RowData[] inputs) {\n"
-                                + "        // Basic null checks\n"
-                                + "        if (inputs == null || inputs.length <= Math.max(index, indexToCompare) || inputs[indexToCompare] == null || inputs[index] == null) {\n"
-                                + "            return false;\n"
-                                + "        }\n"
-                                + "        // Check null keys for field 0 and field 2\n"
-                                + "        if (inputs[indexToCompare].isNullAt(0) || inputs[index].isNullAt(0) || inputs[indexToCompare].isNullAt(2) || inputs[index].isNullAt(2)) {\n"
-                                + "            return false;\n"
-                                + "        }\n"
-                                + "        // Compare join keys (field 0 and field 2)\n"
-                                + "        String key0Comp = inputs[indexToCompare].getString(0).toString();\n"
-                                + "        String key0Curr = inputs[index].getString(0).toString();\n"
-                                + "        String key2Comp = inputs[indexToCompare].getString(2).toString();\n"
-                                + "        String key2Curr = inputs[index].getString(2).toString();\n"
-                                + "        return key0Comp.equals(key0Curr) && key2Comp.equals(key2Curr);\n"
-                                + "    }\n"
-                                + "    @Override\n"
-                                + "    public void close() throws Exception {\n"
-                                + "        super.close();\n"
-                                + "    }\n"
-                                + "}\n",
-                        index, indexToCompare);
-        return new GeneratedMultiJoinCondition(
-                String.format("MultiConditionFunction_%d_%d", index, indexToCompare),
-                funcCode,
-                new Object[0]);
+    private static GeneratedJoinCondition createCustomIndexJoinCondition(
+            int keyIndex, int keyIndexToCompare) {
+        return new GeneratedJoinCondition("1", "", new Object[0]) {
+            @Override
+            public JoinCondition newInstance(ClassLoader classLoader) {
+                // Field 0 is assumed for key comparison in this default test condition
+                return new SpecificInputsEquiKeyCondition(keyIndex, keyIndexToCompare);
+            }
+        };
     }
 }

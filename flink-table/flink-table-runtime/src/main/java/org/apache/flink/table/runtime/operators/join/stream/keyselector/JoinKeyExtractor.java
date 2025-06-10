@@ -46,7 +46,7 @@ public interface JoinKeyExtractor extends Serializable {
      * @return A {@link RowData} representing the state storage key. Can be null if no key can be
      *     derived (e.g., missing configuration).
      */
-    RowData getJoinKeyFromInput(RowData row, int inputId);
+    RowData getJoinKey(RowData row, int inputId);
 
     /**
      * Extracts the key used for looking up matching records in the state of a specific input depth,
@@ -58,13 +58,12 @@ public interface JoinKeyExtractor extends Serializable {
      *
      * @param depth The current processing depth (0-based index), representing the target input ID
      *     for state lookup.
-     * @param currentRows The array of rows accumulated so far in the current recursive join path.
-     *     `currentRows[0]` to `currentRows[depth-1]` contain rows from previous inputs that are
-     *     relevant for constructing the lookup key.
+     * @param joinedRowData JoinedRowData with rows accumulated so far in the current recursive join
+     *     path.
      * @return A {@link RowData} representing the state lookup key. Can be null if no key can be
-     *     derived (e.g., missing configuration, or a required row in `currentRows` is null).
+     *     derived (e.g., missing configuration, or a required row in `joinedRowData` is null).
      */
-    RowData getJoinKeyFromCurrentRows(int depth, RowData[] currentRows);
+    RowData getLeftSideJoinKey(int depth, RowData joinedRowData);
 
     /**
      * Returns the type of the join key for a given input.
@@ -74,6 +73,15 @@ public interface JoinKeyExtractor extends Serializable {
      */
     @Nullable
     RowType getJoinKeyType(int inputId);
+
+    /**
+     * Gets the field indices in the source row that make up the join key for a given input.
+     *
+     * @param inputId The ID of the input stream.
+     * @return An array of integers representing the field indices in the source row that form the
+     *     join key.
+     */
+    int[] getJoinKeyIndices(int inputId);
 
     /**
      * Extracts the common key from an input row. The common key consists of attributes that are
@@ -92,4 +100,13 @@ public interface JoinKeyExtractor extends Serializable {
      * @return The {@link RowType} for the common key join type.
      */
     RowType getCommonJoinKeyType();
+
+    /**
+     * Gets the field indices in the source row that make up the common join key for a given input.
+     *
+     * @param inputId The ID of the input stream.
+     * @return An array of integers representing the field indices in the source row that form the
+     *     common join key.
+     */
+    int[] getCommonJoinKeyIndices(int inputId);
 }
