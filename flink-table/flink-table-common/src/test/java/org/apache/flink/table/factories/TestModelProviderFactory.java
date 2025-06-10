@@ -22,12 +22,14 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.factories.FactoryUtil.ModelProviderFactoryHelper;
+import org.apache.flink.table.functions.PredictFunction;
 import org.apache.flink.table.ml.ModelProvider;
+import org.apache.flink.table.ml.PredictRuntimeProvider;
 
 import java.util.HashSet;
 import java.util.Set;
 
-/** Test implementation for {@link ModelProviderFactory}. */
+/** Test implementation for {@link ModelProviderFactory} which creates PredictRuntimeProvider. */
 public final class TestModelProviderFactory implements ModelProviderFactory {
 
     public static final String IDENTIFIER = "test-model";
@@ -79,7 +81,7 @@ public final class TestModelProviderFactory implements ModelProviderFactory {
     }
 
     /** Test implementation of {@link ModelProvider} for testing purposes. */
-    public static class TestModelProviderMock implements ModelProvider {
+    public static class TestModelProviderMock implements PredictRuntimeProvider {
 
         private final ResolvedCatalogModel catalogModel;
 
@@ -101,6 +103,11 @@ public final class TestModelProviderFactory implements ModelProviderFactory {
                 return false;
             }
             return catalogModel.equals(((TestModelProviderMock) o).catalogModel);
+        }
+
+        @Override
+        public PredictFunction createPredictFunction(Context context) {
+            throw new UnsupportedOperationException("To be implemented");
         }
     }
 }

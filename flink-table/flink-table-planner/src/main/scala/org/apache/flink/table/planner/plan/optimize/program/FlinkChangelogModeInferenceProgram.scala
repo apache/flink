@@ -376,7 +376,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       case _: StreamPhysicalCalcBase | _: StreamPhysicalCorrelateBase |
           _: StreamPhysicalLookupJoin | _: StreamPhysicalExchange | _: StreamPhysicalExpand |
           _: StreamPhysicalMiniBatchAssigner | _: StreamPhysicalWatermarkAssigner |
-          _: StreamPhysicalWindowTableFunction =>
+          _: StreamPhysicalWindowTableFunction | _: StreamPhysicalMLPredictTableFunction =>
         // transparent forward requiredTrait to children
         val children = visitChildren(rel, requiredTrait, requester)
         val childrenTrait = children.head.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
@@ -716,7 +716,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         case _: StreamPhysicalCorrelateBase | _: StreamPhysicalLookupJoin |
             _: StreamPhysicalExchange | _: StreamPhysicalExpand |
             _: StreamPhysicalMiniBatchAssigner | _: StreamPhysicalWatermarkAssigner |
-            _: StreamPhysicalWindowTableFunction =>
+            _: StreamPhysicalWindowTableFunction | _: StreamPhysicalMLPredictTableFunction =>
           // transparent forward requiredTrait to children
           visitChildren(rel, requiredUpdateTrait) match {
             case None => None
@@ -1083,7 +1083,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             _: StreamPhysicalWindowRank | _: StreamPhysicalWindowDeduplicate |
             _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
             _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
-            _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin =>
+            _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin |
+            _: StreamPhysicalMLPredictTableFunction =>
           // if not explicitly supported, all operators require full deletes if there are updates
           val children = rel.getInputs.map {
             case child: StreamPhysicalRel =>
@@ -1529,7 +1530,6 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val changelogMode = changelogFunction.getChangelogMode(changelogContext)
         if (!changelogMode.containsOnly(RowKind.INSERT)) {
           verifyPtfTableArgsForUpdates(call)
-          verifyPtfRequirementsForUpdates(call, requiredChangelogMode, changelogMode)
         }
         toTraitSet(changelogMode)
       case _ =>
@@ -1550,17 +1550,5 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
                 s"must use set semantics.")
           }
       }
-  }
-
-  private def verifyPtfRequirementsForUpdates(
-      call: RexCall,
-      required: ChangelogMode,
-      returned: ChangelogMode): Unit = {
-    if (!required.keyOnlyDeletes() && returned.keyOnlyDeletes()) {
-      throw new ValidationException(
-        s"Unsupported changelog mode returned from PTF '${call.getOperator.toString}'. " +
-          s"The system requires that deletions include all fields in DELETE messages. " +
-          s"Key-only deletes are not sufficient.")
-    }
   }
 }

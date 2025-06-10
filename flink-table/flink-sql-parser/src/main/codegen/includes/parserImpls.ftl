@@ -2490,6 +2490,34 @@ SqlTypeNameSpec ExtendedSqlRowTypeName() :
 }
 
 /**
+ * Parse inline structured type such as STRUCTURED&lt;'className', name1 type1 'comment', name2 type2&gt;.
+ */
+SqlTypeNameSpec SqlStructuredTypeName() :
+{
+    final SqlNode className;
+    final List<SqlIdentifier> fieldNames = new ArrayList<SqlIdentifier>();
+    final List<SqlDataTypeSpec> fieldTypes = new ArrayList<SqlDataTypeSpec>();
+    final List<SqlCharStringLiteral> comments = new ArrayList<SqlCharStringLiteral>();
+}
+{
+    <STRUCTURED>
+    <LT>
+        className = StringLiteral()
+        [
+            <COMMA>ExtendedFieldNameTypeCommaList(fieldNames, fieldTypes, comments)
+        ]
+    <GT>
+    {
+        return new SqlStructuredTypeNameSpec(
+            getPos(),
+            className,
+            fieldNames,
+            fieldTypes,
+            comments);
+    }
+}
+
+/**
  * Those methods should not be used in SQL. They are good for parsing identifiers
  * in Table API. The difference between those identifiers and CompoundIdentifer is
  * that the Table API identifiers ignore any keywords. They are also strictly limited

@@ -39,6 +39,7 @@ public class JoinTestPrograms {
     public static final TableTestProgram SEMI_JOIN;
     public static final TableTestProgram ANTI_JOIN;
     public static final TableTestProgram JOIN_WITH_STATE_TTL_HINT;
+    public static final TableTestProgram SEMI_ANTI_JOIN_WITH_LITERAL_AGG;
 
     static final SourceTestStep EMPLOYEE =
             SourceTestStep.newBuilder("EMPLOYEE")
@@ -464,6 +465,40 @@ public class JoinTestPrograms {
                                 String.format(
                                         "INSERT INTO MySink SELECT /*+ STATE_TTL('v1' = '1d', 'v2' = '4d'), STATE_TTL('v2' = '8d') */deptno, department_num FROM (%s) v1 JOIN (%s) v2 ON deptno = department_num",
                                         query1, query2))
+                        .build();
+
+        SEMI_ANTI_JOIN_WITH_LITERAL_AGG =
+                TableTestProgram.of("semi-anti-join-with-literal-agg", "join with literal agg")
+                        .setupTableSource(
+                                SourceTestStep.newBuilder("source_t1")
+                                        .addSchema("a INTEGER", "b BIGINT", "c STRING")
+                                        .producedBeforeRestore(
+                                                Row.of(1, 2L, "3"), Row.of(12, 34L, "56"))
+                                        .build())
+                        .setupTableSource(
+                                SourceTestStep.newBuilder("source_t2")
+                                        .addSchema("d INTEGER", "e BIGINT", "f STRING")
+                                        .producedBeforeRestore(
+                                                Row.of(1, 2L, "3"), Row.of(11, 22L, "33"))
+                                        .build())
+                        .setupTableSource(
+                                SourceTestStep.newBuilder("source_t3")
+                                        .addSchema("i INTEGER", "j BIGINT", "k STRING")
+                                        .producedBeforeRestore(
+                                                Row.of(1, 2L, "3"), Row.of(111, 222L, "333"))
+                                        .build())
+                        .setupTableSink(
+                                SinkTestStep.newBuilder("sink_t")
+                                        .addSchema("b BIGINT")
+                                        .consumedBeforeRestore(
+                                                "+I[2]", "+I[34]", "-D[2]", "-D[34]", "+I[2]",
+                                                "+I[34]")
+                                        .build())
+                        .runSql(
+                                "INSERT INTO sink_t SELECT b FROM source_t1 WHERE"
+                                        + " (CASE WHEN a NOT IN (SELECT i FROM source_t3) THEN 1"
+                                        + " WHEN a NOT IN (SELECT CAST(j AS INTEGER) FROM source_t3) THEN 2 ELSE 3 END)"
+                                        + " NOT IN (SELECT d FROM source_t2 WHERE source_t1.c = source_t2.f)")
                         .build();
     }
 }

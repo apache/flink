@@ -22,9 +22,12 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableDistribution;
@@ -71,6 +74,8 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexWindowBound;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /** A utility class that provide abilities for JSON and Smile serialization and deserialization. */
@@ -177,6 +182,8 @@ public class CompiledPlanSerdeUtil {
         module.addSerializer(new ResolvedSchemaJsonSerializer());
         module.addSerializer(new RequiredDistributionJsonSerializer());
         module.addSerializer(new TableDistributionJsonSerializer());
+        module.addSerializer(new ResolvedCatalogModelJsonSerializer());
+        module.addSerializer(new ContextResolvedModelJsonSerializer());
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -206,6 +213,10 @@ public class CompiledPlanSerdeUtil {
         module.addDeserializer(
                 RequiredDistribution.class, new RequiredDistributionJsonDeserializer());
         module.addDeserializer(TableDistribution.class, new TableDistributionJsonDeserializer());
+        module.addDeserializer(
+                ContextResolvedModel.class, new ContextResolvedModelJsonDeserializer());
+        module.addDeserializer(
+                ResolvedCatalogModel.class, new ResolvedCatalogModelJsonDeserializer());
     }
 
     private static void registerMixins(SimpleModule module) {
@@ -263,6 +274,39 @@ public class CompiledPlanSerdeUtil {
             return Optional.of(ctx.readValue(traverse(objectNode.get(fieldName), codec), type));
         }
         return Optional.empty();
+    }
+
+    static boolean areColumnsEqual(
+            ResolvedSchema schemaFromPlan, ResolvedSchema schemaFromCatalog) {
+        // For schema equality we check:
+        //  * Columns size and order
+        //  * For each column: name, kind (class) and type
+        final List<Column> columnsFromPlan = schemaFromPlan.getColumns();
+        final List<Column> columnsFromCatalog = schemaFromCatalog.getColumns();
+
+        if (columnsFromPlan.size() != columnsFromCatalog.size()) {
+            return false;
+        }
+
+        for (int i = 0; i < columnsFromPlan.size(); i++) {
+            final Column columnFromPlan = columnsFromPlan.get(i);
+            final Column columnFromCatalog = columnsFromCatalog.get(i);
+            if (!Objects.equals(columnFromPlan.getName(), columnFromCatalog.getName())
+                    || !Objects.equals(columnFromPlan.getClass(), columnFromCatalog.getClass())
+                    || !Objects.equals(
+                            columnFromPlan.getDataType(), columnFromCatalog.getDataType())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static boolean isLookupForced(TableConfigOptions.CatalogPlanRestore planRestoreOption) {
+        return planRestoreOption == TableConfigOptions.CatalogPlanRestore.IDENTIFIER;
+    }
+
+    static boolean isPlanEnforced(TableConfigOptions.CatalogPlanRestore planRestoreOption) {
+        return planRestoreOption == TableConfigOptions.CatalogPlanRestore.ALL_ENFORCED;
     }
 
     static Class<?> loadClass(String className, SerdeContext serdeContext, String explanation) {

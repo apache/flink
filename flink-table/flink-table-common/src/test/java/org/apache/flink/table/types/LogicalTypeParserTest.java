@@ -48,6 +48,8 @@ import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
@@ -67,9 +69,11 @@ import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.UNRESOLVED;
+import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -86,7 +90,7 @@ public class LogicalTypeParserTest {
                 TestSpec.forString("CHAR(33)").expectType(new CharType(33)),
                 TestSpec.forString("VARCHAR").expectType(new VarCharType()),
                 TestSpec.forString("VARCHAR(33)").expectType(new VarCharType(33)),
-                TestSpec.forString("STRING").expectType(VarCharType.STRING_TYPE),
+                TestSpec.forString("STRING").expectType(STRING_TYPE),
                 TestSpec.forString("BOOLEAN").expectType(new BooleanType()),
                 TestSpec.forString("BINARY").expectType(new BinaryType()),
                 TestSpec.forString("BINARY(33)").expectType(new BinaryType(33)),
@@ -206,6 +210,62 @@ public class LogicalTypeParserTest {
                                                         "f1",
                                                         new BooleanType(),
                                                         "This as well.")))),
+                TestSpec.forString("ROW<f0 INT NOT NULL, f1 BOOLEAN>")
+                        .expectType(
+                                new RowType(
+                                        Arrays.asList(
+                                                new RowType.RowField("f0", new IntType(false)),
+                                                new RowType.RowField("f1", new BooleanType())))),
+                TestSpec.forString(
+                                "STRUCTURED<'org.apache.flink.NonExistingType', name STRING NOT NULL, `age` INT, city STRING 'Comment'>")
+                        .expectType(
+                                StructuredType.newBuilder("org.apache.flink.NonExistingType")
+                                        .attributes(
+                                                List.of(
+                                                        new StructuredAttribute(
+                                                                "name", STRING_TYPE.copy(false)),
+                                                        new StructuredAttribute(
+                                                                "age", new IntType()),
+                                                        new StructuredAttribute(
+                                                                "city", STRING_TYPE, "Comment")))
+                                        .build()),
+                TestSpec.forString(
+                                "STRUCTURED<'org.apache.flink.NonExistingType', name STRING, `udt` MY_TYPE>")
+                        .expectType(
+                                StructuredType.newBuilder("org.apache.flink.NonExistingType")
+                                        .attributes(
+                                                List.of(
+                                                        new StructuredAttribute(
+                                                                "name", STRING_TYPE),
+                                                        new StructuredAttribute(
+                                                                "udt",
+                                                                new UnresolvedUserDefinedType(
+                                                                        UnresolvedIdentifier.of(
+                                                                                "MY_TYPE")))))
+                                        .build()),
+                TestSpec.forString(
+                                "STRUCTURED<'"
+                                        + MyPojo.class.getName()
+                                        + "', name STRING, `age` INT NOT NULL>")
+                        .expectType(
+                                StructuredType.newBuilder(MyPojo.class)
+                                        .attributes(
+                                                List.of(
+                                                        new StructuredAttribute(
+                                                                "name", STRING_TYPE),
+                                                        new StructuredAttribute(
+                                                                "age", new IntType(false))))
+                                        .build()),
+                TestSpec.forString("STRUCTURED<'" + MyPojo.class.getName() + "'>")
+                        .expectType(
+                                StructuredType.newBuilder(MyPojo.class)
+                                        .attributes(List.of())
+                                        .build()),
+                TestSpec.forString("STRUCTURED<'" + MyPojo.class.getName() + "'>")
+                        .expectType(
+                                StructuredType.newBuilder(MyPojo.class)
+                                        .attributes(List.of())
+                                        .build()),
                 TestSpec.forString("NULL").expectType(new NullType()),
                 TestSpec.forString(
                                 createRawType(LogicalTypeParserTest.class).asSerializableString())

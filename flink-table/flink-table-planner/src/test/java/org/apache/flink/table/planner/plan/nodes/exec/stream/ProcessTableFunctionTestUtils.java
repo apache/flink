@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
@@ -30,7 +31,7 @@ import org.apache.flink.table.functions.ChangelogFunction;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableSemantics;
-import org.apache.flink.table.runtime.operators.process.ProcessTableOperator;
+import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator.RunnerContext;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
@@ -66,6 +67,20 @@ public class ProcessTableFunctionTestUtils {
     public static final String MULTI_VALUES =
             "CREATE VIEW t AS SELECT * FROM "
                     + "(VALUES ('Bob', 12), ('Alice', 42), ('Bob', 99), ('Bob', 100), ('Alice', 400)) AS T(name, score)";
+
+    public static final String CITY_VALUES =
+            "CREATE VIEW city AS SELECT * FROM "
+                    + "(VALUES ('Bob', 'London'), ('Alice', 'Berlin'), ('Charly', 'Paris')) AS T(name, city)";
+
+    public static final SourceTestStep TIMED_CITY_SOURCE =
+            SourceTestStep.newBuilder("city")
+                    .addSchema(
+                            "name STRING",
+                            "city STRING",
+                            "ts TIMESTAMP_LTZ(3)",
+                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
+                    .producedValues(Row.of("Bob", "London", Instant.ofEpochMilli(0)))
+                    .build();
 
     public static final String UPDATING_VALUES =
             "CREATE VIEW t AS SELECT name, COUNT(*) FROM "
@@ -118,6 +133,18 @@ public class ProcessTableFunctionTestUtils {
     /** Corresponds to {@link AppendProcessTableFunctionBase}. */
     public static final List<String> KEYED_BASE_SINK_SCHEMA =
             List.of("`name` STRING", "`out` STRING");
+
+    /** Corresponds to {@link AppendProcessTableFunctionBase}. */
+    public static final List<String> MULTI_BASE_SINK_SCHEMA =
+            List.of("`name` STRING", "`name0` STRING", "`out` STRING");
+
+    /** Corresponds to {@link AppendProcessTableFunctionBase}. */
+    public static final List<String> TIMED_MULTI_BASE_SINK_SCHEMA =
+            List.of(
+                    "`name` STRING",
+                    "`name0` STRING",
+                    "`out` STRING",
+                    "`rowtime` TIMESTAMP_LTZ(3)");
 
     /** Corresponds to {@link AppendProcessTableFunctionBase}. */
     public static final List<String> PASS_THROUGH_BASE_SINK_SCHEMA =
@@ -377,8 +404,7 @@ public class ProcessTableFunctionTestUtils {
                 @StateHint(ttl = "0") Score s2,
                 @StateHint Score s3,
                 @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row r) {
-            final ProcessTableOperator.RunnerContext internalContext =
-                    (ProcessTableOperator.RunnerContext) ctx;
+            final RunnerContext internalContext = (RunnerContext) ctx;
             if (s0.getFieldAs("emitted") == null) {
                 collect(
                         String.format(
@@ -752,19 +778,6 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
-    public static class UpdatingUpsertPartialDeletesFunction
-            extends ChangelogProcessTableFunctionBase {
-        public void eval(Context ctx, @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES}) Row r) {
-            collectUpdate(ctx, r);
-        }
-
-        @Override
-        public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
-            return ChangelogMode.upsert();
-        }
-    }
-
-    /** Testing function. */
     public static class UpdatingUpsertFullDeletesFunction
             extends ChangelogProcessTableFunctionBase {
         public void eval(
@@ -795,6 +808,103 @@ public class ProcessTableFunctionTestUtils {
     public static class InvalidRowKindFunction extends AppendProcessTableFunctionBase {
         public void eval(@ArgumentHint(TABLE_AS_ROW) Row r) {
             collect(Row.ofKind(RowKind.DELETE, "invalidate"));
+        }
+    }
+
+    /** Testing function. */
+    public static class MultiInputFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @ArgumentHint(TABLE_AS_SET) Row in1,
+                @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row in2)
+                throws Exception {
+            collectObjects(in1, in2);
+        }
+    }
+
+    /** Testing function. */
+    public static class TimedJoinFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @StateHint Tuple1<Integer> score,
+                @StateHint Tuple1<String> city,
+                @ArgumentHint({TABLE_AS_SET, REQUIRE_ON_TIME}) Row scoreTable,
+                @ArgumentHint({TABLE_AS_SET, REQUIRE_ON_TIME}) Row cityTable)
+                throws Exception {
+            final TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
+            if (scoreTable != null) {
+                score.f0 = scoreTable.getFieldAs("score");
+                timeCtx.registerOnTime("timeout", timeCtx.time().plusMillis(1000));
+            }
+            if (cityTable != null) {
+                city.f0 = cityTable.getFieldAs("city");
+            }
+            if (score.f0 != null && city.f0 != null) {
+                collect(Row.of(score.f0 + " score in city " + city.f0));
+                ctx.clearAllTimers();
+            }
+        }
+
+        public void onTimer(OnTimerContext ctx, Tuple1<Integer> score, Tuple1<String> city) {
+            collect(Row.of("no city found for score " + score.f0));
+            score.f0 = null;
+        }
+    }
+
+    /**
+     * Implements a custom join that acts like kind of an outer join and never produces deletions.
+     * Both the score and city can change at any time. The join will output an update if a matching
+     * pair could be found.
+     */
+    @DataTypeHint("ROW<out STRING>")
+    public static class UpdatingJoinFunction extends ProcessTableFunction<Row>
+            implements ChangelogFunction {
+        public void eval(
+                @StateHint Tuple1<Integer> score,
+                @StateHint Tuple1<String> city,
+                @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES}) Row scoreTable,
+                @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES}) Row cityTable)
+                throws Exception {
+            final boolean wasMatch = isMatch(score, city);
+            if (isDelete(scoreTable) || isDelete(cityTable)) {
+                if (wasMatch) {
+                    collect(Row.ofKind(RowKind.DELETE, (Object) null));
+                }
+            }
+
+            if (scoreTable != null) {
+                apply(score, scoreTable.getFieldAs("score"), scoreTable.getKind());
+            }
+            if (cityTable != null) {
+                apply(city, cityTable.getFieldAs("city"), cityTable.getKind());
+            }
+            if (isMatch(score, city)) {
+                collect(
+                        Row.ofKind(
+                                wasMatch ? RowKind.UPDATE_AFTER : RowKind.INSERT,
+                                "score " + score.f0 + " in city " + city.f0));
+            }
+        }
+
+        public boolean isDelete(Row r) {
+            return r != null && r.getKind() == RowKind.DELETE;
+        }
+
+        public boolean isMatch(Tuple1<Integer> score, Tuple1<String> city) {
+            return score.f0 != null && city.f0 != null;
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
+            return ChangelogMode.upsert();
+        }
+
+        private static <T> void apply(Tuple1<T> t, T o, RowKind op) {
+            if (op == RowKind.INSERT || op == RowKind.UPDATE_AFTER) {
+                t.f0 = o;
+            } else {
+                t.f0 = null;
+            }
         }
     }
 

@@ -34,7 +34,6 @@ import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.{verifyFunctionAwareOutputType, DefaultExpressionEvaluatorFactory}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
-import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.dataview.DataViewUtils
@@ -43,17 +42,15 @@ import org.apache.flink.table.runtime.dataview.StateMapView.KeyedStateMapViewWit
 import org.apache.flink.table.runtime.generated.{GeneratedProcessTableRunner, ProcessTableRunner}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.ExtractionUtils
-import org.apache.flink.table.types.inference.{StaticArgument, StaticArgumentTrait, SystemTypeInference, TypeInferenceUtil}
+import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.inference.TypeInferenceUtil.StateInfo
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.types.Row
 
-import org.apache.calcite.rex.{RexCall, RexCallBinding, RexNode, RexUtil}
-import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.rex.{RexCall, RexNode}
 
 import java.util
-import java.util.Collections
 
 import scala.collection.JavaConverters._
 

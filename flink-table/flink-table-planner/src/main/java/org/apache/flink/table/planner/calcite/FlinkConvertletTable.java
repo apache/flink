@@ -30,6 +30,7 @@ import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlModelCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
@@ -65,9 +66,16 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
             return this::convertTryCast;
         } else if (operator instanceof SqlTableFunction) {
             return this::convertTableArgs;
+        } else if (call instanceof SqlModelCall) {
+            return this::convertModelCall;
         }
 
         return StandardConvertletTable.INSTANCE.get(call);
+    }
+
+    private RexNode convertModelCall(SqlRexContext cx, final SqlCall call) {
+        SqlModelCall modelCall = (SqlModelCall) call;
+        return modelCall.getModel().toRex(cx);
     }
 
     // Slightly modified version of StandardConvertletTable::convertCast

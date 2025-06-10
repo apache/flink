@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.batch.sql.join
 
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -45,6 +45,18 @@ class LookupJoinTest extends TableTestBase {
                         |  `age` INT
                         |) WITH (
                         |  'connector' = 'values',
+                        |  'bounded' = 'true'
+                        |)
+                        |""".stripMargin)
+
+    testUtil.addTable("""
+                        |CREATE TABLE AsyncLookupTable (
+                        |  `id` INT,
+                        |  `name` STRING,
+                        |  `age` INT
+                        |) WITH (
+                        |  'connector' = 'values',
+                        |  'async' = 'true',
                         |  'bounded' = 'true'
                         |)
                         |""".stripMargin)
@@ -221,6 +233,17 @@ class LookupJoinTest extends TableTestBase {
       .hasMessageContaining("implicit type conversion between VARCHAR(2147483647) and INTEGER " +
         "is not supported on join's condition now")
       .isInstanceOf[TableException]
+  }
+
+  @Test
+  def testJoinAsyncTableWithKeyOrderedDisabled(): Unit = {
+    testUtil.getTableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED, Boolean.box(true))
+    val sql =
+      "SELECT /*+ LOOKUP('table'='D', 'async'='true', 'output-mode'='allow_unordered') */ * " +
+        "FROM (SELECT * FROM MyTable) AS T JOIN AsyncLookupTable " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    testUtil.verifyExecPlan(sql)
   }
 
   @Test

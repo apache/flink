@@ -375,6 +375,19 @@ public class ExecutionConfigOptions {
     //  Async Lookup Options
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED =
+            key("table.exec.async-lookup.key-ordered-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When true, async lookup joins would follow the upsert key order in cdc streams. "
+                                    + "If there is no defined upsert key, then the total record is considered as the upsert key. "
+                                    + "Setting this for insert-only streams has no effect because record in insert-only streams is "
+                                    + "independent and does not affect the state of previous records. "
+                                    + "Besides, since records in insert-only streams typically do not involve a primary key then "
+                                    + "no upsertKey can be derived. This makes them be unordered processed even if key ordered enabled.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY =
             key("table.exec.async-lookup.buffer-capacity")
                     .intType()
@@ -442,6 +455,37 @@ public class ExecutionConfigOptions {
                     .withDescription(
                             "The max number of async retry attempts to make before task "
                                     + "execution is failed.");
+
+    // ------------------------------------------------------------------------
+    //  Async ML_PREDICT Options
+    // ------------------------------------------------------------------------
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_ML_PREDICT_BUFFER_CAPACITY =
+            key("table.exec.async-ml-predict.buffer-capacity")
+                    .intType()
+                    .defaultValue(10)
+                    .withDescription(
+                            "The max number of async i/o operation that the async ml predict can trigger.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_ML_PREDICT_TIMEOUT =
+            key("table.exec.async-ml-predict.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(3))
+                    .withDescription(
+                            "The async timeout for the asynchronous operation to complete. If the deadline fails, a timeout exception will be thrown to indicate the error.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<AsyncOutputMode> TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE =
+            key("table.exec.async-ml-predict.output-mode")
+                    .enumType(AsyncOutputMode.class)
+                    .defaultValue(AsyncOutputMode.ORDERED)
+                    .withDescription(
+                            "Output mode for async ML predict, which describes whether or not the the output should attempt to be ordered or not. The supported options are: "
+                                    + "ALLOW_UNORDERED means the operator emit the result when execution finishes. The planner will attempt use ALLOW_UNORDERED whn it doesn't affect "
+                                    + "the correctness of the results.\n"
+                                    + "ORDERED ensures that the operator emits the result in the same order as the data enters it. This is the default.");
 
     // ------------------------------------------------------------------------
     //  MiniBatch Options

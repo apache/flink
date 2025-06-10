@@ -29,11 +29,11 @@ under the License.
 
 
 ## 环境要求
-<span class="label label-info">注意</span> PyFlink 需要 Python 3.7 以上版本（3.8, 3.9 或 3.10）。请运行以下命令，以确保 Python 版本满足要求。
+<span class="label label-info">注意</span> PyFlink 需要 Python 3.9 以上版本（3.9, 3.10, 3.11 或 3.12）。请运行以下命令，以确保 Python 版本满足要求。
 
 ```bash
 $ python --version
-# the version printed here must be 3.8, 3.9 or 3.10
+# the version printed here must be 3.9, 3.10, 3.11 or 3.12
 ```
 
 ## 环境设置

@@ -20,10 +20,11 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ProcessTableFunction;
@@ -88,8 +89,8 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFi
         name = "stream-exec-process-table-function",
         version = 1,
         producedTransformations = StreamExecProcessTableFunction.PROCESS_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v2_0,
-        minStateVersion = FlinkVersion.v2_0)
+        minPlanVersion = FlinkVersion.v2_1,
+        minStateVersion = FlinkVersion.v2_1)
 public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
@@ -166,10 +167,6 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                 getInputEdges().stream()
                         .map(e -> (Transformation<RowData>) e.translateToPlan(planner))
                         .collect(Collectors.toList());
-        if (inputTransforms.size() != 1) {
-            throw new TableException("Process table function only supports exactly one input.");
-        }
-        final Transformation<RowData> inputTransform = inputTransforms.get(0);
 
         final List<Ord<StaticArgument>> providedInputArgs =
                 StreamPhysicalProcessTableFunction.getProvidedInputArgs(invocation);
@@ -224,20 +221,12 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                         .map(t -> EqualiserCodeGenerator.generateRowEquals(ctx, t, "StateEquals"))
                         .toArray(GeneratedRecordEqualiser[]::new);
 
-        final RuntimeTableSemantics singleTableSemantics;
-        if (runtimeTableSemantics.isEmpty()) {
-            // For constant function calls
-            singleTableSemantics = null;
-        } else {
-            singleTableSemantics = runtimeTableSemantics.get(0);
-        }
-
         final RuntimeChangelogMode producedChangelogMode =
                 RuntimeChangelogMode.serialize(outputChangelogMode);
 
         final ProcessTableOperatorFactory operatorFactory =
                 new ProcessTableOperatorFactory(
-                        singleTableSemantics,
+                        runtimeTableSemantics,
                         runtimeStateInfos,
                         generatedRunner,
                         stateHashCode,
@@ -253,24 +242,17 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                         createTransformationName(config),
                         createTransformationDescription(config));
 
-        final OneInputTransformation<RowData, RowData> transform =
-                ExecNodeUtil.createOneInputTransformation(
-                        inputTransform,
-                        metadata,
-                        operatorFactory,
-                        InternalTypeInfo.of(getOutputType()),
-                        inputTransform.getParallelism(),
-                        false);
-
-        // For one input (but non-constant) functions with set semantics
-        if (singleTableSemantics != null && singleTableSemantics.hasSetSemantics()) {
-            final RowDataKeySelector selector =
-                    KeySelectorUtil.getRowDataSelector(
-                            planner.getFlinkContext().getClassLoader(),
-                            singleTableSemantics.partitionByColumns(),
-                            (InternalTypeInfo<RowData>) inputTransform.getOutputType());
-            transform.setStateKeySelector(selector);
-            transform.setStateKeyType(selector.getProducedType());
+        final Transformation<RowData> transform;
+        if (runtimeTableSemantics.stream().anyMatch(RuntimeTableSemantics::hasSetSemantics)) {
+            transform =
+                    createKeyedTransformation(
+                            inputTransforms,
+                            metadata,
+                            operatorFactory,
+                            planner,
+                            runtimeTableSemantics);
+        } else {
+            transform = createNonKeyedTransformation(inputTransforms, metadata, operatorFactory);
         }
 
         if (inputsContainSingleton()) {
@@ -304,6 +286,57 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                 tableArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH),
                 tableArg.is(StaticArgumentTrait.TABLE_AS_SET),
                 timeColumn);
+    }
+
+    private Transformation<RowData> createKeyedTransformation(
+            List<Transformation<RowData>> inputTransforms,
+            TransformationMetadata metadata,
+            ProcessTableOperatorFactory operatorFactory,
+            PlannerBase planner,
+            List<RuntimeTableSemantics> runtimeTableSemantics) {
+        assert runtimeTableSemantics.size() == inputTransforms.size();
+
+        final List<KeySelector<RowData, RowData>> keySelectors =
+                runtimeTableSemantics.stream()
+                        .map(
+                                inputSemantics ->
+                                        KeySelectorUtil.getRowDataSelector(
+                                                planner.getFlinkContext().getClassLoader(),
+                                                inputSemantics.partitionByColumns(),
+                                                (InternalTypeInfo<RowData>)
+                                                        inputTransforms
+                                                                .get(inputSemantics.getInputIndex())
+                                                                .getOutputType()))
+                        .collect(Collectors.toList());
+
+        final KeyedMultipleInputTransformation<RowData> transform =
+                ExecNodeUtil.createKeyedMultiInputTransformation(
+                        inputTransforms,
+                        keySelectors,
+                        ((RowDataKeySelector) keySelectors.get(0)).getProducedType(),
+                        metadata,
+                        operatorFactory,
+                        InternalTypeInfo.of(getOutputType()),
+                        inputTransforms.get(0).getParallelism(),
+                        false);
+
+        transform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES);
+
+        return transform;
+    }
+
+    private Transformation<RowData> createNonKeyedTransformation(
+            List<Transformation<RowData>> inputTransforms,
+            TransformationMetadata metadata,
+            ProcessTableOperatorFactory operatorFactory) {
+        final Transformation<RowData> inputTransform = inputTransforms.get(0);
+        return ExecNodeUtil.createOneInputTransformation(
+                inputTransform,
+                metadata,
+                operatorFactory,
+                InternalTypeInfo.of(getOutputType()),
+                inputTransform.getParallelism(),
+                false);
     }
 
     private static RuntimeStateInfo createRuntimeStateInfo(

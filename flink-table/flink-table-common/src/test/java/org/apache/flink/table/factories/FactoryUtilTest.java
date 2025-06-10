@@ -760,6 +760,7 @@ class FactoryUtilTest {
                         + "' in the classpath.\n\n"
                         + "Available factory identifiers are:\n\n"
                         + "conflicting-model\n"
+                        + "non-predict-model\n"
                         + "test-model");
     }
 

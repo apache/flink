@@ -59,6 +59,28 @@ class LookupJoinTest extends TableTestBase with Serializable {
     util.addDataStream[(Int, String, Int)]("nonTemporal", 'id, 'name, 'age)
 
     util.addTable("""
+                    |CREATE TABLE UpsertTable (
+                    |  `id` INT,
+                    |  `name` STRING,
+                    |  `age` INT
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'changelog-mode' = 'I,UA,UB,D'
+                    |)
+                    |""".stripMargin)
+
+    util.addTable("""
+                    |CREATE TABLE AppendOnlyTable (
+                    |  `id` INT,
+                    |  `name` STRING,
+                    |  `age` INT
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'bounded' = 'true'
+                    |)
+                    |""".stripMargin)
+
+    util.addTable("""
                     |CREATE TABLE LookupTable (
                     |  `id` INT,
                     |  `name` STRING,
@@ -845,6 +867,41 @@ class LookupJoinTest extends TableTestBase with Serializable {
       "SELECT /*+ LOOKUP('table'='D', 'async'='false') */ * " +
         "FROM MyTable AS T JOIN AsyncLookupTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinAsyncTableKeyOrderedUnsupported(): Unit = {
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED, Boolean.box(true))
+    val sql =
+      "SELECT /*+ LOOKUP('table'='D', 'async'='true', 'output-mode'='allow_unordered') */ * " +
+        "FROM (SELECT *, PROCTIME() AS proctime FROM UpsertTable) AS T JOIN AsyncLookupTable " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id"
+    assertThatThrownBy(() => util.verifyExplain(sql, ExplainDetail.JSON_EXECUTION_PLAN))
+      .hasMessageContaining("No proper operator is supported currently.")
+      .isInstanceOf[UnsupportedOperationException]
+  }
+
+  @Test
+  def testJoinAsyncTableKeyOrderedWithCdcSource(): Unit = {
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED, Boolean.box(true))
+    val sql =
+      "SELECT /*+ LOOKUP('table'='D', 'async'='true', 'output-mode'='allow_unordered') */ * " +
+        "FROM (SELECT *, PROCTIME() AS proctime FROM UpsertTable) AS T JOIN AsyncLookupTable " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id"
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinAsyncTableKeyOrderedWithAppendOnlySource(): Unit = {
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED, Boolean.box(true))
+    val sql =
+      "SELECT /*+ LOOKUP('table'='D', 'async'='true', 'output-mode'='allow_unordered') */ * " +
+        "FROM (SELECT *, PROCTIME() AS proctime FROM AppendOnlyTable) AS T JOIN AsyncLookupTable " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id"
     util.verifyExecPlan(sql)
   }
 

@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalR
 import org.apache.flink.table.planner.plan.schema.{IntermediateRelTable, LegacyTableSourceTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, ExpressionFormat, InputRefVisitor, JoinTypeUtil, LookupJoinUtil, RelExplainUtil, TemporalJoinUtil}
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.{AsyncOptions, Constant, FieldRef, FunctionParam}
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
@@ -94,7 +95,7 @@ abstract class CommonPhysicalLookupJoin(
   extends SingleRel(cluster, traitSet, inputRel)
   with FlinkRelNode {
 
-  val allLookupKeys: Map[Int, LookupKey] = {
+  val allLookupKeys: Map[Int, FunctionParam] = {
     // join key pairs from left input field index to temporal table field index
     val joinKeyPairs: Array[IntPair] =
       TemporalJoinUtil.getTemporalTableJoinKeyPairs(joinInfo, calcOnTemporalTable)
@@ -130,12 +131,12 @@ abstract class CommonPhysicalLookupJoin(
 
   lazy val tableConfig: TableConfig = unwrapTableConfig(this);
 
-  lazy val asyncOptions: Option[AsyncLookupOptions] = if (isAsyncEnabled) {
+  lazy val asyncOptions: Option[AsyncOptions] = if (isAsyncEnabled) {
     Option.apply(
       LookupJoinUtil.getMergedAsyncOptions(lookupHint.orNull, tableConfig, inputChangelogMode))
   } else {
     // do not create asyncOptions if async is not enabled
-    Option.empty[AsyncLookupOptions]
+    Option.empty[AsyncOptions]
   }
 
   override def deriveRowType(): RelDataType = {
@@ -169,9 +170,9 @@ abstract class CommonPhysicalLookupJoin(
     }
     val lookupKeys = allLookupKeys
       .map {
-        case (tableField, fieldKey: FieldRefLookupKey) =>
+        case (tableField, fieldKey: FieldRef) =>
           s"${tableFieldNames.get(tableField)}=${inputFieldNames(fieldKey.index)}"
-        case (tableField, constantKey: ConstantLookupKey) =>
+        case (tableField, constantKey: Constant) =>
           s"${tableFieldNames.get(tableField)}=${RelExplainUtil.literalToString(constantKey.literal)}"
       }
       .mkString(", ")
@@ -226,13 +227,13 @@ abstract class CommonPhysicalLookupJoin(
   private def splitJoinCondition(
       rexBuilder: RexBuilder,
       leftRelDataType: RelDataType,
-      leftKeys: List[LookupKey],
+      leftKeys: List[FunctionParam],
       joinInfo: JoinInfo): (Option[RexNode], Option[RexNode]) = {
     // indexes of left key fields
     val leftKeyIndexes =
       leftKeys
-        .filter(k => k.isInstanceOf[FieldRefLookupKey])
-        .map(k => k.asInstanceOf[FieldRefLookupKey].index)
+        .filter(k => k.isInstanceOf[FieldRef])
+        .map(k => k.asInstanceOf[FieldRef].index)
     val joinPairs = joinInfo.pairs().asScala.toArray
     // right lookup key index of temporal table may be duplicated in joinPairs,
     // we should filter the key-pair by checking left key index.
@@ -281,8 +282,8 @@ abstract class CommonPhysicalLookupJoin(
   }
 
   /**
-   * Analyze potential lookup keys (including [[ConstantLookupKey]] and [[FieldRefLookupKey]]) of
-   * the temporal table from the join condition and calc program on the temporal table.
+   * Analyze potential lookup keys (including [[Constant]] and [[FieldRef]]) of the temporal table
+   * from the join condition and calc program on the temporal table.
    *
    * @param rexBuilder
    *   the RexBuilder
@@ -296,9 +297,9 @@ abstract class CommonPhysicalLookupJoin(
   private def analyzeLookupKeys(
       rexBuilder: RexBuilder,
       joinKeyPairs: Array[IntPair],
-      calcOnTemporalTable: Option[RexProgram]): Map[Int, LookupKey] = {
+      calcOnTemporalTable: Option[RexProgram]): Map[Int, FunctionParam] = {
     // field_index_in_table_source => constant_lookup_key
-    val constantLookupKeys = new mutable.HashMap[Int, ConstantLookupKey]
+    val constantLookupKeys = new mutable.HashMap[Int, Constant]
     // analyze constant lookup keys
     if (calcOnTemporalTable.isDefined && null != calcOnTemporalTable.get.getCondition) {
       val program = calcOnTemporalTable.get
@@ -307,8 +308,8 @@ abstract class CommonPhysicalLookupJoin(
       // presume 'A = 1 AND A = 2' will be reduced to ALWAYS_FALSE
       extractConstantFieldsFromEquiCondition(condition, constantLookupKeys)
     }
-    val fieldRefLookupKeys = joinKeyPairs.map(p => (p.target, new FieldRefLookupKey(p.source)))
-    constantLookupKeys.toMap[Int, LookupKey] ++ fieldRefLookupKeys.toMap[Int, LookupKey]
+    val fieldRefLookupKeys = joinKeyPairs.map(p => (p.target, new FieldRef(p.source)))
+    constantLookupKeys.toMap[Int, FunctionParam] ++ fieldRefLookupKeys.toMap[Int, FunctionParam]
   }
 
   /** Check if lookup key contains primary key, include constant lookup keys. */
@@ -406,7 +407,7 @@ abstract class CommonPhysicalLookupJoin(
 
   private def extractConstantFieldsFromEquiCondition(
       condition: RexNode,
-      constantFieldMap: mutable.HashMap[Int, ConstantLookupKey]): Unit = condition match {
+      constantFieldMap: mutable.HashMap[Int, Constant]): Unit = condition match {
     case c: RexCall if c.getKind == SqlKind.AND =>
       c.getOperands.asScala.foreach(r => extractConstantField(r, constantFieldMap))
     case rex: RexNode => extractConstantField(rex, constantFieldMap)
@@ -415,7 +416,7 @@ abstract class CommonPhysicalLookupJoin(
 
   private def extractConstantField(
       pred: RexNode,
-      constantFieldMap: mutable.HashMap[Int, ConstantLookupKey]): Unit = pred match {
+      constantFieldMap: mutable.HashMap[Int, Constant]): Unit = pred match {
     case c: RexCall if c.getKind == SqlKind.EQUALS =>
       val left = c.getOperands.get(0)
       val right = c.getOperands.get(1)
@@ -425,7 +426,7 @@ abstract class CommonPhysicalLookupJoin(
         case _ => return // non-constant condition
       }
       val dataType = FlinkTypeFactory.toLogicalType(inputRef.getType)
-      constantFieldMap.put(inputRef.getIndex, new ConstantLookupKey(dataType, literal))
+      constantFieldMap.put(inputRef.getIndex, new Constant(dataType, literal))
     case _ => // ignore
   }
 

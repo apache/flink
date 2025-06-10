@@ -25,11 +25,11 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator;
+import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator.RunnerContext;
+import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator.RunnerOnTimerContext;
 import org.apache.flink.table.runtime.operators.process.PassAllCollector;
 import org.apache.flink.table.runtime.operators.process.PassThroughCollectorBase;
-import org.apache.flink.table.runtime.operators.process.ProcessTableOperator;
-import org.apache.flink.table.runtime.operators.process.ProcessTableOperator.RunnerContext;
-import org.apache.flink.table.runtime.operators.process.ProcessTableOperator.RunnerOnTimerContext;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -40,7 +40,7 @@ import java.util.Arrays;
 
 /**
  * Abstraction of code-generated calls to {@link ProcessTableFunction} to be used within {@link
- * ProcessTableOperator}.
+ * AbstractProcessTableOperator}.
  */
 @Internal
 public abstract class ProcessTableRunner extends AbstractRichFunction {
@@ -105,7 +105,7 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     }
 
     public void ingestTableEvent(int pos, RowData row, int timeColumn) {
-        evalCollector.setPrefix(row);
+        evalCollector.setPrefix(pos, row);
         if (timeColumn == -1) {
             rowtime = null;
         } else {
@@ -120,7 +120,7 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     }
 
     public void ingestTimerEvent(RowData key, @Nullable StringData name, long timerTime) {
-        onTimerCollector.setPrefix(key);
+        onTimerCollector.setPrefix(-1, key);
         if (emitRowtime) {
             onTimerCollector.setRowtime(timerTime);
         }

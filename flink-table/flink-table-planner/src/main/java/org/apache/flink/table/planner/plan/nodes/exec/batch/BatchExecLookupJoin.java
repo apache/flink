@@ -23,6 +23,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
@@ -32,7 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
-import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -70,10 +71,10 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
             @Nullable RexNode preFilterCondition,
             @Nullable RexNode remainingJoinCondition,
             TemporalTableSourceSpec temporalTableSourceSpec,
-            Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> lookupKeys,
             @Nullable List<RexNode> projectionOnTemporalTable,
             @Nullable RexNode filterOnTemporalTable,
-            @Nullable LookupJoinUtil.AsyncLookupOptions asyncLookupOptions,
+            @Nullable FunctionCallUtils.AsyncOptions asyncLookupOptions,
             InputProperty inputProperty,
             RowType outputType,
             String description,
@@ -110,13 +111,14 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
                     RexNode remainingJoinCondition,
             @JsonProperty(FIELD_NAME_TEMPORAL_TABLE)
                     TemporalTableSourceSpec temporalTableSourceSpec,
-            @JsonProperty(FIELD_NAME_LOOKUP_KEYS) Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
+            @JsonProperty(FIELD_NAME_LOOKUP_KEYS)
+                    Map<Integer, FunctionCallUtils.FunctionParam> lookupKeys,
             @JsonProperty(FIELD_NAME_PROJECTION_ON_TEMPORAL_TABLE) @Nullable
                     List<RexNode> projectionOnTemporalTable,
             @JsonProperty(FIELD_NAME_FILTER_ON_TEMPORAL_TABLE) @Nullable
                     RexNode filterOnTemporalTable,
             @JsonProperty(FIELD_NAME_ASYNC_OPTIONS) @Nullable
-                    LookupJoinUtil.AsyncLookupOptions asyncLookupOptions,
+                    FunctionCallUtils.AsyncOptions asyncLookupOptions,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
@@ -157,7 +159,7 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
             RelOptTable temporalTable,
             ExecNodeConfig config,
             ClassLoader classLoader,
-            Map<Integer, LookupJoinUtil.LookupKey> allLookupKeys,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
             TableFunction<?> syncLookupFunction,
             RelBuilder relBuilder,
             RowType inputRowType,
@@ -167,5 +169,23 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
             boolean isObjectReuseEnabled,
             boolean lookupKeyContainsPrimaryKey) {
         return inputTransformation;
+    }
+
+    @Override
+    protected Transformation<RowData> createKeyOrderedAsyncLookupJoin(
+            Transformation<RowData> inputTransformation,
+            RelOptTable temporalTable,
+            ExecNodeConfig config,
+            ClassLoader classLoader,
+            Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys,
+            AsyncTableFunction<Object> asyncLookupFunction,
+            RelBuilder relBuilder,
+            RowType inputRowType,
+            RowType tableSourceRowType,
+            RowType resultRowType,
+            boolean isLeftOuterJoin,
+            FunctionCallUtils.AsyncOptions asyncLookupOptions) {
+        throw new IllegalStateException(
+                "Batch mode should not use key-ordered async lookup joins. This is a bug. Please file an issue.");
     }
 }

@@ -61,6 +61,7 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -292,6 +293,36 @@ class FlinkDDLDataTypeTest {
                                 Fixture.RAW_TYPE_INT_SERIALIZER_STRING.substring(1)
                                 + "') NOT NULL",
                         FIXTURE.rawTypeOfInteger),
+                createArgumentsTestItem(
+                        "STRUCTURED<'"
+                                + Fixture.STRUCTURED_TYPE_NAME
+                                + "', age INT, `updated` BOOLEAN NOT NULL>",
+                        nullable(
+                                FIXTURE.createStructuredType(
+                                        Fixture.STRUCTURED_TYPE_NAME,
+                                        List.of(nullable(FIXTURE.intType), FIXTURE.booleanType),
+                                        List.of("age", "updated"))),
+                        "STRUCTURED< '"
+                                + Fixture.STRUCTURED_TYPE_NAME
+                                + "', `age` INTEGER, `updated` BOOLEAN NOT NULL >"),
+                createArgumentsTestItem(
+                        "STRUCTURED<'" + Fixture.STRUCTURED_TYPE_NAME + "'>",
+                        nullable(
+                                FIXTURE.createStructuredType(
+                                        Fixture.STRUCTURED_TYPE_NAME, List.of(), List.of())),
+                        "STRUCTURED< '" + Fixture.STRUCTURED_TYPE_NAME + "' >"),
+                createArgumentsTestItem(
+                        "STRUCTURED<'"
+                                + Fixture.STRUCTURED_TYPE_NAME
+                                + "', age INT 'This is comment', `updated` BOOLEAN NOT NULL 'This as well'>",
+                        nullable(
+                                FIXTURE.createStructuredType(
+                                        Fixture.STRUCTURED_TYPE_NAME,
+                                        List.of(nullable(FIXTURE.intType), FIXTURE.booleanType),
+                                        List.of("age", "updated"))),
+                        "STRUCTURED< '"
+                                + Fixture.STRUCTURED_TYPE_NAME
+                                + "', `age` INTEGER 'This is comment', `updated` BOOLEAN NOT NULL 'This as well' >"),
 
                 // Test parse throws error.
                 createArgumentsTestItem(

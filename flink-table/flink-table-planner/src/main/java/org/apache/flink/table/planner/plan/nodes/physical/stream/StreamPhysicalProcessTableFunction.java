@@ -17,8 +17,9 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream;
 
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -40,6 +41,8 @@ import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.SystemTypeInference;
 import org.apache.flink.types.RowKind;
+
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableSet;
 
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
@@ -64,6 +67,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -100,6 +104,7 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         this.rowType = rowType;
         this.scan = scan;
         this.uid = deriveUniqueIdentifier(scan);
+        verifyInputSize(ShortcutUtils.unwrapTableConfig(cluster), inputs.size());
     }
 
     public StreamPhysicalProcessTableFunction(
@@ -161,7 +166,8 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                         .orElseThrow(IllegalStateException::new);
         final RexCall call = (RexCall) scan.getCall();
         verifyTimeAttributes(getInputs(), call, inputChangelogModes, outputChangelogMode);
-        verifyPassThroughColumnsForUpdates(call, outputChangelogMode);
+        final List<Ord<StaticArgument>> providedInputArgs = getProvidedInputArgs(call);
+        verifyPassThroughColumnsForUpdates(providedInputArgs, outputChangelogMode);
         return new StreamExecProcessTableFunction(
                 unwrapTableConfig(this),
                 getInputs().stream().map(i -> InputProperty.DEFAULT).collect(Collectors.toList()),
@@ -283,12 +289,22 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
     }
 
     private static void verifyPassThroughColumnsForUpdates(
-            RexCall call, ChangelogMode outputChangelogMode) {
-        if (!outputChangelogMode.containsOnly(RowKind.INSERT)
-                && getProvidedInputArgs(call).stream()
+            List<Ord<StaticArgument>> providedInputArgs, ChangelogMode requiredChangelogMode) {
+        if (!requiredChangelogMode.containsOnly(RowKind.INSERT)
+                && providedInputArgs.stream()
                         .anyMatch(arg -> arg.e.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH))) {
             throw new ValidationException(
                     "Pass-through columns are not supported for PTFs that produce updates.");
+        }
+    }
+
+    private static void verifyInputSize(TableConfig tableConfig, int providedInputArgs) {
+        final int maxCount = tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_PTF_MAX_TABLES);
+        if (providedInputArgs > maxCount) {
+            throw new ValidationException(
+                    String.format(
+                            "Unsupported table argument count. Currently, the number of input tables is limited to %s.",
+                            maxCount));
         }
     }
 
@@ -414,26 +430,40 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
                 .collect(Collectors.toList());
     }
 
-    public static ImmutableBitSet toPartitionColumns(RexCall call) {
+    public static Set<ImmutableBitSet> toPartitionColumns(RexCall call) {
         final List<RexNode> operands = call.getOperands();
         final List<Ord<StaticArgument>> providedInputArgs =
                 StreamPhysicalProcessTableFunction.getProvidedInputArgs(call);
-        if (providedInputArgs.size() > 1) {
-            throw new TableException("More than one table input is not supported yet.");
-        }
-        final List<Integer> partitionColumns = new ArrayList<>();
+        final Set<ImmutableBitSet> partitionColumnsPerArg = new HashSet<>();
+        int pos = 0;
         for (Ord<StaticArgument> providedInputArg : providedInputArgs) {
             final RexTableArgCall tableArgCall = (RexTableArgCall) operands.get(providedInputArg.i);
             if (providedInputArg.e.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
-                // Output preserved key positions
-                Arrays.stream(tableArgCall.getPartitionKeys()).forEach(partitionColumns::add);
+                // System type inference ensures that at most one table
+                // argument can pass columns through. In that case, the
+                // output preserves the position of partition columns.
+                // f(t(c1, c2, k1, k2, c3) PARTITION BY (k1, k2))
+                // -> [c1, c2, k1, k2, c3, function out...]
+                assert providedInputArgs.size() == 1;
+                final List<Integer> partitionColumns =
+                        Arrays.stream(tableArgCall.getPartitionKeys())
+                                .boxed()
+                                .collect(Collectors.toList());
+                partitionColumnsPerArg.add(ImmutableBitSet.of(partitionColumns));
             } else {
-                // Output is prefixed with partition keys only
-                IntStream.range(0, tableArgCall.getPartitionKeys().length)
-                        .forEach(partitionColumns::add);
+                final int partitionKeyCount = tableArgCall.getPartitionKeys().length;
+                // Output is prefixed with partition keys:
+                // f(t1 PARTITION BY (k1, k2), t2 PARTITION BY (k3, k4))
+                // -> [k1, k2, k3, k4, function out...]
+                final List<Integer> partitionColumns =
+                        IntStream.range(pos, partitionKeyCount)
+                                .boxed()
+                                .collect(Collectors.toList());
+                pos += partitionKeyCount;
+                partitionColumnsPerArg.add(ImmutableBitSet.of(partitionColumns));
             }
         }
-        return ImmutableBitSet.of(partitionColumns);
+        return ImmutableSet.copyOf(partitionColumnsPerArg);
     }
 
     public static CallContext toCallContext(

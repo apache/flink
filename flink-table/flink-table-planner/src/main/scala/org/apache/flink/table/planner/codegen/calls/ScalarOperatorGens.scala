@@ -45,7 +45,6 @@ import org.apache.flink.types.ColumnList
 import org.apache.flink.util.Preconditions.checkArgument
 
 import java.time.ZoneId
-import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -420,6 +419,26 @@ object ScalarOperatorGens {
     // row types
     else if (isRow(left.resultType) && canEqual) {
       wrapExpressionIfNonEq(nonEq, generateRowComparison(ctx, left, right, resultType), resultType)
+    }
+    // structured types
+    else if (isStructuredType(left.resultType)) {
+      if (canEqual) {
+        val supportsEquality = left.resultType.asInstanceOf[StructuredType].getComparison.isEquality
+        if (!supportsEquality) {
+          throw new ValidationException(
+            s"Equality is not supported on structured type ${left.resultType}.")
+        }
+        wrapExpressionIfNonEq(
+          nonEq,
+          generateRowComparison(ctx, left, right, resultType),
+          resultType)
+      } else if (isStructuredType(right.resultType)) {
+        throw new ValidationException(
+          s"Incompatible structured types: ${left.resultType} and ${right.resultType}.")
+      } else {
+        throw new ValidationException(
+          s"Incompatible types: ${left.resultType} and ${right.resultType}.")
+      }
     }
     // multiset types
     else if (isMultiset(left.resultType) && canEqual) {

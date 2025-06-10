@@ -45,7 +45,10 @@ import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
@@ -61,6 +64,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -327,7 +331,8 @@ public final class LogicalTypeParser {
         RAW,
         LEGACY,
         NOT,
-        DESCRIPTOR
+        DESCRIPTOR,
+        STRUCTURED
     }
 
     private static final Set<String> KEYWORDS =
@@ -563,6 +568,8 @@ public final class LogicalTypeParser {
                     return parseMapType();
                 case ROW:
                     return parseRowType();
+                case STRUCTURED:
+                    return parseStructuredType();
                 case NULL:
                     return new NullType();
                 case RAW:
@@ -860,22 +867,25 @@ public final class LogicalTypeParser {
         }
 
         private LogicalType parseRowType() {
-            List<RowType.RowField> fields;
+            final List<ParsedField> fields;
             // SQL standard notation
             if (hasNextToken(TokenType.BEGIN_PARAMETER)) {
                 nextToken(TokenType.BEGIN_PARAMETER);
-                fields = parseRowFields(TokenType.END_PARAMETER);
+                fields = parseFields(TokenType.END_PARAMETER);
                 nextToken(TokenType.END_PARAMETER);
             } else {
                 nextToken(TokenType.BEGIN_SUBTYPE);
-                fields = parseRowFields(TokenType.END_SUBTYPE);
+                fields = parseFields(TokenType.END_SUBTYPE);
                 nextToken(TokenType.END_SUBTYPE);
             }
-            return new RowType(fields);
+            return new RowType(
+                    fields.stream()
+                            .map(f -> new RowField(f.name, f.type, f.description))
+                            .collect(Collectors.toList()));
         }
 
-        private List<RowType.RowField> parseRowFields(TokenType endToken) {
-            List<RowType.RowField> fields = new ArrayList<>();
+        private List<ParsedField> parseFields(TokenType endToken) {
+            final List<ParsedField> fields = new ArrayList<>();
             boolean isFirst = true;
             while (!hasNextToken(endToken)) {
                 if (isFirst) {
@@ -884,17 +894,48 @@ public final class LogicalTypeParser {
                     nextToken(TokenType.LIST_SEPARATOR);
                 }
                 nextToken(TokenType.IDENTIFIER);
-                final String name = tokenAsString();
-                final LogicalType type = parseTypeWithNullability();
+                final ParsedField field = new ParsedField();
+                field.name = tokenAsString();
+                field.type = parseTypeWithNullability();
                 if (hasNextToken(TokenType.LITERAL_STRING)) {
                     nextToken(TokenType.LITERAL_STRING);
-                    final String description = tokenAsString();
-                    fields.add(new RowType.RowField(name, type, description));
-                } else {
-                    fields.add(new RowType.RowField(name, type));
+                    field.description = tokenAsString();
                 }
+                fields.add(field);
             }
             return fields;
+        }
+
+        private LogicalType parseStructuredType() {
+            nextToken(TokenType.BEGIN_SUBTYPE);
+            nextToken(TokenType.LITERAL_STRING);
+            final String className = tokenAsString();
+
+            final List<ParsedField> fields;
+            if (hasNextToken(TokenType.LIST_SEPARATOR)) {
+                nextToken(TokenType.LIST_SEPARATOR);
+                fields = parseFields(TokenType.END_SUBTYPE);
+            } else {
+                fields = List.of();
+            }
+            nextToken(TokenType.END_SUBTYPE);
+
+            final Optional<Class<?>> resolvedClass =
+                    StructuredType.resolveClass(classLoader, className);
+
+            final StructuredType.Builder builder =
+                    resolvedClass
+                            .map(StructuredType::newBuilder)
+                            .orElseGet(() -> StructuredType.newBuilder(className));
+
+            return builder.attributes(
+                            fields.stream()
+                                    .map(
+                                            f ->
+                                                    new StructuredAttribute(
+                                                            f.name, f.type, f.description))
+                                    .collect(Collectors.toList()))
+                    .build();
         }
 
         @SuppressWarnings("unchecked")
@@ -937,5 +978,11 @@ public final class LogicalTypeParser {
                         t);
             }
         }
+    }
+
+    private static class ParsedField {
+        String name;
+        LogicalType type;
+        @Nullable String description;
     }
 }
