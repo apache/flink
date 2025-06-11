@@ -187,13 +187,9 @@ class RelTreeWriterImpl(
       rel match {
         case streamRel: StreamPhysicalRel =>
           val duplicateChanges = DuplicateChangesUtils.getDuplicateChanges(streamRel)
-          val stringifyDuplicateChanges: String =
-            if (duplicateChanges.isEmpty) {
-              "EMPTY"
-            } else {
-              duplicateChanges.get().toString
-            }
-          printValues.add(Pair.of("duplicateChanges", stringifyDuplicateChanges))
+          if (duplicateChanges.isPresent) {
+            printValues.add(Pair.of("duplicateChanges", duplicateChanges.get().toString))
+          }
         case _ => // ignore
       }
     }

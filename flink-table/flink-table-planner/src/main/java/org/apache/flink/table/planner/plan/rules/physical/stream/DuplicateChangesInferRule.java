@@ -40,6 +40,7 @@ import org.apache.flink.table.planner.plan.trait.DuplicateChanges;
 import org.apache.flink.table.planner.plan.trait.DuplicateChangesTrait;
 import org.apache.flink.table.planner.plan.trait.DuplicateChangesTraitDef;
 import org.apache.flink.table.planner.plan.utils.DuplicateChangesUtils;
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.sinks.DataStreamTableSink;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
@@ -49,7 +50,6 @@ import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexProgram;
-import org.apache.calcite.rex.RexUtil;
 import org.immutables.value.Value;
 
 import java.util.ArrayList;
@@ -62,7 +62,7 @@ import java.util.stream.Collectors;
  * <p>The derivation of the trait {@link DuplicateChanges} flows from the root to the leaf, that is,
  * from the sink to the source.
  *
- * <p>Notes: This rule only supports HepPlanner with TOP_DOWN match order.
+ * <p>Notes: This rule only supports HepPlanner with TOP_DOWN matching order.
  */
 @Internal
 @Value.Enclosing
@@ -99,8 +99,9 @@ public class DuplicateChangesInferRule extends RelRule<DuplicateChangesInferRule
                             ? DuplicateChangesTrait.ALLOW
                             : DuplicateChangesTrait.DISALLOW;
         } else if (rel instanceof StreamPhysicalCalcBase) {
+            RexProgram calcProgram = ((StreamPhysicalCalcBase) rel).getProgram();
             // if the calc contains non-deterministic fields, we should not allow duplicate
-            if (existNonDeterministicFiltersOrProjections((StreamPhysicalCalcBase) rel)) {
+            if (!FlinkRexUtil.isDeterministic(calcProgram)) {
                 requiredTrait = DuplicateChangesTrait.DISALLOW;
             } else {
                 requiredTrait = parentTrait;
@@ -129,7 +130,7 @@ public class DuplicateChangesInferRule extends RelRule<DuplicateChangesInferRule
                     input.getTraitSet().getTrait(DuplicateChangesTraitDef.INSTANCE);
             if (!requiredTrait.equals(inputOriginalTrait)) {
                 DuplicateChangesTrait mergedTrait =
-                        getMergedDuplicateChangesTrait(inputOriginalTrait, requiredTrait);
+                        mergeDuplicateChangesTrait(inputOriginalTrait, requiredTrait);
                 RelNode newInput =
                         input.copy(input.getTraitSet().plus(mergedTrait), input.getInputs());
                 newInputs.add(newInput);
@@ -145,7 +146,7 @@ public class DuplicateChangesInferRule extends RelRule<DuplicateChangesInferRule
         }
     }
 
-    private static DuplicateChangesTrait getMergedDuplicateChangesTrait(
+    private static DuplicateChangesTrait mergeDuplicateChangesTrait(
             DuplicateChangesTrait inputOriginalTrait, DuplicateChangesTrait newRequiredTrait) {
         DuplicateChangesTrait mergedTrait;
         if (inputOriginalTrait == null) {
@@ -160,25 +161,19 @@ public class DuplicateChangesInferRule extends RelRule<DuplicateChangesInferRule
         return mergedTrait;
     }
 
-    private boolean existNonDeterministicFiltersOrProjections(StreamPhysicalCalcBase calc) {
-        RexProgram calcProgram = calc.getProgram();
-        // all projections and conditions should be expanded and checked
-        return !calcProgram.getExprList().stream().allMatch(RexUtil::isDeterministic);
-    }
-
     private boolean canConsumeDuplicateChanges(StreamPhysicalSink sink) {
-        boolean onlyAcceptInsertOnly = false;
+        boolean acceptUpdates = true;
         try {
             ChangelogMode sinkProvidedChangelogMode =
                     sink.tableSink().getChangelogMode(ChangelogMode.all());
             if (sinkProvidedChangelogMode.containsOnly(RowKind.INSERT)) {
-                onlyAcceptInsertOnly = true;
+                acceptUpdates = false;
             }
         } catch (Throwable t) {
-            onlyAcceptInsertOnly = true;
+            acceptUpdates = false;
         }
 
-        return !onlyAcceptInsertOnly
+        return acceptUpdates
                 && sink.contextResolvedTable().getResolvedSchema().getPrimaryKey().isPresent();
     }
 

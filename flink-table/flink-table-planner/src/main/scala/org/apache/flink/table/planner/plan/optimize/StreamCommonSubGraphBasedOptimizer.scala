@@ -70,8 +70,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
           }
         sinkBlock.setMiniBatchInterval(miniBatchInterval)
 
-        // allow to produce duplicate changes by default
-        sinkBlock.setAllowDuplicateChanges(true)
+        // disallow to produce duplicate changes by default
+        sinkBlock.mergeAllowDuplicateChanges(false)
     }
 
     if (sinkBlocks.size == 1) {
@@ -83,7 +83,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
         block.getPlan,
         block.isUpdateBeforeRequired,
         block.getMiniBatchInterval,
-        block.isAllowDuplicateChanges,
+        block.isDuplicateChangesAllowed,
         isSinkBlock = true)
       block.setOptimizedPlan(optimizedTree)
       return sinkBlocks
@@ -98,7 +98,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
           b,
           b.isUpdateBeforeRequired,
           b.getMiniBatchInterval,
-          b.isAllowDuplicateChanges,
+          b.isDuplicateChangesAllowed,
           isSinkBlock = true)
     }
     // clear the intermediate result
@@ -145,7 +145,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
           blockLogicalPlan,
           updateBeforeRequired = block.isUpdateBeforeRequired,
           miniBatchInterval = block.getMiniBatchInterval,
-          allowDuplicateChanges = block.isAllowDuplicateChanges,
+          allowDuplicateChanges = block.isDuplicateChangesAllowed,
           isSinkBlock = true
         )
         block.setOptimizedPlan(optimizedTree)
@@ -155,7 +155,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
           o,
           updateBeforeRequired = block.isUpdateBeforeRequired,
           miniBatchInterval = block.getMiniBatchInterval,
-          allowDuplicateChanges = block.isAllowDuplicateChanges,
+          allowDuplicateChanges = block.isDuplicateChangesAllowed,
           isSinkBlock = isSinkBlock
         )
         val modifyKindSetTrait = optimizedPlan.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
@@ -181,6 +181,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
    *   True if UPDATE_BEFORE message is required for updates
    * @param miniBatchInterval
    *   mini-batch interval of the block.
+   * @param allowDuplicateChanges
+   *   True if the block allows to produce duplicate changes.
    * @param isSinkBlock
    *   True if the given block is sink block.
    * @return
@@ -242,6 +244,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
    *   True if UPDATE_BEFORE message is required for updates
    * @param miniBatchInterval
    *   mini-batch interval of the block.
+   * @param allowDuplicateChanges
+   *   True if the block allows to produce duplicate changes.
    * @param isSinkBlock
    *   True if the given block is sink block.
    */
@@ -269,7 +273,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
           child,
           updateBeforeRequired = child.isUpdateBeforeRequired,
           miniBatchInterval = child.getMiniBatchInterval,
-          allowDuplicateChanges = child.isAllowDuplicateChanges,
+          allowDuplicateChanges = child.isDuplicateChangesAllowed,
           isSinkBlock = false
         )
     }
@@ -293,7 +297,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
           childBlock.setUpdateBeforeRequired(requireUB || childBlock.isUpdateBeforeRequired)
           // propagate duplicateChanges trait to child block
           val allowDuplicateChanges = isAllowDuplicateChanges(duplicateChangesTrait)
-          childBlock.setAllowDuplicateChanges(allowDuplicateChanges)
+          childBlock.mergeAllowDuplicateChanges(allowDuplicateChanges)
         }
       case ser: StreamPhysicalRel => ser.getInputs.foreach(e => propagateTraits(e))
       case _ => // do nothing
@@ -302,12 +306,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
     def isAllowDuplicateChanges(duplicateChangesTrait: DuplicateChangesTrait): Boolean = {
       duplicateChangesTrait.getDuplicateChanges match {
         case DuplicateChanges.ALLOW => true
-        case DuplicateChanges.DISALLOW => false
-        case DuplicateChanges.NONE => true
-        case _ =>
-          throw new IllegalStateException(
-            s"Unknown duplicateChanges: ${duplicateChangesTrait.getDuplicateChanges}"
-          )
+        case _ => false
       }
     }
   }

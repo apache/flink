@@ -29,7 +29,7 @@ import org.apache.calcite.rel.RelNode;
 
 /**
  * A {@link FlinkOptimizeProgram} that does some initialization for {@link DuplicateChanges}
- * inferences.
+ * inference.
  */
 public class FlinkDuplicateChangesTraitInitProgram
         implements FlinkOptimizeProgram<StreamOptimizeContext> {

@@ -105,7 +105,7 @@ class RelNodeBlock(val outputNode: RelNode) {
 
   private var miniBatchInterval: MiniBatchInterval = MiniBatchInterval.NONE
 
-  private var allowDuplicateChanges: Boolean = true
+  private var allowDuplicateChanges: Option[Boolean] = None
 
   def addChild(block: RelNodeBlock): Unit = childBlocks += block
 
@@ -141,15 +141,21 @@ class RelNodeBlock(val outputNode: RelNode) {
 
   def getMiniBatchInterval: MiniBatchInterval = miniBatchInterval
 
-  def setAllowDuplicateChanges(allowDuplicateChanges: Boolean): Unit = {
+  def mergeAllowDuplicateChanges(allowDuplicateChanges: Boolean): Unit = {
     // a child block may have multiple parents (outputs), if one of the parents could not
     // accept duplicated changes, then this child block doesn't allow to produce duplicate changes
-    if (this.allowDuplicateChanges) {
-      this.allowDuplicateChanges = allowDuplicateChanges
+    if (this.allowDuplicateChanges.isEmpty || this.allowDuplicateChanges.get) {
+      this.allowDuplicateChanges = Option.apply(allowDuplicateChanges)
     }
   }
 
-  def isAllowDuplicateChanges: Boolean = allowDuplicateChanges
+  def isDuplicateChangesAllowed: Boolean = {
+    if (allowDuplicateChanges.isEmpty) {
+      // disallow to produce duplicate changes by default
+      return false
+    }
+    allowDuplicateChanges.get
+  }
 
   def getChildBlock(node: RelNode): Option[RelNodeBlock] = {
     val find = children.filter(_.outputNode.equals(node))

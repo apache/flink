@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.trait;
 
 /**
- * Lists all kinds of all behaviors to describe whether the node can produce duplicated changes for
+ * Lists all kinds of behaviors to describe whether the node can produce duplicated changes for
  * downstream operators to consume.
  *
  * <p>The trait in each operator is determined by its downstream operators, meaning that downstream

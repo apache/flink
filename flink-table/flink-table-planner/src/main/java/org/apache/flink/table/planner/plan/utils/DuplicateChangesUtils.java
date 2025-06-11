@@ -52,12 +52,12 @@ public class DuplicateChangesUtils {
      *       +-------------+-------------+---------------+
      *       | origin_1    | origin_2    | merge result  |
      *       +-------------+-------------+---------------+
-     *       | NONE        | `ANY`       |   `ANY`      |
-     *       | `ANY`       |  NONE       |   `ANY`      |
-     *       | DISALLOW    | `ANY`       |   DISALLOW   |
-     *       | `ANY`       |  DISALLOW   |   DISALLOW   |
-     *       | ALLOW       | ALLOW       |   ALLOW      |
-     *       +-------------+-------------+--------------+
+     *       | NONE        |   *         |     *         |
+     *       | `ANY`       |  NONE       |   `ANY`       |
+     *       | DISALLOW    |   *         |   DISALLOW    |
+     *       |   *         |  DISALLOW   |   DISALLOW    |
+     *       | ALLOW       | ALLOW       |   ALLOW       |
+     *       +-------------+-------------+---------------+
      * </pre>
      */
     public static DuplicateChanges mergeDuplicateChanges(
