@@ -43,10 +43,10 @@ import java.util.Optional;
  * <p>It allows six parameters:
  *
  * <ol>
- *   <li>a table
+ *   <li>a table name
  *   <li>a model name
  *   <li>a descriptor to provide label column names from the input table
- *   <li>a descriptor to provide input column names from the input table
+ *   <li>a descriptor to provide feature column names from the input table
  *   <li>an optional task override string
  *   <li>an optional config map
  * </ol>
