@@ -190,7 +190,7 @@ public abstract class FunctionCallUtils {
         }
     }
 
-    protected static <T> T coalesce(T t1, T t2) {
+    public static <T> T coalesce(T t1, T t2) {
         return t1 != null ? t1 : t2;
     }
 

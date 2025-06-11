@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.table;
 
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesModelFactory;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
@@ -37,9 +38,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow;
 import static org.assertj.core.api.Assertions.assertThatList;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** ITCase for async ML_PREDICT. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -234,6 +237,18 @@ public class AsyncMLPredictITCase extends StreamingWithStateTestBase {
                 .containsExactlyInAnyOrder(
                         Row.of(2L, new Float[] {2.0f, 3.0f, 4.0f}),
                         Row.of(1L, new Float[] {1.0f, 2.0f, 3.0f}));
+    }
+
+    @TestTemplate
+    public void testAsyncPredictWithRuntimeConfig() {
+        assertThatThrownBy(
+                        () ->
+                                tEnv().executeSql(
+                                                "SELECT id, vector FROM ML_PREDICT(TABLE cdc_src, MODEL m3, DESCRIPTOR(`content`), MAP['timeout', '1ms'])")
+                                        .await())
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                TimeoutException.class, "Async function call has timed out."));
     }
 
     private void createScanTable(String tableName, List<Row> data) {

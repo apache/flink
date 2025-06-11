@@ -25,9 +25,9 @@ import org.apache.flink.table.connector.ChangelogMode;
 
 import java.util.Map;
 
-import static org.apache.flink.table.api.config.LookupJoinHintOptions.ASYNC_CAPACITY;
-import static org.apache.flink.table.api.config.LookupJoinHintOptions.ASYNC_OUTPUT_MODE;
-import static org.apache.flink.table.api.config.LookupJoinHintOptions.ASYNC_TIMEOUT;
+import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC_CAPACITY;
+import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC_OUTPUT_MODE;
+import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC_TIMEOUT;
 
 /** Utils for {@code ML_PREDICT}. */
 public class MLPredictUtils extends FunctionCallUtils {

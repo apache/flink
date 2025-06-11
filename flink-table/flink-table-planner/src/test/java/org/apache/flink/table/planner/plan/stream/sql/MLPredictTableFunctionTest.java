@@ -270,14 +270,50 @@ public class MLPredictTableFunctionTest extends TableTestBase {
     }
 
     @Test
-    public void testWrongConfigType() {
-        String sql =
-                "SELECT *\n"
-                        + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', true]))";
-        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+    public void testIllegalConfig() {
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT *\n"
+                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', true]))"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "ML_PREDICT config param can only be a MAP of string literals. The item at position 1 is TRUE.");
+                        "SQL validation failed. ML_PREDICT config param can only be a MAP of string literals but node's type is (CHAR(5), BOOLEAN) MAP at position line 2, column 71.");
+
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT *\n"
+                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'yes']))"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("SQL validation failed. Failed to parse the config.");
+
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT *\n"
+                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true', 'capacity', '-1']))"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "SQL validation failed. Invalid runtime config option 'capacity'. Its value should be positive integer but was -1.");
+
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT *\n"
+                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true', 'capacity', CAST(-1 AS STRING)]))"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "SQL validation failed. Unsupported expression -1 is in runtime config at position line 2, column 109. Currently, runtime config should be be a MAP of string literals.");
+
+        assertThatThrownBy(
+                        () ->
+                                util.verifyExecPlan(
+                                        "SELECT *\n"
+                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true']))"))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining(
+                        "Require async mode, but model provider org.apache.flink.table.factories.TestModelProviderFactory$TestModelProviderMock doesn't support async mode.");
     }
 
     @Test
