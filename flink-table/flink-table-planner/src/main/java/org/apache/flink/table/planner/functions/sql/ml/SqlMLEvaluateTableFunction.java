@@ -17,6 +17,8 @@
 
 package org.apache.flink.table.planner.functions.sql.ml;
 
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.ml.TaskType;
 import org.apache.flink.table.planner.functions.utils.SqlValidatorUtils;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -33,6 +35,7 @@ import org.apache.calcite.sql.type.SqlOperandMetadata;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -56,11 +59,8 @@ import java.util.Optional;
 public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
 
     public static final String PARAM_LABEL = "LABEL";
-    public static final String PARAM_FEATURE = "FEATURE";
+    public static final String PARAM_ARGS = "ARGS";
     public static final String PARAM_TASK = "TASK";
-
-    public static final List<String> SUPPORTED_TASKS =
-            List.of("regression", "clustering", "classification", "embedding", "text_generation");
 
     public SqlMLEvaluateTableFunction() {
         super("ML_EVALUATE", new EvaluateOperandMetadata());
@@ -100,11 +100,11 @@ public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
                         PARAM_INPUT,
                         PARAM_MODEL,
                         PARAM_LABEL,
-                        PARAM_FEATURE,
+                        PARAM_ARGS,
                         PARAM_TASK,
                         PARAM_CONFIG);
         private static final List<String> MANDATORY_PARAM_NAMES =
-                List.of(PARAM_INPUT, PARAM_MODEL, PARAM_LABEL, PARAM_FEATURE);
+                List.of(PARAM_INPUT, PARAM_MODEL, PARAM_LABEL, PARAM_ARGS);
 
         EvaluateOperandMetadata() {}
 
@@ -147,7 +147,9 @@ public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
             if (callBinding.getOperandCount() == MANDATORY_PARAM_NAMES.size() + 1) {
                 // Last param can be config or task
                 return SqlValidatorUtils.throwExceptionOrReturnFalse(
-                        checkTaskOrConfig(callBinding, callBinding.operand(4)), throwOnFailure);
+                        checkTaskOrConfig(
+                                callBinding, callBinding.operand(MANDATORY_PARAM_NAMES.size())),
+                        throwOnFailure);
             }
             return true;
         }
@@ -172,19 +174,18 @@ public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
             // Check if the task is a valid string
             if (!(node instanceof SqlCharStringLiteral)) {
                 return Optional.of(
-                        new RuntimeException(
+                        new ValidationException(
                                 "Expected a valid task string, but got: " + node + "."));
             }
 
             String task = ((SqlCharStringLiteral) node).getValueAs(NlsString.class).getValue();
-            if (SUPPORTED_TASKS.stream()
-                    .noneMatch(supportedTask -> supportedTask.equalsIgnoreCase(task))) {
+            if (!TaskType.isValidTaskType(task)) {
                 return Optional.of(
-                        new RuntimeException(
+                        new ValidationException(
                                 "Unsupported task: "
                                         + task
                                         + ". Supported tasks are: "
-                                        + String.join(", ", SUPPORTED_TASKS)
+                                        + Arrays.toString(TaskType.values())
                                         + "."));
             }
             return Optional.empty();
@@ -199,7 +200,7 @@ public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
                 return checkTask(node);
             } else {
                 return Optional.of(
-                        new RuntimeException(
+                        new ValidationException(
                                 "Expected a MAP or a valid task string as last argument, but got: "
                                         + node
                                         + "."));

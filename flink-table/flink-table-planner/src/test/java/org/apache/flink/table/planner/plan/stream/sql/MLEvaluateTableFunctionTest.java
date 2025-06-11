@@ -80,7 +80,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "INPUT => TABLE MyTable, "
                         + "MODEL => MODEL MyModel, "
                         + "LABEL => DESCRIPTOR(label), "
-                        + "FEATURE => DESCRIPTOR(a, b)))";
+                        + "ARGS => DESCRIPTOR(a, b)))";
         assertReachOptimizer(sql);
     }
 
@@ -92,7 +92,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "INPUT => TABLE MyTable, "
                         + "MODEL => MODEL MyModel, "
                         + "LABEL => DESCRIPTOR(label), "
-                        + "FEATURE => DESCRIPTOR(a, b), "
+                        + "ARGS => DESCRIPTOR(a, b), "
                         + "TASK => 'classification'))";
         assertReachOptimizer(sql);
     }
@@ -105,7 +105,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "INPUT => TABLE MyTable, "
                         + "MODEL => MODEL MyModel, "
                         + "LABEL => DESCRIPTOR(label), "
-                        + "FEATURE => DESCRIPTOR(a, b), "
+                        + "ARGS => DESCRIPTOR(a, b), "
                         + "CONFIG => MAP['metrics', 'accuracy,f1']))";
         assertReachOptimizer(sql);
     }
@@ -118,7 +118,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "INPUT => TABLE MyTable, "
                         + "MODEL => MODEL MyModel, "
                         + "LABEL => DESCRIPTOR(label), "
-                        + "FEATURE => DESCRIPTOR(a, b), "
+                        + "ARGS => DESCRIPTOR(a, b), "
                         + "TASK => 'classification', "
                         + "CONFIG => MAP['metrics', 'accuracy,f1']))";
         assertReachOptimizer(sql);
@@ -268,7 +268,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "'unsupported_task'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .hasMessageContaining(
-                        "Unsupported task: unsupported_task. Supported tasks are: regression, clustering, classification, embedding, text_generation");
+                        "Unsupported task: unsupported_task. Supported tasks are: [REGRESSION, CLUSTERING, CLASSIFICATION, EMBEDDING, TEXT_GENERATION].");
     }
 
     @Test
