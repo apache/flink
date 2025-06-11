@@ -445,13 +445,14 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
                         true);
 
         util.tableEnv().executeSql("CREATE VIEW my_view as select a, b, c+1 as c from append_src1");
-
+        util.tableEnv().executeSql("CREATE TABLE pk_snk2 LIKE pk_snk");
         // left: allow
         // right: disallow
         // merged: disallow
         StatementSet stmtSet = util.tableEnv().createStatementSet();
         stmtSet.addInsertSql("insert into pk_snk select a, b, c/2 from my_view");
-        stmtSet.addInsertSql("insert into pk_snk select a, max(b), sum(c) from my_view group by a");
+        stmtSet.addInsertSql(
+                "insert into pk_snk2 select a, max(b), sum(c) from my_view group by a");
         verifyRelPlanInsert(stmtSet);
     }
 
@@ -466,13 +467,14 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
                         true);
 
         util.tableEnv().executeSql("CREATE VIEW my_view as select a, b, c+1 as c from append_src1");
+        util.tableEnv().executeSql("CREATE TABLE pk_snk2 LIKE pk_snk");
 
         // left: disallow
         // right: allow
         // merged: disallow
         StatementSet stmtSet = util.tableEnv().createStatementSet();
         stmtSet.addInsertSql("insert into pk_snk select a, max(b), sum(c) from my_view group by a");
-        stmtSet.addInsertSql("insert into pk_snk select a, b, c/2 from my_view");
+        stmtSet.addInsertSql("insert into pk_snk2 select a, b, c/2 from my_view");
         verifyRelPlanInsert(stmtSet);
     }
 
@@ -487,13 +489,14 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
                         true);
 
         util.tableEnv().executeSql("CREATE VIEW my_view as select a, b, c+1 as c from append_src1");
+        util.tableEnv().executeSql("CREATE TABLE pk_snk2 LIKE pk_snk");
 
         // left: allow
         // right: allow
         // merged: allow
         StatementSet stmtSet = util.tableEnv().createStatementSet();
         stmtSet.addInsertSql("insert into pk_snk select a, b, c/3 from my_view");
-        stmtSet.addInsertSql("insert into pk_snk select a, b, c/2 from my_view");
+        stmtSet.addInsertSql("insert into pk_snk2 select a, b, c/2 from my_view");
         verifyRelPlanInsert(stmtSet);
     }
 
@@ -508,13 +511,15 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
                         true);
 
         util.tableEnv().executeSql("CREATE VIEW my_view as select a, b, c+1 as c from append_src1");
+        util.tableEnv().executeSql("CREATE TABLE pk_snk2 LIKE pk_snk");
 
         // left: disallow
         // right: disallow
         // merged: disallow
         StatementSet stmtSet = util.tableEnv().createStatementSet();
         stmtSet.addInsertSql("insert into pk_snk select a, max(b), sum(c) from my_view group by a");
-        stmtSet.addInsertSql("insert into pk_snk select a, min(b), max(c) from my_view group by a");
+        stmtSet.addInsertSql(
+                "insert into pk_snk2 select a, min(b), max(c) from my_view group by a");
         verifyRelPlanInsert(stmtSet);
     }
 

@@ -549,7 +549,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
    +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -564,7 +564,7 @@ Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2], dup
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
          +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
 
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
 +- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS EXPR$1, SUM(c) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
@@ -582,7 +582,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, 
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR$2])
 +- LogicalProject(a=[$0], b=[$1], EXPR$2=[/($2, 2)])
    +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -598,7 +598,7 @@ Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2]
          +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
             +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
 
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
 +- Calc(select=[a, b, /(c, 2) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
@@ -615,7 +615,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR$2])
 +- LogicalProject(a=[$0], b=[$1], EXPR$2=[/($2, 2)])
    +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -630,7 +630,7 @@ Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2], dup
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
          +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])
 
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
 +- Calc(select=[a, b, /(c, 2) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[ALLOW])
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
@@ -647,7 +647,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, 
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($2)])
    +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -663,7 +663,7 @@ Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2]
          +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
             +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
 
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
 +- GroupAggregate(groupBy=[a], select=[a, MIN(b) AS EXPR$1, MAX(c) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
