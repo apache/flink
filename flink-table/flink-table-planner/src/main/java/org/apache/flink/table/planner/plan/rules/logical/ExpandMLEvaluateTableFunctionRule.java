@@ -19,10 +19,12 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.ml.AsyncPredictRuntimeProvider;
 import org.apache.flink.table.ml.PredictRuntimeProvider;
+import org.apache.flink.table.ml.TaskType;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexModelCall;
@@ -53,8 +55,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import static org.apache.flink.table.planner.functions.sql.ml.SqlMLEvaluateTableFunction.SUPPORTED_TASKS;
 
 /**
  * Rule that expands ML evaluation table function calls.
@@ -103,17 +103,11 @@ public class ExpandMLEvaluateTableFunctionRule
                 task == null
                         ? modelCall.getContextResolvedModel().getModel().getOptions().get("task")
                         : task;
-        String finalTask = task;
-        if (SUPPORTED_TASKS.stream()
-                .noneMatch(supportedTask -> supportedTask.equalsIgnoreCase(finalTask))) {
-            throw new IllegalArgumentException(
-                    "Unsupported task: "
-                            + task
-                            + ". Supported tasks are: "
-                            + String.join(", ", SUPPORTED_TASKS)
-                            + ".");
+        if (task == null || task.isEmpty()) {
+            throw new ValidationException(
+                    "Task type must be specified in the model options or as a parameter to the ML_EVALUATE function.");
         }
-
+        TaskType.validateTaskType(task);
         return task;
     }
 

@@ -23,6 +23,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.ml.TaskType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
@@ -41,13 +42,27 @@ import java.util.Optional;
 @Internal
 public class MLEvaluationAggregationFunction extends AggregateFunction<Row, Object> {
 
+    public static final Map<String, DataType> TASK_TYPE_MAP =
+            Map.of(
+                    TaskType.TEXT_GENERATION.getName(),
+                    DataTypes.STRING(),
+                    TaskType.CLUSTERING.getName(),
+                    DataTypes.DOUBLE(),
+                    TaskType.EMBEDDING.getName(),
+                    DataTypes.ARRAY(DataTypes.FLOAT()),
+                    TaskType.CLASSIFICATION.getName(),
+                    DataTypes.DOUBLE(),
+                    TaskType.REGRESSION.getName(),
+                    DataTypes.DOUBLE());
+
     private final String task;
 
     public MLEvaluationAggregationFunction(String task) {
+        TaskType.validateTaskType(task);
         this.task = task;
     }
 
-    private TypeInference typeInference(DataTypeFactory typeFactory) {
+    private TypeInference typeInference() {
         return TypeInference.newBuilder()
                 .inputTypeStrategy(
                         new InputTypeStrategy() {
@@ -74,17 +89,8 @@ public class MLEvaluationAggregationFunction extends AggregateFunction<Row, Obje
                             @Override
                             public Optional<List<DataType>> inferInputTypes(
                                     CallContext callContext, boolean throwOnFailure) {
-                                final List<DataType> args = new ArrayList<>();
-                                if (task.equalsIgnoreCase("text_generation")) {
-                                    args.add(DataTypes.STRING());
-                                    args.add(DataTypes.STRING());
-                                } else if (task.equalsIgnoreCase("embedding")) {
-                                    args.add(DataTypes.ARRAY(DataTypes.DOUBLE()));
-                                    args.add(DataTypes.ARRAY(DataTypes.DOUBLE()));
-                                } else {
-                                    args.add(DataTypes.DOUBLE());
-                                    args.add(DataTypes.DOUBLE());
-                                }
+                                DataType argumentType = TASK_TYPE_MAP.get(task.toLowerCase());
+                                final List<DataType> args = List.of(argumentType, argumentType);
                                 return Optional.of(args);
                             }
 
@@ -112,26 +118,35 @@ public class MLEvaluationAggregationFunction extends AggregateFunction<Row, Obje
     /** Creates a new accumulator based on the model task type. */
     @Override
     public Object createAccumulator() {
+        // TODO
         return null;
     }
 
     @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-        return typeInference(typeFactory);
+        return typeInference();
     }
 
     /**
      * Accumulates input values for evaluation. The first argument is the model path, followed by
      * input features, and the last argument is the actual value (ground truth).
      */
-    public void accumulate(Object acc, Object... values) {}
+    public void accumulate(Object acc, Object... values) {
+        // TODO
+    }
 
     /** Retracts the input values from evaluation. */
-    public void retract(Object acc, Object... values) {}
+    public void retract(Object acc, Object... values) {
+        // TODO
+    }
 
-    public void merge(Object acc, Iterable<Object> its) {}
+    public void merge(Object acc, Iterable<Object> its) {
+        // TODO
+    }
 
-    public void resetAccumulator(Object acc) {}
+    public void resetAccumulator(Object acc) {
+        // TODO
+    }
 
     @Override
     public Row getValue(Object accumulator) {

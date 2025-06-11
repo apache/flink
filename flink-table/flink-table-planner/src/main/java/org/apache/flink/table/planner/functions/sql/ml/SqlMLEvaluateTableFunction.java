@@ -179,6 +179,7 @@ public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
             }
 
             String task = ((SqlCharStringLiteral) node).getValueAs(NlsString.class).getValue();
+            TaskType.validateTaskType(task);
             if (!TaskType.isValidTaskType(task)) {
                 return Optional.of(
                         new ValidationException(

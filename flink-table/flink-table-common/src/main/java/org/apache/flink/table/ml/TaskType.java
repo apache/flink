@@ -19,8 +19,10 @@
 package org.apache.flink.table.ml;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.ValidationException;
 
 import java.util.Arrays;
+import java.util.stream.Collectors;
 
 /**
  * Enum representing different types of machine learning tasks. Each task type has a corresponding
@@ -48,10 +50,23 @@ public enum TaskType {
         return Arrays.stream(values())
                 .filter(taskType -> taskType.name.equalsIgnoreCase(name))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Unknown task type: " + name));
+                .orElseThrow(() -> new ValidationException("Unknown task type: " + name));
     }
 
     public static boolean isValidTaskType(String name) {
         return Arrays.stream(values()).anyMatch(taskType -> taskType.name.equalsIgnoreCase(name));
+    }
+
+    public static void validateTaskType(String task) {
+        if (!isValidTaskType(task)) {
+            throw new ValidationException(
+                    "Invalid task type: '"
+                            + task
+                            + "'. Supported task types are: "
+                            + Arrays.stream(TaskType.values())
+                                    .map(TaskType::getName)
+                                    .collect(Collectors.toList())
+                            + ".");
+        }
     }
 }

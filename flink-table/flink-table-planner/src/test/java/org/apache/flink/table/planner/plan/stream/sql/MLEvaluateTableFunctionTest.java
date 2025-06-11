@@ -270,7 +270,48 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "'unsupported_task'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .hasMessageContaining(
-                        "Unsupported task: unsupported_task. Supported tasks are: [REGRESSION, CLUSTERING, CLASSIFICATION, EMBEDDING, TEXT_GENERATION].");
+                        "Invalid task type: 'unsupported_task'. Supported task types are: [regression, clustering, classification, embedding, text_generation].");
+    }
+
+    @Test
+    public void testInvalidTaskOption() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE MODEL NoTaskModel\n"
+                                + "INPUT (a INT, b BIGINT)\n"
+                                + "OUTPUT(prediction DOUBLE)\n"
+                                + "with (\n"
+                                + "  'provider' = 'test-model',\n"
+                                + "  'endpoint' = 'someendpoint',\n"
+                                + "  'task'     = 'invalid'\n"
+                                + ")");
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_EVALUATE("
+                        + "TABLE MyTable, MODEL NoTaskModel, DESCRIPTOR(label), DESCRIPTOR(a, b)))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .hasMessageContaining(
+                        "Invalid task type: 'invalid'. Supported task types are: [regression, clustering, classification, embedding, text_generation].");
+    }
+
+    @Test
+    public void testMissingTask() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE MODEL NoTaskModel\n"
+                                + "INPUT (a INT, b BIGINT)\n"
+                                + "OUTPUT(prediction DOUBLE)\n"
+                                + "with (\n"
+                                + "  'provider' = 'test-model',\n"
+                                + "  'endpoint' = 'someendpoint'\n"
+                                + ")");
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_EVALUATE("
+                        + "TABLE MyTable, MODEL NoTaskModel, DESCRIPTOR(label), DESCRIPTOR(a, b)))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .hasMessageContaining(
+                        "Task type must be specified in the model options or as a parameter to the ML_EVALUATE function.");
     }
 
     @Test
