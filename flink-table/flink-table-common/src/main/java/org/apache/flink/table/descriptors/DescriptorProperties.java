@@ -114,9 +114,9 @@ public class DescriptorProperties {
 
     public static final String INDEX = "index";
 
-    public static final String INDEX_NAME = "index-name";
+    public static final String INDEX_NAME = "name";
 
-    public static final String INDEX_COLUMNS = "index-columns";
+    public static final String INDEX_COLUMNS = "columns";
 
     public static final String COMMENT = "comment";
 

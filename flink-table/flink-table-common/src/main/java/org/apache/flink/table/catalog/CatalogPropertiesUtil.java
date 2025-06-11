@@ -384,9 +384,9 @@ public final class CatalogPropertiesUtil {
 
     private static final String INDEX = "index";
 
-    private static final String INDEX_NAME = "index-name";
+    private static final String INDEX_NAME = "name";
 
-    private static final String INDEX_COLUMNS = "index-columns";
+    private static final String INDEX_COLUMNS = "columns";
 
     private static final String COMMENT = "comment";
 

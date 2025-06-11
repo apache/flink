@@ -387,8 +387,8 @@ class CatalogBaseTableResolutionTest {
         properties.put("schema.watermark.0.strategy.expr", "ts - INTERVAL '5' SECOND");
         properties.put("schema.primary-key.name", "primary_constraint");
         properties.put("schema.primary-key.columns", "id");
-        properties.put("schema.index.0.index-name", "idx");
-        properties.put("schema.index.0.index-columns", "id");
+        properties.put("schema.index.0.name", "idx");
+        properties.put("schema.index.0.columns", "id");
         properties.put("partition.keys.0.name", "region");
         properties.put("partition.keys.1.name", "county");
         properties.put("version", "12");
@@ -414,8 +414,8 @@ class CatalogBaseTableResolutionTest {
         properties.put("schema.3.comment", "");
         properties.put("schema.primary-key.name", "primary_constraint");
         properties.put("schema.primary-key.columns", "id");
-        properties.put("schema.index.0.index-name", "idx");
-        properties.put("schema.index.0.index-columns", "id");
+        properties.put("schema.index.0.name", "idx");
+        properties.put("schema.index.0.columns", "id");
         properties.put("freshness-interval", "30");
         properties.put("freshness-unit", "SECOND");
         properties.put("logical-refresh-mode", "CONTINUOUS");
