@@ -84,7 +84,8 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
         ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
         config.setStatePartitioner(0, keySelector);
         config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
-        config.setStateKeySerializer(keyType.createSerializer(executionConfig.getSerializerConfig()));
+        config.setStateKeySerializer(
+                keyType.createSerializer(executionConfig.getSerializerConfig()));
         config.serializeAllConfigs();
     }
 
