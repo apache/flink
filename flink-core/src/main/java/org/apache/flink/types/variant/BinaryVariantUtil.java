@@ -110,15 +110,14 @@ public class BinaryVariantUtil {
     // Date value. Content is 4-byte little-endian signed integer that represents the number of days
     // from the Unix epoch.
     public static final int DATE = 11;
-    // Timestamp value. Content is 8-byte little-endian signed integer that represents the number of
-    // microseconds elapsed since the Unix epoch, 1970-01-01 00:00:00 UTC. It is displayed to users
-    // in
-    // their local time zones and may be displayed differently depending on the execution
+    // TimestampLTZ value. Content is 8-byte little-endian signed integer that represents the number
+    // of microseconds elapsed since the Unix epoch, 1970-01-01 00:00:00 UTC. It is displayed to
+    // users in their local time zones and may be displayed differently depending on the execution
     // environment.
-    public static final int TIMESTAMP = 12;
-    // Timestamp_ntz value. It has the same content as `TIMESTAMP` but should always be interpreted
+    public static final int TIMESTAMP_LTZ = 12;
+    // Timestamp value. It has the same content as `TIMESTAMP` but should always be interpreted
     // as if the local time zone is UTC.
-    public static final int TIMESTAMP_NTZ = 13;
+    public static final int TIMESTAMP = 13;
     // 4-byte IEEE float.
     public static final int FLOAT = 14;
     // Binary value. The content is (4-byte little-endian unsigned integer representing the binary
@@ -150,7 +149,7 @@ public class BinaryVariantUtil {
     public static final DateTimeFormatter TIMESTAMP_FORMATTER =
             new DateTimeFormatterBuilder()
                     .append(DateTimeFormatter.ISO_LOCAL_DATE)
-                    .appendLiteral(' ')
+                    .appendLiteral('T')
                     .append(DateTimeFormatter.ISO_LOCAL_TIME)
                     .toFormatter(Locale.US);
 
@@ -192,12 +191,12 @@ public class BinaryVariantUtil {
     }
 
     // An exception indicating that the variant value or metadata doesn't
-    static RuntimeException malformedVariant() {
-        return new RuntimeException("MALFORMED_VARIANT");
+    static VariantTypeException malformedVariant() {
+        return new VariantTypeException("MALFORMED_VARIANT");
     }
 
-    static RuntimeException unknownPrimitiveTypeInVariant(int id) {
-        return new RuntimeException("UNKNOWN_PRIMITIVE_TYPE_IN_VARIANT, id: " + id);
+    static VariantTypeException unknownPrimitiveTypeInVariant(int id) {
+        return new VariantTypeException("UNKNOWN_PRIMITIVE_TYPE_IN_VARIANT, id: " + id);
     }
 
     // An exception indicating that an external caller tried to call the Variant constructor with
@@ -205,8 +204,8 @@ public class BinaryVariantUtil {
     // large,
     // so it should only be possible to encounter this exception when reading a Variant produced by
     // another tool.
-    static RuntimeException variantConstructorSizeLimit() {
-        return new RuntimeException("VARIANT_CONSTRUCTOR_SIZE_LIMIT");
+    static VariantTypeException variantConstructorSizeLimit() {
+        return new VariantTypeException("VARIANT_CONSTRUCTOR_SIZE_LIMIT");
     }
 
     // Check the validity of an array index `pos`. Throw `MALFORMED_VARIANT` if it is out of bound,
@@ -294,9 +293,9 @@ public class BinaryVariantUtil {
                         return Type.DECIMAL;
                     case DATE:
                         return Type.DATE;
-                    case TIMESTAMP:
+                    case TIMESTAMP_LTZ:
                         return Type.TIMESTAMP_LTZ;
-                    case TIMESTAMP_NTZ:
+                    case TIMESTAMP:
                         return Type.TIMESTAMP;
                     case FLOAT:
                         return Type.FLOAT;
@@ -358,8 +357,8 @@ public class BinaryVariantUtil {
                         return 5;
                     case INT8:
                     case DOUBLE:
+                    case TIMESTAMP_LTZ:
                     case TIMESTAMP:
-                    case TIMESTAMP_NTZ:
                         return 9;
                     case DECIMAL4:
                         return 6;
@@ -394,15 +393,15 @@ public class BinaryVariantUtil {
 
     // Get a long value from variant value `value[pos...]`.
     // It is only legal to call it if `getType` returns one of `Type.LONG/DATE/TIMESTAMP/
-    // TIMESTAMP_NTZ`. If the type is `DATE`, the return value is guaranteed to fit into an int and
+    // TIMESTAMP_LTZ`. If the type is `DATE`, the return value is guaranteed to fit into an int and
     // represents the number of days from the Unix epoch.
-    // If the type is `TIMESTAMP/TIMESTAMP_NTZ`, the return value represents the number of
+    // If the type is `TIMESTAMP/TIMESTAMP_LTZ`, the return value represents the number of
     // microseconds from the Unix epoch.
     public static long getLong(byte[] value, int pos) {
         checkIndex(pos, value.length);
         int basicType = value[pos] & BASIC_TYPE_MASK;
         int typeInfo = (value[pos] >> BASIC_TYPE_BITS) & TYPE_INFO_MASK;
-        String exceptionMessage = "Expect type to be LONG/DATE/TIMESTAMP/TIMESTAMP_NTZ";
+        String exceptionMessage = "Expect type to be LONG/DATE/TIMESTAMP/TIMESTAMP_LTZ";
         if (basicType != PRIMITIVE) {
             throw new IllegalStateException(exceptionMessage);
         }
@@ -415,8 +414,8 @@ public class BinaryVariantUtil {
             case DATE:
                 return readLong(value, pos + 1, 4);
             case INT8:
+            case TIMESTAMP_LTZ:
             case TIMESTAMP:
-            case TIMESTAMP_NTZ:
                 return readLong(value, pos + 1, 8);
             default:
                 throw new IllegalStateException(exceptionMessage);

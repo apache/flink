@@ -20,7 +20,6 @@ package org.apache.flink.types.variant;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -28,7 +27,7 @@ import java.time.LocalDateTime;
 
 /** Variant represent a semi-structured data. */
 @PublicEvolving
-public interface Variant extends Serializable {
+public interface Variant {
 
     /** Returns true if the variant is a primitive typed value, such as INT, DOUBLE, STRING, etc. */
     boolean isPrimitive();
@@ -132,7 +131,7 @@ public interface Variant extends Serializable {
      * @throws VariantTypeException If this variant is not a scalar value or is not {@link
      *     Type#TIMESTAMP}.
      */
-    LocalDateTime getTimestamp() throws VariantTypeException;
+    LocalDateTime getDateTime() throws VariantTypeException;
 
     /**
      * Get the scalar value of variant as Instant, if the variant type is {@link Type#TIMESTAMP}.
@@ -209,5 +208,9 @@ public interface Variant extends Serializable {
         TIMESTAMP,
         TIMESTAMP_LTZ,
         BINARY
+    }
+
+    static VariantBuilder builder() {
+        return new BinaryVariantBuilder();
     }
 }

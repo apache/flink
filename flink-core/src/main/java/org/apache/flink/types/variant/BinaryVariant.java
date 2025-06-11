@@ -176,7 +176,7 @@ public final class BinaryVariant implements Variant {
     }
 
     @Override
-    public LocalDateTime getTimestamp() throws VariantTypeException {
+    public LocalDateTime getDateTime() throws VariantTypeException {
         checkType(Type.TIMESTAMP, getType());
         return microsToInstant(BinaryVariantUtil.getLong(value, pos))
                 .atZone(ZoneOffset.UTC)
@@ -221,14 +221,14 @@ public final class BinaryVariant implements Variant {
             case DATE:
                 return getDate();
             case TIMESTAMP:
-                return getTimestamp();
+                return getDateTime();
             case TIMESTAMP_LTZ:
                 return getInstant();
             case BINARY:
                 return getBytes();
             default:
                 throw new VariantTypeException(
-                        String.format("Expecting a scalar variant but got %s", getType()));
+                        String.format("Expecting a primitive variant but got %s", getType()));
         }
     }
 
@@ -250,7 +250,7 @@ public final class BinaryVariant implements Variant {
     @Override
     public String toJson() {
         StringBuilder sb = new StringBuilder();
-        toJsonImpl(value, metadata, pos, sb, ZoneId.systemDefault());
+        toJsonImpl(value, metadata, pos, sb, ZoneOffset.UTC);
         return sb.toString();
     }
 

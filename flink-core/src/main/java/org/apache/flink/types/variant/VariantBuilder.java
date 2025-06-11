@@ -45,10 +45,10 @@ public interface VariantBuilder {
     Variant of(String s);
 
     /** Create a variant from a double. */
-    Variant of(Double d);
+    Variant of(double d);
 
     /** Create a variant from a float. */
-    Variant of(Float f);
+    Variant of(float f);
 
     /** Create a variant from a byte array. */
     Variant of(byte[] bytes);

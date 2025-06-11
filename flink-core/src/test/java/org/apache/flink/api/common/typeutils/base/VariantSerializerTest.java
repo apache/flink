@@ -20,8 +20,8 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.types.variant.BinaryVariantBuilder;
 import org.apache.flink.types.variant.Variant;
+import org.apache.flink.types.variant.VariantBuilder;
 
 class VariantSerializerTest extends SerializerTestBase<Variant> {
 
@@ -42,7 +42,19 @@ class VariantSerializerTest extends SerializerTestBase<Variant> {
 
     @Override
     protected Variant[] getTestData() {
-        BinaryVariantBuilder builder = new BinaryVariantBuilder();
-        return new Variant[] {builder.object().add("k", builder.of(1)).build()};
+        VariantBuilder builder = Variant.builder();
+        return new Variant[] {
+            builder.object()
+                    .add("k", builder.of(1))
+                    .add("object", builder.object().add("k", builder.of("hello")).build())
+                    .add(
+                            "array",
+                            builder.array()
+                                    .add(builder.of(1))
+                                    .add(builder.of(2))
+                                    .add(builder.object().add("kk", builder.of(1.123f)).build())
+                                    .build())
+                    .build()
+        };
     }
 }

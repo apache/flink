@@ -18,6 +18,7 @@
 
 package org.apache.flink.types.variant;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 
 import java.math.BigDecimal;
@@ -29,7 +30,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 
 /** Builder for binary encoded variant. */
-@PublicEvolving
+@Internal
 public class BinaryVariantBuilder implements VariantBuilder {
 
     @Override
@@ -68,14 +69,14 @@ public class BinaryVariantBuilder implements VariantBuilder {
     }
 
     @Override
-    public Variant of(Double d) {
+    public Variant of(double d) {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
         builder.appendDouble(d);
         return builder.build();
     }
 
     @Override
-    public Variant of(Float f) {
+    public Variant of(float f) {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
         builder.appendFloat(f);
         return builder.build();
@@ -105,7 +106,7 @@ public class BinaryVariantBuilder implements VariantBuilder {
     @Override
     public Variant of(Instant instant) {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
-        builder.appendTimestamp(ChronoUnit.MICROS.between(Instant.EPOCH, instant));
+        builder.appendTimestampLtz(ChronoUnit.MICROS.between(Instant.EPOCH, instant));
         return builder.build();
     }
 
@@ -119,7 +120,7 @@ public class BinaryVariantBuilder implements VariantBuilder {
     @Override
     public Variant of(LocalDateTime localDateTime) {
         BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
-        builder.appendTimestampNtz(
+        builder.appendTimestamp(
                 ChronoUnit.MICROS.between(Instant.EPOCH, localDateTime.toInstant(ZoneOffset.UTC)));
         return builder.build();
     }

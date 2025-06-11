@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -80,12 +81,12 @@ class BinaryVariantTest {
         assertThat((BigDecimal) builder.of(BigDecimal.valueOf(100)).get())
                 .isEqualByComparingTo(BigDecimal.valueOf(100));
 
-        Instant instant = Instant.now();
+        Instant instant = Instant.now().truncatedTo(ChronoUnit.MICROS);
         assertThat(builder.of(instant).getInstant()).isEqualTo(instant);
         assertThat(builder.of(instant).get()).isEqualTo(instant);
 
-        LocalDateTime localDateTime = LocalDateTime.now();
-        assertThat(builder.of(localDateTime).getTimestamp()).isEqualTo(localDateTime);
+        LocalDateTime localDateTime = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
+        assertThat(builder.of(localDateTime).getDateTime()).isEqualTo(localDateTime);
         assertThat(builder.of(localDateTime).get()).isEqualTo(localDateTime);
 
         LocalDate localDate = LocalDate.now();
@@ -98,13 +99,14 @@ class BinaryVariantTest {
 
     @Test
     void testArrayVariant() {
-        Instant now = Instant.now();
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
         Variant variant =
                 builder.array()
                         .add(builder.of(1))
                         .add(builder.of("hello"))
                         .add(builder.of(now))
                         .add(builder.array().add(builder.of("hello2")).add(builder.of(10f)).build())
+                        .add(builder.ofNull())
                         .build();
 
         assertThat(variant.isArray()).isTrue();
@@ -118,7 +120,8 @@ class BinaryVariantTest {
         assertThat(variant.getElement(2).getInstant()).isEqualTo(now);
         assertThat(variant.getElement(3).getElement(0).getString()).isEqualTo("hello2");
         assertThat(variant.getElement(3).getElement(1).getFloat()).isEqualTo(10f);
-        assertThat(variant.getElement(4)).isNull();
+        assertThat(variant.getElement(4).isNull()).isTrue();
+        assertThat(variant.getElement(5)).isNull();
     }
 
     @Test
@@ -201,8 +204,8 @@ class BinaryVariantTest {
         assertThat(builder.of(10.0f).toJson()).isEqualTo("10.0");
         assertThat(builder.of(10.0d).toJson()).isEqualTo("10.0");
         assertThat(builder.of(BigDecimal.valueOf(100)).toJson()).isEqualTo("100");
-        assertThat(builder.of(instant).toJson()).isEqualTo("\"1970-01-01 08:00:00+08:00\"");
-        assertThat(builder.of(localDateTime).toJson()).isEqualTo("\"2000-01-01 00:00:00\"");
+        assertThat(builder.of(instant).toJson()).isEqualTo("\"1970-01-01T00:00:00+00:00\"");
+        assertThat(builder.of(localDateTime).toJson()).isEqualTo("\"2000-01-01T00:00:00\"");
         assertThat(builder.of(localDate).toJson()).isEqualTo("\"2000-01-01\"");
         assertThat(builder.of("hello".getBytes()).toJson()).isEqualTo("\"aGVsbG8=\"");
         assertThat(builder.ofNull().toJson()).isEqualTo("null");

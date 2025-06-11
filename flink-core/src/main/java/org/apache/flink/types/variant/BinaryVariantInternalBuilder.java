@@ -59,7 +59,7 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.NULL;
 import static org.apache.flink.types.variant.BinaryVariantUtil.OBJECT;
 import static org.apache.flink.types.variant.BinaryVariantUtil.SIZE_LIMIT;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP;
-import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_NTZ;
+import static org.apache.flink.types.variant.BinaryVariantUtil.TIMESTAMP_LTZ;
 import static org.apache.flink.types.variant.BinaryVariantUtil.TRUE;
 import static org.apache.flink.types.variant.BinaryVariantUtil.U16_MAX;
 import static org.apache.flink.types.variant.BinaryVariantUtil.U24_MAX;
@@ -79,14 +79,18 @@ import static org.apache.flink.types.variant.BinaryVariantUtil.shortStrHeader;
 import static org.apache.flink.types.variant.BinaryVariantUtil.valueSize;
 import static org.apache.flink.types.variant.BinaryVariantUtil.writeLong;
 
+/* This file is based on source code from the Spark Project (http://spark.apache.org/), licensed by the Apache
+ * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+ * additional information regarding copyright ownership. */
+
 /** The internal builder for {@link BinaryVariant}. */
 @Internal
 public class BinaryVariantInternalBuilder {
 
-    public static final RuntimeException VARIANT_SIZE_LIMIT_EXCEPTION =
-            new RuntimeException("VARIANT_SIZE_LIMIT");
-    public static final RuntimeException VARIANT_DUPLICATE_KEY_EXCEPTION =
-            new RuntimeException("VARIANT_DUPLICATE_KEY");
+    public static final VariantTypeException VARIANT_SIZE_LIMIT_EXCEPTION =
+            new VariantTypeException("VARIANT_SIZE_LIMIT");
+    public static final VariantTypeException VARIANT_DUPLICATE_KEY_EXCEPTION =
+            new VariantTypeException("VARIANT_DUPLICATE_KEY");
 
     public BinaryVariantInternalBuilder(boolean allowDuplicateKeys) {
         this.allowDuplicateKeys = allowDuplicateKeys;
@@ -269,16 +273,16 @@ public class BinaryVariantInternalBuilder {
         writePos += 4;
     }
 
-    public void appendTimestamp(long microsSinceEpoch) {
+    public void appendTimestampLtz(long microsSinceEpoch) {
         checkCapacity(1 + 8);
-        writeBuffer[writePos++] = primitiveHeader(TIMESTAMP);
+        writeBuffer[writePos++] = primitiveHeader(TIMESTAMP_LTZ);
         writeLong(writeBuffer, writePos, microsSinceEpoch, 8);
         writePos += 8;
     }
 
-    public void appendTimestampNtz(long microsSinceEpoch) {
+    public void appendTimestamp(long microsSinceEpoch) {
         checkCapacity(1 + 8);
-        writeBuffer[writePos++] = primitiveHeader(TIMESTAMP_NTZ);
+        writeBuffer[writePos++] = primitiveHeader(TIMESTAMP);
         writeLong(writeBuffer, writePos, microsSinceEpoch, 8);
         writePos += 8;
     }

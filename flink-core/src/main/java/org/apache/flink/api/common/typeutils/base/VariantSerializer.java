@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.variant.BinaryVariant;
-import org.apache.flink.types.variant.BinaryVariantBuilder;
 import org.apache.flink.types.variant.Variant;
 
 import java.io.IOException;
@@ -43,7 +42,7 @@ public class VariantSerializer extends TypeSerializerSingleton<Variant> {
 
     @Override
     public Variant createInstance() {
-        return new BinaryVariantBuilder().ofNull();
+        return Variant.builder().ofNull();
     }
 
     @Override

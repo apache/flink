@@ -25,8 +25,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.VariantSerializer.VariantSerializerSnapshot;
 import org.apache.flink.test.util.MigrationTest;
-import org.apache.flink.types.variant.BinaryVariantBuilder;
 import org.apache.flink.types.variant.Variant;
+import org.apache.flink.types.variant.VariantBuilder;
 
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Disabled;
@@ -34,8 +34,12 @@ import org.junit.jupiter.api.Disabled;
 import java.util.ArrayList;
 import java.util.Collection;
 
-/** A {@link TypeSerializerUpgradeTestBase} for {@link VariantSerializerSnapshot}. */
-@Disabled("FLINK-XXXXX")
+/**
+ * A {@link TypeSerializerUpgradeTestBase} for {@link VariantSerializerSnapshot}. The test is
+ * disabled because Variant is introduced in Flink 2.1. We should restore the test when there is a
+ * Flink 2.2 which should test compatibility with Flink 2.1
+ */
+@Disabled("FLINK-37951")
 class VariantSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Variant, Variant> {
 
     private static final String SPEC_NAME = "variant-serializer";
@@ -57,7 +61,7 @@ class VariantSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Variant
     @Override
     public Collection<FlinkVersion> getMigrationVersions() {
         return FlinkVersion.rangeOf(
-                FlinkVersion.V2_1, MigrationTest.getMostRecentlyPublishedVersion());
+                FlinkVersion.v2_1, MigrationTest.getMostRecentlyPublishedVersion());
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -76,8 +80,18 @@ class VariantSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Variant
 
         @Override
         public Variant createTestData() {
-            BinaryVariantBuilder builder = new BinaryVariantBuilder();
-            return builder.object().add("k", builder.of(1)).build();
+            VariantBuilder builder = Variant.builder();
+            return builder.object()
+                    .add("k", builder.of(1))
+                    .add("object", builder.object().add("k", builder.of("hello")).build())
+                    .add(
+                            "array",
+                            builder.array()
+                                    .add(builder.of(1))
+                                    .add(builder.of(2))
+                                    .add(builder.object().add("kk", builder.of(1.123f)).build())
+                                    .build())
+                    .build();
         }
     }
 
@@ -93,8 +107,22 @@ class VariantSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Variant
 
         @Override
         public Condition<Variant> testDataCondition() {
-            BinaryVariantBuilder builder = new BinaryVariantBuilder();
-            Variant data = builder.object().add("k", builder.of(1)).build();
+            VariantBuilder builder = Variant.builder();
+            Variant data =
+                    builder.object()
+                            .add("k", builder.of(1))
+                            .add("object", builder.object().add("k", builder.of("hello")).build())
+                            .add(
+                                    "array",
+                                    builder.array()
+                                            .add(builder.of(1))
+                                            .add(builder.of(2))
+                                            .add(
+                                                    builder.object()
+                                                            .add("kk", builder.of(1.123f))
+                                                            .build())
+                                            .build())
+                            .build();
             return new Condition<>(data::equals, "value is " + data);
         }
 

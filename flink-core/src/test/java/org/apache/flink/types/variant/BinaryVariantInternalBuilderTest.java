@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BinaryVariantInternalBuilderTest {
 
@@ -70,10 +71,11 @@ class BinaryVariantInternalBuilderTest {
         BinaryVariant variant = BinaryVariantInternalBuilder.parseJson("[]", false);
         assertThat(variant.getElement(0)).isNull();
 
-        variant = BinaryVariantInternalBuilder.parseJson("[1,\"hello\",3.1]", false);
+        variant = BinaryVariantInternalBuilder.parseJson("[1,\"hello\",3.1, null]", false);
         assertThat(variant.getElement(0).getByte()).isEqualTo((byte) 1);
         assertThat(variant.getElement(1).getString()).isEqualTo("hello");
         assertThat(variant.getElement(2).getDecimal()).isEqualTo(BigDecimal.valueOf(3.1));
+        assertThat(variant.getElement(3).isNull()).isTrue();
 
         variant = BinaryVariantInternalBuilder.parseJson("[1,[\"hello\",[3.1]]]", false);
         assertThat(variant.getElement(0).getByte()).isEqualTo((byte) 1);
@@ -102,5 +104,16 @@ class BinaryVariantInternalBuilderTest {
         assertThat(variant.getField("b").getField("c").getString()).isEqualTo("hello");
         assertThat(variant.getField("b").getField("d").getElement(0).getDecimal())
                 .isEqualTo(BigDecimal.valueOf(3.1));
+
+        assertThatThrownBy(
+                        () ->
+                                BinaryVariantInternalBuilder.parseJson(
+                                        "{\"k1\":1,\"k1\":2,\"k2\":1.5}", false))
+                .isInstanceOf(VariantTypeException.class)
+                .hasMessage("VARIANT_DUPLICATE_KEY");
+
+        variant = BinaryVariantInternalBuilder.parseJson("{\"k1\":1,\"k1\":2,\"k2\":1.5}", true);
+        assertThat(variant.getField("k1").getByte()).isEqualTo((byte) 2);
+        assertThat(variant.getField("k2").getDecimal()).isEqualTo(BigDecimal.valueOf(1.5));
     }
 }
