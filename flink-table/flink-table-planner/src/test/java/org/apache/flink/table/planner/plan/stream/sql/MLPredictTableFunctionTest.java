@@ -305,6 +305,15 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "SQL validation failed. Unsupported expression -1 is in runtime config at position line 2, column 109. Currently, runtime config should be be a MAP of string literals.");
+
+        assertThatThrownBy(
+                        () ->
+                                util.verifyExecPlan(
+                                        "SELECT *\n"
+                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true']))"))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining(
+                        "Require async mode, but model provider org.apache.flink.table.factories.TestModelProviderFactory$TestModelProviderMock doesn't support async mode.");
     }
 
     @Test

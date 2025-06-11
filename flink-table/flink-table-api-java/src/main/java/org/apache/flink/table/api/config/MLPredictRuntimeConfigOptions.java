@@ -43,7 +43,7 @@ public class MLPredictRuntimeConfigOptions {
                     .withDescription(
                             "Value can be 'true' or 'false' to suggest the planner choose the corresponding"
                                     + " predict function. If the backend predict function provider does not support the"
-                                    + " suggested mode, it will take no effect.");
+                                    + " suggested mode, it will throw exception to notify users.");
 
     public static final ConfigOption<ExecutionConfigOptions.AsyncOutputMode> ASYNC_OUTPUT_MODE =
             key("output-mode")

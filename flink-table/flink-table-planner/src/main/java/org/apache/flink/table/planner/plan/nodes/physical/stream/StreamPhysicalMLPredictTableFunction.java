@@ -215,11 +215,9 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
     private boolean isAsyncMLPredict(ModelProvider provider, Map<String, String> runtimeConfig) {
         boolean syncFound = false;
         boolean asyncFound = false;
-        boolean preferAsync =
-                FunctionCallUtils.coalesce(
-                        Configuration.fromMap(runtimeConfig)
-                                .get(MLPredictRuntimeConfigOptions.ASYNC),
-                        true);
+        Optional<Boolean> requiredMode =
+                Configuration.fromMap(runtimeConfig)
+                        .getOptional(MLPredictRuntimeConfigOptions.ASYNC);
 
         if (provider instanceof PredictRuntimeProvider) {
             syncFound = true;
@@ -233,7 +231,26 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
                     String.format(
                             "Unknown model provider found: %s.", provider.getClass().getName()));
         }
-        return preferAsync && asyncFound;
+
+        if (requiredMode.isEmpty()) {
+            return asyncFound;
+        } else if (requiredMode.get()) {
+            if (!asyncFound) {
+                throw new TableException(
+                        String.format(
+                                "Require async mode, but model provider %s doesn't support async mode.",
+                                provider.getClass().getName()));
+            }
+            return true;
+        } else {
+            if (!syncFound) {
+                throw new TableException(
+                        String.format(
+                                "Require sync mode, but model provider %s doesn't support sync mode.",
+                                provider.getClass().getName()));
+            }
+            return false;
+        }
     }
 
     private ChangelogMode getInputChangelogMode(RelNode rel) {
