@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions;
-import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.ml.AsyncPredictRuntimeProvider;
 import org.apache.flink.table.ml.ModelProvider;
 import org.apache.flink.table.ml.PredictRuntimeProvider;
@@ -34,16 +33,13 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.MLPredictSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.ModelSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
-import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FunctionParam;
 import org.apache.flink.table.planner.plan.utils.MLPredictUtils;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
@@ -169,9 +165,7 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
         boolean isAsyncEnabled = isAsyncMLPredict(modelCall.getModelProvider(), runtimeConfig);
         if (isAsyncEnabled) {
             return MLPredictUtils.getMergedMLPredictAsyncOptions(
-                    runtimeConfig,
-                    ShortcutUtils.unwrapTableConfig(getCluster()),
-                    getInputChangelogMode(getInput()));
+                    runtimeConfig, ShortcutUtils.unwrapTableConfig(getCluster()));
         } else {
             return null;
         }
@@ -250,18 +244,6 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
                                 provider.getClass().getName()));
             }
             return false;
-        }
-    }
-
-    private ChangelogMode getInputChangelogMode(RelNode rel) {
-        if (rel instanceof StreamPhysicalRel) {
-            return JavaScalaConversionUtil.toJava(
-                            ChangelogPlanUtils.getChangelogMode((StreamPhysicalRel) rel))
-                    .orElse(ChangelogMode.insertOnly());
-        } else if (rel instanceof HepRelVertex) {
-            return getInputChangelogMode(((HepRelVertex) rel).getCurrentRel());
-        } else {
-            return ChangelogMode.insertOnly();
         }
     }
 }

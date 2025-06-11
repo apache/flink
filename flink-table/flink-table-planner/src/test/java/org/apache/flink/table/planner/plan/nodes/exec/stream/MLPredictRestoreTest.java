@@ -23,7 +23,6 @@ import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.List;
 
-import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.ASYNC_ORDERED_ML_PREDICT;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.ASYNC_UNORDERED_ML_PREDICT;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.SYNC_ML_PREDICT;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.SYNC_ML_PREDICT_WITH_RUNTIME_CONFIG;
@@ -38,9 +37,6 @@ public class MLPredictRestoreTest extends RestoreTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
-                SYNC_ML_PREDICT,
-                ASYNC_UNORDERED_ML_PREDICT,
-                ASYNC_ORDERED_ML_PREDICT,
-                SYNC_ML_PREDICT_WITH_RUNTIME_CONFIG);
+                SYNC_ML_PREDICT, ASYNC_UNORDERED_ML_PREDICT, SYNC_ML_PREDICT_WITH_RUNTIME_CONFIG);
     }
 }

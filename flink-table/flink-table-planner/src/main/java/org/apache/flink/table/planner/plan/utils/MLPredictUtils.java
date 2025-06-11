@@ -33,9 +33,7 @@ import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.AS
 public class MLPredictUtils extends FunctionCallUtils {
 
     public static AsyncOptions getMergedMLPredictAsyncOptions(
-            Map<String, String> runtimeConfig,
-            TableConfig config,
-            ChangelogMode inputChangelogMode) {
+            Map<String, String> runtimeConfig, TableConfig config) {
         Configuration queryConf = Configuration.fromMap(runtimeConfig);
         ExecutionConfigOptions.AsyncOutputMode asyncOutputMode =
                 coalesce(
@@ -54,6 +52,6 @@ public class MLPredictUtils extends FunctionCallUtils {
                                         ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_TIMEOUT))
                         .toMillis(),
                 false,
-                convert(inputChangelogMode, asyncOutputMode));
+                convert(ChangelogMode.insertOnly(), asyncOutputMode));
     }
 }
