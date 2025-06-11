@@ -107,7 +107,7 @@ public class ExpandMLEvaluateTableFunctionRule
             throw new ValidationException(
                     "Task type must be specified in the model options or as a parameter to the ML_EVALUATE function.");
         }
-        TaskType.validateTaskType(task);
+        TaskType.throwOrReturnInvalidTaskType(task, true);
         return task;
     }
 

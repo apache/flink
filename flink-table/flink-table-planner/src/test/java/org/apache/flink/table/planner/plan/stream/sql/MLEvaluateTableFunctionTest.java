@@ -274,6 +274,39 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    public void testWrongLastArgType() {
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_EVALUATE("
+                        + "TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), DESCRIPTOR(a, b), "
+                        + "10))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .hasMessageContaining("Expected a MAP or a valid task string as last argument.");
+    }
+
+    @Test
+    public void testWrongConfigType() {
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_EVALUATE("
+                        + "TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), DESCRIPTOR(a, b), "
+                        + "'classification', 10))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .hasMessageContaining("Config param should be a MAP.");
+    }
+
+    @Test
+    public void testWrongTaskType() {
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_EVALUATE("
+                        + "TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), DESCRIPTOR(a, b), "
+                        + "10, MAP['async', 'true']))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .hasMessageContaining("Expected a valid task string.");
+    }
+
+    @Test
     public void testInvalidTaskOption() {
         util.tableEnv()
                 .executeSql(

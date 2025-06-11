@@ -58,7 +58,7 @@ public class MLEvaluationAggregationFunction extends AggregateFunction<Row, Obje
     private final String task;
 
     public MLEvaluationAggregationFunction(String task) {
-        TaskType.validateTaskType(task);
+        TaskType.throwOrReturnInvalidTaskType(task, true);
         this.task = task;
     }
 

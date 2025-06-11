@@ -35,7 +35,6 @@ import org.apache.calcite.sql.type.SqlOperandMetadata;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -173,23 +172,11 @@ public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
         private static Optional<RuntimeException> checkTask(SqlNode node) {
             // Check if the task is a valid string
             if (!(node instanceof SqlCharStringLiteral)) {
-                return Optional.of(
-                        new ValidationException(
-                                "Expected a valid task string, but got: " + node + "."));
+                return Optional.of(new ValidationException("Expected a valid task string."));
             }
 
             String task = ((SqlCharStringLiteral) node).getValueAs(NlsString.class).getValue();
-            TaskType.validateTaskType(task);
-            if (!TaskType.isValidTaskType(task)) {
-                return Optional.of(
-                        new ValidationException(
-                                "Unsupported task: "
-                                        + task
-                                        + ". Supported tasks are: "
-                                        + Arrays.toString(TaskType.values())
-                                        + "."));
-            }
-            return Optional.empty();
+            return TaskType.throwOrReturnInvalidTaskType(task, false);
         }
 
         private static Optional<RuntimeException> checkTaskOrConfig(
@@ -202,9 +189,7 @@ public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
             } else {
                 return Optional.of(
                         new ValidationException(
-                                "Expected a MAP or a valid task string as last argument, but got: "
-                                        + node
-                                        + "."));
+                                "Expected a MAP or a valid task string as last argument."));
             }
         }
     }

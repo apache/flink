@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
 
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -57,16 +58,24 @@ public enum TaskType {
         return Arrays.stream(values()).anyMatch(taskType -> taskType.name.equalsIgnoreCase(name));
     }
 
-    public static void validateTaskType(String task) {
+    public static Optional<RuntimeException> throwOrReturnInvalidTaskType(
+            String task, boolean throwException) {
         if (!isValidTaskType(task)) {
-            throw new ValidationException(
-                    "Invalid task type: '"
-                            + task
-                            + "'. Supported task types are: "
-                            + Arrays.stream(TaskType.values())
-                                    .map(TaskType::getName)
-                                    .collect(Collectors.toList())
-                            + ".");
+            ValidationException exception =
+                    new ValidationException(
+                            "Invalid task type: '"
+                                    + task
+                                    + "'. Supported task types are: "
+                                    + Arrays.stream(TaskType.values())
+                                            .map(TaskType::getName)
+                                            .collect(Collectors.toList())
+                                    + ".");
+            if (throwException) {
+                throw exception;
+            } else {
+                return Optional.of(exception);
+            }
         }
+        return Optional.empty();
     }
 }
