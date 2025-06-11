@@ -210,27 +210,23 @@ public class CorrelateTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t1")
                                     .addSchema("a INTEGER", "b BIGINT", "c STRING")
-                                    .producedBeforeRestore(Row.of(1, 2L, "3"))
-                                    .producedAfterRestore(Row.of(2, 3L, "4"))
+                                    .producedBeforeRestore(Row.of(1, 2L, "3"), Row.of(2, 3L, "4"))
                                     .build())
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t2")
                                     .addSchema("d INTEGER", "e BIGINT", "f STRING")
-                                    .producedBeforeRestore(Row.of(1, 2L, "3"))
-                                    .producedAfterRestore(Row.of(2, 3L, "4"))
+                                    .producedBeforeRestore(Row.of(1, 2L, "3"), Row.of(2, 3L, "4"))
                                     .build())
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t3")
                                     .addSchema("i INTEGER", "j BIGINT", "k STRING")
-                                    .producedBeforeRestore(Row.of(1, 2L, "3"))
-                                    .producedAfterRestore(Row.of(2, 3L, "4"))
+                                    .producedBeforeRestore(Row.of(1, 2L, "3"), Row.of(2, 3L, "4"))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
                                     .addSchema("b BIGINT")
-                                    .consumedBeforeRestore("+I[2]")
-                                    .consumedAfterRestore(
-                                            "+I[3]", "-D[2]", "-D[3]", "+I[2]", "+I[3]")
+                                    .consumedBeforeRestore(
+                                            "+I[2]", "+I[3]", "-D[2]", "-D[3]", "+I[2]", "+I[3]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT b FROM source_t1 "
