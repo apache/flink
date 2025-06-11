@@ -80,7 +80,7 @@ String explanation =
                         "SELECT `count`, COUNT(word) FROM ("
                                 + "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
                                 + "UNION ALL "
-                                + "SELECT `count`, word FROM MyTable2) tmp"
+                                + "SELECT `count`, word FROM MyTable2) tmp "
                                 + "GROUP BY `count`");
 System.out.println(explanation);
 
