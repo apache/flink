@@ -48,24 +48,11 @@ public class MLPredictTestPrograms {
                 Row.ofKind(RowKind.INSERT, 4, "Mysql"), Row.ofKind(RowKind.INSERT, 5, "Postgres")
             };
 
-    static final Row[] FEATURES_AFTER_CDC_DATA =
-            new Row[] {
-                Row.ofKind(RowKind.UPDATE_BEFORE, 2, "Spark"),
-                Row.ofKind(RowKind.UPDATE_AFTER, 2, "Postgres")
-            };
-
     static final SourceTestStep FEATURES_TABLE =
             SourceTestStep.newBuilder("features")
                     .addSchema(FEATURES_SCHEMA)
                     .producedBeforeRestore(FEATURES_BEFORE_DATA)
                     .producedAfterRestore(FEATURES_AFTER_DATA)
-                    .build();
-
-    static final SourceTestStep FEATURES_CDC_TABLE =
-            SourceTestStep.newBuilder("features_cdc")
-                    .addSchema(FEATURES_SCHEMA)
-                    .producedBeforeRestore(FEATURES_BEFORE_DATA)
-                    .producedAfterRestore(FEATURES_AFTER_CDC_DATA)
                     .build();
 
     // -------------------------------------------------------------------------------------------
@@ -127,16 +114,6 @@ public class MLPredictTestPrograms {
 
     // -------------------------------------------------------------------------------------------
 
-    static final SinkTestStep SINK_CDC_TABLE =
-            SinkTestStep.newBuilder("sink_t")
-                    .addSchema(SINK_SCHEMA)
-                    .consumedBeforeRestore(
-                            "+I[1, Flink, Big Data]",
-                            "+I[2, Spark, Big Data]",
-                            "+I[3, Hive, Big Data]")
-                    .consumedAfterRestore("-U[2, Spark, Big Data]", "+U[2, Postgres, Database]")
-                    .build();
-
     public static final TableTestProgram SYNC_ML_PREDICT =
             TableTestProgram.of("sync-ml-predict", "ml-predict in sync mode.")
                     .setupTableSource(FEATURES_TABLE)
@@ -156,15 +133,6 @@ public class MLPredictTestPrograms {
                             ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED)
                     .runSql(
                             "INSERT INTO sink_t SELECT * FROM ML_PREDICT(TABLE features, MODEL chatgpt, DESCRIPTOR(feature))")
-                    .build();
-
-    public static final TableTestProgram ASYNC_ORDERED_ML_PREDICT =
-            TableTestProgram.of("async-ordered-ml-predict", "ml-predict in async ordered mode.")
-                    .setupTableSource(FEATURES_CDC_TABLE)
-                    .setupModel(ASYNC_MODEL)
-                    .setupTableSink(SINK_CDC_TABLE)
-                    .runSql(
-                            "INSERT INTO sink_t SELECT * FROM ML_PREDICT(TABLE features_cdc, MODEL chatgpt, DESCRIPTOR(feature))")
                     .build();
 
     public static final TableTestProgram SYNC_ML_PREDICT_WITH_RUNTIME_CONFIG =

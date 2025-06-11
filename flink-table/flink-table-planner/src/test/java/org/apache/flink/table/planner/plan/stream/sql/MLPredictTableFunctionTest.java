@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.planner.plan.stream.sql;
 
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
@@ -30,6 +32,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.Collections;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -91,14 +94,6 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                         + "MODEL  => MODEL MyModel, "
                         + "ARGS   => DESCRIPTOR(a, b),"
                         + "CONFIG => MAP['key', 'value']))";
-        util.verifyRelPlan(sql);
-    }
-
-    @Test
-    public void testSimple() {
-        String sql =
-                "SELECT *\n"
-                        + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b)))";
         util.verifyRelPlan(sql);
     }
 
@@ -380,6 +375,37 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         "This exception indicates that the query uses an unsupported SQL feature.");
+    }
+
+    @Test
+    public void testInputTableIsInsertOnlyStream() {
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b)))";
+        util.verifyRelPlan(
+                sql,
+                JavaScalaConversionUtil.toScala(
+                        Collections.singletonList(ExplainDetail.CHANGELOG_MODE)));
+    }
+
+    @Test
+    public void testInputTableIsCdcStream() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE CdcTable(\n"
+                                + "  a INT,\n"
+                                + "  b BIGINT,\n"
+                                + "  PRIMARY KEY (a) NOT ENFORCED\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'changelog-mode' = 'I,UA,UB,D'"
+                                + ")");
+        String sql =
+                "SELECT *\n" + "FROM ML_PREDICT(TABLE CdcTable, MODEL MyModel, DESCRIPTOR(a, b))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .isInstanceOf(TableException.class)
+                .hasMessageContaining(
+                        "StreamPhysicalMLPredictTableFunction doesn't support consuming update and delete changes which is produced by node TableSourceScan(table=[[default_catalog, default_database, CdcTable]], fields=[a, b])");
     }
 
     private static Stream<Arguments> compatibleTypeProvider() {
