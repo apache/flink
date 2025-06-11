@@ -315,7 +315,11 @@ object CodeGenUtils {
       case BOOLEAN =>
         s"${className[JBoolean]}.hashCode($term)"
       case BINARY | VARBINARY =>
-        s"${className[MurmurHashUtil]}.hashUnsafeBytes($term, $BYTE_ARRAY_BASE_OFFSET, $term.length)"
+        // Instead of computing the BYTE_ARRAY_BASE_OFFSET value in JM, generate the code
+        // and evaluate it in TM. This is required so that byte array offset will be consistent.
+        // See FLINK-37833 for more details.
+        s"${className[MurmurHashUtil]}.hashUnsafeBytes($term," +
+          s" ${className[BinaryRowDataUtil]}.BYTE_ARRAY_BASE_OFFSET, $term.length)"
       case DECIMAL =>
         s"$term.hashCode()"
       case TINYINT =>
