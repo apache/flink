@@ -53,7 +53,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 
 /**
- * Stream physical RelNode for a multi-input regular join.
+ * {@link StreamPhysicalRel} for a multi-input regular join.
  *
  * <p>This node takes multiple inputs and joins them based on a given filter condition. It supports
  * different join types for each pair of inputs. This node will be translated into a {@link
@@ -109,6 +109,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
 
     @Override
     public void replaceInput(final int ordinalInParent, final RelNode p) {
+        assert ordinalInParent >= 0 && ordinalInParent < inputs.size();
         final List<RelNode> newInputs = new ArrayList<>(inputs);
         newInputs.set(ordinalInParent, p);
         this.inputs = List.copyOf(newInputs);
@@ -152,7 +153,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
 
     @Override
     protected RelDataType deriveRowType() {
-        return this.rowType;
+        return rowType;
     }
 
     @Override
@@ -188,10 +189,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         return inputs.stream()
                 .map(
                         input -> {
-                            final FlinkRelMetadataQuery fmq =
-                                    FlinkRelMetadataQuery.reuseOrCreate(
-                                            input.getCluster().getMetadataQuery());
-                            final Set<ImmutableBitSet> upsertKeys = fmq.getUpsertKeys(input);
+                            final Set<ImmutableBitSet> upsertKeys = getUpsertKeys(input);
 
                             if (upsertKeys == null) {
                                 return Collections.<int[]>emptyList();
@@ -201,6 +199,12 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                                     .collect(Collectors.toList());
                         })
                 .collect(Collectors.toList());
+    }
+
+    private @Nullable Set<ImmutableBitSet> getUpsertKeys(RelNode input) {
+        final FlinkRelMetadataQuery fmq =
+                FlinkRelMetadataQuery.reuseOrCreate(input.getCluster().getMetadataQuery());
+        return fmq.getUpsertKeys(input);
     }
 
     private List<FlinkJoinType> getExecJoinTypes() {
