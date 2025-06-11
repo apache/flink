@@ -161,7 +161,7 @@ public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
 
         @Override
         public boolean isOptional(int i) {
-            return i > getOperandCountRange().getMin() && i <= getOperandCountRange().getMax();
+            return i >= getOperandCountRange().getMin() && i <= getOperandCountRange().getMax();
         }
 
         @Override
