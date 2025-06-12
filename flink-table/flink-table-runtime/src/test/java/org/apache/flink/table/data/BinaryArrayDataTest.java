@@ -35,7 +35,6 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.types.variant.BinaryVariantBuilder;
 import org.apache.flink.types.variant.Variant;
 
 import org.junit.jupiter.api.Test;
@@ -315,7 +314,7 @@ class BinaryArrayDataTest {
 
         {
             // test variant
-            Variant variant = new BinaryVariantBuilder().of(1);
+            Variant variant = Variant.builder().of(1);
 
             BinaryArrayData array = new BinaryArrayData();
             BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);

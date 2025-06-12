@@ -1029,6 +1029,14 @@ public final class DataTypes {
                 structuredType, structuredType.getDefaultConversion(), fieldDataTypes);
     }
 
+    /**
+     * Data type of semi-structured data.
+     *
+     * <p>The type supports storing any semi-structured data, including ARRAY, MAP, and primitive
+     * types. VARIANT can only store MAP types with keys of type STRING.
+     *
+     * @see VariantType
+     */
     public static DataType VARIANT() {
         return new AtomicDataType(new VariantType());
     }

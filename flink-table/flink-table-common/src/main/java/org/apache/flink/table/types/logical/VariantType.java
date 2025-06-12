@@ -30,10 +30,14 @@ import java.util.Set;
  * Data type of semi-structured data.
  *
  * <p>The type supports storing any semi-structured data, including ARRAY, MAP, and scalar types.
- * VARIANT can only store MAP types with keys of type STRING.
+ * VARIANT can only store MAP types with keys of type STRING. The data type of the fields are stored
+ * in the data structure, which is close to the semantics of JSON. Compared to ROW and STRUCTURED
+ * type, VARIANT type has the flexibility that supports highly nested and evolving schema.
+ *
+ * <p>The serializable string representation of this type is {@code VARIANT}.
  */
 @PublicEvolving
-public class VariantType extends LogicalType {
+public final class VariantType extends LogicalType {
 
     private static final Set<String> INPUT_OUTPUT_CONVERSION =
             conversionSet(Variant.class.getName(), BinaryVariant.class.getName());

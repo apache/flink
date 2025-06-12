@@ -163,7 +163,7 @@ public class SqlCastFunction extends SqlFunction {
         SqlTypeName fromTypeName = fromType.getSqlTypeName();
 
         // Cast to Variant is not support at the moment.
-        // TODO: Support cast to variant
+        // TODO: Support cast to variant (FLINK-37925，FLINK-37926)
         if (toType.getSqlTypeName() == SqlTypeName.VARIANT) {
             return false;
         }

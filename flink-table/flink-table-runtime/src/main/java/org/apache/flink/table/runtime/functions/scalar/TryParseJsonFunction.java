@@ -16,47 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.functions;
+package org.apache.flink.table.runtime.functions.scalar;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.types.variant.BinaryVariantInternalBuilder;
 import org.apache.flink.types.variant.Variant;
 
 import javax.annotation.Nullable;
 
-@Internal
-public class VariantUtils {
+/** Implementation of {@link BuiltInFunctionDefinitions#TRY_PARSE_JSON}. */
+public class TryParseJsonFunction extends BuiltInScalarFunction {
 
-    public static @Nullable Variant parseJson(@Nullable String jsonString) {
-        return parseJson(jsonString, false);
+    public TryParseJsonFunction(SpecializedFunction.SpecializedContext context) {
+        super(BuiltInFunctionDefinitions.TRY_PARSE_JSON, context);
     }
 
-    public static @Nullable Variant parseJson(
-            @Nullable String jsonString, boolean allowDuplicateKeys) {
-        if (jsonString == null) {
+    public @Nullable Variant eval(@Nullable StringData jsonStr) {
+        return eval(jsonStr, false);
+    }
+
+    public @Nullable Variant eval(@Nullable StringData jsonStr, boolean allowDuplicateKeys) {
+        if (jsonStr == null) {
             return null;
         }
 
         try {
-            return BinaryVariantInternalBuilder.parseJson(jsonString, allowDuplicateKeys);
-        } catch (Throwable e) {
-            throw new RuntimeException(
-                    String.format("Failed to parse json string: %s", jsonString), e);
-        }
-    }
-
-    public static @Nullable Variant tryParseJson(@Nullable String jsonString) {
-        return tryParseJson(jsonString, false);
-    }
-
-    public static @Nullable Variant tryParseJson(
-            @Nullable String jsonString, boolean allowDuplicateKeys) {
-        if (jsonString == null) {
-            return null;
-        }
-
-        try {
-            return BinaryVariantInternalBuilder.parseJson(jsonString, allowDuplicateKeys);
+            return BinaryVariantInternalBuilder.parseJson(jsonStr.toString(), allowDuplicateKeys);
         } catch (Throwable e) {
             return null;
         }

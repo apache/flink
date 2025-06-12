@@ -25,7 +25,7 @@ import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.utils.ValueDataTypeConverter;
 import org.apache.flink.types.variant.BinaryVariant;
-import org.apache.flink.types.variant.BinaryVariantBuilder;
+import org.apache.flink.types.variant.Variant;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -111,7 +111,7 @@ class ValueDataTypeConverterTest {
                 of(TimePointUnit.HOUR, new AtomicDataType(new SymbolType<>(), TimePointUnit.class)),
                 of(new BigDecimal[0], null),
                 of(
-                        new BinaryVariantBuilder().of("hello"),
+                        Variant.builder().of("hello"),
                         DataTypes.VARIANT().bridgedTo(BinaryVariant.class)));
     }
 

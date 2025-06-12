@@ -1334,18 +1334,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             SqlStdOperatorTable.IS_NOT_JSON_SCALAR;
 
     // VARIANT FUNCTIONS
-    public static final SqlFunction PARSE_JSON =
-            new SqlFunction(
-                    "PARSE_JSON",
-                    SqlKind.OTHER_FUNCTION,
-                    ReturnTypes.cascade(
-                            ReturnTypes.explicit(SqlTypeName.VARIANT),
-                            SqlTypeTransforms.TO_NULLABLE),
-                    null,
-                    OperandTypes.or(
-                            OperandTypes.family(SqlTypeFamily.STRING),
-                            OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.BOOLEAN)),
-                    SqlFunctionCategory.SYSTEM);
     public static final SqlFunction TRY_PARSE_JSON =
             new SqlFunction(
                     "TRY_PARSE_JSON",

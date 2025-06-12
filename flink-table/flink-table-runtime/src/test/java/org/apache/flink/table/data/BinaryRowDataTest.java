@@ -52,8 +52,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.RowKind;
-import org.apache.flink.types.variant.BinaryVariantBuilder;
 import org.apache.flink.types.variant.Variant;
+import org.apache.flink.types.variant.VariantBuilder;
 
 import org.junit.jupiter.api.Test;
 
@@ -1137,7 +1137,7 @@ class BinaryRowDataTest {
         BinaryRowData row = new BinaryRowData(2);
         BinaryRowWriter writer = new BinaryRowWriter(row);
 
-        BinaryVariantBuilder builder = new BinaryVariantBuilder();
+        VariantBuilder builder = Variant.builder();
 
         Variant v1 = builder.object().add("k", builder.of(1)).build();
         Variant v2 = builder.array().add(builder.of(1)).build();

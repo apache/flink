@@ -514,62 +514,6 @@ class FunctionGenerator private (tableConfig: ReadableConfig) {
     Seq(VARCHAR),
     new NotCallGen(new MethodCallGen(BuiltInMethods.IS_JSON_SCALAR, argsNullable = true)))
 
-  addSqlFunctionMethod(
-    PARSE_JSON,
-    Seq(VARCHAR),
-    BuiltInMethods.PARSE_JSON,
-    argsNullable = true
-  )
-
-  addSqlFunctionMethod(
-    PARSE_JSON,
-    Seq(CHAR),
-    BuiltInMethods.PARSE_JSON,
-    argsNullable = true
-  )
-
-  addSqlFunctionMethod(
-    PARSE_JSON,
-    Seq(VARCHAR, BOOLEAN),
-    BuiltInMethods.PARSE_JSON,
-    argsNullable = true
-  )
-
-  addSqlFunctionMethod(
-    PARSE_JSON,
-    Seq(CHAR, BOOLEAN),
-    BuiltInMethods.PARSE_JSON,
-    argsNullable = true
-  )
-
-  addSqlFunctionMethod(
-    TRY_PARSE_JSON,
-    Seq(VARCHAR),
-    BuiltInMethods.TRY_PARSE_JSON,
-    argsNullable = true
-  )
-
-  addSqlFunctionMethod(
-    TRY_PARSE_JSON,
-    Seq(CHAR),
-    BuiltInMethods.TRY_PARSE_JSON,
-    argsNullable = true
-  )
-
-  addSqlFunctionMethod(
-    TRY_PARSE_JSON,
-    Seq(VARCHAR, BOOLEAN),
-    BuiltInMethods.TRY_PARSE_JSON,
-    argsNullable = true
-  )
-
-  addSqlFunctionMethod(
-    TRY_PARSE_JSON,
-    Seq(CHAR, BOOLEAN),
-    BuiltInMethods.TRY_PARSE_JSON,
-    argsNullable = true
-  )
-
   FlinkSqlOperatorTable
     .dynamicFunctions(!isStreamingMode)
     .forEach(
