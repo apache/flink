@@ -49,7 +49,19 @@ public class TestSchemaResolver implements SchemaResolver {
 
         final UniqueConstraint primaryKey = resolvePrimaryKey(schema.getPrimaryKey().orElse(null));
 
-        return new ResolvedSchema(columns, watermarkSpecs, primaryKey);
+        final List<Index> indexes = resolveIndexes(schema.getIndexes());
+
+        return new ResolvedSchema(columns, watermarkSpecs, primaryKey, indexes);
+    }
+
+    private List<Index> resolveIndexes(List<Schema.UnresolvedIndex> unresolvedIndexes) {
+        return unresolvedIndexes.stream()
+                .map(
+                        unresolvedIndex ->
+                                DefaultIndex.newIndex(
+                                        unresolvedIndex.getIndexName(),
+                                        unresolvedIndex.getColumnNames()))
+                .collect(Collectors.toList());
     }
 
     private List<Column> resolveColumns(List<Schema.UnresolvedColumn> unresolvedColumns) {

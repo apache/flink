@@ -382,6 +382,12 @@ public final class CatalogPropertiesUtil {
 
     private static final String PRIMARY_KEY_COLUMNS = compoundKey(PRIMARY_KEY, COLUMNS);
 
+    private static final String INDEX = "index";
+
+    private static final String INDEX_NAME = "name";
+
+    private static final String INDEX_COLUMNS = "columns";
+
     private static final String COMMENT = "comment";
 
     private static final String SNAPSHOT = "snapshot";
@@ -460,7 +466,23 @@ public final class CatalogPropertiesUtil {
 
         deserializePrimaryKey(map, schemaKey, builder);
 
+        deserializeIndexes(map, schemaKey, builder);
+
         return builder.build();
+    }
+
+    private static void deserializeIndexes(
+            Map<String, String> map, String schemaKey, Builder builder) {
+        final String indexKey = compoundKey(schemaKey, INDEX);
+        final int indexCount = getCount(map, indexKey, INDEX_NAME);
+        for (int i = 0; i < indexCount; i++) {
+            final String indexNameKey = compoundKey(indexKey, i, INDEX_NAME);
+            final String indexColumnsKey = compoundKey(indexKey, i, INDEX_COLUMNS);
+
+            final String indexName = getValue(map, indexNameKey);
+            final String[] indexColumns = getValue(map, indexColumnsKey, s -> s.split(","));
+            builder.indexNamed(indexName, List.of(indexColumns));
+        }
     }
 
     private static void deserializePrimaryKey(
@@ -562,6 +584,23 @@ public final class CatalogPropertiesUtil {
         serializeWatermarkSpecs(map, schema.getWatermarkSpecs(), sqlFactory);
 
         schema.getPrimaryKey().ifPresent(pk -> serializePrimaryKey(map, pk));
+
+        serializeIndexes(map, schema.getIndexes());
+    }
+
+    private static void serializeIndexes(Map<String, String> map, List<Index> indexes) {
+        if (!indexes.isEmpty()) {
+            final List<List<String>> indexValues = new ArrayList<>();
+            for (Index index : indexes) {
+                indexValues.add(
+                        Arrays.asList(index.getName(), String.join(",", index.getColumns())));
+            }
+            putIndexedProperties(
+                    map,
+                    compoundKey(SCHEMA, INDEX),
+                    Arrays.asList(INDEX_NAME, INDEX_COLUMNS),
+                    indexValues);
+        }
     }
 
     private static void serializePrimaryKey(Map<String, String> map, UniqueConstraint constraint) {

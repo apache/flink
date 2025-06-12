@@ -50,6 +50,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -344,6 +345,7 @@ class DataStreamJavaITCase {
                                 .columnByMetadata("rowtime", "TIMESTAMP_LTZ(3)")
                                 // uses SQL expressions
                                 .watermark("rowtime", "SOURCE_WATERMARK()")
+                                .indexNamed("idx", Collections.singletonList("f0"))
                                 .build());
 
         testSchema(
@@ -365,7 +367,9 @@ class DataStreamJavaITCase {
                                         "rowtime",
                                         ResolvedExpressionMock.of(
                                                 TIMESTAMP_LTZ(3), "`SOURCE_WATERMARK`()"))),
-                        null));
+                        null,
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("f0")))));
 
         tableEnv.createTemporaryView("t", table);
 
@@ -616,6 +620,7 @@ class DataStreamJavaITCase {
                                 .column("f0", "TIMESTAMP(3)")
                                 .column("f1", "STRING")
                                 .watermark("f0", "SOURCE_WATERMARK()")
+                                .indexNamed("idx", Collections.singletonList("f0"))
                                 .build());
 
         testSchema(
@@ -632,7 +637,9 @@ class DataStreamJavaITCase {
                                         "f0",
                                         ResolvedExpressionMock.of(
                                                 TIMESTAMP(3), "`SOURCE_WATERMARK`()"))),
-                        null));
+                        null,
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("f0")))));
 
         final DataStream<Long> rowtimeStream =
                 tableEnv.toDataStream(table)

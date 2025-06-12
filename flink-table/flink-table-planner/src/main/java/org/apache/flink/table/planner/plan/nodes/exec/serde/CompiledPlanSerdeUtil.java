@@ -26,6 +26,7 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -222,6 +223,7 @@ public class CompiledPlanSerdeUtil {
     private static void registerMixins(SimpleModule module) {
         module.setMixInAnnotation(WatermarkSpec.class, WatermarkSpecMixin.class);
         module.setMixInAnnotation(UniqueConstraint.class, UniqueConstraintMixin.class);
+        module.setMixInAnnotation(DefaultIndex.class, DefaultIndexMixin.class);
     }
 
     // Utilities for SerDes implementations

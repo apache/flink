@@ -318,6 +318,9 @@ public final class SchemaTranslator {
                         key ->
                                 builder.primaryKeyNamed(
                                         key.getConstraintName(), key.getColumnNames()));
+        declaredSchema
+                .getIndexes()
+                .forEach(idx -> builder.indexNamed(idx.getIndexName(), idx.getColumnNames()));
         return builder.build();
     }
 

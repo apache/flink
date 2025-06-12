@@ -100,6 +100,7 @@ public class CatalogPropertiesUtilTest {
                                                         .getLogicalType()
                                                         .asSerializableString())
                                         .primaryKey("f1")
+                                        .indexNamed("f1", Collections.singletonList("f1"))
                                         .build())
                         .comment("some comment")
                         .options(options)
@@ -110,8 +111,11 @@ public class CatalogPropertiesUtilTest {
         List<Column> columns = Arrays.asList(f1, f2);
         final UniqueConstraint primaryKey =
                 UniqueConstraint.primaryKey("PK_f1", Collections.singletonList("f1"));
+        List<Index> indexes =
+                Collections.singletonList(
+                        DefaultIndex.newIndex("f1", Collections.singletonList("f1")));
         final ResolvedSchema schema =
-                new ResolvedSchema(columns, Collections.emptyList(), primaryKey);
+                new ResolvedSchema(columns, Collections.emptyList(), primaryKey, indexes);
 
         final ResolvedCatalogTable testTable = new ResolvedCatalogTable(catalogTable, schema);
 
