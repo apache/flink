@@ -28,8 +28,8 @@ import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.types.Row;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -89,7 +89,7 @@ public class OpenAIChatModelTest {
         modelOptions.put("provider", "openai");
         modelOptions.put("endpoint", server.url("/chat/completions").toString());
         modelOptions.put("model", "qwen-turbo");
-        modelOptions.put("apiKey", "foobar");
+        modelOptions.put("api-key", "foobar");
     }
 
     @AfterEach
@@ -118,7 +118,9 @@ public class OpenAIChatModelTest {
         for (Row row : result) {
             assertThat(row.getField(0)).isInstanceOf(String.class);
             assertThat(row.getField(1)).isInstanceOf(String.class);
-            assertThat((String) row.getFieldAs(1)).isNotEmpty();
+            assertThat((String) row.getFieldAs(1))
+                    .isEqualTo(
+                            "This is a mocked response continuation continuation continuation continuation continuation continuation continuation continuation continuation continuation");
         }
     }
 
@@ -127,7 +129,7 @@ public class OpenAIChatModelTest {
         int maxTokens = 20;
         CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
         Map<String, String> modelOptions = new HashMap<>(this.modelOptions);
-        modelOptions.put("maxTokens", Integer.toString(maxTokens));
+        modelOptions.put("max-tokens", Integer.toString(maxTokens));
         catalogManager.createModel(
                 CatalogModel.of(INPUT_SCHEMA, OUTPUT_SCHEMA, modelOptions, "This is a new model."),
                 ObjectIdentifier.of(
@@ -146,7 +148,9 @@ public class OpenAIChatModelTest {
         for (Row row : result) {
             assertThat(row.getField(0)).isInstanceOf(String.class);
             assertThat(row.getField(1)).isInstanceOf(String.class);
-            assertThat((String) row.getFieldAs(1)).isNotEmpty();
+            assertThat((String) row.getFieldAs(1))
+                    .isEqualTo(
+                            "This is a mocked response continuation continuation continuation continuation continuation continuation continuation continuation continuation continuation continuation continuation continuation continuation");
             assertThat(((String) row.getFieldAs(1)).split(" ")).hasSizeLessThan(maxTokens);
         }
     }
@@ -175,7 +179,7 @@ public class OpenAIChatModelTest {
         for (Row row : result) {
             assertThat(row.getField(0)).isInstanceOf(String.class);
             assertThat(row.getField(1)).isInstanceOf(String.class);
-            assertThat((String) row.getFieldAs(1)).isNotEmpty();
+            assertThat((String) row.getFieldAs(1)).isEqualTo("This is ");
             assertThat(((String) row.getFieldAs(1)).split(" "))
                     .doesNotContain("a")
                     .doesNotContain("the");
@@ -245,25 +249,28 @@ public class OpenAIChatModelTest {
     }
 
     private static class TestDispatcher extends Dispatcher {
+        private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
         @Override
         public MockResponse dispatch(RecordedRequest request) {
             String path = request.getRequestUrl().encodedPath();
 
             String body = request.getBody().readUtf8();
-            JsonObject jsonBody = JsonParser.parseString(body).getAsJsonObject();
 
-            if (path.endsWith("/chat/completions")) {
-                int maxTokens =
-                        jsonBody.has("max_tokens") ? jsonBody.get("max_tokens").getAsInt() : 16;
+            if (!path.endsWith("/chat/completions")) {
+                return new MockResponse().setResponseCode(404);
+            }
+
+            try {
+                JsonNode root = OBJECT_MAPPER.readTree(body);
+                int maxTokens = root.has("max_tokens") ? root.get("max_tokens").asInt() : 16;
                 List<String> stop = new ArrayList<>();
-                if (jsonBody.has("stop")) {
-                    jsonBody.get("stop").getAsJsonArray().forEach(e -> stop.add(e.getAsString()));
+                if (root.has("stop")) {
+                    root.get("stop").forEach(node -> stop.add(node.asText()));
                 }
 
                 StringBuilder contentBuilder = new StringBuilder("This is a mocked response");
-                for (int i = 0; i < maxTokens - 6; i++) {
-                    contentBuilder.append(" continuation");
-                }
+                contentBuilder.append(" continuation".repeat(Math.max(0, maxTokens - 6)));
                 for (String stopWord : stop) {
                     if (contentBuilder.toString().contains(stopWord)) {
                         int stopIndex = contentBuilder.indexOf(stopWord);
@@ -284,7 +291,7 @@ public class OpenAIChatModelTest {
                                 + "    \"message\": {"
                                 + "      \"role\": \"assistant\","
                                 + "      \"content\": \""
-                                + contentBuilder.toString()
+                                + contentBuilder
                                 + "\""
                                 + "    },"
                                 + "    \"finish_reason\": \"stop\""
@@ -296,16 +303,15 @@ public class OpenAIChatModelTest {
                                 + ","
                                 + "    \"total_tokens\": "
                                 + (9 + Math.min(maxTokens, 100))
-                                + ""
                                 + "  }"
                                 + "}";
 
                 return new MockResponse()
                         .setHeader("Content-Type", "application/json")
                         .setBody(responseBody);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
-
-            return new MockResponse().setResponseCode(404);
         }
     }
 }

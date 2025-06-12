@@ -52,6 +52,7 @@ public final class GlobalConfiguration {
                 "secret",
                 "fs.azure.account.key",
                 "apikey",
+                "api-key",
                 "auth-params",
                 "service-key",
                 "token",

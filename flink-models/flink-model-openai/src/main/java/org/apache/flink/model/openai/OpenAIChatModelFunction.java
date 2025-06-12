@@ -40,10 +40,12 @@ import java.util.stream.Collectors;
 
 /** {@link AsyncPredictFunction} for OpenAI chat completion task. */
 public class OpenAIChatModelFunction extends AbstractOpenAIModelFunction {
+    private static final long serialVersionUID = 1L;
+
     public static final String ENDPOINT_SUFFIX = "chat/completions";
 
     public static final ConfigOption<String> SYSTEM_PROMPT =
-            ConfigOptions.key("systemPrompt")
+            ConfigOptions.key("system-prompt")
                     .stringType()
                     .defaultValue("You are a helpful assistant.")
                     .withDescription("System message for chat tasks.");
@@ -55,7 +57,7 @@ public class OpenAIChatModelFunction extends AbstractOpenAIModelFunction {
                     .withDescription("Controls randomness of output, range [0.0, 1.0].");
 
     public static final ConfigOption<Double> TOP_P =
-            ConfigOptions.key("topP")
+            ConfigOptions.key("top-p")
                     .doubleType()
                     .noDefaultValue()
                     .withDescription(
@@ -70,7 +72,7 @@ public class OpenAIChatModelFunction extends AbstractOpenAIModelFunction {
                     .withDescription("Stop sequences, comma-separated list.");
 
     public static final ConfigOption<Long> MAX_TOKENS =
-            ConfigOptions.key("maxTokens")
+            ConfigOptions.key("max-tokens")
                     .longType()
                     .noDefaultValue()
                     .withDescription("Maximum number of tokens to generate.");
