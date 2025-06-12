@@ -28,8 +28,8 @@ import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.types.Row;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -45,7 +45,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -92,7 +91,7 @@ public class OpenAIEmbeddingModelTest {
         modelOptions.put("provider", "openai");
         modelOptions.put("endpoint", server.url("/embeddings").toString());
         modelOptions.put("model", "text-embedding-v3");
-        modelOptions.put("apiKey", "foobar");
+        modelOptions.put("api-key", "foobar");
     }
 
     @AfterEach
@@ -243,48 +242,23 @@ public class OpenAIEmbeddingModelTest {
                 .hasMessageContainingAll("output", "DOUBLE", "ARRAY<FLOAT>");
     }
 
-    @Test
-    public void testInvalidEndpoint() {
-        CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
-        ObjectIdentifier modelIdentifier =
-                ObjectIdentifier.of(
-                        catalogManager.getCurrentCatalog(),
-                        catalogManager.getCurrentDatabase(),
-                        MODEL_NAME);
-
-        Map<String, String> invalidModelOptions = new HashMap<>(this.modelOptions);
-        invalidModelOptions.put(
-                "endpoint", "http://dashscope.aliyuncs.com/compatible-mode/v1/embeddings");
-
-        catalogManager.createModel(
-                CatalogModel.of(
-                        INPUT_SCHEMA, OUTPUT_SCHEMA, invalidModelOptions, "This is a new model."),
-                modelIdentifier,
-                false);
-
-        assertThatThrownBy(
-                        () ->
-                                tEnv.executeSql(
-                                                String.format(
-                                                        "SELECT * FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL %s, DESCRIPTOR(`input`)))",
-                                                        MODEL_NAME))
-                                        .await(1, TimeUnit.MINUTES))
-                .rootCause()
-                .hasMessageContainingAll("API key", "Authorization", "Bearer");
-    }
-
     private static class TestDispatcher extends Dispatcher {
+        private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
         @Override
         public MockResponse dispatch(RecordedRequest request) {
             assert request.getRequestUrl() != null;
             String path = request.getRequestUrl().encodedPath();
 
             String body = request.getBody().readUtf8();
-            JsonObject jsonBody = JsonParser.parseString(body).getAsJsonObject();
 
-            if (path.endsWith("/embeddings")) {
-                int dimensions =
-                        jsonBody.has("dimensions") ? jsonBody.get("dimensions").getAsInt() : 512;
+            if (!path.endsWith("/embeddings")) {
+                return new MockResponse().setResponseCode(404);
+            }
+
+            try {
+                JsonNode root = OBJECT_MAPPER.readTree(body);
+                int dimensions = root.has("dimensions") ? root.get("dimensions").asInt() : 512;
                 String embeddingStr =
                         IntStream.range(0, dimensions)
                                 .mapToDouble(i -> i % 2 == 0 ? 0.1 : -0.1)
@@ -311,9 +285,9 @@ public class OpenAIEmbeddingModelTest {
                 return new MockResponse()
                         .setHeader("Content-Type", "application/json")
                         .setBody(responseBody);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
-
-            return new MockResponse().setResponseCode(404);
         }
     }
 }

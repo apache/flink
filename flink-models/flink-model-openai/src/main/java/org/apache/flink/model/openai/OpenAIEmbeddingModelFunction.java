@@ -41,6 +41,8 @@ import java.util.stream.Collectors;
 
 /** {@link AsyncPredictFunction} for OpenAI embedding task. */
 public class OpenAIEmbeddingModelFunction extends AbstractOpenAIModelFunction {
+    private static final long serialVersionUID = 1L;
+
     public static final String ENDPOINT_SUFFIX = "embeddings";
 
     public static final ConfigOption<Long> DIMENSION =

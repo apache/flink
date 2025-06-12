@@ -26,9 +26,9 @@ import com.openai.client.okhttp.OpenAIOkHttpClientAsync;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Utility class related to Open AI SDK. */
@@ -37,7 +37,7 @@ public class OpenAIUtils {
 
     private static final Object LOCK = new Object();
 
-    private static final Map<ReferenceKey, ReferenceValue> cache = new ConcurrentHashMap<>();
+    private static final Map<ReferenceKey, ReferenceValue> cache = new HashMap<>();
 
     public static OpenAIClientAsync createAsyncClient(String baseUrl, String apiKey, int numRetry) {
         synchronized (LOCK) {

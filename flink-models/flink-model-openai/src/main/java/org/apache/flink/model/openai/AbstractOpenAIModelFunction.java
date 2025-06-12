@@ -57,7 +57,7 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
                                     .build());
 
     public static final ConfigOption<String> API_KEY =
-            ConfigOptions.key("apiKey")
+            ConfigOptions.key("api-key")
                     .stringType()
                     .noDefaultValue()
                     .withDescription("OpenAI API key for authentication.");
@@ -84,6 +84,14 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
         String endpoint = config.get(ENDPOINT);
         this.baseUrl = endpoint.replaceAll(String.format("/%s/*$", getEndpointSuffix()), "");
         this.apiKey = config.get(API_KEY);
+        // The model service enforces rate-limiting constraints, necessitating retry mechanisms in
+        // most operational scenarios. Within the asynchronous operator framework, the system is
+        // designed to process up to
+        // config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY) concurrent
+        // requests in parallel. To mitigate potential performance degradation from simultaneous
+        // requests, a dynamic retry strategy is implemented where the maximum retry count is
+        // directly proportional to the configured parallelism level, ensuring robust error
+        // resilience while maintaining throughput efficiency.
         this.numRetry =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY) * 10;
 
