@@ -22,6 +22,7 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
@@ -80,6 +81,11 @@ import java.util.Optional;
 @ExecNodeMetadata(
         name = "stream-exec-ml-predict-table-function",
         version = 1,
+        consumedOptions = {
+            "table.exec.async-ml-predict.buffer-capacity",
+            "table.exec.async-ml-predict.timeout",
+            "table.exec.async-ml-predict.output-mode"
+        },
         producedTransformations = StreamExecMLPredictTableFunction.ML_PREDICT_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v2_1,
         minStateVersion = FlinkVersion.v2_1)
@@ -201,7 +207,7 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
                         mlPredictSpec.getFeatures(),
                         predictFunction,
                         "MLPredict",
-                        true);
+                        config.get(PipelineOptions.OBJECT_REUSE));
         GeneratedCollector<ListenableCollector<RowData>> generatedCollector =
                 LookupJoinCodeGenerator.generateCollector(
                         new CodeGeneratorContext(config, classLoader),
