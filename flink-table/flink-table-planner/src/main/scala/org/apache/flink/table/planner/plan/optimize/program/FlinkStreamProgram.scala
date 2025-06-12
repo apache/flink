@@ -22,6 +22,7 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets
 import org.apache.flink.table.planner.plan.rules.logical.EventTimeTemporalJoinRewriteRule
+import org.apache.flink.table.planner.plan.rules.physical.stream.FlinkDuplicateChangesTraitInitProgram
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 
@@ -314,6 +315,17 @@ object FlinkStreamProgram {
             .add(FlinkStreamRuleSets.MINI_BATCH_RULES)
             .build(),
           "mini-batch interval rules"
+        )
+        .addProgram(
+          new FlinkDuplicateChangesTraitInitProgram,
+          "initialization for duplicate changes inference")
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.TOP_DOWN)
+            .add(FlinkStreamRuleSets.DUPLICATE_CHANGES_RULES)
+            .build(),
+          "duplicate changes rules"
         )
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder
