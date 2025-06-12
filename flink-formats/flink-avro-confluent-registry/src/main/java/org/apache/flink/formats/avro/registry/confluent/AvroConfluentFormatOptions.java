@@ -70,7 +70,10 @@ public class AvroConfluentFormatOptions {
                     .booleanType()
                     .defaultValue(true)
                     .withDescription(
-                            "Flag to indicate if the schema should be registered automatically.");
+                            "Flag to indicate if the schema should be registered automatically. " +
+                            "When set to false, schemas must be manually registered in the Schema Registry before being used. " +
+                            "When set to true, schemas will be automatically registered during serialization if they don't already exist. " +
+                            "The default value is true.");
 
     public static final ConfigOption<String> SSL_KEYSTORE_LOCATION =
             ConfigOptions.key("ssl.keystore.location")
