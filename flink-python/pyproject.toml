@@ -27,6 +27,56 @@ requires = [
     "cython>=0.29.24"
 ]
 
+[dependency-groups]
+development = [
+  "pip>=20.3",
+  "setuptools>=75.3",
+  "wheel",
+  "apache-beam>=2.54.0,<=2.61.0",
+  "cython>=0.29.24",
+  "py4j==0.10.9.7",
+  "python-dateutil>=2.8.0,<3",
+  "cloudpickle~=2.2.0",
+  "avro>=1.12.0",
+  "pandas>=1.3.0",
+  "pyarrow>=5.0.0",
+  "pytz>=2018.3",
+  "numpy>=1.22.4",
+  "fastavro>=1.1.0,!=1.8.0",
+  "grpcio>=1.29.0,<=1.71.0",
+  "grpcio-tools>=1.29.0,<=1.71.0",
+  "pemja==0.5.1; platform_system != 'Windows'",
+  "httplib2>=0.19.0",
+  "protobuf~=4.25",
+  "pytest~=8.0",
+  "ruamel.yaml>=0.18.4",
+]
+tox = [
+    "tox==3.14.0"
+]
+flake8 = [
+    "flake8==7.2.0"
+]
+sphinx = [
+    "Sphinx==4.5.0",
+    "importlib-metadata==4.4.0",
+    "Docutils==0.17.1",
+    "pydata_sphinx_theme==0.11.0",
+    "sphinx_mdinclude==0.5.3",
+    "Jinja2<3.1.0",
+    "sphinxcontrib-applehelp<1.0.8",
+    "sphinxcontrib.devhelp<1.0.6",
+    "sphinxcontrib.htmlhelp<2.0.5",
+    "sphinxcontrib-serializinghtml<1.1.10",
+    "sphinxcontrib-qthelp<1.0.7"
+]
+mypy = [
+    "mypy==1.5.1",
+    "types-pytz",
+    "types-python-dateutil"
+]
+
+
 [tool.cibuildwheel]
 build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*"]
 

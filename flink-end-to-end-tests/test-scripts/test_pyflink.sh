@@ -97,7 +97,7 @@ cd "${FLINK_PYTHON_DIR}"
 
 rm -rf dist
 
-uv pip install -r dev/dev-requirements.txt
+pip install --group development
 
 python setup.py sdist
 
