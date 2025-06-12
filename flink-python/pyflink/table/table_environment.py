@@ -50,6 +50,7 @@ from pyflink.table.types import _create_type_verifier, RowType, DataType, \
 from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, udaf, \
     udtaf, TableAggregateFunction
 from pyflink.table.utils import to_expression_jarray
+from pyflink.util.api_stability_decorators import PublicEvolving, Deprecated
 from pyflink.util.java_utils import get_j_env_configuration, is_local_deployment, load_java_class, \
     to_j_explain_detail_arr, to_jarray, get_field
 
@@ -59,6 +60,7 @@ __all__ = [
 ]
 
 
+@PublicEvolving()
 class TableEnvironment(object):
     """
     A table environment is the base class, entry point, and central context for creating Table
@@ -133,6 +135,11 @@ class TableEnvironment(object):
         """
         self._j_tenv.createCatalog(catalog_name, catalog_descriptor._j_catalog_descriptor)
 
+    @Deprecated(since="2.1.0", detail="""
+    Use :func:`create_catalog` instead. The new method uses a
+    :class:`~pyflink.table.catalog.CatalogDescriptor` to initialize the catalog instance and store
+    the :class:`~pyflink.table.catalog.CatalogDescriptor` in the catalog store.
+    """)
     def register_catalog(self, catalog_name: str, catalog: Catalog):
         """
         Registers a :class:`~pyflink.table.catalog.Catalog` under a unique name.
