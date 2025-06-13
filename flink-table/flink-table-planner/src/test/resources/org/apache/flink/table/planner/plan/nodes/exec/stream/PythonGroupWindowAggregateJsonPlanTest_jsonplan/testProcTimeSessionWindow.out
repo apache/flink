@@ -73,7 +73,6 @@
               }
             } ]
           },
-          "partitionKeys" : [ ],
           "options" : {
             "connector" : "values"
           }
@@ -81,8 +80,7 @@
       }
     },
     "outputType" : "ROW<`a` INT NOT NULL, `b` BIGINT, `c` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
-    "inputProperties" : [ ]
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])"
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
@@ -375,10 +373,8 @@
             }, {
               "name" : "c",
               "dataType" : "BIGINT"
-            } ],
-            "watermarkSpecs" : [ ]
+            } ]
           },
-          "partitionKeys" : [ ],
           "options" : {
             "connector" : "values"
           }

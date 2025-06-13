@@ -116,7 +116,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
             String description) {
         this.context = checkNotNull(context).withId(id);
         this.persistedConfig = persistedConfig == null ? new Configuration() : persistedConfig;
-        this.inputProperties = checkNotNull(inputProperties);
+        this.inputProperties = inputProperties == null ? List.of() : inputProperties;
         this.outputType = checkNotNull(outputType);
         this.description = checkNotNull(description);
     }

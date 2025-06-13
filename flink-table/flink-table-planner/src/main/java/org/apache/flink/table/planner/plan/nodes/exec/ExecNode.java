@@ -26,6 +26,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
@@ -82,6 +83,7 @@ public interface ExecNode<T> extends ExecNodeTranslator<T>, FusionCodegenExecNod
      *
      * @return List of this node's input properties.
      */
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     @JsonProperty(value = FIELD_NAME_INPUT_PROPERTIES)
     List<InputProperty> getInputProperties();
 
@@ -94,7 +96,7 @@ public interface ExecNode<T> extends ExecNodeTranslator<T>, FusionCodegenExecNod
     List<ExecEdge> getInputEdges();
 
     /**
-     * Sets the input {@link ExecEdge}s which connect this nodes and its input nodes.
+     * Sets the input {@link ExecEdge}s which connect these nodes and its input nodes.
      *
      * <p>NOTE: If there are no inputs, the given inputEdges should be empty, not null.
      *

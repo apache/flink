@@ -27,16 +27,17 @@ import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.WatermarkSpec;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.ObjectCodec;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeOptionalField;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.traverse;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeFieldOrNull;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeList;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeListOrEmpty;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchemaJsonSerializer.COLUMNS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchemaJsonSerializer.INDEXES;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchemaJsonSerializer.PRIMARY_KEY;
@@ -59,34 +60,15 @@ final class ResolvedSchemaJsonDeserializer extends StdDeserializer<ResolvedSchem
     public ResolvedSchema deserialize(JsonParser jsonParser, DeserializationContext ctx)
             throws IOException {
         ObjectNode jsonNode = jsonParser.readValueAsTree();
+        ObjectCodec codec = jsonParser.getCodec();
 
-        List<Column> columns =
-                ctx.readValue(
-                        traverse(jsonNode.required(COLUMNS), jsonParser.getCodec()),
-                        ctx.getTypeFactory().constructCollectionType(List.class, Column.class));
+        List<Column> columns = deserializeList(jsonNode, COLUMNS, Column.class, codec, ctx);
         List<WatermarkSpec> watermarkSpecs =
-                ctx.readValue(
-                        traverse(jsonNode.required(WATERMARK_SPECS), jsonParser.getCodec()),
-                        ctx.getTypeFactory()
-                                .constructCollectionType(List.class, WatermarkSpec.class));
+                deserializeListOrEmpty(jsonNode, WATERMARK_SPECS, WatermarkSpec.class, codec, ctx);
         UniqueConstraint primaryKey =
-                deserializeOptionalField(
-                                jsonNode,
-                                PRIMARY_KEY,
-                                UniqueConstraint.class,
-                                jsonParser.getCodec(),
-                                ctx)
-                        .orElse(null);
-        List<Index> indexes;
-        if (jsonNode.has(INDEXES)) {
-            indexes =
-                    ctx.readValue(
-                            traverse(jsonNode.required(INDEXES), jsonParser.getCodec()),
-                            ctx.getTypeFactory()
-                                    .constructCollectionType(List.class, DefaultIndex.class));
-        } else {
-            indexes = Collections.emptyList();
-        }
+                deserializeFieldOrNull(jsonNode, PRIMARY_KEY, UniqueConstraint.class, codec, ctx);
+        List<Index> indexes =
+                deserializeListOrEmpty(jsonNode, INDEXES, DefaultIndex.class, codec, ctx);
 
         return new ResolvedSchema(columns, watermarkSpecs, primaryKey, indexes);
     }

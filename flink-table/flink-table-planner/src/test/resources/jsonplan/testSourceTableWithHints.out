@@ -17,10 +17,8 @@
             }, {
               "name" : "c",
               "dataType" : "VARCHAR(2147483647)"
-            } ],
-            "watermarkSpecs" : [ ]
+            } ]
           },
-          "partitionKeys" : [ ],
           "options" : {
             "bounded" : "true",
             "connector" : "values",
@@ -30,8 +28,7 @@
       }
     },
     "outputType" : "ROW<`a` BIGINT, `b` INT, `c` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{scan.parallelism=2, bounded=true}]]])",
-    "inputProperties" : [ ]
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], hints=[[[OPTIONS options:{scan.parallelism=2, bounded=true}]]])"
   }, {
     "id" : 0,
     "type" : "stream-exec-sink_1",
@@ -56,10 +53,8 @@
             }, {
               "name" : "c",
               "dataType" : "VARCHAR(2147483647)"
-            } ],
-            "watermarkSpecs" : [ ]
+            } ]
           },
-          "partitionKeys" : [ ],
           "options" : {
             "connector" : "values",
             "table-sink-class" : "DEFAULT"

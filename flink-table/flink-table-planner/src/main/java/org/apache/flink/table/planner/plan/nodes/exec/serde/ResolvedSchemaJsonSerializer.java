@@ -27,6 +27,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.serializeListIfNotEmpty;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.serializeOptionalField;
 
 /**
@@ -57,14 +58,15 @@ final class ResolvedSchemaJsonSerializer extends StdSerializer<ResolvedSchema> {
 
         serializerProvider.defaultSerializeField(
                 COLUMNS, resolvedSchema.getColumns(), jsonGenerator);
-        serializerProvider.defaultSerializeField(
-                WATERMARK_SPECS, resolvedSchema.getWatermarkSpecs(), jsonGenerator);
+        serializeListIfNotEmpty(
+                jsonGenerator,
+                WATERMARK_SPECS,
+                resolvedSchema.getWatermarkSpecs(),
+                serializerProvider);
         serializeOptionalField(
                 jsonGenerator, PRIMARY_KEY, resolvedSchema.getPrimaryKey(), serializerProvider);
-        if (!resolvedSchema.getIndexes().isEmpty()) {
-            serializerProvider.defaultSerializeField(
-                    INDEXES, resolvedSchema.getIndexes(), jsonGenerator);
-        }
+        serializeListIfNotEmpty(
+                jsonGenerator, INDEXES, resolvedSchema.getIndexes(), serializerProvider);
 
         jsonGenerator.writeEndObject();
     }

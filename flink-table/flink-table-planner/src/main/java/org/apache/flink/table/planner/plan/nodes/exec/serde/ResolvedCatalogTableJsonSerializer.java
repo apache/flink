@@ -32,6 +32,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.serializeListIfNotEmpty;
+
 /**
  * JSON serializer for {@link ResolvedCatalogTable}.
  *
@@ -90,7 +92,11 @@ final class ResolvedCatalogTableJsonSerializer extends StdSerializer<ResolvedCat
         if (resolvedCatalogTable.getDistribution().isPresent()) {
             jsonGenerator.writeObjectField(DISTRIBUTION, resolvedCatalogTable.getDistribution());
         }
-        jsonGenerator.writeObjectField(PARTITION_KEYS, resolvedCatalogTable.getPartitionKeys());
+        serializeListIfNotEmpty(
+                jsonGenerator,
+                PARTITION_KEYS,
+                resolvedCatalogTable.getPartitionKeys(),
+                serializerProvider);
 
         if (serializeOptions) {
             if (!resolvedCatalogTable.getComment().isEmpty()) {
