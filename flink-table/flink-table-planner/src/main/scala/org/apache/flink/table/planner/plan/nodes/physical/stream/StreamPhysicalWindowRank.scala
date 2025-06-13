@@ -106,4 +106,8 @@ class StreamPhysicalWindowRank(
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }
+
+  def getWindowingStrategy: WindowingStrategy = {
+    windowing
+  }
 }

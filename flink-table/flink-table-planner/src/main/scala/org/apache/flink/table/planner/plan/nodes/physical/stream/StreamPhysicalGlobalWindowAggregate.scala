@@ -151,4 +151,8 @@ class StreamPhysicalGlobalWindowAggregate(
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }
+
+  def getWindowingStrategy: WindowingStrategy = {
+    windowing
+  }
 }
