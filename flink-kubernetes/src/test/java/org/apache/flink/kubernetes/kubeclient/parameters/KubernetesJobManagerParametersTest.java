@@ -110,6 +110,20 @@ class KubernetesJobManagerParametersTest extends KubernetesTestBase {
     }
 
     @Test
+    void testGetRestServiceLabels() {
+        final Map<String, String> expectedLabels = new HashMap<>();
+        expectedLabels.put("a1", "v1");
+        expectedLabels.put("a2", "v2");
+
+        flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_LABELS, expectedLabels);
+
+        final Map<String, String> resultLabels =
+                kubernetesJobManagerParameters.getRestServiceLabels();
+
+        assertThat(resultLabels).isEqualTo(expectedLabels);
+    }
+
+    @Test
     void testGetInternalServiceAnnotations() {
         final Map<String, String> expectedAnnotations = new HashMap<>();
         expectedAnnotations.put("a1", "v1");
@@ -121,6 +135,20 @@ class KubernetesJobManagerParametersTest extends KubernetesTestBase {
                 kubernetesJobManagerParameters.getInternalServiceAnnotations();
 
         assertThat(resultAnnotations).isEqualTo(expectedAnnotations);
+    }
+
+    @Test
+    void testGetInternalServiceLabels() {
+        final Map<String, String> expectedLabels = new HashMap<>();
+        expectedLabels.put("a1", "v1");
+        expectedLabels.put("a2", "v2");
+
+        flinkConfig.set(KubernetesConfigOptions.INTERNAL_SERVICE_LABELS, expectedLabels);
+
+        final Map<String, String> resultLabels =
+                kubernetesJobManagerParameters.getInternalServiceLabels();
+
+        assertThat(resultLabels).isEqualTo(expectedLabels);
     }
 
     @Test

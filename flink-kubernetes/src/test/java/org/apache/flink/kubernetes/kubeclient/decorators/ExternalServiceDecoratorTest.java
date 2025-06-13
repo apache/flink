@@ -50,12 +50,21 @@ class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
                 }
             };
 
+    private Map<String, String> customizedLabels =
+            new HashMap<String, String>() {
+                {
+                    put("label1", "label-value1");
+                    put("label2", "label-value2");
+                }
+            };
+
     @Override
     protected void onSetup() throws Exception {
         super.onSetup();
 
         this.flinkConfig.set(
                 KubernetesConfigOptions.REST_SERVICE_ANNOTATIONS, customizedAnnotations);
+        this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_LABELS, customizedLabels);
         this.externalServiceDecorator =
                 new ExternalServiceDecorator(this.kubernetesJobManagerParameters);
     }
@@ -74,6 +83,7 @@ class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
                 .isEqualTo(ExternalServiceDecorator.getExternalServiceName(CLUSTER_ID));
 
         final Map<String, String> expectedLabels = getCommonLabels();
+        expectedLabels.putAll(customizedLabels);
         assertThat(restService.getMetadata().getLabels()).isEqualTo(expectedLabels);
 
         assertThat(restService.getSpec().getType())
@@ -88,8 +98,9 @@ class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
                                 .build());
         assertThat(restService.getSpec().getPorts()).isEqualTo(expectedServicePorts);
 
-        expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
-        assertThat(restService.getSpec().getSelector()).isEqualTo(expectedLabels);
+        final Map<String, String> expectedSelectors = getCommonLabels();
+        expectedSelectors.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
+        assertThat(restService.getSpec().getSelector()).isEqualTo(expectedSelectors);
 
         final Map<String, String> resultAnnotations = restService.getMetadata().getAnnotations();
         assertThat(resultAnnotations).isEqualTo(customizedAnnotations);
