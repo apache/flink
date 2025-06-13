@@ -1,0 +1,223 @@
+{
+  "flinkVersion" : "2.1",
+  "nodes" : [ {
+    "id" : 7,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`features`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "feature",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "label",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ],
+            "primaryKey" : {
+              "name" : "PK_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "id" ]
+            }
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "outputType" : "ROW<`id` INT NOT NULL, `feature` VARCHAR(2147483647), `label` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, features]], fields=[id, feature, label])",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 8,
+    "type" : "stream-exec-ml-predict-table-function_1",
+    "mlPredictSpec" : {
+      "features" : [ {
+        "type" : "FieldRef",
+        "index" : 1
+      } ],
+      "runtimeConfig" : {
+        "async" : "true"
+      }
+    },
+    "modelSpec" : {
+      "model" : {
+        "identifier" : "`default_catalog`.`default_database`.`chatgpt`",
+        "resolvedModel" : {
+          "inputSchema" : {
+            "columns" : [ {
+              "name" : "feature",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "outputSchema" : {
+            "columns" : [ {
+              "name" : "category",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          }
+        }
+      }
+    },
+    "asyncOptions" : {
+      "capacity " : 10,
+      "timeout" : 180000,
+      "output-mode" : "ORDERED"
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` INT NOT NULL, `feature` VARCHAR(2147483647), `label` VARCHAR(2147483647), `category` VARCHAR(2147483647)>",
+    "description" : "MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.chatgpt), DESCRIPTOR(_UTF-16LE'feature'), MAP(_UTF-16LE'async', _UTF-16LE'true'))], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) feature, VARCHAR(2147483647) label, VARCHAR(2147483647) category)])"
+  }, {
+    "id" : 9,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`label` VARCHAR(2147483647), `category` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[label, category])"
+  }, {
+    "id" : 10,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "SINGLETON"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`label` VARCHAR(2147483647), `category` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[single])"
+  }, {
+    "id" : 11,
+    "type" : "stream-exec-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
+    "grouping" : [ ],
+    "aggCalls" : [ {
+      "name" : "result",
+      "class" : "org.apache.flink.table.planner.functions.sql.ml.MLEvaluationAggregationFunction$ClassificationEvaluationFunction",
+      "argList" : [ 0, 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "MAP<VARCHAR(2147483647) NOT NULL, DOUBLE NOT NULL> NOT NULL"
+    } ],
+    "aggCallNeedRetractions" : [ false ],
+    "generateUpdateBefore" : true,
+    "needRetraction" : false,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "groupAggregateState"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`result` MAP<VARCHAR(2147483647) NOT NULL, DOUBLE NOT NULL> NOT NULL>",
+    "description" : "GroupAggregate(select=[*org.apache.flink.table.planner.functions.sql.ml.MLEvaluationAggregationFunction$ClassificationEvaluationFunction*(label, category) AS result])"
+  }, {
+    "id" : 12,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "result",
+              "dataType" : "MAP<VARCHAR(2147483647), DOUBLE>"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER" ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`result` MAP<VARCHAR(2147483647) NOT NULL, DOUBLE NOT NULL> NOT NULL>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[result])"
+  } ],
+  "edges" : [ {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 8,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 9,
+    "target" : 10,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 10,
+    "target" : 11,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 11,
+    "target" : 12,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

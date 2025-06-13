@@ -16,34 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.sql.ml;
+package org.apache.flink.table.planner.functions.sql.ml.evaluate;
 
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.ml.TaskType;
+import org.apache.flink.table.planner.functions.sql.ml.MLEvaluationAggregationFunction;
 
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link MLEvaluationAggregationFunction}. */
 public class MLEvaluationAggregationFunctionTest {
 
     @Test
-    public void testTaskMapConsistency() {
-        assertThat(MLEvaluationAggregationFunction.TASK_TYPE_MAP.size())
-                .isEqualTo(TaskType.values().length);
-        for (TaskType taskType : TaskType.values()) {
-            assertThat(MLEvaluationAggregationFunction.TASK_TYPE_MAP)
-                    .containsKey(taskType.getName());
-        }
+    public void testInvalidTaskInConstructor() {
+        assertThatThrownBy(() -> MLEvaluationAggregationFunction.create("invalid_task"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Invalid task type: 'invalid_task'. Supported task types are: [classification, clustering, embedding, regression, text_generation].");
     }
 
     @Test
-    public void testInvalidTaskInConstructor() {
-        assertThatThrownBy(() -> new MLEvaluationAggregationFunction("invalid_task"))
+    public void testClusteringTaskInConstructor() {
+        assertThatThrownBy(() -> MLEvaluationAggregationFunction.create("clustering"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        "Invalid task type: 'invalid_task'. Supported task types are: [regression, clustering, classification, embedding, text_generation].");
+                .hasMessage("Task 'clustering' is not supported for evaluation.");
     }
 }

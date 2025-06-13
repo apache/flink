@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
-import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.ml.AsyncPredictRuntimeProvider;
 import org.apache.flink.table.ml.PredictRuntimeProvider;
 import org.apache.flink.table.ml.TaskType;
@@ -92,7 +91,7 @@ public class ExpandMLEvaluateTableFunctionRule
     private void addAggregate(RelBuilder relBuilder, RexCall rexCall, RelDataType resultType) {
         final String task = getTask(rexCall);
         final MLEvaluationAggregationFunction aggregationFunction =
-                new MLEvaluationAggregationFunction(task);
+                MLEvaluationAggregationFunction.create(task);
         final FlinkContext context = ShortcutUtils.unwrapContext(relBuilder.getCluster());
         final FlinkTypeFactory typeFactory =
                 ShortcutUtils.unwrapTypeFactory(relBuilder.getCluster());
@@ -103,9 +102,7 @@ public class ExpandMLEvaluateTableFunctionRule
                                 BridgingSqlAggFunction.of(
                                         context,
                                         typeFactory,
-                                        ContextResolvedFunction.temporary(
-                                                FunctionIdentifier.of("ml_evaluate"),
-                                                aggregationFunction)),
+                                        ContextResolvedFunction.anonymous(aggregationFunction)),
                                 false,
                                 false,
                                 false,

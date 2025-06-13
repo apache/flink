@@ -20,17 +20,22 @@ package org.apache.flink.table.planner.functions.sql.ml;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.ml.TaskType;
+import org.apache.flink.table.planner.functions.sql.ml.evaluate.ClassificationEvaluatorAccumulator;
+import org.apache.flink.table.planner.functions.sql.ml.evaluate.EmbeddingEvaluatorAccumulator;
+import org.apache.flink.table.planner.functions.sql.ml.evaluate.ModelEvaluatorAccumulator;
+import org.apache.flink.table.planner.functions.sql.ml.evaluate.RegressionEvaluatorAccumulator;
+import org.apache.flink.table.planner.functions.sql.ml.evaluate.TextGenerationEvaluatorAccumulator;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
 import org.apache.flink.table.types.inference.TypeInference;
-import org.apache.flink.types.Row;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,31 +43,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/** Aggregation function for evaluating models based on task type. */
+/** Base class for model evaluation aggregation functions. */
 @Internal
-public class MLEvaluationAggregationFunction extends AggregateFunction<Row, Object> {
+public abstract class MLEvaluationAggregationFunction
+        extends AggregateFunction<Map<String, Double>, ModelEvaluatorAccumulator> {
 
-    public static final Map<String, DataType> TASK_TYPE_MAP =
-            Map.of(
-                    TaskType.TEXT_GENERATION.getName(),
-                    DataTypes.STRING(),
-                    TaskType.CLUSTERING.getName(),
-                    DataTypes.DOUBLE(),
-                    TaskType.EMBEDDING.getName(),
-                    DataTypes.ARRAY(DataTypes.FLOAT()),
-                    TaskType.CLASSIFICATION.getName(),
-                    DataTypes.DOUBLE(),
-                    TaskType.REGRESSION.getName(),
-                    DataTypes.DOUBLE());
+    protected MLEvaluationAggregationFunction() {}
 
-    private final String task;
-
-    public MLEvaluationAggregationFunction(String task) {
-        TaskType.throwOrReturnInvalidTaskType(task, true);
-        this.task = task;
-    }
-
-    private TypeInference typeInference() {
+    protected TypeInference typeInference(DataTypeFactory typeFactory) {
         return TypeInference.newBuilder()
                 .inputTypeStrategy(
                         new InputTypeStrategy() {
@@ -89,9 +77,7 @@ public class MLEvaluationAggregationFunction extends AggregateFunction<Row, Obje
                             @Override
                             public Optional<List<DataType>> inferInputTypes(
                                     CallContext callContext, boolean throwOnFailure) {
-                                DataType argumentType = TASK_TYPE_MAP.get(task.toLowerCase());
-                                final List<DataType> args = List.of(argumentType, argumentType);
-                                return Optional.of(args);
+                                return Optional.of(getInputTypes());
                             }
 
                             @Override
@@ -104,57 +90,160 @@ public class MLEvaluationAggregationFunction extends AggregateFunction<Row, Obje
                             }
                         })
                 .outputTypeStrategy(
+                        callContext -> Optional.of(ModelEvaluatorAccumulator.getOutputType()))
+                .accumulatorTypeStrategy(
                         callContext ->
                                 Optional.of(
-                                        DataTypes.MAP(
-                                                        DataTypes.STRING().notNull(),
-                                                        DataTypes.DOUBLE().notNull())
-                                                .notNull()
-                                                .bridgedTo(Map.class)))
-                .accumulatorTypeStrategy(callContext -> Optional.of(DataTypes.DOUBLE()))
+                                        DataTypes.RAW(getAccumulatorClass())
+                                                .toDataType(typeFactory)))
                 .build();
     }
 
-    /** Creates a new accumulator based on the model task type. */
-    @Override
-    public Object createAccumulator() {
-        // TODO
-        return null;
-    }
+    /** Returns the input types for this task type. */
+    protected abstract List<DataType> getInputTypes();
+
+    protected abstract Class<? extends ModelEvaluatorAccumulator> getAccumulatorClass();
 
     @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-        return typeInference();
+        return typeInference(typeFactory);
     }
 
     /**
      * Accumulates input values for evaluation. The first argument is the model path, followed by
      * input features, and the last argument is the actual value (ground truth).
      */
-    public void accumulate(Object acc, Object... values) {
-        // TODO
+    public void accumulate(ModelEvaluatorAccumulator acc, Object... values) {
+        acc.accumulate(values);
     }
 
     /** Retracts the input values from evaluation. */
-    public void retract(Object acc, Object... values) {
-        // TODO
+    public void retract(ModelEvaluatorAccumulator acc, Object... values) {
+        acc.retract(values);
     }
 
-    public void merge(Object acc, Iterable<Object> its) {
-        // TODO
+    public void merge(ModelEvaluatorAccumulator acc, Iterable<ModelEvaluatorAccumulator> its) {
+        for (ModelEvaluatorAccumulator other : its) {
+            acc.merge(other);
+        }
     }
 
-    public void resetAccumulator(Object acc) {
-        // TODO
-    }
-
-    @Override
-    public Row getValue(Object accumulator) {
-        return null;
+    public void resetAccumulator(ModelEvaluatorAccumulator acc) {
+        acc.reset();
     }
 
     @Override
-    public String toString() {
-        return "MLEvaluationAggregationFunction{" + "task='" + task + "}";
+    public Map<String, Double> getValue(ModelEvaluatorAccumulator acc) {
+        return acc.getValue();
+    }
+
+    /** Factory method to create the appropriate evaluation function for a task type. */
+    public static MLEvaluationAggregationFunction create(String task) {
+        TaskType.throwOrReturnInvalidTaskType(task, true);
+        TaskType taskType = TaskType.fromName(task);
+        if (!taskType.supportsEvaluation()) {
+            throw new ValidationException("Task '" + task + "' is not supported for evaluation.");
+        }
+        switch (taskType) {
+            case TEXT_GENERATION:
+                return new TextGenerationEvaluationFunction();
+            case EMBEDDING:
+                return new EmbeddingEvaluationFunction();
+            case CLASSIFICATION:
+                return new ClassificationEvaluationFunction();
+            case REGRESSION:
+                return new RegressionEvaluationFunction();
+            default:
+                throw new ValidationException(
+                        "Task '" + task + "' is not supported for evaluation.");
+        }
+    }
+
+    /** Evaluation function for text generation tasks. */
+    public static class TextGenerationEvaluationFunction extends MLEvaluationAggregationFunction {
+        public TextGenerationEvaluationFunction() {
+            super();
+        }
+
+        @Override
+        protected List<DataType> getInputTypes() {
+            return List.of(DataTypes.STRING(), DataTypes.STRING());
+        }
+
+        @Override
+        protected Class<? extends ModelEvaluatorAccumulator> getAccumulatorClass() {
+            return TextGenerationEvaluatorAccumulator.class;
+        }
+
+        @Override
+        public ModelEvaluatorAccumulator createAccumulator() {
+            return new TextGenerationEvaluatorAccumulator();
+        }
+    }
+
+    /** Evaluation function for embedding tasks. */
+    public static class EmbeddingEvaluationFunction extends MLEvaluationAggregationFunction {
+        public EmbeddingEvaluationFunction() {
+            super();
+        }
+
+        @Override
+        protected List<DataType> getInputTypes() {
+            return List.of(DataTypes.ARRAY(DataTypes.FLOAT()), DataTypes.ARRAY(DataTypes.FLOAT()));
+        }
+
+        @Override
+        protected Class<? extends ModelEvaluatorAccumulator> getAccumulatorClass() {
+            return EmbeddingEvaluatorAccumulator.class;
+        }
+
+        @Override
+        public ModelEvaluatorAccumulator createAccumulator() {
+            return new EmbeddingEvaluatorAccumulator();
+        }
+    }
+
+    /** Evaluation function for classification tasks. */
+    public static class ClassificationEvaluationFunction extends MLEvaluationAggregationFunction {
+        public ClassificationEvaluationFunction() {
+            super();
+        }
+
+        @Override
+        protected List<DataType> getInputTypes() {
+            return List.of(DataTypes.STRING(), DataTypes.STRING());
+        }
+
+        @Override
+        protected Class<? extends ModelEvaluatorAccumulator> getAccumulatorClass() {
+            return ClassificationEvaluatorAccumulator.class;
+        }
+
+        @Override
+        public ModelEvaluatorAccumulator createAccumulator() {
+            return new ClassificationEvaluatorAccumulator();
+        }
+    }
+
+    /** Evaluation function for regression tasks. */
+    public static class RegressionEvaluationFunction extends MLEvaluationAggregationFunction {
+        public RegressionEvaluationFunction() {
+            super();
+        }
+
+        @Override
+        protected List<DataType> getInputTypes() {
+            return List.of(DataTypes.DOUBLE(), DataTypes.DOUBLE());
+        }
+
+        @Override
+        protected Class<? extends ModelEvaluatorAccumulator> getAccumulatorClass() {
+            return RegressionEvaluatorAccumulator.class;
+        }
+
+        @Override
+        public ModelEvaluatorAccumulator createAccumulator() {
+            return new RegressionEvaluatorAccumulator();
+        }
     }
 }

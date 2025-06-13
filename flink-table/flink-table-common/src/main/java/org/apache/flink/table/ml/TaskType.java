@@ -31,27 +31,42 @@ import java.util.stream.Collectors;
  */
 @Experimental
 public enum TaskType {
-    REGRESSION("regression"),
-    CLUSTERING("clustering"),
-    CLASSIFICATION("classification"),
-    EMBEDDING("embedding"),
-    TEXT_GENERATION("text_generation");
+    CLASSIFICATION("classification", true),
+    CLUSTERING("clustering", false),
+    EMBEDDING("embedding", true),
+    REGRESSION("regression", true),
+    TEXT_GENERATION("text_generation", true);
 
     private final String name;
+    private final boolean supportsEvaluation;
 
-    TaskType(String name) {
+    TaskType(String name, boolean supportsEvaluation) {
         this.name = name;
+        this.supportsEvaluation = supportsEvaluation;
     }
 
     public String getName() {
         return name;
     }
 
+    public boolean supportsEvaluation() {
+        return supportsEvaluation;
+    }
+
     public static TaskType fromName(String name) {
         return Arrays.stream(values())
                 .filter(taskType -> taskType.name.equals(name))
                 .findFirst()
-                .orElseThrow(() -> new ValidationException("Unknown task type: " + name + "."));
+                .orElseThrow(
+                        () ->
+                                new ValidationException(
+                                        "Invalid task type: '"
+                                                + name
+                                                + "'. Supported task types are: "
+                                                + Arrays.stream(TaskType.values())
+                                                        .map(TaskType::getName)
+                                                        .collect(Collectors.toList())
+                                                + "."));
     }
 
     public static boolean isValidTaskType(String name) {

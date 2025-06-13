@@ -54,7 +54,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                                 + "  b BIGINT,\n"
                                 + "  c STRING,\n"
                                 + "  d DECIMAL(10, 3),\n"
-                                + "  label FLOAT,\n"
+                                + "  label STRING,\n"
                                 + "  rowtime TIMESTAMP(3),\n"
                                 + "  proctime as PROCTIME(),\n"
                                 + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND\n"
@@ -67,7 +67,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                 .executeSql(
                         "CREATE MODEL MyModel\n"
                                 + "INPUT (a INT, b BIGINT)\n"
-                                + "OUTPUT(prediction DOUBLE)\n"
+                                + "OUTPUT(prediction STRING)\n"
                                 + "with (\n"
                                 + "  'provider' = 'test-model',\n"
                                 + "  'endpoint' = 'someendpoint',\n"
@@ -259,7 +259,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "'unsupported_task'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .hasMessageContaining(
-                        "Invalid task type: 'unsupported_task'. Supported task types are: [regression, clustering, classification, embedding, text_generation].");
+                        "Invalid task type: 'unsupported_task'. Supported task types are: [classification, clustering, embedding, regression, text_generation].");
     }
 
     @Test
@@ -305,7 +305,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         String.format(
                                 "CREATE TABLE TypeTable (\n"
                                         + "  col %s,\n"
-                                        + "  label double\n"
+                                        + "  label STRING\n"
                                         + ") with (\n"
                                         + "  'connector' = 'values'\n"
                                         + ")",
@@ -317,7 +317,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         String.format(
                                 "CREATE MODEL TypeModel\n"
                                         + "INPUT (col %s)\n"
-                                        + "OUTPUT(prediction double)\n"
+                                        + "OUTPUT(prediction STRING)\n"
                                         + "with (\n"
                                         + "  'provider' = 'test-model',\n"
                                         + "  'endpoint' = 'someendpoint',\n"
@@ -370,7 +370,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
 
     @ParameterizedTest
     @MethodSource("compatibleOutputTypeProvider")
-    public void testCompatibleOutputTypes(String tableType, String modelType) {
+    public void testCompatibleOutputTypes(String task, String tableType, String modelType) {
         // Create test table with different label types
         util.tableEnv()
                 .executeSql(
@@ -393,13 +393,15 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                                         + "with (\n"
                                         + "  'provider' = 'test-model',\n"
                                         + "  'endpoint' = 'someendpoint',\n"
-                                        + "  'task' = 'classification'\n"
+                                        + "  'task' = '%s'\n"
                                         + ")",
-                                modelType));
+                                modelType, task));
 
         String sql =
-                "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col), 'classification'))";
+                String.format(
+                        "SELECT *\n"
+                                + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col), '%s'))",
+                        task);
         util.verifyRelPlan(sql);
     }
 
@@ -505,16 +507,25 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
     private static Stream<Arguments> compatibleOutputTypeProvider() {
         return Stream.of(
                 // Identical types
-                Arguments.of("INT", "INT"),
-                Arguments.of("BIGINT", "BIGINT"),
-                Arguments.of("DOUBLE", "DOUBLE"),
-                // Numeric type widening
-                Arguments.of("TINYINT", "SMALLINT"),
-                Arguments.of("SMALLINT", "INT"),
-                Arguments.of("INT", "BIGINT"),
-                Arguments.of("BIGINT", "DECIMAL(19,0)"),
-                Arguments.of("DECIMAL(10,2)", "DOUBLE"),
-                Arguments.of("FLOAT", "DOUBLE"));
+                Arguments.of("classification", "STRING", "STRING"),
+                Arguments.of("embedding", "ARRAY<FLOAT>", "ARRAY<FLOAT>"),
+                Arguments.of("regression", "DOUBLE", "DOUBLE"),
+                Arguments.of("text_generation", "STRING", "STRING"),
+                // String type widening for classification
+                Arguments.of("classification", "CHAR(10)", "STRING"),
+                Arguments.of("classification", "VARCHAR(10)", "STRING"),
+                // Numeric type widening for regression
+                Arguments.of("regression", "TINYINT", "DOUBLE"),
+                Arguments.of("regression", "SMALLINT", "DOUBLE"),
+                Arguments.of("regression", "INT", "DOUBLE"),
+                Arguments.of("regression", "FLOAT", "DOUBLE"),
+                // Numeric type widening for embedding
+                Arguments.of("embedding", "ARRAY<TINYINT>", "ARRAY<FLOAT>"),
+                Arguments.of("embedding", "ARRAY<SMALLINT>", "ARRAY<FLOAT>"),
+                Arguments.of("embedding", "ARRAY<INT>", "ARRAY<FLOAT>"),
+                // String type widening for text generation
+                Arguments.of("text_generation", "CHAR(10)", "STRING"),
+                Arguments.of("text_generation", "VARCHAR(10)", "STRING"));
     }
 
     private static Stream<Arguments> incompatibleOutputTypeProvider() {
