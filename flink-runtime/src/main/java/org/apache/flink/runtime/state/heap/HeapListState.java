@@ -27,6 +27,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.state.ttl.TtlValue;
 import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayOutputStream;
@@ -140,6 +143,20 @@ class HeapListState<K, N, V> extends AbstractHeapMergingState<K, N, V, List<V>, 
         view.flush();
 
         return baos.toByteArray();
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<V> migrateTtlValue(
+            List<V> stateValue,
+            TtlAwareSerializer<List<V>, ?> currentTtlAwareSerializer,
+            TtlTimeProvider ttlTimeProvider) {
+        if (currentTtlAwareSerializer.isTtlEnabled()) {
+            stateValue.replaceAll(v -> (V) new TtlValue<>(v, ttlTimeProvider.currentTimestamp()));
+        } else {
+            stateValue.replaceAll(v -> (V) ((TtlValue<?>) v).getUserValue());
+        }
+
+        return stateValue;
     }
 
     // ------------------------------------------------------------------------
