@@ -562,6 +562,7 @@ public class StreamConfig implements Serializable {
         config.set(CheckpointingOptions.ENABLE_UNALIGNED, enabled);
     }
 
+    // TODO: can be removed?
     public boolean isUnalignedCheckpointsEnabled() {
         return config.get(CheckpointingOptions.ENABLE_UNALIGNED, false);
     }

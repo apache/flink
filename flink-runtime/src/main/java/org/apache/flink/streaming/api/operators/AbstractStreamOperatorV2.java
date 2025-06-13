@@ -257,7 +257,8 @@ public abstract class AbstractStreamOperatorV2<OUT>
 
     @Internal
     private boolean areSplittableTimersConfigured() {
-        return AbstractStreamOperator.areSplittableTimersConfigured(config);
+        return AbstractStreamOperator.areSplittableTimersConfigured(
+                config, runtimeContext.getJobConfiguration());
     }
 
     /**

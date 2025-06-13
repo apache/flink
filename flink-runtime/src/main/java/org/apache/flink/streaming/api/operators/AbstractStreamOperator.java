@@ -30,6 +30,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -359,12 +360,12 @@ public abstract class AbstractStreamOperator<OUT>
 
     @Internal
     private boolean areSplittableTimersConfigured() {
-        return areSplittableTimersConfigured(config);
+        return areSplittableTimersConfigured(config, getContainingTask().getJobConfiguration());
     }
 
-    static boolean areSplittableTimersConfigured(StreamConfig config) {
+    static boolean areSplittableTimersConfigured(StreamConfig config, Configuration conf) {
         return config.isCheckpointingEnabled()
-                && config.isUnalignedCheckpointsEnabled()
+                && conf.get(CheckpointingOptions.ENABLE_UNALIGNED)
                 && config.isUnalignedCheckpointsSplittableTimersEnabled();
     }
 

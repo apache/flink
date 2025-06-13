@@ -19,6 +19,7 @@
 package org.apache.flink.state.api.output.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -189,8 +190,8 @@ public final class StateBootstrapWrapperOperator<
                                 .getConfiguration()
                                 .isExactlyOnceCheckpointMode(),
                         operator.getContainingTask()
-                                .getConfiguration()
-                                .isUnalignedCheckpointsEnabled(),
+                                .getJobConfiguration()
+                                .get(CheckpointingOptions.ENABLE_UNALIGNED),
                         operator.getContainingTask().getConfiguration().getConfiguration(),
                         savepointPath);
 
