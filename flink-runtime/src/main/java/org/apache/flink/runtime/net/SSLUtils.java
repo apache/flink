@@ -35,6 +35,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContextBuilder;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.util.FingerprintTrustManagerFactory;
 
+import org.eclipse.jetty.util.security.Password;
+
 import javax.annotation.Nullable;
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
@@ -303,7 +305,7 @@ public class SSLUtils {
 
         KeyStore keyStore = KeyStore.getInstance(keystoreType);
         try (InputStream keyStoreFile = Files.newInputStream(new File(keystoreFilePath).toPath())) {
-            keyStore.load(keyStoreFile, keystorePassword.toCharArray());
+            keyStore.load(keyStoreFile, SSLUtils.decryptPassword(keystorePassword).toCharArray());
         }
 
         final KeyManagerFactory kmf;
@@ -312,9 +314,16 @@ public class SSLUtils {
         } else {
             kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
         }
-        kmf.init(keyStore, certPassword.toCharArray());
+        kmf.init(keyStore, SSLUtils.decryptPassword(certPassword).toCharArray());
 
         return kmf;
+    }
+
+    private static String decryptPassword(String certPassword) {
+        if (certPassword.startsWith("OBF:")) {
+            return new Password(certPassword).toString();
+        }
+        return certPassword;
     }
 
     /**
