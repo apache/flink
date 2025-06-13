@@ -40,4 +40,9 @@ public class EmptyRowDataKeySelector implements RowDataKeySelector {
     public InternalTypeInfo<RowData> getProducedType() {
         return returnType;
     }
+
+    @Override
+    public EmptyRowDataKeySelector copy() {
+        return new EmptyRowDataKeySelector();
+    }
 }

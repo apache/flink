@@ -279,7 +279,7 @@ public final class LookupJoinUtil extends FunctionCallUtils {
     public static boolean isAsyncLookup(
             RelOptTable temporalTable,
             Collection<Integer> lookupKeys,
-            RelHint lookupHint,
+            @Nullable RelHint lookupHint,
             boolean upsertMaterialize,
             boolean preferCustomShuffle) {
         // prefer (not require) by default

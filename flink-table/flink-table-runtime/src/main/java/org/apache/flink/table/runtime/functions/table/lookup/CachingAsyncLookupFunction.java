@@ -119,6 +119,10 @@ public class CachingAsyncLookupFunction extends AsyncLookupFunction {
         }
     }
 
+    public AsyncLookupFunction getDelegate() {
+        return delegate;
+    }
+
     @VisibleForTesting
     public LookupCache getCache() {
         return cache;
