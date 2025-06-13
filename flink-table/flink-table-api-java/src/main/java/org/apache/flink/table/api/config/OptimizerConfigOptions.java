@@ -373,6 +373,17 @@ public class OptimizerConfigOptions {
                                     + "requires reserving network buffers, which impacts memory usage. For this reason, "
                                     + "the number of input tables is limited to 20.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<DeltaJoinStrategy> TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY =
+            key("table.optimizer.delta-join.strategy")
+                    .enumType(DeltaJoinStrategy.class)
+                    .defaultValue(DeltaJoinStrategy.NONE)
+                    .withDescription(
+                            "Whether to enable delta join strategy. Only AUTO, FORCE or NONE can be set.\n"
+                                    + "AUTO: Optimizer will try to use delta join first. If it fails, it will fallback to the regular join.\n"
+                                    + "FORCE: Use the delta join. If it fails, an exception will be thrown.\n"
+                                    + "NONE: Don't try to use delta join.");
+
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving
     public enum NonDeterministicUpdateStrategy {
@@ -440,6 +451,28 @@ public class OptimizerConfigOptions {
         @Override
         public String toString() {
             return value;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** Strategy for delta join. */
+    @PublicEvolving
+    public enum DeltaJoinStrategy implements DescribedEnum {
+        AUTO(
+                text(
+                        "Optimizer will try to use delta join first. "
+                                + "If it fails, it will fallback to the regular join.")),
+        FORCE(text("Use the delta join. If it fails, an exception will be thrown.")),
+        NONE(text("Don't try to use delta join."));
+
+        private final InlineElement description;
+
+        DeltaJoinStrategy(InlineElement description) {
+            this.description = description;
         }
 
         @Override
