@@ -24,19 +24,23 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.configuration.TraceOptions;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.TestingFailureEnricher;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsListener;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.NoOpCheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointIDCounter;
@@ -55,7 +59,10 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraphTest;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.FixedDelayRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.NoRestartBackoffTimeStrategy;
@@ -100,13 +107,17 @@ import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.JobAllocationsInformation;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlot;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.slots.ResourceRequirement;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -138,8 +149,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -160,16 +173,24 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.generateKeyGroupState;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.singleNoOpJobGraph;
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGraph;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.createSlotOffersForResourceRequirements;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.acknowledgePendingCheckpoint;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.enableCheckpointing;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.setAllExecutionsToRunning;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForCheckpointInProgress;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForCompletedCheckpoint;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.waitForJobStatusRunning;
+import static org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlotAllocator.getArgumentCapturingDelegatingSlotAllocator;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link AdaptiveScheduler}. */
 public class AdaptiveSchedulerTest {
@@ -187,6 +208,8 @@ public class AdaptiveSchedulerTest {
     @RegisterExtension
     private static final TestExecutorExtension<ScheduledExecutorService> TEST_EXECUTOR_RESOURCE =
             new TestExecutorExtension<>(Executors::newSingleThreadScheduledExecutor);
+
+    public static final int CHECKPOINT_TIMEOUT_SECONDS = 10;
 
     private final ManuallyTriggeredComponentMainThreadExecutor mainThreadExecutor =
             new ManuallyTriggeredComponentMainThreadExecutor(Thread.currentThread());
@@ -254,6 +277,10 @@ public class AdaptiveSchedulerTest {
 
     private void runInMainThread(Runnable callback) {
         CompletableFuture.runAsync(callback, singleThreadMainThreadExecutor).join();
+    }
+
+    private <T> T supplyInMainThread(Supplier<T> supplier) throws Exception {
+        return CompletableFuture.supplyAsync(supplier, singleThreadMainThreadExecutor).get();
     }
 
     @Test
@@ -2051,10 +2078,7 @@ public class AdaptiveSchedulerTest {
     void testTryToAssignSlotsReturnsNotPossibleIfExpectedResourcesAreNotAvailable()
             throws Exception {
 
-        final TestingSlotAllocator slotAllocator =
-                TestingSlotAllocator.newBuilder()
-                        .setTryReserveResourcesFunction(ignored -> Optional.empty())
-                        .build();
+        final TestingSlotAllocator slotAllocator = TestingSlotAllocator.newBuilder().build();
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -2070,6 +2094,126 @@ public class AdaptiveSchedulerTest {
                                 new StateTrackingMockExecutionGraph(), JobSchedulingPlan.empty()));
 
         assertThat(assignmentResult.isSuccess()).isFalse();
+    }
+
+    @Test
+    void testStateSizeIsConsideredForLocalRecoveryOnRestart() throws Exception {
+        final JobGraph jobGraph = createJobGraphWithCheckpointing(JOB_VERTEX);
+        final DeclarativeSlotPool slotPool = getSlotPoolWithFreeSlots(PARALLELISM);
+        final List<JobAllocationsInformation> capturedAllocations = new ArrayList<>();
+        final boolean localRecoveryEnabled = true;
+        final String executionTarget = "local";
+        final boolean minimalTaskManagerPreferred = false;
+        final SlotAllocator slotAllocator =
+                getArgumentCapturingDelegatingSlotAllocator(
+                        AdaptiveSchedulerFactory.createSlotSharingSlotAllocator(
+                                slotPool,
+                                localRecoveryEnabled,
+                                executionTarget,
+                                minimalTaskManagerPreferred),
+                        capturedAllocations);
+
+        scheduler =
+                new AdaptiveSchedulerBuilder(
+                                jobGraph,
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setDeclarativeSlotPool(slotPool)
+                        .setSlotAllocator(slotAllocator)
+                        .setStateTransitionManagerFactory(
+                                createAutoAdvanceStateTransitionManagerFactory())
+                        .setRestartBackoffTimeStrategy(new TestRestartBackoffTimeStrategy(true, 0L))
+                        .build();
+
+        // Start scheduler
+        startTestInstanceInMainThread();
+
+        // Transition job and all subtasks to RUNNING state.
+        waitForJobStatusRunning(scheduler);
+        runInMainThread(() -> setAllExecutionsToRunning(scheduler));
+
+        // Trigger a checkpoint
+        CompletableFuture<CompletedCheckpoint> completedCheckpointFuture =
+                supplyInMainThread(() -> scheduler.triggerCheckpoint(CheckpointType.FULL));
+
+        // Verify that checkpoint was registered by scheduler. Required to prevent race condition
+        // when checkpoint is acknowledged before start.
+        waitForCheckpointInProgress(scheduler);
+
+        // Acknowledge the checkpoint for all tasks with the fake state.
+        final Map<OperatorID, OperatorSubtaskState> operatorStates =
+                generateFakeKeyedManagedStateForAllOperators(jobGraph);
+        runInMainThread(() -> acknowledgePendingCheckpoint(scheduler, 1, operatorStates));
+
+        // Wait for the checkpoint to complete.
+        final CompletedCheckpoint completedCheckpoint = completedCheckpointFuture.join();
+
+        // completedCheckpointStore.getLatestCheckpoint() can return null if called immediately
+        // after the checkpoint is completed.
+        waitForCompletedCheckpoint(scheduler);
+
+        // Fail early if the checkpoint is null.
+        assertThat(completedCheckpoint).withFailMessage("Checkpoint shouldn't be null").isNotNull();
+
+        // Emulating new graph creation call on job recovery to ensure that the state is considered
+        // for new allocations.
+        final List<ExecutionAttemptID> executionAttemptIds =
+                supplyInMainThread(
+                        () -> {
+                            final Optional<ExecutionGraph> maybeExecutionGraph =
+                                    scheduler
+                                            .getState()
+                                            .as(StateWithExecutionGraph.class)
+                                            .map(StateWithExecutionGraph::getExecutionGraph);
+                            assertThat(maybeExecutionGraph).isNotEmpty();
+                            final ExecutionVertex[] taskVertices =
+                                    Objects.requireNonNull(
+                                                    maybeExecutionGraph
+                                                            .get()
+                                                            .getJobVertex(JOB_VERTEX.getID()))
+                                            .getTaskVertices();
+                            return Arrays.stream(taskVertices)
+                                    .map(ExecutionVertex::getCurrentExecutionAttempt)
+                                    .map(Execution::getAttemptId)
+                                    .collect(Collectors.toList());
+                        });
+
+        assertThat(executionAttemptIds).hasSize(PARALLELISM);
+
+        runInMainThread(
+                () -> {
+                    // fail one of the vertices
+                    scheduler.updateTaskExecutionState(
+                            new TaskExecutionState(
+                                    executionAttemptIds.get(0),
+                                    ExecutionState.FAILED,
+                                    new Exception("Test exception for local recovery")));
+                });
+
+        runInMainThread(
+                () -> {
+                    // cancel remaining vertices
+                    for (int idx = 1; idx < executionAttemptIds.size(); idx++) {
+                        scheduler.updateTaskExecutionState(
+                                new TaskExecutionState(
+                                        executionAttemptIds.get(idx), ExecutionState.CANCELED));
+                    }
+                });
+
+        waitForJobStatusRunning(scheduler);
+
+        // First allocation during the job start + second allocation after job restart.
+        assertThat(capturedAllocations).hasSize(2);
+        // Fist allocation won't use state data.
+        assertTrue(capturedAllocations.get(0).isEmpty());
+        // Second allocation should use data from latest checkpoint.
+        assertThat(
+                        capturedAllocations
+                                .get(1)
+                                .getAllocations(JOB_VERTEX.getID())
+                                .get(0)
+                                .stateSizeInBytes)
+                .isGreaterThan(0);
     }
 
     @Test
@@ -2513,17 +2657,7 @@ public class AdaptiveSchedulerTest {
                 JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_MAX_CHECKPOINT_FAILURES,
                 onFailedCheckpointCount);
 
-        final JobGraph jobGraph =
-                JobGraphBuilder.newStreamingJobGraphBuilder()
-                        .addJobVertices(Collections.singletonList(JOB_VERTEX))
-                        .setJobCheckpointingSettings(
-                                new JobCheckpointingSettings(
-                                        new CheckpointCoordinatorConfiguration
-                                                        .CheckpointCoordinatorConfigurationBuilder()
-                                                .build(),
-                                        null))
-                        .build();
-        SchedulerTestingUtils.enableCheckpointing(jobGraph);
+        final JobGraph jobGraph = createJobGraphWithCheckpointing(JOB_VERTEX);
 
         final DeclarativeSlotPool slotPool = getSlotPoolWithFreeSlots(parallelism);
         final AtomicInteger eventCounter = new AtomicInteger();
@@ -2931,5 +3065,51 @@ public class AdaptiveSchedulerTest {
                     .containsEntry("failureLabel.failKey", "failValue")
                     .containsEntry("canRestart", String.valueOf(canRestart));
         }
+    }
+
+    private static JobGraph createJobGraphWithCheckpointing(final JobVertex... jobVertex) {
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .addJobVertices(Arrays.asList(jobVertex))
+                        .build();
+        SchedulerTestingUtils.enableCheckpointing(
+                jobGraph, null, null, Duration.ofHours(1).toMillis(), true);
+        return jobGraph;
+    }
+
+    private static AdaptiveScheduler.StateTransitionManagerFactory
+            createAutoAdvanceStateTransitionManagerFactory() {
+        return (context,
+                ignoredClock,
+                ignoredCooldown,
+                ignoredResourceStabilizationTimeout,
+                ignoredMaxTriggerDelay) ->
+                TestingStateTransitionManager.withOnTriggerEventOnly(
+                        () -> {
+                            if (context instanceof WaitingForResources) {
+                                context.transitionToSubsequentState();
+                            }
+                        });
+    }
+
+    private static Map<OperatorID, OperatorSubtaskState>
+            generateFakeKeyedManagedStateForAllOperators(final JobGraph jobGraph)
+                    throws IOException {
+        final Map<OperatorID, OperatorSubtaskState> operatorStates = new HashMap<>();
+        for (final JobVertex jobVertex : jobGraph.getVertices()) {
+            final KeyedStateHandle keyedStateHandle =
+                    generateKeyGroupState(
+                            jobVertex.getID(),
+                            KeyGroupRange.of(0, jobGraph.getMaximumParallelism() - 1),
+                            false);
+            for (OperatorIDPair operatorId : jobVertex.getOperatorIDs()) {
+                operatorStates.put(
+                        operatorId.getGeneratedOperatorID(),
+                        OperatorSubtaskState.builder()
+                                .setManagedKeyedState(keyedStateHandle)
+                                .build());
+            }
+        }
+        return operatorStates;
     }
 }

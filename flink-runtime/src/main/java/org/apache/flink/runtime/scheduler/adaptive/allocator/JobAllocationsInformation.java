@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -25,8 +26,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-
-import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,11 +46,11 @@ public class JobAllocationsInformation {
         this.vertexAllocations = vertexAllocations;
     }
 
-    public static JobAllocationsInformation fromGraph(@Nullable ExecutionGraph graph) {
-        return graph == null
-                ? empty()
-                : new JobAllocationsInformation(
-                        calculateAllocations(graph, StateSizeEstimates.fromGraph(graph)));
+    public static JobAllocationsInformation fromGraphAndState(
+            final ExecutionGraph graph, final CompletedCheckpoint latestCheckpoint) {
+        return new JobAllocationsInformation(
+                calculateAllocations(
+                        graph, StateSizeEstimates.fromGraphAndState(graph, latestCheckpoint)));
     }
 
     public List<VertexAllocationInformation> getAllocations(JobVertexID jobVertexID) {
