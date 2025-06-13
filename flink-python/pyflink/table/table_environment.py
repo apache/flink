@@ -768,7 +768,7 @@ class TableEnvironment(object):
         If a temporary object exists in a given path,
         make sure to drop the temporary object first using :func:`drop_temporary_model`.
 
-        :param path: The path of the registered model.
+        :param model_path: The path of the registered model.
         :param ignore_if_not_exists: Ignore if model does not exist.
         :return: True if a model existed in the given path and was removed.
 

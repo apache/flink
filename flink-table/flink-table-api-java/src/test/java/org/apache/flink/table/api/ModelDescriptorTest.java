@@ -64,7 +64,7 @@ class ModelDescriptorTest {
         assertThat(descriptor.getOutputSchema().get()).isEqualTo(outputSchema);
 
         assertThat(descriptor.getOptions()).hasSize(1);
-        assertThat(descriptor.getOptions().get("provider")).isEqualTo("test-provider");
+        assertThat(descriptor.getOptions()).containsEntry("provider", "test-provider");
 
         assertThat(descriptor.getComment().orElse(null)).isEqualTo("Test Model Comment");
     }
@@ -89,10 +89,10 @@ class ModelDescriptorTest {
                         .build();
 
         assertThat(descriptor.getOptions()).hasSize(4);
-        assertThat(descriptor.getOptions().get("provider")).isEqualTo("test-provider");
-        assertThat(descriptor.getOptions().get("a")).isEqualTo("false");
-        assertThat(descriptor.getOptions().get("b")).isEqualTo("42");
-        assertThat(descriptor.getOptions().get("task")).isEqualTo("embedding");
+        assertThat(descriptor.getOptions()).containsEntry("provider", "test-provider");
+        assertThat(descriptor.getOptions()).containsEntry("a", "false");
+        assertThat(descriptor.getOptions()).containsEntry("b", "42");
+        assertThat(descriptor.getOptions()).containsEntry("task", "embedding");
     }
 
     @Test
