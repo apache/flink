@@ -199,7 +199,11 @@ public final class BinaryRowData extends BinarySection
 
         if (DecimalData.isCompact(precision)) {
             // compact format
-            setLong(pos, value.toUnscaledLong());
+            if (value == null) {
+                setNullAt(pos);
+            } else {
+                setLong(pos, value.toUnscaledLong());
+            }
         } else {
             int fieldOffset = getFieldOffset(pos);
             int cursor = (int) (segments[0].getLong(fieldOffset) >>> 32);
@@ -229,7 +233,11 @@ public final class BinaryRowData extends BinarySection
         assertIndexIsValid(pos);
 
         if (TimestampData.isCompact(precision)) {
-            setLong(pos, value.getMillisecond());
+            if (value == null) {
+                setNullAt(pos);
+            } else {
+                setLong(pos, value.getMillisecond());
+            }
         } else {
             int fieldOffset = getFieldOffset(pos);
             int cursor = (int) (segments[0].getLong(fieldOffset) >>> 32);
