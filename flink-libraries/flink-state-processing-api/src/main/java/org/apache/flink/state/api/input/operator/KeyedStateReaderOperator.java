@@ -30,7 +30,7 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
-import org.apache.flink.state.api.input.MultiStateKeyIterator;
+import org.apache.flink.state.api.input.operator.iterator.MultiStateKeyIterator;
 import org.apache.flink.state.api.runtime.SavepointRuntimeContext;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.util.CloseableIterator;

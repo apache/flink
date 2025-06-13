@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.input;
+package org.apache.flink.state.api.input.source.keyed;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.dag.Transformation;
@@ -30,9 +32,9 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.state.api.functions.WindowReaderFunction;
+import org.apache.flink.state.api.input.operator.StateReaderOperator;
 import org.apache.flink.state.api.input.operator.WindowReaderOperator;
 import org.apache.flink.state.api.input.operator.window.PassThroughReader;
-import org.apache.flink.state.api.input.splits.KeyGroupRangeInputSplit;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.utils.AggregateSum;
 import org.apache.flink.state.api.utils.ReduceSum;
@@ -52,7 +54,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
-import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
+import org.apache.flink.streaming.util.testing.CollectingSink;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -60,11 +62,10 @@ import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
-import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 
@@ -88,21 +89,16 @@ public class WindowReaderTest {
 
         OperatorState operatorState = getOperatorState(operator);
 
-        KeyedStateInputFormat<Integer, TimeWindow, Integer> format =
-                new KeyedStateInputFormat<>(
+        List<Integer> results =
+                readData(
                         operatorState,
-                        new HashMapStateBackend(),
-                        new Configuration(),
                         WindowReaderOperator.reduce(
                                 new ReduceSum(),
                                 new PassThroughReader<>(),
                                 Types.INT,
                                 new TimeWindow.Serializer(),
-                                Types.INT),
-                        new ExecutionConfig());
-
-        List<Integer> list = readState(format);
-        Assert.assertEquals(Arrays.asList(1, 1), list);
+                                Types.INT));
+        Assert.assertEquals(Arrays.asList(1, 1), results);
     }
 
     @Test
@@ -115,21 +111,17 @@ public class WindowReaderTest {
 
         OperatorState operatorState = getOperatorState(operator);
 
-        KeyedStateInputFormat<Integer, TimeWindow, Integer> format =
-                new KeyedStateInputFormat<>(
+        List<Integer> results =
+                readData(
                         operatorState,
-                        new HashMapStateBackend(),
-                        new Configuration(),
                         WindowReaderOperator.reduce(
                                 new ReduceSum(),
                                 new PassThroughReader<>(),
                                 Types.INT,
                                 new TimeWindow.Serializer(),
-                                Types.INT),
-                        new ExecutionConfig());
+                                Types.INT));
 
-        List<Integer> list = readState(format);
-        Assert.assertEquals(Collections.singletonList(2), list);
+        Assert.assertEquals(Collections.singletonList(2), results);
     }
 
     @Test
@@ -142,21 +134,16 @@ public class WindowReaderTest {
 
         OperatorState operatorState = getOperatorState(operator);
 
-        KeyedStateInputFormat<Integer, TimeWindow, Integer> format =
-                new KeyedStateInputFormat<>(
+        List<Integer> results =
+                readData(
                         operatorState,
-                        new HashMapStateBackend(),
-                        new Configuration(),
                         WindowReaderOperator.aggregate(
                                 new AggregateSum(),
                                 new PassThroughReader<>(),
                                 Types.INT,
                                 new TimeWindow.Serializer(),
-                                Types.INT),
-                        new ExecutionConfig());
-
-        List<Integer> list = readState(format);
-        Assert.assertEquals(Arrays.asList(1, 1), list);
+                                Types.INT));
+        Assert.assertEquals(Arrays.asList(1, 1), results);
     }
 
     @Test
@@ -169,20 +156,15 @@ public class WindowReaderTest {
 
         OperatorState operatorState = getOperatorState(operator);
 
-        KeyedStateInputFormat<Integer, TimeWindow, Integer> format =
-                new KeyedStateInputFormat<>(
+        List<Integer> results =
+                readData(
                         operatorState,
-                        new HashMapStateBackend(),
-                        new Configuration(),
                         WindowReaderOperator.process(
                                 new PassThroughReader<>(),
                                 Types.INT,
                                 new TimeWindow.Serializer(),
-                                Types.INT),
-                        new ExecutionConfig());
-
-        List<Integer> list = readState(format);
-        Assert.assertEquals(Arrays.asList(1, 1), list);
+                                Types.INT));
+        Assert.assertEquals(Arrays.asList(1, 1), results);
     }
 
     @Test
@@ -196,20 +178,37 @@ public class WindowReaderTest {
 
         OperatorState operatorState = getOperatorState(operator);
 
-        KeyedStateInputFormat<Integer, TimeWindow, Tuple2<Integer, Integer>> format =
-                new KeyedStateInputFormat<>(
-                        operatorState,
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        KeyedStateSource<?, ?, Tuple2<Integer, Integer>> source =
+                new KeyedStateSource<>(
                         new HashMapStateBackend(),
+                        operatorState,
                         new Configuration(),
+                        new ExecutionConfig(),
                         WindowReaderOperator.process(
                                 new MultiFireReaderFunction(),
                                 Types.INT,
                                 new TimeWindow.Serializer(),
-                                Types.INT),
-                        new ExecutionConfig());
+                                Types.INT));
 
-        List<Tuple2<Integer, Integer>> list = readState(format);
-        Assert.assertEquals(Arrays.asList(Tuple2.of(2, 1), Tuple2.of(2, 1)), list);
+        DataStream<Tuple2<Integer, Integer>> stream =
+                env.fromSource(
+                        source,
+                        WatermarkStrategy.noWatermarks(),
+                        "window-state-source",
+                        Types.TUPLE(Types.INT, Types.INT));
+
+        CollectingSink<Tuple2<Integer, Integer>> sink = new CollectingSink<>();
+        stream.sinkTo(sink);
+        env.execute();
+
+        List<Tuple2<Integer, Integer>> results = sink.getRemainingOutput();
+        sink.close();
+
+        Assert.assertEquals(Arrays.asList(Tuple2.of(2, 1), Tuple2.of(2, 1)), results);
     }
 
     private static WindowOperator<Integer, Integer, ?, Void, ?> getWindowOperator(
@@ -226,6 +225,7 @@ public class WindowReaderTest {
         return getLastOperator(stream);
     }
 
+    // TODO: Use non-deprecated API
     private static SourceFunction<Integer> mockSourceFunction() {
         return (SourceFunction<Integer>) mock(SourceFunction.class);
     }
@@ -271,24 +271,33 @@ public class WindowReaderTest {
     }
 
     @Nonnull
-    private <OUT> List<OUT> readState(KeyedStateInputFormat<Integer, TimeWindow, OUT> format)
-            throws IOException {
-        KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
-        List<OUT> data = new ArrayList<>();
+    private List<Integer> readData(
+            OperatorState operatorState,
+            StateReaderOperator<?, Integer, TimeWindow, Integer> operator)
+            throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
 
-        format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+        KeyedStateSource<?, ?, Integer> source =
+                new KeyedStateSource<>(
+                        new HashMapStateBackend(),
+                        operatorState,
+                        new Configuration(),
+                        new ExecutionConfig(),
+                        operator);
 
-        format.openInputFormat();
-        format.open(split);
+        DataStream<Integer> stream =
+                env.fromSource(
+                        source, WatermarkStrategy.noWatermarks(), "window-state-source", Types.INT);
 
-        while (!format.reachedEnd()) {
-            data.add(format.nextRecord(null));
-        }
+        CollectingSink<Integer> sink = new CollectingSink<>();
+        stream.sinkTo(sink);
+        env.execute();
 
-        format.close();
-        format.closeInputFormat();
-
-        return data;
+        List<Integer> output = sink.getRemainingOutput();
+        sink.close();
+        output.sort(Comparator.naturalOrder());
+        return output;
     }
 
     private static class IdentityKeySelector<T> implements KeySelector<T, T> {
@@ -365,11 +374,11 @@ public class WindowReaderTest {
         }
 
         @Override
-        public TriggerResult onEventTime(long time, W window, TriggerContext ctx) throws Exception {
+        public TriggerResult onEventTime(long time, W window, TriggerContext ctx) {
             return TriggerResult.FIRE;
         }
 
         @Override
-        public void clear(W window, TriggerContext ctx) throws Exception {}
+        public void clear(W window, TriggerContext ctx) {}
     }
 }

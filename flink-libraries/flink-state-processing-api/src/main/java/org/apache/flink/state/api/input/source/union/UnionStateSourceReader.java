@@ -16,57 +16,41 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.input;
+package org.apache.flink.state.api.input.source.union;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.connector.source.RichSourceReaderContext;
+import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.state.api.input.source.common.OperatorStateSourceReader;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 
-/**
- * Input format for reading operator union state.
- *
- * @param <OT> The generic type of the state
- */
-@Internal
-public class UnionStateInputFormat<OT> extends OperatorStateInputFormat<OT> {
+/** A {@link SourceReader} implementation that reads data from list state. */
+public class UnionStateSourceReader<OUT> extends OperatorStateSourceReader<OUT> {
 
-    private static final long serialVersionUID = 499388405631162440L;
+    private final ListStateDescriptor<OUT> descriptor;
 
-    private final ListStateDescriptor<OT> descriptor;
-
-    /**
-     * Creates an input format for reading union state from an operator in a savepoint.
-     *
-     * @param operatorState The state to be queried.
-     * @param configuration The cluster configuration for restoring the backend.
-     * @param backend The state backend used to restore the state.
-     * @param descriptor The descriptor for this state, providing a name and serializer.
-     */
-    public UnionStateInputFormat(
+    public UnionStateSourceReader(
+            RichSourceReaderContext sourceReaderContext,
+            @Nullable StateBackend stateBackend,
             OperatorState operatorState,
             Configuration configuration,
-            @Nullable StateBackend backend,
-            ListStateDescriptor<OT> descriptor,
-            ExecutionConfig executionConfig)
+            ExecutionConfig executionConfig,
+            ListStateDescriptor<OUT> descriptor)
             throws IOException {
-        super(operatorState, configuration, backend, true, executionConfig);
-
-        this.descriptor =
-                Preconditions.checkNotNull(descriptor, "The state descriptor must not be null");
+        super(sourceReaderContext, stateBackend, operatorState, configuration, executionConfig);
+        this.descriptor = descriptor;
     }
 
     @Override
-    protected final Iterable<OT> getElements(OperatorStateBackend restoredBackend)
-            throws Exception {
+    protected Iterable<OUT> getElements(OperatorStateBackend restoredBackend) throws Exception {
         return restoredBackend.getUnionListState(descriptor).get();
     }
 }

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.input;
+package org.apache.flink.state.api.input.source.common;
 
 import org.apache.flink.util.Collector;
 
@@ -29,10 +29,10 @@ import java.util.Queue;
  *
  * @param <T> The type of the records being collected.
  */
-final class BufferingCollector<T> implements Collector<T>, Iterator<T> {
+public final class BufferingCollector<T> implements Collector<T>, Iterator<T> {
     private final Queue<T> buffer;
 
-    BufferingCollector() {
+    public BufferingCollector() {
         this.buffer = new ArrayDeque<>(1);
     }
 

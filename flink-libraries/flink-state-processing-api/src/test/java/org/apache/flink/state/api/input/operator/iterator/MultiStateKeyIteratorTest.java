@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.api.input;
+package org.apache.flink.state.api.input.operator.iterator;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
