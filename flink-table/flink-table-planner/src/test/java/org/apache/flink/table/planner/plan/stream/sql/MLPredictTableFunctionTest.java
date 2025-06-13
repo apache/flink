@@ -172,7 +172,7 @@ public class MLPredictTableFunctionTest extends TableTestBase {
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "SQL validation failed. Number of descriptor input columns (3) does not match model input size (2)");
+                        "SQL validation failed. Number of input descriptor columns (3) does not match model input size (2).");
     }
 
     @Test
@@ -273,7 +273,7 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                                                 + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', true]))"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "SQL validation failed. ML_PREDICT config param can only be a MAP of string literals but node's type is (CHAR(5), BOOLEAN) MAP at position line 2, column 71.");
+                        "SQL validation failed. Config param can only be a MAP of string literals but node's type is (CHAR(5), BOOLEAN) MAP at position line 2, column 71.");
 
         assertThatThrownBy(
                         () ->
