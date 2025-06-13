@@ -42,6 +42,7 @@ import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.VariantTypeInfo;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -49,6 +50,7 @@ import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.api.java.typeutils.TypeExtractionUtils.LambdaExecutable;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.Value;
+import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -1968,6 +1970,11 @@ public class TypeExtractor {
         // check for Enums
         if (Enum.class.isAssignableFrom(clazz)) {
             return new EnumTypeInfo(clazz);
+        }
+
+        // check for Variant
+        if (Variant.class.isAssignableFrom(clazz)) {
+            return (TypeInformation<OUT>) VariantTypeInfo.INSTANCE;
         }
 
         // check for parameterized Collections, requirement:

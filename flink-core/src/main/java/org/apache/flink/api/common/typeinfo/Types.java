@@ -157,7 +157,7 @@ public class Types {
     /** Returns type information for {@link java.time.Instant}. Supports a null value. */
     public static final TypeInformation<Instant> INSTANT = BasicTypeInfo.INSTANT_TYPE_INFO;
 
-    public static final TypeInformation<Variant> VARIANT = BasicTypeInfo.VARIANT_TYPE_INFO;
+    public static final TypeInformation<Variant> VARIANT = VariantTypeInfo.INSTANCE;
 
     // CHECKSTYLE.OFF: MethodName
 

@@ -51,10 +51,7 @@ import org.apache.flink.api.common.typeutils.base.ShortComparator;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.StringComparator;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.common.typeutils.base.VariantSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
-import org.apache.flink.types.variant.BinaryVariant;
-import org.apache.flink.types.variant.Variant;
 
 import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
@@ -163,8 +160,6 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
                     new Class<?>[] {},
                     InstantSerializer.INSTANCE,
                     InstantComparator.class);
-    public static final BasicTypeInfo<Variant> VARIANT_TYPE_INFO =
-            new BasicTypeInfo<>(Variant.class, new Class<?>[] {}, VariantSerializer.INSTANCE, null);
 
     // --------------------------------------------------------------------------------------------
 
@@ -343,7 +338,5 @@ public class BasicTypeInfo<T> extends TypeInformation<T> implements AtomicType<T
         TYPES.put(BigInteger.class, BIG_INT_TYPE_INFO);
         TYPES.put(BigDecimal.class, BIG_DEC_TYPE_INFO);
         TYPES.put(Instant.class, INSTANT_TYPE_INFO);
-        TYPES.put(Variant.class, VARIANT_TYPE_INFO);
-        TYPES.put(BinaryVariant.class, VARIANT_TYPE_INFO);
     }
 }
