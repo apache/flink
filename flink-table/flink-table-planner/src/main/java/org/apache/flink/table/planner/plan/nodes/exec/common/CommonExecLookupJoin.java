@@ -68,6 +68,7 @@ import org.apache.flink.table.runtime.generated.GeneratedFilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.TableKeyedAsyncWaitOperatorFactory;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinWithCalcRunner;
@@ -522,7 +523,11 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                             asyncLookupOptions.asyncBufferCapacity);
         }
         if (asyncLookupOptions.keyOrdered) {
-            throw new UnsupportedOperationException("No proper operator is supported currently.");
+            return new TableKeyedAsyncWaitOperatorFactory<>(
+                    asyncFunc,
+                    keySelector,
+                    asyncLookupOptions.asyncTimeout,
+                    asyncLookupOptions.asyncBufferCapacity);
         }
         // Why not directly enable retry on 'AsyncWaitOperator'? because of two reasons:
         // 1. AsyncLookupJoinRunner has a 'stateful' resultFutureBuffer bind to each input record

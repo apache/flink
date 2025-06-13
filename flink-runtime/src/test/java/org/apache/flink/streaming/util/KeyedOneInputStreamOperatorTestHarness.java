@@ -20,6 +20,7 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -29,6 +30,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.util.Preconditions;
 
 /**
  * Extension of {@link OneInputStreamOperatorTestHarness} that allows the operator to get a {@link
@@ -66,6 +68,22 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
         ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
         config.setStatePartitioner(0, keySelector);
+        config.setStateKeySerializer(
+                keyType.createSerializer(executionConfig.getSerializerConfig()));
+        config.serializeAllConfigs();
+    }
+
+    public KeyedOneInputStreamOperatorTestHarness(
+            StreamOperatorFactory<OUT> operatorFactory,
+            final KeySelector<IN, K> keySelector,
+            TypeInformation<K> keyType,
+            TypeSerializer<IN> typeSerializerIn)
+            throws Exception {
+        super(operatorFactory, 1, 1, 0);
+
+        ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
+        config.setStatePartitioner(0, keySelector);
+        config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
         config.setStateKeySerializer(
                 keyType.createSerializer(executionConfig.getSerializerConfig()));
         config.serializeAllConfigs();
