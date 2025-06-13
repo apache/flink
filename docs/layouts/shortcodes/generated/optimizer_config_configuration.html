@@ -30,6 +30,12 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>The maximum number of joined nodes allowed in the bushy join reorder algorithm, otherwise the left-deep join reorder algorithm will be used. The search space of bushy join reorder algorithm will increase with the increase of this threshold value, so this threshold is not recommended to be set too large. The default value is 12.</td>
         </tr>
         <tr>
+            <td><h5>table.optimizer.delta-join.strategy</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">AUTO</td>
+            <td><p>Enum</p></td>
+            <td>Whether to enable delta join strategy. Only AUTO, FORCE or NONE can be set. Default it AUTO.<br /><br />Possible values:<ul><li>"AUTO": Optimizer will try to use delta join first. If it fails, it will fallback to the regular join.</li><li>"FORCE": Use the delta join. If it fails, an exception will be thrown.</li><li>"NONE": Don't try to use delta join.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.distinct-agg.split.bucket-num</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">1024</td>
             <td>Integer</td>

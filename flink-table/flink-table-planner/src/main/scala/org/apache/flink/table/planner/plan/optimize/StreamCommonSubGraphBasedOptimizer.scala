@@ -373,6 +373,9 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
   }
 
   override protected def postOptimize(expanded: Seq[RelNode]): Seq[RelNode] = {
-    StreamNonDeterministicPhysicalPlanResolver.resolvePhysicalPlan(expanded, planner.getTableConfig)
+    val tableConfig = planner.getTableConfig
+    val newRoots =
+      StreamNonDeterministicPhysicalPlanResolver.resolvePhysicalPlan(expanded, tableConfig)
+    StreamPhysicalDeltaJoinForceValidator.validatePhysicalPlan(newRoots, tableConfig)
   }
 }
