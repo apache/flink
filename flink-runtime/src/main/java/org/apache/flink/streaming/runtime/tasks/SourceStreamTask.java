@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
@@ -139,7 +140,8 @@ public class SourceStreamTask<
                                             CheckpointType.CHECKPOINT,
                                             CheckpointStorageLocationReference.getDefault(),
                                             configuration.isExactlyOnceCheckpointMode(),
-                                            configuration.isUnalignedCheckpointsEnabled(),
+                                            getJobConfiguration()
+                                                    .get(CheckpointingOptions.ENABLE_UNALIGNED),
                                             configuration.getAlignedCheckpointTimeout().toMillis());
                             final long timestamp = System.currentTimeMillis();
 

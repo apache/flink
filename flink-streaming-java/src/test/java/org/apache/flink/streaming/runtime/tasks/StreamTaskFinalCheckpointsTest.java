@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -228,11 +229,11 @@ class StreamTaskFinalCheckpointsTest {
         StreamTaskMailboxTestHarness<String> testHarness =
                 testHarnessBuilder
                         .addInput(STRING_TYPE_INFO, 3)
+                        .addJobConfig(
+                                CheckpointingOptions.ENABLE_UNALIGNED, enableUnalignedCheckpoint)
                         .modifyStreamConfig(
                                 config -> {
                                     config.setCheckpointingEnabled(true);
-                                    config.setUnalignedCheckpointsEnabled(
-                                            enableUnalignedCheckpoint);
                                 })
                         .setCheckpointResponder(checkpointResponder)
                         .setupOperatorChain(new EmptyOperator())
@@ -848,8 +849,7 @@ class StreamTaskFinalCheckpointsTest {
         try (StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                        .modifyStreamConfig(
-                                streamConfig -> streamConfig.setUnalignedCheckpointsEnabled(true))
+                        .addJobConfig(CheckpointingOptions.ENABLE_UNALIGNED, true)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
                         .setCollectNetworkEvents()
                         .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)
