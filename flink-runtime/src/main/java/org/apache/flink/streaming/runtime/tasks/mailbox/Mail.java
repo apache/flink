@@ -59,6 +59,20 @@ public class Mail {
                 MailboxExecutor.MailOptions.options(),
                 runnable,
                 priority,
+                descriptionFormat,
+                descriptionArgs);
+    }
+
+    public Mail(
+            MailboxExecutor.MailOptions mailOptions,
+            ThrowingRunnable<? extends Exception> runnable,
+            int priority,
+            String descriptionFormat,
+            Object... descriptionArgs) {
+        this(
+                mailOptions,
+                runnable,
+                priority,
                 StreamTaskActionExecutor.IMMEDIATE,
                 descriptionFormat,
                 descriptionArgs);

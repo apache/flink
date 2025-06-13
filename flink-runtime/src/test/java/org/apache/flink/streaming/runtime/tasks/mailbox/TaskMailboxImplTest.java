@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.function.FunctionWithException;
@@ -64,15 +65,25 @@ class TaskMailboxImplTest {
     @Test
     void testPutAsHead() throws InterruptedException {
 
-        Mail mailA = new Mail(() -> {}, MAX_PRIORITY, "mailA");
-        Mail mailB = new Mail(() -> {}, MAX_PRIORITY, "mailB");
+        Mail mailA =
+                new Mail(
+                        MailboxExecutor.MailOptions.highPriority(),
+                        () -> {},
+                        MAX_PRIORITY,
+                        "mailA");
+        Mail mailB =
+                new Mail(
+                        MailboxExecutor.MailOptions.highPriority(),
+                        () -> {},
+                        MAX_PRIORITY,
+                        "mailB");
         Mail mailC = new Mail(() -> {}, DEFAULT_PRIORITY, "mailC, DEFAULT_PRIORITY");
         Mail mailD = new Mail(() -> {}, DEFAULT_PRIORITY, "mailD, DEFAULT_PRIORITY");
 
         taskMailbox.put(mailC);
-        taskMailbox.putFirst(mailB);
+        taskMailbox.put(mailB);
         taskMailbox.put(mailD);
-        taskMailbox.putFirst(mailA);
+        taskMailbox.put(mailA);
 
         assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailA);
         assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailB);
@@ -164,7 +175,14 @@ class TaskMailboxImplTest {
                                                 "NO_OP, DEFAULT_PRIORITY")))
                 .isInstanceOf(MailboxClosedException.class);
 
-        assertThatThrownBy(() -> taskMailbox.putFirst(new Mail(NO_OP, MAX_PRIORITY, "NO_OP")))
+        assertThatThrownBy(
+                        () ->
+                                taskMailbox.put(
+                                        new Mail(
+                                                MailboxExecutor.MailOptions.highPriority(),
+                                                NO_OP,
+                                                MAX_PRIORITY,
+                                                "NO_OP")))
                 .isInstanceOf(MailboxClosedException.class);
     }
 
@@ -175,7 +193,14 @@ class TaskMailboxImplTest {
                 unblockMethod);
         setUp();
         testUnblocksInternal(
-                () -> taskMailbox.putFirst(new Mail(NO_OP, MAX_PRIORITY, "NO_OP")), unblockMethod);
+                () ->
+                        taskMailbox.put(
+                                new Mail(
+                                        MailboxExecutor.MailOptions.highPriority(),
+                                        NO_OP,
+                                        MAX_PRIORITY,
+                                        "NO_OP")),
+                unblockMethod);
     }
 
     private void testUnblocksInternal(
@@ -262,7 +287,7 @@ class TaskMailboxImplTest {
     @Test
     void testPutAsHeadWithPriority() throws InterruptedException {
 
-        Mail mailA = new Mail(() -> {}, 2, "mailA");
+        Mail mailA = new Mail(MailboxExecutor.MailOptions.highPriority(), () -> {}, 2, "mailA");
         Mail mailB = new Mail(() -> {}, 2, "mailB");
         Mail mailC = new Mail(() -> {}, 1, "mailC");
         Mail mailD = new Mail(() -> {}, 1, "mailD");
@@ -270,7 +295,7 @@ class TaskMailboxImplTest {
         taskMailbox.put(mailC);
         taskMailbox.put(mailB);
         taskMailbox.put(mailD);
-        taskMailbox.putFirst(mailA);
+        taskMailbox.put(mailA);
 
         assertThat(taskMailbox.take(2)).isSameAs(mailA);
         assertThat(taskMailbox.take(2)).isSameAs(mailB);
@@ -285,7 +310,7 @@ class TaskMailboxImplTest {
     @Test
     void testPutWithPriorityAndReadingFromMainMailbox() throws InterruptedException {
 
-        Mail mailA = new Mail(() -> {}, 2, "mailA");
+        Mail mailA = new Mail(MailboxExecutor.MailOptions.highPriority(), () -> {}, 2, "mailA");
         Mail mailB = new Mail(() -> {}, 2, "mailB");
         Mail mailC = new Mail(() -> {}, 1, "mailC");
         Mail mailD = new Mail(() -> {}, 1, "mailD");
@@ -293,7 +318,7 @@ class TaskMailboxImplTest {
         taskMailbox.put(mailC);
         taskMailbox.put(mailB);
         taskMailbox.put(mailD);
-        taskMailbox.putFirst(mailA);
+        taskMailbox.put(mailA);
 
         // same order for non-priority and priority on top
         assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailA);
@@ -391,5 +416,34 @@ class TaskMailboxImplTest {
         exclusiveCodeStarted.await();
         // make sure that all 10 messages have been actually enqueued.
         assertThat(taskMailbox.close()).hasSize(numMails);
+    }
+
+    /**
+     * We expect the high priority mail can be taken immediately during taking mail from batch
+     * queue.
+     */
+    @Test
+    void testPutHighPriorityMailDuringTakingFromBatch() throws Exception {
+        Mail mailA = new Mail(() -> {}, DEFAULT_PRIORITY, "mailA");
+        Mail mailB = new Mail(() -> {}, DEFAULT_PRIORITY, "mailB");
+        Mail mailC =
+                new Mail(
+                        MailboxExecutor.MailOptions.highPriority(),
+                        () -> {},
+                        DEFAULT_PRIORITY,
+                        "mailC");
+
+        Thread thread = new Thread(() -> taskMailbox.runExclusively(() -> taskMailbox.put(mailC)));
+
+        taskMailbox.put(mailA);
+        taskMailbox.put(mailB);
+        assertThat(taskMailbox.createBatch()).isTrue();
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailA);
+
+        thread.start();
+        thread.join();
+
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailC);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailB);
     }
 }

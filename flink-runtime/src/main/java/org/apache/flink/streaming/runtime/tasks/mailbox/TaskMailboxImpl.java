@@ -76,6 +76,12 @@ public class TaskMailboxImpl implements TaskMailbox {
      */
     private volatile boolean hasNewMail = false;
 
+    /**
+     * Performance optimization where there is new high priority mail, it should be checked whenever
+     * taking mail, including taking mail from batch queue.
+     */
+    private volatile boolean hasNewHighPriorityMail = false;
+
     public TaskMailboxImpl(@Nonnull final Thread taskMailboxThread) {
         this.taskMailboxThread = taskMailboxThread;
     }
@@ -111,6 +117,9 @@ public class TaskMailboxImpl implements TaskMailbox {
     public Optional<Mail> tryTake(int priority) {
         checkIsMailboxThread();
         checkTakeStateConditions();
+
+        moveMailsToBatchIfNeeded();
+
         Mail head = takeOrNull(batch, priority);
         if (head != null) {
             return Optional.of(head);
@@ -125,7 +134,7 @@ public class TaskMailboxImpl implements TaskMailbox {
             if (value == null) {
                 return Optional.empty();
             }
-            hasNewMail = !queue.isEmpty();
+            correctHasNewMail();
             return Optional.ofNullable(value);
         } finally {
             lock.unlock();
@@ -136,6 +145,9 @@ public class TaskMailboxImpl implements TaskMailbox {
     public @Nonnull Mail take(int priority) throws InterruptedException, IllegalStateException {
         checkIsMailboxThread();
         checkTakeStateConditions();
+
+        moveMailsToBatchIfNeeded();
+
         Mail head = takeOrNull(batch, priority);
         if (head != null) {
             return head;
@@ -148,10 +160,21 @@ public class TaskMailboxImpl implements TaskMailbox {
                 // to ease debugging
                 notEmpty.await(1, TimeUnit.SECONDS);
             }
-            hasNewMail = !queue.isEmpty();
+            correctHasNewMail();
             return headMail;
         } finally {
             lock.unlock();
+        }
+    }
+
+    private void correctHasNewMail() {
+        Mail peek = queue.peek();
+        if (peek != null) {
+            hasNewMail = true;
+            hasNewHighPriorityMail = peek.getMailOptions().isHighPriority();
+        } else {
+            hasNewMail = false;
+            hasNewHighPriorityMail = false;
         }
     }
 
@@ -171,8 +194,13 @@ public class TaskMailboxImpl implements TaskMailbox {
         try {
             Mail mail;
             while ((mail = queue.pollFirst()) != null) {
-                batch.addLast(mail);
+                if (mail.getMailOptions().isHighPriority()) {
+                    batch.addFirst(mail);
+                } else {
+                    batch.addLast(mail);
+                }
             }
+            hasNewHighPriorityMail = false;
             hasNewMail = false;
             return !batch.isEmpty();
         } finally {
@@ -184,13 +212,32 @@ public class TaskMailboxImpl implements TaskMailbox {
     public Optional<Mail> tryTakeFromBatch() {
         checkIsMailboxThread();
         checkTakeStateConditions();
+        moveMailsToBatchIfNeeded();
         return Optional.ofNullable(batch.pollFirst());
+    }
+
+    /** Move all mails from queue to batch queue if it has new priority mail. */
+    private void moveMailsToBatchIfNeeded() {
+        if (!hasNewHighPriorityMail) {
+            return;
+        }
+
+        createBatch();
     }
 
     // ------------------------------------------------------------------------------------------------------------------
 
     @Override
     public void put(@Nonnull Mail mail) {
+        if (mail.getMailOptions().isHighPriority()) {
+            putFirst(mail);
+        } else {
+            putLast(mail);
+        }
+    }
+
+    /** Adds the given action to the tail of the mailbox. */
+    private void putLast(@Nonnull Mail mail) {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
@@ -203,7 +250,7 @@ public class TaskMailboxImpl implements TaskMailbox {
         }
     }
 
-    @Override
+    /** Adds the given action to the head of the mailbox. */
     public void putFirst(@Nonnull Mail mail) {
         if (isMailboxThread()) {
             checkPutStateConditions();
@@ -215,6 +262,7 @@ public class TaskMailboxImpl implements TaskMailbox {
                 checkPutStateConditions();
                 queue.addFirst(mail);
                 hasNewMail = true;
+                hasNewHighPriorityMail = true;
                 notEmpty.signal();
             } finally {
                 lock.unlock();
@@ -250,6 +298,7 @@ public class TaskMailboxImpl implements TaskMailbox {
         try {
             drainedMails.addAll(queue);
             queue.clear();
+            hasNewHighPriorityMail = false;
             hasNewMail = false;
             return drainedMails;
         } finally {
