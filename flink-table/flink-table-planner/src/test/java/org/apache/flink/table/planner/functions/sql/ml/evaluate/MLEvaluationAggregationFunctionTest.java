@@ -16,12 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.sql.ml;
+package org.apache.flink.table.planner.functions.sql.ml.evaluate;
 
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.ml.TaskType;
+import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,11 +37,14 @@ public class MLEvaluationAggregationFunctionTest {
 
     @Test
     public void testTaskMapConsistency() {
+        List<TaskType> evaluationTasks =
+                Stream.of(TaskType.values())
+                        .filter(TaskType::supportsEvaluation)
+                        .collect(Collectors.toList());
         assertThat(MLEvaluationAggregationFunction.TASK_TYPE_MAP.size())
-                .isEqualTo(TaskType.values().length);
-        for (TaskType taskType : TaskType.values()) {
-            assertThat(MLEvaluationAggregationFunction.TASK_TYPE_MAP)
-                    .containsKey(taskType.getName());
+                .isEqualTo(evaluationTasks.size());
+        for (TaskType taskType : evaluationTasks) {
+            assertThat(MLEvaluationAggregationFunction.TASK_TYPE_MAP).containsKey(taskType);
         }
     }
 
@@ -44,6 +53,17 @@ public class MLEvaluationAggregationFunctionTest {
         assertThatThrownBy(() -> new MLEvaluationAggregationFunction("invalid_task"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
-                        "Invalid task type: 'invalid_task'. Supported task types are: [regression, clustering, classification, embedding, text_generation].");
+                        "Invalid task type: 'invalid_task'. Supported task types are: [classification, clustering, embedding, regression, text_generation].");
+    }
+
+    @Test
+    public void testClusteringTaskInConstructor() {
+        assertThatThrownBy(() -> new MLEvaluationAggregationFunction("clustering"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Task clustering is not supported for evaluation.");
+    }
+
+    public static Object getMapValue(Row result, String key) {
+        return ((Map<?, ?>) result.getField(0)).get(key);
     }
 }

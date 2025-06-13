@@ -29,9 +29,9 @@ import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexModelCall;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
-import org.apache.flink.table.planner.functions.sql.ml.MLEvaluationAggregationFunction;
 import org.apache.flink.table.planner.functions.sql.ml.SqlMLEvaluateTableFunction;
 import org.apache.flink.table.planner.functions.sql.ml.SqlMLPredictTableFunction;
+import org.apache.flink.table.planner.functions.sql.ml.evaluate.MLEvaluationAggregationFunction;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 

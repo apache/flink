@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.functions.sql.ml;
+package org.apache.flink.table.planner.functions.sql.ml.evaluate;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -40,29 +41,31 @@ import java.util.Optional;
 
 /** Aggregation function for evaluating models based on task type. */
 @Internal
-public class MLEvaluationAggregationFunction extends AggregateFunction<Row, Object> {
+public class MLEvaluationAggregationFunction
+        extends AggregateFunction<Row, ModelEvaluatorAccumulator> {
 
-    public static final Map<String, DataType> TASK_TYPE_MAP =
+    public static final Map<TaskType, List<DataType>> TASK_TYPE_MAP =
             Map.of(
-                    TaskType.TEXT_GENERATION.getName(),
-                    DataTypes.STRING(),
-                    TaskType.CLUSTERING.getName(),
-                    DataTypes.DOUBLE(),
-                    TaskType.EMBEDDING.getName(),
-                    DataTypes.ARRAY(DataTypes.FLOAT()),
-                    TaskType.CLASSIFICATION.getName(),
-                    DataTypes.DOUBLE(),
-                    TaskType.REGRESSION.getName(),
-                    DataTypes.DOUBLE());
+                    TaskType.TEXT_GENERATION,
+                    List.of(DataTypes.STRING(), DataTypes.STRING()),
+                    TaskType.EMBEDDING,
+                    List.of(DataTypes.ARRAY(DataTypes.FLOAT()), DataTypes.ARRAY(DataTypes.FLOAT())),
+                    TaskType.CLASSIFICATION,
+                    List.of(DataTypes.STRING(), DataTypes.STRING()),
+                    TaskType.REGRESSION,
+                    List.of(DataTypes.DOUBLE(), DataTypes.DOUBLE()));
 
-    private final String task;
+    private final TaskType task;
 
     public MLEvaluationAggregationFunction(String task) {
         TaskType.throwOrReturnInvalidTaskType(task, true);
-        this.task = task;
+        this.task = TaskType.fromName(task);
+        if (!TASK_TYPE_MAP.containsKey(this.task)) {
+            throw new ValidationException("Task " + task + " is not supported for evaluation.");
+        }
     }
 
-    private TypeInference typeInference() {
+    private TypeInference typeInference(DataTypeFactory typeFactory) {
         return TypeInference.newBuilder()
                 .inputTypeStrategy(
                         new InputTypeStrategy() {
@@ -89,9 +92,7 @@ public class MLEvaluationAggregationFunction extends AggregateFunction<Row, Obje
                             @Override
                             public Optional<List<DataType>> inferInputTypes(
                                     CallContext callContext, boolean throwOnFailure) {
-                                DataType argumentType = TASK_TYPE_MAP.get(task.toLowerCase());
-                                final List<DataType> args = List.of(argumentType, argumentType);
-                                return Optional.of(args);
+                                return Optional.of(TASK_TYPE_MAP.get(task));
                             }
 
                             @Override
@@ -111,46 +112,54 @@ public class MLEvaluationAggregationFunction extends AggregateFunction<Row, Obje
                                                         DataTypes.DOUBLE().notNull())
                                                 .notNull()
                                                 .bridgedTo(Map.class)))
-                .accumulatorTypeStrategy(callContext -> Optional.of(DataTypes.DOUBLE()))
+                .accumulatorTypeStrategy(
+                        callContext ->
+                                Optional.of(
+                                        DataTypes.RAW(
+                                                        ModelEvaluatorAccumulator
+                                                                .getEvaluatorAccumulator(task)
+                                                                .getClass())
+                                                .toDataType(typeFactory)))
                 .build();
     }
 
     /** Creates a new accumulator based on the model task type. */
     @Override
-    public Object createAccumulator() {
-        // TODO
-        return null;
+    public ModelEvaluatorAccumulator createAccumulator() {
+        return ModelEvaluatorAccumulator.getEvaluatorAccumulator(task);
     }
 
     @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-        return typeInference();
+        return typeInference(typeFactory);
     }
 
     /**
      * Accumulates input values for evaluation. The first argument is the model path, followed by
      * input features, and the last argument is the actual value (ground truth).
      */
-    public void accumulate(Object acc, Object... values) {
-        // TODO
+    public void accumulate(ModelEvaluatorAccumulator acc, Object... values) {
+        acc.accumulate(values);
     }
 
     /** Retracts the input values from evaluation. */
-    public void retract(Object acc, Object... values) {
-        // TODO
+    public void retract(ModelEvaluatorAccumulator acc, Object... values) {
+        acc.retract(values);
     }
 
-    public void merge(Object acc, Iterable<Object> its) {
-        // TODO
+    public void merge(ModelEvaluatorAccumulator acc, Iterable<ModelEvaluatorAccumulator> its) {
+        for (ModelEvaluatorAccumulator other : its) {
+            acc.merge(other);
+        }
     }
 
-    public void resetAccumulator(Object acc) {
-        // TODO
+    public void resetAccumulator(ModelEvaluatorAccumulator acc) {
+        acc.reset();
     }
 
     @Override
-    public Row getValue(Object accumulator) {
-        return null;
+    public Row getValue(ModelEvaluatorAccumulator acc) {
+        return acc.getValue();
     }
 
     @Override

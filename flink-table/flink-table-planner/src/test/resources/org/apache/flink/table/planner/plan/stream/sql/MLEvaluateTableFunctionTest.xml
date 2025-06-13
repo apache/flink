@@ -34,7 +34,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DECIMAL(10, 2) col, DOUBLE label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DECIMAL(10, 2) col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
@@ -57,7 +57,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(FLOAT col, DOUBLE label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(FLOAT col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
@@ -80,7 +80,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(CHAR(10) col, DOUBLE label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(CHAR(10) col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
@@ -103,7 +103,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(10) col, DOUBLE label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(10) col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
@@ -126,7 +126,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(2147483647) col, DOUBLE label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(2147483647) col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
@@ -149,7 +149,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, DOUBLE label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
@@ -172,7 +172,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BIGINT col, DOUBLE label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BIGINT col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
@@ -195,7 +195,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DOUBLE col, DOUBLE label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DOUBLE col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
@@ -218,7 +218,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(2147483647) col, DOUBLE label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(2147483647) col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
@@ -241,7 +241,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BOOLEAN col, DOUBLE label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BOOLEAN col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
@@ -264,7 +264,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TINYINT col, DOUBLE label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TINYINT col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
@@ -287,7 +287,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(SMALLINT col, DOUBLE label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(SMALLINT col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
@@ -310,7 +310,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, DOUBLE label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
@@ -333,12 +333,12 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BIGINT col, DOUBLE label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BIGINT col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCompatibleOutputTypes[[1] INT, INT]">
+  <TestCase name="testCompatibleOutputTypes[[10] regression, FLOAT, DOUBLE]">
     <Resource name="sql">
       <![CDATA[SELECT *
 FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
@@ -356,12 +356,12 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, INTEGER label, INTEGER prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, FLOAT label, DOUBLE prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCompatibleOutputTypes[[2] BIGINT, BIGINT]">
+  <TestCase name="testCompatibleOutputTypes[[11] embedding, ARRAY&#60;TINYINT&#62;, ARRAY&#60;FLOAT&#62;]">
     <Resource name="sql">
       <![CDATA[SELECT *
 FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
@@ -379,12 +379,150 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, BIGINT label, BIGINT prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, TINYINT ARRAY label, FLOAT ARRAY prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCompatibleOutputTypes[[3] DOUBLE, DOUBLE]">
+  <TestCase name="testCompatibleOutputTypes[[12] embedding, ARRAY&#60;SMALLINT&#62;, ARRAY&#60;FLOAT&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(result=[$0])
++- LogicalTableFunctionScan(invocation=[ML_EVALUATE(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'label'), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), DOUBLE) MAP result)])
+   +- LogicalProject(col=[$0], label=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
++- Exchange(distribution=[single])
+   +- Calc(select=[label, prediction])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, SMALLINT ARRAY label, FLOAT ARRAY prediction)])
+         +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleOutputTypes[[13] embedding, ARRAY&#60;INT&#62;, ARRAY&#60;FLOAT&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(result=[$0])
++- LogicalTableFunctionScan(invocation=[ML_EVALUATE(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'label'), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), DOUBLE) MAP result)])
+   +- LogicalProject(col=[$0], label=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
++- Exchange(distribution=[single])
+   +- Calc(select=[label, prediction])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, INTEGER ARRAY label, FLOAT ARRAY prediction)])
+         +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleOutputTypes[[14] text_generation, CHAR(10), STRING]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(result=[$0])
++- LogicalTableFunctionScan(invocation=[ML_EVALUATE(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'label'), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), DOUBLE) MAP result)])
+   +- LogicalProject(col=[$0], label=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
++- Exchange(distribution=[single])
+   +- Calc(select=[label, prediction])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, CHAR(10) label, VARCHAR(2147483647) prediction)])
+         +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleOutputTypes[[15] text_generation, VARCHAR(10), STRING]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(result=[$0])
++- LogicalTableFunctionScan(invocation=[ML_EVALUATE(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'label'), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), DOUBLE) MAP result)])
+   +- LogicalProject(col=[$0], label=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
++- Exchange(distribution=[single])
+   +- Calc(select=[label, prediction])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, VARCHAR(10) label, VARCHAR(2147483647) prediction)])
+         +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleOutputTypes[[1] classification, STRING, STRING]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(result=[$0])
++- LogicalTableFunctionScan(invocation=[ML_EVALUATE(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'label'), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), DOUBLE) MAP result)])
+   +- LogicalProject(col=[$0], label=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
++- Exchange(distribution=[single])
+   +- Calc(select=[label, prediction])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
+         +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleOutputTypes[[2] embedding, ARRAY&#60;FLOAT&#62;, ARRAY&#60;FLOAT&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(result=[$0])
++- LogicalTableFunctionScan(invocation=[ML_EVALUATE(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'label'), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), DOUBLE) MAP result)])
+   +- LogicalProject(col=[$0], label=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
++- Exchange(distribution=[single])
+   +- Calc(select=[label, prediction])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, FLOAT ARRAY label, FLOAT ARRAY prediction)])
+         +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleOutputTypes[[3] regression, DOUBLE, DOUBLE]">
     <Resource name="sql">
       <![CDATA[SELECT *
 FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
@@ -407,7 +545,7 @@ GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCompatibleOutputTypes[[4] TINYINT, SMALLINT]">
+  <TestCase name="testCompatibleOutputTypes[[4] text_generation, STRING, STRING]">
     <Resource name="sql">
       <![CDATA[SELECT *
 FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
@@ -425,12 +563,12 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, TINYINT label, SMALLINT prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, VARCHAR(2147483647) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCompatibleOutputTypes[[5] SMALLINT, INT]">
+  <TestCase name="testCompatibleOutputTypes[[5] classification, CHAR(10), STRING]">
     <Resource name="sql">
       <![CDATA[SELECT *
 FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
@@ -448,12 +586,12 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, SMALLINT label, INTEGER prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, CHAR(10) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCompatibleOutputTypes[[6] INT, BIGINT]">
+  <TestCase name="testCompatibleOutputTypes[[6] classification, VARCHAR(10), STRING]">
     <Resource name="sql">
       <![CDATA[SELECT *
 FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
@@ -471,12 +609,12 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, INTEGER label, BIGINT prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, VARCHAR(10) label, VARCHAR(2147483647) prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCompatibleOutputTypes[[7] BIGINT, DECIMAL(19,0)]">
+  <TestCase name="testCompatibleOutputTypes[[7] regression, TINYINT, DOUBLE]">
     <Resource name="sql">
       <![CDATA[SELECT *
 FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
@@ -494,12 +632,12 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, BIGINT label, DECIMAL(19, 0) prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, TINYINT label, DOUBLE prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCompatibleOutputTypes[[8] DECIMAL(10,2), DOUBLE]">
+  <TestCase name="testCompatibleOutputTypes[[8] regression, SMALLINT, DOUBLE]">
     <Resource name="sql">
       <![CDATA[SELECT *
 FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
@@ -517,12 +655,12 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, DECIMAL(10, 2) label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, SMALLINT label, DOUBLE prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCompatibleOutputTypes[[9] FLOAT, DOUBLE]">
+  <TestCase name="testCompatibleOutputTypes[[9] regression, INT, DOUBLE]">
     <Resource name="sql">
       <![CDATA[SELECT *
 FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))]]>
@@ -540,7 +678,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, FLOAT label, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, INTEGER label, DOUBLE prediction)])
          +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col, label])
 ]]>
     </Resource>
@@ -565,7 +703,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'key', _UTF-16LE'value'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, FLOAT label, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'key', _UTF-16LE'value'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, VARCHAR(2147483647) label, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) prediction)])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
             +- Calc(select=[a, b, c, d, label, rowtime, PROCTIME() AS proctime])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, label, rowtime])
@@ -592,7 +730,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, FLOAT label, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, VARCHAR(2147483647) label, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) prediction)])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
             +- Calc(select=[a, b, c, d, label, rowtime, PROCTIME() AS proctime])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, label, rowtime])
@@ -619,7 +757,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, FLOAT label, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, VARCHAR(2147483647) label, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) prediction)])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
             +- Calc(select=[a, b, c, d, label, rowtime, PROCTIME() AS proctime])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, label, rowtime])
@@ -646,7 +784,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'metrics', _UTF-16LE'accuracy,f1'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, FLOAT label, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'metrics', _UTF-16LE'accuracy,f1'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, VARCHAR(2147483647) label, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) prediction)])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
             +- Calc(select=[a, b, c, d, label, rowtime, PROCTIME() AS proctime])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, label, rowtime])
@@ -673,7 +811,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'metrics', _UTF-16LE'accuracy,f1'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, FLOAT label, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'metrics', _UTF-16LE'accuracy,f1'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, VARCHAR(2147483647) label, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) prediction)])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
             +- Calc(select=[a, b, c, d, label, rowtime, PROCTIME() AS proctime])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, label, rowtime])
@@ -700,7 +838,7 @@ LogicalProject(result=[$0])
 GroupAggregate(select=[ml_evaluate(label, prediction) AS result])
 +- Exchange(distribution=[single])
    +- Calc(select=[label, prediction])
-      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, FLOAT label, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, DOUBLE prediction)])
+      +- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, VARCHAR(2147483647) label, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) prediction)])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
             +- Calc(select=[a, b, c, d, label, rowtime, PROCTIME() AS proctime])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, label, rowtime])

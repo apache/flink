@@ -61,7 +61,7 @@ public class MLPredictTestPrograms {
     static final String[] MODEL_OUTPUT_SCHEMA = new String[] {"category STRING"};
 
     static final Map<Row, List<Row>> MODEL_DATA =
-            new HashMap<Row, List<Row>>() {
+            new HashMap<>() {
                 {
                     put(
                             Row.ofKind(RowKind.INSERT, "Flink"),
