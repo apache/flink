@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -59,9 +60,9 @@ class InputProcessorUtilTest {
         try (CloseableRegistry registry = new CloseableRegistry()) {
             MockEnvironment environment = new MockEnvironmentBuilder().build();
             MockStreamTask streamTask = new MockStreamTaskBuilder(environment).build();
+            streamTask.getJobConfiguration().set(CheckpointingOptions.ENABLE_UNALIGNED, true);
             StreamConfig streamConfig = new StreamConfig(environment.getJobConfiguration());
             streamConfig.setCheckpointMode(CheckpointingMode.EXACTLY_ONCE);
-            streamConfig.setUnalignedCheckpointsEnabled(true);
 
             // First input gate has index larger than the second
             List<IndexedInputGate>[] inputGates =

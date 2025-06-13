@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -67,6 +68,7 @@ class UnalignedCheckpointsInterruptibleTimersTest {
 
         try (final StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, Types.STRING)
+                        .addJobConfig(CheckpointingOptions.ENABLE_UNALIGNED, true)
                         .modifyStreamConfig(
                                 UnalignedCheckpointsInterruptibleTimersTest::setupStreamConfig)
                         .addInput(Types.STRING)
@@ -148,7 +150,6 @@ class UnalignedCheckpointsInterruptibleTimersTest {
     }
 
     private static void setupStreamConfig(StreamConfig cfg) {
-        cfg.setUnalignedCheckpointsEnabled(true);
         cfg.setUnalignedCheckpointsSplittableTimersEnabled(true);
         cfg.setStateKeySerializer(StringSerializer.INSTANCE);
     }
