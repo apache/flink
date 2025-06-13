@@ -42,6 +42,7 @@ import org.apache.flink.types.RowKind
 
 import org.apache.calcite.linq4j.Ord
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.RexCall
 import org.apache.calcite.util.ImmutableBitSet
 
@@ -382,6 +383,20 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         // forward left input changes
         val leftTrait = children.head.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
         createNewNode(temporalJoin, children, leftTrait, requiredTrait, requester)
+
+      case multiJoin: StreamPhysicalMultiJoin =>
+        // multi-join supports all changes in input
+        val children = visitChildren(multiJoin, ModifyKindSetTrait.ALL_CHANGES)
+        val allInnerJoins = multiJoin.getJoinTypes.forall(_ == JoinRelType.INNER)
+        val providedTrait = if (allInnerJoins) {
+          // if all are inner joins, forward all modify operations from children
+          val kindSets = children.map(getModifyKindSet)
+          new ModifyKindSetTrait(ModifyKindSet.union(kindSets: _*))
+        } else {
+          // if there is any outer join, it may produce any kinds of changes
+          ModifyKindSetTrait.ALL_CHANGES
+        }
+        createNewNode(multiJoin, children, providedTrait, requiredTrait, requester)
 
       case _: StreamPhysicalCalcBase | _: StreamPhysicalCorrelateBase |
           _: StreamPhysicalLookupJoin | _: StreamPhysicalExchange | _: StreamPhysicalExpand |
@@ -861,6 +876,31 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             UpdateKindTrait.NONE)
           createNewNode(rel, Some(children), providedUpdateTrait)
 
+        case multiJoin: StreamPhysicalMultiJoin =>
+          val onlyAfterByParent = requiredUpdateTrait.updateKind == UpdateKind.ONLY_UPDATE_AFTER
+          val children = multiJoin.getInputs.zipWithIndex.map {
+            case (child, childOrdinal) =>
+              val physicalChild = child.asInstanceOf[StreamPhysicalRel]
+              val supportOnlyAfter = multiJoin.inputUniqueKeyContainsCommonJoinKey(childOrdinal)
+              val inputModifyKindSet = getModifyKindSet(physicalChild)
+              if (onlyAfterByParent) {
+                if (inputModifyKindSet.contains(ModifyKind.UPDATE) && !supportOnlyAfter) {
+                  // the parent requires only-after, however, the multi-join doesn't support this for this input
+                  None
+                } else {
+                  this.visit(physicalChild, onlyAfterOrNone(inputModifyKindSet))
+                }
+              } else {
+                this.visit(physicalChild, beforeAfterOrNone(inputModifyKindSet))
+              }
+          }
+
+          if (children.exists(_.isEmpty)) {
+            None
+          } else {
+            createNewNode(multiJoin, Some(children.flatten.toList), requiredUpdateTrait)
+          }
+
         case _ =>
           throw new UnsupportedOperationException(
             s"Unsupported visit for ${rel.getClass.getSimpleName}")
@@ -1292,6 +1332,31 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
         case _: StreamPhysicalIntermediateTableScan =>
           createNewNode(rel, Some(List()), fullDeleteOrNone(getModifyKindSet(rel)))
+
+        case multiJoin: StreamPhysicalMultiJoin =>
+          val children = multiJoin.getInputs.zipWithIndex.map {
+            case (child, childOrdinal) =>
+              val physicalChild = child.asInstanceOf[StreamPhysicalRel]
+              val supportsDeleteByKey = multiJoin.inputUniqueKeyContainsCommonJoinKey(childOrdinal)
+              val inputModifyKindSet = getModifyKindSet(physicalChild)
+              if (supportsDeleteByKey && requiredTrait == DELETE_BY_KEY) {
+                this
+                  .visit(physicalChild, deleteOnKeyOrNone(inputModifyKindSet))
+                  .orElse(this.visit(physicalChild, fullDeleteOrNone(inputModifyKindSet)))
+              } else {
+                this.visit(physicalChild, fullDeleteOrNone(inputModifyKindSet))
+              }
+          }
+          if (children.exists(_.isEmpty)) {
+            None
+          } else {
+            val childRels = children.flatten.toList
+            if (childRels.exists(r => getDeleteKind(r) == DeleteKind.DELETE_BY_KEY)) {
+              createNewNode(multiJoin, Some(childRels), deleteOnKeyOrNone(getModifyKindSet(rel)))
+            } else {
+              createNewNode(multiJoin, Some(childRels), fullDeleteOrNone(getModifyKindSet(rel)))
+            }
+          }
 
         case _ =>
           throw new UnsupportedOperationException(
