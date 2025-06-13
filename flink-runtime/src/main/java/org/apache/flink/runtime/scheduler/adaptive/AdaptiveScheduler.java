@@ -1125,6 +1125,22 @@ public class AdaptiveScheduler
                 .isPresent();
     }
 
+    private JobAllocationsInformation getJobAllocationsInformationFromGraphAndState(
+            @Nullable final ExecutionGraph previousExecutionGraph) {
+
+        CompletedCheckpoint latestCompletedCheckpoint = null;
+        if (jobGraph.isCheckpointingEnabled()) {
+            latestCompletedCheckpoint = completedCheckpointStore.getLatestCheckpoint();
+        }
+
+        if (previousExecutionGraph == null || latestCompletedCheckpoint == null) {
+            return JobAllocationsInformation.empty();
+        } else {
+            return JobAllocationsInformation.fromGraphAndState(
+                    previousExecutionGraph, latestCompletedCheckpoint);
+        }
+    }
+
     private JobSchedulingPlan determineParallelism(
             SlotAllocator slotAllocator, @Nullable ExecutionGraph previousExecutionGraph)
             throws NoResourceAvailableException {
@@ -1133,7 +1149,7 @@ public class AdaptiveScheduler
                 .determineParallelismAndCalculateAssignment(
                         jobInformation,
                         declarativeSlotPool.getFreeSlotTracker().getFreeSlotsInformation(),
-                        JobAllocationsInformation.fromGraph(previousExecutionGraph))
+                        getJobAllocationsInformationFromGraphAndState(previousExecutionGraph))
                 .orElseThrow(
                         () ->
                                 new NoResourceAvailableException(
