@@ -42,6 +42,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -51,6 +52,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.testcontainers.shaded.org.bouncycastle.oer.its.ieee1609dot2.basetypes.Duration.milliseconds;
 
 /** Test class for {@link RocksDBStateUploader}. */
 public class RocksDBStateUploaderTest extends TestLogger {
@@ -91,7 +93,8 @@ public class RocksDBStateUploaderTest extends TestLogger {
 
         List<Path> filePaths = new ArrayList<>(1);
         filePaths.add(file.toPath());
-        try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(5)) {
+        try (RocksDBStateUploader rocksDBStateUploader =
+                new RocksDBStateUploader(5, Duration.ZERO)) {
             assertThatThrownBy(
                             () ->
                                     rocksDBStateUploader.uploadFilesToCheckpointFs(
@@ -136,7 +139,8 @@ public class RocksDBStateUploaderTest extends TestLogger {
         List<Path> filePaths =
                 generateRandomSstFiles(localFolder, sstFileCount, fileStateSizeThreshold);
         CloseableRegistry tmpResourcesRegistry = new CloseableRegistry();
-        try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(1)) {
+        try (RocksDBStateUploader rocksDBStateUploader =
+                new RocksDBStateUploader(1, Duration.ZERO)) {
             rocksDBStateUploader.uploadFilesToCheckpointFs(
                     filePaths,
                     checkpointStreamFactory,
@@ -211,7 +215,8 @@ public class RocksDBStateUploaderTest extends TestLogger {
         List<Path> sstFilePaths =
                 generateRandomSstFiles(localFolder, sstFileCount, fileStateSizeThreshold);
 
-        try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(5)) {
+        try (RocksDBStateUploader rocksDBStateUploader =
+                new RocksDBStateUploader(5, Duration.ZERO)) {
             List<HandleAndLocalPath> sstFiles =
                     rocksDBStateUploader.uploadFilesToCheckpointFs(
                             sstFilePaths,
@@ -230,6 +235,26 @@ public class RocksDBStateUploaderTest extends TestLogger {
                                 .getHandle()
                                 .openInputStream());
             }
+        }
+    }
+
+    @Test
+    void testApplyJitter() throws Exception {
+        try (RocksDBStateUploader rocksDBStateUploader =
+                new RocksDBStateUploader(1, Duration.ofMillis(1000L))) {
+            long startTime = System.currentTimeMillis();
+            rocksDBStateUploader.applyJitter(rocksDBStateUploader::getJitterMilliseconds);
+            assertThat(rocksDBStateUploader.getJitterMilliseconds()).isLessThanOrEqualTo(1000);
+            assertThat(System.currentTimeMillis() - startTime).isGreaterThanOrEqualTo(milliseconds);
+        }
+    }
+
+    @Test
+    void testApplyDefaultJitter() throws Exception {
+        try (RocksDBStateUploader rocksDBStateUploader =
+                new RocksDBStateUploader(1, Duration.ZERO)) {
+            long milliseconds = rocksDBStateUploader.getJitterMilliseconds();
+            assertThat(milliseconds).isEqualTo(0L);
         }
     }
 

@@ -39,25 +39,33 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /** Help class for uploading RocksDB state files. */
 public class RocksDBStateUploader implements Closeable {
     private static final int READ_BUFFER_SIZE = 16 * 1024;
-
+    private final Duration uploadJitter;
+    private final Random random;
     private final RocksDBStateDataTransferHelper transfer;
 
     @VisibleForTesting
-    public RocksDBStateUploader(int numberOfSnapshottingThreads) {
-        this(RocksDBStateDataTransferHelper.forThreadNum(numberOfSnapshottingThreads));
+    public RocksDBStateUploader(int numberOfSnapshottingThreads, Duration uploadJitter) {
+        this(
+                RocksDBStateDataTransferHelper.forThreadNum(numberOfSnapshottingThreads),
+                uploadJitter);
     }
 
-    public RocksDBStateUploader(RocksDBStateDataTransferHelper transfer) {
+    public RocksDBStateUploader(RocksDBStateDataTransferHelper transfer, Duration uploadJitter) {
         this.transfer = transfer;
+        this.uploadJitter = uploadJitter;
+        this.random = new Random(uploadJitter.toMillis());
     }
 
     /**
@@ -133,12 +141,14 @@ public class RocksDBStateUploader implements Closeable {
             CheckpointedStateScope stateScope,
             CloseableRegistry closeableRegistry,
             CloseableRegistry tmpResourcesRegistry)
-            throws IOException {
+            throws IOException, InterruptedException {
 
         InputStream inputStream = null;
         CheckpointStateOutputStream outputStream = null;
 
         try {
+            // add a random jitter
+            applyJitter(this::getJitterMilliseconds);
             final byte[] buffer = new byte[READ_BUFFER_SIZE];
 
             inputStream = Files.newInputStream(filePath);
@@ -178,6 +188,19 @@ public class RocksDBStateUploader implements Closeable {
                 IOUtils.closeQuietly(outputStream);
             }
         }
+    }
+
+    @VisibleForTesting
+    void applyJitter(Supplier<Long> sleepTime) throws InterruptedException {
+        if (uploadJitter.isZero()) {
+            return;
+        }
+
+        Thread.sleep(sleepTime.get());
+    }
+
+    long getJitterMilliseconds() {
+        return random.nextLong(0, uploadJitter.toMillis() + 1);
     }
 
     @Override
