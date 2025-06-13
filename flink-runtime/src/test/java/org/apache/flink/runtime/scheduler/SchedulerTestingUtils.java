@@ -27,7 +27,9 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PendingCheckpoint;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -47,6 +49,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -164,7 +167,7 @@ public class SchedulerTestingUtils {
     }
 
     public static Collection<ExecutionAttemptID> getAllCurrentExecutionAttempts(
-            DefaultScheduler scheduler) {
+            SchedulerNG scheduler) {
         return StreamSupport.stream(
                         scheduler
                                 .requestJob()
@@ -206,7 +209,7 @@ public class SchedulerTestingUtils {
         scheduler.updateTaskExecutionState(new TaskExecutionState(attemptID, executionState));
     }
 
-    public static void setAllExecutionsToRunning(final DefaultScheduler scheduler) {
+    public static void setAllExecutionsToRunning(final SchedulerNG scheduler) {
         getAllCurrentExecutionAttempts(scheduler)
                 .forEach(
                         (attemptId) -> {
@@ -238,6 +241,22 @@ public class SchedulerTestingUtils {
             checkpointCoordinator.receiveAcknowledgeMessage(
                     acknowledgeCheckpoint, "Unknown location");
         }
+    }
+
+    public static void acknowledgePendingCheckpoint(
+            final SchedulerNG scheduler,
+            final int checkpointId,
+            final Map<OperatorID, OperatorSubtaskState> subtaskStateMap) {
+        getAllCurrentExecutionAttempts(scheduler)
+                .forEach(
+                        (executionAttemptID) -> {
+                            scheduler.acknowledgeCheckpoint(
+                                    scheduler.requestJob().getJobId(),
+                                    executionAttemptID,
+                                    checkpointId,
+                                    new CheckpointMetrics(),
+                                    new TaskStateSnapshot(subtaskStateMap));
+                        });
     }
 
     public static CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
@@ -277,24 +296,6 @@ public class SchedulerTestingUtils {
                                         pc.getCheckpointID(),
                                         new CheckpointMetrics(),
                                         null));
-    }
-
-    public static CompletedCheckpoint takeCheckpoint(DefaultScheduler scheduler) throws Exception {
-        final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
-        checkpointCoordinator.triggerCheckpoint(false);
-
-        assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints())
-                .as("test setup inconsistent")
-                .isOne();
-        final PendingCheckpoint checkpoint =
-                checkpointCoordinator.getPendingCheckpoints().values().iterator().next();
-        final CompletableFuture<CompletedCheckpoint> future = checkpoint.getCompletionFuture();
-
-        acknowledgePendingCheckpoint(scheduler, checkpoint.getCheckpointID());
-
-        CompletedCheckpoint completed = future.getNow(null);
-        assertThat(completed).withFailMessage("checkpoint not complete").isNotNull();
-        return completed;
     }
 
     @SuppressWarnings("deprecation")

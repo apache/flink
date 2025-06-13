@@ -1074,9 +1074,16 @@ class ExecutingTest {
         MockExecutionJobVertex(
                 Function<ExecutionJobVertex, ExecutionVertex> executionVertexSupplier)
                 throws JobException {
+            this(executionVertexSupplier, new JobVertex("test"));
+        }
+
+        MockExecutionJobVertex(
+                final Function<ExecutionJobVertex, ExecutionVertex> executionVertexSupplier,
+                final JobVertex jobVertex)
+                throws JobException {
             super(
                     new MockInternalExecutionGraphAccessor(),
-                    new JobVertex("test"),
+                    jobVertex,
                     new DefaultVertexParallelismInfo(1, 1, max -> Optional.empty()),
                     new CoordinatorStoreImpl(),
                     UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
