@@ -2850,6 +2850,40 @@ public final class BuiltInFunctionDefinitions {
                     .build();
 
     // --------------------------------------------------------------------------------------------
+    // Variant functions
+    // --------------------------------------------------------------------------------------------
+
+    public static final BuiltInFunctionDefinition PARSE_JSON =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("PARSE_JSON")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            logical(LogicalTypeRoot.BOOLEAN))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.VARIANT())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ParseJsonFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition TRY_PARSE_JSON =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("TRY_PARSE_JSON")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            logical(LogicalTypeRoot.BOOLEAN))))
+                    .outputTypeStrategy(forceNullable(explicit(DataTypes.VARIANT())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.TryParseJsonFunction")
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
     // Other functions
     // --------------------------------------------------------------------------------------------
 

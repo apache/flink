@@ -37,6 +37,7 @@ import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.Value;
+import org.apache.flink.types.variant.Variant;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -155,6 +156,8 @@ public class Types {
 
     /** Returns type information for {@link java.time.Instant}. Supports a null value. */
     public static final TypeInformation<Instant> INSTANT = BasicTypeInfo.INSTANT_TYPE_INFO;
+
+    public static final TypeInformation<Variant> VARIANT = VariantTypeInfo.INSTANCE;
 
     // CHECKSTYLE.OFF: MethodName
 

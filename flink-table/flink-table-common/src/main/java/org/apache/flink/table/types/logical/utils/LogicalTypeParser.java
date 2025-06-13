@@ -55,6 +55,7 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
@@ -332,7 +333,8 @@ public final class LogicalTypeParser {
         LEGACY,
         NOT,
         DESCRIPTOR,
-        STRUCTURED
+        STRUCTURED,
+        VARIANT
     }
 
     private static final Set<String> KEYWORDS =
@@ -578,6 +580,8 @@ public final class LogicalTypeParser {
                     return parseLegacyType();
                 case DESCRIPTOR:
                     return new DescriptorType();
+                case VARIANT:
+                    return new VariantType();
                 default:
                     throw parsingError("Unsupported type: " + token().value);
             }

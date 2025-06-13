@@ -23,6 +23,8 @@ import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.utils.ClassDataTypeConverter;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.BinaryVariant;
+import org.apache.flink.types.variant.Variant;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -90,7 +92,9 @@ class ClassDataTypeConverterTest {
                 of(
                         TimeIntervalUnit.class,
                         new AtomicDataType(new SymbolType<>()).bridgedTo(TimeIntervalUnit.class)),
-                of(Row.class, null));
+                of(Row.class, null),
+                of(Variant.class, DataTypes.VARIANT()),
+                of(BinaryVariant.class, DataTypes.VARIANT().bridgedTo(BinaryVariant.class)));
     }
 
     @ParameterizedTest(name = "[{index}] class: {0} type: {1}")

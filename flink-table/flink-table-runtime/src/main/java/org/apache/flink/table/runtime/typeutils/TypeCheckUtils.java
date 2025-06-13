@@ -37,6 +37,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.STRUCTURED_TYPE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARIANT;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
 
 /** Utils for type. */
@@ -131,13 +132,18 @@ public class TypeCheckUtils {
         return type.getTypeRoot() == STRUCTURED_TYPE;
     }
 
+    private static boolean isVariantType(LogicalType type) {
+        return type.getTypeRoot() == VARIANT;
+    }
+
     public static boolean isComparable(LogicalType type) {
         return !isRaw(type)
                 && !isMap(type)
                 && !isMultiset(type)
                 && !isRow(type)
                 && !isArray(type)
-                && !isStructuredType(type);
+                && !isStructuredType(type)
+                && !isVariantType(type);
     }
 
     public static boolean isMutable(LogicalType type) {

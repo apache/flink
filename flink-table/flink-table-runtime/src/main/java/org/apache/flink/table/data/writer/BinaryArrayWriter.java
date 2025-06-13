@@ -245,6 +245,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
             case ROW:
             case STRUCTURED_TYPE:
             case RAW:
+            case VARIANT:
                 return BinaryArrayWriter::setNullLong;
             case BOOLEAN:
                 return BinaryArrayWriter::setNullBoolean;

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.StringUtils;
 
 import java.util.Arrays;
@@ -203,6 +204,11 @@ public final class GenericRowData implements RowData {
     @Override
     public RowData getRow(int pos, int numFields) {
         return (RowData) this.fields[pos];
+    }
+
+    @Override
+    public Variant getVariant(int pos) {
+        return (Variant) this.fields[pos];
     }
 
     @Override

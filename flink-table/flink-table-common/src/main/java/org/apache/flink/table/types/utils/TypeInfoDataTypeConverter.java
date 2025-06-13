@@ -43,6 +43,7 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.Variant;
 
 import javax.annotation.Nullable;
 
@@ -147,6 +148,7 @@ public final class TypeInfoDataTypeConverter {
                 PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
                 DataTypes.ARRAY(DataTypes.DOUBLE().notNull().bridgedTo(double.class))
                         .bridgedTo(double[].class));
+        conversionMap.put(Types.VARIANT, DataTypes.VARIANT().bridgedTo(Variant.class));
     }
 
     /** Converts the given {@link TypeInformation} into {@link DataType}. */

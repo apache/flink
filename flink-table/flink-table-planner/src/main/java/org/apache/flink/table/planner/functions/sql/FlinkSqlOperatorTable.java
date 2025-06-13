@@ -1333,6 +1333,20 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlPostfixOperator IS_NOT_JSON_SCALAR =
             SqlStdOperatorTable.IS_NOT_JSON_SCALAR;
 
+    // VARIANT FUNCTIONS
+    public static final SqlFunction TRY_PARSE_JSON =
+            new SqlFunction(
+                    "TRY_PARSE_JSON",
+                    SqlKind.OTHER_FUNCTION,
+                    ReturnTypes.cascade(
+                            ReturnTypes.explicit(SqlTypeName.VARIANT),
+                            SqlTypeTransforms.FORCE_NULLABLE),
+                    null,
+                    OperandTypes.or(
+                            OperandTypes.family(SqlTypeFamily.STRING),
+                            OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.BOOLEAN)),
+                    SqlFunctionCategory.SYSTEM);
+
     // WINDOW TABLE FUNCTIONS
     // use the definitions in Flink, because we have different return types
     // and special check on the time attribute.
