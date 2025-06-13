@@ -113,9 +113,8 @@ public class CheckpointConfigFromConfigurationTest {
                         .whenSetFromFile(
                                 "execution.checkpointing.unaligned.interruptible-timers.enabled",
                                 "true")
-                        .viaSetter(CheckpointConfig::enableUnalignedCheckpointsInterruptibleTimers)
-                        .getterVia(
-                                CheckpointConfig::isUnalignedCheckpointsInterruptibleTimersEnabled)
+                        .viaSetter(CheckpointConfig::enableUnalignedCheckpointsSplitttableTimers)
+                        .getterVia(CheckpointConfig::isUnalignedCheckpointsSplittableTimersEnabled)
                         .nonDefaultValue(true));
     }
 
