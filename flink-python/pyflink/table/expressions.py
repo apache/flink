@@ -560,6 +560,42 @@ def map_from_arrays(key, value) -> Expression:
     return _binary_op("mapFromArrays", key, value)
 
 
+def object_of(class_name: Union[str, type], *args) -> Expression:
+    """
+    Creates a structured object from a list of key-value pairs.
+
+    This function creates an instance of a structured type identified by the given class name.
+    The structured type is created by providing alternating key-value pairs where keys must be
+    string literals and values can be arbitrary expressions.
+
+    The class name is used for type identification during planning but the actual runtime
+    representation is a RowData. If the class cannot be resolved, Row.class is used as fallback.
+
+    This function corresponds to the SQL `OBJECT_OF` function.
+
+    :param class_name: The fully qualified class name or class type representing the structured type
+    :param args: Alternating key-value pairs: key1, value1, key2, value2, ...
+    :return: A structured object expression
+
+    Examples:
+    ::
+
+        >>> # Creates a User object with name="Alice" and age=30
+        >>> object_of("com.example.User", "name", "Alice", "age", 30)
+
+        >>> # Using a class type
+        >>> object_of(User, "name", "Bob", "age", 25)
+
+    .. seealso:: SQL function: OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 25)
+    """
+    if isinstance(class_name, type):
+        # Convert Python class to fully qualified name
+        class_name_str = f"{class_name.__module__}.{class_name.__qualname__}"
+    else:
+        class_name_str = class_name
+
+    return _varargs_op("objectOf", class_name_str, *args)
+
 @PublicEvolving()
 def row_interval(rows: int) -> Expression:
     """

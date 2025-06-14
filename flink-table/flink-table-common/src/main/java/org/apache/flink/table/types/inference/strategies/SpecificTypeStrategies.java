@@ -188,6 +188,8 @@ public final class SpecificTypeStrategies {
                 }
             };
 
+    public static final TypeStrategy OBJECT_OF = new ObjectOfTypeStrategy();
+
     private SpecificTypeStrategies() {
         // no instantiation
     }
