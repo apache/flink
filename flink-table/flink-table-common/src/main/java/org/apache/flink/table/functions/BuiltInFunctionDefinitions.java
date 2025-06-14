@@ -1618,6 +1618,16 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.EltFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition OBJECT_OF =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("OBJECT_OF")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.OBJECT_OF)
+                    .outputTypeStrategy(SpecificTypeStrategies.OBJECT_OF)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ObjectOfFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Math functions
     // --------------------------------------------------------------------------------------------

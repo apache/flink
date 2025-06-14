@@ -1198,6 +1198,22 @@ valueconstruction:
       ```sql
       f(columns => DESCRIPTOR(`col1`, `col2`), on_time => DESCRIPTOR(`ts`))
       ```
+  - sql: OBJECT_OF(className, [key, value [, key, value , ...]])
+    table: objectOf(STRING, Object...)
+    description: |
+      Creates a structured object from a list of key-value pairs.
+
+      The function creates an instance of a structured type identified by the given class name.
+      The structured type is created by providing alternating key-value pairs where keys must be
+      string literals and values can be arbitrary expressions.
+
+      The class name is used for type identification during planning but the actual runtime
+      representation is a RowData. If the class cannot be resolved, Row.class is used as fallback.
+
+      ```sql
+      -- Creates a User object with name="Bob" and age=42
+      OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 42)
+      ```
   - table: NUMERIC.rows
     description: Creates a NUMERIC interval of rows (commonly used in window creation).
 
