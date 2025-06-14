@@ -2193,6 +2193,55 @@ class Expression(Generic[T]):
         """
         return _unary_op("jsonUnquote")(self)
 
+    # ---------------------------- value modification functions -----------------------------
+
+    def object_update(self, *kv) -> "Expression":
+        """
+        Updates existing fields in a structured object by providing key-value pairs.
+
+        This function takes a structured object and updates specified fields with new values.
+        The keys must be string literals that correspond to existing fields in the structured type.
+        If a key does not exist in the input object, an exception will be thrown.
+        If the value type is not compatible with the corresponding structured field type,
+        an exception will also be thrown.
+
+        The function expects alternating key-value pairs where keys are field names
+        (non-null strings) and values are the new values for those fields.
+        At least one key-value pair must be provided.
+        The total number of arguments must be odd (object + pairs of key-value arguments).
+
+        The result type is the same structured type as the input, with the specified fields
+        updated to their new values.
+
+        Example:
+        ::
+
+            >>> # Update the 'name' field of a user object
+            >>> user_obj.object_update("name", "Alice")
+            >>> # Returns an updated user object with 'name' set to "Alice"
+            >>>
+            >>> # Update multiple fields
+            >>> user_obj.object_update("name", "Alice", "age", 30)
+            >>> # Returns an updated user object with 'name' set to "Alice" and 'age' set to 30
+
+        The result type is the same structured type as the input, with the specified
+        fields updated to their new values.
+
+        :param kv: key-value pairs where even-indexed elements are field names
+                   (strings) and odd-indexed elements are the new values for those
+                   fields
+        :return: expression representing the updated structured type with modified
+                 field values
+        """
+        gateway = get_gateway()
+        ApiExpressionUtils = (
+            gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
+        )
+        exprs = [
+            ApiExpressionUtils.objectToExpression(_get_java_expression(e)) for e in kv
+        ]
+        return _binary_op("objectUpdate")(self, to_jarray(gateway.jvm.Object, exprs))
+
 
 # add the docs
 _make_math_log_doc()
