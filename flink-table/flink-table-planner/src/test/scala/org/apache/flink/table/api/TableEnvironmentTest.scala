@@ -3168,7 +3168,7 @@ class TableEnvironmentTest {
     assertThatThrownBy(() => tableEnv.executeSql(dropDDL))
       .isInstanceOf(classOf[ValidationException])
       .hasMessageContaining(
-        "Could not execute DropModel in path `default_catalog`.`default_database`.`M1`")
+        "Model with identifier 'default_catalog.default_database.M1' does not exist.")
   }
 
   @Test
