@@ -83,13 +83,26 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
     /** TypeInformation of the produced {@link RowData}. */
     private final TypeInformation<RowData> producedTypeInfo;
 
+    private final boolean upsertMode;
+
     public DebeziumAvroDeserializationSchema(
             RowType rowType,
             TypeInformation<RowData> producedTypeInfo,
             String schemaRegistryUrl,
             @Nullable String schemaString,
             @Nullable Map<String, ?> registryConfigs) {
+        this(rowType, producedTypeInfo, schemaRegistryUrl, schemaString, registryConfigs, false);
+    }
+
+    public DebeziumAvroDeserializationSchema(
+            RowType rowType,
+            TypeInformation<RowData> producedTypeInfo,
+            String schemaRegistryUrl,
+            @Nullable String schemaString,
+            @Nullable Map<String, ?> registryConfigs,
+            boolean upsertMode) {
         this.producedTypeInfo = producedTypeInfo;
+        this.upsertMode = upsertMode;
         RowType debeziumAvroRowType = createDebeziumAvroRowType(fromLogicalToDataType(rowType));
 
         validateSchemaString(schemaString, debeziumAvroRowType);
@@ -109,9 +122,11 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
     @VisibleForTesting
     DebeziumAvroDeserializationSchema(
             TypeInformation<RowData> producedTypeInfo,
-            AvroRowDataDeserializationSchema avroDeserializer) {
+            AvroRowDataDeserializationSchema avroDeserializer,
+            boolean upsertMode) {
         this.producedTypeInfo = producedTypeInfo;
         this.avroDeserializer = avroDeserializer;
+        this.upsertMode = upsertMode;
     }
 
     @Override
@@ -127,7 +142,6 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
 
     @Override
     public void deserialize(byte[] message, Collector<RowData> out) throws IOException {
-
         if (message == null || message.length == 0) {
             // skip tombstone messages
             return;
@@ -146,9 +160,11 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
                     throw new IllegalStateException(
                             String.format(REPLICA_IDENTITY_EXCEPTION, "UPDATE"));
                 }
-                before.setRowKind(RowKind.UPDATE_BEFORE);
                 after.setRowKind(RowKind.UPDATE_AFTER);
-                out.collect(before);
+                if (!upsertMode) {
+                    before.setRowKind(RowKind.UPDATE_BEFORE);
+                    out.collect(before);
+                }
                 out.collect(after);
             } else if (OP_DELETE.equals(op)) {
                 if (before == null) {
@@ -189,12 +205,13 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
         }
         DebeziumAvroDeserializationSchema that = (DebeziumAvroDeserializationSchema) o;
         return Objects.equals(avroDeserializer, that.avroDeserializer)
-                && Objects.equals(producedTypeInfo, that.producedTypeInfo);
+                && Objects.equals(producedTypeInfo, that.producedTypeInfo)
+                && upsertMode == that.upsertMode;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(avroDeserializer, producedTypeInfo);
+        return Objects.hash(avroDeserializer, producedTypeInfo, upsertMode);
     }
 
     public static RowType createDebeziumAvroRowType(DataType databaseSchema) {
