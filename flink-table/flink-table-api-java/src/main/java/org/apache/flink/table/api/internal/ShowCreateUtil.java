@@ -22,11 +22,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDescriptor;
+import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -87,6 +89,9 @@ public class ShowCreateUtil {
                     String.format(
                             "SHOW CREATE TABLE is only supported for tables, but %s is a view. Please use SHOW CREATE VIEW instead.",
                             tableIdentifier.asSerializableString()));
+        } else if (table.getTableKind() == CatalogBaseTable.TableKind.MATERIALIZED_TABLE) {
+            return buildShowCreateMaterializedTableRow(
+                    (ResolvedCatalogMaterializedTable) table, tableIdentifier, isTemporary);
         }
         StringBuilder sb =
                 new StringBuilder()
@@ -97,16 +102,30 @@ public class ShowCreateUtil {
         extractFormattedPrimaryKey(table, PRINT_INDENT)
                 .ifPresent(pk -> sb.append(",\n").append(pk));
         sb.append("\n)\n");
-        extractComment(table).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
-        extractFormattedDistributedInfo((ResolvedCatalogTable) table).ifPresent(sb::append);
-        extractFormattedPartitionedInfo((ResolvedCatalogTable) table)
-                .ifPresent(
-                        partitionedInfoFormatted ->
-                                sb.append("PARTITIONED BY (")
-                                        .append(partitionedInfoFormatted)
-                                        .append(")\n"));
-        extractFormattedOptions(table.getOptions(), PRINT_INDENT)
-                .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));
+
+        appendCommonTableElements(sb, table);
+        return sb.toString();
+    }
+
+    private static String buildShowCreateMaterializedTableRow(
+            ResolvedCatalogMaterializedTable table,
+            ObjectIdentifier tableIdentifier,
+            boolean isTemporary) {
+        StringBuilder sb =
+                new StringBuilder()
+                        .append(
+                                buildCreateFormattedPrefix(
+                                        "MATERIALIZED TABLE", isTemporary, tableIdentifier));
+
+        extractFormattedPrimaryKey(table, PRINT_INDENT)
+                .ifPresent(pk -> sb.append("(").append(pk).append(")\n"));
+
+        appendCommonTableElements(sb, table);
+
+        sb.append(extractMaterializedTablefreshNess(table)).append("\n");
+        extractMaterializedTableRefreshMode(table).ifPresent(mode -> sb.append(mode).append("\n"));
+
+        sb.append("AS ").append(table.getDefinitionQuery());
         return sb.toString();
     }
 
@@ -151,7 +170,13 @@ public class ShowCreateUtil {
 
     static String buildCreateFormattedPrefix(
             String type, boolean isTemporary, ObjectIdentifier identifier) {
-        String postName = "model".equalsIgnoreCase(type) ? "" : " (";
+        String postName;
+        if ("model".equalsIgnoreCase(type) || "MATERIALIZED TABLE".equalsIgnoreCase(type)) {
+            postName = "";
+        } else {
+            postName = " (";
+        }
+
         return String.format(
                 "CREATE %s%s %s%s%s",
                 isTemporary ? "TEMPORARY " : "",
@@ -267,6 +292,53 @@ public class ShowCreateUtil {
                 catalogTable.getPartitionKeys().stream()
                         .map(EncodingUtils::escapeIdentifier)
                         .collect(Collectors.joining(", ")));
+    }
+
+    private static void appendCommonTableElements(
+            StringBuilder sb, ResolvedCatalogBaseTable<?> table) {
+
+        extractComment(table).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
+
+        if (table instanceof ResolvedCatalogTable) {
+            extractFormattedDistributedInfo((ResolvedCatalogTable) table).ifPresent(sb::append);
+        }
+
+        Optional<String> partitionedInfo;
+        if (table instanceof ResolvedCatalogMaterializedTable) {
+            partitionedInfo =
+                    extractFormattedPartitionedInfo((ResolvedCatalogMaterializedTable) table);
+        } else {
+            partitionedInfo = extractFormattedPartitionedInfo((ResolvedCatalogTable) table);
+        }
+        partitionedInfo.ifPresent(info -> sb.append("PARTITIONED BY (").append(info).append(")\n"));
+
+        extractFormattedOptions(table.getOptions(), PRINT_INDENT)
+                .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));
+    }
+
+    static Optional<String> extractFormattedPartitionedInfo(
+            ResolvedCatalogMaterializedTable catalogTable) {
+        if (!catalogTable.isPartitioned()) {
+            return Optional.empty();
+        }
+        return Optional.of(
+                catalogTable.getPartitionKeys().stream()
+                        .map(EncodingUtils::escapeIdentifier)
+                        .collect(Collectors.joining(", ")));
+    }
+
+    static String extractMaterializedTablefreshNess(ResolvedCatalogMaterializedTable table) {
+        return String.format("FRESHNESS = %s ", table.getDefinitionFreshness().toString());
+    }
+
+    static Optional<String> extractMaterializedTableRefreshMode(
+            ResolvedCatalogMaterializedTable table) {
+        CatalogMaterializedTable.LogicalRefreshMode logicalRefreshMode =
+                table.getLogicalRefreshMode();
+        if (logicalRefreshMode == CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC) {
+            return Optional.empty();
+        }
+        return Optional.of(String.format("REFRESH_MODE = %s", table.getRefreshMode().name()));
     }
 
     static Optional<String> extractFormattedOptions(Map<String, String> conf, String printIndent) {
