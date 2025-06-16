@@ -16,17 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.aggregate;
+package org.apache.flink.table.runtime.operators.aggregate.async;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.generated.GeneratedTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.TableAggsHandleFunction;
+import org.apache.flink.table.runtime.operators.aggregate.RecordCounter;
 import org.apache.flink.table.runtime.operators.aggregate.utils.GroupTableAggHelper;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -34,8 +36,9 @@ import org.apache.flink.util.Collector;
 
 import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 
-/** Aggregate Function used for the groupby (without window) table aggregate in sync state. */
-public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData, RowData> {
+/** Aggregate Function used for the groupby (without window) table aggregate in async state. */
+public class AsyncStateGroupTableAggFunction
+        extends KeyedProcessFunction<RowData, RowData, RowData> {
 
     private static final long serialVersionUID = 1L;
 
@@ -62,10 +65,10 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
     // stores the accumulators
     private transient ValueState<RowData> accState = null;
 
-    private transient SyncStateGroupTableAggHelper aggHelper = null;
+    private transient AsyncStateGroupTableAggHelper aggHelper = null;
 
     /**
-     * Creates a {@link GroupTableAggFunction}.
+     * Creates a {@link AsyncStateGroupTableAggFunction}.
      *
      * @param genAggsHandler The code generated function used to handle table aggregates.
      * @param accTypes The accumulator types.
@@ -76,7 +79,7 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
      * @param incrementalUpdate Whether to update acc result incrementally.
      * @param stateRetentionTime state idle retention time which unit is MILLISECONDS.
      */
-    public GroupTableAggFunction(
+    public AsyncStateGroupTableAggFunction(
             GeneratedTableAggsHandleFunction genAggsHandler,
             LogicalType[] accTypes,
             int indexOfCountStar,
@@ -94,18 +97,20 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
     @Override
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
+        final StreamingRuntimeContext runtimeContext =
+                (StreamingRuntimeContext) getRuntimeContext();
         // instantiate function
         StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
-        function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
-        function.open(new PerKeyStateDataViewStore(getRuntimeContext(), ttlConfig));
+        function = genAggsHandler.newInstance(runtimeContext.getUserCodeClassLoader());
+        function.open(new PerKeyStateDataViewStore(runtimeContext, ttlConfig));
 
         InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
         ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
         if (ttlConfig.isEnabled()) {
             accDesc.enableTimeToLive(ttlConfig);
         }
-        accState = getRuntimeContext().getState(accDesc);
-        aggHelper = new SyncStateGroupTableAggHelper();
+        accState = runtimeContext.getValueState(accDesc);
+        aggHelper = new AsyncStateGroupTableAggHelper();
     }
 
     @Override
@@ -113,22 +118,25 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
             throws Exception {
         RowData currentKey = ctx.getCurrentKey();
 
-        RowData accumulators = accState.value();
+        accState.asyncValue()
+                .thenAccept(
+                        accumulators -> {
+                            accumulators =
+                                    aggHelper.processElement(accumulators, currentKey, out, input);
 
-        accumulators = aggHelper.processElement(accumulators, currentKey, out, input);
+                            if (!recordCounter.recordCountIsZero(accumulators)) {
+                                function.emitValue(out, currentKey, false);
 
-        if (!recordCounter.recordCountIsZero(accumulators)) {
-            function.emitValue(out, currentKey, false);
+                                // update the state
+                                accState.asyncUpdate(accumulators);
 
-            // update the state
-            accState.update(accumulators);
-
-        } else {
-            // and clear all state
-            accState.clear();
-            // cleanup dataview under current key
-            function.cleanup();
-        }
+                            } else {
+                                // and clear all state
+                                accState.asyncClear();
+                                // cleanup dataview under current key
+                                function.cleanup();
+                            }
+                        });
     }
 
     @Override
@@ -138,8 +146,8 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
         }
     }
 
-    private class SyncStateGroupTableAggHelper extends GroupTableAggHelper {
-        public SyncStateGroupTableAggHelper() {
+    private class AsyncStateGroupTableAggHelper extends GroupTableAggHelper {
+        public AsyncStateGroupTableAggHelper() {
             super(generateUpdateBefore, incrementalUpdate, function);
         }
     }

@@ -19,13 +19,14 @@ package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverloadedDoubleMaxFunction
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.TestData.tupleData3
 import org.apache.flink.table.planner.utils._
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
@@ -33,10 +34,14 @@ import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.time.Duration
+import java.util
+
+import scala.collection.JavaConversions._
 
 /** Tests of groupby (without window) table aggregations */
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
+class TableAggregateITCase(mode: StateBackendMode, enableAsyncState: Boolean)
+  extends StreamingWithStateTestBase(mode) {
 
   @BeforeEach
   override def before(): Unit = {
@@ -53,6 +58,10 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
                        |  'data-id' = '${TestValuesTableFactory.registerData(TestData.tupleData4)}'
                        |)
                        |""".stripMargin)
+
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
   }
 
   @TestTemplate
@@ -375,5 +384,17 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       "6,21str"
     )
     assertThat(sink2.getRetractResults.sorted).isEqualTo(expected2.sorted)
+  }
+}
+
+object TableAggregateITCase {
+
+  @Parameters(name = "StateBackend={0}, EnableAsyncState={1}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(HEAP_BACKEND, Boolean.box(false)),
+      Array(HEAP_BACKEND, Boolean.box(true)),
+      Array(ROCKSDB_BACKEND, Boolean.box(false))
+    )
   }
 }
