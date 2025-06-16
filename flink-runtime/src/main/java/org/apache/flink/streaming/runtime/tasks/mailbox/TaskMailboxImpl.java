@@ -124,7 +124,21 @@ public class TaskMailboxImpl implements TaskMailbox {
         if (head != null) {
             return Optional.of(head);
         }
-        return Optional.empty();
+        if (!hasNewMail) {
+            return Optional.empty();
+        }
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            final Mail value = takeOrNull(queue, priority);
+            if (value == null) {
+                return Optional.empty();
+            }
+            correctHasNewMail();
+            return Optional.ofNullable(value);
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
@@ -146,17 +160,21 @@ public class TaskMailboxImpl implements TaskMailbox {
                 // to ease debugging
                 notEmpty.await(1, TimeUnit.SECONDS);
             }
-            Mail peek = queue.peek();
-            if (peek != null) {
-                hasNewMail = true;
-                hasNewUrgentMail = peek.getMailOptions().isUrgent();
-            } else {
-                hasNewMail = false;
-                hasNewUrgentMail = false;
-            }
+            correctHasNewMail();
             return headMail;
         } finally {
             lock.unlock();
+        }
+    }
+
+    private void correctHasNewMail() {
+        Mail peek = queue.peek();
+        if (peek != null) {
+            hasNewMail = true;
+            hasNewUrgentMail = peek.getMailOptions().isUrgent();
+        } else {
+            hasNewMail = false;
+            hasNewUrgentMail = false;
         }
     }
 
@@ -276,7 +294,8 @@ public class TaskMailboxImpl implements TaskMailbox {
                 && peek != null
                 && !peek.getMailOptions().isUrgent()
                 && !hasNewUrgentMail) {
-            // urgent mail can be put in batch directly if there is no any urgent mail in mailbox
+            // To ensure that urgent mails are executed in FIFO order, the urgent mail can be put in
+            // batch directly if there is no any urgent mail in mailbox
             checkPutStateConditions();
             batch.addFirst(mail);
         } else {
