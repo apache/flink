@@ -1265,7 +1265,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         MailboxExecutor.MailOptions mailOptions =
                 CheckpointOptions.AlignmentType.UNALIGNED == checkpointOptions.getAlignment()
-                        ? MailboxExecutor.MailOptions.highPriority()
+                        ? MailboxExecutor.MailOptions.urgent()
                         : MailboxExecutor.MailOptions.options();
 
         CompletableFuture<Boolean> result = new CompletableFuture<>();

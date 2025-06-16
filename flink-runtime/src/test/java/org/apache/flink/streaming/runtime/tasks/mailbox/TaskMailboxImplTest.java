@@ -28,6 +28,8 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -39,6 +41,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.api.common.operators.MailboxExecutor.MailOptions.urgent;
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -60,37 +63,6 @@ class TaskMailboxImplTest {
     @AfterEach
     void tearDown() {
         taskMailbox.close();
-    }
-
-    @Test
-    void testPutAsHead() throws InterruptedException {
-
-        Mail mailA =
-                new Mail(
-                        MailboxExecutor.MailOptions.highPriority(),
-                        () -> {},
-                        MAX_PRIORITY,
-                        "mailA");
-        Mail mailB =
-                new Mail(
-                        MailboxExecutor.MailOptions.highPriority(),
-                        () -> {},
-                        MAX_PRIORITY,
-                        "mailB");
-        Mail mailC = new Mail(() -> {}, DEFAULT_PRIORITY, "mailC, DEFAULT_PRIORITY");
-        Mail mailD = new Mail(() -> {}, DEFAULT_PRIORITY, "mailD, DEFAULT_PRIORITY");
-
-        taskMailbox.put(mailC);
-        taskMailbox.put(mailB);
-        taskMailbox.put(mailD);
-        taskMailbox.put(mailA);
-
-        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailA);
-        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailB);
-        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailC);
-        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isSameAs(mailD);
-
-        assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).isNotPresent();
     }
 
     @Test
@@ -179,7 +151,7 @@ class TaskMailboxImplTest {
                         () ->
                                 taskMailbox.put(
                                         new Mail(
-                                                MailboxExecutor.MailOptions.highPriority(),
+                                                MailboxExecutor.MailOptions.urgent(),
                                                 NO_OP,
                                                 MAX_PRIORITY,
                                                 "NO_OP")))
@@ -196,7 +168,7 @@ class TaskMailboxImplTest {
                 () ->
                         taskMailbox.put(
                                 new Mail(
-                                        MailboxExecutor.MailOptions.highPriority(),
+                                        MailboxExecutor.MailOptions.urgent(),
                                         NO_OP,
                                         MAX_PRIORITY,
                                         "NO_OP")),
@@ -287,7 +259,7 @@ class TaskMailboxImplTest {
     @Test
     void testPutAsHeadWithPriority() throws InterruptedException {
 
-        Mail mailA = new Mail(MailboxExecutor.MailOptions.highPriority(), () -> {}, 2, "mailA");
+        Mail mailA = new Mail(MailboxExecutor.MailOptions.urgent(), () -> {}, 2, "mailA");
         Mail mailB = new Mail(() -> {}, 2, "mailB");
         Mail mailC = new Mail(() -> {}, 1, "mailC");
         Mail mailD = new Mail(() -> {}, 1, "mailD");
@@ -310,7 +282,7 @@ class TaskMailboxImplTest {
     @Test
     void testPutWithPriorityAndReadingFromMainMailbox() throws InterruptedException {
 
-        Mail mailA = new Mail(MailboxExecutor.MailOptions.highPriority(), () -> {}, 2, "mailA");
+        Mail mailA = new Mail(MailboxExecutor.MailOptions.urgent(), () -> {}, 2, "mailA");
         Mail mailB = new Mail(() -> {}, 2, "mailB");
         Mail mailC = new Mail(() -> {}, 1, "mailC");
         Mail mailD = new Mail(() -> {}, 1, "mailD");
@@ -339,28 +311,26 @@ class TaskMailboxImplTest {
     @Test
     void testBatchAndNonBatchTake() throws InterruptedException {
         final List<Mail> mails =
-                IntStream.range(0, 6)
+                IntStream.range(0, 7)
                         .mapToObj(i -> new Mail(NO_OP, DEFAULT_PRIORITY, String.valueOf(i)))
                         .collect(Collectors.toList());
 
         // create a batch with 3 mails
         mails.subList(0, 3).forEach(taskMailbox::put);
-        assertThat(taskMailbox.createBatch()).isTrue();
-        // add 3 more mails after the batch
-        mails.subList(3, 6).forEach(taskMailbox::put);
 
         // now take all mails in the batch with all available methods
         assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mails.get(0));
         assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).hasValue(mails.get(1));
         assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isEqualTo(mails.get(2));
 
+        mails.subList(3, 7).forEach(taskMailbox::put);
         // batch empty, so only regular methods work
-        assertThat(taskMailbox.tryTakeFromBatch()).isEmpty();
-        assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).hasValue(mails.get(3));
-        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isEqualTo(mails.get(4));
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mails.get(3));
+        assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).hasValue(mails.get(4));
+        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isEqualTo(mails.get(5));
 
         // one unprocessed mail left
-        assertThat(taskMailbox.close()).containsExactly(mails.get(5));
+        assertThat(taskMailbox.close()).containsExactly(mails.get(6));
     }
 
     @Test
@@ -368,26 +338,30 @@ class TaskMailboxImplTest {
 
         Mail mailA = new Mail(() -> {}, MAX_PRIORITY, "mailA");
         Mail mailB = new Mail(() -> {}, MAX_PRIORITY, "mailB");
+        Mail mailC = new Mail(() -> {}, MAX_PRIORITY, "mailC");
 
         taskMailbox.put(mailA);
-        assertThat(taskMailbox.createBatch()).isTrue();
         taskMailbox.put(mailB);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailA);
+        taskMailbox.put(mailC);
 
-        assertThat(taskMailbox.drain()).containsExactly(mailA, mailB);
+        assertThat(taskMailbox.drain()).containsExactly(mailB, mailC);
     }
 
     @Test
     void testBatchPriority() throws Exception {
 
         Mail mailA = new Mail(() -> {}, 1, "mailA");
-        Mail mailB = new Mail(() -> {}, 2, "mailB");
+        Mail mailB = new Mail(() -> {}, 1, "mailB");
+        Mail mailC = new Mail(() -> {}, 2, "mailC");
 
         taskMailbox.put(mailA);
-        assertThat(taskMailbox.createBatch()).isTrue();
         taskMailbox.put(mailB);
+        taskMailbox.put(mailC);
 
-        assertThat(taskMailbox.take(2)).isEqualTo(mailB);
         assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailA);
+        assertThat(taskMailbox.take(2)).isEqualTo(mailC);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailB);
     }
 
     /** Testing that we cannot close while running exclusively. */
@@ -418,32 +392,115 @@ class TaskMailboxImplTest {
         assertThat(taskMailbox.close()).hasSize(numMails);
     }
 
-    /**
-     * We expect the high priority mail can be taken immediately during taking mail from batch
-     * queue.
-     */
+    /** We expect the urgent mail can be taken immediately during taking mail from batch queue. */
     @Test
     void testPutHighPriorityMailDuringTakingFromBatch() throws Exception {
         Mail mailA = new Mail(() -> {}, DEFAULT_PRIORITY, "mailA");
         Mail mailB = new Mail(() -> {}, DEFAULT_PRIORITY, "mailB");
-        Mail mailC =
-                new Mail(
-                        MailboxExecutor.MailOptions.highPriority(),
-                        () -> {},
-                        DEFAULT_PRIORITY,
-                        "mailC");
-
-        Thread thread = new Thread(() -> taskMailbox.runExclusively(() -> taskMailbox.put(mailC)));
+        Mail mailC = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "mailC");
 
         taskMailbox.put(mailA);
         taskMailbox.put(mailB);
-        assertThat(taskMailbox.createBatch()).isTrue();
         assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailA);
 
-        thread.start();
-        thread.join();
+        putMail(mailC, true);
 
         assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailC);
         assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailB);
+    }
+
+    @ValueSource(booleans = {true, false})
+    @ParameterizedTest
+    void testMailOrderWithBatch(boolean isAsyncPut) throws Exception {
+        Mail mailA = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "mailA");
+        Mail mailB = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "mailB");
+        Mail mailC = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "mailC");
+        Mail mailD = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "mailD");
+        Mail mailE = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "mailE");
+        Mail mailF = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "mailF");
+
+        Mail mail1 = new Mail(() -> {}, DEFAULT_PRIORITY, "mail1");
+        Mail mail2 = new Mail(() -> {}, DEFAULT_PRIORITY, "mail2");
+        Mail mail3 = new Mail(() -> {}, DEFAULT_PRIORITY, "mail3");
+        Mail mail4 = new Mail(() -> {}, DEFAULT_PRIORITY, "mail4");
+        Mail mail5 = new Mail(() -> {}, DEFAULT_PRIORITY, "mail5");
+        Mail mail6 = new Mail(() -> {}, DEFAULT_PRIORITY, "mail6");
+        Mail mail7 = new Mail(() -> {}, DEFAULT_PRIORITY, "mail7");
+
+        putMail(mail1, isAsyncPut);
+        putMail(mail2, isAsyncPut);
+        putMail(mail3, isAsyncPut);
+        putMail(mail4, isAsyncPut);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mail1);
+
+        putMail(mailA, isAsyncPut);
+        putMail(mailB, isAsyncPut);
+        putMail(mailC, isAsyncPut);
+        // All urgent mails should be taken first, including all types of take methods
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailA);
+        assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).hasValue(mailB);
+        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isEqualTo(mailC);
+
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mail2);
+
+        putMail(mail5, isAsyncPut);
+        putMail(mail6, isAsyncPut);
+        putMail(mail7, isAsyncPut);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mail3);
+
+        putMail(mailD, isAsyncPut);
+        putMail(mailE, isAsyncPut);
+        putMail(mailF, isAsyncPut);
+
+        // All urgent mails should be taken first, including all types of take methods
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailD);
+        assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).hasValue(mailE);
+        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isEqualTo(mailF);
+
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mail4);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mail5);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mail6);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mail7);
+    }
+
+    @ValueSource(booleans = {true, false})
+    @ParameterizedTest
+    void testOnlyOneUrgentMailAtTheSameTime(boolean isAsyncPut) throws Exception {
+        Mail mailA = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "mailA");
+        Mail mailB = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "mailB");
+        Mail mailC = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "mailC");
+
+        Mail mail1 = new Mail(() -> {}, DEFAULT_PRIORITY, "mail1");
+        Mail mail2 = new Mail(() -> {}, DEFAULT_PRIORITY, "mail2");
+        Mail mail3 = new Mail(() -> {}, DEFAULT_PRIORITY, "mail3");
+        Mail mail4 = new Mail(() -> {}, DEFAULT_PRIORITY, "mail4");
+
+        putMail(mail1, isAsyncPut);
+        putMail(mail2, isAsyncPut);
+        putMail(mail3, isAsyncPut);
+        putMail(mail4, isAsyncPut);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mail1);
+
+        // No existing urgent mail when put a new urgent mail
+        putMail(mailA, isAsyncPut);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailA);
+        putMail(mailB, isAsyncPut);
+        assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).hasValue(mailB);
+        putMail(mailC, isAsyncPut);
+        assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isEqualTo(mailC);
+
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mail2);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mail3);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mail4);
+    }
+
+    private void putMail(Mail mail, boolean isAsyncPut) throws Exception {
+        if (isAsyncPut) {
+            Thread thread = new Thread(() -> taskMailbox.put(mail));
+            thread.start();
+            thread.join();
+        } else {
+            taskMailbox.put(mail);
+        }
     }
 }

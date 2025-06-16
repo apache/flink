@@ -25,22 +25,23 @@ public class MailOptionsImpl implements MailboxExecutor.MailOptions {
 
     static final MailboxExecutor.MailOptions DEFAULT = new MailOptionsImpl(false, false);
     static final MailboxExecutor.MailOptions DEFERRABLE = new MailOptionsImpl(false, true);
-    static final MailboxExecutor.MailOptions HIGH_PRIORITY = new MailOptionsImpl(true, false);
+    static final MailboxExecutor.MailOptions URGENT = new MailOptionsImpl(true, false);
 
-    private final boolean highPriority;
+    private final boolean isUrgent;
     private final boolean deferrable;
 
-    private MailOptionsImpl(boolean highPriority, boolean deferrable) {
-        this.highPriority = highPriority;
+    private MailOptionsImpl(boolean isUrgent, boolean deferrable) {
+        this.isUrgent = isUrgent;
         this.deferrable = deferrable;
     }
 
+    @Override
     public boolean isDeferrable() {
         return deferrable;
     }
 
     @Override
-    public boolean isHighPriority() {
-        return highPriority;
+    public boolean isUrgent() {
+        return isUrgent;
     }
 }

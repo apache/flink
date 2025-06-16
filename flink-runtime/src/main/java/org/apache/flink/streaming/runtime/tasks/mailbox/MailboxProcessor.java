@@ -330,14 +330,14 @@ public class MailboxProcessor implements Closeable {
     }
 
     /**
-     * Sends the given <code>mail</code> with high priority. Intended use is to control this <code>
+     * Sends the given <code>mail</code> with urgent. Intended use is to control this <code>
      * MailboxProcessor</code>; no interaction with tasks should be performed;
      */
     private void sendControlMail(
             RunnableWithException mail, String descriptionFormat, Object... descriptionArgs) {
         mailbox.put(
                 new Mail(
-                        MailboxExecutor.MailOptions.highPriority(),
+                        MailboxExecutor.MailOptions.urgent(),
                         mail,
                         Integer.MAX_VALUE /*not used with putFirst*/,
                         descriptionFormat,
@@ -353,13 +353,8 @@ public class MailboxProcessor implements Closeable {
      * @return true if a mail has been processed.
      */
     private boolean processMail(TaskMailbox mailbox, boolean singleStep) throws Exception {
-        // Doing this check is an optimization to only have a volatile read in the expected hot
-        // path, locks are only
-        // acquired after this point.
-        boolean isBatchAvailable = mailbox.createBatch();
-
         // Take mails in a non-blockingly and execute them.
-        boolean processed = isBatchAvailable && processMailsNonBlocking(singleStep);
+        boolean processed = processMailsNonBlocking(singleStep);
         if (singleStep) {
             return processed;
         }
