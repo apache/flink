@@ -22,7 +22,7 @@ under the License.
 
 # OpenAI
 
-The OpenAI Model Function allows Flink SQL to call OpenAI API for inference tasks.
+The OpenAI Model Function allows Flink SQL to call [OpenAI API](https://platform.openai.com/docs/overview) for inference tasks.
 
 ## Overview
 

@@ -22,7 +22,7 @@ under the License.
 
 # OpenAI
 
-OpenAI模型函数允许Flink SQL调用OpenAI API执行推理任务。
+OpenAI模型函数允许Flink SQL调用[OpenAI API](https://platform.openai.com/docs/overview)执行推理任务。
 
 ## 概述
 
