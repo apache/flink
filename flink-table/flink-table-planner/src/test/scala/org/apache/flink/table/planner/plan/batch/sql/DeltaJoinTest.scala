@@ -153,10 +153,40 @@ class DeltaJoinTest extends TableTestBase {
   }
 
   @Test
-  def testFilterProjectFieldsAfterJoin(): Unit = {
-    // could not optimize into delta join because there is a calc between sink and join
+  def testProjectFieldsBeforeJoin(): Unit = {
+    // could not optimize into delta join because the source has ProjectPushDownSpec
     util.verifyRelPlanInsert(
-      "insert into snk(l0, l1, r0) select a0, a1, b0 from src1 join src2 " +
+      "insert into snk(l0, l1, l2, r0, r2, r1) " +
+        "select * from ( " +
+        "  select a0, a1, a2 from src1" +
+        ") tmp join src2 " +
+        "on tmp.a1 = src2.b1 " +
+        "and tmp.a2 = src2.b2")
+  }
+
+  @Test
+  def testProjectFieldsAfterJoin(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select a0, a1 + 1.1, a2, a3, b0, b2, b1 from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2")
+  }
+
+  @Test
+  def testFilterFieldsBeforeJoin(): Unit = {
+    // could not optimize into delta join because there is a calc between source and join
+    util.verifyRelPlanInsert(
+      "insert into snk select * from (  " +
+        "  select * from src1 where a1 > 1.1 " +
+        ") tmp join src2 " +
+        "on tmp.a1 = src2.b1 " +
+        "and tmp.a2 = src2.b2")
+  }
+
+  @Test
+  def testFilterFieldsAfterJoin(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
         "and src1.a2 = src2.b2 " +
         "where a3 > b0")

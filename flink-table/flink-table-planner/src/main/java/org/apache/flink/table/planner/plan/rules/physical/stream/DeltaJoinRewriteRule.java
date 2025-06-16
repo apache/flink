@@ -84,8 +84,8 @@ public class DeltaJoinRewriteRule extends RelRule<DeltaJoinRewriteRule.Config> {
     }
 
     private StreamPhysicalDeltaJoin convertToDeltaJoin(StreamPhysicalJoin join) {
-        DeltaJoinSpec lookupRightJoinSpec = DeltaJoinUtil.getDeltaJoinSpec(join, true);
-        DeltaJoinSpec lookupLeftJoinSpec = DeltaJoinUtil.getDeltaJoinSpec(join, false);
+        DeltaJoinSpec lookupRightTableJoinSpec = DeltaJoinUtil.getDeltaJoinSpec(join, true);
+        DeltaJoinSpec lookupLeftTableJoinSpec = DeltaJoinUtil.getDeltaJoinSpec(join, false);
         return new StreamPhysicalDeltaJoin(
                 join.getCluster(),
                 join.getTraitSet(),
@@ -94,8 +94,8 @@ public class DeltaJoinRewriteRule extends RelRule<DeltaJoinRewriteRule.Config> {
                 join.getRight(),
                 JoinTypeUtil.getFlinkJoinType(join.getJoinType()),
                 join.getCondition(),
-                lookupLeftJoinSpec,
-                lookupRightJoinSpec,
+                lookupRightTableJoinSpec,
+                lookupLeftTableJoinSpec,
                 join.getRowType());
     }
 

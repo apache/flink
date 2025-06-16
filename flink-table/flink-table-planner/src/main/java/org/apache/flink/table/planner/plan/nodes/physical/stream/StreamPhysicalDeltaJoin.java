@@ -49,10 +49,10 @@ public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel,
     private final RelDataType rowType;
 
     // treat right side as lookup table
-    private final DeltaJoinSpec leftDeltaJoinSpec;
+    private final DeltaJoinSpec lookupRightTableJoinSpec;
 
     // treat left side as lookup table
-    private final DeltaJoinSpec rightDeltaJoinSpec;
+    private final DeltaJoinSpec lookupLeftTableJoinSpec;
 
     public StreamPhysicalDeltaJoin(
             RelOptCluster cluster,
@@ -62,15 +62,15 @@ public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel,
             RelNode right,
             FlinkJoinType joinType,
             RexNode originalJoinCondition,
-            DeltaJoinSpec leftDeltaJoinSpec,
-            DeltaJoinSpec rightDeltaJoinSpec,
+            DeltaJoinSpec lookupRightTableJoinSpec,
+            DeltaJoinSpec lookupLeftTableJoinSpec,
             RelDataType rowType) {
         super(cluster, traitSet, left, right);
         this.hints = com.google.common.collect.ImmutableList.copyOf(hints);
         this.joinType = joinType;
         this.originalJoinCondition = originalJoinCondition;
-        this.leftDeltaJoinSpec = leftDeltaJoinSpec;
-        this.rightDeltaJoinSpec = rightDeltaJoinSpec;
+        this.lookupRightTableJoinSpec = lookupRightTableJoinSpec;
+        this.lookupLeftTableJoinSpec = lookupLeftTableJoinSpec;
         this.rowType = rowType;
     }
 
@@ -95,8 +95,8 @@ public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel,
                 inputs.get(1),
                 joinType,
                 originalJoinCondition,
-                leftDeltaJoinSpec,
-                rightDeltaJoinSpec,
+                lookupRightTableJoinSpec,
+                lookupLeftTableJoinSpec,
                 rowType);
     }
 
