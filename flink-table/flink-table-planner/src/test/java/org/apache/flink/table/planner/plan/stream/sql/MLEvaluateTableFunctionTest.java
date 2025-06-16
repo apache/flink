@@ -21,9 +21,11 @@ package org.apache.flink.table.planner.plan.stream.sql;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.planner.functions.sql.ml.SqlMLEvaluateTableFunction;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
+import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,6 +34,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for ML evaluate table value function. */
@@ -80,6 +83,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "INPUT => TABLE MyTable, "
                         + "MODEL => MODEL MyModel, "
                         + "LABEL => DESCRIPTOR(label), "
+                        + "TASK => 'classification', "
                         + "ARGS => DESCRIPTOR(a, b)))";
         assertReachOptimizer(sql);
     }
@@ -94,19 +98,6 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "LABEL => DESCRIPTOR(label), "
                         + "ARGS => DESCRIPTOR(a, b), "
                         + "TASK => 'classification'))";
-        assertReachOptimizer(sql);
-    }
-
-    @Test
-    public void testOptionalNamedArgumentsWithConfig() {
-        String sql =
-                "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE("
-                        + "INPUT => TABLE MyTable, "
-                        + "MODEL => MODEL MyModel, "
-                        + "LABEL => DESCRIPTOR(label), "
-                        + "ARGS => DESCRIPTOR(a, b), "
-                        + "CONFIG => MAP['metrics', 'accuracy,f1']))";
         assertReachOptimizer(sql);
     }
 
@@ -128,7 +119,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
     public void testSimple() {
         String sql =
                 "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), DESCRIPTOR(a, b)))";
+                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), DESCRIPTOR(a, b), 'classification'))";
         assertReachOptimizer(sql);
     }
 
@@ -139,7 +130,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(label)))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .hasMessageContaining(
-                        "Invalid number of arguments to function 'ML_EVALUATE'. Was expecting 4 arguments");
+                        "Invalid number of arguments to function 'ML_EVALUATE'. Was expecting 5 arguments");
     }
 
     @Test
@@ -151,7 +142,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "'classification', MAP['metrics', 'accuracy'], 'extra'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .hasMessageContaining(
-                        "Invalid number of arguments to function 'ML_EVALUATE'. Was expecting 4 arguments");
+                        "Invalid number of arguments to function 'ML_EVALUATE'. Was expecting 5 arguments");
     }
 
     @Test
@@ -168,7 +159,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
     public void testMissingModelParam() {
         String sql =
                 "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, DESCRIPTOR(label), DESCRIPTOR(a, b), DESCRIPTOR(label)))";
+                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, DESCRIPTOR(label), DESCRIPTOR(a, b), DESCRIPTOR(label), 'classification'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Second operand must be a model identifier.");
@@ -178,7 +169,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
     public void testThirdParamNotDescriptor() {
         String sql =
                 "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, 'label', DESCRIPTOR(a, b)))";
+                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, 'label', DESCRIPTOR(a, b), 'classification'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
@@ -189,7 +180,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
     public void testFourthParamNotDescriptor() {
         String sql =
                 "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), 'a,b'))";
+                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), 'a,b', 'regression'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
@@ -212,7 +203,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
 
         String sql =
                 "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MultiOutputModel, DESCRIPTOR(label), DESCRIPTOR(a)))";
+                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MultiOutputModel, DESCRIPTOR(label), DESCRIPTOR(a), 'regression'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Model output must have exactly one field for evaluation");
@@ -222,7 +213,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
     public void testLabelDescriptorWithMultipleColumns() {
         String sql =
                 "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(label, c), DESCRIPTOR(a, b)))";
+                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(label, c), DESCRIPTOR(a, b), 'regression'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Label descriptor must have exactly one column");
@@ -232,7 +223,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
     public void testMismatchInputSize() {
         String sql =
                 "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), DESCRIPTOR(a, b, c)))";
+                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), DESCRIPTOR(a, b, c), 'regression'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
@@ -243,7 +234,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
     public void testNonExistColumn() {
         String sql =
                 "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(no_label), DESCRIPTOR(a, b)))";
+                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(no_label), DESCRIPTOR(a, b), 'regression'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Unknown identifier 'no_label'");
@@ -253,7 +244,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
     public void testNonSimpleColumn() {
         String sql =
                 "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(MyTable.label), DESCRIPTOR(a, b)))";
+                        + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(MyTable.label), DESCRIPTOR(a, b), 'regression'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Table or column alias must be a simple identifier");
@@ -272,13 +263,26 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
     }
 
     @Test
-    public void testJustCongfig() {
+    public void testUnsupportedTaskType() {
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_EVALUATE("
                         + "TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), DESCRIPTOR(a, b), "
-                        + "MAP['key', 'value']))";
-        assertReachOptimizer(sql);
+                        + "1))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .hasMessageContaining(
+                        "Expected a valid task string literal, but got: SqlNumericLiteral.");
+    }
+
+    @Test
+    public void testUnsupportedConfigType() {
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_EVALUATE("
+                        + "TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), DESCRIPTOR(a, b), "
+                        + "'classification', 1))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .hasMessageContaining("Config param should be a MAP.");
     }
 
     @ParameterizedTest
@@ -312,7 +316,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
 
         String sql =
                 "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))";
+                        + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col), 'classification'))";
         assertReachOptimizer(sql);
     }
 
@@ -347,7 +351,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
 
         String sql =
                 "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))";
+                        + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col), 'classification'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("cannot be assigned to model input type");
@@ -384,7 +388,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
 
         String sql =
                 "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))";
+                        + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col), 'classification'))";
         assertReachOptimizer(sql);
     }
 
@@ -419,10 +423,31 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
 
         String sql =
                 "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col)))";
+                        + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col), 'classification'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("cannot be assigned to model output type");
+    }
+
+    @Test
+    public void testIsOptional() {
+        SqlMLEvaluateTableFunction function = new SqlMLEvaluateTableFunction();
+        SqlOperandTypeChecker operandMetadata = function.getOperandTypeChecker();
+
+        assertThat(operandMetadata).isNotNull();
+        // First three parameters (INPUT, MODEL, DESCRIPTOR, DESCRIPTOR, TASK) are mandatory
+        for (int i = 0; i < 4; i++) {
+            assertThat(operandMetadata.isOptional(i)).isFalse();
+        }
+
+        // Fourth parameter (CONFIG) is optional
+        assertThat(operandMetadata.isOptional(5)).isTrue();
+
+        // Parameters beyond the maximum count should not be optional
+        assertThat(operandMetadata.isOptional(6)).isFalse();
+
+        assertThat(operandMetadata.getOperandCountRange().getMin()).isEqualTo(5);
+        assertThat(operandMetadata.getOperandCountRange().getMax()).isEqualTo(6);
     }
 
     private void assertReachOptimizer(String sql) {

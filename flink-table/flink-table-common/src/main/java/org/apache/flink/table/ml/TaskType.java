@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.ml;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Experimental;
 
 import java.util.Arrays;
 
@@ -26,7 +26,7 @@ import java.util.Arrays;
  * Enum representing different types of machine learning tasks. Each task type has a corresponding
  * name that can be used for identification.
  */
-@PublicEvolving
+@Experimental
 public enum TaskType {
     REGRESSION("regression"),
     CLUSTERING("clustering"),
@@ -46,12 +46,12 @@ public enum TaskType {
 
     public static TaskType fromName(String name) {
         return Arrays.stream(values())
-                .filter(taskType -> taskType.name.equalsIgnoreCase(name))
+                .filter(taskType -> taskType.name.equals(name))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Unknown task type: " + name));
     }
 
     public static boolean isValidTaskType(String name) {
-        return Arrays.stream(values()).anyMatch(taskType -> taskType.name.equalsIgnoreCase(name));
+        return Arrays.stream(values()).anyMatch(taskType -> taskType.name.equals(name));
     }
 }

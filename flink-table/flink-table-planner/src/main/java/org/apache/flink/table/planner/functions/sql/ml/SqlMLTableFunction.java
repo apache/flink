@@ -128,7 +128,7 @@ public abstract class SqlMLTableFunction extends SqlFunction implements SqlTable
     protected abstract RelDataType inferRowType(SqlOperatorBinding opBinding);
 
     protected static Optional<RuntimeException> checkModelSignature(
-            SqlCallBinding callBinding, int inputDescriptorIndex, int outputDescriptorIndex) {
+            SqlCallBinding callBinding, int inputDescriptorIndex) {
         SqlValidator validator = callBinding.getValidator();
 
         // Check second operand is SqlModelCall
@@ -172,50 +172,18 @@ public abstract class SqlMLTableFunction extends SqlFunction implements SqlTable
                                         result.f1, result.f2, i)));
             }
         }
-
-        // Check output
-        if (outputDescriptorIndex > 0) {
-            descriptorCall = (SqlCall) callBinding.operand(outputDescriptorIndex);
-            descriptCols = descriptorCall.getOperandList();
-            if (descriptCols.size() != 1) {
-                return Optional.of(
-                        new ValidationException(
-                                "Label descriptor must have exactly one column for evaluation."));
-            }
-            RelDataType modelOutputType = modelCall.getOutputType(validator);
-            if (modelOutputType.getFieldCount() != 1) {
-                return Optional.of(
-                        new ValidationException(
-                                "Model output must have exactly one field for evaluation."));
-            }
-
-            Tuple3<Boolean, LogicalType, LogicalType> result =
-                    checkModelDescriptorType(
-                            tableType,
-                            modelOutputType.getFieldList().get(0).getType(),
-                            descriptCols.get(0),
-                            matcher);
-            if (!result.f0) {
-                return Optional.of(
-                        new ValidationException(
-                                String.format(
-                                        "Label descriptor column type %s cannot be assigned to model output type %s for evaluation.",
-                                        result.f1, result.f2)));
-            }
-        }
-
         return Optional.empty();
     }
 
-    private static Tuple3<Boolean, LogicalType, LogicalType> checkModelDescriptorType(
+    protected static Tuple3<Boolean, LogicalType, LogicalType> checkModelDescriptorType(
             RelDataType tableType,
             RelDataType modelType,
             SqlNode descriptorNode,
             SqlNameMatcher matcher) {
         SqlIdentifier columnName = (SqlIdentifier) descriptorNode;
-        String descriptColName =
+        String descriptorColName =
                 columnName.isSimple() ? columnName.getSimple() : Util.last(columnName.names);
-        int index = matcher.indexOf(tableType.getFieldNames(), descriptColName);
+        int index = matcher.indexOf(tableType.getFieldNames(), descriptorColName);
         RelDataType sourceType = tableType.getFieldList().get(index).getType();
 
         LogicalType sourceLogicalType = toLogicalType(sourceType);

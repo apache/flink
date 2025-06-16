@@ -17,15 +17,18 @@
 
 package org.apache.flink.table.planner.functions.sql.ml;
 
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.ml.TaskType;
 import org.apache.flink.table.planner.functions.utils.SqlValidatorUtils;
+import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlCharStringLiteral;
-import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlModelCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
@@ -33,6 +36,8 @@ import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandMetadata;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.validate.SqlNameMatcher;
+import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.util.NlsString;
 
 import java.util.Arrays;
@@ -50,7 +55,7 @@ import java.util.Optional;
  *   <li>a model name
  *   <li>a descriptor to provide label column names from the input table
  *   <li>a descriptor to provide feature column names from the input table
- *   <li>an optional task override string
+ *   <li>a task string describing the type of machine learning task. See {@link TaskType}.
  *   <li>an optional config map
  * </ol>
  *
@@ -104,7 +109,7 @@ public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
                         PARAM_TASK,
                         PARAM_CONFIG);
         private static final List<String> MANDATORY_PARAM_NAMES =
-                List.of(PARAM_INPUT, PARAM_MODEL, PARAM_LABEL, PARAM_ARGS);
+                List.of(PARAM_INPUT, PARAM_MODEL, PARAM_LABEL, PARAM_ARGS, PARAM_TASK);
 
         EvaluateOperandMetadata() {}
 
@@ -127,29 +132,24 @@ public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
             }
 
             if (!SqlValidatorUtils.throwExceptionOrReturnFalse(
-                    checkModelSignature(callBinding, 3, 2), throwOnFailure)) {
+                    checkModelSignature(callBinding, 3), throwOnFailure)) {
+                return false;
+            }
+
+            if (!SqlValidatorUtils.throwExceptionOrReturnFalse(
+                    checkModelOutputType(callBinding, 2), throwOnFailure)) {
+                return false;
+            }
+
+            if (!SqlValidatorUtils.throwExceptionOrReturnFalse(
+                    checkTask(callBinding.operand(4)), throwOnFailure)) {
                 return false;
             }
 
             if (callBinding.getOperandCount() == PARAM_NAMES.size()) {
-                // Check task and config parameters
-                if (!SqlValidatorUtils.throwExceptionOrReturnFalse(
-                        checkTask(callBinding.operand(4)), throwOnFailure)) {
-                    return false;
-                }
-
-                if (!SqlValidatorUtils.throwExceptionOrReturnFalse(
-                        checkConfig(callBinding, callBinding.operand(5)), throwOnFailure)) {
-                    return false;
-                }
-            }
-
-            if (callBinding.getOperandCount() == MANDATORY_PARAM_NAMES.size() + 1) {
-                // Last param can be config or task
+                // Check config parameters
                 return SqlValidatorUtils.throwExceptionOrReturnFalse(
-                        checkTaskOrConfig(
-                                callBinding, callBinding.operand(MANDATORY_PARAM_NAMES.size())),
-                        throwOnFailure);
+                        checkConfig(callBinding, callBinding.operand(5)), throwOnFailure);
             }
             return true;
         }
@@ -161,7 +161,7 @@ public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
 
         @Override
         public boolean isOptional(int i) {
-            return i >= getOperandCountRange().getMin() && i <= getOperandCountRange().getMax();
+            return i >= getOperandCountRange().getMin() && i < getOperandCountRange().getMax();
         }
 
         @Override
@@ -175,7 +175,9 @@ public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
             if (!(node instanceof SqlCharStringLiteral)) {
                 return Optional.of(
                         new ValidationException(
-                                "Expected a valid task string, but got: " + node + "."));
+                                "Expected a valid task string literal, but got: "
+                                        + node.getClass().getSimpleName()
+                                        + "."));
             }
 
             String task = ((SqlCharStringLiteral) node).getValueAs(NlsString.class).getValue();
@@ -191,20 +193,41 @@ public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
             return Optional.empty();
         }
 
-        private static Optional<RuntimeException> checkTaskOrConfig(
-                SqlCallBinding callBinding, SqlNode node) {
-            if (node.getKind().equals(SqlKind.MAP_VALUE_CONSTRUCTOR)) {
-                // Check if the map is valid
-                return checkConfig(callBinding, node);
-            } else if (node instanceof SqlCharStringLiteral) {
-                return checkTask(node);
-            } else {
+        private static Optional<RuntimeException> checkModelOutputType(
+                SqlCallBinding callBinding, int outputDescriptorIndex) {
+            SqlCall descriptorCall = (SqlCall) callBinding.operand(outputDescriptorIndex);
+            List<SqlNode> descriptCols = descriptorCall.getOperandList();
+            if (descriptCols.size() != 1) {
                 return Optional.of(
                         new ValidationException(
-                                "Expected a MAP or a valid task string as last argument, but got: "
-                                        + node
-                                        + "."));
+                                "Label descriptor must have exactly one column for evaluation."));
             }
+
+            SqlValidator validator = callBinding.getValidator();
+            SqlModelCall modelCall = (SqlModelCall) callBinding.operand(1);
+            RelDataType modelOutputType = modelCall.getOutputType(validator);
+            if (modelOutputType.getFieldCount() != 1) {
+                return Optional.of(
+                        new ValidationException(
+                                "Model output must have exactly one field for evaluation."));
+            }
+
+            final RelDataType tableType = validator.getValidatedNodeType(callBinding.operand(0));
+            final SqlNameMatcher matcher = validator.getCatalogReader().nameMatcher();
+            Tuple3<Boolean, LogicalType, LogicalType> result =
+                    checkModelDescriptorType(
+                            tableType,
+                            modelOutputType.getFieldList().get(0).getType(),
+                            descriptCols.get(0),
+                            matcher);
+            if (!result.f0) {
+                return Optional.of(
+                        new ValidationException(
+                                String.format(
+                                        "Label descriptor column type %s cannot be assigned to model output type %s for evaluation.",
+                                        result.f1, result.f2)));
+            }
+            return Optional.empty();
         }
     }
 }

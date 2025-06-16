@@ -104,7 +104,7 @@ public class SqlMLPredictTableFunction extends SqlMLTableFunction {
             }
 
             if (!SqlValidatorUtils.throwExceptionOrReturnFalse(
-                    checkModelSignature(callBinding, 2, -1), throwOnFailure)) {
+                    checkModelSignature(callBinding, 2), throwOnFailure)) {
                 return false;
             }
 
@@ -123,7 +123,7 @@ public class SqlMLPredictTableFunction extends SqlMLTableFunction {
 
         @Override
         public boolean isOptional(int i) {
-            return i >= getOperandCountRange().getMin() && i <= getOperandCountRange().getMax();
+            return i >= getOperandCountRange().getMin() && i < getOperandCountRange().getMax();
         }
 
         @Override
