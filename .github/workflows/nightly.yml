@@ -116,10 +116,8 @@ jobs:
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: "auditwheel repair -w {dest_dir} {wheel}"
           # Skip repair on MacOS
           CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
-      - name: "Tar python artifact"
-        run: tar -czvf python-wheel-${{ matrix.os_name }}.tar.gz -C flink-python/dist .
-      - name: "Upload python artifact"
+      - name: "Upload python wheels"
         uses: actions/upload-artifact@v4
         with:
           name: wheel_${{ matrix.os_name }}_${{ steps.stringify_workflow.outputs.stringified_value }}-${{ github.run_number }}
-          path: python-wheel-${{ matrix.os_name }}.tar.gz
+          path: flink-python/dist/**
