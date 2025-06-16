@@ -167,7 +167,6 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecWindowJoin.class);
                     add(StreamExecWindowRank.class);
                     add(StreamExecWindowTableFunction.class);
-                    add(StreamExecDeltaJoin.class);
                     add(StreamExecPythonCalc.class);
                     add(StreamExecAsyncCalc.class);
                     add(StreamExecProcessTableFunction.class);
@@ -176,6 +175,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecPythonGroupWindowAggregate.class);
                     add(StreamExecPythonOverAggregate.class);
                     add(StreamExecMLPredictTableFunction.class);
+                    add(StreamExecDeltaJoin.class);
                     // Batch execution mode
                     add(BatchExecSink.class);
                     add(BatchExecTableSourceScan.class);

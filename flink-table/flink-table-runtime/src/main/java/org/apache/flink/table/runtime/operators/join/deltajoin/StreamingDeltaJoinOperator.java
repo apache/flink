@@ -55,6 +55,7 @@ import org.apache.flink.table.runtime.operators.TableAbstractCoUdfStreamOperator
 import org.apache.flink.table.runtime.operators.join.lookup.keyordered.AecRecord;
 import org.apache.flink.table.runtime.operators.join.lookup.keyordered.TableAsyncExecutionController;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -96,6 +97,10 @@ public class StreamingDeltaJoinOperator
 
     private static final String STATE_NAME = "_delta_join_operator_async_wait_state_";
 
+    private static final String METRIC_DELTA_JOIN_OP_TOTAL_IN_FLIGHT_NUM =
+            "deltaJoinOpTotalInFlightNum";
+    private static final String METRIC_DELTA_JOIN_ASYNC_IO_TIME = "deltaJoinAsyncIoTime";
+
     private final StreamRecord<RowData> leftEmptyStreamRecord;
     private final StreamRecord<RowData> rightEmptyStreamRecord;
 
@@ -136,9 +141,10 @@ public class StreamingDeltaJoinOperator
     /** Mailbox executor used to yield while waiting for buffers to empty. */
     private final transient MailboxExecutor mailboxExecutor;
 
-    private final transient AtomicInteger totalInflightNum;
-
     private final boolean[] isInputEnded;
+
+    // ---------------------------- Metrics -----------------------------------
+    private final transient AtomicInteger totalInflightNum = new AtomicInteger(0);
 
     private final transient AtomicLong asyncIOTime = new AtomicLong(Long.MIN_VALUE);
 
@@ -176,7 +182,6 @@ public class StreamingDeltaJoinOperator
         this.capacity = capacity;
         this.processingTimeService = checkNotNull(processingTimeService);
         this.mailboxExecutor = mailboxExecutor;
-        this.totalInflightNum = new AtomicInteger(0);
         this.isInputEnded = new boolean[2];
         this.leftEmptyStreamRecord =
                 new StreamRecord<>(new GenericRowData(leftStreamType.getFieldCount()));
@@ -260,9 +265,10 @@ public class StreamingDeltaJoinOperator
         // 2. delta-join operator metrics
         getRuntimeContext()
                 .getMetricGroup()
-                .gauge("delta_join_op_total_in_flight_num", totalInflightNum::get);
-        getRuntimeContext().getMetricGroup().gauge("delta_join_async_io_time", asyncIOTime::get);
-
+                .gauge(METRIC_DELTA_JOIN_OP_TOTAL_IN_FLIGHT_NUM, totalInflightNum::get);
+        getRuntimeContext()
+                .getMetricGroup()
+                .gauge(METRIC_DELTA_JOIN_ASYNC_IO_TIME, asyncIOTime::get);
         // asyncBufferCapacity + 1 as the queue size in order to avoid
         // blocking on the queue when taking a collector.
         this.resultHandlerBuffer = new ArrayBlockingQueue<>(capacity + 1);
@@ -275,6 +281,8 @@ public class StreamingDeltaJoinOperator
             allResultHandlers.add(reusableKeyedResultHandler);
         }
 
+        // We cannot move the following code to #initializeState because they depend on
+        // resultHandlerBuffer
         List<Object> keys = getAllStateKeys();
         for (Object key : keys) {
             setCurrentKey(key);
@@ -325,6 +333,14 @@ public class StreamingDeltaJoinOperator
     }
 
     private void processElement(StreamRecord<RowData> element, int inputIndex) throws Exception {
+        RowKind rowKind = element.getValue().getRowKind();
+        if (!isInputRowKindSupport(rowKind)) {
+            throw new IllegalStateException(
+                    String.format(
+                            "The current RowKind of element doesn't support to do delta join optimization.\n"
+                                    + "Unsupported RowKind [%s] encountered while attempting to execute delta join.",
+                            rowKind));
+        }
         tryProcess();
         StreamRecord<RowData> record;
         boolean isLeft = isLeft(inputIndex);
@@ -401,7 +417,7 @@ public class StreamingDeltaJoinOperator
         return super.snapshotState(checkpointId, timestamp, checkpointOptions, factory);
     }
 
-    private void clearLegacyState() throws Exception {
+    private void clearLegacyState() {
         List<Object> allKeys = getAllStateKeys();
         for (Object key : allKeys) {
             setCurrentKey(key);
@@ -428,6 +444,10 @@ public class StreamingDeltaJoinOperator
 
     private boolean allInflightFinished() {
         return totalInflightNum.get() == 0;
+    }
+
+    private boolean isInputRowKindSupport(RowKind rowKind) {
+        return rowKind == RowKind.INSERT;
     }
 
     @Override

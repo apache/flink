@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DeltaJoinSpec;
-import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeltaJoin;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil;
@@ -33,7 +32,6 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 
 import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
@@ -60,16 +58,8 @@ public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel,
 
     private final RelDataType rowType;
 
-    // ===== related LEFT side =====
-
-    private final RelOptTable leftLookupTable;
-
     // treat right side as lookup table
     private final DeltaJoinSpec lookupRightTableJoinSpec;
-
-    // ===== related RIGHT side =====
-
-    private final RelOptTable rightLookupTable;
 
     // treat left side as lookup table
     private final DeltaJoinSpec lookupLeftTableJoinSpec;
@@ -82,18 +72,14 @@ public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel,
             RelNode right,
             FlinkJoinType joinType,
             RexNode originalJoinCondition,
-            RelOptTable leftLookupTable,
             DeltaJoinSpec lookupRightTableJoinSpec,
-            RelOptTable rightLookupTable,
             DeltaJoinSpec lookupLeftTableJoinSpec,
             RelDataType rowType) {
         super(cluster, traitSet, left, right);
         this.hints = com.google.common.collect.ImmutableList.copyOf(hints);
         this.joinType = joinType;
         this.originalJoinCondition = originalJoinCondition;
-        this.leftLookupTable = leftLookupTable;
         this.lookupRightTableJoinSpec = lookupRightTableJoinSpec;
-        this.rightLookupTable = rightLookupTable;
         this.lookupLeftTableJoinSpec = lookupLeftTableJoinSpec;
         this.rowType = rowType;
     }
@@ -115,10 +101,8 @@ public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel,
                 config,
                 joinType,
                 joinInfo.leftKeys.toIntArray(),
-                new TemporalTableSourceSpec(leftLookupTable),
                 lookupRightTableJoinSpec,
                 joinInfo.rightKeys.toIntArray(),
-                new TemporalTableSourceSpec(rightLookupTable),
                 lookupLeftTableJoinSpec,
                 InputProperty.DEFAULT,
                 InputProperty.DEFAULT,
@@ -143,9 +127,7 @@ public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel,
                 inputs.get(1),
                 joinType,
                 originalJoinCondition,
-                leftLookupTable,
                 lookupRightTableJoinSpec,
-                rightLookupTable,
                 lookupLeftTableJoinSpec,
                 rowType);
     }

@@ -61,7 +61,6 @@ class DeltaJoinTest extends TableTestBase {
         .column("a1", DataTypes.DOUBLE.notNull)
         .column("a2", DataTypes.STRING)
         .column("a3", DataTypes.INT)
-        .primaryKey("a0")
         .index("a1", "a2")
         .build()
     )
@@ -73,7 +72,6 @@ class DeltaJoinTest extends TableTestBase {
         .column("b0", DataTypes.INT.notNull)
         .column("b2", DataTypes.STRING)
         .column("b1", DataTypes.DOUBLE)
-        .primaryKey("b0")
         .index("b2")
         .build()
     )
@@ -208,7 +206,7 @@ class DeltaJoinTest extends TableTestBase {
     stmt.addInsertSql("insert into snk select * from mv")
     stmt.addInsertSql("insert into snk2 select * from mv")
 
-    util.verifyRelPlan(stmt)
+    util.verifyExecPlan(stmt)
   }
 
   @Test

@@ -192,6 +192,8 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         } else if (rel instanceof StreamPhysicalWindowTableFunction) {
             return visitWindowTableFunction(
                     (StreamPhysicalWindowTableFunction) rel, requireDeterminism);
+        } else if (rel instanceof StreamPhysicalDeltaJoin) {
+            return visitDeltaJoin((StreamPhysicalDeltaJoin) rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalChangelogNormalize
                 || rel instanceof StreamPhysicalDropUpdateBefore
                 || rel instanceof StreamPhysicalMiniBatchAssigner
@@ -201,8 +203,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                 || rel instanceof StreamPhysicalSortLimit
                 || rel instanceof StreamPhysicalTemporalSort
                 || rel instanceof StreamPhysicalWatermarkAssigner
-                || rel instanceof StreamPhysicalExchange
-                || rel instanceof StreamPhysicalDeltaJoin) {
+                || rel instanceof StreamPhysicalExchange) {
             // transit requireDeterminism transparently
             return transmitDeterminismRequirement(rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalMatch) {
@@ -420,6 +421,17 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                 return transmitDeterminismRequirement(
                         lookupJoin.copy(true), ImmutableBitSet.of(requireLeft));
             }
+        }
+    }
+
+    /** Currently, DeltaJoin only supports consuming append only stream. */
+    private StreamPhysicalRel visitDeltaJoin(
+            final StreamPhysicalDeltaJoin deltaJoin, final ImmutableBitSet requireDeterminism) {
+        if (inputInsertOnly(deltaJoin) || requireDeterminism.isEmpty()) {
+            return transmitDeterminismRequirement(deltaJoin, NO_REQUIRED_DETERMINISM);
+        } else {
+            throw new TableException(
+                    "Currently DeltaJoin only supports consuming append only stream");
         }
     }
 

@@ -118,6 +118,7 @@ public abstract class TableAbstractCoUdfStreamOperator<
     @Override
     public void open() throws Exception {
         super.open();
+        super.open();
         FunctionUtils.openFunction(leftUserFunction, DefaultOpenContext.INSTANCE);
         FunctionUtils.openFunction(rightUserFunction, DefaultOpenContext.INSTANCE);
     }

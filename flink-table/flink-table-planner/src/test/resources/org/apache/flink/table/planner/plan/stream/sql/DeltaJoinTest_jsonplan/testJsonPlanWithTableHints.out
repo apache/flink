@@ -22,11 +22,6 @@
               "dataType" : "INT"
             } ],
             "watermarkSpecs" : [ ],
-            "primaryKey" : {
-              "name" : "PK_a0",
-              "type" : "PRIMARY_KEY",
-              "columns" : [ "a0" ]
-            },
             "indexes" : [ {
               "name" : "INDEX_a1_a2",
               "columns" : [ "a1", "a2" ]
@@ -80,11 +75,6 @@
               "dataType" : "DOUBLE"
             } ],
             "watermarkSpecs" : [ ],
-            "primaryKey" : {
-              "name" : "PK_b0",
-              "type" : "PRIMARY_KEY",
-              "columns" : [ "b0" ]
-            },
             "indexes" : [ {
               "name" : "INDEX_b2",
               "columns" : [ "b2" ]
@@ -122,54 +112,14 @@
   }, {
     "id" : 5,
     "type" : "stream-exec-delta-join_1",
+    "configuration" : {
+      "table.exec.async-lookup.buffer-capacity" : "100",
+      "table.exec.async-lookup.key-ordered-enabled" : "false",
+      "table.exec.async-lookup.timeout" : "3 min"
+    },
     "joinType" : "INNER",
     "leftJoinKeys" : [ 1, 2 ],
-    "leftTemporalTable" : {
-      "lookupTableSource" : {
-        "table" : {
-          "identifier" : "`default_catalog`.`default_database`.`src1`",
-          "resolvedTable" : {
-            "schema" : {
-              "columns" : [ {
-                "name" : "a0",
-                "dataType" : "INT NOT NULL"
-              }, {
-                "name" : "a1",
-                "dataType" : "DOUBLE NOT NULL"
-              }, {
-                "name" : "a2",
-                "dataType" : "VARCHAR(2147483647)"
-              }, {
-                "name" : "a3",
-                "dataType" : "INT"
-              } ],
-              "watermarkSpecs" : [ ],
-              "primaryKey" : {
-                "name" : "PK_a0",
-                "type" : "PRIMARY_KEY",
-                "columns" : [ "a0" ]
-              },
-              "indexes" : [ {
-                "name" : "INDEX_a1_a2",
-                "columns" : [ "a1", "a2" ]
-              } ]
-            },
-            "partitionKeys" : [ ],
-            "comment" : "test comment",
-            "options" : {
-              "async" : "true",
-              "bounded" : "false",
-              "connector" : "values",
-              "failing-source" : "true",
-              "sink-changelog-mode-enforced" : "I,UA,UB,D",
-              "sink-insert-only" : "false"
-            }
-          }
-        }
-      },
-      "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647), `a3` INT> NOT NULL"
-    },
-    "leftDeltaJoinSpec" : {
+    "lookupRightTableJoinSpec" : {
       "lookupTable" : {
         "lookupTableSource" : {
           "table" : {
@@ -187,11 +137,6 @@
                   "dataType" : "DOUBLE"
                 } ],
                 "watermarkSpecs" : [ ],
-                "primaryKey" : {
-                  "name" : "PK_b0",
-                  "type" : "PRIMARY_KEY",
-                  "columns" : [ "b0" ]
-                },
                 "indexes" : [ {
                   "name" : "INDEX_b2",
                   "columns" : [ "b2" ]
@@ -239,49 +184,7 @@
       }
     },
     "rightJoinKeys" : [ 2, 1 ],
-    "rightTemporalTable" : {
-      "lookupTableSource" : {
-        "table" : {
-          "identifier" : "`default_catalog`.`default_database`.`src2`",
-          "resolvedTable" : {
-            "schema" : {
-              "columns" : [ {
-                "name" : "b0",
-                "dataType" : "INT NOT NULL"
-              }, {
-                "name" : "b2",
-                "dataType" : "VARCHAR(2147483647)"
-              }, {
-                "name" : "b1",
-                "dataType" : "DOUBLE"
-              } ],
-              "watermarkSpecs" : [ ],
-              "primaryKey" : {
-                "name" : "PK_b0",
-                "type" : "PRIMARY_KEY",
-                "columns" : [ "b0" ]
-              },
-              "indexes" : [ {
-                "name" : "INDEX_b2",
-                "columns" : [ "b2" ]
-              } ]
-            },
-            "partitionKeys" : [ ],
-            "comment" : "test comment",
-            "options" : {
-              "async" : "true",
-              "bounded" : "false",
-              "connector" : "values",
-              "failing-source" : "true",
-              "sink-changelog-mode-enforced" : "I,UA,UB,D",
-              "sink-insert-only" : "false"
-            }
-          }
-        }
-      },
-      "outputType" : "ROW<`b0` INT NOT NULL, `b2` VARCHAR(2147483647), `b1` DOUBLE> NOT NULL"
-    },
-    "rightDeltaJoinSpec" : {
+    "lookupLeftTableJoinSpec" : {
       "lookupTable" : {
         "lookupTableSource" : {
           "table" : {
@@ -302,11 +205,6 @@
                   "dataType" : "INT"
                 } ],
                 "watermarkSpecs" : [ ],
-                "primaryKey" : {
-                  "name" : "PK_a0",
-                  "type" : "PRIMARY_KEY",
-                  "columns" : [ "a0" ]
-                },
                 "indexes" : [ {
                   "name" : "INDEX_a1_a2",
                   "columns" : [ "a1", "a2" ]

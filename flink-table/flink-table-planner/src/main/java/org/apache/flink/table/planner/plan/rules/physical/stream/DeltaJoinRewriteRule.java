@@ -28,11 +28,9 @@ import org.apache.flink.table.planner.plan.utils.DeltaJoinUtil;
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelRule;
 import org.immutables.value.Value;
 
-import static org.apache.flink.table.planner.plan.utils.DeltaJoinUtil.getTable;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 
 /**
@@ -86,8 +84,6 @@ public class DeltaJoinRewriteRule extends RelRule<DeltaJoinRewriteRule.Config> {
     }
 
     private StreamPhysicalDeltaJoin convertToDeltaJoin(StreamPhysicalJoin join) {
-        RelOptTable leftLookupTable = getTable(join.getLeft());
-        RelOptTable rightLookupTable = getTable(join.getRight());
         DeltaJoinSpec lookupRightTableJoinSpec = DeltaJoinUtil.getDeltaJoinSpec(join, true);
         DeltaJoinSpec lookupLeftTableJoinSpec = DeltaJoinUtil.getDeltaJoinSpec(join, false);
         return new StreamPhysicalDeltaJoin(
@@ -98,9 +94,7 @@ public class DeltaJoinRewriteRule extends RelRule<DeltaJoinRewriteRule.Config> {
                 join.getRight(),
                 JoinTypeUtil.getFlinkJoinType(join.getJoinType()),
                 join.getCondition(),
-                leftLookupTable,
                 lookupRightTableJoinSpec,
-                rightLookupTable,
                 lookupLeftTableJoinSpec,
                 join.getRowType());
     }

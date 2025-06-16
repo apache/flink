@@ -32,7 +32,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], upsertMaterialize=[true])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
    +- Exchange(distribution=[hash[b1, b2]])
@@ -59,7 +59,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
 +- Calc(select=[a0, a1, a2, a3, b0, b2, b1])
-   +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, $f3))], select=[a0, a1, a2, a3, b0, b2, b1, $f3], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+   +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, $f3))], select=[a0, a1, a2, a3, b0, b2, b1, $f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
       +- Exchange(distribution=[hash[b1, $f3]])
@@ -85,7 +85,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
 +- Calc(select=[a0, 1.1000000000000000888E0 AS a1, a2, a3, b0, b2, b1])
-   +- Join(joinType=[InnerJoin], where=[=(a2, b2)], select=[a0, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+   +- Join(joinType=[InnerJoin], where=[=(a2, b2)], select=[a0, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a2]])
       :  +- Calc(select=[a0, a2, a3], where=[=(a1, 1.1E0)])
       :     +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[]]], fields=[a0, a1, a2, a3])
@@ -144,7 +144,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
       +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 
 Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
    +- Exchange(distribution=[hash[b1, b2]])
@@ -186,7 +186,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
    +- Exchange(distribution=[hash[b1, b2]])
@@ -266,7 +266,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- Calc(select=[a0, a1, a2, a3], where=[>(a1, 1.1)])
    :     +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[]]], fields=[a0, a1, a2, a3])
@@ -339,7 +339,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[=(a2, b2)], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[=(a2, b2)], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
    +- Exchange(distribution=[hash[b2]])
@@ -373,7 +373,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
       +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 
 Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
    +- Exchange(distribution=[hash[b1, b2]])
@@ -433,21 +433,19 @@ LogicalSink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a
          +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 ]]>
     </Resource>
-    <Resource name="optimized rel plan">
+    <Resource name="optimized exec plan">
       <![CDATA[
+DeltaJoin(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2))], select=[a0, a1, a2, a3, b0, b2, b1])(reuse_id=[1])
+:- Exchange(distribution=[hash[a1, a2]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
++- Exchange(distribution=[hash[b1, b2]])
+   +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1])
-   :- Exchange(distribution=[hash[a1, a2]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
-   +- Exchange(distribution=[hash[b1, b2]])
-      +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
++- Reused(reference_id=[1])
 
 Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1])
-   :- Exchange(distribution=[hash[a1, a2]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
-   +- Exchange(distribution=[hash[b1, b2]])
-      +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
++- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -468,7 +466,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
 +- Calc(select=[a0, a1, a2, CAST(1 AS INTEGER) AS a3, b0, b2, b1])
-   +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+   +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- TableSourceScan(table=[[default_catalog, default_database, filterable_src, filter=[=(a3, 1)], project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
       +- Exchange(distribution=[hash[b1, b2]])
@@ -496,7 +494,7 @@ LogicalSink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])(reuse_id=[1])
+Join(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])(reuse_id=[1])
 :- Exchange(distribution=[hash[a1, a2]])
 :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
 +- Exchange(distribution=[hash[b1, b2]])
@@ -553,7 +551,7 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
 +- Calc(select=[a0, a1, a2, null:INTEGER AS EXPR$3, b0, b2, b1])
-   +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+   +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
       :  +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
       +- Exchange(distribution=[hash[b1, b2]])
@@ -577,7 +575,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
    +- Exchange(distribution=[hash[b1, b2]])
@@ -606,7 +604,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, EXPR$2, E
 +- Calc(select=[a0, EXPR$1, EXPR$2, EXPR$3, EXPR$4, EXPR$5, b1])
    +- GroupAggregate(groupBy=[a0, b1], select=[a0, b1, MAX(a1) AS EXPR$1, MAX(a2) AS EXPR$2, MAX(a3) AS EXPR$3, MAX(b0) AS EXPR$4, MAX(b2) AS EXPR$5])
       +- Exchange(distribution=[hash[a0, b1]])
-         +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+         +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
             :- Exchange(distribution=[hash[a1, a2]])
             :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
             +- Exchange(distribution=[hash[b1, b2]])
@@ -632,9 +630,9 @@ LogicalSink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1, a2
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1, a2, a3, b0, b2, b1, b00, b20, b10])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b10), =(a2, b20))], select=[a0, a1, a2, a3, b0, b2, b1, b00, b20, b10], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b10), =(a2, b20))], select=[a0, a1, a2, a3, b0, b2, b1, b00, b20, b10], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
-   :  +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+   :  +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :     :- Exchange(distribution=[hash[a1, a2]])
    :     :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
    :     +- Exchange(distribution=[hash[b1, b2]])
@@ -663,7 +661,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], upsertMaterialize=[true])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- Calc(select=[a0, a1, a2, a3])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, MAX(a0) AS a0, MAX(a2) AS a2, MAX(a3) AS a3])
@@ -690,7 +688,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[true], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[true], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[single])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
    +- Exchange(distribution=[single])
@@ -738,7 +736,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2), >(b0, a0))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2), >(b0, a0))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- Calc(select=[a0, a1, a2, a3], where=[AND(>(a0, 99), <>(a2, 'Hello'))])
    :     +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[]]], fields=[a0, a1, a2, a3])
@@ -764,7 +762,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
    +- Exchange(distribution=[hash[b1, b2]])
@@ -788,7 +786,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
    +- Exchange(distribution=[hash[b1, b2]])
@@ -813,7 +811,7 @@ LogicalSink(table=[default_catalog.default_database.tmp_sink], fields=[a0, a1, a
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.tmp_sink], fields=[a0, a1, a2, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[=(a1, b2)], select=[a0, a1, a2, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[InnerJoin], where=[=(a1, b2)], select=[a0, a1, a2, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1]])
    :  +- Calc(select=[a0, a1, CAST(a2 AS TIMESTAMP(3)) AS a2])
    :     +- WatermarkAssigner(rowtime=[a2], watermark=[-(a2, 1000:INTERVAL SECOND)])

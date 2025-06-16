@@ -49,7 +49,6 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinInfo;
-import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
@@ -78,13 +77,6 @@ public class DeltaJoinUtil {
     private static final Set<Class<?>> ALL_SUPPORTED_DELTA_JOIN_UPSTREAM_NODES =
             Sets.newHashSet(StreamPhysicalTableSourceScan.class, StreamPhysicalExchange.class);
 
-    private static final String NON_ASYNC_LOOKUP_TABLE_ERROR_MSG_TEMPLATE =
-            "Table [%s] does not support async lookup.";
-
-    private static final String NON_ASYNC_LOOKUP_TABLE_SOLUTION_MSG =
-            "If the table supports the option of async lookup joins, "
-                    + "add it to the with parameters of the DDL.";
-
     /**
      * All supported join types during delta join optimization. Only the following join types are
      * supported during delta join optimization. Otherwise, the regular join will not be optimized
@@ -99,7 +91,8 @@ public class DeltaJoinUtil {
 
     /** Check whether the {@link StreamPhysicalJoin} can be optimized into a delta join. */
     public static boolean canConvertToDeltaJoin(StreamPhysicalJoin join) {
-        if (!isJoinTypeSupported(join)) {
+        FlinkJoinType flinkJoinType = JoinTypeUtil.getFlinkJoinType(join.getJoinType());
+        if (!isJoinTypeSupported(flinkJoinType)) {
             return false;
         }
 
@@ -196,14 +189,6 @@ public class DeltaJoinUtil {
                         null, // retryStrategy
                         false); // applyCustomShuffle
 
-        if (!(lookupFunction instanceof AsyncTableFunction)) {
-            throw new IllegalStateException(
-                    String.format(
-                            NON_ASYNC_LOOKUP_TABLE_ERROR_MSG_TEMPLATE
-                                    + NON_ASYNC_LOOKUP_TABLE_SOLUTION_MSG,
-                            String.join(".", temporalTable.getQualifiedName())));
-        }
-
         boolean changed = true;
         while (changed) {
             // unwrap cache delegator
@@ -220,7 +205,20 @@ public class DeltaJoinUtil {
             }
             changed = false;
         }
+
+        if (!(lookupFunction instanceof AsyncTableFunction)) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Table [%s] does not support async lookup. If the table supports the option of "
+                                    + "async lookup joins, add it to the with parameters of the DDL.",
+                            String.join(".", temporalTable.getQualifiedName())));
+        }
         return (AsyncTableFunction<?>) lookupFunction;
+    }
+
+    public static boolean isJoinTypeSupported(FlinkJoinType flinkJoinType) {
+        // currently, only inner join is supported
+        return FlinkJoinType.INNER == flinkJoinType;
     }
 
     /**
@@ -334,11 +332,6 @@ public class DeltaJoinUtil {
 
         Preconditions.checkState(node instanceof TableScan);
         return (TableScan) node;
-    }
-
-    private static boolean isJoinTypeSupported(StreamPhysicalJoin join) {
-        // currently, only inner join is supported
-        return JoinRelType.INNER == join.getJoinType();
     }
 
     private static boolean areAllJoinInputsInWhiteList(RelNode node) {

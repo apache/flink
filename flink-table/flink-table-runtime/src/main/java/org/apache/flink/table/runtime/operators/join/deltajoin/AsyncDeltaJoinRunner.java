@@ -49,7 +49,10 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
     private static final Logger LOG = LoggerFactory.getLogger(AsyncDeltaJoinRunner.class);
 
     private static final long serialVersionUID = 1L;
-
+    private static final String METRIC_DELTA_JOIN_LEFT_CALL_ASYNC_FETCH_COST_TIME =
+            "deltaJoinLeftCallAsyncFetchCostTime";
+    private static final String METRIC_DELTA_JOIN_RIGHT_CALL_ASYNC_FETCH_COST_TIME =
+            "deltaJoinRightCallAsyncFetchCostTime";
     private final GeneratedFunction<AsyncFunction<RowData, Object>> generatedFetcher;
     private final DataStructureConverter<RowData, Object> fetcherConverter;
     private final GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture;
@@ -75,7 +78,7 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
     private transient List<JoinedRowResultFuture> allResultFutures;
 
     // metrics
-    private long callAsyncFetchCostTime = 0L;
+    private transient long callAsyncFetchCostTime = 0L;
 
     public AsyncDeltaJoinRunner(
             GeneratedFunction<AsyncFunction<RowData, Object>> generatedFetcher,
@@ -129,8 +132,8 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
                 .getMetricGroup()
                 .gauge(
                         treatRightAsLookupTable
-                                ? "delta_join_left_call_async_fetch_cost_time"
-                                : "delta_join_right_call_async_fetch_cost_time",
+                                ? METRIC_DELTA_JOIN_LEFT_CALL_ASYNC_FETCH_COST_TIME
+                                : METRIC_DELTA_JOIN_RIGHT_CALL_ASYNC_FETCH_COST_TIME,
                         () -> callAsyncFetchCostTime);
     }
 
