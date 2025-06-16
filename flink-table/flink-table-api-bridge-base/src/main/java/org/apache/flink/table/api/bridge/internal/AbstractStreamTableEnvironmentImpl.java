@@ -24,6 +24,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.core.execution.JobStatusChangedListener;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Schema;
@@ -84,7 +85,8 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
             FunctionCatalog functionCatalog,
             Planner planner,
             boolean isStreamingMode,
-            StreamExecutionEnvironment executionEnvironment) {
+            StreamExecutionEnvironment executionEnvironment,
+            List<JobStatusChangedListener> jobStatusChangedListeners) {
         super(
                 catalogManager,
                 moduleManager,
@@ -93,7 +95,8 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
                 executor,
                 functionCatalog,
                 planner,
-                isStreamingMode);
+                isStreamingMode,
+                jobStatusChangedListeners);
         this.executionEnvironment = executionEnvironment;
     }
 
