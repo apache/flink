@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.plan.batch.sql
+package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.table.api.{DataTypes, ExplainDetail, Schema}
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
@@ -113,6 +113,7 @@ class DeltaJoinTest extends TableTestBase {
 
   @Test
   def testJoinKeysNotContainIndexOnOneSide(): Unit = {
+    // could not optimize into delta join because join keys do not contain indexes strictly
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join src2 " +
         "on src1.a2 = src2.b2")
