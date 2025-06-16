@@ -531,6 +531,7 @@ public class StreamingJobGraphGenerator {
         if (checkpointConfig.isUnalignedCheckpointsEnabled()
                 && streamGraph.getCheckpointingMode() != CheckpointingMode.EXACTLY_ONCE) {
             LOG.warn("Unaligned checkpoints can only be used with checkpointing mode EXACTLY_ONCE");
+            // todo : adding a test
             streamGraph.getJobConfiguration().set(CheckpointingOptions.ENABLE_UNALIGNED, false);
             checkpointConfig.enableUnalignedCheckpoints(false);
         }
