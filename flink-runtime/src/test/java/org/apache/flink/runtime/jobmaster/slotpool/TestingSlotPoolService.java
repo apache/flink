@@ -120,8 +120,8 @@ public class TestingSlotPoolService implements SlotPoolService {
     public Collection<SlotOffer> offerSlots(
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,
-            Collection<SlotOffer> offers) {
-        return offerSlotsFunction.apply(taskManagerLocation, taskManagerGateway, offers);
+            Collection<SlotOffer> slotOffers) {
+        return offerSlotsFunction.apply(taskManagerLocation, taskManagerGateway, slotOffers);
     }
 
     @Override
