@@ -297,9 +297,7 @@ public class CompiledPlanSerdeUtil {
             DeserializationContext ctx)
             throws IOException {
         if (objectNode.hasNonNull(fieldName)) {
-            return ctx.readValue(
-                    traverse(objectNode.get(fieldName), codec),
-                    ctx.getTypeFactory().constructCollectionType(List.class, type));
+            return deserializeList(objectNode, fieldName, type, codec, ctx);
         }
         return List.of();
     }
