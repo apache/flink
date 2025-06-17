@@ -74,6 +74,8 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexWindowBound;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -331,7 +333,7 @@ public class CompiledPlanSerdeUtil {
         return Optional.empty();
     }
 
-    static <T> T deserializeFieldOrNull(
+    static <T> @Nullable T deserializeFieldOrNull(
             ObjectNode objectNode,
             String fieldName,
             Class<T> type,

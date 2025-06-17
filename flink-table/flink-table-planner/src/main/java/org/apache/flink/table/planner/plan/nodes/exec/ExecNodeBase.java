@@ -41,6 +41,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgn
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSetter;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.Nulls;
 
 import javax.annotation.Nullable;
 
@@ -71,6 +73,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     private final LogicalType outputType;
 
+    @JsonSetter(nulls = Nulls.AS_EMPTY)
     private final List<InputProperty> inputProperties;
 
     private List<ExecEdge> inputEdges;
@@ -116,7 +119,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
             String description) {
         this.context = checkNotNull(context).withId(id);
         this.persistedConfig = persistedConfig == null ? new Configuration() : persistedConfig;
-        this.inputProperties = inputProperties == null ? List.of() : inputProperties;
+        this.inputProperties = checkNotNull(inputProperties);
         this.outputType = checkNotNull(outputType);
         this.description = checkNotNull(description);
     }
