@@ -118,7 +118,7 @@ public class TaskMailboxImpl implements TaskMailbox {
         checkIsMailboxThread();
         checkTakeStateConditions();
 
-        tryBuildBatch();
+        moveUrgentMailsToBatchIfNeeded(true);
 
         Mail head = takeOrNull(batch, priority);
         if (head != null) {
@@ -146,7 +146,7 @@ public class TaskMailboxImpl implements TaskMailbox {
         checkIsMailboxThread();
         checkTakeStateConditions();
 
-        tryBuildBatch();
+        moveUrgentMailsToBatchIfNeeded(true);
 
         Mail head = takeOrNull(batch, priority);
         if (head != null) {
@@ -179,6 +179,12 @@ public class TaskMailboxImpl implements TaskMailbox {
     }
 
     // ------------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public boolean createBatch() {
+        moveUrgentMailsToBatchIfNeeded(false);
+        return !batch.isEmpty();
+    }
 
     /**
      * Try to create a batch of mails that can be taken with {@link #tryTakeFromBatch()}. The batch
@@ -218,7 +224,7 @@ public class TaskMailboxImpl implements TaskMailbox {
      *   batch: MailE - MailF - MailG - Mail1 - Mail2 - Mail3 - Mail4 - Mail5 - Mail6 - Mail7
      * }</pre>
      */
-    private void tryBuildBatch() {
+    private void moveUrgentMailsToBatchIfNeeded(boolean onlyMoveUrgentMails) {
         checkIsMailboxThread();
         Mail peek = batch.peek();
         if (peek != null) {
@@ -231,9 +237,14 @@ public class TaskMailboxImpl implements TaskMailbox {
                 // is not empty and there are no new urgent emails, there is no need to move.
                 return;
             }
-        } else if (!hasNewMail) {
-            // Both batch and queue are empty
-            return;
+        } else {
+            if (onlyMoveUrgentMails && !hasNewUrgentMail) {
+                return;
+            }
+            if (!hasNewMail) {
+                // Both batch and queue are empty
+                return;
+            }
         }
 
         final ReentrantLock lock = this.lock;
@@ -244,11 +255,17 @@ public class TaskMailboxImpl implements TaskMailbox {
                 if (mail.getMailOptions().isUrgent()) {
                     batch.addFirst(mail);
                 } else {
-                    batch.addLast(mail);
+                    if (onlyMoveUrgentMails) {
+                        // Put non-urgent mail back into the queue, and stop the loop
+                        queue.addFirst(mail);
+                        break;
+                    } else {
+                        batch.addLast(mail);
+                    }
                 }
             }
             hasNewUrgentMail = false;
-            hasNewMail = false;
+            hasNewMail = !queue.isEmpty();
         } finally {
             lock.unlock();
         }
@@ -258,7 +275,7 @@ public class TaskMailboxImpl implements TaskMailbox {
     public Optional<Mail> tryTakeFromBatch() {
         checkIsMailboxThread();
         checkTakeStateConditions();
-        tryBuildBatch();
+        moveUrgentMailsToBatchIfNeeded(true);
         return Optional.ofNullable(batch.pollFirst());
     }
 
@@ -288,7 +305,7 @@ public class TaskMailboxImpl implements TaskMailbox {
     }
 
     /** Adds the given action to the head of the mailbox. */
-    public void putFirst(@Nonnull Mail mail) {
+    private void putFirst(@Nonnull Mail mail) {
         Mail peek = batch.peek();
         if (isMailboxThread()
                 && peek != null

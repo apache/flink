@@ -124,6 +124,24 @@ public interface TaskMailbox {
     // --- Batch
 
     /**
+     * Creates a batch of mails that can be taken with {@link #tryTakeFromBatch()}. The batch does
+     * not affect {@link #tryTake(int)} and {@link #take(int)}; that is, they return the same mails
+     * even if no batch had been created.
+     *
+     * <p>The default batch is empty. Thus, this method must be invoked once before {@link
+     * #tryTakeFromBatch()}.
+     *
+     * <p>If a batch is not completely consumed by {@link #tryTakeFromBatch()}, its elements are
+     * carried over to the new batch.
+     *
+     * <p>Must be called from the mailbox thread ({@link #isMailboxThread()}.
+     *
+     * @return true if there is at least one element in the batch; that is, if there is any mail at
+     *     all at the time of the invocation.
+     */
+    boolean createBatch();
+
+    /**
      * Returns an optional with either the oldest mail from the batch (head of queue) if the batch
      * is not empty or an empty optional otherwise.
      *
