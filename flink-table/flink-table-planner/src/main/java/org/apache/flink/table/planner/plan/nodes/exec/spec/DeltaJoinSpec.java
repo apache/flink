@@ -34,7 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * DeltaJoinSpec describes one side lookup the dim table on the other side.
+ * {@link DeltaJoinSpec} defines how one side looks up the dimension table on the other side.
  *
  * <p>This class corresponds to {@link StreamPhysicalDeltaJoin}.
  */
@@ -48,7 +48,7 @@ public class DeltaJoinSpec {
     @JsonProperty(FIELD_NAME_LOOKUP_TABLE)
     private final TemporalTableSourceSpec lookupTable;
 
-    // <lookup column index of the dim table, stream side's related key>
+    /** The map between lookup column index of the dim table and stream side's related key. */
     @JsonProperty(FIELD_NAME_LOOKUP_KEYS)
     private final Map<Integer, FunctionCallUtils.FunctionParam> lookupKeyMap;
 

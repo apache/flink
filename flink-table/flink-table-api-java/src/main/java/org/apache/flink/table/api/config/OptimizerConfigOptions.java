@@ -379,7 +379,7 @@ public class OptimizerConfigOptions {
                     .enumType(DeltaJoinStrategy.class)
                     .defaultValue(DeltaJoinStrategy.AUTO)
                     .withDescription(
-                            "Whether to enable delta join strategy. Only AUTO, FORCE or NONE can be set. Default it AUTO.");
+                            "Strategy for optimizing the delta-join. Only AUTO, FORCE or NONE can be set. Default it AUTO.");
 
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving

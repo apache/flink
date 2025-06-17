@@ -45,10 +45,10 @@ import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConf
  *   <li>There is at least one join key pair in the join.
  *   <li>The downstream nodes of this join can accept duplicate changes.
  *   <li>All join inputs are insert only streams.
- *   <li>All downstream nodes of this join are in {@code
+ *   <li>All upstream nodes of this join are in {@code
  *       DeltaJoinUtil#ALL_SUPPORTED_DELTA_JOIN_UPSTREAM_NODES}
- *   <li>The join keys include at least one complete index in each the source table in join inputs.
- *   <li>All table scans in this join inputs support async {@link LookupTableSource}.
+ *   <li>The join keys include at least one complete index in each source table of the join input.
+ *   <li>All table sources of this join inputs support async {@link LookupTableSource}.
  * </ol>
  *
  * <p>See more at {@link DeltaJoinUtil#canConvertToDeltaJoin}.
