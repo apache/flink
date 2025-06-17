@@ -350,6 +350,24 @@ public class OptimizerConfigOptions {
                                             + "Each optimize block will be optimized independently.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_MULTI_JOIN_ENABLED =
+            key("table.optimizer.multi-join.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Enables a multi-way join operator for a chain of streaming joins. "
+                                                    + "This operator processes multiple inputs at once, reducing the state size considerably by avoiding intermediate results. "
+                                                    + "It supports regular INNER, LEFT and RIGHT joins.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "Note: This is an experimental feature and not recommended for production. "
+                                                    + "The operator's internal implementation and state layout is subject to changes due to ongoing optimizations, which will break savepoint compatibility across Flink versions.")
+                                    .build());
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED =
             key("table.optimizer.incremental-agg-enabled")
                     .booleanType()

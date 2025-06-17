@@ -229,6 +229,15 @@ object FlinkStreamRuleSets {
     FlinkJoinReorderRule.INSTANCE
   )
 
+  val MULTI_JOIN_RULES: RuleSet = RuleSets.ofList(
+    // merge project to MultiJoin
+    CoreRules.PROJECT_MULTI_JOIN_MERGE,
+    // merge filter to MultiJoin
+    CoreRules.FILTER_MULTI_JOIN_MERGE,
+    // merge join to MultiJoin
+    LogicalJoinToMultiJoinRule.INSTANCE
+  )
+
   /** RuleSet to do logical optimize. This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]]. */
   private val LOGICAL_RULES: RuleSet = RuleSets.ofList(
     // scan optimization
@@ -309,6 +318,7 @@ object FlinkStreamRuleSets {
     FlinkLogicalCalc.CONVERTER,
     FlinkLogicalCorrelate.CONVERTER,
     FlinkLogicalJoin.CONVERTER,
+    FlinkLogicalMultiJoin.CONVERTER,
     FlinkLogicalSort.STREAM_CONVERTER,
     FlinkLogicalUnion.CONVERTER,
     FlinkLogicalValues.CONVERTER,
@@ -474,6 +484,7 @@ object FlinkStreamRuleSets {
     StreamPhysicalMLPredictTableFunctionRule.INSTANCE,
     // join
     StreamPhysicalJoinRule.INSTANCE,
+    StreamPhysicalMultiJoinRule.INSTANCE,
     StreamPhysicalIntervalJoinRule.INSTANCE,
     StreamPhysicalTemporalJoinRule.INSTANCE,
     StreamPhysicalLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
