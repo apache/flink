@@ -22,10 +22,12 @@ import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.planner.functions.sql.ml.SqlMLPredictTableFunction;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
+import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -35,6 +37,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.Collections;
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for model table value function. */
@@ -172,7 +175,7 @@ public class MLPredictTableFunctionTest extends TableTestBase {
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "SQL validation failed. Number of descriptor input columns (3) does not match model input size (2)");
+                        "SQL validation failed. Number of input descriptor columns (3) does not match model input size (2).");
     }
 
     @Test
@@ -273,7 +276,7 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                                                 + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', true]))"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "SQL validation failed. ML_PREDICT config param can only be a MAP of string literals but node's type is (CHAR(5), BOOLEAN) MAP at position line 2, column 71.");
+                        "SQL validation failed. Config param can only be a MAP of string literals but node's type is (CHAR(5), BOOLEAN) MAP at position line 2, column 71.");
 
         assertThatThrownBy(
                         () ->
@@ -406,6 +409,27 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         "StreamPhysicalMLPredictTableFunction doesn't support consuming update and delete changes which is produced by node TableSourceScan(table=[[default_catalog, default_database, CdcTable]], fields=[a, b])");
+    }
+
+    @Test
+    public void testIsOptional() {
+        SqlMLPredictTableFunction function = new SqlMLPredictTableFunction();
+        SqlOperandTypeChecker operandMetadata = function.getOperandTypeChecker();
+
+        assertThat(operandMetadata).isNotNull();
+        // First three parameters (INPUT, MODEL, DESCRIPTOR) are mandatory
+        for (int i = 0; i < 3; i++) {
+            assertThat(operandMetadata.isOptional(i)).isFalse();
+        }
+
+        // Fourth parameter (CONFIG) is optional
+        assertThat(operandMetadata.isOptional(3)).isTrue();
+
+        // Parameters beyond the maximum count should not be optional
+        assertThat(operandMetadata.isOptional(4)).isFalse();
+
+        assertThat(operandMetadata.getOperandCountRange().getMin()).isEqualTo(3);
+        assertThat(operandMetadata.getOperandCountRange().getMax()).isEqualTo(4);
     }
 
     private static Stream<Arguments> compatibleTypeProvider() {
