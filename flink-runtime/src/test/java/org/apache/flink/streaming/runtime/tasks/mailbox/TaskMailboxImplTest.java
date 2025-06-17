@@ -404,6 +404,7 @@ class TaskMailboxImplTest {
         Mail mailD = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "mailD");
         Mail mailE = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "mailE");
         Mail mailF = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "mailF");
+        Mail mailG = new Mail(urgent(), () -> {}, DEFAULT_PRIORITY, "mailG");
 
         Mail mail1 = new Mail(() -> {}, DEFAULT_PRIORITY, "mail1");
         Mail mail2 = new Mail(() -> {}, DEFAULT_PRIORITY, "mail2");
@@ -437,17 +438,17 @@ class TaskMailboxImplTest {
 
         putMail(mailD, isAsyncPut);
         putMail(mailE, isAsyncPut);
+        assertThat(taskMailbox.createBatch()).isTrue();
         putMail(mailF, isAsyncPut);
+        putMail(mailG, isAsyncPut);
 
         // All urgent mails should be taken first, including all types of take methods
         assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailD);
         assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).hasValue(mailE);
         assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isEqualTo(mailF);
+        assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mailG);
 
         assertThat(taskMailbox.tryTakeFromBatch()).hasValue(mail4);
-
-        // Mail5, mail6 and mail7 are put after creating batch
-        assertThat(taskMailbox.tryTakeFromBatch()).isEmpty();
         assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).hasValue(mail5);
         assertThat(taskMailbox.take(DEFAULT_PRIORITY)).isEqualTo(mail6);
         assertThat(taskMailbox.tryTake(DEFAULT_PRIORITY)).hasValue(mail7);
