@@ -120,6 +120,7 @@ flink-metrics/flink-metrics-datadog,\
 flink-metrics/flink-metrics-slf4j,\
 flink-metrics/flink-metrics-otel,\
 flink-connectors/flink-connector-base,\
+flink-models/flink-model-openai,\
 "
 
 MODULES_TESTS="\

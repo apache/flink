@@ -138,6 +138,13 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-datagen</artifactId>
 		</dependency>
+
+		<!-- Models -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-model-openai</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>
