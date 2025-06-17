@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.functions.sql.ml.evaluate;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
@@ -32,7 +32,7 @@ public class EmbeddingEvaluatorAccumulatorTest {
     private static final double DELTA = 1e-10;
     private EmbeddingEvaluatorAccumulator accumulator;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         accumulator = new EmbeddingEvaluatorAccumulator();
     }

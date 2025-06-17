@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.planner.functions.sql.ml.evaluate;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -28,10 +29,15 @@ import static org.assertj.core.api.Assertions.offset;
 /** Test for TextGenerationEvaluatorAccumulator. */
 public class TextGenerationEvaluatorAccumulatorTest {
     private static final double DELTA = 1e-6;
+    private TextGenerationEvaluatorAccumulator accumulator;
+
+    @BeforeEach
+    void setUp() {
+        accumulator = new TextGenerationEvaluatorAccumulator();
+    }
 
     @Test
     void testIdenticalTexts() {
-        TextGenerationEvaluatorAccumulator accumulator = new TextGenerationEvaluatorAccumulator();
         String text = "The quick brown fox jumps over the lazy dog";
         accumulator.accumulate(text, text);
         Map<String, Double> result = accumulator.getValue();
@@ -43,7 +49,6 @@ public class TextGenerationEvaluatorAccumulatorTest {
 
     @Test
     void testSimilarTexts() {
-        TextGenerationEvaluatorAccumulator accumulator = new TextGenerationEvaluatorAccumulator();
         String reference = "The quick brown fox jumps over the lazy dog";
         String hypothesis = "A quick brown fox jumped over a lazy dog";
         accumulator.accumulate(reference, hypothesis);
@@ -56,7 +61,6 @@ public class TextGenerationEvaluatorAccumulatorTest {
 
     @Test
     void testDifferentTexts() {
-        TextGenerationEvaluatorAccumulator accumulator = new TextGenerationEvaluatorAccumulator();
         String reference = "The quick brown fox jumps over the lazy dog";
         String hypothesis = "A cat sleeps on the windowsill";
         accumulator.accumulate(reference, hypothesis);
@@ -69,7 +73,6 @@ public class TextGenerationEvaluatorAccumulatorTest {
 
     @Test
     void testRetraction() {
-        TextGenerationEvaluatorAccumulator accumulator = new TextGenerationEvaluatorAccumulator();
         String text1 = "The quick brown fox";
         String text2 = "A quick brown fox";
         accumulator.accumulate(text1, text2);
@@ -84,13 +87,11 @@ public class TextGenerationEvaluatorAccumulatorTest {
 
     @Test
     void testEmptyAccumulator() {
-        TextGenerationEvaluatorAccumulator accumulator = new TextGenerationEvaluatorAccumulator();
         assertThat(accumulator.getValue()).isNull();
     }
 
     @Test
     void testInvalidInput() {
-        TextGenerationEvaluatorAccumulator accumulator = new TextGenerationEvaluatorAccumulator();
         assertThatThrownBy(() -> accumulator.accumulate("text"))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> accumulator.accumulate("text1", "text2", "text3"))
@@ -101,15 +102,14 @@ public class TextGenerationEvaluatorAccumulatorTest {
 
     @Test
     void testMerge() {
-        TextGenerationEvaluatorAccumulator acc1 = new TextGenerationEvaluatorAccumulator();
         TextGenerationEvaluatorAccumulator acc2 = new TextGenerationEvaluatorAccumulator();
         // Add texts to the first accumulator
-        acc1.accumulate("The quick brown fox", "The quick brown fox");
+        accumulator.accumulate("The quick brown fox", "The quick brown fox");
         // Add texts to the second accumulator
         acc2.accumulate("jumps over the lazy dog", "jumps over the lazy dog");
         // Merge accumulators
-        acc1.merge(acc2);
-        Map<String, Double> result = acc1.getValue();
+        accumulator.merge(acc2);
+        Map<String, Double> result = accumulator.getValue();
         assertThat(result).isNotNull();
         // Verify merged scores
         assertThat(result.get("Mean BLEU")).isEqualTo(1.0, offset(DELTA));
@@ -119,7 +119,6 @@ public class TextGenerationEvaluatorAccumulatorTest {
 
     @Test
     void testReset() {
-        TextGenerationEvaluatorAccumulator accumulator = new TextGenerationEvaluatorAccumulator();
         // Add some texts
         accumulator.accumulate("A quick brown fox", "The quick brown fox");
         // Reset accumulator
@@ -138,7 +137,6 @@ public class TextGenerationEvaluatorAccumulatorTest {
 
     @Test
     void testInvalidMerge() {
-        TextGenerationEvaluatorAccumulator accumulator = new TextGenerationEvaluatorAccumulator();
         RegressionEvaluatorAccumulator wrongType = new RegressionEvaluatorAccumulator();
         assertThatThrownBy(() -> accumulator.merge(wrongType))
                 .isInstanceOf(IllegalArgumentException.class);

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.sql.ml.evaluate;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -30,9 +31,15 @@ import static org.assertj.core.api.Assertions.offset;
 public class ClassificationEvaluatorAccumulatorTest {
     private static final double DELTA = 1e-6;
 
+    private ClassificationEvaluatorAccumulator accumulator;
+
+    @BeforeEach
+    public void setUp() {
+        accumulator = new ClassificationEvaluatorAccumulator();
+    }
+
     @Test
     void testPerfectClassification() {
-        ClassificationEvaluatorAccumulator accumulator = new ClassificationEvaluatorAccumulator();
         // Perfect predictions
         accumulator.accumulate("A", "A");
         accumulator.accumulate("B", "B");
@@ -47,7 +54,6 @@ public class ClassificationEvaluatorAccumulatorTest {
 
     @Test
     void testTypicalClassification() {
-        ClassificationEvaluatorAccumulator accumulator = new ClassificationEvaluatorAccumulator();
         // Mix of correct and incorrect predictions
         accumulator.accumulate("A", "A"); // correct
         accumulator.accumulate("A", "B"); // incorrect
@@ -63,7 +69,6 @@ public class ClassificationEvaluatorAccumulatorTest {
 
     @Test
     void testRetraction() {
-        ClassificationEvaluatorAccumulator accumulator = new ClassificationEvaluatorAccumulator();
         // Add predictions
         accumulator.accumulate("A", "A");
         accumulator.accumulate("A", "B");
@@ -87,13 +92,11 @@ public class ClassificationEvaluatorAccumulatorTest {
 
     @Test
     void testEmptyAccumulator() {
-        ClassificationEvaluatorAccumulator accumulator = new ClassificationEvaluatorAccumulator();
         assertThat(accumulator.getValue()).isNull();
     }
 
     @Test
     void testInvalidInput() {
-        ClassificationEvaluatorAccumulator accumulator = new ClassificationEvaluatorAccumulator();
         assertThatThrownBy(() -> accumulator.accumulate("A"))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> accumulator.accumulate("A", "B", "C"))
@@ -104,17 +107,16 @@ public class ClassificationEvaluatorAccumulatorTest {
 
     @Test
     void testMerge() {
-        ClassificationEvaluatorAccumulator acc1 = new ClassificationEvaluatorAccumulator();
         ClassificationEvaluatorAccumulator acc2 = new ClassificationEvaluatorAccumulator();
         // Add predictions to the first accumulator
-        acc1.accumulate("A", "A");
-        acc1.accumulate("A", "B");
+        accumulator.accumulate("A", "A");
+        accumulator.accumulate("A", "B");
         // Add predictions to the second accumulator
         acc2.accumulate("B", "B");
         acc2.accumulate("B", "A");
         // Merge accumulators
-        acc1.merge(acc2);
-        Map<String, Double> result = acc1.getValue();
+        accumulator.merge(acc2);
+        Map<String, Double> result = accumulator.getValue();
         assertThat(result).isNotNull();
         // Verify merged confusion matrix results
         assertThat(result.get("Accuracy")).isEqualTo(0.5, offset(DELTA));
@@ -125,7 +127,6 @@ public class ClassificationEvaluatorAccumulatorTest {
 
     @Test
     void testReset() {
-        ClassificationEvaluatorAccumulator accumulator = new ClassificationEvaluatorAccumulator();
         // Add some predictions
         accumulator.accumulate("A", "A");
         accumulator.accumulate("B", "A");
@@ -142,7 +143,6 @@ public class ClassificationEvaluatorAccumulatorTest {
 
     @Test
     void testInvalidMerge() {
-        ClassificationEvaluatorAccumulator accumulator = new ClassificationEvaluatorAccumulator();
         RegressionEvaluatorAccumulator wrongType = new RegressionEvaluatorAccumulator();
         assertThatThrownBy(() -> accumulator.merge(wrongType))
                 .isInstanceOf(IllegalArgumentException.class);

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.sql.ml.evaluate;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -29,10 +30,15 @@ import static org.assertj.core.api.Assertions.offset;
 /** Test for RegressionEvaluatorAccumulator. */
 public class RegressionEvaluatorAccumulatorTest {
     private static final double DELTA = 1e-6;
+    private RegressionEvaluatorAccumulator accumulator;
+
+    @BeforeEach
+    void setUp() {
+        accumulator = new RegressionEvaluatorAccumulator();
+    }
 
     @Test
     void testPerfectPrediction() {
-        RegressionEvaluatorAccumulator accumulator = new RegressionEvaluatorAccumulator();
         // Perfect predictions
         accumulator.accumulate(1.0, 1.0);
         accumulator.accumulate(2.0, 2.0);
@@ -49,7 +55,6 @@ public class RegressionEvaluatorAccumulatorTest {
 
     @Test
     void testTypicalPredictions() {
-        RegressionEvaluatorAccumulator accumulator = new RegressionEvaluatorAccumulator();
         // Predictions with known errors
         accumulator.accumulate(1.0, 1.2); // error = -0.2
         accumulator.accumulate(2.0, 1.8); // error = 0.2
@@ -64,7 +69,6 @@ public class RegressionEvaluatorAccumulatorTest {
 
     @Test
     void testRetraction() {
-        RegressionEvaluatorAccumulator accumulator = new RegressionEvaluatorAccumulator();
         // Add some values
         accumulator.accumulate(1.0, 1.2);
         accumulator.accumulate(2.0, 1.8);
@@ -79,13 +83,11 @@ public class RegressionEvaluatorAccumulatorTest {
 
     @Test
     void testEmptyAccumulator() {
-        RegressionEvaluatorAccumulator accumulator = new RegressionEvaluatorAccumulator();
         assertThat(accumulator.getValue()).isNull();
     }
 
     @Test
     void testInvalidInput() {
-        RegressionEvaluatorAccumulator accumulator = new RegressionEvaluatorAccumulator();
         assertThatThrownBy(() -> accumulator.accumulate(1.0))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> accumulator.accumulate(1.0, 2.0, 3.0))
@@ -96,16 +98,15 @@ public class RegressionEvaluatorAccumulatorTest {
 
     @Test
     void testMerge() {
-        RegressionEvaluatorAccumulator acc1 = new RegressionEvaluatorAccumulator();
         RegressionEvaluatorAccumulator acc2 = new RegressionEvaluatorAccumulator();
         // Add values to first accumulator
-        acc1.accumulate(1.0, 1.2); // error = -0.2
-        acc1.accumulate(2.0, 1.8); // error = 0.2
+        accumulator.accumulate(1.0, 1.2); // error = -0.2
+        accumulator.accumulate(2.0, 1.8); // error = 0.2
         // Add values to second accumulator
         acc2.accumulate(3.0, 2.8); // error = 0.2
         // Merge accumulators
-        acc1.merge(acc2);
-        Map<String, Double> result = acc1.getValue();
+        accumulator.merge(acc2);
+        Map<String, Double> result = accumulator.getValue();
         assertThat(result).isNotNull();
         // Verify merged results match the expected values for all points
         assertThat(result.get("MAE")).isEqualTo(0.2, offset(DELTA));
@@ -115,7 +116,6 @@ public class RegressionEvaluatorAccumulatorTest {
 
     @Test
     void testReset() {
-        RegressionEvaluatorAccumulator accumulator = new RegressionEvaluatorAccumulator();
         // Add some values
         accumulator.accumulate(1.0, 1.2);
         accumulator.accumulate(2.0, 1.8);
@@ -132,7 +132,6 @@ public class RegressionEvaluatorAccumulatorTest {
 
     @Test
     void testInvalidMerge() {
-        RegressionEvaluatorAccumulator accumulator = new RegressionEvaluatorAccumulator();
         ClassificationEvaluatorAccumulator wrongType = new ClassificationEvaluatorAccumulator();
         assertThatThrownBy(() -> accumulator.merge(wrongType))
                 .isInstanceOf(IllegalArgumentException.class);
