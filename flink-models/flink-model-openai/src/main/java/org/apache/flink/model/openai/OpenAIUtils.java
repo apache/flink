@@ -44,12 +44,12 @@ public class OpenAIUtils {
             ReferenceKey key = new ReferenceKey(baseUrl, apiKey);
             ReferenceValue value = cache.get(key);
             if (value != null) {
-                LOG.info("Returning an existing OpenAI client.");
+                LOG.debug("Returning an existing OpenAI client.");
                 value.referenceCount.incrementAndGet();
                 return value.client;
             }
 
-            LOG.info("Building a new OpenAI client.");
+            LOG.debug("Building a new OpenAI client.");
             OpenAIClientAsync client =
                     OpenAIOkHttpClientAsync.builder()
                             .apiKey(apiKey)
@@ -69,7 +69,7 @@ public class OpenAIUtils {
                     value, "The creation and release of OpenAI client does not match.");
             int count = value.referenceCount.decrementAndGet();
             if (count == 0) {
-                LOG.info("Closing the OpenAI client.");
+                LOG.debug("Closing the OpenAI client.");
                 cache.remove(key);
                 value.client.close();
             }

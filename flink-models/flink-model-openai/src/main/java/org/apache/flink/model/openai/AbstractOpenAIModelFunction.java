@@ -104,7 +104,7 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
     @Override
     public void open(FunctionContext context) throws Exception {
         super.open(context);
-        LOG.info("Creating an OpenAI client.");
+        LOG.debug("Creating an OpenAI client.");
         this.client = OpenAIUtils.createAsyncClient(baseUrl, apiKey, numRetry);
     }
 
@@ -112,7 +112,7 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
     public void close() throws Exception {
         super.close();
         if (this.client != null) {
-            LOG.info("Releasing the OpenAI client.");
+            LOG.debug("Releasing the OpenAI client.");
             OpenAIUtils.releaseAsyncClient(baseUrl, apiKey);
             client = null;
         }
