@@ -57,7 +57,7 @@ public abstract class AsyncSinkWriterStateSerializer<RequestEntryT extends Seria
             out.writeInt(bufferState.size());
 
             for (RequestEntryWrapper<RequestEntryT> wrapper : bufferState) {
-                out.writeLong(wrapper.getSize());
+                out.writeLong(getSerializedSizeInBytes(wrapper));
                 serializeRequestToStream(wrapper.getRequestEntry(), out);
             }
 
@@ -91,6 +91,10 @@ public abstract class AsyncSinkWriterStateSerializer<RequestEntryT extends Seria
 
     protected abstract RequestEntryT deserializeRequestFromStream(
             long requestSize, DataInputStream in) throws IOException;
+
+    protected long getSerializedSizeInBytes(RequestEntryWrapper<RequestEntryT> wrapper) {
+        return wrapper.getSize();
+    }
 
     private void validateIdentifier(DataInputStream in) throws IOException {
         if (in.readLong() != DATA_IDENTIFIER) {

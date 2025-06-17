@@ -27,9 +27,12 @@ import java.nio.charset.StandardCharsets;
 
 import static org.apache.flink.connector.base.sink.writer.AsyncSinkWriterTestUtils.assertThatBufferStatesAreEqual;
 import static org.apache.flink.connector.base.sink.writer.AsyncSinkWriterTestUtils.getTestState;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test class for {@link AsyncSinkWriterStateSerializer}. */
 class AsyncSinkWriterStateSerializerTest {
+
+    private static final int ESTIMATED_ELEMENT_SIZE = 7;
 
     @Test
     void testSerializeAndDeSerialize() throws IOException {
@@ -58,6 +61,50 @@ class AsyncSinkWriterStateSerializerTest {
             byte[] requestData = new byte[(int) requestSize];
             in.read(requestData);
             return new String(requestData, StandardCharsets.UTF_8);
+        }
+
+        @Override
+        public int getVersion() {
+            return 1;
+        }
+    }
+
+    @Test
+    void testOnlyEstimatedSizeCausesDeserializedError() {
+        // AsyncSinkWriter provides getSizeInBytes to get the size of request entry. Sometimes, get
+        // the accurate size has a lot of overhead. So the implementation of connector need to
+        // estimate the size. This test case selects 7 as the estimated value. You will see the
+        // error while deserializing the state.
+        AsyncSinkWriterStateSerializerImpl stateSerializer =
+                new AsyncSinkWriterStateSerializerImpl();
+        BufferedRequestState<String> state =
+                getTestState((element, context) -> element, (element) -> ESTIMATED_ELEMENT_SIZE);
+        assertThatThrownBy(() -> stateSerializer.deserialize(0, stateSerializer.serialize(state)))
+                .isInstanceOf(Throwable.class);
+    }
+
+    @Test
+    void testEstimatedSize() throws IOException {
+        // This test case adopts the estimated value 7 too. And override getSerializedSizeInBytes to
+        // get the real serialized size.
+        AsyncSinkWriterStateSerializerImpl2 stateSerializer =
+                new AsyncSinkWriterStateSerializerImpl2();
+        BufferedRequestState<String> state =
+                getTestState((element, context) -> element, String::length);
+        BufferedRequestState<String> estimatedState =
+                getTestState((element, context) -> element, (element) -> ESTIMATED_ELEMENT_SIZE);
+        BufferedRequestState<String> deserializedState =
+                stateSerializer.deserialize(0, stateSerializer.serialize(estimatedState));
+
+        assertThatBufferStatesAreEqual(state, deserializedState);
+    }
+
+    private static class AsyncSinkWriterStateSerializerImpl2
+            extends AsyncSinkWriterStateSerializerImpl {
+
+        @Override
+        protected long getSerializedSizeInBytes(RequestEntryWrapper<String> wrapper) {
+            return wrapper.getRequestEntry().length();
         }
 
         @Override
