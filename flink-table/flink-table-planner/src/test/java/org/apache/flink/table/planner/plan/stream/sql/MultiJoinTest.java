@@ -70,6 +70,42 @@ public class MultiJoinTest extends TableTestBase {
                                 + "  user_id_3 STRING,"
                                 + "  location STRING"
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,UB,D')");
+
+        // Tables for testing temporal join exclusion
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE LookupTable ("
+                                + "  id STRING PRIMARY KEY NOT ENFORCED,"
+                                + "  name STRING,"
+                                + "  age INT"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE StreamTable ("
+                                + "  user_id STRING,"
+                                + "  amount INT,"
+                                + "  proctime AS PROCTIME()"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
+
+        // Tables for testing interval join exclusion
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE EventTable1 ("
+                                + "  id STRING,"
+                                + "  val INT,"
+                                + "  rowtime TIMESTAMP(3),"
+                                + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '5' SECOND"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE EventTable2 ("
+                                + "  id STRING,"
+                                + "  price DOUBLE,"
+                                + "  rowtime TIMESTAMP(3),"
+                                + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '5' SECOND"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
     }
 
     @Test
@@ -154,5 +190,41 @@ public class MultiJoinTest extends TableTestBase {
                         + "LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
                         + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
                         + "LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3");
+    }
+
+    @Test
+    void testTemporalJoinExcludedFromMultiJoin() {
+        // Temporal joins should remain as lookup joins, not be merged into MultiJoin
+        util.verifyRelPlan(
+                "SELECT s.user_id, s.amount, l.name, l.age "
+                        + "FROM StreamTable s "
+                        + "JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l "
+                        + "ON s.user_id = l.id");
+    }
+
+    @Test
+    void testIntervalJoinExcludedFromMultiJoin() {
+        // Interval joins (event-time and processing-time) should remain as interval joins
+        util.verifyRelPlan(
+                "SELECT e1.id, e1.val, e2.price "
+                        + "FROM EventTable1 e1 "
+                        + "JOIN EventTable2 e2 ON e1.id = e2.id "
+                        + "AND e1.rowtime BETWEEN e2.rowtime - INTERVAL '1' MINUTE "
+                        + "AND e2.rowtime + INTERVAL '1' MINUTE");
+    }
+
+    @Test
+    void testRegularJoinsAreMergedApartFromTemporalJoin() {
+        // Regular joins should still be eligible for MultiJoin but not mixed with temporal joins
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, temporal.age "
+                        + "FROM Users u "
+                        + "INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "INNER JOIN ("
+                        + "  SELECT s.user_id, l.age "
+                        + "  FROM StreamTable s "
+                        + "  JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l "
+                        + "  ON s.user_id = l.id"
+                        + ") temporal ON u.user_id_0 = temporal.user_id");
     }
 }
