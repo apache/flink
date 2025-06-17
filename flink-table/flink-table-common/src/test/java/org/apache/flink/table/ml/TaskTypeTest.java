@@ -60,7 +60,8 @@ public class TaskTypeTest {
     public void testFromNameWithInvalidName() {
         assertThatThrownBy(() -> TaskType.fromName("invalid_task_type"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessage("Unknown task type: invalid_task_type.");
+                .hasMessage(
+                        "Invalid task type: 'invalid_task_type'. Supported task types are: [classification, clustering, embedding, regression, text_generation].");
     }
 
     @Test
