@@ -26,7 +26,6 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -78,7 +77,6 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
 
     @Test
     public void testNamedArguments() {
-        Assertions.setMaxStackTraceElementsDisplayed(100);
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_EVALUATE("
