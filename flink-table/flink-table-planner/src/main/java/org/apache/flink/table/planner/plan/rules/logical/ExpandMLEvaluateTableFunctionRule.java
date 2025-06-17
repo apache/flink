@@ -74,38 +74,6 @@ public class ExpandMLEvaluateTableFunctionRule
         super(config);
     }
 
-    private static RexCall getConfigMap(RexCall rexCall) {
-        if (rexCall.getOperands().size() > 5) {
-            return (RexCall) rexCall.getOperands().get(5);
-        }
-        if (rexCall.getOperands().size() > 4) {
-            RexNode node = rexCall.getOperands().get(4);
-            if (node instanceof RexCall
-                    && ((RexCall) node).getOperator().getKind() == SqlKind.MAP_VALUE_CONSTRUCTOR) {
-                return (RexCall) node;
-            }
-        }
-        return null;
-    }
-
-    private static String getTask(RexCall rexCall) {
-        final RexModelCall modelCall = (RexModelCall) rexCall.getOperands().get(1);
-        final RexNode taskNode = rexCall.getOperands().get(4);
-        String task = null;
-        if (taskNode instanceof RexLiteral) {
-            task = ((RexLiteral) taskNode).getValueAs(NlsString.class).getValue();
-            if (task == null || task.isEmpty()) {
-                task = null;
-            }
-        }
-        if (task == null) {
-            throw new ValidationException(
-                    "Task type must be specified in the model options or as a parameter to the ML_EVALUATE function.");
-        }
-        TaskType.throwOrReturnInvalidTaskType(task, true);
-        return task;
-    }
-
     @Override
     public void onMatch(RelOptRuleCall call) {
         final LogicalTableFunctionScan scan = call.rel(0);
@@ -215,6 +183,37 @@ public class ExpandMLEvaluateTableFunctionRule
                         Collections.emptySet()));
 
         return predictReturnType;
+    }
+
+    private static RexCall getConfigMap(RexCall rexCall) {
+        if (rexCall.getOperands().size() > 5) {
+            return (RexCall) rexCall.getOperands().get(5);
+        }
+        if (rexCall.getOperands().size() > 4) {
+            RexNode node = rexCall.getOperands().get(4);
+            if (node instanceof RexCall
+                    && ((RexCall) node).getOperator().getKind() == SqlKind.MAP_VALUE_CONSTRUCTOR) {
+                return (RexCall) node;
+            }
+        }
+        return null;
+    }
+
+    private static String getTask(RexCall rexCall) {
+        final RexNode taskNode = rexCall.getOperands().get(4);
+        String task = null;
+        if (taskNode instanceof RexLiteral) {
+            task = ((RexLiteral) taskNode).getValueAs(NlsString.class).getValue();
+            if (task == null || task.isEmpty()) {
+                task = null;
+            }
+        }
+        if (task == null) {
+            throw new ValidationException(
+                    "Task type must be specified as a parameter to the ML_EVALUATE function.");
+        }
+        TaskType.throwOrReturnInvalidTaskType(task, true);
+        return task;
     }
 
     /** Rule configuration. */
