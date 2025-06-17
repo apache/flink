@@ -239,7 +239,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
     /**
      * This is mainly used in `FlinkChangelogModeInferenceProgram.SatisfyUpdateKindTraitVisitor`. If
      * the unique key of input is a superset of the common join key, then we can ignore
-     * UPDATE_BEFORE. Otherwise, it we can't ignore UPDATE_BEFORE.
+     * UPDATE_BEFORE. Otherwise, we can't ignore UPDATE_BEFORE.
      *
      * <p>For example, if the input schema is [id, name, cnt] with the unique key (id) and the
      * common join key is (id, name) across joins, then an insert and update on the id:

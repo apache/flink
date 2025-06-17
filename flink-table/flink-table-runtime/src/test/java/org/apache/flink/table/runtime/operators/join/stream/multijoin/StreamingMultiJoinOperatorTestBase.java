@@ -384,7 +384,8 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         var joinKeyType = this.keyExtractor.getCommonJoinKeyType();
         InternalTypeInfo<RowData> partitionKeyTypeInfo = InternalTypeInfo.of(joinKeyType);
 
-        final JoinCondition[] createdJoinConditions = createJoinConditions(this.joinConditions);
+        final GeneratedJoinCondition[] generatedJoinConditions =
+                this.joinConditions.toArray(new GeneratedJoinCondition[0]);
         final long[] retentionTime = new long[inputSpecs.size()];
         Arrays.fill(retentionTime, 9999999L);
         final List<InternalTypeInfo<RowData>> internalTypeInfos =
@@ -397,7 +398,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                         this.joinTypes,
                         null,
                         retentionTime,
-                        createdJoinConditions,
+                        generatedJoinConditions,
                         this.keyExtractor,
                         this.joinAttributeMap);
 
@@ -427,30 +428,6 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
 
     protected Object[] r(Object... values) {
         return values;
-    }
-
-    private JoinCondition[] createJoinConditions(
-            List<GeneratedJoinCondition> generatedJoinConditions) {
-        JoinCondition[] conditions = new JoinCondition[inputSpecs.size()];
-        if (generatedJoinConditions.size() != inputSpecs.size()) {
-            throw new IllegalArgumentException(
-                    "The number of generated join conditions must match the number of inputs/joins."
-                            + "This might be due to an incorrect joinAttributeMap or incorrect joinConditions. All parameters derived from join conditions have to match!");
-        }
-        for (int i = 0; i < inputSpecs.size(); i++) {
-            GeneratedJoinCondition generatedCondition = generatedJoinConditions.get(i);
-            if (generatedCondition != null) {
-                try {
-                    conditions[i] = generatedCondition.newInstance(getClass().getClassLoader());
-                } catch (Exception e) {
-                    throw new RuntimeException(
-                            "Failed to instantiate join condition for input " + i, e);
-                }
-            } else {
-                conditions[i] = null;
-            }
-        }
-        return conditions;
     }
 
     // ==========================================================================

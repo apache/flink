@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.stream;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.Input;
@@ -28,6 +29,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.generated.MultiJoinCondition;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -348,12 +350,13 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     // might become useful.
     private final MultiJoinCondition multiJoinCondition;
 
-    private final JoinCondition[] joinConditions;
+    private final GeneratedJoinCondition[] joinConditions;
     private final JoinKeyExtractor keyExtractor;
 
     private transient List<MultiJoinStateView> stateHandlers;
     private transient TimestampedCollector<RowData> collector;
     private transient List<RowData> nullRows;
+    private transient JoinCondition[] instantiatedJoinConditions;
 
     public StreamingMultiJoinOperator(
             StreamOperatorParameters<RowData> parameters,
@@ -362,7 +365,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             List<FlinkJoinType> joinTypes,
             MultiJoinCondition multiJoinCondition,
             long[] stateRetentionTime,
-            JoinCondition[] joinConditions,
+            GeneratedJoinCondition[] joinConditions,
             JoinKeyExtractor keyExtractor,
             // We currently don't use this, but it might be useful in the future for optimizations
             Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
@@ -375,6 +378,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         this.keyExtractor = keyExtractor;
         this.typedInputs = new ArrayList<>(inputSpecs.size());
         this.multiJoinCondition = multiJoinCondition;
+
+        initializeInputs();
     }
 
     @Override
@@ -383,6 +388,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         initializeCollector();
         initializeNullRows();
         initializeStateHandlers();
+        initializeJoinConditions();
     }
 
     @Override
@@ -445,8 +451,9 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                 processRecords(
                         depth, input, inputId, joinedRowData, isInputRecordActive, isLeftJoin);
 
-        boolean anyMatches; // True if any state record at the current depth matched
-        // the joinedRowData to the left
+        boolean anyMatches; // True if any state record at the current depth matched the
+        // joinedRowData to
+        // the left
         int associationsPrevLevel; // Association count for the joinedRowData to the left with
         // state at current depth
 
@@ -813,6 +820,11 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                             inputTypes.get(i),
                             stateRetentionTime[i]);
             stateHandlers.add(stateView);
+        }
+    }
+
+    private void initializeInputs() {
+        for (int i = 0; i < inputSpecs.size(); i++) {
             typedInputs.add(createInput(i + 1));
         }
     }
@@ -820,6 +832,13 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     private void closeConditions() throws Exception {
         if (multiJoinCondition != null) {
             multiJoinCondition.close();
+        }
+        if (instantiatedJoinConditions != null) {
+            for (final JoinCondition jc : instantiatedJoinConditions) {
+                if (jc != null) {
+                    jc.close();
+                }
+            }
         }
     }
 
@@ -851,7 +870,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     private boolean matchesCondition(int depth, RowData joinedRowData, RowData record) {
         // The first input (depth 0) doesn't have a preceding input to join with,
         // so there's no specific join condition to evaluate against `joinConditions[0]`.
-        return depth == 0 || joinConditions[depth].apply(joinedRowData, record);
+        return depth == 0 || instantiatedJoinConditions[depth].apply(joinedRowData, record);
     }
 
     private int updateAssociationCount(int currentCount, boolean isUpsert) {
@@ -927,6 +946,20 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             // If associations[depth-1] was 1, then after decrementing it becomes 0,
             // and we would need to insert a null padded row.
             return associationCountForPrevLevel > 1;
+        }
+    }
+
+    private void initializeJoinConditions() throws Exception {
+        this.instantiatedJoinConditions = new JoinCondition[joinConditions.length];
+        for (int i = 0; i < joinConditions.length; i++) {
+            if (this.joinConditions[i] != null) {
+                final JoinCondition cond =
+                        this.joinConditions[i].newInstance(
+                                getRuntimeContext().getUserCodeClassLoader());
+                cond.setRuntimeContext(getRuntimeContext());
+                cond.open(DefaultOpenContext.INSTANCE);
+                this.instantiatedJoinConditions[i] = cond;
+            }
         }
     }
 }
