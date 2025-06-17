@@ -74,8 +74,11 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexWindowBound;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -251,6 +254,17 @@ public class CompiledPlanSerdeUtil {
         }
     }
 
+    static void serializeListIfNotEmpty(
+            JsonGenerator jsonGenerator,
+            String fieldName,
+            List<?> value,
+            SerializerProvider serializerProvider)
+            throws IOException {
+        if (!value.isEmpty()) {
+            serializerProvider.defaultSerializeField(fieldName, value, jsonGenerator);
+        }
+    }
+
     static <T> Optional<T> deserializeOptionalField(
             ObjectNode objectNode,
             String fieldName,
@@ -265,6 +279,47 @@ public class CompiledPlanSerdeUtil {
         return Optional.empty();
     }
 
+    static <T> List<T> deserializeList(
+            ObjectNode objectNode,
+            String fieldName,
+            Class<? extends T> type,
+            ObjectCodec codec,
+            DeserializationContext ctx)
+            throws IOException {
+        return ctx.readValue(
+                traverse(objectNode.required(fieldName), codec),
+                ctx.getTypeFactory().constructCollectionType(List.class, type));
+    }
+
+    static <T> List<T> deserializeListOrEmpty(
+            ObjectNode objectNode,
+            String fieldName,
+            Class<? extends T> type,
+            ObjectCodec codec,
+            DeserializationContext ctx)
+            throws IOException {
+        if (objectNode.hasNonNull(fieldName)) {
+            return deserializeList(objectNode, fieldName, type, codec, ctx);
+        }
+        return List.of();
+    }
+
+    static <K, V> Map<K, V> deserializeMapOrEmpty(
+            ObjectNode objectNode,
+            String fieldName,
+            Class<? extends K> keyType,
+            Class<? extends V> valueType,
+            ObjectCodec codec,
+            DeserializationContext ctx)
+            throws IOException {
+        if (objectNode.hasNonNull(fieldName)) {
+            return ctx.readValue(
+                    traverse(objectNode.get(fieldName), codec),
+                    ctx.getTypeFactory().constructMapType(Map.class, keyType, valueType));
+        }
+        return Map.of();
+    }
+
     static <T> Optional<T> deserializeOptionalField(
             ObjectNode objectNode,
             String fieldName,
@@ -276,6 +331,19 @@ public class CompiledPlanSerdeUtil {
             return Optional.of(ctx.readValue(traverse(objectNode.get(fieldName), codec), type));
         }
         return Optional.empty();
+    }
+
+    static <T> @Nullable T deserializeFieldOrNull(
+            ObjectNode objectNode,
+            String fieldName,
+            Class<T> type,
+            ObjectCodec codec,
+            DeserializationContext ctx)
+            throws IOException {
+        if (objectNode.hasNonNull(fieldName)) {
+            return ctx.readValue(traverse(objectNode.get(fieldName), codec), type);
+        }
+        return null;
     }
 
     static boolean areColumnsEqual(

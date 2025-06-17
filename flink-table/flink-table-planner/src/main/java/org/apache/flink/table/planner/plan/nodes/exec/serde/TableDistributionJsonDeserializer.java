@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.TableDistribution;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.ObjectCodec;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
@@ -29,9 +30,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeOptionalField;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeFieldOrNull;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeList;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.traverse;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.TableDistributionJsonSerializer.BUCKET_COUNT;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.TableDistributionJsonSerializer.BUCKET_KEYS;
@@ -59,22 +60,17 @@ final class TableDistributionJsonDeserializer extends StdDeserializer<TableDistr
             return null;
         }
 
+        ObjectNode objectNode = (ObjectNode) jsonNode;
+        ObjectCodec codec = jsonParser.getCodec();
+
         TableDistribution.Kind kind =
                 ctx.readValue(
-                        traverse(jsonNode.required(KIND), jsonParser.getCodec()),
-                        TableDistribution.Kind.class);
-        Optional<Integer> bucketCount =
-                deserializeOptionalField(
-                        (ObjectNode) jsonNode,
-                        BUCKET_COUNT,
-                        Integer.class,
-                        jsonParser.getCodec(),
-                        ctx);
+                        traverse(jsonNode.required(KIND), codec), TableDistribution.Kind.class);
+        Integer bucketCount =
+                deserializeFieldOrNull(objectNode, BUCKET_COUNT, Integer.class, codec, ctx);
         List<String> bucketKeys =
-                ctx.readValue(
-                        traverse(jsonNode.required(BUCKET_KEYS), jsonParser.getCodec()),
-                        ctx.getTypeFactory().constructCollectionType(List.class, String.class));
+                deserializeList(objectNode, BUCKET_KEYS, String.class, codec, ctx);
 
-        return TableDistribution.of(kind, bucketCount.orElseGet(() -> null), bucketKeys);
+        return TableDistribution.of(kind, bucketCount, bucketKeys);
     }
 }

@@ -34,6 +34,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -48,13 +49,32 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Test {@link org.apache.flink.table.planner.plan.nodes.exec.ExecNode} deserialization after
  * upgrading to a higher version from serialized plan which is serialized using the old version.
  */
-public class ExecNodeVersionUpgradeSerdeTest {
+class ExecNodeVersionUpgradeSerdeTest {
 
-    @Test
-    public void testDeserializeOldVersionUsingNewVersion() throws IOException {
+    @BeforeAll
+    static void beforeAll() {
         ExecNodeMetadataUtil.addTestNode(DummyExecNode.class);
+    }
+
+    // After 2.0 is stopped being maintained, this test could be dropped
+    @Test
+    void testDeserializeVersionBefore21UsingNewVersion() throws IOException {
         String serializedUsingOldVersion =
                 "{\"id\":1,\"type\":\"dummy-exec-node_1\",\"inputProperties\":[],\"outputType\":\"ROW<>\",\"description\":\"Dummy\"}";
+
+        String serializedUsingNewVersion =
+                "{\"id\":1,\"type\":\"dummy-exec-node_1\",\"outputType\":\"ROW<>\",\"description\":\"Dummy\"}";
+        SerdeContext context = configuredSerdeContext();
+        DummyExecNode deserializedUsingNewVersion =
+                toObject(context, serializedUsingOldVersion, DummyExecNode.class);
+        assertThat(toJson(context, deserializedUsingNewVersion))
+                .isEqualTo(serializedUsingNewVersion);
+    }
+
+    @Test
+    void testDeserializeVersionAfter21UsingNewVersion() throws IOException {
+        String serializedUsingOldVersion =
+                "{\"id\":1,\"type\":\"dummy-exec-node_1\",\"outputType\":\"ROW<>\",\"description\":\"Dummy\"}";
 
         SerdeContext context = configuredSerdeContext();
         DummyExecNode deserializedUsingNewVersion =

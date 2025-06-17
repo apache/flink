@@ -26,15 +26,16 @@ import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedSchema;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.ObjectCodec;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Map;
 
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeOptionalField;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeFieldOrNull;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeMapOrEmpty;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.traverse;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatalogModelJsonSerializer.COMMENT;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatalogModelJsonSerializer.INPUT_SCHEMA;
@@ -59,30 +60,17 @@ public class ResolvedCatalogModelJsonDeserializer extends StdDeserializer<Resolv
     public ResolvedCatalogModel deserialize(JsonParser jsonParser, DeserializationContext ctx)
             throws IOException {
         ObjectNode jsonNode = jsonParser.readValueAsTree();
+        ObjectCodec codec = jsonParser.getCodec();
+
         ResolvedSchema inputSchema =
                 ctx.readValue(
-                        traverse(jsonNode.required(INPUT_SCHEMA), jsonParser.getCodec()),
-                        ResolvedSchema.class);
+                        traverse(jsonNode.required(INPUT_SCHEMA), codec), ResolvedSchema.class);
         ResolvedSchema outputSchema =
                 ctx.readValue(
-                        traverse(jsonNode.required(OUTPUT_SCHEMA), jsonParser.getCodec()),
-                        ResolvedSchema.class);
-        String comment =
-                deserializeOptionalField(
-                                jsonNode, COMMENT, String.class, jsonParser.getCodec(), ctx)
-                        .orElse(null);
-        @SuppressWarnings("unchecked")
+                        traverse(jsonNode.required(OUTPUT_SCHEMA), codec), ResolvedSchema.class);
+        String comment = deserializeFieldOrNull(jsonNode, COMMENT, String.class, codec, ctx);
         Map<String, String> options =
-                (Map<String, String>)
-                        deserializeOptionalField(
-                                        jsonNode,
-                                        OPTIONS,
-                                        ctx.getTypeFactory()
-                                                .constructMapType(
-                                                        Map.class, String.class, String.class),
-                                        jsonParser.getCodec(),
-                                        ctx)
-                                .orElse(Collections.emptyMap());
+                deserializeMapOrEmpty(jsonNode, OPTIONS, String.class, String.class, codec, ctx);
 
         return new DefaultResolvedCatalogModel(
                 CatalogModel.of(

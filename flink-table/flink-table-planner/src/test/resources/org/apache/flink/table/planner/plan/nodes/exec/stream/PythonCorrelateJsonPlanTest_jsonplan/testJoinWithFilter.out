@@ -20,10 +20,8 @@
             }, {
               "name" : "d",
               "dataType" : "TIMESTAMP(3)"
-            } ],
-            "watermarkSpecs" : [ ]
+            } ]
           },
-          "partitionKeys" : [ ],
           "options" : {
             "bounded" : "false",
             "connector" : "values"
@@ -32,8 +30,7 @@
       }
     },
     "outputType" : "ROW<`a` INT, `b` INT, `c` INT, `d` TIMESTAMP(3)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
-    "inputProperties" : [ ]
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])"
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
@@ -211,10 +208,8 @@
             }, {
               "name" : "b",
               "dataType" : "INT"
-            } ],
-            "watermarkSpecs" : [ ]
+            } ]
           },
-          "partitionKeys" : [ ],
           "options" : {
             "connector" : "values",
             "table-sink-class" : "DEFAULT"
