@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMultiJoin;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -58,21 +57,17 @@ import java.util.Map;
  * inputs.
  *
  * <p>This rule is copied and adjusted from {@link org.apache.calcite.rel.rules.JoinToMultiJoinRule}
- * and {@link FlinkLogicalMultiJoin}. In this rule, we support richer join type then both to convert
- * to one multi join set, like left outer join and right outer join, by rewriting $canCombine()
- * method. The multi join in however in this case not expected to be used for reorderin. The joins
- * have to be expected to be in the order as in the multi join node.
- *
- * <p>An input is not flattened if the input is a null generating input in an outer join in some
- * cases , i.e., either input in a full outer join, semi join, anti join.
+ * and {@link JoinToMultiJoinForReorderRule}. In this rule, we support a broder sef of left and
+ * inner joins by rewriting $canCombine() method. The multi join is not expected to be used for
+ * reordering and will be turned into a {@link
+ * org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin}.
  *
  * <p>Join conditions are also pulled up from the inputs into the topmost {@link MultiJoin}.
  *
- * <p>Join information is also stored in the {@link MultiJoin}. A boolean flag indicates if the join
- * is a full outer join, and in the case of left and right outer joins, the join type and outer join
- * conditions are stored in arrays in the {@link MultiJoin}. This outer join information is
- * associated with the null generating input in the outer join. So, in the case of a left outer join
- * between A and B, the information is associated with B, not A.
+ * <p>Join information is also stored in the {@link MultiJoin}. Join conditions are stored in arrays
+ * in the {@link MultiJoin}. This outer join information is associated with the null generating
+ * input in the outer join. So, in the case of a left outer join between A and B, the information is
+ * associated with B, not A.
  *
  * <p>Here are examples of the {@link MultiJoin}s constructed after this rule has been applied on
  * following join trees.
@@ -103,24 +98,23 @@ import java.util.Map;
  * @see CoreRules#JOIN_TO_MULTI_JOIN
  */
 @Value.Enclosing
-public class LogicalJoinToMultiJoinRule extends RelRule<LogicalJoinToMultiJoinRule.Config>
+public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
         implements TransformationRule {
 
-    public static final LogicalJoinToMultiJoinRule INSTANCE =
-            LogicalJoinToMultiJoinRule.Config.DEFAULT.toRule();
+    public static final JoinToMultiJoinRule INSTANCE = JoinToMultiJoinRule.Config.DEFAULT.toRule();
 
     /** Creates a JoinToMultiJoinRule. */
-    public LogicalJoinToMultiJoinRule(Config config) {
+    public JoinToMultiJoinRule(Config config) {
         super(config);
     }
 
     @Deprecated // to be removed before 2.0
-    public LogicalJoinToMultiJoinRule(Class<? extends Join> clazz) {
+    public JoinToMultiJoinRule(Class<? extends Join> clazz) {
         this(Config.DEFAULT.withOperandFor(clazz));
     }
 
     @Deprecated // to be removed before 2.0
-    public LogicalJoinToMultiJoinRule(
+    public JoinToMultiJoinRule(
             Class<? extends Join> joinClass, RelBuilderFactory relBuilderFactory) {
         this(
                 Config.DEFAULT
@@ -134,6 +128,13 @@ public class LogicalJoinToMultiJoinRule extends RelRule<LogicalJoinToMultiJoinRu
     @Override
     public boolean matches(RelOptRuleCall call) {
         final Join origJoin = call.rel(0);
+        if (origJoin.getJoinType() != JoinRelType.INNER
+                && origJoin.getJoinType() != JoinRelType.LEFT) {
+            /* This rule expects only INNER and LEFT joins. Right joins are expected to be
+            rewritten to left joins by the optimizer with {@link FlinkRightJoinToLeftJoinRule} */
+            return false;
+        }
+
         return origJoin.getJoinType().projectsRight();
     }
 
@@ -440,15 +441,14 @@ public class LogicalJoinToMultiJoinRule extends RelRule<LogicalJoinToMultiJoinRu
         JoinRelType joinType = join.getJoinType();
         JoinInfo joinInfo = join.analyzeCondition();
         ImmutableIntList leftKeys = joinInfo.leftKeys;
-        ImmutableIntList rightKeys = joinInfo.rightKeys;
 
         if (joinType == JoinRelType.RIGHT) {
             throw new TableException("This is a bug. This rule only supports left and inner joins");
         }
-        // AND the join condition if this isn't a left or right outer join; In those cases, the
+        // AND the join condition if this isn't a left join; In those cases, the
         // outer join condition is already tracked separately.
         final List<RexNode> filters = new ArrayList<>();
-        if ((joinType != JoinRelType.LEFT) && (joinType != JoinRelType.INNER)) {
+        if ((joinType != JoinRelType.LEFT)) {
             filters.add(join.getCondition());
         }
         if (canCombine(
@@ -461,19 +461,6 @@ public class LogicalJoinToMultiJoinRule extends RelRule<LogicalJoinToMultiJoinRu
                 0)) {
             filters.add(((MultiJoin) left).getJoinFilter());
         }
-        // Need to adjust the RexInputs of the right child, since those need to shift over to the
-        // right.
-        if (canCombine(
-                right,
-                rightKeys,
-                joinType,
-                joinType.generatesNullsOnRight(),
-                false,
-                inputNullGenFieldList,
-                left.getRowType().getFieldCount())) {
-            MultiJoin multiJoin = (MultiJoin) right;
-            filters.add(shiftRightFilter(join, left, multiJoin, multiJoin.getJoinFilter()));
-        }
 
         return filters;
     }
@@ -481,6 +468,10 @@ public class LogicalJoinToMultiJoinRule extends RelRule<LogicalJoinToMultiJoinRu
     /**
      * Returns whether an input can be merged into a given relational expression without changing
      * semantics.
+     *
+     * <p>This method should be extended to check for the common join key restriction to support
+     * multiple multi joins. See <a
+     * href="https://issues.apache.org/jira/browse/FLINK-37890">FLINK-37890</a>.
      *
      * @param input input into a join
      * @param nullGenerating true if the input is null generating
@@ -668,14 +659,14 @@ public class LogicalJoinToMultiJoinRule extends RelRule<LogicalJoinToMultiJoinRu
     @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
         Config DEFAULT =
-                ImmutableLogicalJoinToMultiJoinRule.Config.builder()
+                ImmutableJoinToMultiJoinRule.Config.builder()
                         .build()
                         .as(Config.class)
                         .withOperandFor(LogicalJoin.class);
 
         @Override
-        default LogicalJoinToMultiJoinRule toRule() {
-            return new LogicalJoinToMultiJoinRule(this);
+        default JoinToMultiJoinRule toRule() {
+            return new JoinToMultiJoinRule(this);
         }
 
         /** Defines an operand tree for the given classes. */

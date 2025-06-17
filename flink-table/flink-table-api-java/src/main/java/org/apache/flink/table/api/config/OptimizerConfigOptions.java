@@ -359,12 +359,13 @@ public class OptimizerConfigOptions {
                                     .text(
                                             "Enables a multi-way join operator for a chain of streaming joins. "
                                                     + "This operator processes multiple inputs at once, reducing the state size considerably by avoiding intermediate results. "
-                                                    + "It supports regular INNER, LEFT and RIGHT joins.")
+                                                    + "It supports regular INNER and LEFT joins.")
                                     .linebreak()
                                     .linebreak()
                                     .text(
-                                            "Note: This is an experimental feature and not recommended for production. "
-                                                    + "The operator's internal implementation and state layout is subject to changes due to ongoing optimizations, which will break savepoint compatibility across Flink versions.")
+                                            "Note: This is an experimental feature and not recommended for production just yet. "
+                                                    + "The operator's internal implementation and state layout is subject to changes due to ongoing relevant optimizations. "
+                                                    + " These might break savepoint compatibility across Flink versions and the goal is to have a stable version in the next release.")
                                     .build());
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)

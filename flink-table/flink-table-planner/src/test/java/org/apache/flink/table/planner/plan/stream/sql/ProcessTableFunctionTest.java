@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.stream.sql;
 import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -71,7 +72,12 @@ public class ProcessTableFunctionTest extends TableTestBase {
 
     @BeforeEach
     void setup() {
-        util = streamTestUtil(TableConfig.getDefault());
+        util =
+                streamTestUtil(
+                        TableConfig.getDefault()
+                                .set(
+                                        OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED,
+                                        true));
         util.tableEnv()
                 .executeSql(
                         "CREATE VIEW t AS SELECT * FROM (VALUES ('Bob', 12), ('Alice', 42)) AS T(name, score)");

@@ -99,24 +99,24 @@ import java.util.Map;
  * @see CoreRules#JOIN_TO_MULTI_JOIN
  */
 @Value.Enclosing
-public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.Config>
+public class JoinToMultiJoinForReorderRule extends RelRule<JoinToMultiJoinForReorderRule.Config>
         implements TransformationRule {
 
-    public static final FlinkJoinToMultiJoinRule INSTANCE =
-            FlinkJoinToMultiJoinRule.Config.DEFAULT.toRule();
+    public static final JoinToMultiJoinForReorderRule INSTANCE =
+            JoinToMultiJoinForReorderRule.Config.DEFAULT.toRule();
 
-    /** Creates a JoinToMultiJoinRule. */
-    public FlinkJoinToMultiJoinRule(Config config) {
+    /** Creates a JoinToMultiJoinForReorderRule. */
+    public JoinToMultiJoinForReorderRule(Config config) {
         super(config);
     }
 
     @Deprecated // to be removed before 2.0
-    public FlinkJoinToMultiJoinRule(Class<? extends Join> clazz) {
+    public JoinToMultiJoinForReorderRule(Class<? extends Join> clazz) {
         this(Config.DEFAULT.withOperandFor(clazz));
     }
 
     @Deprecated // to be removed before 2.0
-    public FlinkJoinToMultiJoinRule(
+    public JoinToMultiJoinForReorderRule(
             Class<? extends Join> joinClass, RelBuilderFactory relBuilderFactory) {
         this(
                 Config.DEFAULT
@@ -705,14 +705,14 @@ public class FlinkJoinToMultiJoinRule extends RelRule<FlinkJoinToMultiJoinRule.C
     @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
         Config DEFAULT =
-                ImmutableFlinkJoinToMultiJoinRule.Config.builder()
+                ImmutableJoinToMultiJoinForReorderRule.Config.builder()
                         .build()
                         .as(Config.class)
                         .withOperandFor(LogicalJoin.class);
 
         @Override
-        default FlinkJoinToMultiJoinRule toRule() {
-            return new FlinkJoinToMultiJoinRule(this);
+        default JoinToMultiJoinForReorderRule toRule() {
+            return new JoinToMultiJoinForReorderRule(this);
         }
 
         /** Defines an operand tree for the given classes. */

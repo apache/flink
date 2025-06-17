@@ -456,9 +456,6 @@ public class MultiJoinTestPrograms {
                                     + "FROM Users u "
                                     + "LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
                                     + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
-                                    // todo gustavo + "INNER JOIN Payments p ON u.user_id_0 =
-                                    // p.user_id_2 AND p.order_id = p.payment_id AND (u.cash >=
-                                    // p.price OR p.price < 0) " or order_id = payment_id
                                     + "LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3")
                     .build();
 }

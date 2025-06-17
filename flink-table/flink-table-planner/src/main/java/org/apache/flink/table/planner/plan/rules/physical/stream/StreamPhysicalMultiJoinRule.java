@@ -24,7 +24,10 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMultiJoin;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSnapshot;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -91,6 +94,13 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
         final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap =
                 createJoinAttributeMap(multiJoin);
 
+        final JoinKeyExtractor keyExtractor;
+        final List<RowType> inputRowTypes =
+                newInputs.stream()
+                        .map(i -> FlinkTypeFactory.toLogicalRowType(i.getRowType()))
+                        .collect(Collectors.toList());
+        keyExtractor = new AttributeBasedJoinKeyExtractor(joinAttributeMap, inputRowTypes);
+
         return new StreamPhysicalMultiJoin(
                 multiJoin.getCluster(),
                 traitSet,
@@ -101,7 +111,8 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
                 multiJoin.getJoinTypes(),
                 joinAttributeMap,
                 multiJoin.getPostJoinFilter(),
-                multiJoin.getHints());
+                multiJoin.getHints(),
+                keyExtractor);
     }
 
     private boolean isTemporalJoin(final FlinkLogicalMultiJoin multiJoin) {
