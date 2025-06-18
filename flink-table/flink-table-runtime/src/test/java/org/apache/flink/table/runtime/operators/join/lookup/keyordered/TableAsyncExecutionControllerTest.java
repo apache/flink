@@ -22,6 +22,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
+import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEntry;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -52,7 +53,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorTest.LazyAsyncFunction;
 import static org.apache.flink.table.runtime.util.AsyncKeyOrderedTestUtils.assertKeyOrdered;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -389,7 +389,7 @@ public class TableAsyncExecutionControllerTest {
         }
     }
 
-    private static class TestLazyAsyncFunction extends LazyAsyncFunction {
+    private static class TestLazyAsyncFunction extends RichAsyncFunction<Integer, Integer> {
 
         public TestLazyAsyncFunction() {}
 
