@@ -349,9 +349,9 @@ public abstract class AbstractStreamOperator<OUT>
      * option is enabled. By default, splittable timers are disabled.
      *
      * @return {@code true} if splittable timers should be used (subject to {@link
-     *     StreamConfig#isUnalignedCheckpointsEnabled()} and {@link
-     *     StreamConfig#isUnalignedCheckpointsSplittableTimersEnabled()}. {@code false} if
-     *     splittable timers should never be used.
+     *     CheckpointingOptions#ENABLE_UNALIGNED} and {@link
+     *     CheckpointingOptions#ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS}. {@code false} if splittable
+     *     timers should never be used.
      */
     @Internal
     public boolean useSplittableTimers() {
