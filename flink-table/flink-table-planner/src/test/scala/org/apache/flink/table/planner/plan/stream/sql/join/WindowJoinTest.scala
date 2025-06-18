@@ -1322,7 +1322,7 @@ class WindowJoinTest extends TableTestBase {
         |     ,DATE_FORMAT(food.window_end + INTERVAL '7' HOUR, 'yyyyMMdd') AS dt
         |     ,DATE_FORMAT(food.window_end + INTERVAL '7' HOUR, 'HH') AS `hour`
         |FROM food
-        |LEFT JOIN food AS a ON food.user_id = a.user_id
+        |JOIN food AS a ON food.user_id = a.user_id
         |AND food.window_start = a.window_start
         |AND food.window_end = a.window_end
         |""".stripMargin
