@@ -87,7 +87,8 @@ public class MLEvaluateITCase extends StreamingTestBase {
                                                 + "TABLE classification_table, "
                                                 + "MODEL classification_model, "
                                                 + "DESCRIPTOR(label), "
-                                                + "DESCRIPTOR(text), MAP['async', '"
+                                                + "DESCRIPTOR(text), 'classification', "
+                                                + "MAP['async', '"
                                                 + async
                                                 + "'])")
                                 .collect());
