@@ -102,7 +102,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
         // 2. Received EndOfPartition from channel 0.
         // 3. Received barrier from channel 1.
         // In this case we should finish the existing pending checkpoint.
-        if (receivedBarrier.getId() > latestPendingCheckpointID && numOpenChannels == 1) {
+        if (barrierId > latestPendingCheckpointID && numOpenChannels == 1) {
             markAlignmentStartAndEnd(barrierId, receivedBarrier.getTimestamp());
             notifyCheckpoint(receivedBarrier);
             return;
