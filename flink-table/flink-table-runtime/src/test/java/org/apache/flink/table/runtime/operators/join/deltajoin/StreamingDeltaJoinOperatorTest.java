@@ -43,7 +43,6 @@ import org.apache.flink.table.runtime.operators.join.lookup.keyordered.RecordsBu
 import org.apache.flink.table.runtime.operators.join.lookup.keyordered.TableAsyncExecutionController;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
-import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -59,7 +58,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -81,11 +80,8 @@ public class StreamingDeltaJoinOperatorTest {
     private static final int AEC_CAPACITY = 100;
 
     // the data snapshot of the left/right table when joining
-    // <pk, value>
-    private static final LinkedHashMap<RowData, RowData> leftTableCurrentData =
-            new LinkedHashMap<>();
-    private static final LinkedHashMap<RowData, RowData> rightTableCurrentData =
-            new LinkedHashMap<>();
+    private static final LinkedList<RowData> leftTableCurrentData = new LinkedList<>();
+    private static final LinkedList<RowData> rightTableCurrentData = new LinkedList<>();
 
     /**
      * Mock sql like the following.
@@ -95,7 +91,6 @@ public class StreamingDeltaJoinOperatorTest {
      *          left_value INT,
      *          left_jk1 BOOLEAN,
      *          left_jk2_lk VARCHAR,
-     *          left_pk BIGINT PRIMARY KEY NOT ENFORCED,
      *          INDEX(left_jk2_lk)
      *      )
      * </pre>
@@ -126,24 +121,18 @@ public class StreamingDeltaJoinOperatorTest {
 
     // left join key: <left_jk1, left_jk2_lk>
     // left lookup key: <left_jk2_lk>
-    // left table primary key: <left_pk>
     private static final InternalTypeInfo<RowData> leftTypeInfo =
             InternalTypeInfo.of(
                     RowType.of(
                             new LogicalType[] {
-                                new IntType(),
-                                new BooleanType(),
-                                VarCharType.STRING_TYPE,
-                                new BigIntType()
+                                new IntType(), new BooleanType(), VarCharType.STRING_TYPE
                             },
-                            new String[] {"left_value", "left_jk1", "left_jk2_lk", "left_pk"}));
+                            new String[] {"left_value", "left_jk1", "left_jk2_lk"}));
 
     private static final int[] leftJoinKeyIndices = new int[] {1, 2};
-    private static final int[] leftPrimaryKeyIndices = new int[] {3};
 
     // right join key: <right_jk1_lk, right_jk2>
     // right lookup key: <right_jk1_lk>
-    // right table primary key: none
     private static final InternalTypeInfo<RowData> rightTypeInfo =
             InternalTypeInfo.of(
                     RowType.of(
@@ -152,21 +141,11 @@ public class StreamingDeltaJoinOperatorTest {
                             },
                             new String[] {"right_jk2", "right_value", "right_jk1_lk"}));
     private static final int[] rightJoinKeyIndices = new int[] {2, 0};
-    private static final int[] rightUpsertKeyIndices = new int[] {0, 1, 2};
 
     private static final RowDataKeySelector leftJoinKeySelector =
             HandwrittenSelectorUtil.getRowDataSelector(
                     leftJoinKeyIndices,
                     leftTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
-    private static final RowDataKeySelector leftUpsertKeySelector =
-            HandwrittenSelectorUtil.getRowDataSelector(
-                    leftPrimaryKeyIndices,
-                    leftTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
-
-    private static final RowDataKeySelector rightUpsertKeySelector =
-            HandwrittenSelectorUtil.getRowDataSelector(
-                    rightUpsertKeyIndices,
-                    rightTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
     private static final RowDataKeySelector rightJoinKeySelector =
             HandwrittenSelectorUtil.getRowDataSelector(
                     rightJoinKeyIndices,
@@ -223,52 +202,52 @@ public class StreamingDeltaJoinOperatorTest {
     }
 
     @Test
-    void testLogTableLogTableInserted() throws Exception {
-        StreamRecord<RowData> leftRecordK1V1 = insertRecord(100, true, "jklk1", 1L);
-        StreamRecord<RowData> leftRecordK2V1 = insertRecord(100, false, "jklk2", 2L);
-        testHarness.processElement1(leftRecordK1V1);
-        testHarness.processElement1(leftRecordK2V1);
+    void testJoinBothAppendOnlyTables() throws Exception {
+        StreamRecord<RowData> leftRecord1 = insertRecord(100, true, "jklk1");
+        StreamRecord<RowData> leftRecord2 = insertRecord(100, false, "jklk2");
+        testHarness.processElement1(leftRecord1);
+        testHarness.processElement1(leftRecord2);
 
-        StreamRecord<RowData> leftRecordK1V2 = insertRecord(200, true, "jklk1", 3L);
-        StreamRecord<RowData> leftRecordK2V2 = insertRecord(200, false, "jklk2", 4L);
-        testHarness.processElement1(leftRecordK1V2);
-        testHarness.processElement1(leftRecordK2V2);
+        StreamRecord<RowData> leftRecord3 = insertRecord(200, true, "jklk1");
+        StreamRecord<RowData> leftRecord4 = insertRecord(200, false, "jklk2");
+        testHarness.processElement1(leftRecord3);
+        testHarness.processElement1(leftRecord4);
 
-        StreamRecord<RowData> rightRecordK1V1 = insertRecord("jklk1", 300, true);
-        StreamRecord<RowData> rightRecordK2V1 = insertRecord("jklk2", 300, false);
-        testHarness.processElement2(rightRecordK1V1);
-        testHarness.processElement2(rightRecordK2V1);
+        StreamRecord<RowData> rightRecord1 = insertRecord("jklk1", 300, true);
+        StreamRecord<RowData> rightRecord2 = insertRecord("jklk2", 300, false);
+        testHarness.processElement2(rightRecord1);
+        testHarness.processElement2(rightRecord2);
 
         // mismatch
-        StreamRecord<RowData> rightRecordK3V1 = insertRecord("unknown", 500, false);
-        testHarness.processElement2(rightRecordK3V1);
+        StreamRecord<RowData> rightRecord3 = insertRecord("unknown", 500, false);
+        testHarness.processElement2(rightRecord3);
 
-        StreamRecord<RowData> leftRecordK1V3 = insertRecord(800, true, "jklk1", 5L);
-        StreamRecord<RowData> leftRecordK2V3 = insertRecord(800, false, "jklk2", 6L);
-        testHarness.processElement1(leftRecordK1V3);
-        testHarness.processElement1(leftRecordK2V3);
+        StreamRecord<RowData> leftRecord5 = insertRecord(800, true, "jklk1");
+        StreamRecord<RowData> leftRecord6 = insertRecord(800, false, "jklk2");
+        testHarness.processElement1(leftRecord5);
+        testHarness.processElement1(leftRecord6);
 
-        StreamRecord<RowData> rightRecordK1V2 = insertRecord("jklk1", 1000, true);
-        StreamRecord<RowData> rightRecordK2V2 = insertRecord("jklk2", 1000, false);
-        testHarness.processElement2(rightRecordK1V2);
-        testHarness.processElement2(rightRecordK2V2);
+        StreamRecord<RowData> rightRecord4 = insertRecord("jklk1", 1000, true);
+        StreamRecord<RowData> rightRecord5 = insertRecord("jklk2", 1000, false);
+        testHarness.processElement2(rightRecord4);
+        testHarness.processElement2(rightRecord5);
 
         testHarness.endAllInput();
 
         final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-        expectedOutput.add(insertRecord(100, true, "jklk1", 1L, "jklk1", 300, true));
-        expectedOutput.add(insertRecord(200, true, "jklk1", 3L, "jklk1", 300, true));
-        expectedOutput.add(insertRecord(100, false, "jklk2", 2L, "jklk2", 300, false));
-        expectedOutput.add(insertRecord(200, false, "jklk2", 4L, "jklk2", 300, false));
-        expectedOutput.add(insertRecord(800, true, "jklk1", 5L, "jklk1", 300, true));
-        expectedOutput.add(insertRecord(800, false, "jklk2", 6L, "jklk2", 300, false));
-        expectedOutput.add(insertRecord(100, true, "jklk1", 1L, "jklk1", 1000, true));
-        expectedOutput.add(insertRecord(200, true, "jklk1", 3L, "jklk1", 1000, true));
-        expectedOutput.add(insertRecord(800, true, "jklk1", 5L, "jklk1", 1000, true));
-        expectedOutput.add(insertRecord(100, false, "jklk2", 2L, "jklk2", 1000, false));
-        expectedOutput.add(insertRecord(200, false, "jklk2", 4L, "jklk2", 1000, false));
-        expectedOutput.add(insertRecord(800, false, "jklk2", 6L, "jklk2", 1000, false));
+        expectedOutput.add(insertRecord(100, true, "jklk1", "jklk1", 300, true));
+        expectedOutput.add(insertRecord(200, true, "jklk1", "jklk1", 300, true));
+        expectedOutput.add(insertRecord(100, false, "jklk2", "jklk2", 300, false));
+        expectedOutput.add(insertRecord(200, false, "jklk2", "jklk2", 300, false));
+        expectedOutput.add(insertRecord(800, true, "jklk1", "jklk1", 300, true));
+        expectedOutput.add(insertRecord(800, false, "jklk2", "jklk2", 300, false));
+        expectedOutput.add(insertRecord(100, true, "jklk1", "jklk1", 1000, true));
+        expectedOutput.add(insertRecord(200, true, "jklk1", "jklk1", 1000, true));
+        expectedOutput.add(insertRecord(800, true, "jklk1", "jklk1", 1000, true));
+        expectedOutput.add(insertRecord(100, false, "jklk2", "jklk2", 1000, false));
+        expectedOutput.add(insertRecord(200, false, "jklk2", "jklk2", 1000, false));
+        expectedOutput.add(insertRecord(800, false, "jklk2", "jklk2", 1000, false));
 
         assertor.assertOutputEqualsSorted(
                 "result mismatch", expectedOutput, testHarness.getOutput());
@@ -285,28 +264,28 @@ public class StreamingDeltaJoinOperatorTest {
         MyAsyncFunction.block();
 
         // in flight
-        StreamRecord<RowData> leftRecordK1V1 = insertRecord(100, true, "jklk1", 1L);
-        StreamRecord<RowData> leftRecordK2V1 = insertRecord(100, false, "jklk2", 2L);
-        testHarness.processElement1(leftRecordK1V1);
-        testHarness.processElement1(leftRecordK2V1);
+        StreamRecord<RowData> leftRecord1 = insertRecord(100, true, "jklk1");
+        StreamRecord<RowData> leftRecord2 = insertRecord(100, false, "jklk2");
+        testHarness.processElement1(leftRecord1);
+        testHarness.processElement1(leftRecord2);
 
         // blocked
-        StreamRecord<RowData> rightRecordK1V1 = insertRecord("jklk1", 300, true);
-        StreamRecord<RowData> rightRecordK2V1 = insertRecord("jklk2", 300, false);
-        testHarness.processElement2(rightRecordK1V1);
-        testHarness.processElement2(rightRecordK2V1);
+        StreamRecord<RowData> rightRecord1 = insertRecord("jklk1", 300, true);
+        StreamRecord<RowData> rightRecord2 = insertRecord("jklk2", 300, false);
+        testHarness.processElement2(rightRecord1);
+        testHarness.processElement2(rightRecord2);
 
         // blocked
-        StreamRecord<RowData> leftRecordK1V2 = insertRecord(200, true, "jklk1", 3L);
-        StreamRecord<RowData> leftRecordK2V2 = insertRecord(200, false, "jklk2", 4L);
-        StreamRecord<RowData> leftRecordK2V3 = insertRecord(201, false, "jklk2", 5L);
-        testHarness.processElement1(leftRecordK1V2);
-        testHarness.processElement1(leftRecordK2V2);
-        testHarness.processElement1(leftRecordK2V3);
+        StreamRecord<RowData> leftRecord3 = insertRecord(200, true, "jklk1");
+        StreamRecord<RowData> leftRecord4 = insertRecord(200, false, "jklk2");
+        StreamRecord<RowData> leftRecord5 = insertRecord(201, false, "jklk2");
+        testHarness.processElement1(leftRecord3);
+        testHarness.processElement1(leftRecord4);
+        testHarness.processElement1(leftRecord5);
 
         // in flight
-        StreamRecord<RowData> rightRecordK3V1 = insertRecord("unknown", 500, false);
-        testHarness.processElement2(rightRecordK3V1);
+        StreamRecord<RowData> rightRecord3 = insertRecord("unknown", 500, false);
+        testHarness.processElement2(rightRecord3);
 
         TableAsyncExecutionController<RowData, RowData, RowData> aec = unwrapAEC(testHarness);
         assertThat(aec.getBlockingSize()).isEqualTo(5);
@@ -317,10 +296,8 @@ public class StreamingDeltaJoinOperatorTest {
         assertThat(recordsBuffer.getActiveBuffer().size()).isEqualTo(3);
         assertThat(recordsBuffer.getBlockingBuffer().size()).isEqualTo(2);
 
-        RowData joinKey1 =
-                leftJoinKeySelector.getKey(insertRecord(100, true, "jklk1", 1L).getValue());
-        RowData joinKey2 =
-                leftJoinKeySelector.getKey(insertRecord(100, false, "jklk2", 2L).getValue());
+        RowData joinKey1 = leftJoinKeySelector.getKey(insertRecord(100, true, "jklk1").getValue());
+        RowData joinKey2 = leftJoinKeySelector.getKey(insertRecord(100, false, "jklk2").getValue());
         RowData joinKey3 =
                 rightJoinKeySelector.getKey(insertRecord("unknown", 500, false).getValue());
 
@@ -335,11 +312,11 @@ public class StreamingDeltaJoinOperatorTest {
 
         testHarness.endAllInput();
         final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-        expectedOutput.add(insertRecord(100, true, "jklk1", 1L, "jklk1", 300, true));
-        expectedOutput.add(insertRecord(100, false, "jklk2", 2L, "jklk2", 300, false));
-        expectedOutput.add(insertRecord(200, true, "jklk1", 3L, "jklk1", 300, true));
-        expectedOutput.add(insertRecord(200, false, "jklk2", 4L, "jklk2", 300, false));
-        expectedOutput.add(insertRecord(201, false, "jklk2", 5L, "jklk2", 300, false));
+        expectedOutput.add(insertRecord(100, true, "jklk1", "jklk1", 300, true));
+        expectedOutput.add(insertRecord(100, false, "jklk2", "jklk2", 300, false));
+        expectedOutput.add(insertRecord(200, true, "jklk1", "jklk1", 300, true));
+        expectedOutput.add(insertRecord(200, false, "jklk2", "jklk2", 300, false));
+        expectedOutput.add(insertRecord(201, false, "jklk2", "jklk2", 300, false));
 
         assertor.assertOutputEqualsSorted(
                 "result mismatch", expectedOutput, testHarness.getOutput());
@@ -356,9 +333,6 @@ public class StreamingDeltaJoinOperatorTest {
      * This test is used to test the scenario where the right stream side joined out a record from
      * the left table that has not been sent to the delta-join operator (maybe is in flight between
      * source and delta-join).
-     *
-     * <p>The situation where left streaming side join with the right table like above is also
-     * verified.
      */
     @Test
     void testTableDataVisibleBeforeJoin() throws Exception {
@@ -366,31 +340,31 @@ public class StreamingDeltaJoinOperatorTest {
 
         // prepare the data first to mock all following requests were in flight between source and
         // delta-join
-        final StreamRecord<RowData> leftRecordK1V1 = insertRecord(100, true, "jklk1", 1L);
-        insertLeftTable(leftRecordK1V1);
+        final StreamRecord<RowData> leftRecord1 = insertRecord(100, true, "jklk1");
+        insertLeftTable(leftRecord1);
 
-        final StreamRecord<RowData> leftRecordK1V2 = insertRecord(200, true, "jklk1", 2L);
-        insertLeftTable(leftRecordK1V2);
+        final StreamRecord<RowData> leftRecord2 = insertRecord(200, true, "jklk1");
+        insertLeftTable(leftRecord2);
 
-        final StreamRecord<RowData> rightRecordK1V1 = insertRecord("jklk1", 300, true);
-        insertRightTable(rightRecordK1V1);
+        final StreamRecord<RowData> rightRecord1 = insertRecord("jklk1", 300, true);
+        insertRightTable(rightRecord1);
 
         // mismatch
-        final StreamRecord<RowData> rightRecordK2V1 = insertRecord("jklk2", 500, false);
-        insertRightTable(rightRecordK2V1);
+        final StreamRecord<RowData> rightRecord2 = insertRecord("jklk2", 500, false);
+        insertRightTable(rightRecord2);
 
-        final StreamRecord<RowData> leftRecordK1V3 = insertRecord(800, true, "jklk1", 3L);
-        insertLeftTable(leftRecordK1V3);
+        final StreamRecord<RowData> leftRecord3 = insertRecord(800, true, "jklk1");
+        insertLeftTable(leftRecord3);
 
-        final StreamRecord<RowData> rightRecordK1V2 = insertRecord("jklk1", 1000, true);
-        insertRightTable(rightRecordK1V2);
+        final StreamRecord<RowData> rightRecord3 = insertRecord("jklk1", 1000, true);
+        insertRightTable(rightRecord3);
 
-        testHarness.processElement1(leftRecordK1V1);
-        testHarness.processElement1(leftRecordK1V2);
-        testHarness.processElement2(rightRecordK1V1);
-        testHarness.processElement2(rightRecordK2V1);
-        testHarness.processElement1(leftRecordK1V3);
-        testHarness.processElement2(rightRecordK1V2);
+        testHarness.processElement1(leftRecord1);
+        testHarness.processElement1(leftRecord2);
+        testHarness.processElement2(rightRecord1);
+        testHarness.processElement2(rightRecord2);
+        testHarness.processElement1(leftRecord3);
+        testHarness.processElement2(rightRecord3);
 
         testHarness.endAllInput();
 
@@ -398,26 +372,26 @@ public class StreamingDeltaJoinOperatorTest {
 
         // left record comes
         // left can see 2 records in right log table
-        expectedOutput.add(insertRecord(100, true, "jklk1", 1L, "jklk1", 300, true));
-        expectedOutput.add(insertRecord(100, true, "jklk1", 1L, "jklk1", 1000, true));
+        expectedOutput.add(insertRecord(100, true, "jklk1", "jklk1", 300, true));
+        expectedOutput.add(insertRecord(100, true, "jklk1", "jklk1", 1000, true));
         // left record comes
         // left can see 2 records in right log table
-        expectedOutput.add(insertRecord(200, true, "jklk1", 2L, "jklk1", 300, true));
-        expectedOutput.add(insertRecord(200, true, "jklk1", 2L, "jklk1", 1000, true));
+        expectedOutput.add(insertRecord(200, true, "jklk1", "jklk1", 300, true));
+        expectedOutput.add(insertRecord(200, true, "jklk1", "jklk1", 1000, true));
         // right record comes
         // right can see 3 records in left log table
-        expectedOutput.add(insertRecord(100, true, "jklk1", 1L, "jklk1", 300, true));
-        expectedOutput.add(insertRecord(200, true, "jklk1", 2L, "jklk1", 300, true));
-        expectedOutput.add(insertRecord(800, true, "jklk1", 3L, "jklk1", 300, true));
+        expectedOutput.add(insertRecord(100, true, "jklk1", "jklk1", 300, true));
+        expectedOutput.add(insertRecord(200, true, "jklk1", "jklk1", 300, true));
+        expectedOutput.add(insertRecord(800, true, "jklk1", "jklk1", 300, true));
         // left record comes
         // left can see 2 records in right log table
-        expectedOutput.add(insertRecord(800, true, "jklk1", 3L, "jklk1", 300, true));
-        expectedOutput.add(insertRecord(800, true, "jklk1", 3L, "jklk1", 1000, true));
+        expectedOutput.add(insertRecord(800, true, "jklk1", "jklk1", 300, true));
+        expectedOutput.add(insertRecord(800, true, "jklk1", "jklk1", 1000, true));
         // right record comes
         // right can see 3 records in left log table
-        expectedOutput.add(insertRecord(100, true, "jklk1", 1L, "jklk1", 1000, true));
-        expectedOutput.add(insertRecord(200, true, "jklk1", 2L, "jklk1", 1000, true));
-        expectedOutput.add(insertRecord(800, true, "jklk1", 3L, "jklk1", 1000, true));
+        expectedOutput.add(insertRecord(100, true, "jklk1", "jklk1", 1000, true));
+        expectedOutput.add(insertRecord(200, true, "jklk1", "jklk1", 1000, true));
+        expectedOutput.add(insertRecord(800, true, "jklk1", "jklk1", 1000, true));
 
         assertor.assertOutputEqualsSorted(
                 "result mismatch", expectedOutput, testHarness.getOutput());
@@ -434,20 +408,20 @@ public class StreamingDeltaJoinOperatorTest {
         MyAsyncFunction.block();
 
         // in flight
-        StreamRecord<RowData> leftRecordK1V1 = insertRecord(100, true, "jklk1", 1L);
-        testHarness.processElement1(leftRecordK1V1);
+        StreamRecord<RowData> leftRecord1 = insertRecord(100, true, "jklk1");
+        testHarness.processElement1(leftRecord1);
 
         // blocked
-        StreamRecord<RowData> rightRecordK1V1 = insertRecord("jklk1", 300, true);
-        testHarness.processElement2(rightRecordK1V1);
+        StreamRecord<RowData> rightRecord1 = insertRecord("jklk1", 300, true);
+        testHarness.processElement2(rightRecord1);
 
         // blocked
-        StreamRecord<RowData> leftRecordK1V2 = insertRecord(200, true, "jklk1", 2L);
-        testHarness.processElement1(leftRecordK1V2);
+        StreamRecord<RowData> leftRecord2 = insertRecord(200, true, "jklk1");
+        testHarness.processElement1(leftRecord2);
 
         // in flight
-        StreamRecord<RowData> rightRecordK2V1 = insertRecord("unknown", 500, false);
-        testHarness.processElement2(rightRecordK2V1);
+        StreamRecord<RowData> rightRecord2 = insertRecord("unknown", 500, false);
+        testHarness.processElement2(rightRecord2);
 
         TableAsyncExecutionController<RowData, RowData, RowData> aec = unwrapAEC(testHarness);
         assertThat(aec.getBlockingSize()).isEqualTo(2);
@@ -490,8 +464,8 @@ public class StreamingDeltaJoinOperatorTest {
 
         testHarness.endAllInput();
         final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-        expectedOutput.add(insertRecord(100, true, "jklk1", 1L, "jklk1", 300, true));
-        expectedOutput.add(insertRecord(200, true, "jklk1", 2L, "jklk1", 300, true));
+        expectedOutput.add(insertRecord(100, true, "jklk1", "jklk1", 300, true));
+        expectedOutput.add(insertRecord(200, true, "jklk1", "jklk1", 300, true));
 
         assertor.assertOutputEqualsSorted(
                 "result mismatch", expectedOutput, testHarness.getOutput());
@@ -510,20 +484,20 @@ public class StreamingDeltaJoinOperatorTest {
         MyAsyncFunction.block();
 
         // in flight
-        StreamRecord<RowData> leftRecordK1V1 = insertRecord(100, true, "jklk1", 1L);
-        testHarness.processElement1(leftRecordK1V1);
+        StreamRecord<RowData> leftRecord1 = insertRecord(100, true, "jklk1");
+        testHarness.processElement1(leftRecord1);
 
         // blocked
-        StreamRecord<RowData> rightRecordK1V1 = insertRecord("jklk1", 300, true);
-        testHarness.processElement2(rightRecordK1V1);
+        StreamRecord<RowData> rightRecord1 = insertRecord("jklk1", 300, true);
+        testHarness.processElement2(rightRecord1);
 
         // blocked
-        StreamRecord<RowData> leftRecordK1V2 = insertRecord(200, true, "jklk1", 2L);
-        testHarness.processElement1(leftRecordK1V2);
+        StreamRecord<RowData> leftRecord2 = insertRecord(200, true, "jklk1");
+        testHarness.processElement1(leftRecord2);
 
         // in flight
-        StreamRecord<RowData> rightRecordK2V1 = insertRecord("unknown", 500, false);
-        testHarness.processElement2(rightRecordK2V1);
+        StreamRecord<RowData> rightRecord2 = insertRecord("unknown", 500, false);
+        testHarness.processElement2(rightRecord2);
 
         // checkpointing
         testHarness.snapshot(0L, 0L);
@@ -534,8 +508,8 @@ public class StreamingDeltaJoinOperatorTest {
 
         MyAsyncFunction.block();
 
-        StreamRecord<RowData> leftRecordK1V3 = insertRecord(700, true, "jklk1", 3L);
-        testHarness.processElement1(leftRecordK1V3);
+        StreamRecord<RowData> leftRecord3 = insertRecord(700, true, "jklk1");
+        testHarness.processElement1(leftRecord3);
 
         testHarness.snapshot(1L, 0L);
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(1);
@@ -547,9 +521,9 @@ public class StreamingDeltaJoinOperatorTest {
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(0);
 
         final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-        expectedOutput.add(insertRecord(100, true, "jklk1", 1L, "jklk1", 300, true));
-        expectedOutput.add(insertRecord(200, true, "jklk1", 2L, "jklk1", 300, true));
-        expectedOutput.add(insertRecord(700, true, "jklk1", 3L, "jklk1", 300, true));
+        expectedOutput.add(insertRecord(100, true, "jklk1", "jklk1", 300, true));
+        expectedOutput.add(insertRecord(200, true, "jklk1", "jklk1", 300, true));
+        expectedOutput.add(insertRecord(700, true, "jklk1", "jklk1", 300, true));
 
         assertor.assertOutputEqualsSorted(
                 "result mismatch", expectedOutput, testHarness.getOutput());
@@ -623,9 +597,9 @@ public class StreamingDeltaJoinOperatorTest {
     private MyAsyncFunction unwrapAsyncFunction(
             StreamingDeltaJoinOperator operator, boolean unwrapLeft) {
         if (unwrapLeft) {
-            return (MyAsyncFunction) operator.getLeftUserFunction().getFetcher();
+            return (MyAsyncFunction) operator.getLeftTriggeredUserFunction().getFetcher();
         } else {
-            return (MyAsyncFunction) operator.getRightUserFunction().getFetcher();
+            return (MyAsyncFunction) operator.getRightTriggeredUserFunction().getFetcher();
         }
     }
 
@@ -665,9 +639,9 @@ public class StreamingDeltaJoinOperatorTest {
         RowData rowData = record.getValue();
         try {
             if (insertLeftTable) {
-                leftTableCurrentData.put(leftUpsertKeySelector.copy().getKey(rowData), rowData);
+                leftTableCurrentData.add(rowData);
             } else {
-                rightTableCurrentData.put(rightUpsertKeySelector.copy().getKey(rowData), rowData);
+                rightTableCurrentData.add(rowData);
             }
         } catch (Exception e) {
             throw new IllegalStateException("Failed to insert table data", e);
@@ -706,8 +680,7 @@ public class StreamingDeltaJoinOperatorTest {
         }
 
         @Override
-        public void asyncInvoke(final RowData input, final ResultFuture<Object> resultFuture)
-                throws Exception {
+        public void asyncInvoke(final RowData input, final ResultFuture<Object> resultFuture) {
             executorService.submit(
                     () -> {
                         try {
@@ -715,17 +688,17 @@ public class StreamingDeltaJoinOperatorTest {
                                 lock.await();
                             }
 
-                            LinkedHashMap<RowData, RowData> lookupTableData;
+                            LinkedList<RowData> lookupTableData;
                             RowDataKeySelector streamSideJoinKeySelector;
                             RowDataKeySelector lookupSideJoinKeySelector;
                             if (Objects.requireNonNull(treatRightAsLookupTable)) {
-                                lookupTableData = new LinkedHashMap<>(rightTableCurrentData);
+                                lookupTableData = new LinkedList<>(rightTableCurrentData);
 
                                 streamSideJoinKeySelector = leftJoinKeySelector.copy();
                                 lookupSideJoinKeySelector = rightJoinKeySelector.copy();
                                 leftInvokeCount.incrementAndGet();
                             } else {
-                                lookupTableData = new LinkedHashMap<>(leftTableCurrentData);
+                                lookupTableData = new LinkedList<>(leftTableCurrentData);
 
                                 streamSideJoinKeySelector = rightJoinKeySelector.copy();
                                 lookupSideJoinKeySelector = leftJoinKeySelector.copy();
@@ -733,7 +706,7 @@ public class StreamingDeltaJoinOperatorTest {
                             }
 
                             List<Object> results = new ArrayList<>();
-                            for (RowData row : lookupTableData.values()) {
+                            for (RowData row : lookupTableData) {
                                 if (streamSideJoinKeySelector
                                         .getKey(input)
                                         .equals(lookupSideJoinKeySelector.getKey(row))) {

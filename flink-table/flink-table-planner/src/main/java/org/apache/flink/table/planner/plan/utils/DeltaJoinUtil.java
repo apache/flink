@@ -157,22 +157,6 @@ public class DeltaJoinUtil {
                 remainingCondition.orElse(null));
     }
 
-    /** Check if the join type is supported during delta join optimization. */
-    public static void validateSupportedJoinType(FlinkJoinType joinType) {
-        if (!ALL_SUPPORTED_JOIN_TYPES.contains(joinType)) {
-            throw new IllegalStateException(
-                    String.format(
-                            "The current sql doesn't support to do delta join optimization.\n"
-                                    + "Unsupported join type [%s] encountered while attempting to convert to delta join.",
-                            joinType));
-        }
-    }
-
-    /** Get the {@link TableScan} recursively on the input of this node. */
-    public static RelOptTable getTable(RelNode node) {
-        return getTableScan(node).getTable();
-    }
-
     /**
      * Get the async lookup function to lookup join this temporal table. Furthermore, this method
      * also unwraps the cache and retryable lookup function to access the inner {@link

@@ -35,9 +35,9 @@ public class StreamingDeltaJoinOperatorFactory extends AbstractStreamOperatorFac
         implements TwoInputStreamOperatorFactory<RowData, RowData, RowData>,
                 YieldingOperatorFactory<RowData> {
 
-    private final AsyncDeltaJoinRunner rightAsyncFunction;
+    private final AsyncDeltaJoinRunner rightLookupTableAsyncFunction;
     private final RowDataKeySelector rightJoinKeySelector;
-    private final AsyncDeltaJoinRunner leftAsyncFunction;
+    private final AsyncDeltaJoinRunner leftLookupTableAsyncFunction;
     private final RowDataKeySelector leftJoinKeySelector;
 
     private final long timeout;
@@ -47,18 +47,18 @@ public class StreamingDeltaJoinOperatorFactory extends AbstractStreamOperatorFac
     private final RowType rightStreamType;
 
     public StreamingDeltaJoinOperatorFactory(
-            AsyncDeltaJoinRunner rightAsyncFunction,
-            RowDataKeySelector rightJoinKeySelector,
-            AsyncDeltaJoinRunner leftAsyncFunction,
+            AsyncDeltaJoinRunner rightLookupTableAsyncFunction,
+            AsyncDeltaJoinRunner leftLookupTableAsyncFunction,
             RowDataKeySelector leftJoinKeySelector,
+            RowDataKeySelector rightJoinKeySelector,
             long timeout,
             int capacity,
             RowType leftStreamType,
             RowType rightStreamType) {
-        this.rightAsyncFunction = rightAsyncFunction;
-        this.rightJoinKeySelector = rightJoinKeySelector;
-        this.leftAsyncFunction = leftAsyncFunction;
+        this.rightLookupTableAsyncFunction = rightLookupTableAsyncFunction;
+        this.leftLookupTableAsyncFunction = leftLookupTableAsyncFunction;
         this.leftJoinKeySelector = leftJoinKeySelector;
+        this.rightJoinKeySelector = rightJoinKeySelector;
         this.timeout = timeout;
         this.capacity = capacity;
         this.leftStreamType = leftStreamType;
@@ -71,8 +71,8 @@ public class StreamingDeltaJoinOperatorFactory extends AbstractStreamOperatorFac
         MailboxExecutor mailboxExecutor = getMailboxExecutor();
         StreamingDeltaJoinOperator deltaJoinOperator =
                 new StreamingDeltaJoinOperator(
-                        rightAsyncFunction,
-                        leftAsyncFunction,
+                        rightLookupTableAsyncFunction,
+                        leftLookupTableAsyncFunction,
                         leftJoinKeySelector,
                         rightJoinKeySelector,
                         timeout,

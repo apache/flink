@@ -250,7 +250,7 @@ class DeltaJoinTest extends TableTestBase {
         "on src1.a1 = src2.b1 " +
         "and src1.a2 = src2.b2")
 
-    util.verifyRelPlan(stmt)
+    util.verifyExecPlan(stmt)
   }
 
   @Test
@@ -271,7 +271,7 @@ class DeltaJoinTest extends TableTestBase {
         "on src1.a1 = src2.b1 " +
         "and src1.a2 = src2.b2")
 
-    util.verifyRelPlan(stmt)
+    util.verifyExecPlan(stmt)
   }
 
   @Test
@@ -522,7 +522,7 @@ class DeltaJoinTest extends TableTestBase {
         "and src1.a2 = src2.b2")
 
     // one of the joins can be converted into the delta join
-    util.verifyRelPlan(stmt)
+    util.verifyExecPlan(stmt)
   }
 
   @Test

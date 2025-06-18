@@ -94,8 +94,7 @@ import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFacto
         producedTransformations = DELTA_JOIN_TRANSFORMATION,
         consumedOptions = {
             "table.exec.async-lookup.buffer-capacity",
-            "table.exec.async-lookup.timeout",
-            "table.exec.async-lookup.key-ordered-enabled"
+            "table.exec.async-lookup.timeout"
         },
         minPlanVersion = FlinkVersion.v2_1,
         minStateVersion = FlinkVersion.v2_1)
@@ -110,8 +109,9 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
     private static final String FIELD_NAME_LEFT_JOIN_KEYS = "leftJoinKeys";
     private static final String FIELD_NAME_RIGHT_JOIN_KEYS = "rightJoinKeys";
 
-    private static final String FIELD_NAME_LEFT_DELTA_JOIN_SPEC = "lookupRightTableJoinSpec";
-    private static final String FIELD_NAME_RIGHT_DELTA_JOIN_SPEC = "lookupLeftTableJoinSpec";
+    private static final String FIELD_NAME_LOOKUP_RIGHT_TABLE_JOIN_SPEC =
+            "lookupRightTableJoinSpec";
+    private static final String FIELD_NAME_LOOKUP_LEFT_TABLE_JOIN_SPEC = "lookupLeftTableJoinSpec";
 
     private static final String FIELD_NAME_JOIN_TYPE = "joinType";
 
@@ -132,7 +132,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
     private final int[] leftJoinKeys;
 
     // left (streaming) side join right (lookup) side
-    @JsonProperty(FIELD_NAME_LEFT_DELTA_JOIN_SPEC)
+    @JsonProperty(FIELD_NAME_LOOKUP_RIGHT_TABLE_JOIN_SPEC)
     private final DeltaJoinSpec lookupRightTableJoinSpec;
 
     // ===== related RIGHT side =====
@@ -141,7 +141,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
     private final int[] rightJoinKeys;
 
     // right (streaming) side join left (lookup) side
-    @JsonProperty(FIELD_NAME_RIGHT_DELTA_JOIN_SPEC)
+    @JsonProperty(FIELD_NAME_LOOKUP_LEFT_TABLE_JOIN_SPEC)
     private final DeltaJoinSpec lookupLeftTableJoinSpec;
 
     public StreamExecDeltaJoin(
@@ -180,9 +180,11 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_JOIN_TYPE) FlinkJoinType flinkJoinType,
             @JsonProperty(FIELD_NAME_LEFT_JOIN_KEYS) int[] leftJoinKeys,
-            @JsonProperty(FIELD_NAME_LEFT_DELTA_JOIN_SPEC) DeltaJoinSpec lookupRightTableJoinSpec,
+            @JsonProperty(FIELD_NAME_LOOKUP_RIGHT_TABLE_JOIN_SPEC)
+                    DeltaJoinSpec lookupRightTableJoinSpec,
             @JsonProperty(FIELD_NAME_RIGHT_JOIN_KEYS) int[] rightJoinKeys,
-            @JsonProperty(FIELD_NAME_RIGHT_DELTA_JOIN_SPEC) DeltaJoinSpec lookupLeftTableJoinSpec,
+            @JsonProperty(FIELD_NAME_LOOKUP_LEFT_TABLE_JOIN_SPEC)
+                    DeltaJoinSpec lookupLeftTableJoinSpec,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
@@ -203,10 +205,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
             PlannerBase planner, ExecNodeConfig config) {
         if (!DeltaJoinUtil.isJoinTypeSupported(flinkJoinType)) {
             throw new IllegalStateException(
-                    String.format(
-                            "The current sql doesn't support to do delta join optimization.\n"
-                                    + "Unsupported join type [%s] encountered while attempting to convert to delta join.",
-                            flinkJoinType));
+                    String.format("Unsupported join type [%s] for delta join.", flinkJoinType));
         }
 
         final ExecEdge leftInputEdge = getInputEdges().get(0);
@@ -288,7 +287,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
         DataTypeFactory dataTypeFactory =
                 ShortcutUtils.unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
 
-        AsyncDeltaJoinRunner leftAsyncFunc =
+        AsyncDeltaJoinRunner leftLookupTableAsyncFunction =
                 createAsyncDeltaJoinRunner(
                         planner,
                         config,
@@ -301,7 +300,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                         leftLookupKeys,
                         false);
 
-        AsyncDeltaJoinRunner rightAsyncFunc =
+        AsyncDeltaJoinRunner rightLookupTableAsyncFunction =
                 createAsyncDeltaJoinRunner(
                         planner,
                         config,
@@ -315,10 +314,10 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                         true);
 
         return new StreamingDeltaJoinOperatorFactory(
-                rightAsyncFunc,
-                rightJoinKeySelector,
-                leftAsyncFunc,
+                rightLookupTableAsyncFunction,
+                leftLookupTableAsyncFunction,
                 leftJoinKeySelector,
+                rightJoinKeySelector,
                 asyncLookupOptions.asyncTimeout,
                 asyncLookupOptions.asyncBufferCapacity,
                 leftStreamType,
@@ -339,13 +338,12 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
             boolean treatRightAsLookupTable) {
         RelOptTable lookupTable = treatRightAsLookupTable ? rightTempTable : leftTempTable;
         RowType streamSideType = treatRightAsLookupTable ? leftStreamSideType : rightStreamSideType;
-        RowType lookupSideType = treatRightAsLookupTable ? rightStreamSideType : leftStreamSideType;
 
         AsyncTableFunction<?> lookupSideAsyncTableFunction =
                 getUnwrappedAsyncLookupFunction(lookupTable, lookupKeys.keySet(), classLoader);
         UserDefinedFunctionHelper.prepareInstance(config, lookupSideAsyncTableFunction);
 
-        RowType lookupSideTableSourceRowType =
+        RowType lookupTableSourceRowType =
                 FlinkTypeFactory.toLogicalRowType(lookupTable.getRowType());
 
         RowType resultRowType = (RowType) getOutputType();
@@ -362,7 +360,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                                 classLoader,
                                 dataTypeFactory,
                                 streamSideType,
-                                lookupSideTableSourceRowType,
+                                lookupTableSourceRowType,
                                 resultRowType,
                                 convertedKeys,
                                 lookupSideAsyncTableFunction,
@@ -379,7 +377,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                             classLoader,
                             "TableFunctionResultFuture",
                             streamSideType,
-                            lookupSideType,
+                            lookupTableSourceRowType,
                             JavaScalaConversionUtil.toScala(
                                     lookupRightTableJoinSpec.getRemainingCondition()));
         } else {
@@ -390,7 +388,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                             .getRemainingCondition()
                             .map(
                                     con ->
-                                            shiftInputRef(
+                                            swapInputRefsInCondition(
                                                     rexBuilder,
                                                     con,
                                                     leftStreamSideType,
@@ -401,7 +399,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                             classLoader,
                             "TableFunctionResultFuture",
                             streamSideType,
-                            lookupSideType,
+                            lookupTableSourceRowType,
                             JavaScalaConversionUtil.toScala(newCond));
         }
 
@@ -409,7 +407,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                 lookupSideGeneratedFuncWithType.tableFunc(),
                 (DataStructureConverter<RowData, Object>) lookupSideFetcherConverter,
                 lookupSideGeneratedResultFuture,
-                InternalSerializers.create(lookupSideTableSourceRowType),
+                InternalSerializers.create(lookupTableSourceRowType),
                 asyncLookupOptions.asyncBufferCapacity,
                 treatRightAsLookupTable);
     }
@@ -424,7 +422,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
      *
      * <p>Mainly inspired by {@link RelOptUtil.RexInputConverter}.
      */
-    private RexNode shiftInputRef(
+    private RexNode swapInputRefsInCondition(
             RexBuilder rexBuilder, RexNode condition, RowType leftType, RowType rightType) {
         int leftFieldCount = leftType.getFieldCount();
         int rightFieldCount = rightType.getFieldCount();

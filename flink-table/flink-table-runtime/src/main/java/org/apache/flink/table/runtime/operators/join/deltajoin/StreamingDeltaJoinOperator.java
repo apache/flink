@@ -163,8 +163,8 @@ public class StreamingDeltaJoinOperator
     private transient List<ReusableKeyedResultHandler> allResultHandlers;
 
     public StreamingDeltaJoinOperator(
-            AsyncDeltaJoinRunner rightAsyncFunction,
-            AsyncDeltaJoinRunner leftAsyncFunction,
+            AsyncDeltaJoinRunner rightLookupTableAsyncFunction,
+            AsyncDeltaJoinRunner leftLookupTableAsyncFunction,
             RowDataKeySelector leftJoinKeySelector,
             RowDataKeySelector rightJoinKeySelector,
             long timeout,
@@ -173,9 +173,9 @@ public class StreamingDeltaJoinOperator
             MailboxExecutor mailboxExecutor,
             RowType leftStreamType,
             RowType rightStreamType) {
-        // rightAsyncFunction is an udx used for left records
-        // leftAsyncFunction is an udx used for right records
-        super(rightAsyncFunction, leftAsyncFunction);
+        // rightLookupTableAsyncFunction is an udx used for left records
+        // leftLookupTableAsyncFunction is an udx used for right records
+        super(rightLookupTableAsyncFunction, leftLookupTableAsyncFunction);
         this.leftJoinKeySelector = leftJoinKeySelector;
         this.rightJoinKeySelector = rightJoinKeySelector;
         this.timeout = timeout;
@@ -314,9 +314,9 @@ public class StreamingDeltaJoinOperator
             resultHandler.registerTimeout(getProcessingTimeService(), timeout, isLeft);
         }
         if (isLeft) {
-            leftUserFunction.asyncInvoke(element.getRecord().getValue(), resultHandler);
+            leftTriggeredUserFunction.asyncInvoke(element.getRecord().getValue(), resultHandler);
         } else {
-            rightUserFunction.asyncInvoke(element.getRecord().getValue(), resultHandler);
+            rightTriggeredUserFunction.asyncInvoke(element.getRecord().getValue(), resultHandler);
         }
     }
 
@@ -333,14 +333,9 @@ public class StreamingDeltaJoinOperator
     }
 
     private void processElement(StreamRecord<RowData> element, int inputIndex) throws Exception {
-        RowKind rowKind = element.getValue().getRowKind();
-        if (!isInputRowKindSupport(rowKind)) {
-            throw new IllegalStateException(
-                    String.format(
-                            "The current RowKind of element doesn't support to do delta join optimization.\n"
-                                    + "Unsupported RowKind [%s] encountered while attempting to execute delta join.",
-                            rowKind));
-        }
+        Preconditions.checkArgument(
+                RowKind.INSERT == element.getValue().getRowKind(),
+                "Currently, delta join only supports to consume append only stream.");
         tryProcess();
         StreamRecord<RowData> record;
         boolean isLeft = isLeft(inputIndex);
@@ -446,10 +441,6 @@ public class StreamingDeltaJoinOperator
         return totalInflightNum.get() == 0;
     }
 
-    private boolean isInputRowKindSupport(RowKind rowKind) {
-        return rowKind == RowKind.INSERT;
-    }
-
     @Override
     public void endInput(int inputId) throws Exception {
         isInputEnded[inputId - 1] = true;
@@ -516,7 +507,7 @@ public class StreamingDeltaJoinOperator
         /** Optional timeout timer used to signal the timeout to the AsyncFunction. */
         private ScheduledFuture<?> timeoutTimer;
 
-        /** Record for which this result handler exists. Used only to report errors. */
+        /** Record for which this result handler exists. */
         private AecRecord<RowData, RowData> inputRecord;
 
         /**
@@ -627,9 +618,9 @@ public class StreamingDeltaJoinOperator
         private void timerTriggered(boolean isLeft) throws Exception {
             if (!completed.get()) {
                 if (isLeft) {
-                    leftUserFunction.timeout(inputRecord.getRecord().getValue(), this);
+                    leftTriggeredUserFunction.timeout(inputRecord.getRecord().getValue(), this);
                 } else {
-                    rightUserFunction.timeout(inputRecord.getRecord().getValue(), this);
+                    rightTriggeredUserFunction.timeout(inputRecord.getRecord().getValue(), this);
                 }
             }
         }

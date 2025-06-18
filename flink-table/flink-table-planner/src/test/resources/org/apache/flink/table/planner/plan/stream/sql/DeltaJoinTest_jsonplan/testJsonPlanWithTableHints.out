@@ -114,7 +114,6 @@
     "type" : "stream-exec-delta-join_1",
     "configuration" : {
       "table.exec.async-lookup.buffer-capacity" : "100",
-      "table.exec.async-lookup.key-ordered-enabled" : "false",
       "table.exec.async-lookup.timeout" : "3 min"
     },
     "joinType" : "INNER",
@@ -269,6 +268,7 @@
     "asyncOptions" : {
       "capacity " : 100,
       "timeout" : 180000,
+      "is-key-ordered" : true,
       "output-mode" : "UNORDERED"
     }
   }, {

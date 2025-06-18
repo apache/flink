@@ -24,7 +24,6 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -51,38 +50,38 @@ import static java.util.Objects.requireNonNull;
  * can handle two inputs.
  *
  * @param <OUT> The output type of the operator
- * @param <LEFT_FUNC> The type of the user function for left input
- * @param <RIGHT_FUNC> The type of the user function for right input
+ * @param <LEFT_FUNC> The type of the triggered user function for left input
+ * @param <RIGHT_FUNC> The type of the triggered user function for right input
  */
 public abstract class TableAbstractCoUdfStreamOperator<
                 OUT, LEFT_FUNC extends Function, RIGHT_FUNC extends Function>
         extends AbstractStreamOperator<OUT> implements OutputTypeConfigurable<OUT> {
     private static final long serialVersionUID = 1L;
 
-    /** The user function for left side. */
-    protected final LEFT_FUNC leftUserFunction;
+    /** The triggered user function for left side. */
+    protected final LEFT_FUNC leftTriggeredUserFunction;
 
-    /** The user function for right side. */
-    protected final RIGHT_FUNC rightUserFunction;
+    /** The triggered user function for right side. */
+    protected final RIGHT_FUNC rightTriggeredUserFunction;
 
     public TableAbstractCoUdfStreamOperator(
-            LEFT_FUNC leftUserFunction, RIGHT_FUNC rightUserFunction) {
-        this.leftUserFunction = requireNonNull(leftUserFunction);
-        this.rightUserFunction = requireNonNull(rightUserFunction);
+            LEFT_FUNC leftTriggeredUserFunction, RIGHT_FUNC rightTriggeredUserFunction) {
+        this.leftTriggeredUserFunction = requireNonNull(leftTriggeredUserFunction);
+        this.rightTriggeredUserFunction = requireNonNull(rightTriggeredUserFunction);
         checkUdfCheckpointingPreconditions();
     }
 
     /**
-     * Gets the user function executed in this operator.
+     * Gets the triggered user function executed in this operator.
      *
-     * @return The user function of this operator.
+     * @return The triggered user function of this operator.
      */
-    public LEFT_FUNC getLeftUserFunction() {
-        return leftUserFunction;
+    public LEFT_FUNC getLeftTriggeredUserFunction() {
+        return leftTriggeredUserFunction;
     }
 
-    public RIGHT_FUNC getRightUserFunction() {
-        return rightUserFunction;
+    public RIGHT_FUNC getRightTriggeredUserFunction() {
+        return rightTriggeredUserFunction;
     }
 
     // ------------------------------------------------------------------------
@@ -95,50 +94,50 @@ public abstract class TableAbstractCoUdfStreamOperator<
             StreamConfig config,
             Output<StreamRecord<OUT>> output) {
         super.setup(containingTask, config, output);
-        FunctionUtils.setFunctionRuntimeContext(leftUserFunction, getRuntimeContext());
-        FunctionUtils.setFunctionRuntimeContext(rightUserFunction, getRuntimeContext());
+        FunctionUtils.setFunctionRuntimeContext(leftTriggeredUserFunction, getRuntimeContext());
+        FunctionUtils.setFunctionRuntimeContext(rightTriggeredUserFunction, getRuntimeContext());
     }
 
     @Override
     public void snapshotState(StateSnapshotContext context) throws Exception {
         super.snapshotState(context);
         StreamingFunctionUtils.snapshotFunctionState(
-                context, getOperatorStateBackend(), leftUserFunction);
+                context, getOperatorStateBackend(), leftTriggeredUserFunction);
         StreamingFunctionUtils.snapshotFunctionState(
-                context, getOperatorStateBackend(), rightUserFunction);
+                context, getOperatorStateBackend(), rightTriggeredUserFunction);
     }
 
     @Override
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
-        StreamingFunctionUtils.restoreFunctionState(context, leftUserFunction);
-        StreamingFunctionUtils.restoreFunctionState(context, rightUserFunction);
+        StreamingFunctionUtils.restoreFunctionState(context, leftTriggeredUserFunction);
+        StreamingFunctionUtils.restoreFunctionState(context, rightTriggeredUserFunction);
     }
 
     @Override
     public void open() throws Exception {
         super.open();
         super.open();
-        FunctionUtils.openFunction(leftUserFunction, DefaultOpenContext.INSTANCE);
-        FunctionUtils.openFunction(rightUserFunction, DefaultOpenContext.INSTANCE);
+        FunctionUtils.openFunction(leftTriggeredUserFunction, DefaultOpenContext.INSTANCE);
+        FunctionUtils.openFunction(rightTriggeredUserFunction, DefaultOpenContext.INSTANCE);
     }
 
     @Override
     public void finish() throws Exception {
         super.finish();
-        if (leftUserFunction instanceof SinkFunction) {
-            ((SinkFunction<?>) leftUserFunction).finish();
+        if (leftTriggeredUserFunction instanceof SinkFunction) {
+            ((SinkFunction<?>) leftTriggeredUserFunction).finish();
         }
-        if (rightUserFunction instanceof SinkFunction) {
-            ((SinkFunction<?>) rightUserFunction).finish();
+        if (rightTriggeredUserFunction instanceof SinkFunction) {
+            ((SinkFunction<?>) rightTriggeredUserFunction).finish();
         }
     }
 
     @Override
     public void close() throws Exception {
         super.close();
-        FunctionUtils.closeFunction(leftUserFunction);
-        FunctionUtils.closeFunction(rightUserFunction);
+        FunctionUtils.closeFunction(leftTriggeredUserFunction);
+        FunctionUtils.closeFunction(rightTriggeredUserFunction);
     }
 
     // ------------------------------------------------------------------------
@@ -149,11 +148,12 @@ public abstract class TableAbstractCoUdfStreamOperator<
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         super.notifyCheckpointComplete(checkpointId);
 
-        if (leftUserFunction instanceof CheckpointListener) {
-            ((CheckpointListener) leftUserFunction).notifyCheckpointComplete(checkpointId);
+        if (leftTriggeredUserFunction instanceof CheckpointListener) {
+            ((CheckpointListener) leftTriggeredUserFunction).notifyCheckpointComplete(checkpointId);
         }
-        if (rightUserFunction instanceof CheckpointListener) {
-            ((CheckpointListener) rightUserFunction).notifyCheckpointComplete(checkpointId);
+        if (rightTriggeredUserFunction instanceof CheckpointListener) {
+            ((CheckpointListener) rightTriggeredUserFunction)
+                    .notifyCheckpointComplete(checkpointId);
         }
     }
 
@@ -161,11 +161,11 @@ public abstract class TableAbstractCoUdfStreamOperator<
     public void notifyCheckpointAborted(long checkpointId) throws Exception {
         super.notifyCheckpointAborted(checkpointId);
 
-        if (leftUserFunction instanceof CheckpointListener) {
-            ((CheckpointListener) leftUserFunction).notifyCheckpointAborted(checkpointId);
+        if (leftTriggeredUserFunction instanceof CheckpointListener) {
+            ((CheckpointListener) leftTriggeredUserFunction).notifyCheckpointAborted(checkpointId);
         }
-        if (rightUserFunction instanceof CheckpointListener) {
-            ((CheckpointListener) rightUserFunction).notifyCheckpointAborted(checkpointId);
+        if (rightTriggeredUserFunction instanceof CheckpointListener) {
+            ((CheckpointListener) rightTriggeredUserFunction).notifyCheckpointAborted(checkpointId);
         }
     }
 
@@ -175,38 +175,30 @@ public abstract class TableAbstractCoUdfStreamOperator<
 
     @Override
     public void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
-        StreamingFunctionUtils.setOutputType(leftUserFunction, outTypeInfo, executionConfig);
-        StreamingFunctionUtils.setOutputType(rightUserFunction, outTypeInfo, executionConfig);
+        StreamingFunctionUtils.setOutputType(
+                leftTriggeredUserFunction, outTypeInfo, executionConfig);
+        StreamingFunctionUtils.setOutputType(
+                rightTriggeredUserFunction, outTypeInfo, executionConfig);
     }
 
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
 
-    /**
-     * Since the streaming API does not implement any parametrization of functions via a
-     * configuration, the config returned here is actually empty.
-     *
-     * @return The user function parameters (currently empty)
-     */
-    public Configuration getUserFunctionParameters() {
-        return new Configuration();
-    }
-
     private void checkUdfCheckpointingPreconditions() {
-        if (leftUserFunction instanceof CheckpointedFunction
-                && leftUserFunction instanceof ListCheckpointed) {
+        if (leftTriggeredUserFunction instanceof CheckpointedFunction
+                && leftTriggeredUserFunction instanceof ListCheckpointed) {
 
             throw new IllegalStateException(
-                    "User functions are not allowed to implement "
+                    "Triggered user functions are not allowed to implement "
                             + "CheckpointedFunction AND ListCheckpointed.");
         }
 
-        if (rightUserFunction instanceof CheckpointedFunction
-                && rightUserFunction instanceof ListCheckpointed) {
+        if (rightTriggeredUserFunction instanceof CheckpointedFunction
+                && rightTriggeredUserFunction instanceof ListCheckpointed) {
 
             throw new IllegalStateException(
-                    "User functions are not allowed to implement "
+                    "Triggered user functions are not allowed to implement "
                             + "CheckpointedFunction AND ListCheckpointed.");
         }
     }
