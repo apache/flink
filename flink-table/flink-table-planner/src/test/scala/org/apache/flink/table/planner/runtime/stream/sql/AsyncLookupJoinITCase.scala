@@ -35,8 +35,8 @@ import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedT
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatIterable, assertThatThrownBy}
-import org.junit.Assume.assumeTrue
 import org.junit.jupiter.api.{AfterEach, BeforeEach, TestTemplate}
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Boolean => JBoolean}
@@ -69,11 +69,11 @@ class AsyncLookupJoinITCase(
       changelogRow("+U", jl(1L), Int.box(13), "Julian"),
       changelogRow("-D", jl(1L), Int.box(13), "Julian"),
       changelogRow("+I", jl(1L), Int.box(14), "Julian"),
-      changelogRow("+I", jl(1L), Int.box(15), "Julian"),
+      changelogRow("+U", jl(1L), Int.box(15), "Julian"),
       changelogRow("+I", jl(2L), Int.box(16), "Hello"),
       changelogRow("-U", jl(2L), Int.box(16), "Hello"),
       changelogRow("+U", jl(2L), Int.box(17), "Hello"),
-      changelogRow("+I", jl(2L), Int.box(18), "Hello"),
+      changelogRow("+U", jl(2L), Int.box(18), "Hello"),
       changelogRow("+I", jl(3L), Int.box(19), "Fabian"),
       changelogRow("-D", jl(3L), Int.box(19), "Fabian")
     )
@@ -95,8 +95,8 @@ class AsyncLookupJoinITCase(
       ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED,
       Boolean.box(keyOrdered))
 
-    createScanTable("src", data)
-    createScanTable("replicate_cdc_src", cdcRowData)
+    createScanTable("src", data, false)
+    createScanTable("cdc_src", cdcRowData, true)
     createLookupTable("user_table", userData)
     // lookup will start from the 2nd time, first lookup will always get null result
     createLookupTable("user_table_with_lookup_threshold2", userData, 2)
@@ -128,8 +128,8 @@ class AsyncLookupJoinITCase(
 
     tEnv.executeSql(s"""
                        |CREATE TABLE $tableName (
-                       |  `age` INT ,
-                       |  `id` BIGINT PRIMARY KEY NOT ENFORCED,
+                       |  `age` INT,
+                       |  `id` BIGINT,
                        |  `name` STRING
                        |) WITH (
                        |  $cacheOptions
@@ -154,8 +154,9 @@ class AsyncLookupJoinITCase(
        |*/""".stripMargin
   }
 
-  private def createScanTable(tableName: String, data: List[Row]): Unit = {
+  private def createScanTable(tableName: String, data: List[Row], isCdc: Boolean): Unit = {
     val dataId = TestValuesTableFactory.registerData(data)
+    val mode = if (isCdc) "I,UA,UB,D" else "I"
     tEnv.executeSql(s"""
                        |CREATE TABLE $tableName (
                        |  `id` BIGINT PRIMARY KEY NOT ENFORCED,
@@ -165,7 +166,7 @@ class AsyncLookupJoinITCase(
                        |) WITH (
                        |  'connector' = 'values',
                        |  'data-id' = '$dataId',
-                       |  'changelog-mode' = 'I,UA,UB,D'
+                       |  'changelog-mode' = '$mode'
                        |)
                        |""".stripMargin)
   }
@@ -176,7 +177,7 @@ class AsyncLookupJoinITCase(
     val sql =
       """
         |SELECT t1.id, t1.len, D.name
-        |FROM (select content, id, len, proctime FROM replicate_cdc_src AS T) t1
+        |FROM (select content, id, len, proctime FROM cdc_src AS T) t1
         |JOIN user_table for system_time as of t1.proctime AS D
         |ON t1.content = D.name AND t1.id = D.id
       """.stripMargin

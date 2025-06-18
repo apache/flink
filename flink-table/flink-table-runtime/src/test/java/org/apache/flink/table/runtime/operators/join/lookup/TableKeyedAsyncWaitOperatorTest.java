@@ -21,20 +21,12 @@ package org.apache.flink.table.runtime.operators.join.lookup;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarness;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.table.runtime.operators.TableKeyedAsyncWaitOperator;
@@ -43,7 +35,6 @@ import org.apache.flink.table.runtime.operators.join.lookup.keyordered.Epoch;
 import org.apache.flink.table.runtime.operators.join.lookup.keyordered.TableAsyncExecutionController;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -54,8 +45,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -84,9 +73,9 @@ public class TableKeyedAsyncWaitOperatorTest {
     }
 
     @Test
-    void testMultiKeysWithEventTime() throws Exception {
+    void testMultiKeysWithWatermark() throws Exception {
         try (final KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
-                createKeyedTestHarness(lazyAsyncFunction, keySelector, TIMEOUT, 10)) {
+                createKeyedTestHarness(lazyAsyncFunction, TIMEOUT, 10)) {
             testHarness.open();
             lazyAsyncFunction.countDown();
 
@@ -165,9 +154,9 @@ public class TableKeyedAsyncWaitOperatorTest {
     }
 
     @Test
-    void testOneKeyWithEventTime() throws Exception {
+    void testOneKeyWithWatermark() throws Exception {
         try (final KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
-                createKeyedTestHarness(myAsyncFunction, keySelector, TIMEOUT, 10)) {
+                createKeyedTestHarness(myAsyncFunction, TIMEOUT, 10)) {
             final long initialTime = 0L;
             final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
             testHarness.open();
@@ -185,27 +174,59 @@ public class TableKeyedAsyncWaitOperatorTest {
             expectedOutput.add(new StreamRecord<>(2, initialTime + 3));
 
             TestHarnessUtil.assertOutputEquals(
-                    "output of one key with event time is not correct.",
+                    "output is not correct.",
                     expectedOutput,
                     testHarness.getOutput());
         }
     }
 
     @Test
-    void testMultiKeysOnEventTimeWithDifferentCapacity() throws Exception {
-        for (int capacity = 1; capacity < 10; capacity++) {
-            testMultiKeysMixWatermarkWithEventTime(capacity);
+    void testKeysProcessingWithTheSameKeysPending() throws Exception {
+        LazyAsyncFunction lazyAsyncFunction = new LazyAsyncFunction();
+        try (final KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
+                     createKeyedTestHarness(lazyAsyncFunction, TIMEOUT, 10)) {
+            final long initialTime = 0L;
+            final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+            testHarness.open();
+
+            testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
+            testHarness.processElement(new StreamRecord<>(2, initialTime + 1));
+            testHarness.processElement(new StreamRecord<>(3, initialTime + 1));
+            testHarness.processElement(new StreamRecord<>(1, initialTime + 2));
+            testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
+            testHarness.processWatermark(new Watermark(initialTime + 2));
+            TableAsyncExecutionController<?, ?, ?> aec = ((TableKeyedAsyncWaitOperator<?, ?, ?>)testHarness.getOperator()).getAsyncExecutionController();
+            assertThat(aec.getBlockingSize()).isEqualTo(2);
+            assertThat(aec.getInFlightSize()).isEqualTo(3);
+            lazyAsyncFunction.countDown();
+
+            testHarness.endInput();
+            assertThat(aec.getBlockingSize()).isEqualTo(0);
+            assertThat(aec.getInFlightSize()).isEqualTo(0);
+
+            expectedOutput.add(new StreamRecord<>(1, initialTime + 1));
+            expectedOutput.add(new StreamRecord<>(1, initialTime + 2));
+            assertKeyOrdered(testHarness.getOutput(), expectedOutput);
+            expectedOutput.clear();
+            expectedOutput.add(new StreamRecord<>(2, initialTime + 1));
+            expectedOutput.add(new StreamRecord<>(2, initialTime + 2));
+            assertKeyOrdered(testHarness.getOutput(), expectedOutput);
         }
     }
 
-    private void testMultiKeysMixWatermarkWithEventTime(int capacity) throws Exception {
+    @Test
+    void testMultiKeysWithWatermarkWithDifferentCapacity() throws Exception {
+        for (int capacity = 1; capacity < 10; capacity++) {
+            testMultiKeysMixWatermark(capacity);
+        }
+    }
+
+    private void testMultiKeysMixWatermark(int capacity) throws Exception {
         try (final KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
-                createKeyedTestHarness(myAsyncFunction, keySelector, TIMEOUT, capacity)) {
+                createKeyedTestHarness(myAsyncFunction, TIMEOUT, capacity)) {
             testHarness.open();
             final long initialTime = 0L;
             final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-            // the peek of queue under different key could all be watermark but not the same
 
             testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
             testHarness.processElement(new StreamRecord<>(1, initialTime + 2));
@@ -250,7 +271,7 @@ public class TableKeyedAsyncWaitOperatorTest {
 
             List<Integer> index = Stream.of(0, 1, 2, 7, 8).collect(Collectors.toList());
             TestHarnessUtil.assertOutputAtIndexEquals(
-                    "Output with watermark was not correct.",
+                    "Output is not correct.",
                     expectedOutput,
                     testHarness.getOutput(),
                     index);
@@ -258,9 +279,9 @@ public class TableKeyedAsyncWaitOperatorTest {
     }
 
     @Test
-    void testMultiKeysWithProcessingTime() throws Exception {
+    void testMultiKeysWithoutWatermark() throws Exception {
         try (final KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
-                createKeyedTestHarness(myAsyncFunction, keySelector, TIMEOUT, 10)) {
+                createKeyedTestHarness(myAsyncFunction, TIMEOUT, 10)) {
             final long initialTime = 0L;
             final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -287,7 +308,7 @@ public class TableKeyedAsyncWaitOperatorTest {
             testHarness.endInput();
 
             TestHarnessUtil.assertOutputEqualsSorted(
-                    "KeyedOrdered Output was not correct.",
+                    "Output is not correct.",
                     expectedOutput,
                     testHarness.getOutput(),
                     new StreamRecordComparator());
@@ -295,34 +316,14 @@ public class TableKeyedAsyncWaitOperatorTest {
     }
 
     @Test
-    public void testStateSnapshotAndRestore() throws Exception {
-        TestLazyAsyncFunction testLazyAsyncFunction = new TestLazyAsyncFunction();
-        // lazy async function is controlled by latch
-        TableKeyedAsyncWaitOperatorFactory<Integer, Integer, Integer> factory =
-                new TableKeyedAsyncWaitOperatorFactory<>(
-                        testLazyAsyncFunction, keySelector, TIMEOUT, 4);
+    public void testSnapshotAndRestore() throws Exception {
+        LazyAsyncFunction testLazyAsyncFunction = new LazyAsyncFunction();
+        KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
+                createKeyedTestHarness(testLazyAsyncFunction, TIMEOUT, 10);
 
-        OperatorID operatorID = new OperatorID(42L, 4711L);
-
-        StreamTaskMailboxTestHarness<Integer> testHarness =
-                new StreamTaskMailboxTestHarnessBuilder<>(
-                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
-                        .addInput(BasicTypeInfo.INT_TYPE_INFO, 1, keySelector)
-                        .setupOutputForSingletonOperatorChain(factory)
-                        .modifyStreamConfig(
-                                streamConfig -> {
-                                    streamConfig.setStreamOperatorFactory(factory);
-                                    streamConfig.setOperatorID(operatorID);
-                                })
-                        .setKeyType(BasicTypeInfo.INT_TYPE_INFO)
-                        .build();
-
-        final TestTaskStateManager taskStateManagerMock = testHarness.getTaskStateManager();
-
-        StreamTask<Integer, ?> task = testHarness.getStreamTask();
+        testHarness.open();
 
         final long initialTime = 0L;
-
         testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
         testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
         testHarness.processElement(new StreamRecord<>(3, initialTime + 3));
@@ -330,21 +331,10 @@ public class TableKeyedAsyncWaitOperatorTest {
 
         assertThat(testHarness.getOutput()).isEmpty();
 
-        final long checkpointId = 1L;
-        final long checkpointTimestamp = 1L;
-
-        Future<Boolean> checkpointFuture =
-                task.triggerCheckpointAsync(
-                        new CheckpointMetaData(checkpointId, checkpointTimestamp),
-                        CheckpointOptions.forCheckpointWithDefaultLocation());
-
-        processMailTillCheckpointSucceeds(testHarness, checkpointFuture);
-
-        Assertions.assertEquals(checkpointId, taskStateManagerMock.getReportedCheckpointId());
+        OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0L);
 
         testLazyAsyncFunction.countDown();
-
-        testHarness.waitForTaskCompletion();
+        testHarness.endInput();
 
         ConcurrentLinkedQueue<Object> expected = new ConcurrentLinkedQueue<>();
         expected.add(new StreamRecord<>(1, initialTime + 1));
@@ -359,44 +349,19 @@ public class TableKeyedAsyncWaitOperatorTest {
                 expected,
                 testHarness.getOutput(),
                 new StreamRecordComparator());
+        testHarness.close();
 
-        // set the operator state from previous attempt into the restored one
-        TaskStateSnapshot subtaskStates = taskStateManagerMock.getLastJobManagerTaskStateSnapshot();
+        testLazyAsyncFunction = new LazyAsyncFunction();
+        testHarness = createKeyedTestHarness(testLazyAsyncFunction, TIMEOUT, 10);
 
-        StreamTaskMailboxTestHarness<Integer> restoredTaskHarness =
-                new StreamTaskMailboxTestHarnessBuilder<>(
-                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
-                        .addInput(BasicTypeInfo.INT_TYPE_INFO, 1, keySelector)
-                        .setupOutputForSingletonOperatorChain(
-                                new TableKeyedAsyncWaitOperatorFactory<>(
-                                        myAsyncFunction, keySelector, TIMEOUT, 6))
-                        .setTaskStateSnapshot(checkpointId, subtaskStates)
-                        .modifyStreamConfig(
-                                streamConfig -> {
-                                    streamConfig.setStreamOperatorFactory(factory);
-                                    streamConfig.setOperatorID(operatorID);
-                                })
-                        .setKeyType(BasicTypeInfo.INT_TYPE_INFO)
-                        .build();
-        // myAsyncFunction.open(new Configuration());
+        testHarness.initializeState(snapshot);
+        testHarness.open();
 
-        restoredTaskHarness.processElement(new StreamRecord<>(5, initialTime + 5));
-        restoredTaskHarness.processElement(new StreamRecord<>(6, initialTime + 6));
-        restoredTaskHarness.processElement(new StreamRecord<>(7, initialTime + 7));
+        testHarness.processElement(new StreamRecord<>(5, initialTime + 5));
+        testHarness.processElement(new StreamRecord<>(6, initialTime + 6));
+        testHarness.processElement(new StreamRecord<>(7, initialTime + 7));
+        testHarness.processElement(new StreamRecord<>(8, initialTime + 8));
 
-        task = restoredTaskHarness.getStreamTask();
-        checkpointFuture =
-                task.triggerCheckpointAsync(
-                        new CheckpointMetaData(checkpointId, checkpointTimestamp),
-                        CheckpointOptions.forCheckpointWithDefaultLocation());
-
-        processMailTillCheckpointSucceeds(restoredTaskHarness, checkpointFuture);
-
-        restoredTaskHarness.processElement(new StreamRecord<>(8, initialTime + 8));
-
-        restoredTaskHarness.waitForTaskCompletion();
-
-        myAsyncFunction.close();
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         expectedOutput.add(new StreamRecord<>(1, initialTime + 1));
         expectedOutput.add(new StreamRecord<>(2, initialTime + 2));
@@ -407,13 +372,15 @@ public class TableKeyedAsyncWaitOperatorTest {
         expectedOutput.add(new StreamRecord<>(7, initialTime + 7));
         expectedOutput.add(new StreamRecord<>(8, initialTime + 8));
 
-        restoredTaskHarness.getOutput().removeIf(record -> record instanceof CheckpointBarrier);
+        testLazyAsyncFunction.countDown();
+        testHarness.endInput();
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "StateAndRestored Test Output was not correct.",
                 expectedOutput,
-                restoredTaskHarness.getOutput(),
+                testHarness.getOutput(),
                 new StreamRecordComparator());
+        testHarness.close();
     }
 
     @Test
@@ -434,7 +401,7 @@ public class TableKeyedAsyncWaitOperatorTest {
             throws Exception {
         final long timeout = 10L;
         try (final KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
-                createKeyedTestHarness(lazyAsyncFunction, keySelector, timeout, 10)) {
+                createKeyedTestHarness(lazyAsyncFunction, timeout, 10)) {
             testHarness.open();
             final MockEnvironment mockEnvironment = testHarness.getEnvironment();
             mockEnvironment.setExpectedExternalFailureCause(Throwable.class);
@@ -459,9 +426,7 @@ public class TableKeyedAsyncWaitOperatorTest {
                     new ConcurrentLinkedQueue<>(Arrays.asList(expectedRecords));
 
             TestHarnessUtil.assertOutputEquals(
-                    "Output with watermark was not correct.",
-                    expectedOutput,
-                    testHarness.getOutput());
+                    "Output is not correct.", expectedOutput, testHarness.getOutput());
 
             if (expectedException.isPresent()) {
                 assertTrue(mockEnvironment.getActualExternalFailureCause().isPresent());
@@ -474,26 +439,15 @@ public class TableKeyedAsyncWaitOperatorTest {
         }
     }
 
-    private void processMailTillCheckpointSucceeds(
-            StreamTaskMailboxTestHarness<Integer> testHarness, Future<Boolean> checkpointFuture)
-            throws Exception {
-        while (!checkpointFuture.isDone()) {
-            testHarness.processSingleStep();
-        }
-        testHarness.getTaskStateManager().getWaitForReportLatch().await();
-    }
-
     private static <OUT>
             KeyedOneInputStreamOperatorTestHarness<Integer, Integer, OUT> createKeyedTestHarness(
-                    AsyncFunction<Integer, OUT> function,
-                    KeySelector<Integer, Integer> keySelector,
-                    long timeout,
-                    int capacity)
+                    AsyncFunction<Integer, OUT> function, long timeout, int capacity)
                     throws Exception {
 
         return new KeyedOneInputStreamOperatorTestHarness<>(
-                new TableKeyedAsyncWaitOperatorFactory<>(function, keySelector, timeout, capacity),
-                keySelector,
+                new TableKeyedAsyncWaitOperatorFactory<>(
+                        function, TableKeyedAsyncWaitOperatorTest.keySelector, timeout, capacity),
+                TableKeyedAsyncWaitOperatorTest.keySelector,
                 BasicTypeInfo.INT_TYPE_INFO,
                 IntSerializer.INSTANCE);
     }
@@ -516,26 +470,6 @@ public class TableKeyedAsyncWaitOperatorTest {
             } else {
                 return sr0.getValue() - sr1.getValue();
             }
-        }
-    }
-
-    // Note: this function is only for testStateSnapshotAndRestore.
-    private static class TestLazyAsyncFunction extends LazyAsyncFunction {
-
-        private static CountDownLatch testLatch;
-
-        public TestLazyAsyncFunction() {
-            testLatch = new CountDownLatch(1);
-        }
-
-        @Override
-        public void waitLatch() throws InterruptedException {
-            testLatch.await();
-        }
-
-        @Override
-        public void countDown() {
-            testLatch.countDown();
         }
     }
 }

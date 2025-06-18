@@ -42,6 +42,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator;
 import org.apache.flink.streaming.api.operators.async.queue.StreamRecordQueueEntry;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -69,11 +70,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
- * This operator enables key-ordered processing of records in a table.
+ * This operator serves a similar purpose to {@link AsyncWaitOperator}. Unlike {@link
+ * AsyncWaitOperator}, this operator supports key-ordered async processing.
  *
- * <p>If the upsertKey is inferred by planner, this key will be used to determine the order of
- * records during processing. If not, the entire record will serve as the fallback key for ordering
- * purposes.
+ * <p>If the planner can infer the upsert key, then the order key used for processing will be the
+ * upsert key; otherwise, the entire row will be treated as the order key.
  *
  * @param <IN> Input type for the operator.
  * @param <OUT> Output type for the operator.
@@ -89,7 +90,7 @@ public class TableKeyedAsyncWaitOperator<IN, OUT, KEY>
 
     private static final String STATE_NAME = "_keyed_async_wait_operator_state_";
 
-    /** Selector to get upsert key from input record. */
+    /** Selector to get ordered keys from input record. */
     private final KeySelector<IN, KEY> keySelector;
 
     /** Timeout for the async collectors. */
@@ -345,9 +346,13 @@ public class TableKeyedAsyncWaitOperator<IN, OUT, KEY>
             processInMailbox(Collections.emptyList());
         }
 
+        /**
+         * Unsupported, because the containing classes are AsyncFunctions which don't have access to
+         * the mailbox to invoke from the caller thread.
+         */
         @Override
         public void complete(CollectionSupplier<OUT> supplier) {
-            // ignore
+            throw new UnsupportedOperationException();
         }
 
         private void processInMailbox(Collection<OUT> results) {
