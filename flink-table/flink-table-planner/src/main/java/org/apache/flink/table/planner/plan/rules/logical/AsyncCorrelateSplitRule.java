@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
-import org.apache.flink.table.planner.plan.rules.logical.AsyncCalcSplitRule.AsyncRemoteCalcCallFinder;
+import org.apache.flink.table.planner.plan.utils.AsyncUtil;
 
 import org.apache.calcite.plan.RelOptRule;
 
@@ -33,8 +34,13 @@ import org.apache.calcite.plan.RelOptRule;
  */
 public class AsyncCorrelateSplitRule {
 
-    private static final RemoteCalcCallFinder ASYNC_CALL_FINDER = new AsyncRemoteCalcCallFinder();
+    private static final RemoteCallFinder ASYNC_SCALAR_CALL_FINDER =
+            new AsyncUtil.AsyncRemoteCallFinder(FunctionKind.ASYNC_SCALAR);
+    private static final RemoteCallFinder ASYNC_TABLE_CALL_FINDER =
+            new AsyncUtil.AsyncRemoteCallFinder(FunctionKind.ASYNC_TABLE);
 
-    public static final RelOptRule INSTANCE =
-            RemoteCorrelateSplitRule.Config.createDefault(ASYNC_CALL_FINDER).toRule();
+    public static final RelOptRule CORRELATE_SPLIT_ASYNC_SCALAR =
+            RemoteCorrelateSplitRule.Config.createDefault(ASYNC_SCALAR_CALL_FINDER).toRule();
+    public static final RelOptRule CORRELATE_SPLIT_ASYNC_TABLE =
+            RemoteCorrelateSplitRule.Config.createDefault(ASYNC_TABLE_CALL_FINDER).toRule();
 }
