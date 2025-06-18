@@ -92,20 +92,22 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
 
     @SuppressWarnings({"unused", "FieldCanBeLocal"})
     @JsonProperty(FIELD_NAME_MULTI_JOIN_CONDITION)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private final RexNode multiJoinCondition;
 
     @JsonProperty(FIELD_NAME_JOIN_ATTRIBUTE_MAP)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
 
     @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEYS)
-    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     // List of upsert keys for each input, where each inner list corresponds to an input
     // The reason it's a List<List<int[]>> is that SQL allows only one primary key but
     // multiple upsert (unique) keys per input
     private final List<List<int[]>> inputUpsertKeys;
 
     @JsonProperty(FIELD_NAME_STATE)
-    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private final List<StateMetadata> stateMetadataList;
 
     public StreamExecMultiJoin(
@@ -182,7 +184,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
 
     private static String[] generateStateNames(int numInputs) {
         return IntStream.range(0, numInputs)
-                .mapToObj(i -> "inputState-" + i)
+                .mapToObj(i -> "input-state-" + i)
                 .toArray(String[]::new);
     }
 

@@ -365,7 +365,7 @@ public class OptimizerConfigOptions {
                                     .text(
                                             "Note: This is an experimental feature and not recommended for production just yet. "
                                                     + "The operator's internal implementation and state layout is subject to changes due to ongoing relevant optimizations. "
-                                                    + " These might break savepoint compatibility across Flink versions and the goal is to have a stable version in the next release.")
+                                                    + "These might break savepoint compatibility across Flink versions and the goal is to have a stable version in the next release.")
                                     .build());
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)

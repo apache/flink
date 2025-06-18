@@ -24,7 +24,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import java.util.Arrays;
 import java.util.List;
 
-/** Semantic tests for multi-join. */
+/** Restore tests for {@link StreamExecMultiJoin}. */
 public class MultiJoinRestoreTest extends RestoreTestBase {
 
     public MultiJoinRestoreTest() {

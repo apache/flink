@@ -39,7 +39,6 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
-import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.Pair;
@@ -55,20 +54,20 @@ import java.util.Map;
  * N inputs.
  *
  * <p>This rule is copied from {@link org.apache.calcite.rel.rules.JoinToMultiJoinRule}. In this
- * rule, we support richer join type to convert to one multi join set, like left outer join and
- * right outer join, by rewrite $canCombine() method.
+ * rule, we support richer join types to convert to one multi join set, like left outer join and
+ * right outer join, by rewriting the $canCombine() method.
  *
  * <p>An input is not flattened if the input is a null generating input in an outer join, i.e.,
  * either input in a full outer join, semi join, anti join, the right side of a left outer join, or
- * the lef side of a right outer join.
+ * the left side of a right outer join.
  *
- * <p>Join conditions are also pulled up from the inputs into the topmost {@link MultiJoin}.
+ * <p>Join conditions are pulled up from the inputs into the topmost {@link MultiJoin}.
  *
- * <p>Outer join information is also stored in the {@link MultiJoin}. A boolean flag indicates if
- * the join is a full outer join, and in the case of left and right outer joins, the join type and
- * outer join conditions are stored in arrays in the {@link MultiJoin}. This outer join information
- * is associated with the null generating input in the outer join. So, in the case of a left outer
- * join between A and B, the information is associated with B, not A.
+ * <p>Outer join information is stored in the {@link MultiJoin}. A boolean flag indicates if the
+ * join is a full outer join, and in the case of left and right outer joins, the join type and outer
+ * join conditions are stored in arrays in the {@link MultiJoin}. This outer join information is
+ * associated with the null generating input in the outer join. So, in the case of a left outer join
+ * between A and B, the information is associated with B, not A.
  *
  * <p>Here are examples of the {@link MultiJoin}s constructed after this rule has been applied on
  * following join trees.
@@ -88,7 +87,7 @@ import java.util.Map;
  *   <li>(A RIGHT JOIN B) LEFT JOIN C &rarr; MJ(MJ(A, B), C)
  *   <li>A LEFT JOIN (B FULL JOIN C) &rarr; MJ(A, MJ[full](B, C))
  *   <li>(A LEFT JOIN B) FULL JOIN (C RIGHT JOIN D) &rarr; MJ[full](MJ(A, B), MJ(C, D))
- *   <li>SEMI JOIN and ANTI JOIN not support now.
+ *   <li>SEMI JOIN and ANTI JOIN not supported now.
  * </ul>
  *
  * <p>The constructor is parameterized to allow any sub-class of {@link Join}, not just {@link
@@ -108,21 +107,6 @@ public class JoinToMultiJoinForReorderRule extends RelRule<JoinToMultiJoinForReo
     /** Creates a JoinToMultiJoinForReorderRule. */
     public JoinToMultiJoinForReorderRule(Config config) {
         super(config);
-    }
-
-    @Deprecated // to be removed before 2.0
-    public JoinToMultiJoinForReorderRule(Class<? extends Join> clazz) {
-        this(Config.DEFAULT.withOperandFor(clazz));
-    }
-
-    @Deprecated // to be removed before 2.0
-    public JoinToMultiJoinForReorderRule(
-            Class<? extends Join> joinClass, RelBuilderFactory relBuilderFactory) {
-        this(
-                Config.DEFAULT
-                        .withRelBuilderFactory(relBuilderFactory)
-                        .as(Config.class)
-                        .withOperandFor(joinClass));
     }
 
     // ~ Methods ----------------------------------------------------------------

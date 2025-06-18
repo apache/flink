@@ -19,6 +19,10 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSnapshot;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
+import org.apache.flink.table.planner.plan.utils.JoinUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -33,12 +37,14 @@ import org.apache.calcite.rel.rules.FilterMultiJoinMergeRule;
 import org.apache.calcite.rel.rules.MultiJoin;
 import org.apache.calcite.rel.rules.ProjectMultiJoinMergeRule;
 import org.apache.calcite.rel.rules.TransformationRule;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
+import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.ImmutableIntList;
@@ -48,6 +54,7 @@ import org.immutables.value.Value;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,37 +64,45 @@ import java.util.Map;
  * inputs.
  *
  * <p>This rule is copied and adjusted from {@link org.apache.calcite.rel.rules.JoinToMultiJoinRule}
- * and {@link JoinToMultiJoinForReorderRule}. In this rule, we support a broder sef of left and
- * inner joins by rewriting $canCombine() method. The multi join is not expected to be used for
- * reordering and will be turned into a {@link
- * org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin}.
+ * and {@link JoinToMultiJoinForReorderRule}. Unlike {@link JoinToMultiJoinForReorderRule}, this
+ * rule:
  *
- * <p>Join conditions are also pulled up from the inputs into the topmost {@link MultiJoin}.
+ * <ul>
+ *   <li>Supports a broader set of left and inner joins by rewriting the $canCombine() method
+ *   <li>Right joins are supported in combination with {@link FlinkRightJoinToLeftJoinRule}
+ *   <li>Is specifically designed for stream processing, as the resulting MultiJoin will be
+ *       converted into a {@link StreamPhysicalMultiJoin}
+ *   <li>Does not expect resulting multi join to be reordered. Reordering should be applied before
+ *       this rule.
+ * </ul>
  *
- * <p>Join information is also stored in the {@link MultiJoin}. Join conditions are stored in arrays
- * in the {@link MultiJoin}. This outer join information is associated with the null generating
- * input in the outer join. So, in the case of a left outer join between A and B, the information is
- * associated with B, not A.
+ * <p>Join conditions are pulled up from the inputs into the topmost {@link MultiJoin}.
+ *
+ * <p>Join information is stored in the {@link MultiJoin}. Join conditions are stored in arrays in
+ * the {@link MultiJoin}. This join information is associated with the null generating input in the
+ * outer join. So, in the case of a left outer join between A and B, the information is associated
+ * with B, not A.
  *
  * <p>Here are examples of the {@link MultiJoin}s constructed after this rule has been applied on
- * following join trees.
+ * following join trees. Note that RIGHT joins are handled by {@link FlinkRightJoinToLeftJoinRule}
+ * before this rule is applied.
  *
  * <ul>
  *   <li>A JOIN B &rarr; MJ(A, B)
  *   <li>A JOIN B JOIN C &rarr; MJ(A, B, C)
  *   <li>A LEFT JOIN B &rarr; MJ(A, B)
- *   <li>A RIGHT JOIN B &rarr; MJ(A, B)
- *   <li>A FULL JOIN B &rarr; MJ[full](A, B)
  *   <li>A LEFT JOIN (B JOIN C) &rarr; MJ(A, B, C)
  *   <li>(A JOIN B) LEFT JOIN C &rarr; MJ(A, B, C)
  *   <li>(A LEFT JOIN B) JOIN C &rarr; MJ(A, B, C)
  *   <li>(A LEFT JOIN B) LEFT JOIN C &rarr; MJ(A, B, C)
- *   <li>(A RIGHT JOIN B) RIGHT JOIN C &rarr; MJ(MJ(A, B), C)
- *   <li>(A LEFT JOIN B) RIGHT JOIN C &rarr; MJ(MJ(A, B), C)
- *   <li>(A RIGHT JOIN B) LEFT JOIN C &rarr; MJ(MJ(A, B), C)
- *   <li>A LEFT JOIN (B FULL JOIN C) &rarr; MJ(A, MJ[full](B, C))
- *   <li>(A LEFT JOIN B) FULL JOIN (C RIGHT JOIN D) &rarr; MJ[full](MJ(A, B), MJ(C, D))
- *   <li>SEMI JOIN and ANTI JOIN not support now.
+ * </ul>
+ *
+ * <p>The following join types are not supported:
+ *
+ * <ul>
+ *   <li>FULL OUTER JOIN
+ *   <li>SEMI JOIN
+ *   <li>ANTI JOIN
  * </ul>
  *
  * <p>The constructor is parameterized to allow any sub-class of {@link Join}, not just {@link
@@ -180,18 +195,17 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
 
         // Pull up the join filters from the children MultiJoinRels and combine them with the join
         // filter associated with this LogicalJoin to form the join filter for the new MultiJoin.
-        List<RexNode> newJoinFilters =
+        final List<RexNode> newJoinFilters =
                 combineJoinFilters(origJoin, left, right, inputNullGenFieldList);
 
         // Add on the join field reference counts for the join condition associated with this
         // LogicalJoin.
-        final com.google.common.collect.ImmutableMap<Integer, ImmutableIntList>
-                newJoinFieldRefCountsMap =
-                        addOnJoinFieldRefCounts(
-                                newInputs,
-                                origJoin.getRowType().getFieldCount(),
-                                origJoin.getCondition(),
-                                joinFieldRefCountsList);
+        final Map<Integer, ImmutableIntList> newJoinFieldRefCountsMap =
+                addOnJoinFieldRefCounts(
+                        newInputs,
+                        origJoin.getRowType().getFieldCount(),
+                        origJoin.getCondition(),
+                        joinFieldRefCountsList);
 
         List<RexNode> newPostJoinFilters = combinePostJoinFilters(origJoin, left, right);
 
@@ -206,7 +220,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
                         Pair.right(joinSpecs),
                         Pair.left(joinSpecs),
                         projFieldsList,
-                        newJoinFieldRefCountsMap,
+                        com.google.common.collect.ImmutableMap.copyOf(newJoinFieldRefCountsMap),
                         RexUtil.composeConjunction(rexBuilder, newPostJoinFilters, true));
 
         call.transformTo(multiJoin);
@@ -580,19 +594,18 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
      * @param origJoinFieldRefCounts existing join condition reference counts
      * @return Map containing the new join condition
      */
-    private com.google.common.collect.ImmutableMap<Integer, ImmutableIntList>
-            addOnJoinFieldRefCounts(
-                    List<RelNode> multiJoinInputs,
-                    int nTotalFields,
-                    RexNode joinCondition,
-                    List<int[]> origJoinFieldRefCounts) {
+    private Map<Integer, ImmutableIntList> addOnJoinFieldRefCounts(
+            List<RelNode> multiJoinInputs,
+            int nTotalFields,
+            RexNode joinCondition,
+            List<int[]> origJoinFieldRefCounts) {
         // count the input references in the join condition
-        int[] joinCondRefCounts = new int[nTotalFields];
+        final int[] joinCondRefCounts = new int[nTotalFields];
         joinCondition.accept(new InputReferenceCounter(joinCondRefCounts));
 
         // first, make a copy of the ref counters
         final Map<Integer, int[]> refCountsMap = new HashMap<>();
-        int nInputs = multiJoinInputs.size();
+        final int nInputs = multiJoinInputs.size();
         int currInput = 0;
         for (int[] origRefCounts : origJoinFieldRefCounts) {
             refCountsMap.put(currInput, origRefCounts.clone());
@@ -614,16 +627,15 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
                 assert currInput < nInputs;
                 nFields = multiJoinInputs.get(currInput).getRowType().getFieldCount();
             }
-            int[] refCounts = refCountsMap.get(currInput);
+            final int[] refCounts = refCountsMap.get(currInput);
             refCounts[i - startField] += joinCondRefCounts[i];
         }
 
-        final com.google.common.collect.ImmutableMap.Builder<Integer, ImmutableIntList> builder =
-                com.google.common.collect.ImmutableMap.builder();
+        final Map<Integer, ImmutableIntList> aMap = new HashMap<>();
         for (Map.Entry<Integer, int[]> entry : refCountsMap.entrySet()) {
-            builder.put(entry.getKey(), ImmutableIntList.of(entry.getValue()));
+            aMap.put(entry.getKey(), ImmutableIntList.of(entry.getValue()));
         }
-        return builder.build();
+        return Collections.unmodifiableMap(aMap);
     }
 
     /**

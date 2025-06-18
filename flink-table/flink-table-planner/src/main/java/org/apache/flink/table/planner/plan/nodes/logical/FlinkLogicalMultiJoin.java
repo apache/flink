@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.logical;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
 
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
@@ -48,8 +49,7 @@ import java.util.stream.Collectors;
  *
  * <p>This node is used to represent a join of multiple inputs, which can be seen as a
  * generalization of the binary {@link FlinkLogicalJoin}. It will be translated into a {@link
- * org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin} by the
- * optimizer.
+ * StreamPhysicalMultiJoin} by the optimizer.
  */
 @Internal
 public class FlinkLogicalMultiJoin extends AbstractRelNode implements FlinkLogicalRel {

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 /** Test data for multi-join tests. */
 public class MultiJoinTestUtils {
@@ -28,9 +29,9 @@ public class MultiJoinTestUtils {
             SourceTestStep.newBuilder("Users")
                     .addSchema("user_id STRING PRIMARY KEY NOT ENFORCED, name STRING, cash INT")
                     .producedValues(
-                            Row.of("1", "Gus", 100),
-                            Row.of("2", "Bob", 200),
-                            Row.of("3", "Alice", 300))
+                            Row.ofKind(RowKind.INSERT, "1", "Gus", 100),
+                            Row.ofKind(RowKind.INSERT, "2", "Bob", 200),
+                            Row.ofKind(RowKind.INSERT, "3", "Alice", 300))
                     .build();
 
     public static final SourceTestStep ORDERS_SOURCE =
@@ -38,10 +39,10 @@ public class MultiJoinTestUtils {
                     .addSchema(
                             "user_id STRING, order_id STRING PRIMARY KEY NOT ENFORCED, product STRING")
                     .producedValues(
-                            Row.of("1", "order1", "Product A"),
-                            Row.of("2", "order2", "Product B"),
-                            Row.of("2", "order3", "Product C"),
-                            Row.of("4", "order4", "Product D"))
+                            Row.ofKind(RowKind.INSERT, "1", "order1", "Product A"),
+                            Row.ofKind(RowKind.INSERT, "2", "order2", "Product B"),
+                            Row.ofKind(RowKind.INSERT, "2", "order3", "Product C"),
+                            Row.ofKind(RowKind.INSERT, "4", "order4", "Product D"))
                     .build();
 
     public static final SourceTestStep PAYMENTS_SOURCE =
@@ -49,9 +50,9 @@ public class MultiJoinTestUtils {
                     .addSchema(
                             "user_id STRING, payment_id STRING PRIMARY KEY NOT ENFORCED, price INT")
                     .producedValues(
-                            Row.of("1", "payment1", 10),
-                            Row.of("2", "payment2", 20),
-                            Row.of("1", "payment3", 30),
-                            Row.of("5", "payment5", 50))
+                            Row.ofKind(RowKind.INSERT, "1", "payment1", 10),
+                            Row.ofKind(RowKind.INSERT, "2", "payment2", 20),
+                            Row.ofKind(RowKind.INSERT, "1", "payment3", 30),
+                            Row.ofKind(RowKind.INSERT, "5", "payment5", 50))
                     .build();
 }

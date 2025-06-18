@@ -23,7 +23,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.List;
 
-/** Semantic tests for multi-join. */
+/** Semantic tests for {@link StreamExecMultiJoin}. */
 public class MultiJoinSemanticTests extends SemanticTestBase {
 
     @Override

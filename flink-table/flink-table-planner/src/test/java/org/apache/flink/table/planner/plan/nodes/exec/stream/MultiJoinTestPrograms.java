@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -70,9 +71,9 @@ public class MultiJoinTestPrograms {
                                     .addSchema(
                                             "user_id STRING PRIMARY KEY NOT ENFORCED, name STRING, cash INT")
                                     .producedValues(
-                                            Row.of("1", "Gus", 100),
-                                            Row.of("2", "Bob", 200),
-                                            Row.of("3", "Alice", 300),
+                                            Row.ofKind(RowKind.INSERT, "1", "Gus", 100),
+                                            Row.ofKind(RowKind.INSERT, "2", "Bob", 200),
+                                            Row.ofKind(RowKind.INSERT, "3", "Alice", 300),
                                             Row.ofKind(RowKind.UPDATE_BEFORE, "1", "Gus", 100),
                                             Row.ofKind(
                                                     RowKind.UPDATE_AFTER, "1", "Gus Updated", 100),
@@ -217,23 +218,21 @@ public class MultiJoinTestPrograms {
                                     .consumedValues(
                                             "+I[1, Gus, order0, payment1, London]",
                                             "+I[1, Gus, order1, payment1, London]",
-                                            // NO I[2, Bob..] here because Bob was deleted
+                                            // NO +I[2, Bob...] here because Bob was deleted
                                             "+I[3, Nomad, order3, payment3, New York]",
-                                            // NO I[4, David..] here because David has only 5
-                                            // dollars, so  this is not true u.cash >= p.price
-                                            "+I[5, Eve, null, payment5, null]", // Here because
-                                            // payment price as
-                                            // -1
-                                            // NO I[7, Welcher..] here because Welcher has no
-                                            // payment
+                                            // NO +I[4, David...] here because David has only 5
+                                            // dollars, so the following is invalid u.cash >=
+                                            // p.price
+                                            // +I[5, Eve...] here because payment price as -1
+                                            "+I[5, Eve, null, payment5, null]",
                                             "+I[6, Frank, order6, payment6, null]",
-                                            // NO I[8, Welcher..] here because there is no order and
-                                            // no payment
-                                            "+I[9, Charlie Taylor, order9, payment9, Melbourne]", // Charlie Taylor because the name was updated
-                                            "+I[3, Nomad, order3, payment3, Brasília]" // New
-                                            // Location
-                                            // for user 3
-                                            )
+                                            // NO +I[7, Welcher...] here since Welcher has no
+                                            // payment
+                                            // NO +I[8, Joe no order...] since no order and payment
+                                            // +I[9, Charlie Taylor...] because the name was updated
+                                            "+I[9, Charlie Taylor, order9, payment9, Melbourne]",
+                                            // New +I[3, Nomad...] due to new location for user 3
+                                            "+I[3, Nomad, order3, payment3, Brasília]")
                                     .testMaterializedData()
                                     .build())
                     .runSql(

@@ -424,12 +424,11 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
                 // This indicates that there is no common join key among all inputs.
                 // In this case, we cannot use a multi-join, so throw an exception.
                 throw new IllegalStateException(
-                        "No common attributes found for inputId "
+                        "All inputs in a multi-way join must share a common join key. Input #"
                                 + currentInputId
-                                + ". This indicates a misconfiguration in joinAttributeMap,"
-                                + " as a common join key across all inputs is required for a multi-join."
-                                + "We'll also eventually support multiple multi-joins"
-                                + "for different common keys with FLINK-37890.");
+                                + " does not share a join key with the other inputs. Please ensure all join"
+                                + " conditions connect all inputs with a common key. Support for multiple"
+                                + " independent join key groups is tracked under FLINK-37890.");
             }
 
             processInputCommonAttributes(currentInputId, commonAttrsForThisInput);
