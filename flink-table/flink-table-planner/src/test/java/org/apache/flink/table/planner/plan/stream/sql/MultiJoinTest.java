@@ -214,6 +214,36 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    void testThreeWayLeftOuterJoinWithWhereClauseRelPlan() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2 "
+                        + "WHERE u.name = 'Gus' AND p.price > 10");
+    }
+
+    @Test
+    void testThreeWayLeftOuterJoinWithWhereClauseExecPlan() {
+        util.verifyExecPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2 "
+                        + "WHERE u.name = 'Gus' AND p.price > 10");
+    }
+
+    @Test
+    void testThreeWayLeftOuterJoinWithWhereClauseExplain() {
+        util.verifyExplain(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2 "
+                        + "WHERE u.name = 'Gus' AND p.price > 10");
+    }
+
+    @Test
     void testRegularJoinsAreMergedApartFromTemporalJoin() {
         // Regular joins should still be eligible for MultiJoin but not mixed with temporal joins
         util.verifyRelPlan(

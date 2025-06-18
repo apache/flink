@@ -134,6 +134,37 @@ public class MultiJoinTestPrograms {
                                     + "INNER JOIN Payments p ON u.user_id = p.user_id")
                     .build();
 
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN_WITH_WHERE =
+            TableTestProgram.of(
+                            "three-way-inner-join-with-where",
+                            "three way inner join with where clause")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(USERS_SOURCE)
+                    .setupTableSource(ORDERS_SOURCE)
+                    .setupTableSource(PAYMENTS_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "user_id STRING",
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "payment_id STRING")
+                                    .consumedValues(
+                                            "+I[1, Gus, order1, payment3]"
+                                            // Most rows are filtered by WHERE u.name = 'Gus'
+                                            // payment1 is filtered by WHERE p.price > 10
+                                            )
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id "
+                                    + "FROM Users u "
+                                    + "LEFT JOIN Orders o ON u.user_id = o.user_id "
+                                    + "LEFT JOIN Payments p ON u.user_id = p.user_id "
+                                    + "WHERE u.name = 'Gus' AND p.price > 10")
+                    .build();
+
     public static final TableTestProgram MULTI_JOIN_FOUR_WAY_COMPLEX =
             TableTestProgram.of("four-way-complex-updating-join", "four way complex updating join")
                     .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)

@@ -30,6 +30,7 @@ public class MultiJoinSemanticTests extends SemanticTestBase {
     public List<TableTestProgram> programs() {
         return List.of(
                 MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_INNER_JOIN,
+                MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN_WITH_WHERE,
                 MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN,
                 MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN_UPDATING,
                 MultiJoinTestPrograms.MULTI_JOIN_FOUR_WAY_COMPLEX);
