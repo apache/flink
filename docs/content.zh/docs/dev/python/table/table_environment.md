@@ -201,6 +201,50 @@ TableEnvironment API
     </tr>
     <tr>
       <td>
+        <strong>create_model(model_path, model_descriptor, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Model` object as a model similar to SQL Models. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_model" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>create_temporary_model(model_path, model_descriptor, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Model` object as a temporary model similar to SQL temporary Models. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_temporary_model" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>drop_model(model_path, ignore_if_not_exists=True)</strong>
+      </td>
+      <td>
+        Drops a model registered in the given path.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_model" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>drop_temporary_model(model_path, ignore_if_not_exists=True)</strong>
+      </td>
+      <td>
+        Drops a temporary model registered in the given path.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_model" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
         <strong>execute_sql(stmt)</strong>
       </td>
       <td>
@@ -789,6 +833,28 @@ table_env.get_config().set("pipeline.name", "my_first_job")
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.list_temporary_views" name="链接">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>list_models()</strong>
+      </td>
+      <td>
+        获取当前命名空间（当前 catalog 的当前数据库）中所有可用的模型和临时模型名称。
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.list_models" name="链接">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>list_temporary_models()</strong>
+      </td>
+      <td>
+       获取当前命名空间（当前 catalog 的当前数据库）中所有可用的临时模型名称。
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.list_temporary_models" name="链接">}}
       </td>
     </tr>
   </tbody>

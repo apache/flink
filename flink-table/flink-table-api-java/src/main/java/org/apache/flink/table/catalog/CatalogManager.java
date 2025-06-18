@@ -1435,8 +1435,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     }
 
     /**
-     * Returns an array of names of all models registered in the namespace of the current catalog
-     * and database.
+     * Returns a set of names of all models registered in the namespace of the current catalog and
+     * database.
      *
      * @return names of all registered models
      */
@@ -1445,7 +1445,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     }
 
     /**
-     * Returns an array of names of all models registered in the namespace of the given catalog and
+     * Returns a set of names of all models registered in the namespace of the given catalog and
      * database.
      *
      * @return names of all registered models
@@ -1461,6 +1461,29 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             throw new ValidationException(
                     String.format("Database %s does not exist", databaseName), e);
         }
+    }
+
+    /**
+     * Returns an array of names of temporary models registered in the namespace of the current
+     * catalog and database.
+     *
+     * @return names of registered temporary models
+     */
+    public Set<String> listTemporaryModels() {
+        return listTemporaryModelsInternal(getCurrentCatalog(), getCurrentDatabase())
+                .map(e -> e.getKey().getObjectName())
+                .collect(Collectors.toSet());
+    }
+
+    private Stream<Map.Entry<ObjectIdentifier, CatalogModel>> listTemporaryModelsInternal(
+            String catalogName, String databaseName) {
+        return temporaryModels.entrySet().stream()
+                .filter(
+                        e -> {
+                            ObjectIdentifier identifier = e.getKey();
+                            return identifier.getCatalogName().equals(catalogName)
+                                    && identifier.getDatabaseName().equals(databaseName);
+                        });
     }
 
     /**
@@ -1611,11 +1634,11 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param ignoreIfNotExists If false exception will be thrown if the model to drop does not
      *     exist.
      */
-    public void dropModel(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        execute(
-                (catalog, path) -> {
-                    Optional<ContextResolvedModel> resultOpt = getModel(objectIdentifier);
-                    if (resultOpt.isPresent()) {
+    public boolean dropModel(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        Optional<ContextResolvedModel> resultOpt = getModel(objectIdentifier);
+        if (resultOpt.isPresent()) {
+            execute(
+                    (catalog, path) -> {
                         ResolvedCatalogModel resolvedModel = resultOpt.get().getResolvedModel();
                         catalog.dropModel(path, ignoreIfNotExists);
                         catalogModificationListeners.forEach(
@@ -1629,14 +1652,18 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                                         resolvedModel,
                                                         ignoreIfNotExists,
                                                         false)));
-                    } else if (!ignoreIfNotExists) {
-                        throw new ModelNotExistException(
-                                objectIdentifier.getCatalogName(), objectIdentifier.toObjectPath());
-                    }
-                },
-                objectIdentifier,
-                ignoreIfNotExists,
-                "DropModel");
+                    },
+                    objectIdentifier,
+                    ignoreIfNotExists,
+                    "DropModel");
+            return true;
+        } else if (!ignoreIfNotExists) {
+            throw new ValidationException(
+                    String.format(
+                            "Model with identifier '%s' does not exist.",
+                            objectIdentifier.asSummaryString()));
+        }
+        return false;
     }
 
     /**
