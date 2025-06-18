@@ -225,3 +225,19 @@ Drop temporary system function that has no namespace.
 **IF EXISTS**
 
 If the function doesn't exists, nothing happens.
+
+## DROP MODEL
+
+```sql
+DROP [TEMPORARY] MODEL [IF EXISTS] [catalog_name.][db_name.]model_name
+```
+
+Drop a model with the given model name. If the model to drop does not exist, an exception is thrown.
+
+**TEMPORARY**
+
+Drop temporary model that has catalog and database namespaces.
+
+**IF EXISTS**
+
+If the model does not exist, nothing happens.
