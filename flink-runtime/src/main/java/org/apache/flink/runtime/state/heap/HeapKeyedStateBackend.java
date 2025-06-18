@@ -327,9 +327,6 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                     "State should be an AbstractRocksDBState but is " + state);
         }
         AbstractHeapState<K, N, V> heapState = (AbstractHeapState<K, N, V>) state;
-        TtlAwareSerializer<V, ?> previousTtlAwareSerializer =
-                (TtlAwareSerializer<V, ?>)
-                        TtlAwareSerializer.wrapTtlAwareSerializer(previousSerializer);
         TtlAwareSerializer<V, ?> currentTtlAwareSerializer =
                 (TtlAwareSerializer<V, ?>)
                         TtlAwareSerializer.wrapTtlAwareSerializer(currentSerializer);
