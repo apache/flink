@@ -109,7 +109,41 @@
       } ],
       "type" : "BOOLEAN"
     } ],
-    "multiJoinCondition" : null,
+    "multiJoinCondition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$AND$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "VARCHAR(2147483647)"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 4,
+          "type" : "VARCHAR(2147483647)"
+        } ],
+        "type" : "BOOLEAN"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "VARCHAR(2147483647)"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "VARCHAR(2147483647)"
+        } ],
+        "type" : "BOOLEAN"
+      } ],
+      "type" : "BOOLEAN"
+    },
     "joinAttributeMap" : {
       "1" : [ {
         "leftInputId" : 0,
@@ -128,15 +162,15 @@
     "state" : [ {
       "index" : 0,
       "ttl" : "0 ms",
-      "name" : "inputState-0"
+      "name" : "input-state-0"
     }, {
       "index" : 1,
       "ttl" : "0 ms",
-      "name" : "inputState-1"
+      "name" : "input-state-1"
     }, {
       "index" : 2,
       "ttl" : "0 ms",
-      "name" : "inputState-2"
+      "name" : "input-state-2"
     } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -158,7 +192,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `name` VARCHAR(2147483647), `user_id0` VARCHAR(2147483647), `order_id` VARCHAR(2147483647), `user_id1` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647)>",
-    "description" : "MultiJoin(joinFilter=[true], joinTypes=[[INNER, INNER, INNER]], joinConditions=[[true, =($0, $2), =($0, $4)]], select=[user_id,name,user_id0,order_id,user_id1,payment_id], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id1, VARCHAR(2147483647) payment_id)])"
+    "description" : "MultiJoin(joinFilter=[AND(=($0, $4), =($0, $2))], joinTypes=[[INNER, INNER, INNER]], joinConditions=[[true, =($0, $2), =($0, $4)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:0;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:0;]}], select=[user_id,name,user_id0,order_id,user_id1,payment_id], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id1, VARCHAR(2147483647) payment_id)])"
   }, {
     "id" : 5,
     "type" : "stream-exec-calc_1",
