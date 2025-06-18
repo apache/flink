@@ -312,7 +312,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                                 KeySelectorUtil.getRowDataSelector(
                                         planner.getFlinkContext().getClassLoader(),
                                         keyExtractor.getCommonJoinKeyIndices(i),
-                                        InternalTypeInfo.of(keyExtractor.getCommonJoinKeyType())))
+                                        inputTypeInfos.get(i)))
                 .collect(Collectors.toList());
     }
 

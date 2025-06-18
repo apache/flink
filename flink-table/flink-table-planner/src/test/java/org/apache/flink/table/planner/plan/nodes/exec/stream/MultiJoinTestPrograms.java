@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -139,71 +140,71 @@ public class MultiJoinTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema(
-                                            "user_id_0 STRING PRIMARY KEY NOT ENFORCED",
                                             "name STRING",
-                                            "cash INT")
+                                            "cash INT",
+                                            "user_id_0 STRING PRIMARY KEY NOT ENFORCED")
                                     .addOption("changelog-mode", "I,UA,D")
                                     .producedValues(
-                                            Row.ofKind(RowKind.INSERT, "1", "Gus", 100),
-                                            Row.ofKind(RowKind.INSERT, "2", "Bob", 20),
-                                            Row.ofKind(RowKind.INSERT, "3", "Nomad", 50),
-                                            Row.ofKind(RowKind.INSERT, "4", "David", 5),
-                                            Row.ofKind(RowKind.INSERT, "5", "Eve", 0),
-                                            Row.ofKind(RowKind.INSERT, "6", "Frank", 70),
-                                            Row.ofKind(RowKind.INSERT, "7", "Welcher", 100),
-                                            Row.ofKind(RowKind.INSERT, "8", "Joe no order", 10),
-                                            Row.ofKind(RowKind.INSERT, "9", "Charlie Smith", 50),
-                                            Row.ofKind(RowKind.DELETE, "2", "Bob", 20),
+                                            Row.ofKind(RowKind.INSERT, "Gus", 100, "1"),
+                                            Row.ofKind(RowKind.INSERT, "Joe no order", 10, "8"),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20, "2"),
+                                            Row.ofKind(RowKind.INSERT, "Nomad", 50, "3"),
+                                            Row.ofKind(RowKind.INSERT, "David", 5, "4"),
+                                            Row.ofKind(RowKind.INSERT, "Eve", 0, "5"),
+                                            Row.ofKind(RowKind.INSERT, "Frank", 70, "6"),
+                                            Row.ofKind(RowKind.INSERT, "Welcher", 100, "7"),
+                                            Row.ofKind(RowKind.INSERT, "Charlie Smith", 50, "9"),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 20, "2"),
                                             Row.ofKind(
                                                     RowKind.UPDATE_AFTER,
-                                                    "9",
                                                     "Charlie Taylor",
-                                                    50))
+                                                    50,
+                                                    "9"))
                                     .build())
                     .setupTableSource(
                             SourceTestStep.newBuilder("Orders")
                                     .addSchema(
-                                            "user_id_1 STRING",
                                             "order_id STRING PRIMARY KEY NOT ENFORCED",
-                                            "product STRING")
+                                            "product STRING",
+                                            "user_id_1 STRING")
                                     .addOption("changelog-mode", "I,D")
                                     .producedValues(
-                                            Row.ofKind(RowKind.INSERT, "1", "order0", "ProdB"),
-                                            Row.ofKind(RowKind.INSERT, "1", "order1", "ProdA"),
-                                            Row.ofKind(RowKind.INSERT, "2", "order2", "ProdB"),
-                                            Row.ofKind(RowKind.INSERT, "3", "order3", "ProdC"),
-                                            Row.ofKind(RowKind.INSERT, "4", "order4", "ProdD"),
-                                            Row.ofKind(RowKind.INSERT, "6", "order6", "ProdF"),
-                                            Row.ofKind(RowKind.INSERT, "7", "order7", "ProdG"),
-                                            Row.ofKind(RowKind.INSERT, "9", "order9", "ProdA"))
+                                            Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
+                                            Row.ofKind(RowKind.INSERT, "order6", "ProdF", "6"),
+                                            Row.ofKind(RowKind.INSERT, "order1", "ProdA", "1"),
+                                            Row.ofKind(RowKind.INSERT, "order2", "ProdB", "2"),
+                                            Row.ofKind(RowKind.INSERT, "order3", "ProdC", "3"),
+                                            Row.ofKind(RowKind.INSERT, "order4", "ProdD", "4"),
+                                            Row.ofKind(RowKind.INSERT, "order7", "ProdG", "7"),
+                                            Row.ofKind(RowKind.INSERT, "order9", "ProdA", "9"))
                                     .build())
                     .setupTableSource(
                             SourceTestStep.newBuilder("Payments")
                                     .addSchema(
-                                            "user_id_2 STRING",
                                             "payment_id STRING PRIMARY KEY NOT ENFORCED",
-                                            "price INT")
+                                            "price INT",
+                                            "user_id_2 STRING")
                                     .addOption("changelog-mode", "I")
                                     .producedValues(
-                                            Row.ofKind(RowKind.INSERT, "1", "payment1", 50),
-                                            Row.ofKind(RowKind.INSERT, "2", "payment2", -5),
-                                            Row.ofKind(RowKind.INSERT, "3", "payment3", 30),
-                                            Row.ofKind(RowKind.INSERT, "4", "payment4", 40),
-                                            Row.ofKind(RowKind.INSERT, "5", "payment5", -1),
-                                            Row.ofKind(RowKind.INSERT, "6", "payment6", 60),
-                                            Row.ofKind(RowKind.INSERT, "9", "payment9", 30))
+                                            Row.ofKind(RowKind.INSERT, "payment1", 50, "1"),
+                                            Row.ofKind(RowKind.INSERT, "payment5", -1, "5"),
+                                            Row.ofKind(RowKind.INSERT, "payment2", -5, "2"),
+                                            Row.ofKind(RowKind.INSERT, "payment3", 30, "3"),
+                                            Row.ofKind(RowKind.INSERT, "payment4", 40, "4"),
+                                            Row.ofKind(RowKind.INSERT, "payment6", 60, "6"),
+                                            Row.ofKind(RowKind.INSERT, "payment9", 30, "9"))
                                     .build())
                     .setupTableSource(
                             SourceTestStep.newBuilder("Shipments")
-                                    .addSchema("user_id_3 STRING", "location STRING")
+                                    .addSchema("location STRING", "user_id_3 STRING")
                                     .addOption("changelog-mode", "I,UA,UB,D")
                                     .producedValues(
-                                            Row.ofKind(RowKind.INSERT, "1", "London"),
-                                            Row.ofKind(RowKind.INSERT, "2", "Paris"),
-                                            Row.ofKind(RowKind.INSERT, "3", "New York"),
-                                            Row.ofKind(RowKind.INSERT, "9", "Melbourne"),
-                                            Row.ofKind(RowKind.INSERT, "10", "Lost Shipment"),
-                                            Row.ofKind(RowKind.INSERT, "3", "Brasília"))
+                                            Row.ofKind(RowKind.INSERT, "London", "1"),
+                                            Row.ofKind(RowKind.INSERT, "Paris", "2"),
+                                            Row.ofKind(RowKind.INSERT, "Brasília", "3"),
+                                            Row.ofKind(RowKind.INSERT, "New York", "3"),
+                                            Row.ofKind(RowKind.INSERT, "Melbourne", "9"),
+                                            Row.ofKind(RowKind.INSERT, "Lost Shipment", "10"))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -215,10 +216,10 @@ public class MultiJoinTestPrograms {
                                             "location STRING")
                                     .addOption("changelog-mode", "I,UA,UB,D")
                                     .consumedValues(
-                                            "+I[1, Gus, order0, payment1, London]",
-                                            "+I[1, Gus, order1, payment1, London]",
-                                            // NO +I[2, Bob...] here because Bob was deleted
                                             "+I[3, Nomad, order3, payment3, New York]",
+                                            "+I[1, Gus, order0, payment1, London]",
+                                            // NO +I[2, Bob...] here because Bob was deleted
+                                            "+I[1, Gus, order1, payment1, London]",
                                             // NO +I[4, David...] here because David has only 5
                                             // dollars, so the following is invalid u.cash >=
                                             // p.price
@@ -355,48 +356,49 @@ public class MultiJoinTestPrograms {
                             "four-way-complex-updating-join-with-restore",
                             "four way complex updating join with restore")
                     .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupConfig(TableConfigOptions.PLAN_FORCE_RECOMPILE, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema(
-                                            "user_id_0 STRING PRIMARY KEY NOT ENFORCED",
                                             "name STRING",
+                                            "user_id_0 STRING PRIMARY KEY NOT ENFORCED",
                                             "cash INT")
                                     .addOption("changelog-mode", "I,UA,D")
                                     .producedBeforeRestore(
-                                            Row.ofKind(RowKind.INSERT, "1", "Gus", 100),
-                                            Row.ofKind(RowKind.INSERT, "2", "Bob", 20),
-                                            Row.ofKind(RowKind.INSERT, "3", "Nomad", 50))
+                                            Row.ofKind(RowKind.INSERT, "Gus", "1", 100),
+                                            Row.ofKind(RowKind.INSERT, "Nomad", "3", 50),
+                                            Row.ofKind(RowKind.INSERT, "Bob", "2", 20),
+                                            Row.ofKind(RowKind.DELETE, "Bob", "2", 20))
                                     .producedAfterRestore(
-                                            Row.ofKind(RowKind.INSERT, "4", "David", 5),
-                                            Row.ofKind(RowKind.INSERT, "5", "Eve", 0),
-                                            Row.ofKind(RowKind.INSERT, "6", "Frank", 70),
-                                            Row.ofKind(RowKind.INSERT, "7", "Welcher", 100),
-                                            Row.ofKind(RowKind.INSERT, "8", "Joe no order", 10),
-                                            Row.ofKind(RowKind.INSERT, "9", "Charlie Smith", 50),
-                                            Row.ofKind(RowKind.DELETE, "2", "Bob", 20),
+                                            Row.ofKind(RowKind.INSERT, "Frank", "6", 70),
+                                            Row.ofKind(RowKind.INSERT, "David", "4", 5),
+                                            Row.ofKind(RowKind.INSERT, "Joe no order", "8", 10),
+                                            Row.ofKind(RowKind.INSERT, "Eve", "5", 0),
+                                            Row.ofKind(RowKind.INSERT, "Welcher", "7", 100),
+                                            Row.ofKind(RowKind.INSERT, "Charlie Smith", "9", 50),
                                             Row.ofKind(
                                                     RowKind.UPDATE_AFTER,
-                                                    "9",
                                                     "Charlie Taylor",
+                                                    "9",
                                                     50))
                                     .build())
                     .setupTableSource(
                             SourceTestStep.newBuilder("Orders")
                                     .addSchema(
-                                            "user_id_1 STRING",
                                             "order_id STRING PRIMARY KEY NOT ENFORCED",
-                                            "product STRING")
+                                            "product STRING",
+                                            "user_id_1 STRING")
                                     .addOption("changelog-mode", "I,D")
                                     .producedBeforeRestore(
-                                            Row.ofKind(RowKind.INSERT, "1", "order0", "ProdB"),
-                                            Row.ofKind(RowKind.INSERT, "1", "order1", "ProdA"),
-                                            Row.ofKind(RowKind.INSERT, "2", "order2", "ProdB"),
-                                            Row.ofKind(RowKind.INSERT, "3", "order3", "ProdC"))
+                                            Row.ofKind(RowKind.INSERT, "order2", "ProdB", "2"),
+                                            Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
+                                            Row.ofKind(RowKind.INSERT, "order3", "ProdC", "3"),
+                                            Row.ofKind(RowKind.INSERT, "order1", "ProdA", "1"))
                                     .producedAfterRestore(
-                                            Row.ofKind(RowKind.INSERT, "4", "order4", "ProdD"),
-                                            Row.ofKind(RowKind.INSERT, "6", "order6", "ProdF"),
-                                            Row.ofKind(RowKind.INSERT, "7", "order7", "ProdG"),
-                                            Row.ofKind(RowKind.INSERT, "9", "order9", "ProdA"))
+                                            Row.ofKind(RowKind.INSERT, "order6", "ProdF", "6"),
+                                            Row.ofKind(RowKind.INSERT, "order4", "ProdD", "4"),
+                                            Row.ofKind(RowKind.INSERT, "order9", "ProdA", "9"),
+                                            Row.ofKind(RowKind.INSERT, "order7", "ProdG", "7"))
                                     .build())
                     .setupTableSource(
                             SourceTestStep.newBuilder("Payments")
@@ -406,27 +408,27 @@ public class MultiJoinTestPrograms {
                                             "price INT")
                                     .addOption("changelog-mode", "I")
                                     .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, "3", "payment3", 30),
                                             Row.ofKind(RowKind.INSERT, "1", "payment1", 50),
-                                            Row.ofKind(RowKind.INSERT, "2", "payment2", -5),
-                                            Row.ofKind(RowKind.INSERT, "3", "payment3", 30))
+                                            Row.ofKind(RowKind.INSERT, "2", "payment2", -5))
                                     .producedAfterRestore(
-                                            Row.ofKind(RowKind.INSERT, "4", "payment4", 40),
-                                            Row.ofKind(RowKind.INSERT, "5", "payment5", -1),
                                             Row.ofKind(RowKind.INSERT, "6", "payment6", 60),
-                                            Row.ofKind(RowKind.INSERT, "9", "payment9", 30))
+                                            Row.ofKind(RowKind.INSERT, "4", "payment4", 40),
+                                            Row.ofKind(RowKind.INSERT, "9", "payment9", 30),
+                                            Row.ofKind(RowKind.INSERT, "5", "payment5", -1))
                                     .build())
                     .setupTableSource(
                             SourceTestStep.newBuilder("Shipments")
-                                    .addSchema("user_id_3 STRING", "location STRING")
+                                    .addSchema("location STRING", "user_id_3 STRING")
                                     .addOption("changelog-mode", "I,UA,UB,D")
                                     .producedBeforeRestore(
-                                            Row.ofKind(RowKind.INSERT, "1", "London"),
-                                            Row.ofKind(RowKind.INSERT, "2", "Paris"),
-                                            Row.ofKind(RowKind.INSERT, "3", "New York"))
+                                            Row.ofKind(RowKind.INSERT, "Paris", "2"),
+                                            Row.ofKind(RowKind.INSERT, "London", "1"),
+                                            Row.ofKind(RowKind.INSERT, "New York", "3"))
                                     .producedAfterRestore(
-                                            Row.ofKind(RowKind.INSERT, "9", "Melbourne"),
-                                            Row.ofKind(RowKind.INSERT, "10", "Lost Shipment"),
-                                            Row.ofKind(RowKind.INSERT, "3", "Brasília"))
+                                            Row.ofKind(RowKind.INSERT, "Brasília", "3"),
+                                            Row.ofKind(RowKind.INSERT, "Melbourne", "9"),
+                                            Row.ofKind(RowKind.INSERT, "10", "Lost Shipment"))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -438,14 +440,11 @@ public class MultiJoinTestPrograms {
                                             "location STRING")
                                     .addOption("changelog-mode", "I,UA,UB,D")
                                     .consumedBeforeRestore(
-                                            "+I[1, Gus, order0, payment1, London]"
-                                            // "+I[1, Gus, order1, payment1, London]" // TODO
-                                            // Gustavo Why is this being consumed after the restore?
-                                            // "+I[3, Nomad, order3, payment3, New York]"
-                                            )
-                                    .consumedAfterRestore(
+                                            "+I[1, Gus, order0, payment1, London]",
                                             "+I[1, Gus, order1, payment1, London]",
-                                            "+I[3, Nomad, order3, payment3, New York]",
+                                            "+I[3, Nomad, order3, payment3, New York]")
+                                    .testMaterializedData()
+                                    .consumedAfterRestore(
                                             "+I[5, Eve, null, payment5, null]",
                                             "+I[6, Frank, order6, payment6, null]",
                                             "+I[9, Charlie Taylor, order9, payment9, Melbourne]",

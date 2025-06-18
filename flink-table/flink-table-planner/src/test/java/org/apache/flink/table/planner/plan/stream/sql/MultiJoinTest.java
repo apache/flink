@@ -51,24 +51,24 @@ public class MultiJoinTest extends TableTestBase {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE Orders ("
-                                + "  user_id_1 STRING,"
                                 + "  order_id STRING PRIMARY KEY NOT ENFORCED,"
+                                + "  user_id_1 STRING,"
                                 + "  product STRING"
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,D')");
 
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE Payments ("
-                                + "  user_id_2 STRING,"
                                 + "  payment_id STRING PRIMARY KEY NOT ENFORCED,"
-                                + "  price INT"
+                                + "  price INT,"
+                                + "  user_id_2 STRING"
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
 
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE Shipments ("
-                                + "  user_id_3 STRING,"
-                                + "  location STRING"
+                                + "  location STRING,"
+                                + "  user_id_3 STRING"
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,UB,D')");
 
         // Tables for testing temporal join exclusion
