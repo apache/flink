@@ -54,13 +54,13 @@ Suppose the following data is stored in a table named `movie_comment`, and the p
 
 ```sql
 CREATE TEMPORARY VIEW movie_comment(id, movie_name,  user_comment, actual_label)
-AS VALUES 
+AS VALUES
   (1, 'Good Stuff', 'The part where children guess the sounds is my favorite. It's a very romantic narrative compared to other movies I've seen. Very gentle and full of love.', 'positive');
 
 CREATE TEMPORARY TABLE print_sink(
   id BIGINT,
-  movie_name VARCHAR, 
-  predicit_label VARCHAR, 
+  movie_name VARCHAR,
+  predicit_label VARCHAR,
   actual_label VARCHAR
 ) WITH (
   'connector' = 'print'
@@ -71,11 +71,11 @@ Then the following SQL statement can be used to predict sentiment labels for mov
 
 ```sql
 INSERT INTO print_sink
-SELECT id, movie_name, content as predicit_label, actual_label 
+SELECT id, movie_name, content as predicit_label, actual_label
 FROM ML_PREDICT(
-  TABLE movie_comment, 
+  TABLE movie_comment,
   MODEL ai_analyze_sentiment,
-  DESCRIPTOR(user_comment));   
+  DESCRIPTOR(user_comment));
 ```
 
 ## Model Options
