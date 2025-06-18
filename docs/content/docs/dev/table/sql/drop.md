@@ -35,6 +35,7 @@ Flink SQL supports the following DROP statements for now:
 - DROP DATABASE
 - DROP VIEW
 - DROP FUNCTION
+- DROP MODEL
 
 ## Run a DROP statement
 

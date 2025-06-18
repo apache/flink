@@ -1064,7 +1064,7 @@ SHOW CREATE MODEL [catalog_name.][db_name.]model_name
 
 Show create model statement for specified model.
 
-The output includes the model name, model type, model options, and other configurations. This statement is useful when you need to understand the structure and configuration of an existing model or to recreate the model in another database.
+The output includes the model name, model input/output schema, model options, and other configurations. This statement is useful when you need to understand the structure and configuration of an existing model or to recreate the model in another database.
 
 Assumes that the model `my_model` is created as follows:
 ```sql

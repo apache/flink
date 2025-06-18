@@ -38,6 +38,7 @@ CREATE 语句用于向当前或指定的 [Catalog]({{< ref "docs/dev/table/catal
 - CREATE DATABASE
 - CREATE VIEW
 - CREATE FUNCTION
+- CREATE MODEL
 
 ## 执行 CREATE 语句
 
@@ -893,3 +894,46 @@ Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只�
 指定包含该函数的实现及其依赖的 jar 资源列表。该 jar 应该位于 Flink 当前支持的本地或远程[文件系统]({{< ref "docs/deployment/filesystems/overview" >}}) 中，比如 hdfs/s3/oss。
 
 <span class="label label-danger">注意</span> 目前只有 JAVA、SCALA 语言支持 USING 子句。
+
+## CREATE MODEL
+```sql
+CREATE [TEMPORARY] MODEL [IF NOT EXISTS] [catalog_name.][db_name.]model_name
+  [(
+    { <input_column_definition> }[ , ...n]
+    { <output_column_definition> }[ , ...n]
+  )]
+  [COMMENT model_comment]
+  WITH (key1=val1, key2=val2, ...)
+
+<input_column_definition>:
+  column_name column_type [COMMENT column_comment]
+
+<output_column_definition>:
+  column_name column_type [COMMENT column_comment]
+```
+
+创建一个有 catalog 和数据库命名空间的模型。若 catalog 中已经存在同名模型，则无法注册。
+
+**TEMPORARY**
+
+创建一个有 catalog 和数据库命名空间的临时模型，并覆盖原有的模型。
+
+**IF NOT EXISTS**
+
+若该模型已经存在，则不会进行任何操作。
+
+**Input/Output**
+
+输入列定义了将用于模型推理的特征。输出列定义了模型将产生的预测结果。每个列必须有名称和数据类型。如果将来 Flink 支持模型训练，输入和输出列是可选的，因为它们可以从训练数据中推断出来。对于已有的模型，必须定义输入和输出列。
+
+**COMMENT**
+
+为模型添加注释。
+
+**WITH OPTIONS**
+
+用于存储与此模型相关的额外信息的模型属性。这些属性通常用于查找和创建底层模型提供者。表达式 `key1=val1` 中的键和值都应该是字符串字面量。
+
+**注意：** 模型属性和支持的模型类型可能因底层模型提供者而异。
+
+{{< top >}}

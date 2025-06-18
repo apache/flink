@@ -915,7 +915,7 @@ Create a model with optional input and output column definitions. If a model wit
 
 **TEMPORARY**
 
-Create temporary model that has catalog and database namespaces and overrides models.
+Create a temporary model that has catalog and database namespaces and overrides models.
 
 **IF NOT EXISTS**
 
