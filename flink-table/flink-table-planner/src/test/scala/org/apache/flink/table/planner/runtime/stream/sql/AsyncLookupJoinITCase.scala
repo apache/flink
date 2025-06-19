@@ -196,7 +196,7 @@ class AsyncLookupJoinITCase(
         |ON t1.content = D.name AND t1.id = D.id
       """.stripMargin
 
-    assertResult(sql, List("+I[1, 12, Julian], +I[3, 15, Fabian]"))
+    assertResult(sql, List("+I[1, 12, Julian]", "+I[3, 15, Fabian]"))
   }
 
   @TestTemplate
@@ -206,7 +206,7 @@ class AsyncLookupJoinITCase(
 
     assertResult(
       sql,
-      List("+I[1, 12, Julian, Julian], +I[2, 15, Hello, Jark], +I[3, 15, Fabian, Fabian]"))
+      List("+I[1, 12, Julian, Julian]", "+I[2, 15, Hello, Jark]", "+I[3, 15, Fabian, Fabian]"))
   }
 
   @TestTemplate
@@ -214,7 +214,7 @@ class AsyncLookupJoinITCase(
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20"
 
-    assertResult(sql, List("+I[2, 15, Hello, Jark], +I[3, 15, Fabian, Fabian]"))
+    assertResult(sql, List("+I[2, 15, Hello, Jark]", "+I[3, 15, Fabian, Fabian]"))
   }
 
   @TestTemplate
@@ -222,7 +222,7 @@ class AsyncLookupJoinITCase(
     val sql = "SELECT T.id, T.len, T.content, D.name, D.age FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age"
 
-    assertResult(sql, List("+I[2, 15, Hello, Jark, 22], +I[3, 15, Fabian, Fabian, 33]"))
+    assertResult(sql, List("+I[2, 15, Hello, Jark, 22]", "+I[3, 15, Fabian, Fabian, 33]"))
   }
 
   @TestTemplate
@@ -235,10 +235,10 @@ class AsyncLookupJoinITCase(
     assertResult(
       sql,
       List(
-        "+I[2, 15, Hello, null, null], " +
-          "+I[3, 15, Fabian, Fabian, 33], " +
-          "+I[8, 11, Hello world, null, null], " +
-          "+I[9, 12, Hello world!, null, null]")
+        "+I[2, 15, Hello, null, null]",
+        "+I[3, 15, Fabian, Fabian, 33]",
+        "+I[8, 11, Hello world, null, null]",
+        "+I[9, 12, Hello world!, null, null]")
     )
   }
 
@@ -247,7 +247,7 @@ class AsyncLookupJoinITCase(
     val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name"
 
-    assertResult(sql, List("+I[1, 12, Julian], +I[3, 15, Fabian]"))
+    assertResult(sql, List("+I[1, 12, Julian]", "+I[3, 15, Fabian]"))
   }
 
   @TestTemplate
@@ -259,7 +259,7 @@ class AsyncLookupJoinITCase(
       "for system_time as of T.proctime AS D " +
       "ON mod1(T.id, 4) = D.id AND T.content = D.name"
 
-    assertResult(sql, List("+I[1, 12, Julian], +I[3, 15, Fabian]"))
+    assertResult(sql, List("+I[1, 12, Julian]", "+I[3, 15, Fabian]"))
   }
 
   @TestTemplate
@@ -270,7 +270,7 @@ class AsyncLookupJoinITCase(
       "for system_time as of T.proctime AS D ON T.id = D.id " +
       "WHERE add(T.id, D.id) > 3 AND add(T.id, 2) > 3 AND add (D.id, 2) > 3"
 
-    assertResult(sql, List("+I[2, 15, Hello, Jark], +I[3, 15, Fabian, Fabian]"))
+    assertResult(sql, List("+I[2, 15, Hello, Jark]", "+I[3, 15, Fabian, Fabian]"))
   }
 
   @TestTemplate
@@ -283,7 +283,7 @@ class AsyncLookupJoinITCase(
     val sql2 = "SELECT t1.id, D.name, D.age FROM t1 LEFT JOIN user_table " +
       "for system_time as of t1.proctime AS D ON t1.id = D.id"
 
-    assertResult(sql2, List("+I[3, Fabian, 33], +I[8, null, null], +I[9, null, null]"))
+    assertResult(sql2, List("+I[3, Fabian, 33]", "+I[8, null, null]", "+I[9, null, null]"))
   }
 
   @TestTemplate
@@ -304,7 +304,7 @@ class AsyncLookupJoinITCase(
 
     assertThatThrownBy(
       () => {
-        assertResult(sql2, List("+I[3, Fabian, 33], +I[8, null, null], +I[9, null, null]"))
+        assertResult(sql2, List("+I[3, Fabian, 33]", "+I[8, null, null]", "+I[9, null, null]"))
       })
       .hasMessageContaining("Required sync lookup function by planner")
       .isInstanceOf[TableException]
@@ -319,7 +319,11 @@ class AsyncLookupJoinITCase(
     assertResult(
       sql,
       List(
-        "+I[1, 12, Julian, 11], +I[2, 15, Jark, 22], +I[3, 15, Fabian, 33], +I[8, 11, null, null], +I[9, 12, null, null]"))
+        "+I[1, 12, Julian, 11]",
+        "+I[2, 15, Jark, 22]",
+        "+I[3, 15, Fabian, 33]",
+        "+I[8, 11, null, null]",
+        "+I[9, 12, null, null]"))
   }
 
   @TestTemplate
@@ -411,7 +415,7 @@ class AsyncLookupJoinITCase(
 
     assertResult(
       sql,
-      List("+I[1, 12, Julian, Julian], +I[2, 15, Hello, Jark], +I[3, 15, Fabian, Fabian]"))
+      List("+I[1, 12, Julian, Julian]", "+I[2, 15, Hello, Jark]", "+I[3, 15, Fabian, Fabian]"))
   }
 
   @TestTemplate
@@ -439,7 +443,7 @@ class AsyncLookupJoinITCase(
                  |""".stripMargin
     assertResult(
       sql,
-      List("+I[1, 12, Julian, Julian], +I[2, 15, Hello, Jark], +I[3, 15, Fabian, Fabian]"))
+      List("+I[1, 12, Julian, Julian]", "+I[2, 15, Hello, Jark]", "+I[3, 15, Fabian, Fabian]"))
   }
 
   def assertResult(sql: String, expected: List[String]): Unit = {
@@ -451,8 +455,7 @@ class AsyncLookupJoinITCase(
       TestValuesTableFactory
         .getResultsAsStrings("MySink")
         .sorted
-        .toList
-        .toString()).isEqualTo(expected.sorted.toString())
+        .toList).isEqualTo(expected.sorted)
   }
 
 }
