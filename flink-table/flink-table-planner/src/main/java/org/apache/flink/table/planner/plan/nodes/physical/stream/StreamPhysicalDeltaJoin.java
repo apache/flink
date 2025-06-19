@@ -92,9 +92,11 @@ public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel,
                         config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY),
                         config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT)
                                 .toMillis(),
-                        true, // Currently DeltaJoin only supports ordered joinKey. Need
-                        // double-check if it supports unordered joinKey
-                        AsyncDataStream.OutputMode.UNORDERED);
+                        // Currently DeltaJoin only supports ordered processing based on join key.
+                        // However, it may be possible to support unordered processing in certain
+                        // scenarios to enhance throughput as much as possible.
+                        true,
+                        AsyncDataStream.OutputMode.ORDERED);
 
         JoinInfo joinInfo = JoinInfo.of(left, right, originalJoinCondition);
 

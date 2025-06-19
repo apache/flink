@@ -21,13 +21,11 @@
               "name" : "a3",
               "dataType" : "INT"
             } ],
-            "watermarkSpecs" : [ ],
             "indexes" : [ {
               "name" : "INDEX_a1_a2",
               "columns" : [ "a1", "a2" ]
             } ]
           },
-          "partitionKeys" : [ ],
           "comment" : "test comment",
           "options" : {
             "async" : "true",
@@ -41,8 +39,7 @@
       }
     },
     "outputType" : "ROW<`a0` INT NOT NULL, `a1` DOUBLE NOT NULL, `a2` VARCHAR(2147483647), `a3` INT>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3], hints=[[[OPTIONS options:{failing-source=true}]]])",
-    "inputProperties" : [ ]
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3], hints=[[[OPTIONS options:{failing-source=true}]]])"
   }, {
     "id" : 2,
     "type" : "stream-exec-exchange_1",
@@ -74,13 +71,11 @@
               "name" : "b1",
               "dataType" : "DOUBLE"
             } ],
-            "watermarkSpecs" : [ ],
             "indexes" : [ {
               "name" : "INDEX_b2",
               "columns" : [ "b2" ]
             } ]
           },
-          "partitionKeys" : [ ],
           "comment" : "test comment",
           "options" : {
             "async" : "true",
@@ -94,8 +89,7 @@
       }
     },
     "outputType" : "ROW<`b0` INT NOT NULL, `b2` VARCHAR(2147483647), `b1` DOUBLE>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1], hints=[[[OPTIONS options:{failing-source=true}]]])",
-    "inputProperties" : [ ]
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1], hints=[[[OPTIONS options:{failing-source=true}]]])"
   }, {
     "id" : 4,
     "type" : "stream-exec-exchange_1",
@@ -135,13 +129,11 @@
                   "name" : "b1",
                   "dataType" : "DOUBLE"
                 } ],
-                "watermarkSpecs" : [ ],
                 "indexes" : [ {
                   "name" : "INDEX_b2",
                   "columns" : [ "b2" ]
                 } ]
               },
-              "partitionKeys" : [ ],
               "comment" : "test comment",
               "options" : {
                 "async" : "true",
@@ -203,13 +195,11 @@
                   "name" : "a3",
                   "dataType" : "INT"
                 } ],
-                "watermarkSpecs" : [ ],
                 "indexes" : [ {
                   "name" : "INDEX_a1_a2",
                   "columns" : [ "a1", "a2" ]
                 } ]
               },
-              "partitionKeys" : [ ],
               "comment" : "test comment",
               "options" : {
                 "async" : "true",
@@ -269,7 +259,7 @@
       "capacity " : 100,
       "timeout" : 180000,
       "is-key-ordered" : true,
-      "output-mode" : "UNORDERED"
+      "output-mode" : "ORDERED"
     }
   }, {
     "id" : 6,
@@ -308,14 +298,12 @@
               "name" : "r1",
               "dataType" : "DOUBLE"
             } ],
-            "watermarkSpecs" : [ ],
             "primaryKey" : {
               "name" : "PK_l0_r0",
               "type" : "PRIMARY_KEY",
               "columns" : [ "l0", "r0" ]
             }
           },
-          "partitionKeys" : [ ],
           "comment" : "test comment",
           "options" : {
             "async" : "true",

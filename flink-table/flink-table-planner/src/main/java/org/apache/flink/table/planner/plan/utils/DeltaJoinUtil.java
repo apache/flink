@@ -77,16 +77,6 @@ public class DeltaJoinUtil {
     private static final Set<Class<?>> ALL_SUPPORTED_DELTA_JOIN_UPSTREAM_NODES =
             Sets.newHashSet(StreamPhysicalTableSourceScan.class, StreamPhysicalExchange.class);
 
-    /**
-     * All supported join types during delta join optimization. Only the following join types are
-     * supported during delta join optimization. Otherwise, the regular join will not be optimized
-     * into the delta join.
-     *
-     * <p>More join types can be added to support more patterns for delta join.
-     */
-    private static final Set<FlinkJoinType> ALL_SUPPORTED_JOIN_TYPES =
-            Sets.newHashSet(FlinkJoinType.INNER);
-
     private DeltaJoinUtil() {}
 
     /** Check whether the {@link StreamPhysicalJoin} can be optimized into a delta join. */
