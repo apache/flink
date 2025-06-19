@@ -19,13 +19,13 @@
 package org.apache.flink.state.api.input;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.lib.InputFormatSource;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.legacy.InputFormatSourceFunction;
-import org.apache.flink.streaming.api.operators.StreamSource;
 
 /** A utility for constructing {@link InputFormat} based sources that are marked as BOUNDED. */
 @Internal
@@ -48,13 +48,11 @@ public final class SourceBuilder {
             StreamExecutionEnvironment env,
             InputFormat<OUT, ?> inputFormat,
             TypeInformation<OUT> typeInfo) {
-        InputFormatSourceFunction<OUT> function =
-                new InputFormatSourceFunction<>(inputFormat, typeInfo);
+        InputFormatSource<OUT> source = new InputFormatSource<>(Boundedness.BOUNDED, inputFormat);
 
-        env.clean(function);
+        env.clean(source);
 
-        final StreamSource<OUT, ?> sourceOperator = new StreamSource<>(function);
         return new DataStreamSource<>(
-                env, typeInfo, sourceOperator, true, SOURCE_NAME, Boundedness.BOUNDED);
+                env, source, WatermarkStrategy.noWatermarks(), typeInfo, SOURCE_NAME);
     }
 }
