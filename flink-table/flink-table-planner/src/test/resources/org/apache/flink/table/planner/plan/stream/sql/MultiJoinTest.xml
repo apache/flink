@@ -208,9 +208,9 @@ LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[user_id_0, name, order_id, payment_id])
-+- Join(joinType=[RightOuterJoin], where=[=(user_id_1, user_id_2)], select=[user_id_0, name, order_id, user_id_1, payment_id, user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[RightOuterJoin], where=[=(user_id_1, user_id_2)], select=[user_id_0, name, order_id, user_id_1, payment_id, user_id_2], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
    :- Exchange(distribution=[hash[user_id_1]])
-   :  +- Join(joinType=[RightOuterJoin], where=[=(user_id_0, user_id_1)], select=[user_id_0, name, order_id, user_id_1], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1)], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
+   :  +- Join(joinType=[RightOuterJoin], where=[=(user_id_0, user_id_1)], select=[user_id_0, name, order_id, user_id_1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
    :     :- Exchange(distribution=[hash[user_id_0]])
    :     :  +- ChangelogNormalize(key=[user_id_0])
    :     :     +- Exchange(distribution=[hash[user_id_0]])
@@ -338,9 +338,9 @@ LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[user_id_0, name, order_id, payment_id])
-+- Join(joinType=[FullOuterJoin], where=[=(user_id_1, user_id_2)], select=[user_id_0, name, order_id, user_id_1, payment_id, user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
++- Join(joinType=[FullOuterJoin], where=[=(user_id_1, user_id_2)], select=[user_id_0, name, order_id, user_id_1, payment_id, user_id_2], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
    :- Exchange(distribution=[hash[user_id_1]])
-   :  +- Join(joinType=[FullOuterJoin], where=[=(user_id_0, user_id_1)], select=[user_id_0, name, order_id, user_id_1], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1)], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
+   :  +- Join(joinType=[FullOuterJoin], where=[=(user_id_0, user_id_1)], select=[user_id_0, name, order_id, user_id_1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
    :     :- Exchange(distribution=[hash[user_id_0]])
    :     :  +- ChangelogNormalize(key=[user_id_0])
    :     :     +- Exchange(distribution=[hash[user_id_0]])
@@ -352,6 +352,31 @@ Calc(select=[user_id_0, name, order_id, payment_id])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testThreeWayJoinWithTimeAttributesMaterialization">
+    <Resource name="sql">
+      <![CDATA[SELECT u.name, u.proctime, o.rowtime, p.price FROM UsersWithProctime u JOIN OrdersWithRowtime o ON u.user_id_0 = o.user_id_1 JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$1], proctime=[$2], rowtime=[$5], price=[$7])
++- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :  :- LogicalProject(user_id_0=[$0], name=[$1], proctime=[PROCTIME()])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, UsersWithProctime]])
+   :  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, OrdersWithRowtime]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[name, proctime, rowtime, price])
++- MultiJoin(joinFilter=[AND(=($0, $8), =($0, $4))], joinTypes=[[INNER, INNER, INNER]], joinConditions=[[true, =($0, $4), =($0, $8)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:1;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:2;]}], select=[user_id_0,name,proctime,order_id,user_id_1,rowtime,payment_id,price,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) proctime, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, TIMESTAMP(3) rowtime, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2)])
+   :- Calc(select=[user_id_0, name, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, UsersWithProctime]], fields=[user_id_0, name])
+   :- Calc(select=[order_id, user_id_1, CAST(rowtime AS TIMESTAMP(3)) AS rowtime])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, OrdersWithRowtime]], fields=[order_id, user_id_1, rowtime])
    +- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
 ]]>
     </Resource>

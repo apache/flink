@@ -26,9 +26,6 @@ import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /** Tests for multi-join plans. */
 public class MultiJoinTest extends TableTestBase {
 
@@ -279,21 +276,7 @@ public class MultiJoinTest extends TableTestBase {
                         + ") temporal ON u.user_id_0 = temporal.user_id");
     }
 
-    @Test
-    void testJoinWithNoCommonKeyThrowsException() {
-        String sql =
-                "SELECT u.user_id_0, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "INNER JOIN Orders o ON u.name = o.product "
-                        + "INNER JOIN Payments p ON o.user_id_1 = p.user_id_2";
-
-        assertThatThrownBy(() -> util.verifyRelPlan(sql))
-                .satisfies(
-                        anyCauseMatches(
-                                IllegalStateException.class,
-                                "All inputs in a multi-way join must share a common join key."));
-    }
-
+    /* Update this to supported with FLINK-37973 https://issues.apache.org/jira/browse/FLINK-37973 */
     @Test
     void testRightJoinNotSupported() {
         util.verifyRelPlan(
@@ -310,5 +293,14 @@ public class MultiJoinTest extends TableTestBase {
                         + "FROM Users u "
                         + "FULL OUTER JOIN Orders o ON u.user_id_0 = o.user_id_1 "
                         + "FULL OUTER JOIN Payments p ON o.user_id_1 = p.user_id_2");
+    }
+
+    @Test
+    void testThreeWayJoinWithTimeAttributesMaterialization() {
+        util.verifyRelPlan(
+                "SELECT u.name, u.proctime, o.rowtime, p.price "
+                        + "FROM UsersWithProctime u "
+                        + "JOIN OrdersWithRowtime o ON u.user_id_0 = o.user_id_1 "
+                        + "JOIN Payments p ON u.user_id_0 = p.user_id_2");
     }
 }
