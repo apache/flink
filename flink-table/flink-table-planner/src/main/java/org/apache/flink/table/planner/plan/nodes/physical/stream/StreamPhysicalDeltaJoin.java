@@ -18,8 +18,15 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream;
 
+import org.apache.flink.streaming.api.datastream.AsyncDataStream;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DeltaJoinSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeltaJoin;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -29,6 +36,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
@@ -36,6 +44,8 @@ import org.apache.calcite.rex.RexNode;
 
 import java.util.List;
 import java.util.Optional;
+
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 
 /** Stream physical RelNode for delta join. */
 public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel, Hintable {
@@ -76,7 +86,32 @@ public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel,
 
     @Override
     public ExecNode<?> translateToExecNode() {
-        throw new UnsupportedOperationException("Introduce delta join in runtime later");
+        TableConfig config = unwrapTableConfig(this);
+        FunctionCallUtils.AsyncOptions asyncLookupOptions =
+                new FunctionCallUtils.AsyncOptions(
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY),
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT)
+                                .toMillis(),
+                        // Currently DeltaJoin only supports ordered processing based on join key.
+                        // However, it may be possible to support unordered processing in certain
+                        // scenarios to enhance throughput as much as possible.
+                        true,
+                        AsyncDataStream.OutputMode.ORDERED);
+
+        JoinInfo joinInfo = JoinInfo.of(left, right, originalJoinCondition);
+
+        return new StreamExecDeltaJoin(
+                config,
+                joinType,
+                joinInfo.leftKeys.toIntArray(),
+                lookupRightTableJoinSpec,
+                joinInfo.rightKeys.toIntArray(),
+                lookupLeftTableJoinSpec,
+                InputProperty.DEFAULT,
+                InputProperty.DEFAULT,
+                FlinkTypeFactory.toLogicalRowType(rowType),
+                getRelDetailedDescription(),
+                asyncLookupOptions);
     }
 
     @Override

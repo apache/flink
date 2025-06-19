@@ -53,4 +53,9 @@ public class BinaryRowDataKeySelector implements RowDataKeySelector {
     public InternalTypeInfo<RowData> getProducedType() {
         return keyRowType;
     }
+
+    @Override
+    public BinaryRowDataKeySelector copy() {
+        return new BinaryRowDataKeySelector(keyRowType, generatedProjection);
+    }
 }

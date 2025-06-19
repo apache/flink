@@ -49,7 +49,6 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorTest.LazyAsyncFunction;
@@ -367,7 +366,7 @@ public class TableAsyncExecutionControllerTest {
 
         public TestAsyncExecutionController(
                 ThrowingConsumer<AecRecord<Integer, Integer>, Exception> asyncInvoke,
-                Consumer<Watermark> emitWatermark) {
+                ThrowingConsumer<Watermark, Exception> emitWatermark) {
             super(
                     asyncInvoke,
                     emitWatermark,

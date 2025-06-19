@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalC
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogNormalize;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCorrelateBase;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDataStreamScan;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeltaJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExpand;
@@ -191,6 +192,8 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         } else if (rel instanceof StreamPhysicalWindowTableFunction) {
             return visitWindowTableFunction(
                     (StreamPhysicalWindowTableFunction) rel, requireDeterminism);
+        } else if (rel instanceof StreamPhysicalDeltaJoin) {
+            return visitDeltaJoin((StreamPhysicalDeltaJoin) rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalChangelogNormalize
                 || rel instanceof StreamPhysicalDropUpdateBefore
                 || rel instanceof StreamPhysicalMiniBatchAssigner
@@ -418,6 +421,17 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                 return transmitDeterminismRequirement(
                         lookupJoin.copy(true), ImmutableBitSet.of(requireLeft));
             }
+        }
+    }
+
+    /** Currently, DeltaJoin only supports consuming append only stream. */
+    private StreamPhysicalRel visitDeltaJoin(
+            final StreamPhysicalDeltaJoin deltaJoin, final ImmutableBitSet requireDeterminism) {
+        if (inputInsertOnly(deltaJoin) || requireDeterminism.isEmpty()) {
+            return transmitDeterminismRequirement(deltaJoin, NO_REQUIRED_DETERMINISM);
+        } else {
+            throw new TableException(
+                    "Currently DeltaJoin only supports consuming append only stream");
         }
     }
 
