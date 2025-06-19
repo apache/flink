@@ -134,7 +134,7 @@ public class TaskMailboxImpl implements TaskMailbox {
             if (value == null) {
                 return Optional.empty();
             }
-            correctHasNewMail();
+            updateNewMailFlags();
             return Optional.ofNullable(value);
         } finally {
             lock.unlock();
@@ -160,14 +160,14 @@ public class TaskMailboxImpl implements TaskMailbox {
                 // to ease debugging
                 notEmpty.await(1, TimeUnit.SECONDS);
             }
-            correctHasNewMail();
+            updateNewMailFlags();
             return headMail;
         } finally {
             lock.unlock();
         }
     }
 
-    private void correctHasNewMail() {
+    private void updateNewMailFlags() {
         Mail peek = queue.peek();
         if (peek != null) {
             hasNewMail = true;
