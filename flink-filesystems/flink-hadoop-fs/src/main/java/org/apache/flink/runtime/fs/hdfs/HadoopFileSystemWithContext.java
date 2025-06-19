@@ -18,7 +18,11 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
-import org.apache.flink.core.fs.*;
+import org.apache.flink.core.fs.BlockLocation;
+import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystemContext;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.WrappingProxy;
 
 import java.io.IOException;
@@ -63,12 +67,12 @@ public class HadoopFileSystemWithContext extends FileSystem implements WrappingP
     }
 
     @Override
-    public FSDataInputStream open(Path f, int bufferSize) throws IOException {
+    public HadoopDataInputStream open(Path f, int bufferSize) throws IOException {
         return hadoopFileSystem.open(f, bufferSize);
     }
 
     @Override
-    public FSDataInputStream open(Path f) throws IOException {
+    public HadoopDataInputStream open(Path f) throws IOException {
         return hadoopFileSystem.open(f);
     }
 
@@ -88,7 +92,7 @@ public class HadoopFileSystemWithContext extends FileSystem implements WrappingP
     }
 
     @Override
-    public FSDataOutputStream create(Path f, WriteMode overwriteMode) throws IOException {
+    public HadoopDataOutputStream create(Path f, WriteMode overwriteMode) throws IOException {
         return hadoopFileSystem.create(f, overwriteMode);
     }
 
