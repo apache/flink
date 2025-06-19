@@ -21,12 +21,12 @@ package org.apache.flink.core.fs;
 import org.apache.flink.annotation.Experimental;
 
 /**
- * A {@link ContextWrapperFileSystem} is a factory for wrapping a {@link FileSystem} with a {@link
+ * A {@link ContextFileSystem} is a factory for wrapping a {@link FileSystem} with a {@link
  * FileSystemContext}. This allows the file system to be aware of the context in which it is being
  * used, such as caller context or other metadata.
  */
 @Experimental
-public interface ContextWrapperFileSystem {
-    /** Wraps a FileSystem with additional {@link FileSystemContext}. */
-    FileSystem wrap(FileSystem fileSystem, FileSystemContext context);
+public interface ContextFileSystem {
+    /** Adds {@link FileSystemContext} to fileSystem. */
+    FileSystem addContext(FileSystem fileSystem, FileSystemContext context);
 }

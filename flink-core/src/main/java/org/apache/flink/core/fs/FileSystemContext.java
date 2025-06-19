@@ -20,6 +20,7 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -46,39 +47,23 @@ public class FileSystemContext {
                 oldContext);
 
         final FileSystemContext newContext = new FileSystemContext(context);
-
-        try {
-            Class<?> callerContextClass = Class.forName("org.apache.hadoop.ipc.CallerContext");
-            Class<?> builderClass = Class.forName("org.apache.hadoop.ipc.CallerContext$Builder");
-            Object builderInst = builderClass.getConstructor(String.class).newInstance(context);
-            Object hdfsContext = builderClass.getMethod("build").invoke(builderInst);
-            callerContextClass
-                    .getMethod("setCurrent", callerContextClass)
-                    .invoke(null, hdfsContext);
-        } catch (ClassNotFoundException
-                | java.lang.reflect.InvocationTargetException
-                | IllegalAccessException
-                | NoSuchMethodException
-                | InstantiationException e) {
-            throw new RuntimeException(e);
-        }
         CONTEXTS.set(newContext);
     }
 
-    static FileSystem wrapWithContextWhenActivated(FileSystem fs) {
+    public static FileSystem addContext(FileSystem fs) {
         final FileSystemContext ctx = CONTEXTS.get();
-        return ctx != null && fs instanceof ContextWrapperFileSystem
-                ? ((ContextWrapperFileSystem) fs).wrap(fs, ctx)
+        return ctx != null && fs instanceof ContextFileSystem
+                ? ((ContextFileSystem) fs).addContext(fs, ctx)
                 : fs;
     }
 
-    private final String name;
+    private final String context;
 
-    private FileSystemContext(String name) {
-        this.name = name;
+    public FileSystemContext(String context) {
+        this.context = context;
     }
 
-    public String getName() {
-        return name;
+    public String getContext() {
+        return context;
     }
 }

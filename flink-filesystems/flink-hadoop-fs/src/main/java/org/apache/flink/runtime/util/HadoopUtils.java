@@ -19,12 +19,14 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.FileSystemContext;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.ipc.CallerContext;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -217,5 +219,15 @@ public class HadoopUtils {
             }
         }
         return foundHadoopConfiguration;
+    }
+
+    /**
+     * Sets the caller context for the current thread using the provided {@link FileSystemContext}.
+     * @param context
+     */
+    public static void setCallerContext(FileSystemContext context) {
+        if (CallerContext.getCurrent() == null) {
+            CallerContext.setCurrent(new CallerContext.Builder(context.getContext()).build());
+        }
     }
 }

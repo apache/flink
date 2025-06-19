@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.core.fs.FileSystemContext;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -29,9 +31,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import sun.security.krb5.KrbException;
 
+import java.lang.reflect.Method;
+
 import static org.apache.flink.runtime.util.HadoopUtils.HDFS_DELEGATION_TOKEN_KIND;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Unit tests for Hadoop utils. */
 class HadoopUtilsTest {
@@ -137,6 +142,26 @@ class HadoopUtilsTest {
 
         assertThat(result).isFalse();
     }
+
+    @Test
+    public void testSetCallerContext() {
+        try {
+            FileSystemContext testContext = new FileSystemContext("testContext");
+            HadoopUtils.setCallerContext(testContext);
+            Class<?> callerContextClass = Class.forName("org.apache.hadoop.ipc.CallerContext");
+            Method getCurrentMethod = callerContextClass.getMethod("getCurrent");
+            Object currentContext = getCurrentMethod.invoke(null);
+
+            Method getContextMethod = callerContextClass.getMethod("getContext");
+            String contextValue = (String) getContextMethod.invoke(currentContext);
+
+            assertEquals(testContext, contextValue, "The CallerContext should be set correctly.");
+        } catch (Exception e) {
+            e.printStackTrace();
+            assert false : "setCallerContext threw an unexpected exception.";
+        }
+    }
+
 
     private static Configuration getHadoopConfigWithAuthMethod(
             AuthenticationMethod authenticationMethod) {

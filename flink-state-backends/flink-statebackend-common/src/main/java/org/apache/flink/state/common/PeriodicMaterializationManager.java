@@ -329,20 +329,6 @@ public class PeriodicMaterializationManager implements Closeable {
     private CompletableFuture<SnapshotResult<KeyedStateHandle>> uploadSnapshot(
             RunnableFuture<SnapshotResult<KeyedStateHandle>> materializedRunnableFuture) {
 
-        String context = "FLINK";
-        if (System.getenv().get("CONTAINER_ID") != null) {
-            String[] application = System.getenv().get("CONTAINER_ID").split("_");
-            context = context + "_application_" + application[2] + "_" + application[3];
-        } else if (System.getenv().get("KUBERNETES_SERVICE_HOST") != null) {
-            String podName = System.getenv("HOSTNAME");
-
-            context = context + "_pod_" + podName;
-
-        } else {
-            context = context + "_local";
-        }
-
-        FileSystemContext.initializeContextForThread(context);
         FileSystemSafetyNet.initializeSafetyNetForThread();
         CompletableFuture<SnapshotResult<KeyedStateHandle>> result = new CompletableFuture<>();
         try {

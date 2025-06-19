@@ -70,7 +70,7 @@ public class PluginFileSystemFactory implements FileSystemFactory {
     }
 
     static class ClassLoaderFixingFileSystem extends FileSystem
-            implements WrappingProxy<FileSystem>, PathsCopyingFileSystem, ContextWrapperFileSystem {
+            implements WrappingProxy<FileSystem>, PathsCopyingFileSystem {
         private final FileSystem inner;
         private final ClassLoader loader;
 
@@ -204,14 +204,6 @@ public class PluginFileSystemFactory implements FileSystemFactory {
         @Override
         public FileSystem getWrappedDelegate() {
             return inner;
-        }
-
-        @Override
-        public FileSystem wrap(FileSystem fileSystem, FileSystemContext context) {
-
-            return inner instanceof ContextWrapperFileSystem
-                    ? ((ContextWrapperFileSystem) inner).wrap(fileSystem, context)
-                    : inner;
         }
     }
 }
