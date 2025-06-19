@@ -141,5 +141,4 @@ public class TestHarnessUtil {
 
         return operatorSubtaskState;
     }
-
 }
