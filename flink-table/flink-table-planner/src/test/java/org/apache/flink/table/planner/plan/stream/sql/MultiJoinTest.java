@@ -26,6 +26,9 @@ import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Tests for multi-join plans. */
 public class MultiJoinTest extends TableTestBase {
 
@@ -105,6 +108,24 @@ public class MultiJoinTest extends TableTestBase {
                                 + "  price DOUBLE,"
                                 + "  rowtime TIMESTAMP(3),"
                                 + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '5' SECOND"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
+
+        // Tables for testing time attribute materialization in multi-join
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE UsersWithProctime ("
+                                + "  user_id_0 STRING PRIMARY KEY NOT ENFORCED,"
+                                + "  name STRING,"
+                                + "  proctime AS PROCTIME()"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE OrdersWithRowtime ("
+                                + "  order_id STRING PRIMARY KEY NOT ENFORCED,"
+                                + "  user_id_1 STRING,"
+                                + "  rowtime TIMESTAMP(3),"
+                                + "  WATERMARK FOR rowtime AS rowtime"
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
     }
 
@@ -256,5 +277,38 @@ public class MultiJoinTest extends TableTestBase {
                         + "  JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l "
                         + "  ON s.user_id = l.id"
                         + ") temporal ON u.user_id_0 = temporal.user_id");
+    }
+
+    @Test
+    void testJoinWithNoCommonKeyThrowsException() {
+        String sql =
+                "SELECT u.user_id_0, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "INNER JOIN Orders o ON u.name = o.product "
+                        + "INNER JOIN Payments p ON o.user_id_1 = p.user_id_2";
+
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        anyCauseMatches(
+                                IllegalStateException.class,
+                                "All inputs in a multi-way join must share a common join key."));
+    }
+
+    @Test
+    void testRightJoinNotSupported() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "RIGHT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "RIGHT JOIN Payments p ON o.user_id_1 = p.user_id_2");
+    }
+
+    @Test
+    void testFullOuterNotSupported() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "FULL OUTER JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "FULL OUTER JOIN Payments p ON o.user_id_1 = p.user_id_2");
     }
 }

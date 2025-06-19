@@ -196,6 +196,18 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
     util.verifyExecPlan(stmtSet)
   }
 
+  @Test
+  def testJoin(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT T1.rowtime, T2.proctime, T1.long, T2.`int`, T3.long
+        |FROM MyTable1 T1
+        |JOIN MyTable2 T2 ON T1.long = T2.long AND T1.`int` > 10
+        |JOIN MyTable1 T3 ON T1.long = T3.long AND T3.`int` < 20
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
   // TODO add temporal table join case
 }
 
