@@ -528,34 +528,22 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                         .map(this::materializeTimeIndicators)
                         .collect(Collectors.toList());
 
-        final List<RelDataTypeField> allFields =
-                newInputs.stream()
-                        .flatMap(input -> input.getRowType().getFieldList().stream())
-                        .collect(Collectors.toList());
+        final List<RelDataType> allFields =
+                newInputs.stream().map(RelNode::getRowType).collect(Collectors.toList());
 
-        final RexShuttle shuttle =
-                new RexShuttle() {
-                    @Override
-                    public RexNode visitInputRef(RexInputRef inputRef) {
-                        if (isTimeIndicatorType(inputRef.getType())) {
-                            return RexInputRef.of(inputRef.getIndex(), allFields);
-                        } else {
-                            return super.visitInputRef(inputRef);
-                        }
-                    }
-                };
+        RexTimeIndicatorMaterializer materializer = new RexTimeIndicatorMaterializer(allFields);
 
-        final RexNode newJoinFilter = multiJoin.getJoinFilter().accept(shuttle);
+        final RexNode newJoinFilter = multiJoin.getJoinFilter().accept(materializer);
 
         final List<RexNode> newJoinConditions =
                 multiJoin.getJoinConditions().stream()
-                        .map(cond -> cond == null ? null : cond.accept(shuttle))
+                        .map(cond -> cond == null ? null : cond.accept(materializer))
                         .collect(Collectors.toList());
 
         final RexNode newPostJoinFilter =
                 multiJoin.getPostJoinFilter() == null
                         ? null
-                        : multiJoin.getPostJoinFilter().accept(shuttle);
+                        : multiJoin.getPostJoinFilter().accept(materializer);
 
         // materialize all output types and remove special time indicator types
         RelDataType newOutputType = getRowTypeWithoutTimeIndicator(multiJoin.getRowType());
