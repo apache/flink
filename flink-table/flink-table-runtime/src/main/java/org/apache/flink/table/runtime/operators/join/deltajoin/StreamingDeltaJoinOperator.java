@@ -254,6 +254,11 @@ public class StreamingDeltaJoinOperator
     }
 
     @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        asyncExecutionController.submitWatermark(mark);
+    }
+
+    @Override
     public void open() throws Exception {
         super.open();
 
@@ -300,9 +305,8 @@ public class StreamingDeltaJoinOperator
         processElement(element, RIGHT_INPUT_INDEX);
     }
 
-    public void emitWatermark(Watermark mark) {
-        // place the action of emission in mailbox instead do it right now
-        timestampedCollector.emitWatermark(mark);
+    public void emitWatermark(Watermark mark) throws Exception {
+        super.processWatermark(mark);
     }
 
     public void invoke(AecRecord<RowData, RowData> element) throws Exception {
