@@ -154,6 +154,7 @@ public class CopyDataTransferStrategy extends DataTransferStrategy {
      * @param checkpointStreamFactory The checkpoint stream factory
      * @param stateScope The state scope
      * @param tmpResourcesRegistry The temporary resources registry
+     * @param maxTransferBytes The max transfer bytes
      * @return The target state handle if path-copying is successful, otherwise null
      */
     private @Nullable StreamStateHandle tryPathCopyingToCheckpoint(
@@ -164,7 +165,8 @@ public class CopyDataTransferStrategy extends DataTransferStrategy {
             long maxTransferBytes) {
 
         try {
-            if (sourceHandle.getStateSize() > maxTransferBytes) {
+            // skip if there is a limit of transfer bytes
+            if (maxTransferBytes > 0 && maxTransferBytes != Long.MAX_VALUE) {
                 return null;
             }
 
