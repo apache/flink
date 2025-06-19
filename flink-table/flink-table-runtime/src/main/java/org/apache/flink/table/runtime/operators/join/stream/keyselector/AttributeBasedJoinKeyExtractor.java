@@ -417,14 +417,18 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
 
     private void processCommonAttributes(List<Set<AttributeRef>> commonConceptualAttributeSets) {
         for (int currentInputId = 0; currentInputId < inputTypes.size(); currentInputId++) {
-            List<AttributeRef> commonAttrsForThisInput =
+            final List<AttributeRef> commonAttrsForThisInput =
                     findCommonAttributesForInput(currentInputId, commonConceptualAttributeSets);
 
             if (commonAttrsForThisInput.isEmpty()) {
+                // This indicates that there is no common join key among all inputs.
+                // In this case, we cannot use a multi-join, so throw an exception.
                 throw new IllegalStateException(
-                        "No common attributes found for inputId "
+                        "All inputs in a multi-way join must share a common join key. Input #"
                                 + currentInputId
-                                + ". This indicates a misconfiguration in joinAttributeMap.");
+                                + " does not share a join key with the other inputs. Please ensure all join"
+                                + " conditions connect all inputs with a common key. Support for multiple"
+                                + " independent join key groups is tracked under FLINK-37890.");
             }
 
             processInputCommonAttributes(currentInputId, commonAttrsForThisInput);
@@ -448,15 +452,15 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
 
     private void processInputCommonAttributes(
             int currentInputId, List<AttributeRef> commonAttrsForThisInput) {
-        List<KeyExtractor> extractors = new ArrayList<>();
-        LogicalType[] keyFieldTypes = new LogicalType[commonAttrsForThisInput.size()];
-        String[] keyFieldNames = new String[commonAttrsForThisInput.size()];
-        RowType originalRowType = inputTypes.get(currentInputId);
+        final List<KeyExtractor> extractors = new ArrayList<>();
+        final LogicalType[] keyFieldTypes = new LogicalType[commonAttrsForThisInput.size()];
+        final String[] keyFieldNames = new String[commonAttrsForThisInput.size()];
+        final RowType originalRowType = inputTypes.get(currentInputId);
 
         for (int i = 0; i < commonAttrsForThisInput.size(); i++) {
-            AttributeRef attr = commonAttrsForThisInput.get(i);
+            final AttributeRef attr = commonAttrsForThisInput.get(i);
             validateFieldIndex(currentInputId, attr.fieldIndex, originalRowType);
-            LogicalType fieldType = originalRowType.getTypeAt(attr.fieldIndex);
+            final LogicalType fieldType = originalRowType.getTypeAt(attr.fieldIndex);
             extractors.add(
                     new KeyExtractor(currentInputId, attr.fieldIndex, attr.fieldIndex, fieldType));
             keyFieldTypes[i] = fieldType;

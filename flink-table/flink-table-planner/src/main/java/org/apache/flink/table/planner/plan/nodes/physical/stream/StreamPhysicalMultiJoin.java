@@ -24,10 +24,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultiJoin;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
-import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
-import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
@@ -89,7 +87,8 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
             final List<JoinRelType> joinTypes,
             final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
             final @Nullable RexNode postJoinFilter,
-            final List<RelHint> hints) {
+            final List<RelHint> hints,
+            final JoinKeyExtractor keyExtractor) {
         super(cluster, traitSet);
         this.inputs = inputs;
         this.rowType = rowType;
@@ -99,11 +98,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         this.joinAttributeMap = joinAttributeMap;
         this.postJoinFilter = postJoinFilter;
         this.hints = hints;
-        final List<RowType> inputRowTypes =
-                inputs.stream()
-                        .map(i -> FlinkTypeFactory.toLogicalRowType(i.getRowType()))
-                        .collect(Collectors.toList());
-        this.keyExtractor = new AttributeBasedJoinKeyExtractor(joinAttributeMap, inputRowTypes);
+        this.keyExtractor = keyExtractor;
     }
 
     @Override
@@ -137,7 +132,8 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                 joinTypes,
                 joinAttributeMap,
                 postJoinFilter,
-                hints);
+                hints,
+                keyExtractor);
     }
 
     @Override
@@ -155,6 +151,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         return pw.item("joinFilter", joinFilter)
                 .item("joinTypes", joinTypes)
                 .item("joinConditions", joinConditions)
+                .item("joinAttributeMap", joinAttributeMap)
                 .itemIf("postJoinFilter", postJoinFilter, postJoinFilter != null)
                 .item("select", String.join(",", getRowType().getFieldNames()))
                 .item("rowType", getRowType());
@@ -239,7 +236,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
     /**
      * This is mainly used in `FlinkChangelogModeInferenceProgram.SatisfyUpdateKindTraitVisitor`. If
      * the unique key of input is a superset of the common join key, then we can ignore
-     * UPDATE_BEFORE. Otherwise, it we can't ignore UPDATE_BEFORE.
+     * UPDATE_BEFORE. Otherwise, we can't ignore UPDATE_BEFORE.
      *
      * <p>For example, if the input schema is [id, name, cnt] with the unique key (id) and the
      * common join key is (id, name) across joins, then an insert and update on the id:

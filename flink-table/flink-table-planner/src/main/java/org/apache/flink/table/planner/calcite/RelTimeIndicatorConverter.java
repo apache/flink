@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLegacySink;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMatch;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMinus;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMultiJoin;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggregate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalScriptTransform;
@@ -162,6 +163,9 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
             return visitCorrelate((FlinkLogicalCorrelate) node);
         } else if (node instanceof FlinkLogicalJoin) {
             return visitJoin((FlinkLogicalJoin) node);
+        } else if (node instanceof FlinkLogicalMultiJoin) {
+            // TODO FLINK-37962 add visitMultiJoin https://issues.apache.org/jira/browse/FLINK-37962
+            return visitSimpleRel(node);
         } else if (node instanceof FlinkLogicalSink) {
             return visitSink((FlinkLogicalSink) node);
         } else if (node instanceof FlinkLogicalLegacySink) {

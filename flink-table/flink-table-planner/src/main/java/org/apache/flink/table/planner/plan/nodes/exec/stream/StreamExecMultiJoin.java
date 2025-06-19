@@ -38,7 +38,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetada
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
-import org.apache.flink.table.runtime.generated.JoinCondition;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingMultiJoinOperatorFactory;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
@@ -93,20 +92,22 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
 
     @SuppressWarnings({"unused", "FieldCanBeLocal"})
     @JsonProperty(FIELD_NAME_MULTI_JOIN_CONDITION)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private final RexNode multiJoinCondition;
 
     @JsonProperty(FIELD_NAME_JOIN_ATTRIBUTE_MAP)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
 
     @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEYS)
-    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     // List of upsert keys for each input, where each inner list corresponds to an input
     // The reason it's a List<List<int[]>> is that SQL allows only one primary key but
     // multiple upsert (unique) keys per input
     private final List<List<int[]>> inputUpsertKeys;
 
     @JsonProperty(FIELD_NAME_STATE)
-    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private final List<StateMetadata> stateMetadataList;
 
     public StreamExecMultiJoin(
@@ -183,7 +184,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
 
     private static String[] generateStateNames(int numInputs) {
         return IntStream.range(0, numInputs)
-                .mapToObj(i -> "inputState-" + i)
+                .mapToObj(i -> "input-state-" + i)
                 .toArray(String[]::new);
     }
 
@@ -221,7 +222,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                             inputUpsertKeys.get(i)));
         }
 
-        final JoinCondition[] instantiatedJoinConditions =
+        final GeneratedJoinCondition[] generatedJoinConditions =
                 createJoinConditions(config, classLoader, inputRowTypes);
 
         final StreamOperatorFactory<RowData> operatorFactory =
@@ -229,7 +230,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                         config,
                         inputTypeInfos,
                         inputSideSpecs,
-                        instantiatedJoinConditions,
+                        generatedJoinConditions,
                         keyExtractor);
 
         final List<KeySelector<RowData, RowData>> commonJoinKeySelectors =
@@ -254,11 +255,12 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
         return transform;
     }
 
-    private JoinCondition[] createJoinConditions(
+    private GeneratedJoinCondition[] createJoinConditions(
             final ExecNodeConfig config,
             final ClassLoader classLoader,
             final List<RowType> inputRowTypes) {
-        final JoinCondition[] instantiatedJoinConditions = new JoinCondition[joinConditions.size()];
+        final GeneratedJoinCondition[] generatedJoinConditions =
+                new GeneratedJoinCondition[joinConditions.size()];
         for (int i = 0; i < joinConditions.size(); i++) {
             final RexNode rexCond = joinConditions.get(i);
             if (rexCond == null) {
@@ -272,22 +274,17 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             // For the first input (i=0), there is no preceding input to join with,
             // so no join condition is generated.
             if (generatedCondition != null) {
-                try {
-                    instantiatedJoinConditions[i] = generatedCondition.newInstance(classLoader);
-                } catch (final Exception e) {
-                    throw new IllegalStateException(
-                            "Failed to instantiate join condition for input " + i, e);
-                }
+                generatedJoinConditions[i] = generatedCondition;
             }
         }
-        return instantiatedJoinConditions;
+        return generatedJoinConditions;
     }
 
     private StreamOperatorFactory<RowData> createOperatorFactory(
             final ExecNodeConfig config,
             final List<InternalTypeInfo<RowData>> inputTypeInfos,
             final List<JoinInputSideSpec> inputSideSpecs,
-            final JoinCondition[] joinConditions,
+            final GeneratedJoinCondition[] joinConditions,
             final JoinKeyExtractor keyExtractor) {
         final List<Long> stateTtls =
                 StateMetadata.getStateTtlForMultiInputOperator(
@@ -315,7 +312,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                                 KeySelectorUtil.getRowDataSelector(
                                         planner.getFlinkContext().getClassLoader(),
                                         keyExtractor.getCommonJoinKeyIndices(i),
-                                        InternalTypeInfo.of(keyExtractor.getCommonJoinKeyType())))
+                                        inputTypeInfos.get(i)))
                 .collect(Collectors.toList());
     }
 

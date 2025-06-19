@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.generated.JoinCondition;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.MultiJoinCondition;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
@@ -47,7 +47,7 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
     private final List<FlinkJoinType> joinTypes;
     private final MultiJoinCondition multiJoinCondition;
     private final long[] stateRetentionTime;
-    private final JoinCondition[] joinConditions;
+    private final GeneratedJoinCondition[] joinConditions;
     private final JoinKeyExtractor keyExtractor;
     private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
 
@@ -57,7 +57,7 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
             final List<FlinkJoinType> joinTypes,
             @Nullable final MultiJoinCondition multiJoinCondition,
             final long[] stateRetentionTime,
-            final JoinCondition[] joinConditions,
+            final GeneratedJoinCondition[] joinConditions,
             final JoinKeyExtractor keyExtractor,
             final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
         this.inputTypeInfos = inputTypeInfos;
