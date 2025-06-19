@@ -174,9 +174,7 @@ public class TableKeyedAsyncWaitOperatorTest {
             expectedOutput.add(new StreamRecord<>(2, initialTime + 3));
 
             TestHarnessUtil.assertOutputEquals(
-                    "output is not correct.",
-                    expectedOutput,
-                    testHarness.getOutput());
+                    "output is not correct.", expectedOutput, testHarness.getOutput());
         }
     }
 
@@ -184,7 +182,7 @@ public class TableKeyedAsyncWaitOperatorTest {
     void testKeysProcessingWithTheSameKeysPending() throws Exception {
         LazyAsyncFunction lazyAsyncFunction = new LazyAsyncFunction();
         try (final KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
-                     createKeyedTestHarness(lazyAsyncFunction, TIMEOUT, 10)) {
+                createKeyedTestHarness(lazyAsyncFunction, TIMEOUT, 10)) {
             final long initialTime = 0L;
             final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
             testHarness.open();
@@ -195,7 +193,9 @@ public class TableKeyedAsyncWaitOperatorTest {
             testHarness.processElement(new StreamRecord<>(1, initialTime + 2));
             testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
             testHarness.processWatermark(new Watermark(initialTime + 2));
-            TableAsyncExecutionController<?, ?, ?> aec = ((TableKeyedAsyncWaitOperator<?, ?, ?>)testHarness.getOperator()).getAsyncExecutionController();
+            TableAsyncExecutionController<?, ?, ?> aec =
+                    ((TableKeyedAsyncWaitOperator<?, ?, ?>) testHarness.getOperator())
+                            .getAsyncExecutionController();
             assertThat(aec.getBlockingSize()).isEqualTo(2);
             assertThat(aec.getInFlightSize()).isEqualTo(3);
             lazyAsyncFunction.countDown();
@@ -271,10 +271,7 @@ public class TableKeyedAsyncWaitOperatorTest {
 
             List<Integer> index = Stream.of(0, 1, 2, 7, 8).collect(Collectors.toList());
             TestHarnessUtil.assertOutputAtIndexEquals(
-                    "Output is not correct.",
-                    expectedOutput,
-                    testHarness.getOutput(),
-                    index);
+                    "Output is not correct.", expectedOutput, testHarness.getOutput(), index);
         }
     }
 
