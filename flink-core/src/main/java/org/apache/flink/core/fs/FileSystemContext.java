@@ -20,7 +20,6 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 
 import static org.apache.flink.util.Preconditions.checkState;
 

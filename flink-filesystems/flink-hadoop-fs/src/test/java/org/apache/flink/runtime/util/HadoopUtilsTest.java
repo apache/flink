@@ -162,7 +162,6 @@ class HadoopUtilsTest {
         }
     }
 
-
     private static Configuration getHadoopConfigWithAuthMethod(
             AuthenticationMethod authenticationMethod) {
         Configuration conf = new Configuration(true);
