@@ -69,10 +69,12 @@ class AsyncLookupJoinITCase(
       changelogRow("+U", jl(1L), Int.box(13), "Julian"),
       changelogRow("-D", jl(1L), Int.box(13), "Julian"),
       changelogRow("+I", jl(1L), Int.box(14), "Julian"),
+      changelogRow("-U", jl(1L), Int.box(14), "Julian"),
       changelogRow("+U", jl(1L), Int.box(15), "Julian"),
       changelogRow("+I", jl(2L), Int.box(16), "Hello"),
       changelogRow("-U", jl(2L), Int.box(16), "Hello"),
       changelogRow("+U", jl(2L), Int.box(17), "Hello"),
+      changelogRow("-U", jl(2L), Int.box(17), "Hello"),
       changelogRow("+U", jl(2L), Int.box(18), "Hello"),
       changelogRow("+I", jl(3L), Int.box(19), "Fabian"),
       changelogRow("-D", jl(3L), Int.box(19), "Fabian")
@@ -95,8 +97,8 @@ class AsyncLookupJoinITCase(
       ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED,
       Boolean.box(keyOrdered))
 
-    createScanTable("src", data, false)
-    createScanTable("cdc_src", cdcRowData, true)
+    createScanTable("src", data, isCdc = false)
+    createScanTable("cdc_src", cdcRowData, isCdc = true)
     createLookupTable("user_table", userData)
     // lookup will start from the 2nd time, first lookup will always get null result
     createLookupTable("user_table_with_lookup_threshold2", userData, 2)
@@ -159,7 +161,7 @@ class AsyncLookupJoinITCase(
     val mode = if (isCdc) "I,UA,UB,D" else "I"
     tEnv.executeSql(s"""
                        |CREATE TABLE $tableName (
-                       |  `id` BIGINT PRIMARY KEY NOT ENFORCED,
+                       |  `id` BIGINT ${if (isCdc) "PRIMARY KEY NOT ENFORCED" else ""},
                        |  `len` INT,
                        |  `content` STRING,
                        |  `proctime` AS PROCTIME()
@@ -183,13 +185,12 @@ class AsyncLookupJoinITCase(
       """.stripMargin
 
     val sink = new TestingRetractSink()
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
-    env.setParallelism(4)
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
     env.execute()
 
     new util.LinkedList[AnyRef](sink.getRetractResults.sorted.asJava)
     assertThatIterable(sink.getRetractResults.sorted)
-      .containsExactly("1,14,Julian", "1,15,Julian")
+      .containsExactly("1,15,Julian")
   }
 
   @TestTemplate

@@ -205,7 +205,7 @@ public class AsyncWaitOperatorTest {
     public static class LazyAsyncFunction extends MyAsyncFunction {
         private static final long serialVersionUID = 3537791752703154670L;
 
-        private static CountDownLatch latch;
+        private final transient CountDownLatch latch;
 
         public LazyAsyncFunction() {
             latch = new CountDownLatch(1);
@@ -215,17 +215,14 @@ public class AsyncWaitOperatorTest {
         public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture)
                 throws Exception {
             executorService.submit(
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                waitLatch();
-                            } catch (InterruptedException e) {
-                                // do nothing
-                            }
-
-                            resultFuture.complete(Collections.singletonList(input));
+                    () -> {
+                        try {
+                            waitLatch();
+                        } catch (InterruptedException e) {
+                            // do nothing
                         }
+
+                        resultFuture.complete(Collections.singletonList(input));
                     });
         }
 

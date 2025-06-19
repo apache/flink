@@ -152,7 +152,7 @@ public class TableKeyedAsyncWaitOperator<IN, OUT, KEY>
         this.asyncExecutionController =
                 new TableAsyncExecutionController<>(
                         this::invoke,
-                        this::emitWatermark,
+                        super::processWatermark,
                         entry -> {
                             entry.emitResult(timestampedCollector);
                             totalInflightNum.decrementAndGet();
@@ -210,10 +210,6 @@ public class TableKeyedAsyncWaitOperator<IN, OUT, KEY>
 
     @Override
     public void processWatermark(Watermark mark) throws Exception {
-        // deep copy when object reuse is enabled.
-        if (needDeepCopy) {
-            mark = (Watermark) inStreamElementSerializer.copy(mark);
-        }
         asyncExecutionController.submitWatermark(mark);
     }
 

@@ -61,7 +61,7 @@ public class TableAsyncExecutionController<IN, OUT, KEY> {
     private final ThrowingConsumer<AecRecord<IN, OUT>, Exception> asyncInvoke;
 
     /** Consumer to emit watermark. */
-    private final Consumer<Watermark> emitWatermark;
+    private final ThrowingConsumer<Watermark, Exception> emitWatermark;
 
     /** Consumer to emit results wrapped in a {@link StreamElementQueueEntry}. */
     private final Consumer<StreamElementQueueEntry<OUT>> emitResult;
@@ -94,7 +94,7 @@ public class TableAsyncExecutionController<IN, OUT, KEY> {
 
     public TableAsyncExecutionController(
             ThrowingConsumer<AecRecord<IN, OUT>, Exception> asyncInvoke,
-            Consumer<Watermark> emitWatermark,
+            ThrowingConsumer<Watermark, Exception> emitWatermark,
             Consumer<StreamElementQueueEntry<OUT>> emitResult,
             Function<StreamElementQueueEntry<OUT>, Integer> inferDrivenInputIndex,
             BiFunctionWithException<StreamRecord<IN>, Integer, KEY, Exception> inferBlockingKey) {
@@ -227,7 +227,7 @@ public class TableAsyncExecutionController<IN, OUT, KEY> {
     }
 
     @VisibleForTesting
-    public Consumer<Watermark> getEmitWatermark() {
+    public ThrowingConsumer<Watermark, Exception> getEmitWatermark() {
         return emitWatermark;
     }
 

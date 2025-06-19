@@ -35,19 +35,21 @@ import org.apache.flink.table.runtime.operators.join.lookup.keyordered.Epoch;
 import org.apache.flink.table.runtime.operators.join.lookup.keyordered.TableAsyncExecutionController;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorTest.IgnoreTimeoutLazyAsyncFunction;
 import static org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorTest.LazyAsyncFunction;
@@ -61,19 +63,13 @@ public class TableKeyedAsyncWaitOperatorTest {
 
     private static final long TIMEOUT = 1000L;
 
-    private static final MyAsyncFunction myAsyncFunction = new MyAsyncFunction();
-
     private static final KeySelector<Integer, Integer> keySelector = value -> value;
 
-    private static LazyAsyncFunction lazyAsyncFunction;
-
-    @BeforeEach
-    void beforeEach() throws Exception {
-        lazyAsyncFunction = new LazyAsyncFunction();
-    }
+    private final MyAsyncFunction noLockAsyncDouble2Function = new MyAsyncFunction();
 
     @Test
     void testMultiKeysWithWatermark() throws Exception {
+        LazyAsyncFunction lazyAsyncFunction = new LazyAsyncFunction();
         try (final KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
                 createKeyedTestHarness(lazyAsyncFunction, TIMEOUT, 10)) {
             testHarness.open();
@@ -144,19 +140,15 @@ public class TableKeyedAsyncWaitOperatorTest {
                                     new StreamRecord<>(1, initialTime + 7)));
             assertKeyOrdered(testHarness.getOutput(), expected);
 
-            List<Integer> index = Stream.of(2, 6, 10).collect(Collectors.toList());
-            TestHarnessUtil.assertOutputAtIndexEquals(
-                    "Output with watermark was not correct.",
-                    expectedOutput,
-                    testHarness.getOutput(),
-                    index);
+            assertWatermarkEquals(
+                    "Output watermark was not correct.", expectedOutput, testHarness.getOutput());
         }
     }
 
     @Test
     void testOneKeyWithWatermark() throws Exception {
         try (final KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
-                createKeyedTestHarness(myAsyncFunction, TIMEOUT, 10)) {
+                createKeyedTestHarness(noLockAsyncDouble2Function, TIMEOUT, 10)) {
             final long initialTime = 0L;
             final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
             testHarness.open();
@@ -223,7 +215,7 @@ public class TableKeyedAsyncWaitOperatorTest {
 
     private void testMultiKeysMixWatermark(int capacity) throws Exception {
         try (final KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
-                createKeyedTestHarness(myAsyncFunction, TIMEOUT, capacity)) {
+                createKeyedTestHarness(noLockAsyncDouble2Function, TIMEOUT, capacity)) {
             testHarness.open();
             final long initialTime = 0L;
             final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -269,16 +261,15 @@ public class TableKeyedAsyncWaitOperatorTest {
                                     new StreamRecord<>(6, initialTime + 6)));
             assertKeyOrdered(testHarness.getOutput(), expected);
 
-            List<Integer> index = Stream.of(0, 1, 2, 7, 8).collect(Collectors.toList());
-            TestHarnessUtil.assertOutputAtIndexEquals(
-                    "Output is not correct.", expectedOutput, testHarness.getOutput(), index);
+            assertWatermarkEquals(
+                    "Output watermark is not correct.", expectedOutput, testHarness.getOutput());
         }
     }
 
     @Test
     void testMultiKeysWithoutWatermark() throws Exception {
         try (final KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
-                createKeyedTestHarness(myAsyncFunction, TIMEOUT, 10)) {
+                createKeyedTestHarness(noLockAsyncDouble2Function, TIMEOUT, 10)) {
             final long initialTime = 0L;
             final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -382,19 +373,24 @@ public class TableKeyedAsyncWaitOperatorTest {
 
     @Test
     public void testKeyedAsyncTimeoutFailure() throws Exception {
-        testKeyedAsyncTimeout(Optional.of(TimeoutException.class), new StreamRecord<>(2, 5L));
+        testKeyedAsyncTimeout(
+                new LazyAsyncFunction(),
+                Optional.of(TimeoutException.class),
+                List.of(new StreamRecord<>(2, 5L)));
     }
 
     @Test
     public void testKeyedAsyncTimeoutIgnore() throws Exception {
-        lazyAsyncFunction = new IgnoreTimeoutLazyAsyncFunction();
         testKeyedAsyncTimeout(
-                Optional.empty(), new StreamRecord<>(3, 0L), new StreamRecord<>(2, 5L));
+                new IgnoreTimeoutLazyAsyncFunction(),
+                Optional.empty(),
+                List.of(new StreamRecord<>(3, 0L), new StreamRecord<>(2, 5L)));
     }
 
     private void testKeyedAsyncTimeout(
+            LazyAsyncFunction lazyAsyncFunction,
             Optional<Class<? extends Throwable>> expectedException,
-            StreamRecord<Integer>... expectedRecords)
+            List<StreamRecord<Integer>> expectedRecords)
             throws Exception {
         final long timeout = 10L;
         try (final KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness =
@@ -420,7 +416,7 @@ public class TableKeyedAsyncWaitOperatorTest {
             testHarness.endInput();
 
             final ConcurrentLinkedQueue<Object> expectedOutput =
-                    new ConcurrentLinkedQueue<>(Arrays.asList(expectedRecords));
+                    new ConcurrentLinkedQueue<>(expectedRecords);
 
             TestHarnessUtil.assertOutputEquals(
                     "Output is not correct.", expectedOutput, testHarness.getOutput());
@@ -468,5 +464,23 @@ public class TableKeyedAsyncWaitOperatorTest {
                 return sr0.getValue() - sr1.getValue();
             }
         }
+    }
+
+    private static <T> void assertWatermarkEquals(
+            String message, Queue<T> expected, Queue<T> actual) {
+        List<T> expectedList = new ArrayList<>(expected);
+        List<T> actualList = new ArrayList<>(actual);
+
+        Function<List<T>, Map<Integer, Watermark>> extractWatermarks =
+                list ->
+                        IntStream.range(0, list.size())
+                                .boxed()
+                                .filter(i -> list.get(i) instanceof Watermark)
+                                .collect(Collectors.toMap(i -> i, i -> (Watermark) list.get(i)));
+
+        Map<Integer, Watermark> expectedWatermarks = extractWatermarks.apply(expectedList);
+        Map<Integer, Watermark> actualWatermarks = extractWatermarks.apply(actualList);
+
+        assertThat(actualWatermarks).as(message).isEqualTo(expectedWatermarks);
     }
 }

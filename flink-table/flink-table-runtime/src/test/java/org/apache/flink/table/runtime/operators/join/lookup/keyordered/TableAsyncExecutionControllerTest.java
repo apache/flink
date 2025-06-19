@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.runtime.operators.join.lookup.keyordered;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
-import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorTest;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEntry;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -50,7 +51,6 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.runtime.util.AsyncKeyOrderedTestUtils.assertKeyOrdered;
@@ -62,27 +62,30 @@ public class TableAsyncExecutionControllerTest {
 
     private static final KeySelector<Integer, Integer> keySelector = input -> input;
 
-    private static final Queue<Integer> outputQueue = new LinkedList<>();
+    private final Queue<Integer> outputQueue = new LinkedList<>();
 
-    private static final Queue<Watermark> outputWatermark = new LinkedList<>();
+    private final Queue<Watermark> outputWatermark = new LinkedList<>();
 
-    private static final Queue<StreamRecord<Integer>> outputProcessedRecords = new LinkedList<>();
+    private final Queue<StreamRecord<Integer>> outputProcessedRecords = new LinkedList<>();
 
-    private static final Queue<Integer> outputProcessedInputIndexes = new LinkedList<>();
+    private final Queue<Integer> outputProcessedInputIndexes = new LinkedList<>();
 
-    private static TestAsyncExecutionController asyncExecutionController;
+    private TestAsyncExecutionController asyncExecutionController;
 
-    private static TestLazyAsyncFunction asyncFunction;
+    private MailboxExecutor mailboxExecutor;
 
-    private static MailboxExecutor mailboxExecutor;
+    private TestLazyAsyncFunction asyncFunction;
 
     @BeforeEach
     public void before() throws Exception {
+        TaskMailbox mailbox = new TaskMailboxImpl();
+        MailboxProcessor mailboxProcessor =
+                new MailboxProcessor(controller -> {}, mailbox, StreamTaskActionExecutor.IMMEDIATE);
+        mailboxExecutor =
+                new MailboxExecutorImpl(
+                        mailbox, 0, StreamTaskActionExecutor.IMMEDIATE, mailboxProcessor);
         asyncFunction = new TestLazyAsyncFunction();
-        outputQueue.clear();
-        outputProcessedRecords.clear();
-        outputProcessedInputIndexes.clear();
-        outputWatermark.clear();
+        asyncFunction.open(DefaultOpenContext.INSTANCE);
         asyncExecutionController =
                 new TestAsyncExecutionController(
                         element ->
@@ -92,24 +95,23 @@ public class TableAsyncExecutionControllerTest {
                                                 element,
                                                 new TestStreamElementQueueEntry(
                                                         element.getRecord(),
-                                                        element.getInputIndex()))),
+                                                        element.getInputIndex(),
+                                                        outputProcessedRecords,
+                                                        outputProcessedInputIndexes,
+                                                        outputQueue),
+                                                mailboxExecutor,
+                                                asyncExecutionController)),
                         outputWatermark::add);
-    }
-
-    @BeforeEach
-    void beforeEach() {
-        TaskMailbox mailbox = new TaskMailboxImpl();
-        MailboxProcessor mailboxProcessor =
-                new MailboxProcessor(controller -> {}, mailbox, StreamTaskActionExecutor.IMMEDIATE);
-        mailboxExecutor =
-                new MailboxExecutorImpl(
-                        mailbox, 0, StreamTaskActionExecutor.IMMEDIATE, mailboxProcessor);
     }
 
     @AfterEach
     public void after() throws Exception {
         asyncFunction.close();
         asyncExecutionController.close();
+        outputQueue.clear();
+        outputProcessedRecords.clear();
+        outputProcessedInputIndexes.clear();
+        outputWatermark.clear();
     }
 
     @Test
@@ -289,12 +291,18 @@ public class TableAsyncExecutionControllerTest {
 
         private final AecRecord<Integer, Integer> inputRecord;
         private final StreamElementQueueEntry<Integer> resultFuture;
+        private final MailboxExecutor mailboxExecutor;
+        private final TestAsyncExecutionController asyncExecutionController;
 
         public Handler(
                 AecRecord<Integer, Integer> inputRecord,
-                StreamElementQueueEntry<Integer> resultFuture) {
+                StreamElementQueueEntry<Integer> resultFuture,
+                MailboxExecutor mailboxExecutor,
+                TestAsyncExecutionController asyncExecutionController) {
             this.inputRecord = inputRecord;
             this.resultFuture = resultFuture;
+            this.mailboxExecutor = mailboxExecutor;
+            this.asyncExecutionController = asyncExecutionController;
         }
 
         @Override
@@ -326,10 +334,21 @@ public class TableAsyncExecutionControllerTest {
 
         private final int inputIndex;
 
+        private final Queue<StreamRecord<Integer>> outputProcessedRecords;
+        private final Queue<Integer> outputProcessedInputIndexes;
+        private final Queue<Integer> outputQueue;
+
         public TestStreamElementQueueEntry(
-                @Nonnull StreamRecord<Integer> inputRecord, int inputIndex) {
+                @Nonnull StreamRecord<Integer> inputRecord,
+                int inputIndex,
+                Queue<StreamRecord<Integer>> outputProcessedRecords,
+                Queue<Integer> outputProcessedInputIndexes,
+                Queue<Integer> outputQueue) {
             this.inputRecord = inputRecord;
             this.inputIndex = inputIndex;
+            this.outputProcessedRecords = outputProcessedRecords;
+            this.outputProcessedInputIndexes = outputProcessedInputIndexes;
+            this.outputQueue = outputQueue;
         }
 
         @Override
@@ -367,7 +386,7 @@ public class TableAsyncExecutionControllerTest {
 
         public TestAsyncExecutionController(
                 ThrowingConsumer<AecRecord<Integer, Integer>, Exception> asyncInvoke,
-                Consumer<Watermark> emitWatermark) {
+                ThrowingConsumer<Watermark, Exception> emitWatermark) {
             super(
                     asyncInvoke,
                     emitWatermark,
@@ -389,7 +408,7 @@ public class TableAsyncExecutionControllerTest {
         }
     }
 
-    private static class TestLazyAsyncFunction extends RichAsyncFunction<Integer, Integer> {
+    private static class TestLazyAsyncFunction extends AsyncWaitOperatorTest.LazyAsyncFunction {
 
         public TestLazyAsyncFunction() {}
 

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
@@ -82,6 +83,7 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -523,6 +525,8 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
                             asyncLookupOptions.asyncBufferCapacity);
         }
         if (asyncLookupOptions.keyOrdered) {
+            Preconditions.checkState(
+                    AsyncDataStream.OutputMode.ORDERED.equals(asyncLookupOptions.asyncOutputMode));
             return new TableKeyedAsyncWaitOperatorFactory<>(
                     asyncFunc,
                     keySelector,
