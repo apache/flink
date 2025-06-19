@@ -28,8 +28,8 @@ OpenAI模型函数允许Flink SQL调用[OpenAI API](https://platform.openai.com/
 
 该函数支持通过Flink SQL调用远程的OpenAI模型服务进行预测/推理任务。目前支持以下任务类型：
 
-* chat completions
-* embeddings
+* [Chat Completions](https://platform.openai.com/docs/api-reference/chat)：根据包含对话消息列表生成模型响应。
+* [Embeddings](https://platform.openai.com/docs/api-reference/embeddings)：获取给定输入的向量表示，方便在后续流程中由机器学习模型和算法消费。
 
 ## 使用示例
 
@@ -133,7 +133,7 @@ FROM ML_PREDICT(
     </tbody>
 </table>
 
-### chat/completions
+### Chat Completions
 
 <table class="table table-bordered">
     <thead>
@@ -162,7 +162,7 @@ FROM ML_PREDICT(
             <td>可选</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Double</td>
-            <td>控制输出的随机性，取值范围<code>[0.0, 1.0]</code>。</td>
+            <td>控制输出的随机性，取值范围<code>[0.0, 1.0]</code>。参考<a href=\"https://platform.openai.com/docs/api-reference/responses/create#responses-create-temperature\">temperature</a></td>
         </tr>
         <tr>
             <td>
@@ -171,7 +171,7 @@ FROM ML_PREDICT(
             <td>可选</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Double</td>
-            <td>用于替代temperature的概率阈值。</td>
+            <td>用于替代temperature的概率阈值。参考<a href=\"https://platform.openai.com/docs/api-reference/responses/create#responses-create-top_p\">top_p</a></td>
         </tr>
         <tr>
             <td>
@@ -180,7 +180,7 @@ FROM ML_PREDICT(
             <td>可选</td>
             <td style="word-wrap: break-word;">null</td>
             <td>String</td>
-            <td>停止序列，逗号分隔的列表。</td>
+            <td>停止序列，逗号分隔的列表。参考<a href=\"https://platform.openai.com/docs/api-reference/chat/create#chat-create-stop\">stop</a></td>
         </tr>
         <tr>
             <td>
@@ -189,12 +189,12 @@ FROM ML_PREDICT(
             <td>可选</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Long</td>
-            <td>生成的最大token数。</td>
+            <td>生成的最大token数。参考<a href=\"https://platform.openai.com/docs/api-reference/chat/create#chat-create-max_tokens\">max tokens</a></td>
         </tr>
     </tbody>
 </table>
 
-### embeddings
+### Embeddings
 
 <table class="table table-bordered">
     <thead>
@@ -214,7 +214,7 @@ FROM ML_PREDICT(
             <td>可选</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Long</td>
-            <td>embedding向量的维度。</td>
+            <td>embedding向量的维度。参考<a href=\"https://platform.openai.com/docs/api-reference/embeddings/create#embeddings-create-dimensions\">dimensions</a></td>
         </tr>
     </tbody>
 </table>
@@ -231,12 +231,12 @@ FROM ML_PREDICT(
     </thead>
     <tbody>
         <tr>
-            <td>chat/completions</td>
+            <td>Chat Completions</td>
             <td>STRING</td>
             <td>STRING</td>
         </tr>
         <tr>
-            <td>embeddings</td>
+            <td>Embeddings</td>
             <td>STRING</td>
             <td>ARRAY&lt;FLOAT&gt;</td>
         </tr>

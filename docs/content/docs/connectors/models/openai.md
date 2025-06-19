@@ -28,12 +28,12 @@ The OpenAI Model Function allows Flink SQL to call [OpenAI API](https://platform
 
 The function supports calling remote OpenAI model services via Flink SQL for prediction/inference tasks. Currently, the following tasks are supported:
 
-* chat completions
-* embeddings
+* [Chat Completions](https://platform.openai.com/docs/api-reference/chat): generate a model response from a list of messages comprising a conversation.
+* [Embeddings](https://platform.openai.com/docs/api-reference/embeddings): get a vector representation of a given input that can be easily consumed by machine learning models and algorithms.
 
 ## Usage examples
 
-The following example creates a chat completions model and use it to predict sentiment labels for movie reviews.
+The following example creates a chat completions model and uses it to predict sentiment labels for movie reviews.
 
 First, create the chat completions model with the following SQL statement:
 
@@ -80,7 +80,7 @@ FROM ML_PREDICT(
 
 ## Model Options
 
-### common
+### Common
 
 <table class="table table-bordered">
     <thead>
@@ -109,7 +109,7 @@ FROM ML_PREDICT(
             <td>required</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Full URL of the OpenAI API endpoint, e.g., <code>https://api.openai.com/v1/chat/completions</code> or
+            <td>Full URL of the OpenAI API endpoint, e.g. <code>https://api.openai.com/v1/chat/completions</code> or
                 <code>https://api.openai.com/v1/embeddings</code>.</td>
         </tr>
         <tr>
@@ -128,12 +128,12 @@ FROM ML_PREDICT(
             <td>required</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Model name, e.g., <code>gpt-3.5-turbo</code>, <code>text-embedding-ada-002</code>.</td>
+            <td>Model name, e.g. <code>gpt-3.5-turbo</code>, <code>text-embedding-ada-002</code>.</td>
         </tr>
     </tbody>
 </table>
 
-### chat/completions
+### Chat Completions
 
 <table class="table table-bordered">
     <thead>
@@ -153,7 +153,7 @@ FROM ML_PREDICT(
             <td>optional</td>
             <td style="word-wrap: break-word;">"You are a helpful assistant."</td>
             <td>String</td>
-            <td>System message for chat tasks.</td>
+            <td>The input message for the system role.</td>
         </tr>
         <tr>
             <td>
@@ -162,7 +162,7 @@ FROM ML_PREDICT(
             <td>optional</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Double</td>
-            <td>Controls randomness of output, range <code>[0.0, 1.0]</code>.</td>
+            <td>Controls randomness of output, range <code>[0.0, 1.0]</code>. See <a href=\"https://platform.openai.com/docs/api-reference/responses/create#responses-create-temperature\">temperature</a></td>
         </tr>
         <tr>
             <td>
@@ -171,7 +171,7 @@ FROM ML_PREDICT(
             <td>optional</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Double</td>
-            <td>Probability cutoff for token selection (used instead of temperature).</td>
+            <td>Probability cutoff for token selection (used instead of temperature). See <a href=\"https://platform.openai.com/docs/api-reference/responses/create#responses-create-top_p\">top_p</a></td>
         </tr>
         <tr>
             <td>
@@ -180,7 +180,7 @@ FROM ML_PREDICT(
             <td>optional</td>
             <td style="word-wrap: break-word;">null</td>
             <td>String</td>
-            <td>Stop sequences, comma-separated list.</td>
+            <td>Stop sequences, comma-separated list. See <a href=\"https://platform.openai.com/docs/api-reference/chat/create#chat-create-stop\">stop</a></td>
         </tr>
         <tr>
             <td>
@@ -189,12 +189,12 @@ FROM ML_PREDICT(
             <td>optional</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Long</td>
-            <td>Maximum number of tokens to generate.</td>
+            <td>Maximum number of tokens to generate. See <a href=\"https://platform.openai.com/docs/api-reference/chat/create#chat-create-max_tokens\">max tokens</a></td>
         </tr>
     </tbody>
 </table>
 
-### embeddings
+### Embeddings
 
 <table class="table table-bordered">
     <thead>
@@ -214,7 +214,7 @@ FROM ML_PREDICT(
             <td>optional</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Long</td>
-            <td>Dimension of the embedding vector.</td>
+            <td>Dimension of the embedding vector. See <a href=\"https://platform.openai.com/docs/api-reference/embeddings/create#embeddings-create-dimensions\">dimensions</a></td>
         </tr>
     </tbody>
 </table>
@@ -231,12 +231,12 @@ FROM ML_PREDICT(
     </thead>
     <tbody>
         <tr>
-            <td>chat/completions</td>
+            <td>Chat Completions</td>
             <td>STRING</td>
             <td>STRING</td>
         </tr>
         <tr>
-            <td>embeddings</td>
+            <td>Embeddings</td>
             <td>STRING</td>
             <td>ARRAY&lt;FLOAT&gt;</td>
         </tr>
