@@ -16,12 +16,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testFourWayComplexJoinExecPlan">
-    <Resource name="sql">
-      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+	<TestCase name="testFourWayComplexJoinExecPlan">
+		<Resource name="sql">
+			<![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
 +- LogicalJoin(condition=[=($8, $10)], joinType=[left])
    :- LogicalJoin(condition=[AND(=($0, $8), OR(>=($2, $7), <($7, 0)))], joinType=[inner])
@@ -31,9 +31,9 @@ LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6], locati
    :  +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[user_id_0, name, order_id, payment_id, location])
 +- MultiJoin(joinFilter=[AND(=($0, $8), OR(>=($2, $7), <($7, 0)))], joinTypes=[[INNER, LEFT, INNER, LEFT]], joinConditions=[[true, =($0, $4), AND(=($0, $8), OR(>=($2, $7), <($7, 0))), =($8, $10)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:1;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:2;], 3=[LeftInputId:2;LeftFieldIndex:2;RightInputId:3;RightFieldIndex:1;]}], select=[user_id_0,name,cash,order_id,user_id_1,product,payment_id,price,user_id_2,location,user_id_3], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id_3)])
    :- ChangelogNormalize(key=[user_id_0])
@@ -43,11 +43,11 @@ Calc(select=[user_id_0, name, order_id, payment_id, location])
    :- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
    +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id_3])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testFourWayComplexJoinExplain">
-    <Resource name="explain">
-      <![CDATA[== Abstract Syntax Tree ==
+		</Resource>
+	</TestCase>
+	<TestCase name="testFourWayComplexJoinExplain">
+		<Resource name="explain">
+			<![CDATA[== Abstract Syntax Tree ==
 LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
 +- LogicalJoin(condition=[=($8, $10)], joinType=[left])
    :- LogicalJoin(condition=[AND(=($0, $8), OR(>=($2, $7), <($7, 0)))], joinType=[inner])
@@ -77,14 +77,14 @@ Calc(select=[user_id_0, name, order_id, payment_id, location])
    :- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
    +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id_3])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testThreeWayInnerJoinRelPlan">
-    <Resource name="sql">
-      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testThreeWayInnerJoinRelPlan">
+		<Resource name="sql">
+			<![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
@@ -92,23 +92,50 @@ LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
 ]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
 Calc(select=[user_id_0, name, order_id, payment_id])
 +- MultiJoin(joinFilter=[AND(=($0, $8), =($0, $4))], joinTypes=[[INNER, INNER, INNER]], joinConditions=[[true, =($0, $4), =($0, $8)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:1;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:2;]}], select=[user_id_0,name,cash,order_id,user_id_1,product,payment_id,price,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2)])
    :- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id_0, name, cash])
    :- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[order_id, user_id_1, product])
    +- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testFourWayComplexJoinRelPlan">
-    <Resource name="sql">
-      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testThreeWayInnerJoinNoCJKRelPlan">
+		<Resource name="sql">
+			<![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.cash = p.price]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($2, $7)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id])
++- MultiJoin(joinFilter=[=($2, $7)], joinTypes=[[INNER, INNER]], joinConditions=[[true, =($2, $7)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:2;RightInputId:1;RightFieldIndex:1;]}], select=[user_id_0,name,cash,order_id,user_id_1,product,payment_id,price,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2)])
+   :- MultiJoin(joinFilter=[=($0, $4)], joinTypes=[[INNER, INNER]], joinConditions=[[true, =($0, $4)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:1;]}], select=[user_id_0,name,cash,order_id,user_id_1,product], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product)])
+   :  :- ChangelogNormalize(key=[user_id_0])
+   :  :  +- Exchange(distribution=[hash[user_id_0]])
+   :  :     +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id_0, name, cash])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[order_id, user_id_1, product])
+   +- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testFourWayComplexJoinRelPlan">
+		<Resource name="sql">
+			<![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
 +- LogicalJoin(condition=[=($8, $10)], joinType=[left])
    :- LogicalJoin(condition=[AND(=($0, $8), OR(>=($2, $7), <($7, 0)))], joinType=[inner])
@@ -118,9 +145,9 @@ LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6], locati
    :  +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]])
 ]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
 Calc(select=[user_id_0, name, order_id, payment_id, location])
 +- MultiJoin(joinFilter=[AND(=($0, $8), OR(>=($2, $7), <($7, 0)))], joinTypes=[[INNER, LEFT, INNER, LEFT]], joinConditions=[[true, =($0, $4), AND(=($0, $8), OR(>=($2, $7), <($7, 0))), =($8, $10)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:1;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:2;], 3=[LeftInputId:2;LeftFieldIndex:2;RightInputId:3;RightFieldIndex:1;]}], select=[user_id_0,name,cash,order_id,user_id_1,product,payment_id,price,user_id_2,location,user_id_3], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id_3)])
    :- ChangelogNormalize(key=[user_id_0])
@@ -130,14 +157,44 @@ Calc(select=[user_id_0, name, order_id, payment_id, location])
    :- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
    +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id_3])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testIntervalJoinExcludedFromMultiJoin">
-    <Resource name="sql">
-      <![CDATA[SELECT e1.id, e1.val, e2.price FROM EventTable1 e1 JOIN EventTable2 e2 ON e1.id = e2.id AND e1.rowtime BETWEEN e2.rowtime - INTERVAL '1' MINUTE AND e2.rowtime + INTERVAL '1' MINUTE]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testFourWayJoinNoCJKRelPlan">
+		<Resource name="sql">
+			<![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 LEFT JOIN Shipments s ON p.payment_id = s.user_id_3]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
++- LogicalJoin(condition=[=($6, $10)], joinType=[left])
+   :- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
+   :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+   :  :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id, location])
++- MultiJoin(joinFilter=[true], joinTypes=[[INNER, LEFT]], joinConditions=[[true, =($6, $10)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:6;RightInputId:1;RightFieldIndex:1;]}], select=[user_id_0,name,cash,order_id,user_id_1,product,payment_id,price,user_id_2,location,user_id_3], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id_3)])
+   :- MultiJoin(joinFilter=[=($0, $8)], joinTypes=[[INNER, LEFT, INNER]], joinConditions=[[true, =($0, $4), =($0, $8)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:1;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:2;]}], select=[user_id_0,name,cash,order_id,user_id_1,product,payment_id,price,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2)])
+   :  :- ChangelogNormalize(key=[user_id_0])
+   :  :  +- Exchange(distribution=[hash[user_id_0]])
+   :  :     +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id_0, name, cash])
+   :  :- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[order_id, user_id_1, product])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
+   +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id_3])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testIntervalJoinExcludedFromMultiJoin">
+		<Resource name="sql">
+			<![CDATA[SELECT e1.id, e1.val, e2.price FROM EventTable1 e1 JOIN EventTable2 e2 ON e1.id = e2.id AND e1.rowtime BETWEEN e2.rowtime - INTERVAL '1' MINUTE AND e2.rowtime + INTERVAL '1' MINUTE]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(id=[$0], val=[$1], price=[$4])
 +- LogicalJoin(condition=[AND(=($0, $3), >=($2, -($5, 60000:INTERVAL MINUTE)), <=($2, +($5, 60000:INTERVAL MINUTE)))], joinType=[inner])
    :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 5000:INTERVAL SECOND)])
@@ -145,9 +202,9 @@ LogicalProject(id=[$0], val=[$1], price=[$4])
    +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 5000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, EventTable2]])
 ]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
 Calc(select=[id, val, price])
 +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-60000, leftUpperBound=60000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(id, id0), >=(rowtime, -(rowtime0, 60000:INTERVAL MINUTE)), <=(rowtime, +(rowtime0, 60000:INTERVAL MINUTE)))], select=[id, val, rowtime, id0, price, rowtime0])
    :- Exchange(distribution=[hash[id]])
@@ -157,14 +214,14 @@ Calc(select=[id, val, price])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 5000:INTERVAL SECOND)])
          +- TableSourceScan(table=[[default_catalog, default_database, EventTable2]], fields=[id, price, rowtime])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRegularJoinsAreMergedApartFromTemporalJoin">
-    <Resource name="sql">
-      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, temporal.age FROM Users u INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN (  SELECT s.user_id, l.age   FROM StreamTable s   JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l   ON s.user_id = l.id) temporal ON u.user_id_0 = temporal.user_id]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testRegularJoinsAreMergedApartFromTemporalJoin">
+		<Resource name="sql">
+			<![CDATA[SELECT u.user_id_0, u.name, o.order_id, temporal.age FROM Users u INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN (  SELECT s.user_id, l.age   FROM StreamTable s   JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l   ON s.user_id = l.id) temporal ON u.user_id_0 = temporal.user_id]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], age=[$7])
 +- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
@@ -178,9 +235,9 @@ LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], age=[$7])
             +- LogicalSnapshot(period=[$cor0.proctime])
                +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
 ]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
 Calc(select=[user_id_0, name, order_id, age])
 +- MultiJoin(joinFilter=[AND(=($0, $6), =($0, $4))], joinTypes=[[INNER, INNER, INNER]], joinConditions=[[true, =($0, $4), =($0, $6)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:1;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:0;]}], select=[user_id_0,name,cash,order_id,user_id_1,product,user_id,age], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product, VARCHAR(2147483647) user_id, INTEGER age)])
    :- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id_0, name, cash])
@@ -189,14 +246,14 @@ Calc(select=[user_id_0, name, order_id, age])
       +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=user_id], select=[user_id, id, age])
          +- TableSourceScan(table=[[default_catalog, default_database, StreamTable, project=[user_id], metadata=[]]], fields=[user_id])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testTemporalJoinExcludedFromMultiJoin">
-    <Resource name="sql">
-      <![CDATA[SELECT s.user_id, s.amount, l.name, l.age FROM StreamTable s JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l ON s.user_id = l.id]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testTemporalJoinExcludedFromMultiJoin">
+		<Resource name="sql">
+			<![CDATA[SELECT s.user_id, s.amount, l.name, l.age FROM StreamTable s JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l ON s.user_id = l.id]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(user_id=[$0], amount=[$1], name=[$4], age=[$5])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2}])
    :- LogicalProject(user_id=[$0], amount=[$1], proctime=[PROCTIME()])
@@ -205,18 +262,18 @@ LogicalProject(user_id=[$0], amount=[$1], name=[$4], age=[$5])
       +- LogicalSnapshot(period=[$cor0.proctime])
          +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
 ]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
 Calc(select=[user_id, amount, name, age])
 +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=user_id], select=[user_id, amount, id, name, age])
    +- TableSourceScan(table=[[default_catalog, default_database, StreamTable]], fields=[user_id, amount])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testThreeWayInnerJoinExplain">
-    <Resource name="explain">
-      <![CDATA[== Abstract Syntax Tree ==
+		</Resource>
+	</TestCase>
+	<TestCase name="testThreeWayInnerJoinExplain">
+		<Resource name="explain">
+			<![CDATA[== Abstract Syntax Tree ==
 LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
@@ -238,11 +295,11 @@ Calc(select=[user_id_0, name, order_id, payment_id])
    :- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[order_id, user_id_1, product])
    +- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testThreeWayLeftOuterJoinExplain">
-    <Resource name="explain">
-      <![CDATA[== Abstract Syntax Tree ==
+		</Resource>
+	</TestCase>
+	<TestCase name="testThreeWayLeftOuterJoinExplain">
+		<Resource name="explain">
+			<![CDATA[== Abstract Syntax Tree ==
 LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
@@ -264,14 +321,14 @@ Calc(select=[user_id_0, name, order_id, payment_id])
    :- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[order_id, user_id_1, product])
    +- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testThreeWayInnerJoinExecPlan">
-    <Resource name="sql">
-      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testThreeWayInnerJoinExecPlan">
+		<Resource name="sql">
+			<![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
@@ -279,23 +336,23 @@ LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[user_id_0, name, order_id, payment_id])
 +- MultiJoin(joinFilter=[AND(=($0, $8), =($0, $4))], joinTypes=[[INNER, INNER, INNER]], joinConditions=[[true, =($0, $4), =($0, $8)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:1;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:2;]}], select=[user_id_0,name,cash,order_id,user_id_1,product,payment_id,price,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2)])
    :- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id_0, name, cash])
    :- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[order_id, user_id_1, product])
    +- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testThreeWayLeftOuterJoinWithWhereClauseRelPlan">
-    <Resource name="sql">
-      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2 WHERE u.name = 'Gus' AND p.price > 10]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testThreeWayLeftOuterJoinWithWhereClauseRelPlan">
+		<Resource name="sql">
+			<![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2 WHERE u.name = 'Gus' AND p.price > 10]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
 +- LogicalFilter(condition=[AND(=($1, _UTF-16LE'Gus'), >($7, 10))])
    +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
@@ -304,9 +361,9 @@ LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
       +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
 ]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
 Calc(select=[user_id_0, CAST('Gus' AS VARCHAR(2147483647)) AS name, order_id, CAST(payment_id AS VARCHAR(2147483647)) AS payment_id])
 +- MultiJoin(joinFilter=[=($0, $8)], joinTypes=[[INNER, LEFT, INNER]], joinConditions=[[true, =($0, $4), =($0, $8)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:1;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:2;]}], select=[user_id_0,name,cash,order_id,user_id_1,product,payment_id,price,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2)])
    :- ChangelogNormalize(key=[user_id_0], condition=[=(name, 'Gus')])
@@ -316,14 +373,14 @@ Calc(select=[user_id_0, CAST('Gus' AS VARCHAR(2147483647)) AS name, order_id, CA
    +- Calc(select=[payment_id, price, user_id_2], where=[>(price, 10)])
       +- TableSourceScan(table=[[default_catalog, default_database, Payments, filter=[]]], fields=[payment_id, price, user_id_2])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testThreeWayLeftOuterJoinExecPlan">
-    <Resource name="sql">
-      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testThreeWayLeftOuterJoinExecPlan">
+		<Resource name="sql">
+			<![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
@@ -331,23 +388,23 @@ LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[user_id_0, name, order_id, payment_id])
 +- MultiJoin(joinFilter=[true], joinTypes=[[INNER, LEFT, LEFT]], joinConditions=[[true, =($0, $4), =($0, $8)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:1;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:2;]}], select=[user_id_0,name,cash,order_id,user_id_1,product,payment_id,price,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2)])
    :- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id_0, name, cash])
    :- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[order_id, user_id_1, product])
    +- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testThreeWayLeftOuterJoinRelPlan">
-    <Resource name="sql">
-      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testThreeWayLeftOuterJoinRelPlan">
+		<Resource name="sql">
+			<![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
@@ -355,20 +412,20 @@ LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
    :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
 ]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
 Calc(select=[user_id_0, name, order_id, payment_id])
 +- MultiJoin(joinFilter=[true], joinTypes=[[INNER, LEFT, LEFT]], joinConditions=[[true, =($0, $4), =($0, $8)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:1;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:2;]}], select=[user_id_0,name,cash,order_id,user_id_1,product,payment_id,price,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2)])
    :- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id_0, name, cash])
    :- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[order_id, user_id_1, product])
    +- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testThreeWayLeftOuterJoinWithWhereClauseExplain">
-    <Resource name="explain">
-      <![CDATA[== Abstract Syntax Tree ==
+		</Resource>
+	</TestCase>
+	<TestCase name="testThreeWayLeftOuterJoinWithWhereClauseExplain">
+		<Resource name="explain">
+			<![CDATA[== Abstract Syntax Tree ==
 LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
 +- LogicalFilter(condition=[AND(=($1, _UTF-16LE'Gus'), >($7, 10))])
    +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
@@ -397,14 +454,14 @@ Calc(select=[user_id_0, CAST('Gus' AS VARCHAR(2147483647)) AS name, order_id, CA
    +- Calc(select=[payment_id, price, user_id_2], where=[(price > 10)])
       +- TableSourceScan(table=[[default_catalog, default_database, Payments, filter=[]]], fields=[payment_id, price, user_id_2])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testThreeWayLeftOuterJoinWithWhereClauseExecPlan">
-    <Resource name="sql">
-      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2 WHERE u.name = 'Gus' AND p.price > 10]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testThreeWayLeftOuterJoinWithWhereClauseExecPlan">
+		<Resource name="sql">
+			<![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2 WHERE u.name = 'Gus' AND p.price > 10]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
 +- LogicalFilter(condition=[AND(=($1, _UTF-16LE'Gus'), >($7, 10))])
    +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
@@ -413,9 +470,9 @@ LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
       +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[user_id_0, CAST('Gus' AS VARCHAR(2147483647)) AS name, order_id, CAST(payment_id AS VARCHAR(2147483647)) AS payment_id])
 +- MultiJoin(joinFilter=[=($0, $8)], joinTypes=[[INNER, LEFT, INNER]], joinConditions=[[true, =($0, $4), =($0, $8)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:1;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:2;]}], select=[user_id_0,name,cash,order_id,user_id_1,product,payment_id,price,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2)])
    :- ChangelogNormalize(key=[user_id_0], condition=[(name = 'Gus')])
@@ -425,6 +482,6 @@ Calc(select=[user_id_0, CAST('Gus' AS VARCHAR(2147483647)) AS name, order_id, CA
    +- Calc(select=[payment_id, price, user_id_2], where=[(price > 10)])
       +- TableSourceScan(table=[[default_catalog, default_database, Payments, filter=[]]], fields=[payment_id, price, user_id_2])
 ]]>
-    </Resource>
-  </TestCase>
+		</Resource>
+	</TestCase>
 </Root>
