@@ -325,10 +325,6 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
         List<Set<AttributeRef>> commonConceptualAttributeSets =
                 findCommonConceptualAttributeSets(equivalenceSets);
 
-        if (commonConceptualAttributeSets.isEmpty()) {
-            return;
-        }
-
         processCommonAttributes(commonConceptualAttributeSets);
     }
 

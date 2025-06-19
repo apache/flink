@@ -19,32 +19,33 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSnapshot;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
-import org.apache.flink.table.planner.plan.utils.JoinUtil;
+import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelRule;
+import org.apache.calcite.plan.hep.HepRelVertex;
+import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.logical.LogicalJoin;
+import org.apache.calcite.rel.logical.LogicalSnapshot;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.rel.rules.FilterMultiJoinMergeRule;
 import org.apache.calcite.rel.rules.MultiJoin;
 import org.apache.calcite.rel.rules.ProjectMultiJoinMergeRule;
 import org.apache.calcite.rel.rules.TransformationRule;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
-import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.ImmutableIntList;
@@ -140,25 +141,21 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
 
     // ~ Methods ----------------------------------------------------------------
 
+    /**
+     * This rule matches only INNER and LEFT joins. Right joins are expected to be rewritten to left
+     * joins by the optimizer with {@link FlinkRightJoinToLeftJoinRule}
+     */
     @Override
     public boolean matches(RelOptRuleCall call) {
         final Join origJoin = call.rel(0);
         if (origJoin.getJoinType() != JoinRelType.INNER
                 && origJoin.getJoinType() != JoinRelType.LEFT) {
-            /* This rule expects only INNER and LEFT joins. Right joins are expected to be
-            rewritten to left joins by the optimizer with {@link FlinkRightJoinToLeftJoinRule} */
-            return false;
-        }
-        final RelNode left = call.rel(1);
-        final RelNode right = call.rel(2);
-
-        // Check for temporal/lookup joins (FOR SYSTEM_TIME AS OF) - these should not be merged
-        if (containsSnapshot(left) || containsSnapshot(right)) {
             return false;
         }
 
-        // Check for interval joins - these should not be merged as they have special time semantics
-        if (hasTimeAttributes(origJoin, left, right)) {
+        // Check for interval joins and temporal join - these should not be merged
+        // as they have special time semantics
+        if (isIntervalJoin(origJoin) || isTemporalJoin(call)) {
             return false;
         }
 
@@ -663,66 +660,62 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
     }
 
     /**
-     * Checks if a RelNode tree contains FlinkLogicalSnapshot nodes, which indicate temporal/lookup
-     * joins. These joins have special semantics and should not be merged into MultiJoin.
+     * Checks if a join is an interval join. Interval joins have special time-based semantics and
+     * should not be merged into MultiJoin.
      *
-     * @param node the RelNode to check
-     * @return true if the node or its children contain FlinkLogicalSnapshot
+     * @param join the join to check
+     * @return true if the join condition or outputs access time attributes
      */
-    private boolean containsSnapshot(RelNode node) {
-        if (node instanceof FlinkLogicalSnapshot) {
+    private boolean isIntervalJoin(Join join) {
+        if (!(join instanceof LogicalJoin)) {
             return true;
         }
 
-        // Check if any input contains a snapshot
-        for (RelNode input : node.getInputs()) {
-            if (containsSnapshot(input)) {
-                return true;
-            }
-        }
+        FlinkLogicalJoin flinkLogicalJoin =
+                (FlinkLogicalJoin) FlinkLogicalJoin.CONVERTER().convert(join);
+        return IntervalJoinUtil.satisfyIntervalJoin(flinkLogicalJoin);
+    }
 
+    /**
+     * Checks if a join is a temporal/lookup join. Interval joins have special time-based semantics
+     * (FOR SYSTEM_TIME AS OF) and should not be merged into a MultiJoin.
+     *
+     * @param call the join call to check
+     * @return true if the join condition or outputs access time attributes
+     */
+    private boolean isTemporalJoin(RelOptRuleCall call) {
+        final RelNode left = call.rel(1);
+        final RelNode right = call.rel(2);
+
+        if (containsSnapshot(left) || containsSnapshot(right)) {
+            return true;
+        }
         return false;
     }
 
     /**
-     * Checks if a join accesses time attributes, which indicates an interval join. Interval joins
-     * have special time-based semantics and should not be merged into MultiJoin.
+     * Checks if a RelNode tree contains FlinkLogicalSnapshot nodes, which indicate temporal/lookup
+     * joins. These joins have special semantics and should not be merged into MultiJoin.
      *
-     * @param join the join to check
-     * @param left the left input
-     * @param right the right input
-     * @return true if the join condition or outputs access time attributes
+     * @param relNode the RelNode to check
+     * @return true if the node or its children contain FlinkLogicalSnapshot
      */
-    private boolean hasTimeAttributes(Join join, RelNode left, RelNode right) {
-        // Time attributes must not be in the output type of regular join
-        final boolean timeAttrInOutput =
-                join.getRowType().getFieldList().stream()
-                        .anyMatch(f -> FlinkTypeFactory.isTimeIndicatorType(f.getType()));
-        if (timeAttrInOutput) {
+    private boolean containsSnapshot(RelNode relNode) {
+        RelNode original = null;
+        if (relNode instanceof RelSubset) {
+            original = ((RelSubset) relNode).getOriginal();
+        } else if (relNode instanceof HepRelVertex) {
+            original = ((HepRelVertex) relNode).getCurrentRel();
+        } else {
+            original = relNode;
+        }
+        if (original instanceof LogicalSnapshot) {
             return true;
+        } else if (original instanceof SingleRel) {
+            return containsSnapshot(((SingleRel) original).getInput());
+        } else {
+            return false;
         }
-
-        // Join condition must not access time attributes
-        if (join.getCondition() != null) {
-            final RelDataType inputsRowType =
-                    createInputsRowType(left, right, join.getCluster().getTypeFactory());
-            return JoinUtil.accessesTimeAttribute(join.getCondition(), inputsRowType);
-        }
-
-        return false;
-    }
-
-    /** Creates a combined row type from the left and right inputs for time attribute checking. */
-    private RelDataType createInputsRowType(
-            RelNode left,
-            RelNode right,
-            org.apache.calcite.rel.type.RelDataTypeFactory typeFactory) {
-        return SqlValidatorUtil.createJoinType(
-                typeFactory,
-                left.getRowType(),
-                right.getRowType(),
-                null,
-                java.util.Collections.emptyList());
     }
 
     // ~ Inner Classes ----------------------------------------------------------

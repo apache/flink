@@ -23,28 +23,22 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMultiJoin;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSnapshot;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
-import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,19 +55,6 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
                         FlinkConventions.LOGICAL(),
                         FlinkConventions.STREAM_PHYSICAL(),
                         "StreamPhysicalMultiJoinRule"));
-    }
-
-    @Override
-    public boolean matches(final RelOptRuleCall call) {
-        final FlinkLogicalMultiJoin multiJoin = call.rel(0);
-
-        if (isTemporalJoin(multiJoin)) {
-            return false;
-        }
-
-        // Time attributes are not allowed in regular joins, as they are used for time-based
-        // operations like windowing. See FLINK-37962 for more details.
-        return !hasTimeAttributes(multiJoin);
     }
 
     @Override
@@ -119,45 +100,6 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
         // Not supported
         return multiJoin.getInputs().stream()
                 .anyMatch(input -> input instanceof FlinkLogicalSnapshot);
-    }
-
-    private boolean hasTimeAttributes(final FlinkLogicalMultiJoin multiJoin) {
-        // Time attributes must not be in the output type of regular join.
-        final boolean timeAttrInOutput =
-                multiJoin.getRowType().getFieldList().stream()
-                        .anyMatch(f -> FlinkTypeFactory.isTimeIndicatorType(f.getType()));
-        if (timeAttrInOutput) {
-            return true;
-        }
-
-        // Join condition must not access time attributes.
-        final List<RelNode> inputs = multiJoin.getInputs();
-        if (inputs.isEmpty()) {
-            return false;
-        }
-
-        final RelDataType inputsRowType = createInputsRowType(multiJoin);
-        return JoinUtil.accessesTimeAttribute(multiJoin.getJoinFilter(), inputsRowType);
-    }
-
-    private RelDataType createInputsRowType(final FlinkLogicalMultiJoin multiJoin) {
-        final List<RelDataType> inputTypes =
-                multiJoin.getInputs().stream()
-                        .map(RelNode::getRowType)
-                        .collect(Collectors.toList());
-        final RelDataTypeFactory typeFactory = multiJoin.getCluster().getTypeFactory();
-
-        RelDataType connectedInputsRowType = inputTypes.get(0);
-        for (int i = 1; i < inputTypes.size(); i++) {
-            connectedInputsRowType =
-                    SqlValidatorUtil.createJoinType(
-                            typeFactory,
-                            connectedInputsRowType,
-                            inputTypes.get(i),
-                            null,
-                            Collections.emptyList());
-        }
-        return connectedInputsRowType;
     }
 
     private Map<Integer, List<ConditionAttributeRef>> createJoinAttributeMap(
