@@ -163,12 +163,13 @@ public class ProcessFunctionTestHarnesses {
     }
 
     public static <K, IN1, IN2, OUT>
-            KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT> forKeyedCoProcessFunctionWithStateV2(
-                    final KeyedCoProcessFunction<K, IN1, IN2, OUT> function,
-                    final KeySelector<IN1, K> keySelector1,
-                    final KeySelector<IN2, K> keySelector2,
-                    final TypeInformation<K> keyType)
-                    throws Exception {
+            KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
+                    forKeyedCoProcessFunctionWithStateV2(
+                            final KeyedCoProcessFunction<K, IN1, IN2, OUT> function,
+                            final KeySelector<IN1, K> keySelector1,
+                            final KeySelector<IN2, K> keySelector2,
+                            final TypeInformation<K> keyType)
+                            throws Exception {
 
         KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT> testHarness =
                 AsyncKeyedTwoInputStreamOperatorTestHarness.create(
