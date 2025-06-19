@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.core.fs.BlockLocation;
+import org.apache.flink.core.fs.ContextWrapperFileSystem;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystemContext;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableWriter;
@@ -35,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A {@link FileSystem} that wraps an {@link org.apache.hadoop.fs.FileSystem Hadoop File System}.
  */
-public class HadoopFileSystem extends FileSystem {
+public class HadoopFileSystem extends FileSystem implements ContextWrapperFileSystem {
 
     private static final String HDFS_NO_LOCAL_WRITE = "fs.hdfs.no-local-write";
 
@@ -223,6 +225,11 @@ public class HadoopFileSystem extends FileSystem {
         } else {
             return new HadoopRecoverableWriter(fs);
         }
+    }
+
+    @Override
+    public FileSystem wrap(FileSystem fileSystem, FileSystemContext context) {
+        return new HadoopFileSystemWithContext(this, context);
     }
 
     // ------------------------------------------------------------------------

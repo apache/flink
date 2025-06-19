@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.FileSystemContext;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -114,6 +115,21 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 taskName,
                 checkpointMetaData.getCheckpointId(),
                 asyncStartDelayMillis);
+
+        String context = "FLINK";
+        if (System.getenv().get("CONTAINER_ID") != null) {
+            String[] application = System.getenv().get("CONTAINER_ID").split("_");
+            context = context + "_application_" + application[2] + "_" + application[3];
+        } else if (System.getenv().get("KUBERNETES_SERVICE_HOST") != null) {
+            String podName = System.getenv("HOSTNAME");
+
+            context = context + "_pod_" + podName;
+
+        } else {
+            context = context + "_local";
+        }
+        context = context + "JobID_" + taskEnvironment.getJobID() + "_TaskName_" + taskName;
+        FileSystemContext.initializeContextForThread(context);
 
         FileSystemSafetyNet.initializeSafetyNetForThread();
         try {

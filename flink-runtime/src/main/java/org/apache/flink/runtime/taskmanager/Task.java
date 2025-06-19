@@ -29,6 +29,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.fs.FileSystemContext;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.security.FlinkSecurityManager;
@@ -617,6 +618,23 @@ public class Task
             //  Task Bootstrap - We periodically
             //  check for canceling as a shortcut
             // ----------------------------
+
+            // activate fileSystem Context for task thread
+            LOG.debug("Creating FileSystem caller context for task {}", this);
+            String context = "FLINK";
+            if (System.getenv().get("CONTAINER_ID") != null) {
+                String[] application = System.getenv().get("CONTAINER_ID").split("_");
+                context = context + "_application_" + application[2] + "_" + application[3];
+            } else if (System.getenv().get("KUBERNETES_SERVICE_HOST") != null) {
+                String podName = System.getenv("HOSTNAME");
+
+                context = context + "_pod_" + podName;
+
+            } else {
+                context = context + "_local";
+            }
+            context = context + "JobID_" + jobId + "_TaskName_" + taskInfo.getTaskName();
+            FileSystemContext.initializeContextForThread(context);
 
             // activate safety net for task thread
             LOG.debug("Creating FileSystem stream leak safety net for task {}", this);

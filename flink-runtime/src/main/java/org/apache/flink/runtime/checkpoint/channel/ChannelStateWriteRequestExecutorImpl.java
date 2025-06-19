@@ -19,6 +19,7 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.FileSystemContext;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.ExceptionUtils;
@@ -132,6 +133,21 @@ class ChannelStateWriteRequestExecutorImpl implements ChannelStateWriteRequestEx
     void run() {
         try (MdcUtils.MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobID))) {
             try {
+
+                String context = "FLINK";
+                if (System.getenv().get("CONTAINER_ID") != null) {
+                    String[] application = System.getenv().get("CONTAINER_ID").split("_");
+                    context = context + "_application_" + application[2] + "_" + application[3];
+                } else if (System.getenv().get("KUBERNETES_SERVICE_HOST") != null) {
+                    String podName = System.getenv("HOSTNAME");
+
+                    context = context + "_pod_" + podName;
+
+                } else {
+                    context = context + "_local";
+                }
+                context = context + "JobID_" + jobID;
+                FileSystemContext.initializeContextForThread(context);
                 FileSystemSafetyNet.initializeSafetyNetForThread();
                 loop();
             } catch (Exception ex) {

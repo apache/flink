@@ -404,7 +404,9 @@ public abstract class FileSystem implements IFileSystem {
      * @throws IOException thrown if a reference to the file system instance could not be obtained
      */
     public static FileSystem get(URI uri) throws IOException {
-        return FileSystemSafetyNet.wrapWithSafetyNetWhenActivated(getUnguardedFileSystem(uri));
+        final FileSystem fs = getUnguardedFileSystem(uri);
+        final FileSystem fileSystemWithContext = FileSystemContext.wrapWithContextWhenActivated(fs);
+        return FileSystemSafetyNet.wrapWithSafetyNetWhenActivated(fileSystemWithContext);
     }
 
     @Internal
