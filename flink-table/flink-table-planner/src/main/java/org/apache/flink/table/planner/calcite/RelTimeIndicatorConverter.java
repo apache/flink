@@ -164,8 +164,7 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
         } else if (node instanceof FlinkLogicalJoin) {
             return visitJoin((FlinkLogicalJoin) node);
         } else if (node instanceof FlinkLogicalMultiJoin) {
-            // TODO FLINK-37962 add visitMultiJoin https://issues.apache.org/jira/browse/FLINK-37962
-            return visitSimpleRel(node);
+            return visitMultiJoin((FlinkLogicalMultiJoin) node);
         } else if (node instanceof FlinkLogicalSink) {
             return visitSink((FlinkLogicalSink) node);
         } else if (node instanceof FlinkLogicalLegacySink) {
@@ -521,6 +520,57 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 tableAgg.getNamedProperties());
     }
 
+    private RelNode visitMultiJoin(FlinkLogicalMultiJoin multiJoin) {
+        // visit and materialize children
+        final List<RelNode> newInputs =
+                multiJoin.getInputs().stream()
+                        .map(input -> input.accept(this))
+                        .map(this::materializeTimeIndicators)
+                        .collect(Collectors.toList());
+
+        final List<RelDataTypeField> allFields =
+                newInputs.stream()
+                        .flatMap(input -> input.getRowType().getFieldList().stream())
+                        .collect(Collectors.toList());
+
+        final RexShuttle shuttle =
+                new RexShuttle() {
+                    @Override
+                    public RexNode visitInputRef(RexInputRef inputRef) {
+                        if (isTimeIndicatorType(inputRef.getType())) {
+                            return RexInputRef.of(inputRef.getIndex(), allFields);
+                        } else {
+                            return super.visitInputRef(inputRef);
+                        }
+                    }
+                };
+
+        final RexNode newJoinFilter = multiJoin.getJoinFilter().accept(shuttle);
+
+        final List<RexNode> newJoinConditions =
+                multiJoin.getJoinConditions().stream()
+                        .map(cond -> cond == null ? null : cond.accept(shuttle))
+                        .collect(Collectors.toList());
+
+        final RexNode newPostJoinFilter =
+                multiJoin.getPostJoinFilter() == null
+                        ? null
+                        : multiJoin.getPostJoinFilter().accept(shuttle);
+
+        // materialize all output types and remove special time indicator types
+        RelDataType newOutputType = getRowTypeWithoutTimeIndicator(multiJoin.getRowType());
+
+        return FlinkLogicalMultiJoin.create(
+                multiJoin.getCluster(),
+                newInputs,
+                newJoinFilter,
+                newOutputType,
+                newJoinConditions,
+                multiJoin.getJoinTypes(),
+                newPostJoinFilter,
+                multiJoin.getHints());
+    }
+
     private RelNode visitInvalidRel(RelNode node) {
         throw new TableException(
                 String.format(
@@ -638,6 +688,10 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                             "Union fields with time attributes requires same types, but the types are %s and %s.",
                             l, r));
         }
+    }
+
+    private RelDataType getRowTypeWithoutTimeIndicator(RelDataType relType) {
+        return getRowTypeWithoutTimeIndicator(relType, s -> true);
     }
 
     private RelDataType getRowTypeWithoutTimeIndicator(
