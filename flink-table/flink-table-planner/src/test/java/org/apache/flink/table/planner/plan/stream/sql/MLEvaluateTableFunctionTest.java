@@ -85,7 +85,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "LABEL => DESCRIPTOR(label), "
                         + "TASK => 'classification', "
                         + "ARGS => DESCRIPTOR(a, b)))";
-        assertReachOptimizer(sql);
+        util.verifyRelPlan(sql);
     }
 
     @Test
@@ -98,7 +98,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "LABEL => DESCRIPTOR(label), "
                         + "ARGS => DESCRIPTOR(a, b), "
                         + "TASK => 'classification'))";
-        assertReachOptimizer(sql);
+        util.verifyRelPlan(sql);
     }
 
     @Test
@@ -112,7 +112,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "ARGS => DESCRIPTOR(a, b), "
                         + "TASK => 'classification', "
                         + "CONFIG => MAP['metrics', 'accuracy,f1']))";
-        assertReachOptimizer(sql);
+        util.verifyRelPlan(sql);
     }
 
     @Test
@@ -120,7 +120,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_EVALUATE(TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), DESCRIPTOR(a, b), 'classification'))";
-        assertReachOptimizer(sql);
+        util.verifyRelPlan(sql);
     }
 
     @Test
@@ -259,7 +259,18 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                         + "'unsupported_task'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .hasMessageContaining(
-                        "Unsupported task: unsupported_task. Supported tasks are: [REGRESSION, CLUSTERING, CLASSIFICATION, EMBEDDING, TEXT_GENERATION].");
+                        "Invalid task type: 'unsupported_task'. Supported task types are: [classification, clustering, embedding, regression, text_generation].");
+    }
+
+    @Test
+    public void testWrongConfigType() {
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_EVALUATE("
+                        + "TABLE MyTable, MODEL MyModel, DESCRIPTOR(label), DESCRIPTOR(a, b), "
+                        + "'classification', 10))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .hasMessageContaining("Config param should be a MAP.");
     }
 
     @Test
@@ -317,7 +328,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
         String sql =
                 "SELECT *\n"
                         + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col), 'classification'))";
-        assertReachOptimizer(sql);
+        util.verifyRelPlan(sql);
     }
 
     @ParameterizedTest
@@ -359,7 +370,7 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
 
     @ParameterizedTest
     @MethodSource("compatibleOutputTypeProvider")
-    public void testCompatibleOutputTypes(String tableType, String modelType) {
+    public void testCompatibleOutputTypes(String task, String tableType, String modelType) {
         // Create test table with different label types
         util.tableEnv()
                 .executeSql(
@@ -382,14 +393,16 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
                                         + "with (\n"
                                         + "  'provider' = 'test-model',\n"
                                         + "  'endpoint' = 'someendpoint',\n"
-                                        + "  'task' = 'classification'\n"
+                                        + "  'task' = '%s'\n"
                                         + ")",
-                                modelType));
+                                modelType, task));
 
         String sql =
-                "SELECT *\n"
-                        + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col), 'classification'))";
-        assertReachOptimizer(sql);
+                String.format(
+                        "SELECT *\n"
+                                + "FROM TABLE(ML_EVALUATE(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(label), DESCRIPTOR(col), '%s'))",
+                        task);
+        util.verifyRelPlan(sql);
     }
 
     @ParameterizedTest
@@ -494,26 +507,25 @@ public class MLEvaluateTableFunctionTest extends TableTestBase {
     private static Stream<Arguments> compatibleOutputTypeProvider() {
         return Stream.of(
                 // Identical types
-                Arguments.of("INT", "INT"),
-                Arguments.of("BIGINT", "BIGINT"),
-                Arguments.of("DOUBLE", "DOUBLE"),
-                Arguments.of("STRING", "STRING"),
-                Arguments.of("BOOLEAN", "BOOLEAN"),
-                // Numeric type widening
-                Arguments.of("TINYINT", "SMALLINT"),
-                Arguments.of("SMALLINT", "INT"),
-                Arguments.of("INT", "BIGINT"),
-                Arguments.of("BIGINT", "DECIMAL(19,0)"),
-                Arguments.of("DECIMAL(10,2)", "DOUBLE"),
-                Arguments.of("FLOAT", "DOUBLE"),
-                // String type compatibility
-                Arguments.of("CHAR(10)", "STRING"),
-                Arguments.of("VARCHAR(10)", "STRING"),
-                Arguments.of("STRING", "STRING"),
-                // Array types
-                Arguments.of("ARRAY<INT>", "ARRAY<INT>"),
-                Arguments.of("ARRAY<DOUBLE>", "ARRAY<DOUBLE>"),
-                Arguments.of("ARRAY<STRING>", "ARRAY<STRING>"));
+                Arguments.of("classification", "STRING", "STRING"),
+                Arguments.of("embedding", "ARRAY<FLOAT>", "ARRAY<FLOAT>"),
+                Arguments.of("regression", "DOUBLE", "DOUBLE"),
+                Arguments.of("text_generation", "STRING", "STRING"),
+                // String type widening for classification
+                Arguments.of("classification", "CHAR(10)", "STRING"),
+                Arguments.of("classification", "VARCHAR(10)", "STRING"),
+                // Numeric type widening for regression
+                Arguments.of("regression", "TINYINT", "DOUBLE"),
+                Arguments.of("regression", "SMALLINT", "DOUBLE"),
+                Arguments.of("regression", "INT", "DOUBLE"),
+                Arguments.of("regression", "FLOAT", "DOUBLE"),
+                // Numeric type widening for embedding
+                Arguments.of("embedding", "ARRAY<TINYINT>", "ARRAY<FLOAT>"),
+                Arguments.of("embedding", "ARRAY<SMALLINT>", "ARRAY<FLOAT>"),
+                Arguments.of("embedding", "ARRAY<INT>", "ARRAY<FLOAT>"),
+                // String type widening for text generation
+                Arguments.of("text_generation", "CHAR(10)", "STRING"),
+                Arguments.of("text_generation", "VARCHAR(10)", "STRING"));
     }
 
     private static Stream<Arguments> incompatibleOutputTypeProvider() {
