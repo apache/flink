@@ -20,16 +20,17 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointableTask;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.io.InputGateUtil;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.util.clock.Clock;
@@ -77,7 +78,8 @@ public class InputProcessorUtil {
     }
 
     public static CheckpointBarrierHandler createCheckpointBarrierHandler(
-            StreamTask<?, ?> toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
+            Configuration jobConf,
             StreamConfig config,
             SubtaskCheckpointCoordinator checkpointCoordinator,
             String taskName,
@@ -103,6 +105,7 @@ public class InputProcessorUtil {
                                         .sum();
                 return createBarrierHandler(
                         toNotifyOnCheckpoint,
+                        jobConf,
                         config,
                         checkpointCoordinator,
                         taskName,
@@ -112,9 +115,7 @@ public class InputProcessorUtil {
                         clock,
                         numberOfChannels);
             case AT_LEAST_ONCE:
-                if (toNotifyOnCheckpoint
-                        .getJobConfiguration()
-                        .get(CheckpointingOptions.ENABLE_UNALIGNED)) {
+                if (jobConf.get(CheckpointingOptions.ENABLE_UNALIGNED)) {
                     throw new IllegalStateException(
                             "Cannot use unaligned checkpoints with AT_LEAST_ONCE "
                                     + "checkpointing mode");
@@ -136,7 +137,8 @@ public class InputProcessorUtil {
     }
 
     private static SingleCheckpointBarrierHandler createBarrierHandler(
-            StreamTask<?, ?> toNotifyOnCheckpoint,
+            CheckpointableTask toNotifyOnCheckpoint,
+            Configuration jobConf,
             StreamConfig config,
             SubtaskCheckpointCoordinator checkpointCoordinator,
             String taskName,
@@ -148,7 +150,7 @@ public class InputProcessorUtil {
         boolean enableCheckpointAfterTasksFinished =
                 config.getConfiguration()
                         .get(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH);
-        if (toNotifyOnCheckpoint.getJobConfiguration().get(CheckpointingOptions.ENABLE_UNALIGNED)) {
+        if (jobConf.get(CheckpointingOptions.ENABLE_UNALIGNED)) {
             return SingleCheckpointBarrierHandler.alternating(
                     taskName,
                     toNotifyOnCheckpoint,

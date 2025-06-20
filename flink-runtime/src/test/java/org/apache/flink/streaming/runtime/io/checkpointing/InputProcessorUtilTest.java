@@ -74,6 +74,7 @@ class InputProcessorUtilTest {
             CheckpointBarrierHandler barrierHandler =
                     InputProcessorUtil.createCheckpointBarrierHandler(
                             streamTask,
+                            streamTask.getJobConfiguration(),
                             streamConfig,
                             new TestSubtaskCheckpointCoordinator(new MockChannelStateWriter()),
                             streamTask.getName(),
