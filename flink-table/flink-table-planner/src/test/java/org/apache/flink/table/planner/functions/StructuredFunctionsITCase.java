@@ -157,7 +157,11 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                         + Type1.class.getName()
                                         + "', 'a', 42, 'b', 'Bob'))",
                                 Type1.TYPE,
-                                DataTypes.STRING()));
+                                DataTypes.STRING())
+                        // Invalid Test - first argument is type string but null
+                        .testSqlValidationError(
+                                "OBJECT_OF(cast(null as string), 'a', '12', 'b', 'Alice')",
+                                "The first argument must be a STRING/VARCHAR type representing the class name."));
     }
 
     // --------------------------------------------------------------------------------------------

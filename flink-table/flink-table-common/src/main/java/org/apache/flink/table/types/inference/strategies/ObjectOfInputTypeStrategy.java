@@ -90,7 +90,21 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
                 }
             };
 
-    private static void validateFieldName(
+    private static void validateClassInput(
+            final CallContext callContext, final List<DataType> argumentDataTypes) {
+        final LogicalType classArgumentType = argumentDataTypes.get(0).getLogicalType();
+
+        final String errorMessage =
+                "The first argument must be a STRING/VARCHAR type representing the class name.";
+        if (!classArgumentType.is(LogicalTypeFamily.CHARACTER_STRING)) {
+            throw new ValidationException(errorMessage);
+        }
+
+        final Optional<String> className = callContext.getArgumentValue(0, String.class);
+        className.orElseThrow(() -> new ValidationException(errorMessage));
+    }
+
+    private static void validateFieldNameInput(
             final CallContext callContext,
             final int idx,
             final LogicalType logicalType,
@@ -127,17 +141,12 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
     public Optional<List<DataType>> inferInputTypes(
             final CallContext callContext, final boolean throwOnFailure) {
         final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
-        final LogicalType classTypeArgument = argumentDataTypes.get(0).getLogicalType();
-
-        if (!classTypeArgument.is(LogicalTypeFamily.CHARACTER_STRING)) {
-            throw new ValidationException(
-                    "The first argument must be a STRING/VARCHAR type representing the class name.");
-        }
+        validateClassInput(callContext, argumentDataTypes);
 
         final Set<String> fieldNames = new HashSet<>();
         for (int i = 1; i < argumentDataTypes.size(); i += 2) {
             final LogicalType fieldNameLogicalType = argumentDataTypes.get(i).getLogicalType();
-            validateFieldName(callContext, i, fieldNameLogicalType, fieldNames);
+            validateFieldNameInput(callContext, i, fieldNameLogicalType, fieldNames);
         }
 
         return Optional.of(argumentDataTypes);
