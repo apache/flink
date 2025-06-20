@@ -461,12 +461,13 @@ public class ExecutionConfigOptions {
     // ------------------------------------------------------------------------
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_ML_PREDICT_BUFFER_CAPACITY =
-            key("table.exec.async-ml-predict.buffer-capacity")
-                    .intType()
-                    .defaultValue(10)
-                    .withDescription(
-                            "The max number of async i/o operation that the async ml predict can trigger.");
+    public static final ConfigOption<Integer>
+            TABLE_EXEC_ASYNC_ML_PREDICT_MAX_CONCURRENT_OPERATIONS =
+                    key("table.exec.async-ml-predict.max-concurrent-operations")
+                            .intType()
+                            .defaultValue(10)
+                            .withDescription(
+                                    "The max number of async i/o operation that the async ml predict can trigger.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_ML_PREDICT_TIMEOUT =

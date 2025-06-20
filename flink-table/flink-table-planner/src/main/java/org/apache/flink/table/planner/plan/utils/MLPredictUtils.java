@@ -45,7 +45,7 @@ public class MLPredictUtils extends FunctionCallUtils {
                         queryConf.get(ASYNC_CAPACITY),
                         config.get(
                                 ExecutionConfigOptions
-                                        .TABLE_EXEC_ASYNC_ML_PREDICT_BUFFER_CAPACITY)),
+                                        .TABLE_EXEC_ASYNC_ML_PREDICT_MAX_CONCURRENT_OPERATIONS)),
                 coalesce(
                                 queryConf.get(ASYNC_TIMEOUT),
                                 config.get(

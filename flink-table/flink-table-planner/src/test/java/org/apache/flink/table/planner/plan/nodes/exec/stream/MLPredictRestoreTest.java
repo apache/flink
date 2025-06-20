@@ -55,7 +55,7 @@ public class MLPredictRestoreTest extends RestoreTestBase {
                 .isEqualTo(
                         Arrays.asList(
                                         ExecutionConfigOptions
-                                                .TABLE_EXEC_ASYNC_ML_PREDICT_BUFFER_CAPACITY,
+                                                .TABLE_EXEC_ASYNC_ML_PREDICT_MAX_CONCURRENT_OPERATIONS,
                                         ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_TIMEOUT,
                                         ExecutionConfigOptions
                                                 .TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE)
