@@ -59,6 +59,12 @@ import java.util.Set;
  *   <li>No duplicate field names allowed
  * </ul>
  *
+ * <p><b>Note: Users are responsible for providing a valid fully qualified class name that exists in
+ * the classpath. The class name should follow Java naming conventions. While this strategy
+ * validates the format and type of the class name argument, it does not verify the class existence
+ * in the classpath. If an invalid or non-existent class name is provided, the function will fall
+ * back to using Row.class as the type representation.</b>
+ *
  * <p>Example valid calls:
  *
  * <ul>

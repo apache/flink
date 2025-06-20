@@ -25,8 +25,6 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
 
-import javax.annotation.Nullable;
-
 /** Implementation of {@link BuiltInFunctionDefinitions#OBJECT_OF}. */
 @Internal
 public class ObjectOfFunction extends BuiltInScalarFunction {
@@ -35,14 +33,7 @@ public class ObjectOfFunction extends BuiltInScalarFunction {
         super(BuiltInFunctionDefinitions.OBJECT_OF, context);
     }
 
-    /**
-     * Evaluates the OBJECT_OF function.
-     *
-     * @param className The name of the class (not used for the actual object creation)
-     * @param fieldNameAndValuePairs Variable number of arguments: key1, value1, key2, value2, ...
-     * @return A RowData representing the structured object
-     */
-    public @Nullable RowData eval(StringData className, Object... fieldNameAndValuePairs) {
+    public RowData eval(StringData className, Object... fieldNameAndValuePairs) {
         final int fieldCount = fieldNameAndValuePairs.length / 2;
         final GenericRowData row = new GenericRowData(fieldCount);
 
