@@ -188,6 +188,7 @@ public final class SpecificTypeStrategies {
                 }
             };
 
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#OBJECT_OF}. */
     public static final TypeStrategy OBJECT_OF = new ObjectOfTypeStrategy();
 
     private SpecificTypeStrategies() {
