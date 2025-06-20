@@ -33,12 +33,14 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
             BuiltInFunctionDefinitions.OBJECT_OF
                     .getTypeInference(new DataTypeFactoryMock())
                     .getInputTypeStrategy();
+    private static final String USER_CLASS_PATH = "com.example.User";
 
     @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy("Valid OBJECT_OF with class", OBJECT_OF_INPUT_STRATEGY)
                         .calledWithArgumentTypes(DataTypes.STRING()) // field value
+                        .calledWithLiteralAt(0, USER_CLASS_PATH)
                         .expectSignature("f(STRING, [STRING, ANY]*...)")
                         .expectArgumentTypes(DataTypes.STRING()),
                 // Basic test case - valid number of arguments (odd number >= 1)
@@ -49,6 +51,7 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 DataTypes.STRING(), // implementation class type
                                 DataTypes.STRING(), // field name
                                 DataTypes.INT()) // field value
+                        .calledWithLiteralAt(0, USER_CLASS_PATH)
                         .expectArgumentTypes(
                                 DataTypes.STRING(), DataTypes.STRING(), DataTypes.INT()),
 
@@ -65,6 +68,7 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 DataTypes.STRUCTURED(
                                         "c2",
                                         DataTypes.FIELD("f1", DataTypes.FLOAT()))) // field2 value
+                        .calledWithLiteralAt(0, USER_CLASS_PATH)
                         .expectArgumentTypes(
                                 DataTypes.STRING(),
                                 DataTypes.STRING(),
@@ -73,6 +77,15 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 DataTypes.STRUCTURED(
                                         "c2", DataTypes.FIELD("f1", DataTypes.FLOAT()))),
 
+                // Invalid test case - first argument is null
+                TestSpec.forStrategy(
+                                "Invalid OBJECT_OF with first argument as null",
+                                OBJECT_OF_INPUT_STRATEGY)
+                        .calledWithArgumentTypes(DataTypes.NULL())
+                        .calledWithLiteralAt(0, null)
+                        .expectErrorMessage(
+                                "The first argument must be a STRING/VARCHAR type representing the class name."),
+
                 // Invalid test case - even number of arguments
                 TestSpec.forStrategy(
                                 "Invalid OBJECT_OF with even number of arguments",
@@ -80,6 +93,7 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithArgumentTypes(
                                 DataTypes.STRING(), // implementation class
                                 DataTypes.STRING()) // only field name, missing  value
+                        .calledWithLiteralAt(0, USER_CLASS_PATH)
                         .expectErrorMessage("Invalid number of arguments."),
 
                 // Invalid test case - no arguments
@@ -92,6 +106,7 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                 TestSpec.forStrategy(
                                 "OBJECT_OF with non-string class name", OBJECT_OF_INPUT_STRATEGY)
                         .calledWithArgumentTypes(DataTypes.INT())
+                        .calledWithLiteralAt(0, 72)
                         .expectArgumentTypes(DataTypes.INT())
                         .expectErrorMessage(
                                 "The first argument must be a STRING/VARCHAR type representing the class name."),
@@ -103,6 +118,7 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 DataTypes.STRING(), // implementation class
                                 DataTypes.INT(), // field name (not a string)
                                 DataTypes.INT()) // field value
+                        .calledWithLiteralAt(0, USER_CLASS_PATH)
                         .calledWithLiteralAt(1, 5)
                         .expectArgumentTypes(DataTypes.STRING(), DataTypes.INT(), DataTypes.INT())
                         .expectErrorMessage(
@@ -117,6 +133,7 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 DataTypes.INT(),
                                 DataTypes.STRING(),
                                 DataTypes.INT())
+                        .calledWithLiteralAt(0, USER_CLASS_PATH)
                         .calledWithLiteralAt(1, "field1")
                         .calledWithLiteralAt(3, "field1")
                         .expectArgumentTypes(
