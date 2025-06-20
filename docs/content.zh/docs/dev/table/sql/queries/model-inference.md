@@ -73,7 +73,7 @@ SELECT * FROM ML_PREDICT(
   TABLE input_table,
   MODEL my_model,
   DESCRIPTOR(feature1, feature2),
-  CONFIG => MAP['async', 'true', 'timeout', '100s']
+  MAP['async', 'true', 'timeout', '100s']
 );
 
 -- 使用命名参数
