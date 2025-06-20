@@ -30,7 +30,6 @@ import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
-import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Join;
@@ -46,7 +45,6 @@ import org.apache.calcite.rel.rules.FilterMultiJoinMergeRule;
 import org.apache.calcite.rel.rules.MultiJoin;
 import org.apache.calcite.rel.rules.ProjectMultiJoinMergeRule;
 import org.apache.calcite.rel.rules.TransformationRule;
-import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
@@ -58,8 +56,6 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.Pair;
 import org.immutables.value.Value;
-
-import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -310,7 +306,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
         ImmutableIntList leftKeys = joinInfo.leftKeys;
         ImmutableIntList rightKeys = joinInfo.rightKeys;
 
-        if (canCombine(left, join, join.getJoinType().generatesNullsOnLeft())) {
+        if (canCombine(left, join)) {
             final MultiJoin leftMultiJoin = (MultiJoin) left;
             for (int i = 0; i < leftMultiJoin.getInputs().size(); i++) {
                 newInputs.add(leftMultiJoin.getInput(i));
@@ -325,7 +321,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
             joinFieldRefCountsList.add(new int[left.getRowType().getFieldCount()]);
         }
 
-        if (canCombine(right, join, join.getJoinType().generatesNullsOnRight())) {
+        if (canCombine(right, join)) {
             final MultiJoin rightMultiJoin = (MultiJoin) right;
             for (int i = 0; i < rightMultiJoin.getInputs().size(); i++) {
                 newInputs.add(rightMultiJoin.getInput(i));
@@ -365,11 +361,11 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
         JoinInfo joinInfo = joinRel.analyzeCondition();
         ImmutableIntList leftKeys = joinInfo.leftKeys;
         final RexBuilder rexBuilder = joinRel.getCluster().getRexBuilder();
-        boolean leftCombined = canCombine(left, joinRel, joinType.generatesNullsOnLeft());
+        boolean leftCombined = canCombine(left, joinRel);
         switch (joinType) {
             case LEFT:
                 if (leftCombined) {
-                    copyJoinInfo((MultiJoin) left, joinSpecs, 0, null, null);
+                    copyJoinInfo((MultiJoin) left, joinSpecs);
                 } else {
                     joinSpecs.add(Pair.of(JoinRelType.INNER, rexBuilder.makeLiteral(true)));
                 }
@@ -377,7 +373,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
                 break;
             case INNER:
                 if (leftCombined) {
-                    copyJoinInfo((MultiJoin) left, joinSpecs, 0, null, null);
+                    copyJoinInfo((MultiJoin) left, joinSpecs);
                 } else {
                     joinSpecs.add(Pair.of(JoinRelType.INNER, rexBuilder.makeLiteral(true)));
                 }
@@ -396,45 +392,13 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
      *
      * @param multiJoin the source MultiJoin
      * @param destJoinSpecs the list where the join types and conditions will be copied
-     * @param adjustmentAmount if &gt; 0, the amount the RexInputRefs in the join conditions need to
-     *     be adjusted by
-     * @param srcFields the source fields that the original join conditions are referencing
-     * @param destFields the destination fields that the new join conditions
      */
-    private void copyJoinInfo(
-            MultiJoin multiJoin,
-            List<Pair<JoinRelType, RexNode>> destJoinSpecs,
-            int adjustmentAmount,
-            @Nullable List<RelDataTypeField> srcFields,
-            @Nullable List<RelDataTypeField> destFields) {
+    private void copyJoinInfo(MultiJoin multiJoin, List<Pair<JoinRelType, RexNode>> destJoinSpecs) {
         // getOuterJoinConditions are return all join conditions since that's how we use it
         final List<Pair<JoinRelType, RexNode>> srcJoinSpecs =
                 Pair.zip(multiJoin.getJoinTypes(), multiJoin.getOuterJoinConditions());
 
-        if (adjustmentAmount == 0) {
-            destJoinSpecs.addAll(srcJoinSpecs);
-        } else {
-            assert srcFields != null;
-            assert destFields != null;
-            int nFields = srcFields.size();
-            int[] adjustments = new int[nFields];
-            for (int idx = 0; idx < nFields; idx++) {
-                adjustments[idx] = adjustmentAmount;
-            }
-            for (Pair<JoinRelType, RexNode> src : srcJoinSpecs) {
-                destJoinSpecs.add(
-                        Pair.of(
-                                src.left,
-                                src.right == null
-                                        ? null
-                                        : src.right.accept(
-                                                new RelOptUtil.RexInputConverter(
-                                                        multiJoin.getCluster().getRexBuilder(),
-                                                        srcFields,
-                                                        destFields,
-                                                        adjustments))));
-            }
-        }
+        destJoinSpecs.addAll(srcJoinSpecs);
     }
 
     /**
@@ -462,7 +426,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
         if ((joinType != JoinRelType.LEFT)) {
             filters.add(join.getCondition());
         }
-        if (canCombine(left, join, joinType.generatesNullsOnLeft())) {
+        if (canCombine(left, join)) {
             filters.add(((MultiJoin) left).getJoinFilter());
         }
 
@@ -478,14 +442,13 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
      * href="https://issues.apache.org/jira/browse/FLINK-37890">FLINK-37890</a>.
      *
      * @param input input into a join
-     * @param nullGenerating true if the input is null generating
      * @return true if the input can be combined into a parent MultiJoin
      */
-    private boolean canCombine(RelNode input, Join origJoin, boolean nullGenerating) {
+    private boolean canCombine(RelNode input, Join origJoin) {
         if (input instanceof MultiJoin) {
             MultiJoin join = (MultiJoin) input;
 
-            if (join.isFullOuterJoin() || nullGenerating) {
+            if (join.isFullOuterJoin()) {
                 return false;
             }
 
