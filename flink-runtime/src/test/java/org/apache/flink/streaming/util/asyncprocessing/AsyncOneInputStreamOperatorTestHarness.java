@@ -269,7 +269,7 @@ public class AsyncOneInputStreamOperatorTestHarness<IN, OUT>
         }
     }
 
-    private void checkEnvState() {
+    protected void checkEnvState() {
         if (getEnvironment().getActualExternalFailureCause().isPresent()) {
             fail(
                     "There is an error on other threads",
