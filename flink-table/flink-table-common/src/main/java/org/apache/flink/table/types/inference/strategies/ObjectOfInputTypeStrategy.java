@@ -133,18 +133,22 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
                             + logicalType.asSummaryString()
                             + ".");
         }
-        final Optional<String> fieldName = callContext.getArgumentValue(idx, String.class);
-        fieldName.ifPresent(
-                name -> {
-                    if (!fieldNames.add(name)) {
-                        throw new ValidationException(
-                                "The field name '"
-                                        + name
-                                        + "' at position "
-                                        + keyIndex
-                                        + " is repeated.");
-                    }
-                });
+        final String fieldName =
+                callContext
+                        .getArgumentValue(idx, String.class)
+                        .orElseThrow(
+                                () ->
+                                        new ValidationException(
+                                                "Field name at position "
+                                                        + keyIndex
+                                                        + " must be a non null STRING/VARCHAR type."));
+
+        if (!fieldNames.add(fieldName)) {
+            throw new ValidationException(
+                    String.format(
+                            "The field name '%s' at position %d is repeated.",
+                            fieldName, keyIndex));
+        }
     }
 
     @Override
