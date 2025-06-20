@@ -110,6 +110,15 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
         className.orElseThrow(() -> new ValidationException(errorMessage));
     }
 
+    private static void validateKeyArguments(
+            final CallContext callContext, final List<DataType> argumentDataTypes) {
+        final Set<String> fieldNames = new HashSet<>();
+        for (int i = 1; i < argumentDataTypes.size(); i += 2) {
+            final LogicalType fieldNameLogicalType = argumentDataTypes.get(i).getLogicalType();
+            validateFieldNameInput(callContext, i, fieldNameLogicalType, fieldNames);
+        }
+    }
+
     private static void validateFieldNameInput(
             final CallContext callContext,
             final int idx,
@@ -147,13 +156,9 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
     public Optional<List<DataType>> inferInputTypes(
             final CallContext callContext, final boolean throwOnFailure) {
         final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
-        validateClassInput(callContext, argumentDataTypes);
 
-        final Set<String> fieldNames = new HashSet<>();
-        for (int i = 1; i < argumentDataTypes.size(); i += 2) {
-            final LogicalType fieldNameLogicalType = argumentDataTypes.get(i).getLogicalType();
-            validateFieldNameInput(callContext, i, fieldNameLogicalType, fieldNames);
-        }
+        validateClassInput(callContext, argumentDataTypes);
+        validateKeyArguments(callContext, argumentDataTypes);
 
         return Optional.of(argumentDataTypes);
     }
