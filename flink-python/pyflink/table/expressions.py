@@ -573,6 +573,11 @@ def object_of(class_name: Union[str, type], *args) -> Expression:
 
     This function corresponds to the SQL `OBJECT_OF` function.
 
+    Note: Users are responsible for providing a valid fully qualified class name that exists
+    in the classpath. The class name should follow Java naming conventions (e.g., 'com.example.User').
+    If an invalid or non-existent class name is provided, the function will fall back to using
+    Row.class as the type representation.
+
     :param class_name: The fully qualified class name or class type representing the structured type
     :param args: Alternating key-value pairs: key1, value1, key2, value2, ...
     :return: A structured object expression
