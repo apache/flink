@@ -366,7 +366,7 @@ public abstract class AbstractStreamOperator<OUT>
     static boolean areSplittableTimersConfigured(StreamConfig config, Configuration conf) {
         return config.isCheckpointingEnabled()
                 && conf.get(CheckpointingOptions.ENABLE_UNALIGNED)
-                && config.isUnalignedCheckpointsSplittableTimersEnabled();
+                && conf.get(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS);
     }
 
     /**

@@ -558,14 +558,6 @@ public class StreamConfig implements Serializable {
         }
     }
 
-    public void setUnalignedCheckpointsSplittableTimersEnabled(boolean enabled) {
-        config.set(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, enabled);
-    }
-
-    public boolean isUnalignedCheckpointsSplittableTimersEnabled() {
-        return config.get(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS);
-    }
-
     public boolean isExactlyOnceCheckpointMode() {
         return getCheckpointMode() == CheckpointingMode.EXACTLY_ONCE;
     }
