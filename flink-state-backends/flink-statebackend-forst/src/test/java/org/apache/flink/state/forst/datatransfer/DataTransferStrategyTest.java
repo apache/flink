@@ -68,6 +68,7 @@ import java.util.Random;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 /** Unit test for {@link ReusableDataTransferStrategy}. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -169,6 +170,10 @@ public class DataTransferStrategyTest {
         }
 
         private void createDbFiles(List<String> fileNames) throws IOException {
+            createDbFiles(fileNames, 2048);
+        }
+
+        private void createDbFiles(List<String> fileNames, int fileLength) throws IOException {
             for (String fileName : fileNames) {
                 Path dir =
                         FileOwnershipDecider.shouldAlwaysBeLocal(new Path(fileName))
@@ -177,7 +182,7 @@ public class DataTransferStrategyTest {
                 FSDataOutputStream output =
                         dbDelegateFileSystem.create(
                                 new Path(dir, fileName), FileSystem.WriteMode.OVERWRITE);
-                output.write(genRandomBytes(2048));
+                output.write(genRandomBytes(fileLength));
                 output.sync();
                 output.close();
                 dbFilePaths.put(fileName, new Path(dir, fileName));
@@ -253,13 +258,18 @@ public class DataTransferStrategyTest {
         }
 
         private DBFilesSnapshot snapshot(DataTransferStrategy strategy) throws IOException {
+            return snapshot(strategy, Long.MAX_VALUE);
+        }
+
+        private DBFilesSnapshot snapshot(DataTransferStrategy strategy, long maxTransferBytes)
+                throws IOException {
             DBFilesSnapshot snapshot = new DBFilesSnapshot();
             for (String fileName : dbFilePaths.keySet()) {
                 Path dbFilePath = dbFilePaths.get(fileName);
                 HandleAndLocalPath handleAndLocalPath =
                         strategy.transferToCheckpoint(
                                 dbFilePath,
-                                MAX_TRANSFER_BYTES,
+                                maxTransferBytes,
                                 checkpointStreamFactory,
                                 CheckpointedStateScope.SHARED,
                                 closeableRegistry,
@@ -394,8 +404,6 @@ public class DataTransferStrategyTest {
     public Boolean pathCopying;
 
     @TempDir static java.nio.file.Path tempDir;
-
-    private static final long MAX_TRANSFER_BYTES = Long.MAX_VALUE;
 
     private DBFilesContainer createDb(
             JobID jobID,
@@ -637,5 +645,42 @@ public class DataTransferStrategyTest {
         db.tmpResourcesRegistry.close();
         lastSnapshot.checkFilesExist(false, dbDirUnderCpDir);
         lastSnapshot.checkFilesExist(true, false);
+    }
+
+    private void createDbFilesWithExactSize(
+            DBFilesContainer db, List<String> newDbFileNames, int fileLength) throws IOException {
+        db.createDbFiles(newDbFileNames, fileLength);
+        for (String fileName : newDbFileNames) {
+            long fileLen =
+                    db.dbDelegateFileSystem.getFileStatus(db.dbFilePaths.get(fileName)).getLen();
+            assertThat(fileLen).isEqualTo(fileLength);
+        }
+        db.checkDbFilesExist(newDbFileNames);
+    }
+
+    @TestTemplate
+    public void testSnapshotWithMaxTransferBytes() throws IOException {
+        FileNameGenerator fileNameGenerator = new FileNameGenerator();
+        JobID jobID = new JobID();
+        Tuple2<DBFilesContainer, DataTransferStrategy> dbAndStrategy =
+                createOrRestoreDb(jobID, 0, 1, dbDirUnderCpDir, recoveryClaimMode, pathCopying);
+        DBFilesContainer db = dbAndStrategy.f0;
+        DataTransferStrategy strategy = dbAndStrategy.f1;
+
+        // skip the cases when db files are reused for snapshots
+        assumeFalse(strategy instanceof ReusableDataTransferStrategy);
+        System.out.println(strategy.getClass());
+
+        // create new files for DB
+        createDbFilesWithExactSize(db, fileNameGenerator.genMultipleFileNames(4, 4), 2048);
+        createDbFilesWithExactSize(db, fileNameGenerator.genMultipleFileNames(4, 4), 128);
+
+        // create a snapshot
+        DBFilesSnapshot lastSnapshot = db.snapshot(strategy, 1024);
+        db.assertFilesReusedToCheckpoint(lastSnapshot.getStateHandles());
+
+        for (Tuple2<Path, HandleAndLocalPath> tuple : lastSnapshot.dbSnapshotFiles.values()) {
+            assertThat(tuple.f1.getStateSize()).isLessThanOrEqualTo(1024);
+        }
     }
 }
