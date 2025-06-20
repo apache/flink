@@ -56,14 +56,7 @@ ML_PREDICT(
 
 以下配置选项可以在配置映射中指定：
 
-- `async`：（可选）布尔值，指示是否使用异步推理。
-- `timeout`：（可选）异步推理的超时时间（例如：'100s'）
-- `capacity`：（可选）异步推理的缓冲区容量
-
-默认配置参数:
-- [table.exec.async-ml-predict.buffer-capacity]({{< ref "docs/dev/table/config/#table-exec-async-ml-predict-buffer-capacity" >}})
-- [table.exec.async-ml-predict.output-mode]({{< ref "docs/dev/table/config/#table-exec-async-ml-predict-output-mode" >}})
-- [table.exec.async-ml-predict.timeout]({{< ref "docs/dev/table/config/#table-exec-async-ml-predict-timeout" >}})
+{{< generated/ml_predict_runtime_config_configuration >}}
 
 ### 示例
 

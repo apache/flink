@@ -56,14 +56,7 @@ ML_PREDICT(
 
 The following configuration options can be specified in the config map:
 
-- `async`: (Optional) Boolean value indicating whether to use asynchronous inference.
-- `timeout`: (Optional) Timeout duration for asynchronous inference (e.g., '100s')
-- `capacity`: (Optional) Buffer capacity for asynchronous inference
-
-Default configuration values:
-- [table.exec.async-ml-predict.buffer-capacity]({{< ref "docs/dev/table/config/#table-exec-async-ml-predict-buffer-capacity" >}})
-- [table.exec.async-ml-predict.output-mode]({{< ref "docs/dev/table/config/#table-exec-async-ml-predict-output-mode" >}})
-- [table.exec.async-ml-predict.timeout]({{< ref "docs/dev/table/config/#table-exec-async-ml-predict-timeout" >}})
+{{< generated/ml_predict_runtime_config_configuration >}}
 
 ### Example
 
