@@ -1446,6 +1446,41 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
+  def testDateFormatWithZone(): Unit = {
+    // Test whether the output is correct, if typeInfo is Instant or DateTimeFormatter contains time zone information
+    val shanghai = ZoneId.of("Asia/Shanghai")
+    val ldt = localDateTime("2015-06-09 08:09:08")
+    val data = Seq(
+      row(
+        ldt,
+        ldt.toInstant(shanghai.getRules.getOffset(ldt))
+      )
+    )
+    registerCollection("T", data, new RowTypeInfo(LOCAL_DATE_TIME, INSTANT), "a, b")
+    checkResult(
+      "SELECT DATE_FORMAT(a, 'yy-M-d H:m:s')," +
+        " DATE_FORMAT(a, 'yyyy-MM-dd HH:mm:ss')," +
+        " DATE_FORMAT(b, 'yy-M-d H:m:s')," +
+        " DATE_FORMAT(b, 'yyyy-MM-dd HH:mm:ss')," +
+        " DATE_FORMAT(b, 'yyyy-MM-dd HH:mm:ssX')," +
+        " DATE_FORMAT(b, 'yyyy-MM-dd HH:mm:ssXX')," +
+        " DATE_FORMAT(b, 'yyyy-MM-dd HH:mm:ssXXX')" +
+        " FROM T",
+      Seq(
+        row(
+          "15-6-9 8:9:8",
+          "2015-06-09 08:09:08",
+          "15-6-9 8:9:8",
+          "2015-06-09 08:09:08",
+          "2015-06-09 08:09:08+08",
+          "2015-06-09 08:09:08+0800",
+          "2015-06-09 08:09:08+08:00"
+        )
+      )
+    )
+  }
+
+  @Test
   def testYear(): Unit = {
     checkResult(
       "SELECT j, YEAR(j) FROM testTable WHERE a = TRUE",
