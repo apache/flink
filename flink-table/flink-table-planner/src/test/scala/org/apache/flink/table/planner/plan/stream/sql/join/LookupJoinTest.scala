@@ -871,19 +871,6 @@ class LookupJoinTest extends TableTestBase with Serializable {
   }
 
   @Test
-  def testJoinAsyncTableKeyOrderedUnsupported(): Unit = {
-    util.tableEnv.getConfig
-      .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED, Boolean.box(true))
-    val sql =
-      "SELECT /*+ LOOKUP('table'='D', 'async'='true', 'output-mode'='allow_unordered') */ * " +
-        "FROM (SELECT *, PROCTIME() AS proctime FROM UpsertTable) AS T JOIN AsyncLookupTable " +
-        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id"
-    assertThatThrownBy(() => util.verifyExplain(sql, ExplainDetail.JSON_EXECUTION_PLAN))
-      .hasMessageContaining("No proper operator is supported currently.")
-      .isInstanceOf[UnsupportedOperationException]
-  }
-
-  @Test
   def testJoinAsyncTableKeyOrderedWithCdcSource(): Unit = {
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED, Boolean.box(true))
@@ -891,7 +878,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
       "SELECT /*+ LOOKUP('table'='D', 'async'='true', 'output-mode'='allow_unordered') */ * " +
         "FROM (SELECT *, PROCTIME() AS proctime FROM UpsertTable) AS T JOIN AsyncLookupTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id"
-    util.verifyExecPlan(sql)
+    util.verifyExplain(sql)
   }
 
   @Test
