@@ -237,7 +237,7 @@ DROP [TEMPORARY|TEMPORARY SYSTEM] FUNCTION [IF EXISTS] [catalog_name.][db_name.]
 DROP [TEMPORARY] MODEL [IF EXISTS] [catalog_name.][db_name.]model_name
 ```
 
-删除一个有 catalog 和数据库命名空间的模型。若需要删除的模型不存在，则会产生异常。
+删除一个有 catalog 和数据库命名空间的模型。若需要删除的模型不存在并且没有用 `IF EXISTS`，则会产生异常。
 
 **TEMPORARY**
 

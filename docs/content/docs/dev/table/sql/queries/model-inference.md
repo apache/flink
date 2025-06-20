@@ -27,14 +27,16 @@ under the License.
 {{< label Streaming >}}
 
 Flink SQL provides the `ML_PREDICT` table-valued function (TVF) to perform model inference in SQL queries. This function allows you to apply machine learning models to your data streams directly in SQL.
+See [Model Creation]({{< ref "docs/dev/table/sql/create#create-model" >}}) about how to create a model.
 
 ## ML_PREDICT Function
 
-The `ML_PREDICT` function takes a table input, applies a model to it, and returns a new table with the model's predictions. The function supports both synchronous and asynchronous inference modes.
+The `ML_PREDICT` function takes a table input, applies a model to it, and returns a new table with the model's predictions. The function offers support for synchronous/asynchronous inference modes when the underlying model permits both.
 
 ### Syntax
 
 ```sql
+SELECT * FROM
 ML_PREDICT(
   TABLE input_table,
   MODEL model_name,
@@ -100,6 +102,7 @@ The output table contains all columns from the input table plus the model's pred
 2. The number of feature columns specified in the descriptor must match the model's input schema.
 3. If column names in the output conflict with existing column names in the input table, an index will be added to the output column names to avoid conflicts. For example, if the output column is named `prediction`, it will be renamed to `prediction0` if a column with that name already exists in the input table.
 4. For asynchronous inference, the model provider must support the `AsyncPredictRuntimeProvider` interface.
+5. `ML_PREDICT` only supports append-only tables. CDC (Change Data Capture) tables are not supported because `ML_PREDICT` results are non-deterministic.
 
 ### Model Provider
 
@@ -130,7 +133,7 @@ The function will throw an exception in the following cases:
 2. Configure appropriate timeout and buffer capacity values for asynchronous inference.
 3. The function's performance depends on the underlying model provider implementation.
 
-### Related Functions
+### Related Statements
 
 - [Model Creation]({{< ref "docs/dev/table/sql/create#create-model" >}})
 - [Model Alteration]({{< ref "docs/dev/table/sql/alter#alter-model" >}})

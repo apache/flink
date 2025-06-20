@@ -233,7 +233,7 @@ If the function doesn't exists, nothing happens.
 DROP [TEMPORARY] MODEL [IF EXISTS] [catalog_name.][db_name.]model_name
 ```
 
-Drop a model with the given model name. If the model to drop does not exist, an exception is thrown.
+Drop a model with the given model name. If the model to drop does not exist and `IF EXISTS` is not set, an exception is thrown.
 
 **TEMPORARY**
 

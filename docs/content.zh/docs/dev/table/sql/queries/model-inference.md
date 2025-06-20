@@ -27,14 +27,16 @@ under the License.
 {{< label Streaming >}}
 
 Flink SQL 提供了 `ML_PREDICT` 表值函数（TVF）来在 SQL 查询中执行模型推理。该函数允许您直接在 SQL 中对数据流应用机器学习模型。
+请参阅[模型创建]({{< ref "docs/dev/table/sql/create#create-model" >}})了解如何创建模型。
 
 ## ML_PREDICT 函数
 
-`ML_PREDICT` 函数接收一个表输入，对其应用模型，并返回一个包含模型预测结果的新表。该函数支持同步和异步推理模式。
+`ML_PREDICT` 函数接收一个表输入，对其应用模型，并返回一个包含模型预测结果的新表。当底层模型允许时，该函数提供同步/异步推理模式支持。
 
 ### 语法
 
 ```sql
+SELECT * FROM
 ML_PREDICT(
   TABLE input_table,
   MODEL model_name,
@@ -100,6 +102,7 @@ SELECT * FROM ML_PREDICT(
 2. 描述符中指定的特征列数量必须与模型的输入模式匹配。
 3. 如果输出中的列名与输入表中的现有列名冲突，将在输出列名中添加索引以避免冲突。例如，如果输出列名为 `prediction`，且输入表中已存在同名列，则输出列将被重命名为 `prediction0`。
 4. 对于异步推理，模型提供者必须支持 `AsyncPredictRuntimeProvider` 接口。
+5. `ML_PREDICT` 仅支持仅追加表。不支持 CDC（变更数据捕获）表，因为 `ML_PREDICT` 的结果是非确定性的。
 
 ### 模型提供者
 
@@ -130,7 +133,7 @@ SELECT * FROM ML_PREDICT(
 2. 为异步推理配置适当的超时和缓冲区容量值。
 3. 函数的性能取决于底层模型提供者的实现。
 
-### 相关函数
+### 相关语句
 
 - [模型创建]({{< ref "docs/dev/table/sql/create#create-model" >}})
 - [模型修改]({{< ref "docs/dev/table/sql/alter#alter-model" >}})

@@ -923,8 +923,7 @@ If the model already exists, nothing happens.
 
 **Input/Output Columns**
 
-The input columns define the features that will be used for model inference. The output columns define the predictions that the model will produce. Each column must have a name and data type. The input and output columns
-are optional because it can be inferred from training data later if Flink supports model training. For existing models, they are required to be defined.
+The input columns define the features that will be used for model inference. The output columns define the predictions that the model will produce. Each column must have a name and data type. 
 
 **WITH OPTIONS**
 
@@ -932,5 +931,23 @@ Model properties used to store extra information related to this model. The prop
 The key and value of expression `key1=val1` should both be string literal.
 
 **Note:** The model properties and supported model types may vary depending on the underlying model provider.
+
+### Examples
+
+The following examples illustrate the usage of the `CREATE MODEL` statements.
+
+```sql
+CREATE MODEL sentiment_analysis_model 
+INPUT (text STRING COMMENT 'Input text for sentiment analysis') 
+OUTPUT (sentiment STRING COMMENT 'Predicted sentiment (positive/negative/neutral/mixed)')
+COMMENT 'A model for sentiment analysis of text'
+WITH (
+    'provider' = 'openai',
+    'endpoint' = 'https://api.openai.com/v1/chat/completions',
+    'api-key' = '<YOUR KEY>',
+    'model'='gpt-3.5-turbo',
+    'system-prompt' = 'Classify the text below into one of the following labels: [positive, negative, neutral, mixed]. Output only the label.'
+);
+```
 
 {{< top >}}

@@ -924,7 +924,7 @@ CREATE [TEMPORARY] MODEL [IF NOT EXISTS] [catalog_name.][db_name.]model_name
 
 **Input/Output**
 
-输入列定义了将用于模型推理的特征。输出列定义了模型将产生的预测结果。每个列必须有名称和数据类型。如果将来 Flink 支持模型训练，输入和输出列是可选的，因为它们可以从训练数据中推断出来。对于已有的模型，必须定义输入和输出列。
+输入列定义了将用于模型推理的特征。输出列定义了模型将产生的预测结果。每个列必须有名称和数据类型。
 
 **COMMENT**
 
@@ -935,5 +935,23 @@ CREATE [TEMPORARY] MODEL [IF NOT EXISTS] [catalog_name.][db_name.]model_name
 用于存储与此模型相关的额外信息的模型属性。这些属性通常用于查找和创建底层模型提供者。表达式 `key1=val1` 中的键和值都应该是字符串字面量。
 
 **注意：** 模型属性和支持的模型类型可能因底层模型提供者而异。
+
+### 示例
+
+以下示例展示了 `CREATE MODEL` 语句的使用方法：
+
+```sql
+CREATE MODEL sentiment_analysis_model 
+INPUT (text STRING COMMENT '用于情感分析的输入文本') 
+OUTPUT (sentiment STRING COMMENT '预测的情感（positive/negative/neutral/mixed）')
+COMMENT '用于文本情感分析的模型'
+WITH (
+    'provider' = 'openai',
+    'endpoint' = 'https://api.openai.com/v1/chat/completions',
+    'api-key' = '<YOUR KEY>',
+    'model'='gpt-3.5-turbo',
+    'system-prompt' = 'Classify the text below into one of the following labels: [positive, negative, neutral, mixed]. Output only the label.'
+);
+```
 
 {{< top >}}
