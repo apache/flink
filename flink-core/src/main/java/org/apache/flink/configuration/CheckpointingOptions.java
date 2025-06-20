@@ -576,8 +576,8 @@ public class CheckpointingOptions {
                                     .build());
 
     @Experimental
-    public static final ConfigOption<Boolean> ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS =
-            ConfigOptions.key("execution.checkpointing.unaligned.interruptible-timers.enabled")
+    public static final ConfigOption<Boolean> ENABLE_UNALIGNED_SPLITTABLE_TIMERS =
+            ConfigOptions.key("execution.checkpointing.unaligned.splittable-timers.enabled")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(

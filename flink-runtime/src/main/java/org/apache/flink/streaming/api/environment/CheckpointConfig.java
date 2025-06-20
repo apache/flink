@@ -460,13 +460,13 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     @Experimental
-    public void enableUnalignedCheckpointsInterruptibleTimers(boolean enabled) {
-        configuration.set(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, enabled);
+    public void enableUnalignedCheckpointsSplitttableTimers(boolean enabled) {
+        configuration.set(CheckpointingOptions.ENABLE_UNALIGNED_SPLITTABLE_TIMERS, enabled);
     }
 
     @Experimental
-    public boolean isUnalignedCheckpointsInterruptibleTimersEnabled() {
-        return configuration.get(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS);
+    public boolean isUnalignedCheckpointsSplittableTimersEnabled() {
+        return configuration.get(CheckpointingOptions.ENABLE_UNALIGNED_SPLITTABLE_TIMERS);
     }
 
     /**
@@ -623,8 +623,8 @@ public class CheckpointConfig implements java.io.Serializable {
                 .getOptional(CheckpointingOptions.ENABLE_UNALIGNED)
                 .ifPresent(this::enableUnalignedCheckpoints);
         configuration
-                .getOptional(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS)
-                .ifPresent(this::enableUnalignedCheckpointsInterruptibleTimers);
+                .getOptional(CheckpointingOptions.ENABLE_UNALIGNED_SPLITTABLE_TIMERS)
+                .ifPresent(this::enableUnalignedCheckpointsSplitttableTimers);
         configuration
                 .getOptional(StateRecoveryOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA)
                 .ifPresent(this::setCheckpointIdOfIgnoredInFlightData);

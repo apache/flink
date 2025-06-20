@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -52,11 +53,11 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests interaction between {@link CheckpointingOptions#ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS} and
+ * Tests interaction between {@link CheckpointingOptions#ENABLE_UNALIGNED_SPLITTABLE_TIMERS} and
  * unaligned checkpoints.
  */
 @ExtendWith(TestLoggerExtension.class)
-class UnalignedCheckpointsInterruptibleTimersTest {
+class UnalignedCheckpointsSplittableTimersTest {
 
     @Test
     void testSingleWatermarkHoldingOperatorInTheChain() throws Exception {
@@ -68,7 +69,7 @@ class UnalignedCheckpointsInterruptibleTimersTest {
         try (final StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, Types.STRING)
                         .modifyStreamConfig(
-                                UnalignedCheckpointsInterruptibleTimersTest::setupStreamConfig)
+                                UnalignedCheckpointsSplittableTimersTest::setupStreamConfig)
                         .addInput(Types.STRING)
                         .setupOperatorChain(
                                 SimpleOperatorFactory.of(
@@ -107,7 +108,7 @@ class UnalignedCheckpointsInterruptibleTimersTest {
         try (final StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, Types.STRING)
                         .modifyStreamConfig(
-                                UnalignedCheckpointsInterruptibleTimersTest::setupStreamConfig)
+                                UnalignedCheckpointsSplittableTimersTest::setupStreamConfig)
                         .addInput(Types.STRING)
                         .setupOperatorChain(
                                 SimpleOperatorFactory.of(new MultipleTimersAtTheSameTimestamp()))
