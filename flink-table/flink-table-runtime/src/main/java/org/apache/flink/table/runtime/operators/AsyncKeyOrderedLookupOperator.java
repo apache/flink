@@ -19,6 +19,8 @@
 package org.apache.flink.table.runtime.operators;
 
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFutureUtils;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
@@ -37,8 +39,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.Collection;
-import java.util.Collections;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -116,8 +116,7 @@ public class AsyncKeyOrderedLookupOperator<IN, OUT, KEY>
                 // which would trigger dispose the context in AsyncExecutionController
                 // This part is executed in the AsyncExecutor
                 () -> {
-                    KeyedResultHandler handler = invoke(element);
-                    handler.waitUntilOutput();
+                    invoke(element);
                     return null;
                 });
     }
@@ -136,7 +135,9 @@ public class AsyncKeyOrderedLookupOperator<IN, OUT, KEY>
 
     public KeyedResultHandler invoke(StreamRecord<IN> element) throws Exception {
         final KeyedResultHandler resultHandler =
-                new KeyedResultHandler(new StreamRecordQueueEntry<>(element));
+                new KeyedResultHandler(
+                        new StreamRecordQueueEntry<>(element),
+                        asyncExecutionController.makeCompletableFuture());
         // register a timeout for the entry if timeout is configured
         if (timeout > 0L) {
             resultHandler.registerTimeout(getProcessingTimeService(), element, timeout);
@@ -154,11 +155,13 @@ public class AsyncKeyOrderedLookupOperator<IN, OUT, KEY>
         /** Optional timeout timer used to signal the timeout to the AsyncFunction. */
         protected ScheduledFuture<?> timeoutTimer;
 
+        StreamRecordQueueEntry<OUT> entry;
+
         /**
          * The handle received from the queue to update the entry. Should only be used to inject the
          * result; exceptions are handled here.
          */
-        protected final ResultFuture<OUT> resultFuture;
+        protected final InternalAsyncFuture<Collection<OUT>> resultFuture;
 
         /**
          * A guard against ill-written AsyncFunction. Additional (parallel) invocations of {@link
@@ -167,12 +170,16 @@ public class AsyncKeyOrderedLookupOperator<IN, OUT, KEY>
          */
         protected final AtomicBoolean completed = new AtomicBoolean(false);
 
-        /** Latch to ensure result is output. */
-        protected final CountDownLatch latch;
-
-        KeyedResultHandler(ResultFuture<OUT> resultFuture) {
-            this.latch = new CountDownLatch(1);
+        KeyedResultHandler(
+                StreamRecordQueueEntry<OUT> entry,
+                InternalAsyncFuture<Collection<OUT>> resultFuture) {
             this.resultFuture = resultFuture;
+            this.entry = entry;
+            resultFuture.thenCompose(
+                    (r) -> {
+                        processResults(r);
+                        return InternalAsyncFutureUtils.completedVoidFuture();
+                    });
         }
 
         @Override
@@ -180,8 +187,7 @@ public class AsyncKeyOrderedLookupOperator<IN, OUT, KEY>
             if (!completed.compareAndSet(false, true)) {
                 return;
             }
-            // deal with result
-            processInMailbox(results);
+            resultFuture.complete(results);
         }
 
         @Override
@@ -190,17 +196,8 @@ public class AsyncKeyOrderedLookupOperator<IN, OUT, KEY>
                 return;
             }
 
-            // signal failure through task
-            getContainingTask()
-                    .getEnvironment()
-                    .failExternally(
-                            new Exception(
-                                    "Could not complete the stream element in async lookup process.",
-                                    error));
-            // complete with empty result, so that we remove timer and move ahead processing (to
-            // leave potentially
-            // blocking section in #addToWorkQueue or #waitInFlightInputsFinished)
-            processInMailbox(Collections.emptyList());
+            resultFuture.completeExceptionally(
+                    "Could not complete the stream element in async lookup process.", error);
         }
 
         /**
@@ -210,16 +207,6 @@ public class AsyncKeyOrderedLookupOperator<IN, OUT, KEY>
         @Override
         public void complete(CollectionSupplier<OUT> supplier) {
             throw new UnsupportedOperationException();
-        }
-
-        public void waitUntilOutput() throws Exception {
-            latch.await();
-        }
-
-        private void processInMailbox(Collection<OUT> results) {
-            asyncExecutionController
-                    .getMailboxExecutor()
-                    .execute(() -> processResults(results), "Execute in Mailbox located in AEC");
         }
 
         private void processResults(Collection<OUT> results) {
@@ -232,11 +219,9 @@ public class AsyncKeyOrderedLookupOperator<IN, OUT, KEY>
                 timeoutTimer.cancel(true);
             }
 
-            // update the queue entry with the result
-            resultFuture.complete(results);
-            ((StreamRecordQueueEntry<OUT>) resultFuture).emitResult(timestampedCollector);
+            entry.complete(results);
+            entry.emitResult(timestampedCollector);
             totalInflightNum.decrementAndGet();
-            latch.countDown();
         }
 
         private void registerTimeout(
