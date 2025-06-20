@@ -146,7 +146,7 @@ public class AsyncKeyOrderedLookupOperator<IN, OUT, KEY>
     }
 
     public void waitAllInFlightInputsFinished() {
-        asyncExecutionController.waitUntil(()-> totalInflightNum.get() == 0);
+        asyncExecutionController.waitUntil(() -> totalInflightNum.get() == 0);
     }
 
     public class KeyedResultHandler implements ResultFuture<OUT> {
