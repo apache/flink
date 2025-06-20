@@ -1263,8 +1263,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         checkForcedFullSnapshotSupport(checkpointOptions);
 
+        MailboxExecutor.MailOptions mailOptions =
+                CheckpointOptions.AlignmentType.UNALIGNED == checkpointOptions.getAlignment()
+                        ? MailboxExecutor.MailOptions.urgent()
+                        : MailboxExecutor.MailOptions.options();
+
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         mainMailboxExecutor.execute(
+                mailOptions,
                 () -> {
                     try {
                         boolean noUnfinishedInputGates =
