@@ -38,20 +38,21 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
     @Override
     protected Stream<TestSpec> testData() {
         return Stream.of(
-                TestSpec.forStrategy("Valid OBJECT_OF with class", OBJECT_OF_INPUT_STRATEGY)
-                        .calledWithArgumentTypes(DataTypes.STRING()) // field value
+                // Test valid OBJECT_OF with no fields and values
+                TestSpec.forStrategy("Valid OBJECT_OF with only class", OBJECT_OF_INPUT_STRATEGY)
+                        .calledWithArgumentTypes(DataTypes.STRING())
                         .calledWithLiteralAt(0, USER_CLASS_PATH)
                         .expectSignature("f(STRING, [STRING, ANY]*...)")
                         .expectArgumentTypes(DataTypes.STRING()),
-                // Basic test case - valid number of arguments (odd number >= 1)
+
+                // Test valid number of arguments (odd number >= 1)
                 TestSpec.forStrategy(
-                                "Valid OBJECT_OF with class and one field",
+                                "Valid OBJECT_OF with class and one field and value",
                                 OBJECT_OF_INPUT_STRATEGY)
                         .calledWithArgumentTypes(
-                                DataTypes.STRING(), // implementation class type
-                                DataTypes.STRING(), // field name
-                                DataTypes.INT()) // field value
+                                DataTypes.STRING(), DataTypes.STRING(), DataTypes.INT())
                         .calledWithLiteralAt(0, USER_CLASS_PATH)
+                        .calledWithLiteralAt(1, "field1")
                         .expectArgumentTypes(
                                 DataTypes.STRING(), DataTypes.STRING(), DataTypes.INT()),
 
@@ -69,6 +70,8 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                         "c2",
                                         DataTypes.FIELD("f1", DataTypes.FLOAT()))) // field2 value
                         .calledWithLiteralAt(0, USER_CLASS_PATH)
+                        .calledWithLiteralAt(1, "field1")
+                        .calledWithLiteralAt(3, "field2")
                         .expectArgumentTypes(
                                 DataTypes.STRING(),
                                 DataTypes.STRING(),

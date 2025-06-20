@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.functions;
 
+import static org.apache.flink.table.api.Expressions.objectOf;
+
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -29,8 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
-
-import static org.apache.flink.table.api.Expressions.objectOf;
 
 /** Tests for functions dealing with {@link StructuredType}. */
 public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
@@ -158,9 +158,15 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "', 'a', 42, 'b', 'Bob'))",
                                 Type1.TYPE,
                                 DataTypes.STRING())
+                        // Invalid Test - field name is not a string literal
+                        .testSqlValidationError(
+                                "OBJECT_OF('"
+                                        + Type1.class.getName()
+                                        + "', CAST(NULL AS STRING), 42, 'b', 'Bob')",
+                                "Field name at position 2 must be a non null STRING/VARCHAR type.")
                         // Invalid Test - first argument is type string but null
                         .testSqlValidationError(
-                                "OBJECT_OF(cast(null as string), 'a', '12', 'b', 'Alice')",
+                                "OBJECT_OF(CAST(NULL AS STRING), 'a', '12', 'b', 'Alice')",
                                 "The first argument must be a STRING/VARCHAR type representing the class name."));
     }
 
