@@ -136,6 +136,15 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    void testThreeWayInnerJoinNoCommonJoinKeyRelPlan() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "INNER JOIN Payments p ON u.cash = p.price");
+    }
+
+    @Test
     void testThreeWayInnerJoinExecPlan() {
         util.verifyExecPlan(
                 "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "
@@ -170,6 +179,16 @@ public class MultiJoinTest extends TableTestBase {
                         + "LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
                         + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
                         + "LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3");
+    }
+
+    @Test
+    void testFourWayJoinNoCommonJoinKeyRelPlan() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                        + "FROM Users u "
+                        + "LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 "
+                        + "LEFT JOIN Shipments s ON p.payment_id = s.user_id_3");
     }
 
     @Test
@@ -274,6 +293,16 @@ public class MultiJoinTest extends TableTestBase {
                         + "  JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l "
                         + "  ON s.user_id = l.id"
                         + ") temporal ON u.user_id_0 = temporal.user_id");
+    }
+
+    @Test
+    void testFourWayJoinTransitiveCommonJoinKeyRelPlan() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                        + "FROM Users u "
+                        + "LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "LEFT JOIN Payments p ON o.user_id_1 = p.user_id_2 "
+                        + "LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3");
     }
 
     /* Update this to supported with FLINK-37973 https://issues.apache.org/jira/browse/FLINK-37973 */
