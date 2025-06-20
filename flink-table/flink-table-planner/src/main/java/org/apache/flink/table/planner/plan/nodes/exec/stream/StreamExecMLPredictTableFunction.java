@@ -82,7 +82,7 @@ import java.util.Optional;
         name = "stream-exec-ml-predict-table-function",
         version = 1,
         consumedOptions = {
-            "table.exec.async-ml-predict.buffer-capacity",
+            "table.exec.async-ml-predict.max-concurrent-operations",
             "table.exec.async-ml-predict.timeout",
             "table.exec.async-ml-predict.output-mode"
         },
