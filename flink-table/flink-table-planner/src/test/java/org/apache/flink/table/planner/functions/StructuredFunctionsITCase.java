@@ -24,8 +24,6 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.types.Row;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +40,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
         return Stream.of(structuredTypeTestCases(), objectOfTestCases()).flatMap(s -> s);
     }
 
-    private static @NotNull Stream<TestSetSpec> structuredTypeTestCases() {
+    private static Stream<TestSetSpec> structuredTypeTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.EQUALS)
                         .onFieldsWithData(14, "Bob")
@@ -116,7 +114,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.of(NonDefaultType.class).notNull()));
     }
 
-    private static @NotNull Stream<TestSetSpec> objectOfTestCases() {
+    private static Stream<TestSetSpec> objectOfTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.OBJECT_OF)
                         .onFieldsWithData(42, "Bob")
