@@ -162,7 +162,7 @@ FROM ML_PREDICT(
             <td>optional</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Double</td>
-            <td>Controls randomness of output, range <code>[0.0, 1.0]</code>. See <a href=\"https://platform.openai.com/docs/api-reference/responses/create#responses-create-temperature\">temperature</a></td>
+            <td>Controls randomness of output, range <code>[0.0, 1.0]</code>. See <a href="https://platform.openai.com/docs/api-reference/chat/create#chat-create-temperature">temperature</a></td>
         </tr>
         <tr>
             <td>
@@ -171,7 +171,7 @@ FROM ML_PREDICT(
             <td>optional</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Double</td>
-            <td>Probability cutoff for token selection (used instead of temperature). See <a href=\"https://platform.openai.com/docs/api-reference/responses/create#responses-create-top_p\">top_p</a></td>
+            <td>Probability cutoff for token selection (used instead of temperature). See <a href="https://platform.openai.com/docs/api-reference/chat/create#chat-create-top_p">top_p</a></td>
         </tr>
         <tr>
             <td>
@@ -180,7 +180,7 @@ FROM ML_PREDICT(
             <td>optional</td>
             <td style="word-wrap: break-word;">null</td>
             <td>String</td>
-            <td>Stop sequences, comma-separated list. See <a href=\"https://platform.openai.com/docs/api-reference/chat/create#chat-create-stop\">stop</a></td>
+            <td>Stop sequences, comma-separated list. See <a href="https://platform.openai.com/docs/api-reference/chat/create#chat-create-stop">stop</a></td>
         </tr>
         <tr>
             <td>
@@ -189,7 +189,7 @@ FROM ML_PREDICT(
             <td>optional</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Long</td>
-            <td>Maximum number of tokens to generate. See <a href=\"https://platform.openai.com/docs/api-reference/chat/create#chat-create-max_tokens\">max tokens</a></td>
+            <td>Maximum number of tokens to generate. See <a href="https://platform.openai.com/docs/api-reference/chat/create#chat-create-max_tokens">max tokens</a></td>
         </tr>
     </tbody>
 </table>
@@ -214,7 +214,7 @@ FROM ML_PREDICT(
             <td>optional</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Long</td>
-            <td>Dimension of the embedding vector. See <a href=\"https://platform.openai.com/docs/api-reference/embeddings/create#embeddings-create-dimensions\">dimensions</a></td>
+            <td>Dimension of the embedding vector. See <a href="https://platform.openai.com/docs/api-reference/embeddings/create#embeddings-create-dimensions">dimensions</a></td>
         </tr>
     </tbody>
 </table>
@@ -224,7 +224,7 @@ FROM ML_PREDICT(
 <table class="table table-bordered">
     <thead>
         <tr>
-            <th class="text-center">Task Type</th>
+            <th class="text-center">Task</th>
             <th class="text-left">Input Type</th>
             <th class="text-center">Output Type</th>
         </tr>

@@ -162,7 +162,7 @@ FROM ML_PREDICT(
             <td>可选</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Double</td>
-            <td>控制输出的随机性，取值范围<code>[0.0, 1.0]</code>。参考<a href=\"https://platform.openai.com/docs/api-reference/responses/create#responses-create-temperature\">temperature</a></td>
+            <td>控制输出的随机性，取值范围<code>[0.0, 1.0]</code>。参考<a href="https://platform.openai.com/docs/api-reference/chat/create#chat-create-temperature">temperature</a></td>
         </tr>
         <tr>
             <td>
@@ -171,7 +171,7 @@ FROM ML_PREDICT(
             <td>可选</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Double</td>
-            <td>用于替代temperature的概率阈值。参考<a href=\"https://platform.openai.com/docs/api-reference/responses/create#responses-create-top_p\">top_p</a></td>
+            <td>用于替代temperature的概率阈值。参考<a href="https://platform.openai.com/docs/api-reference/chat/create#chat-create-top_p">top_p</a></td>
         </tr>
         <tr>
             <td>
@@ -180,7 +180,7 @@ FROM ML_PREDICT(
             <td>可选</td>
             <td style="word-wrap: break-word;">null</td>
             <td>String</td>
-            <td>停止序列，逗号分隔的列表。参考<a href=\"https://platform.openai.com/docs/api-reference/chat/create#chat-create-stop\">stop</a></td>
+            <td>停止序列，逗号分隔的列表。参考<a href="https://platform.openai.com/docs/api-reference/chat/create#chat-create-stop">stop</a></td>
         </tr>
         <tr>
             <td>
@@ -189,7 +189,7 @@ FROM ML_PREDICT(
             <td>可选</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Long</td>
-            <td>生成的最大token数。参考<a href=\"https://platform.openai.com/docs/api-reference/chat/create#chat-create-max_tokens\">max tokens</a></td>
+            <td>生成的最大token数。参考<a href="https://platform.openai.com/docs/api-reference/chat/create#chat-create-max_tokens">max tokens</a></td>
         </tr>
     </tbody>
 </table>
@@ -214,7 +214,7 @@ FROM ML_PREDICT(
             <td>可选</td>
             <td style="word-wrap: break-word;">null</td>
             <td>Long</td>
-            <td>embedding向量的维度。参考<a href=\"https://platform.openai.com/docs/api-reference/embeddings/create#embeddings-create-dimensions\">dimensions</a></td>
+            <td>embedding向量的维度。参考<a href="https://platform.openai.com/docs/api-reference/embeddings/create#embeddings-create-dimensions">dimensions</a></td>
         </tr>
     </tbody>
 </table>
