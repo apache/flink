@@ -42,7 +42,6 @@ import org.apache.flink.util.ClassLoaderUtil;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
@@ -120,10 +119,8 @@ public class StreamConfig implements Serializable {
     private static final ConfigOption<Integer> CHECKPOINT_MODE =
             ConfigOptions.key("checkpointMode").intType().defaultValue(-1);
 
-    private static final String SAVEPOINT_DIR = "savepointdir";
     private static final String CHECKPOINT_STORAGE = "checkpointstorage";
     private static final String STATE_BACKEND = "statebackend";
-    private static final String ENABLE_CHANGE_LOG_STATE_BACKEND = "enablechangelog";
     private static final String TIMER_SERVICE_PROVIDER = "timerservice";
     private static final String STATE_PARTITIONER = "statePartitioner";
 
@@ -642,10 +639,6 @@ public class StreamConfig implements Serializable {
         }
     }
 
-    public void setChangelogStateBackendEnabled(TernaryBoolean enabled) {
-        toBeSerializedConfigObjects.put(ENABLE_CHANGE_LOG_STATE_BACKEND, enabled);
-    }
-
     @VisibleForTesting
     public void setStateBackendUsesManagedMemory(boolean usesManagedMemory) {
         this.config.set(STATE_BACKEND_USE_MANAGED_MEMORY, usesManagedMemory);
@@ -671,16 +664,6 @@ public class StreamConfig implements Serializable {
             return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
         } catch (Exception e) {
             throw new StreamTaskException("Could not instantiate statehandle provider.", e);
-        }
-    }
-
-    public TernaryBoolean isChangelogStateBackendEnabled(ClassLoader cl) {
-        try {
-            return InstantiationUtil.readObjectFromConfig(
-                    this.config, ENABLE_CHANGE_LOG_STATE_BACKEND, cl);
-        } catch (Exception e) {
-            throw new StreamTaskException(
-                    "Could not instantiate change log state backend enable flag.", e);
         }
     }
 
