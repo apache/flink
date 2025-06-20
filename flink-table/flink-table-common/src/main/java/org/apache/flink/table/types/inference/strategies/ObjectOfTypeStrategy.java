@@ -83,10 +83,9 @@ public class ObjectOfTypeStrategy implements TypeStrategy {
 
     private static DataType toStructuredType(
             final String className, final CallContext callContext) {
-        final List<DataType> argumentDataTypes1 = callContext.getArgumentDataTypes();
+        final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
         final DataTypes.Field[] fields =
-                IntStream.range(1, argumentDataTypes1.size())
-                        .filter(i -> i % 2 == 1)
+                IntStream.iterate(1, i -> i < argumentDataTypes.size(), i -> i + 2)
                         .mapToObj(keyIdx -> toFieldDataType(callContext, keyIdx))
                         .toArray(DataTypes.Field[]::new);
 
