@@ -132,7 +132,7 @@ public class FlinkLogicalMultiJoin extends AbstractRelNode implements FlinkLogic
                 traitSet,
                 inputs,
                 joinFilter,
-                getRowType(),
+                rowType,
                 joinConditions,
                 joinTypes,
                 postJoinFilter,
@@ -159,11 +159,6 @@ public class FlinkLogicalMultiJoin extends AbstractRelNode implements FlinkLogic
         }
 
         return planner.getCostFactory().makeCost(rowCount, cpu, io);
-    }
-
-    @Override
-    protected RelDataType deriveRowType() {
-        return rowType;
     }
 
     public RexNode getJoinFilter() {

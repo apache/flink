@@ -106,6 +106,24 @@ public class MultiJoinTest extends TableTestBase {
                                 + "  rowtime TIMESTAMP(3),"
                                 + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '5' SECOND"
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
+
+        // Tables for testing time attribute materialization in multi-join
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE UsersWithProctime ("
+                                + "  user_id_0 STRING PRIMARY KEY NOT ENFORCED,"
+                                + "  name STRING,"
+                                + "  proctime AS PROCTIME()"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE OrdersWithRowtime ("
+                                + "  order_id STRING PRIMARY KEY NOT ENFORCED,"
+                                + "  user_id_1 STRING,"
+                                + "  rowtime TIMESTAMP(3),"
+                                + "  WATERMARK FOR rowtime AS rowtime"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
     }
 
     @Test
@@ -256,5 +274,33 @@ public class MultiJoinTest extends TableTestBase {
                         + "  JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l "
                         + "  ON s.user_id = l.id"
                         + ") temporal ON u.user_id_0 = temporal.user_id");
+    }
+
+    /* Update this to supported with FLINK-37973 https://issues.apache.org/jira/browse/FLINK-37973 */
+    @Test
+    void testRightJoinNotSupported() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "RIGHT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "RIGHT JOIN Payments p ON o.user_id_1 = p.user_id_2");
+    }
+
+    @Test
+    void testFullOuterNotSupported() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "FULL OUTER JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "FULL OUTER JOIN Payments p ON o.user_id_1 = p.user_id_2");
+    }
+
+    @Test
+    void testThreeWayJoinWithTimeAttributesMaterialization() {
+        util.verifyRelPlan(
+                "SELECT u.name, u.proctime, o.rowtime, p.price "
+                        + "FROM UsersWithProctime u "
+                        + "JOIN OrdersWithRowtime o ON u.user_id_0 = o.user_id_1 "
+                        + "JOIN Payments p ON u.user_id_0 = p.user_id_2");
     }
 }

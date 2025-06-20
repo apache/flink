@@ -26,6 +26,8 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
+import java.time.LocalDateTime;
+
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MultiJoinTestUtils.ORDERS_SOURCE;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MultiJoinTestUtils.PAYMENTS_SOURCE;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MultiJoinTestUtils.USERS_SOURCE;
@@ -490,4 +492,132 @@ public class MultiJoinTestPrograms {
                                     + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
                                     + "LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3")
                     .build();
+
+    public static final TableTestProgram MULTI_JOIN_WITH_TIME_ATTRIBUTES_MATERIALIZATION =
+            TableTestProgram.of(
+                            "three-way-join-with-time-attributes",
+                            "three way join with time attributes materialization")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("UsersWithProctime")
+                                    .addSchema(
+                                            "user_id_0 STRING PRIMARY KEY NOT ENFORCED,"
+                                                    + " name STRING,"
+                                                    + " proctime AS PROCTIME()")
+                                    .producedValues(Row.ofKind(RowKind.INSERT, "1", "Gus"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("OrdersWithRowtime")
+                                    .addSchema(
+                                            "order_id STRING PRIMARY KEY NOT ENFORCED,"
+                                                    + "user_id_1 STRING,"
+                                                    + "rowtime TIMESTAMP(3),"
+                                                    + "WATERMARK FOR rowtime AS rowtime")
+                                    .producedValues(
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    "order1",
+                                                    "1",
+                                                    LocalDateTime.parse("2024-01-01T12:00:00.123")))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Payments")
+                                    .addSchema(
+                                            "payment_id STRING PRIMARY KEY NOT ENFORCED,"
+                                                    + "price INT,"
+                                                    + "user_id_2 STRING")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "payment1", 100, "1"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "rowtime TIMESTAMP(3)",
+                                            "price INT")
+                                    .consumedValues("+I[Gus, order1, 2024-01-01T12:00:00.123, 100]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT u.name, o.order_id, o.rowtime, p.price "
+                                    + "FROM UsersWithProctime u "
+                                    + "INNER JOIN OrdersWithRowtime o ON u.user_id_0 = o.user_id_1 "
+                                    + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2")
+                    .build();
+
+    public static final TableTestProgram
+            MULTI_JOIN_WITH_TIME_ATTRIBUTES_MATERIALIZATION_WITH_RESTORE =
+                    TableTestProgram.of(
+                                    "three-way-join-with-time-attributes-with-restore",
+                                    "three way join with time attributes materialization with restore")
+                            .setupConfig(
+                                    OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("UsersWithProctime")
+                                            .addSchema(
+                                                    "user_id_0 STRING PRIMARY KEY NOT ENFORCED,"
+                                                            + " name STRING,"
+                                                            + " proctime AS PROCTIME()")
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(RowKind.INSERT, "1", "Gus"))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(RowKind.INSERT, "2", "Bob"))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("OrdersWithRowtime")
+                                            .addSchema(
+                                                    "order_id STRING PRIMARY KEY NOT ENFORCED,"
+                                                            + "user_id_1 STRING,"
+                                                            + "rowtime TIMESTAMP(3),"
+                                                            + "WATERMARK FOR rowtime AS rowtime")
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            "order1",
+                                                            "1",
+                                                            LocalDateTime.parse(
+                                                                    "2024-01-01T12:00:00.123")))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            "order2",
+                                                            "2",
+                                                            LocalDateTime.parse(
+                                                                    "2024-01-01T12:00:01.456")))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("Payments")
+                                            .addSchema(
+                                                    "payment_id STRING PRIMARY KEY NOT ENFORCED,"
+                                                            + "price INT,"
+                                                            + "user_id_2 STRING")
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(
+                                                            RowKind.INSERT, "payment1", 100, "1"))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(
+                                                            RowKind.INSERT, "payment2", 200, "2"))
+                                            .build())
+                            .setupTableSink(
+                                    SinkTestStep.newBuilder("sink")
+                                            .addSchema(
+                                                    "name STRING",
+                                                    "order_id STRING",
+                                                    "rowtime TIMESTAMP(3)",
+                                                    "price INT")
+                                            .consumedBeforeRestore(
+                                                    "+I[Gus, order1, 2024-01-01T12:00:00.123, 100]")
+                                            .consumedAfterRestore(
+                                                    "+I[Bob, order2, 2024-01-01T12:00:01.456, 200]")
+                                            .testMaterializedData()
+                                            .build())
+                            .runSql(
+                                    "INSERT INTO sink "
+                                            + "SELECT u.name, o.order_id, o.rowtime, p.price "
+                                            + "FROM UsersWithProctime u "
+                                            + "INNER JOIN OrdersWithRowtime o ON u.user_id_0 = o.user_id_1 "
+                                            + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2")
+                            .build();
 }

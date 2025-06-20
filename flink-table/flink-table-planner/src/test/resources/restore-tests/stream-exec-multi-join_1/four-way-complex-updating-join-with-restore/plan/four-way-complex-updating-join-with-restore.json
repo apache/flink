@@ -18,20 +18,17 @@
               "name" : "cash",
               "dataType" : "INT"
             } ],
-            "watermarkSpecs" : [ ],
             "primaryKey" : {
               "name" : "PK_user_id_0",
               "type" : "PRIMARY_KEY",
               "columns" : [ "user_id_0" ]
             }
-          },
-          "partitionKeys" : [ ]
+          }
         }
       }
     },
     "outputType" : "ROW<`name` VARCHAR(2147483647), `user_id_0` VARCHAR(2147483647) NOT NULL, `cash` INT>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[name, user_id_0, cash])",
-    "inputProperties" : [ ]
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[name, user_id_0, cash])"
   }, {
     "id" : 14,
     "type" : "stream-exec-exchange_1",
@@ -86,20 +83,17 @@
               "name" : "user_id_1",
               "dataType" : "VARCHAR(2147483647)"
             } ],
-            "watermarkSpecs" : [ ],
             "primaryKey" : {
               "name" : "PK_order_id",
               "type" : "PRIMARY_KEY",
               "columns" : [ "order_id" ]
             }
-          },
-          "partitionKeys" : [ ]
+          }
         }
       }
     },
     "outputType" : "ROW<`order_id` VARCHAR(2147483647) NOT NULL, `product` VARCHAR(2147483647), `user_id_1` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[order_id, product, user_id_1])",
-    "inputProperties" : [ ]
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[order_id, product, user_id_1])"
   }, {
     "id" : 17,
     "type" : "stream-exec-table-source-scan_1",
@@ -118,20 +112,17 @@
               "name" : "price",
               "dataType" : "INT"
             } ],
-            "watermarkSpecs" : [ ],
             "primaryKey" : {
               "name" : "PK_payment_id",
               "type" : "PRIMARY_KEY",
               "columns" : [ "payment_id" ]
             }
-          },
-          "partitionKeys" : [ ]
+          }
         }
       }
     },
     "outputType" : "ROW<`user_id_2` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647) NOT NULL, `price` INT>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[user_id_2, payment_id, price])",
-    "inputProperties" : [ ]
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[user_id_2, payment_id, price])"
   }, {
     "id" : 18,
     "type" : "stream-exec-table-source-scan_1",
@@ -146,16 +137,13 @@
             }, {
               "name" : "user_id_3",
               "dataType" : "VARCHAR(2147483647)"
-            } ],
-            "watermarkSpecs" : [ ]
-          },
-          "partitionKeys" : [ ]
+            } ]
+          }
         }
       }
     },
     "outputType" : "ROW<`location` VARCHAR(2147483647), `user_id_3` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id_3])",
-    "inputProperties" : [ ]
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id_3])"
   }, {
     "id" : 19,
     "type" : "stream-exec-multi-join_1",
@@ -431,10 +419,8 @@
             }, {
               "name" : "location",
               "dataType" : "VARCHAR(2147483647)"
-            } ],
-            "watermarkSpecs" : [ ]
-          },
-          "partitionKeys" : [ ]
+            } ]
+          }
         }
       }
     },
