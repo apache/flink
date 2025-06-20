@@ -47,8 +47,8 @@ public class ObjectOfFunction extends BuiltInScalarFunction {
         final GenericRowData row = new GenericRowData(fieldCount);
 
         int rowPos = 0;
-        for (int i = 0; i < fieldNameAndValuePairs.length; i += 2) {
-            Object filedValues = fieldNameAndValuePairs[i + 1];
+        for (int i = 1; i < fieldNameAndValuePairs.length; i += 2) {
+            Object filedValues = fieldNameAndValuePairs[i];
             row.setField(rowPos, filedValues);
             rowPos++;
         }

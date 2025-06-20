@@ -135,11 +135,9 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
         }
 
         final Set<String> fieldNames = new HashSet<>();
-        for (int i = 1; i < argumentDataTypes.size(); i++) {
-            if (i % 2 != 0) {
-                final LogicalType fieldNameLogicalType = argumentDataTypes.get(i).getLogicalType();
-                validateFieldName(callContext, i, fieldNameLogicalType, fieldNames);
-            }
+        for (int i = 1; i < argumentDataTypes.size(); i += 2) {
+            final LogicalType fieldNameLogicalType = argumentDataTypes.get(i).getLogicalType();
+            validateFieldName(callContext, i, fieldNameLogicalType, fieldNames);
         }
 
         return Optional.of(argumentDataTypes);
