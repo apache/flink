@@ -285,7 +285,17 @@ Supported Environment:
 {{< label AWS >}}
 {{< label Azure >}}
 {{< label Google Cloud >}}
-{{< label On-Premise >}}
+{{< label On-Premises >}}
+
+#### Confluent Cloud and Platform
+
+[Website](https://www.confluent.io/)
+
+Supported Environments:
+{{< label AWS >}}
+{{< label Azure >}}
+{{< label Google Cloud >}}
+{{< label On-Premises >}}
 
 #### Huawei Cloud Stream Service
 
@@ -303,6 +313,6 @@ Supported Environments:
 {{< label AWS >}}
 {{< label Azure >}}
 {{< label Google Cloud >}}
-{{< label On-Premise >}}
+{{< label On-Premises >}}
 
 {{< top >}}
