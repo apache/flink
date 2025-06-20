@@ -109,7 +109,7 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
             final int idx,
             final LogicalType logicalType,
             final Set<String> filedNames) {
-        final int keyIndex = (idx + 1);
+        final int keyIndex = idx + 1;
         if (!logicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             throw new ValidationException(
                     "The field key at position "
@@ -118,8 +118,8 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
                             + logicalType.asSummaryString()
                             + ".");
         }
-        final Optional<String> filedName = callContext.getArgumentValue(idx, String.class);
-        filedName.ifPresent(
+        final Optional<String> fieldName = callContext.getArgumentValue(idx, String.class);
+        fieldName.ifPresent(
                 name -> {
                     if (!filedNames.add(name)) {
                         throw new ValidationException(
