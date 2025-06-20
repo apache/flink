@@ -59,6 +59,11 @@ import java.util.stream.IntStream;
  * <p>The strategy returns {@code Optional.empty()} if the class name argument is not available as a
  * literal value (e.g., during type inference testing scenarios).
  *
+ * <p><b>Note: Users are responsible for providing a valid fully qualified class name that exists in
+ * the classpath. The class name should follow Java naming conventions. If an invalid or
+ * non-existent class name is provided, the function will fall back to using Row.class as the type
+ * representation.</b>
+ *
  * <p><b>Examples:</b>
  *
  * <ul>
