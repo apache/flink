@@ -1293,7 +1293,7 @@ class MultipleInputStreamTaskTest {
                         MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                 .modifyExecutionConfig(applyObjectReuse(objectReuse))
                 .addJobConfig(CheckpointingOptions.ENABLE_UNALIGNED, unaligned)
-                .modifyStreamConfig(config -> config.setAlignedCheckpointTimeout(Duration.ZERO))
+                .addJobConfig(CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT, Duration.ZERO)
                 .addInput(BasicTypeInfo.STRING_TYPE_INFO)
                 .addSourceInput(
                         new SourceOperatorFactory<>(

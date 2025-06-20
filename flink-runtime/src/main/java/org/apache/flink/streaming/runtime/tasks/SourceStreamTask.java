@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
@@ -135,14 +136,17 @@ public class SourceStreamTask<
                             // between the trigger
                             // TODO -   message from the master, and the source's trigger
                             // notification
+                            Configuration jobConf = getJobConfiguration();
                             final CheckpointOptions checkpointOptions =
                                     CheckpointOptions.forConfig(
                                             CheckpointType.CHECKPOINT,
                                             CheckpointStorageLocationReference.getDefault(),
                                             configuration.isExactlyOnceCheckpointMode(),
-                                            getJobConfiguration()
-                                                    .get(CheckpointingOptions.ENABLE_UNALIGNED),
-                                            configuration.getAlignedCheckpointTimeout().toMillis());
+                                            jobConf.get(CheckpointingOptions.ENABLE_UNALIGNED),
+                                            jobConf.get(
+                                                            CheckpointingOptions
+                                                                    .ALIGNED_CHECKPOINT_TIMEOUT)
+                                                    .toMillis());
                             final long timestamp = System.currentTimeMillis();
 
                             final CheckpointMetaData checkpointMetaData =

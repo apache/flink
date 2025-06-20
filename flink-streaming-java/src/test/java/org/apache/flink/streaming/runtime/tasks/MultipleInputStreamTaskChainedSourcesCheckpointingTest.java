@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -547,16 +548,14 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
 
     private CheckpointBarrier createBarrier(StreamTaskMailboxTestHarness<String> testHarness) {
         StreamConfig config = testHarness.getStreamTask().getConfiguration();
+        Configuration jobConf = testHarness.getStreamTask().getJobConfiguration();
         CheckpointOptions checkpointOptions =
                 CheckpointOptions.forConfig(
                         CheckpointType.CHECKPOINT,
                         CheckpointStorageLocationReference.getDefault(),
                         config.isExactlyOnceCheckpointMode(),
-                        testHarness
-                                .getStreamTask()
-                                .getJobConfiguration()
-                                .get(CheckpointingOptions.ENABLE_UNALIGNED),
-                        config.getAlignedCheckpointTimeout().toMillis());
+                        jobConf.get(CheckpointingOptions.ENABLE_UNALIGNED),
+                        jobConf.get(CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT).toMillis());
 
         return new CheckpointBarrier(
                 metaData.getCheckpointId(), metaData.getTimestamp(), checkpointOptions);
