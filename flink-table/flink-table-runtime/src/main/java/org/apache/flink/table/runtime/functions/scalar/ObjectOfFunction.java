@@ -38,8 +38,8 @@ public class ObjectOfFunction extends BuiltInScalarFunction {
         final GenericRowData row = new GenericRowData(fieldCount);
 
         for (int i = 0; i < fieldCount; i++) {
-            Object filedValues = fieldNameAndValuePairs[2 * i + 1];
-            row.setField(i, filedValues);
+            Object fieldValues = fieldNameAndValuePairs[2 * i + 1];
+            row.setField(i, fieldValues);
         }
 
         return row;

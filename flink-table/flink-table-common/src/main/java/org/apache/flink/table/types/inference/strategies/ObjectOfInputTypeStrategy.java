@@ -114,7 +114,7 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
             final CallContext callContext,
             final int idx,
             final LogicalType logicalType,
-            final Set<String> filedNames) {
+            final Set<String> fieldNames) {
         final int keyIndex = idx + 1;
         if (!logicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             throw new ValidationException(
@@ -127,7 +127,7 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
         final Optional<String> fieldName = callContext.getArgumentValue(idx, String.class);
         fieldName.ifPresent(
                 name -> {
-                    if (!filedNames.add(name)) {
+                    if (!fieldNames.add(name)) {
                         throw new ValidationException(
                                 "The field name '"
                                         + name
