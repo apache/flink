@@ -58,6 +58,7 @@ public class RocksDBStateUploader implements Closeable {
     private final Duration uploadJitter;
     private final Random random;
     private final RocksDBStateDataTransferHelper transfer;
+    private final JitterConsumer jitterConsumer;
 
     @VisibleForTesting
     public RocksDBStateUploader(int numberOfSnapshottingThreads, Duration uploadJitter) {
@@ -69,6 +70,7 @@ public class RocksDBStateUploader implements Closeable {
     public RocksDBStateUploader(RocksDBStateDataTransferHelper transfer, Duration uploadJitter) {
         this.transfer = transfer;
         this.uploadJitter = uploadJitter;
+        this.jitterConsumer = new JitterConsumer();
         this.random = new Random();
     }
 
@@ -152,7 +154,7 @@ public class RocksDBStateUploader implements Closeable {
 
         try {
             // add a random jitter
-            applyJitter(new JitterConsumer());
+            applyJitter(jitterConsumer);
             final byte[] buffer = new byte[READ_BUFFER_SIZE];
 
             inputStream = Files.newInputStream(filePath);
@@ -211,7 +213,10 @@ public class RocksDBStateUploader implements Closeable {
             try {
                 Thread.sleep(milliseconds);
             } catch (InterruptedException e) {
-                LOG.error("Fail to apply jitter in RocksDBStateUploader.", e);
+                LOG.error(
+                        "Fail to apply {} milliseconds jitter in RocksDBStateUploader.",
+                        milliseconds,
+                        e);
             }
         }
     }
