@@ -55,9 +55,10 @@ import java.util.stream.Collectors;
 public class RocksDBStateUploader implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateUploader.class);
     private static final int READ_BUFFER_SIZE = 16 * 1024;
+    private static final Random random = new Random();
     private final Duration uploadJitter;
-    private final Random random;
     private final RocksDBStateDataTransferHelper transfer;
+    private final SleepConsumer sleepConsumer;
 
     @VisibleForTesting
     public RocksDBStateUploader(int numberOfSnapshottingThreads, Duration uploadJitter) {
@@ -69,7 +70,7 @@ public class RocksDBStateUploader implements Closeable {
     public RocksDBStateUploader(RocksDBStateDataTransferHelper transfer, Duration uploadJitter) {
         this.transfer = transfer;
         this.uploadJitter = uploadJitter;
-        this.random = new Random();
+        this.sleepConsumer = new SleepConsumer();
     }
 
     /**
@@ -152,7 +153,7 @@ public class RocksDBStateUploader implements Closeable {
 
         try {
             // add a random jitter
-            applyJitter(new JitterConsumer());
+            applyJitter(sleepConsumer);
             final byte[] buffer = new byte[READ_BUFFER_SIZE];
 
             inputStream = Files.newInputStream(filePath);
@@ -194,7 +195,6 @@ public class RocksDBStateUploader implements Closeable {
         }
     }
 
-    @VisibleForTesting
     void applyJitter(Consumer<Long> consumer) {
         if (uploadJitter.isZero()) {
             return;
@@ -204,14 +204,17 @@ public class RocksDBStateUploader implements Closeable {
         consumer.accept(milliseconds);
     }
 
-    static class JitterConsumer implements Consumer<Long> {
+    static class SleepConsumer implements Consumer<Long> {
 
         @Override
         public void accept(Long milliseconds) {
             try {
                 Thread.sleep(milliseconds);
             } catch (InterruptedException e) {
-                LOG.error("Fail to apply jitter in RocksDBStateUploader.", e);
+                LOG.info(
+                        "Fail to apply jitter by sleeping {} milliseconds in RocksDBStateUploader.",
+                        milliseconds,
+                        e);
             }
         }
     }

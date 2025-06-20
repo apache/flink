@@ -143,7 +143,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     private int numberOfTransferThreads;
 
     /** The max duration of checkpoint uploader jitter. */
-    private Duration checkpointUploadJitter;
+    private final Duration checkpointUploadJitter;
 
     /** The configuration for memory settings (pool sizes, etc.). */
     private final RocksDBMemoryConfiguration memoryConfiguration;
