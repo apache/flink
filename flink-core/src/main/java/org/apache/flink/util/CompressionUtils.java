@@ -87,28 +87,41 @@ public class CompressionUtils {
     // https://github.com/apache/hadoop/blob/7f93349ee74da5f35276b7535781714501ab2457/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/fs/FileUtil.java
     private static void extractTarFileUsingTar(
             String inFilePath, String targetDirPath, boolean gzipped) throws IOException {
-        inFilePath = makeSecureShellPath(inFilePath);
-        targetDirPath = makeSecureShellPath(targetDirPath);
-        String untarCommand =
-                gzipped
-                        ? String.format(
-                                "gzip -dc '%s' | (cd '%s' && tar -xf -)", inFilePath, targetDirPath)
-                        : String.format("cd '%s' && tar -xf '%s'", targetDirPath, inFilePath);
-        Process process = new ProcessBuilder("bash", "-c", untarCommand).start();
-        int exitCode = 0;
-        try {
-            exitCode = process.waitFor();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted when untarring file " + inFilePath);
-        }
-        if (exitCode != 0) {
-            throw new IOException(
-                    "Error untarring file "
-                            + inFilePath
-                            + ". Tar process exited with exit code "
-                            + exitCode);
-        }
+              try (InputStream inputStream = Files.newInputStream(Paths.get(inFilePath))) {
+              File targetDir = new File(targetDirPath);
+              
+              StringBuilder untarCommand = new StringBuilder();
+              if (gzipped) {
+                  untarCommand.append("gzip -dc | (");
+              }
+              untarCommand.append("cd '")
+                  .append(makeSecureShellPath(targetDir.getAbsolutePath()))
+                  .append("' && ")
+                  .append("tar -x ");
+              
+              if (gzipped) {
+                  untarCommand.append(")");
+              }
+              
+              Process process = Runtime.getRuntime().exec(new String[]{"bash", "-c", untarCommand.toString()});
+              
+              // Pipe the input stream to the process
+              try (OutputStream processInput = process.getOutputStream()) {
+                  IOUtils.copyBytes(inputStream, processInput, 4096);
+              }
+              
+              int exitCode = process.waitFor();
+              if (exitCode != 0) {
+                  throw new IOException(
+                          "Error untarring file "
+                                  + inFilePath
+                                  + ". Tar process exited with exit code "
+                                  + exitCode);
+              }
+          } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              throw new IOException("Interrupted when untarring file " + inFilePath);
+          }
     }
 
     // Follow the pattern suggested in
