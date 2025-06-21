@@ -625,10 +625,9 @@ LogicalProject(a1=[$0], b1=[$1]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483
       <![CDATA[
 LogicalProject(a1=[$0], cnt=[$SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-  LogicalProject($f0=[0])
-    LogicalJoin(condition=[=($0, $2)], joinType=[inner])
-      LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-      LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
+  LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+    LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+    LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
 })]), rowType=[RecordType(BIGINT a1, BIGINT cnt)]
 +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[T4]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalFilter(condition=[=($1, _UTF-16LE'abc')]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
@@ -664,15 +663,14 @@ LogicalProject(a1=[$0]), rowType=[RecordType(BIGINT a1)]
       <![CDATA[
 LogicalProject(a1=[$0], cnt=[$SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-  LogicalProject($f0=[0])
-    LogicalFilter(condition=[=($2, 1)])
-      LogicalJoin(condition=[=($0, $2)], joinType=[inner])
-        LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-        LogicalUnion(all=[false])
-          LogicalProject(a3=[$0])
-            LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-          LogicalProject(a3=[$0])
-            LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
+  LogicalFilter(condition=[=($2, 1)])
+    LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+      LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+      LogicalUnion(all=[false])
+        LogicalProject(a3=[$0])
+          LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+        LogicalProject(a3=[$0])
+          LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
 })]), rowType=[RecordType(BIGINT a1, BIGINT cnt)]
 +- LogicalProject(a1=[$0], b1=[$1], hints=[[[ALIAS options:[T4]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1)]
    +- LogicalJoin(condition=[=($0, $2)], joinType=[inner], hints=[[[ALIAS inheritPath:[0] options:[T4]]]]), rowType=[RecordType(BIGINT a1, VARCHAR(2147483647) b1, BIGINT a2, VARCHAR(2147483647) b2)]
