@@ -290,10 +290,10 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                         () ->
                                 util.verifyRelPlan(
                                         "SELECT *\n"
-                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true', 'capacity', '-1']))"))
+                                                + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true', 'max-concurrent-operations', '-1']))"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "SQL validation failed. Invalid runtime config option 'capacity'. Its value should be positive integer but was -1.");
+                        "SQL validation failed. Invalid runtime config option 'max-concurrent-operations'. Its value should be positive integer but was -1.");
 
         assertThatThrownBy(
                         () ->
