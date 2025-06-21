@@ -47,6 +47,7 @@ Flink SQL supports the following SHOW statements for now:
 - SHOW MODULES
 - SHOW JARS
 - SHOW JOBS
+- SHOW MODELS
 
 ## Run a SHOW statement
 
@@ -1036,5 +1037,59 @@ SHOW JOBS
 Show the jobs in the Flink cluster.
 
 <span class="label label-danger">Attention</span> Currently `SHOW JOBS` statements only work in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+
+## SHOW MODELS
+
+```sql
+SHOW MODELS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
+```
+
+Show all models for an optionally specified database. If no database is specified then the models are returned from the current database. Additionally, a `<sql_like_pattern>` can be used to filter the models.
+
+**LIKE**
+Show all models with a `LIKE` clause, whose name is similar to the `<sql_like_pattern>`.
+
+The syntax of the SQL pattern in the `LIKE` clause is the same as that of the `MySQL` dialect.
+* `%` matches any number of characters, even zero characters, and `\%` matches one `%` character.
+* `_` matches exactly one character, `\_` matches one `_` character.
+
+**ILIKE**
+The same behavior as `LIKE` but the SQL pattern is case-insensitive.
+
+## SHOW CREATE MODEL
+
+```sql
+SHOW CREATE MODEL [catalog_name.][db_name.]model_name
+```
+
+Show create model statement for specified model.
+
+The output includes the model name, model input/output schema, model options, and other configurations. This statement is useful when you need to understand the structure and configuration of an existing model or to recreate the model in another database.
+
+Assumes that the model `my_model` is created as follows:
+```sql
+CREATE MODEL my_model
+INPUT(text STRING)
+OUTPUT(response STRING)
+WITH (
+  'provider' = 'openai',
+);
+```
+
+Shows the creation statement.
+```sql
+show create model my_model;
++---------------------------------------------------------------------------------------------+
+|                                                                                      result |
++---------------------------------------------------------------------------------------------+
+| CREATE MODEL `default_catalog`.`default_database`.`my_model` 
+  INPUT (`text` STRING)
+  OUTPUT (`response` STRING) WITH (
+    'provider' = 'openai'
+)
+ |
++---------------------------------------------------------------------------------------------+
+1 row in set
+```
 
 {{< top >}}

@@ -525,3 +525,10 @@ The result of the above example is:
 ```
 
 <span class="label label-danger">Attention</span> DESCRIBE JOB statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+
+### DESCRIBE MODEL
+```sql
+{ DESCRIBE | DESC } MODEL [EXTENDED] [catalog_name.][db_name.]model_name
+```
+
+{{< top >}}

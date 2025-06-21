@@ -486,3 +486,10 @@ Flink SQL> DESC JOB '228d70913eab60dda85c5e7f78b5782c';
 ```
 
 <span class="label label-danger">Attention</span> DESCRIBE JOB 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+
+### DESCRIBE MODEL
+```sql
+{ DESCRIBE | DESC } [catalog_name.][db_name.]model_name
+```
+
+{{< top >}}
