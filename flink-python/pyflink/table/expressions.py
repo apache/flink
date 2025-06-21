@@ -568,9 +568,6 @@ def object_of(class_name: Union[str, type], *args) -> Expression:
     The structured type is created by providing alternating key-value pairs where keys must be
     string literals and values can be arbitrary expressions.
 
-    The class name is used for type identification during planning but the actual runtime
-    representation is a RowData. If the class cannot be resolved, Row.class is used as fallback.
-
     This function corresponds to the SQL `OBJECT_OF` function.
 
     Note: Users are responsible for providing a valid fully qualified class name that exists
