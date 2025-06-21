@@ -48,6 +48,10 @@ class ExpressionsCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCas
             'descriptor',
         }
 
+    @classmethod
+    def ignore_decorators(cls):
+        return True
+
 
 if __name__ == '__main__':
     import unittest

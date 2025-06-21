@@ -19,8 +19,10 @@ import io
 
 from pyflink.serializers import IterableSerializer
 from pyflink.table.utils import arrow_to_pandas, pandas_to_arrow
+from pyflink.util.api_stability_decorators import Internal
 
 
+@Internal()
 class ArrowSerializer(IterableSerializer):
     """
     Serializes pandas.Series into Arrow streaming format data.
