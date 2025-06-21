@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.planner.functions;
 
-import static org.apache.flink.table.api.Expressions.objectOf;
-
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.types.Row;
 
@@ -31,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
+
+import static org.apache.flink.table.api.Expressions.objectOf;
 
 /** Tests for functions dealing with {@link StructuredType}. */
 public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
@@ -127,10 +128,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                 objectOf(Type1.class, "a", 42, "b", "Bob"),
                                 "OBJECT_OF('" + Type1.class.getName() + "', 'a', 42, 'b', 'Bob')",
                                 Row.of(42, "Bob"),
-                                DataTypes.STRUCTURED(
-                                        Type1.class,
-                                        DataTypes.FIELD("a", DataTypes.INT()),
-                                        DataTypes.FIELD("b", DataTypes.STRING())))
+                                Type1.STRUCTURED_TYPE)
                         // Test with same value from function
                         .testSqlResult(
                                 "Type1Constructor(f0, f1) = OBJECT_OF('"

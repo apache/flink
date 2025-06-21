@@ -1207,9 +1207,6 @@ valueconstruction:
       The structured type is created by providing alternating key-value pairs where keys must be
       string literals and values can be arbitrary expressions.
 
-      The class name is used for type identification during planning but the actual runtime
-      representation is a RowData. If the class cannot be resolved, Row.class is used as fallback.
-
       Users are responsible for providing a valid fully qualified class name that exists
       in the classpath. The class name should follow Java naming conventions (e.g., 'com.example.User').
       If an invalid or non-existent class name is provided, the function will fall back to using
