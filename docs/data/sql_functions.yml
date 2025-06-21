@@ -1178,6 +1178,24 @@ valueconstruction:
       ```sql
       f(columns => DESCRIPTOR(`col1`, `col2`), on_time => DESCRIPTOR(`ts`))
       ```
+  - sql: OBJECT_OF(className, [key, value [, key, value , ...]])
+    table: objectOf(STRING, Object...)
+    description: |
+      Creates a structured object from a list of key-value pairs.
+
+      The function creates an instance of a structured type identified by the given class name.
+      The structured type is created by providing alternating key-value pairs where keys must be
+      string literals and values can be arbitrary expressions.
+
+      Users are responsible for providing a valid fully qualified class name that exists
+      in the classpath. The class name should follow Java naming conventions (e.g., 'com.example.User').
+      If an invalid or non-existent class name is provided, the function will fall back to using
+      Row.class as the type representation.
+
+      ```sql
+      -- Creates a User object with name="Bob" and age=42
+      OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 42)
+      ```
   - table: NUMERIC.rows
     description: Creates a NUMERIC interval of rows (commonly used in window creation).
 
