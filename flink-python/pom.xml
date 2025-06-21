@@ -289,7 +289,7 @@ under the License.
 			<!-- Indirectly accessed in pyflink_gateway_server -->
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-connector-kafka</artifactId>
-			<version>3.0.0-1.17</version>
+			<version>4.0.0-2.0</version>
 			<scope>test</scope>
 		</dependency>
 

@@ -43,100 +43,159 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-java</artifactId>
+			<artifactId>flink-table-common</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.apache.flink/flink-connector-kafka -->
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-kafka</artifactId>
-			<version>3.0.0-1.17</version>
+			<artifactId>flink-table-api-java-bridge</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
 		</dependency>
-		<!-- Make sure that Shaded Guava matches the one used in the flink-connector-kafka,
-		 or remove when FLINK-32462 is resolved -->
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-guava</artifactId>
-			<version>30.1.1-jre-16.1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-avro</artifactId>
+			<artifactId>flink-end-to-end-tests-common</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+
+		<!-- This enables the WebUI during tests. -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-avro-confluent-registry</artifactId>
+			<artifactId>flink-runtime-web</artifactId>
 			<version>${project.version}</version>
+			<scope>test</scope>
 		</dependency>
+
+		<!-- The following dependencies are for connector/format sql-jars that
+			we copy using the maven-dependency-plugin. When extending the test
+ 			to cover more connectors/formats, add a dependency here and an entry
+			to the dependency-plugin configuration below.
+			This ensures that all modules we actually need (as defined by the
+ 			dependency-plugin configuration) are built before this module. -->
+		<dependency>
+			<!-- Used by maven-dependency-plugin -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-connector-kafka</artifactId>
+			<version>4.0.0-2.0</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-avro-confluent-registry</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.kafka</groupId>
+			<artifactId>kafka-clients</artifactId>
+			<version>3.9.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>kafka</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>io.confluent</groupId>
+			<artifactId>kafka-avro-serializer</artifactId>
+			<version>7.2.2</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.avro</groupId>
+			<artifactId>avro</artifactId>
+			<version>1.11.3</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>commons-codec</groupId>
+			<artifactId>commons-codec</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<!-- Pick an arbitrary version here to satisfy the enforcer-plugin,
+					as we neither access nor package the kafka dependencies -->
+				<groupId>org.apache.kafka</groupId>
+				<artifactId>kafka-clients</artifactId>
+				<version>3.9.0</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<build>
 		<plugins>
+			<!-- Build toolbox jar. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>TestAvroConsumerConfluent</id>
+						<!-- Use a special execution id to be ignored by license/optional checks -->
+						<id>e2e-dependencies</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<finalName>TestAvroConsumerConfluent</finalName>
-							<transformers>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>org.apache.flink.schema.registry.test.TestAvroConsumerConfluent</mainClass>
-								</transformer>
-							</transformers>
+							<finalName>SqlToolbox</finalName>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
-			<plugin>
-				<groupId>org.apache.avro</groupId>
-				<artifactId>avro-maven-plugin</artifactId>
-				<version>${avro.version}</version>
-				<executions>
-					<execution>
-						<phase>generate-sources</phase>
-						<goals>
-							<goal>schema</goal>
-						</goals>
-						<configuration>
-							<sourceDirectory>${project.basedir}/src/main/resources/avro/</sourceDirectory>
-							<outputDirectory>${project.basedir}/target/generated-sources/</outputDirectory>
-							<fieldVisibility>PRIVATE</fieldVisibility>
-							<includes>
-								<include>**/*.avsc</include>
-							</includes>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
+
+			<!-- Copy SQL jars into dedicated "sql-jars" directory. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-enforcer-plugin</artifactId>
+				<artifactId>maven-dependency-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>dependency-convergence</id>
+						<id>copy</id>
+						<phase>package</phase>
 						<goals>
-							<goal>enforce</goal>
+							<goal>copy</goal>
 						</goals>
 						<configuration>
-							<skip>true</skip>
+							<outputDirectory>${project.build.directory}/sql-jars</outputDirectory>
+							<!-- List of currently provided SQL jars.
+								When extending this list please also add a dependency
+								for the respective module. -->
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-sql-connector-kafka</artifactId>
+									<version>4.0.0-2.0</version>
+									<type>jar</type>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-test-utils</artifactId>
+									<version>${project.version}</version>
+									<type>jar</type>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-sql-avro-confluent-registry</artifactId>
+									<version>${project.version}</version>
+									<type>jar</type>
+								</artifactItem>
+							</artifactItems>
 						</configuration>
 					</execution>
 				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-checkstyle-plugin</artifactId>
-				<configuration>
-					<excludes>**/example/avro/*</excludes>
-				</configuration>
 			</plugin>
 		</plugins>
 	</build>
