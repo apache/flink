@@ -25,7 +25,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 
 import java.util.Map;
 
-import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC_CAPACITY;
+import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC_MAX_CONCURRENT_OPERATIONS;
 import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC_OUTPUT_MODE;
 import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC_TIMEOUT;
 
@@ -42,7 +42,7 @@ public class MLPredictUtils extends FunctionCallUtils {
 
         return new AsyncOptions(
                 coalesce(
-                        queryConf.get(ASYNC_CAPACITY),
+                        queryConf.get(ASYNC_MAX_CONCURRENT_OPERATIONS),
                         config.get(
                                 ExecutionConfigOptions
                                         .TABLE_EXEC_ASYNC_ML_PREDICT_MAX_CONCURRENT_OPERATIONS)),
