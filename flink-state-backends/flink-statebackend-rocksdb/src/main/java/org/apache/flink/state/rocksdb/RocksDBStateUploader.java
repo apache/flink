@@ -32,6 +32,9 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.CheckedSupplier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
@@ -39,25 +42,34 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /** Help class for uploading RocksDB state files. */
 public class RocksDBStateUploader implements Closeable {
+    private static final Logger LOG = LoggerFactory.getLogger(RocksDBStateUploader.class);
     private static final int READ_BUFFER_SIZE = 16 * 1024;
-
+    private final Duration uploadJitter;
+    private final Random random;
     private final RocksDBStateDataTransferHelper transfer;
 
     @VisibleForTesting
-    public RocksDBStateUploader(int numberOfSnapshottingThreads) {
-        this(RocksDBStateDataTransferHelper.forThreadNum(numberOfSnapshottingThreads));
+    public RocksDBStateUploader(int numberOfSnapshottingThreads, Duration uploadJitter) {
+        this(
+                RocksDBStateDataTransferHelper.forThreadNum(numberOfSnapshottingThreads),
+                uploadJitter);
     }
 
-    public RocksDBStateUploader(RocksDBStateDataTransferHelper transfer) {
+    public RocksDBStateUploader(RocksDBStateDataTransferHelper transfer, Duration uploadJitter) {
         this.transfer = transfer;
+        this.uploadJitter = uploadJitter;
+        this.random = new Random();
     }
 
     /**
@@ -133,12 +145,14 @@ public class RocksDBStateUploader implements Closeable {
             CheckpointedStateScope stateScope,
             CloseableRegistry closeableRegistry,
             CloseableRegistry tmpResourcesRegistry)
-            throws IOException {
+            throws IOException, InterruptedException {
 
         InputStream inputStream = null;
         CheckpointStateOutputStream outputStream = null;
 
         try {
+            // add a random jitter
+            applyJitter(new JitterConsumer());
             final byte[] buffer = new byte[READ_BUFFER_SIZE];
 
             inputStream = Files.newInputStream(filePath);
@@ -176,6 +190,28 @@ public class RocksDBStateUploader implements Closeable {
 
             if (closeableRegistry.unregisterCloseable(outputStream)) {
                 IOUtils.closeQuietly(outputStream);
+            }
+        }
+    }
+
+    @VisibleForTesting
+    void applyJitter(Consumer<Long> consumer) {
+        if (uploadJitter.isZero()) {
+            return;
+        }
+
+        long milliseconds = random.nextLong(0, uploadJitter.toMillis() + 1);
+        consumer.accept(milliseconds);
+    }
+
+    static class JitterConsumer implements Consumer<Long> {
+
+        @Override
+        public void accept(Long milliseconds) {
+            try {
+                Thread.sleep(milliseconds);
+            } catch (InterruptedException e) {
+                LOG.error("Fail to apply jitter in RocksDBStateUploader.", e);
             }
         }
     }

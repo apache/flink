@@ -64,6 +64,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -80,6 +81,7 @@ import static org.apache.flink.state.rocksdb.RocksDBConfigurableOptions.USE_DELE
 import static org.apache.flink.state.rocksdb.RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.state.rocksdb.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
 import static org.apache.flink.state.rocksdb.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
+import static org.apache.flink.state.rocksdb.RocksDBOptions.CHECKPOINT_UPLOAD_JITTER;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -139,6 +141,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
     /** Thread number used to transfer (download and upload) state, default value: 1. */
     private int numberOfTransferThreads;
+
+    /** The max duration of checkpoint uploader jitter. */
+    private Duration checkpointUploadJitter;
 
     /** The configuration for memory settings (pool sizes, etc.). */
     private final RocksDBMemoryConfiguration memoryConfiguration;
@@ -233,6 +238,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         this.useIngestDbRestoreMode = TernaryBoolean.UNDEFINED;
         this.incrementalRestoreAsyncCompactAfterRescale = TernaryBoolean.UNDEFINED;
         this.rescalingUseDeleteFilesInRange = TernaryBoolean.UNDEFINED;
+        this.checkpointUploadJitter = CHECKPOINT_UPLOAD_JITTER.defaultValue();
         this.manualCompactionConfig = null;
     }
 
@@ -303,6 +309,8 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
         // configurable options
         this.configurableOptions = mergeConfigurableOptions(original.configurableOptions, config);
+
+        this.checkpointUploadJitter = configurableOptions.get(CHECKPOINT_UPLOAD_JITTER);
 
         // configure RocksDB options factory
         try {
@@ -522,6 +530,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         .setNumberOfTransferingThreads(getNumberOfTransferThreads())
                         .setNativeMetricOptions(
                                 resourceContainer.getMemoryWatcherOptions(nativeMetricOptions))
+                        .setCheckpointUploadJitter(checkpointUploadJitter)
                         .setWriteBatchSize(getWriteBatchSize())
                         .setOverlapFractionThreshold(getOverlapFractionThreshold())
                         .setIncrementalRestoreAsyncCompactAfterRescale(
