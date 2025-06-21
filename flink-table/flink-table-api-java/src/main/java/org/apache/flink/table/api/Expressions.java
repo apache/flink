@@ -631,10 +631,6 @@ public final class Expressions {
      * structured type is created by providing alternating key-value pairs where keys must be string
      * literals and values can be arbitrary expressions.
      *
-     * <p>The class name is used for type identification during planning but the actual runtime
-     * representation is a {@code RowData}. If the class cannot be resolved, {@code Row.class} is
-     * used as fallback.
-     *
      * <p><b>Note: Users are responsible for providing a valid class that exists in the classpath.
      * The class should be properly accessible and follow Java naming conventions. If an invalid or
      * non-existent class is provided, the function will fall back to using {@code Row.class} as the
@@ -666,10 +662,6 @@ public final class Expressions {
      * <p>This function creates an instance of a structured type identified by the given class name.
      * The structured type is created by providing alternating key-value pairs where keys must be
      * string literals and values can be arbitrary expressions.
-     *
-     * <p>The class name is used for type identification during planning but the actual runtime
-     * representation is a {@code RowData}. If the class cannot be resolved, {@code Row.class} is
-     * used as fallback.
      *
      * <p><b>Note: Users are responsible for providing a valid fully qualified class name that
      * exists in the classpath. The class name should follow Java naming conventions (e.g.,
