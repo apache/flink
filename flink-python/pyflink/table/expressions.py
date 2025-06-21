@@ -17,6 +17,8 @@
 ################################################################################
 from typing import Union
 
+from py4j.java_gateway import JavaClass, get_java_class
+
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit, JsonOnNull
@@ -560,7 +562,7 @@ def map_from_arrays(key, value) -> Expression:
     return _binary_op("mapFromArrays", key, value)
 
 
-def object_of(class_name: Union[str, type], *args) -> Expression:
+def object_of(class_name: Union[str, 'JavaClass'], *args) -> Expression:
     """
     Creates a structured object from a list of key-value pairs.
 
@@ -575,7 +577,7 @@ def object_of(class_name: Union[str, type], *args) -> Expression:
     If an invalid or non-existent class name is provided, the function will fall back to using
     Row.class as the type representation.
 
-    :param class_name: The fully qualified class name or class type representing the structured type
+    :param class_name: The fully qualified class name or the JavaClass object.
     :param args: Alternating key-value pairs: key1, value1, key2, value2, ...
     :return: A structured object expression
 
@@ -585,18 +587,19 @@ def object_of(class_name: Union[str, type], *args) -> Expression:
         >>> # Creates a User object with name="Alice" and age=30
         >>> object_of("com.example.User", "name", "Alice", "age", 30)
 
-        >>> # Using a class type
-        >>> object_of(User, "name", "Bob", "age", 25)
+        >>> # Using JavaClass (loaded via java gateway)
+        >>> from pyflink.util.java_utils import load_java_class
+        >>> user_class = load_java_class("com.example.User")
+        >>> object_of(user_class, "name", "Bob", "age", 25)
 
     .. seealso:: SQL function: OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 25)
     """
-    if isinstance(class_name, type):
-        # Convert Python class to fully qualified name
-        class_name_str = f"{class_name.__module__}.{class_name.__qualname__}"
+    if isinstance(class_name, JavaClass):
+        # Extract the class name from JavaClass object
+        class_name_str = get_java_class(class_name).getName()
     else:
         class_name_str = class_name
-
-    return _varargs_op("objectOf", class_name_str, *args)
+    return _varargs_op("objectOf", class_name, *args)
 
 @PublicEvolving()
 def row_interval(rows: int) -> Expression:
