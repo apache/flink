@@ -1280,6 +1280,24 @@ valueconstruction:
       ```sql
       f(columns => DESCRIPTOR(`col1`, `col2`), on_time => DESCRIPTOR(`ts`))
       ```
+  - sql: OBJECT_OF(className, [key, value [, key, value , ...]])
+    table: objectOf(STRING, Object...)
+    description: |
+      根据键值对列表创建结构化对象。
+
+      该函数通过给定的类名创建结构化类型的实例。
+      结构化类型通过提供交替的键值对来创建，其中键必须是
+      字符串字面量，值可以是任意表达式。
+
+      用户有责任提供在类路径中存在的有效完全限定类名。
+      类名应遵循Java命名约定（例如，'com.example.User'）。
+      如果提供的类名无效或不存在，该函数将回退到使用
+      Row.class作为类型表示。
+
+      ```sql
+      -- 创建一个具有name="Bob"和age=42的User对象
+      OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 42)
+      ```
   - table: NUMERIC.rows
     description: 创建一个 NUMERIC 行间隔（通常用于窗口创建）。
 
