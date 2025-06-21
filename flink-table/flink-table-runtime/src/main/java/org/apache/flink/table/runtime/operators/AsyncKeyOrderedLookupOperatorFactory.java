@@ -27,16 +27,18 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.legacy.YieldingOperatorFactory;
 
+import java.util.concurrent.Executors;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The factory of {@link TableKeyedAsyncWaitOperator}.
+ * The factory of {@link AsyncKeyOrderedLookupOperator}.
  *
  * @param <IN> The input type of the operator
  * @param <OUT> The output type of the operator
  * @param <KEY> The key type of the operator
  */
-public class TableKeyedAsyncWaitOperatorFactory<IN, OUT, KEY>
+public class AsyncKeyOrderedLookupOperatorFactory<IN, OUT, KEY>
         extends AbstractStreamOperatorFactory<OUT>
         implements OneInputStreamOperatorFactory<IN, OUT>, YieldingOperatorFactory<OUT> {
 
@@ -45,7 +47,7 @@ public class TableKeyedAsyncWaitOperatorFactory<IN, OUT, KEY>
     private final long timeout;
     private final int capacity;
 
-    public TableKeyedAsyncWaitOperatorFactory(
+    public AsyncKeyOrderedLookupOperatorFactory(
             AsyncFunction<IN, OUT> asyncFunction,
             KeySelector<IN, KEY> keySelector,
             long timeout,
@@ -62,23 +64,26 @@ public class TableKeyedAsyncWaitOperatorFactory<IN, OUT, KEY>
     public <T extends StreamOperator<OUT>> T createStreamOperator(
             StreamOperatorParameters<OUT> parameters) {
 
-        TableKeyedAsyncWaitOperator keyedAsyncWaitOperator =
-                new TableKeyedAsyncWaitOperator(
+        AsyncKeyOrderedLookupOperator<IN, OUT, KEY> keyedOrderedAsyncOperator =
+                new AsyncKeyOrderedLookupOperator(
                         asyncFunction,
                         keySelector,
-                        timeout,
+                        // todo: replace this thread pool
+                        Executors.newSingleThreadExecutor(),
+                        1,
+                        10,
                         capacity,
-                        processingTimeService,
-                        getMailboxExecutor());
-        keyedAsyncWaitOperator.setup(
+                        timeout,
+                        processingTimeService);
+        keyedOrderedAsyncOperator.setup(
                 parameters.getContainingTask(),
                 parameters.getStreamConfig(),
                 parameters.getOutput());
-        return (T) keyedAsyncWaitOperator;
+        return (T) keyedOrderedAsyncOperator;
     }
 
     @Override
     public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-        return TableKeyedAsyncWaitOperator.class;
+        return AsyncKeyOrderedLookupOperator.class;
     }
 }

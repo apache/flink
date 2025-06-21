@@ -46,12 +46,12 @@ public abstract class AbstractAsyncRunnableStreamOperator<OUT>
         extends AbstractAsyncKeyOrderedStreamOperator<OUT>
         implements AsyncKeyOrderedProcessingOperator {
 
-    final KeySelector<?, ?> keySelector1;
-    final KeySelector<?, ?> keySelector2;
-    final ExecutorService asyncThreadPool;
-    final int asyncBufferSize;
-    final long asyncBufferTimeout;
-    final int inFlightRecordsLimit;
+    protected final KeySelector<?, ?> keySelector1;
+    protected final KeySelector<?, ?> keySelector2;
+    protected final ExecutorService asyncThreadPool;
+    protected final int asyncBufferSize;
+    protected final long asyncBufferTimeout;
+    protected final int inFlightRecordsLimit;
 
     public AbstractAsyncRunnableStreamOperator(
             KeySelector<?, ?> keySelector1,
