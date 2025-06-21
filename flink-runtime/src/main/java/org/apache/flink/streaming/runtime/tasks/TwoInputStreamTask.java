@@ -65,6 +65,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
         checkpointBarrierHandler =
                 InputProcessorUtil.createCheckpointBarrierHandler(
                         this,
+                        getJobConfiguration(),
                         configuration,
                         getCheckpointCoordinator(),
                         getTaskNameWithSubtaskAndId(),

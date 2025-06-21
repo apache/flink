@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -78,6 +79,7 @@ public class InputProcessorUtil {
 
     public static CheckpointBarrierHandler createCheckpointBarrierHandler(
             CheckpointableTask toNotifyOnCheckpoint,
+            Configuration jobConf,
             StreamConfig config,
             SubtaskCheckpointCoordinator checkpointCoordinator,
             String taskName,
@@ -103,6 +105,7 @@ public class InputProcessorUtil {
                                         .sum();
                 return createBarrierHandler(
                         toNotifyOnCheckpoint,
+                        jobConf,
                         config,
                         checkpointCoordinator,
                         taskName,
@@ -112,7 +115,7 @@ public class InputProcessorUtil {
                         clock,
                         numberOfChannels);
             case AT_LEAST_ONCE:
-                if (config.isUnalignedCheckpointsEnabled()) {
+                if (jobConf.get(CheckpointingOptions.ENABLE_UNALIGNED)) {
                     throw new IllegalStateException(
                             "Cannot use unaligned checkpoints with AT_LEAST_ONCE "
                                     + "checkpointing mode");
@@ -135,6 +138,7 @@ public class InputProcessorUtil {
 
     private static SingleCheckpointBarrierHandler createBarrierHandler(
             CheckpointableTask toNotifyOnCheckpoint,
+            Configuration jobConf,
             StreamConfig config,
             SubtaskCheckpointCoordinator checkpointCoordinator,
             String taskName,
@@ -146,7 +150,7 @@ public class InputProcessorUtil {
         boolean enableCheckpointAfterTasksFinished =
                 config.getConfiguration()
                         .get(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH);
-        if (config.isUnalignedCheckpointsEnabled()) {
+        if (jobConf.get(CheckpointingOptions.ENABLE_UNALIGNED)) {
             return SingleCheckpointBarrierHandler.alternating(
                     taskName,
                     toNotifyOnCheckpoint,
