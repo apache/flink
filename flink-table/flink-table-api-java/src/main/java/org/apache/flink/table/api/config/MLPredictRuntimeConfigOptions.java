@@ -54,8 +54,8 @@ public class MLPredictRuntimeConfigOptions {
                                     + "If set to ALLOW_UNORDERED, will attempt to use {@see AsyncDataStream.OutputMode.UNORDERED} when it does not "
                                     + "affect the correctness of the result, otherwise ORDERED will be still used.");
 
-    public static final ConfigOption<Integer> ASYNC_CAPACITY =
-            key("capacity")
+    public static final ConfigOption<Integer> ASYNC_MAX_CONCURRENT_OPERATIONS =
+            key("max-concurrent-operations")
                     .intType()
                     .noDefaultValue()
                     .withDescription(
@@ -74,7 +74,7 @@ public class MLPredictRuntimeConfigOptions {
     static {
         supportedKeys.add(ASYNC);
         supportedKeys.add(ASYNC_OUTPUT_MODE);
-        supportedKeys.add(ASYNC_CAPACITY);
+        supportedKeys.add(ASYNC_MAX_CONCURRENT_OPERATIONS);
         supportedKeys.add(ASYNC_TIMEOUT);
     }
 
