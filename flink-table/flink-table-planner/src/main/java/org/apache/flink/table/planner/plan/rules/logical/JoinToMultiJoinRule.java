@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
 import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil;
 
@@ -58,6 +57,7 @@ import org.apache.calcite.util.Pair;
 import org.immutables.value.Value;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -183,18 +183,12 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
         final List<ImmutableBitSet> projFieldsList = new ArrayList<>();
         final List<int[]> joinFieldRefCountsList = new ArrayList<>();
         final List<RelNode> newInputs =
-                combineInputs(
-                        origJoin,
-                        left,
-                        right,
-                        projFieldsList,
-                        joinFieldRefCountsList,
-                        inputNullGenFieldList);
+                combineInputs(origJoin, left, right, projFieldsList, joinFieldRefCountsList);
 
         // Combine the join information from the left and right inputs, and include the
         // join information from the current join.
         final List<Pair<JoinRelType, RexNode>> joinSpecs = new ArrayList<>();
-        combineJoinInfo(origJoin, newInputs, left, right, joinSpecs, inputNullGenFieldList);
+        combineJoinInfo(origJoin, left, joinSpecs);
 
         // Pull up the join filters from the children MultiJoinRels and combine them with the join
         // filter associated with this LogicalJoin to form the join filter for the new MultiJoin.
@@ -289,7 +283,6 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
      * @param left left input into join
      * @param right right input into join
      * @param projFieldsList returns a list of the new combined projection fields
-     * @param joinFieldRefCountsList returns a list of the new combined join field reference counts
      * @return combined left and right inputs in an array
      */
     private List<RelNode> combineInputs(
@@ -297,45 +290,34 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
             RelNode left,
             RelNode right,
             List<ImmutableBitSet> projFieldsList,
-            List<int[]> joinFieldRefCountsList,
-            List<Boolean> inputNullGenFieldList) {
+            List<int[]> joinFieldRefCountsList) {
         final List<RelNode> newInputs = new ArrayList<>();
-        // Leave the null generating sides of an outer join intact; don't pull up those children
-        // inputs into the array we're constructing.
-        JoinInfo joinInfo = join.analyzeCondition();
-        ImmutableIntList leftKeys = joinInfo.leftKeys;
-        ImmutableIntList rightKeys = joinInfo.rightKeys;
 
-        if (canCombine(left, join)) {
-            final MultiJoin leftMultiJoin = (MultiJoin) left;
-            for (int i = 0; i < leftMultiJoin.getInputs().size(); i++) {
-                newInputs.add(leftMultiJoin.getInput(i));
-                projFieldsList.add(leftMultiJoin.getProjFields().get(i));
-                joinFieldRefCountsList.add(
-                        leftMultiJoin.getJoinFieldRefCountsMap().get(i).toIntArray());
-            }
-
-        } else {
-            newInputs.add(left);
-            projFieldsList.add(null);
-            joinFieldRefCountsList.add(new int[left.getRowType().getFieldCount()]);
-        }
-
-        if (canCombine(right, join)) {
-            final MultiJoin rightMultiJoin = (MultiJoin) right;
-            for (int i = 0; i < rightMultiJoin.getInputs().size(); i++) {
-                newInputs.add(rightMultiJoin.getInput(i));
-                projFieldsList.add(rightMultiJoin.getProjFields().get(i));
-                joinFieldRefCountsList.add(
-                        rightMultiJoin.getJoinFieldRefCountsMap().get(i).toIntArray());
-            }
-        } else {
-            newInputs.add(right);
-            projFieldsList.add(null);
-            joinFieldRefCountsList.add(new int[right.getRowType().getFieldCount()]);
-        }
+        combineIfCan(join, left, newInputs, projFieldsList, joinFieldRefCountsList);
+        combineIfCan(join, right, newInputs, projFieldsList, joinFieldRefCountsList);
 
         return newInputs;
+    }
+
+    private void combineIfCan(
+            Join join,
+            RelNode relNode,
+            List<RelNode> newInputs,
+            List<ImmutableBitSet> projFieldsList,
+            List<int[]> joinFieldRefCountsList) {
+        if (canCombine(relNode, join)) {
+            final MultiJoin multiJoin = (MultiJoin) relNode;
+            for (int i = 0; i < multiJoin.getInputs().size(); i++) {
+                newInputs.add(multiJoin.getInput(i));
+                projFieldsList.add(multiJoin.getProjFields().get(i));
+                joinFieldRefCountsList.add(
+                        multiJoin.getJoinFieldRefCountsMap().get(i).toIntArray());
+            }
+        } else {
+            newInputs.add(relNode);
+            projFieldsList.add(null);
+            joinFieldRefCountsList.add(new int[relNode.getRowType().getFieldCount()]);
+        }
     }
 
     /**
@@ -345,41 +327,25 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
      * The join type is also set.
      *
      * @param joinRel join rel
-     * @param combinedInputs the combined inputs to the join
      * @param left left child of the joinrel
-     * @param right right child of the joinrel
      * @param joinSpecs the list where the join types and conditions will be copied
      */
     private void combineJoinInfo(
-            Join joinRel,
-            List<RelNode> combinedInputs,
-            RelNode left,
-            RelNode right,
-            List<Pair<JoinRelType, RexNode>> joinSpecs,
-            List<Boolean> inputNullGenFieldList) {
+            Join joinRel, RelNode left, List<Pair<JoinRelType, RexNode>> joinSpecs) {
         JoinRelType joinType = joinRel.getJoinType();
-        JoinInfo joinInfo = joinRel.analyzeCondition();
-        ImmutableIntList leftKeys = joinInfo.leftKeys;
         final RexBuilder rexBuilder = joinRel.getCluster().getRexBuilder();
         boolean leftCombined = canCombine(left, joinRel);
         switch (joinType) {
             case LEFT:
-                if (leftCombined) {
-                    copyJoinInfo((MultiJoin) left, joinSpecs);
-                } else {
-                    joinSpecs.add(Pair.of(JoinRelType.INNER, rexBuilder.makeLiteral(true)));
-                }
-                joinSpecs.add(Pair.of(joinType, joinRel.getCondition()));
-                break;
             case INNER:
                 if (leftCombined) {
                     copyJoinInfo((MultiJoin) left, joinSpecs);
                 } else {
                     joinSpecs.add(Pair.of(JoinRelType.INNER, rexBuilder.makeLiteral(true)));
                 }
-
                 joinSpecs.add(Pair.of(joinType, joinRel.getCondition()));
                 break;
+
             default:
                 throw new TableException(
                         "This is a bug. This rule only supports left and inner joins");
@@ -606,9 +572,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
         int nFieldsOnLeft = left.getRowType().getFieldList().size();
         int nFieldsOnRight = right.getRowType().getFieldList().size();
         int[] adjustments = new int[nFieldsOnRight];
-        for (int i = 0; i < nFieldsOnRight; i++) {
-            adjustments[i] = nFieldsOnLeft;
-        }
+        Arrays.fill(adjustments, nFieldsOnLeft);
         rightFilter =
                 rightFilter.accept(
                         new RelOptUtil.RexInputConverter(
@@ -709,9 +673,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
             return true;
         }
 
-        FlinkLogicalJoin flinkLogicalJoin =
-                (FlinkLogicalJoin) FlinkLogicalJoin.CONVERTER().convert(join);
-        return IntervalJoinUtil.satisfyIntervalJoin(flinkLogicalJoin);
+        return IntervalJoinUtil.satisfyIntervalJoin(join);
     }
 
     /**
@@ -739,7 +701,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
      * @return true if the node or its children contain FlinkLogicalSnapshot
      */
     private boolean containsSnapshot(RelNode relNode) {
-        RelNode original = null;
+        final RelNode original;
         if (relNode instanceof RelSubset) {
             original = ((RelSubset) relNode).getOriginal();
         } else if (relNode instanceof HepRelVertex) {
