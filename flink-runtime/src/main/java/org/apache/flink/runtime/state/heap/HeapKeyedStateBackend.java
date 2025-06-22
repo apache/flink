@@ -51,6 +51,7 @@ import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StateSnapshotTransformers;
+import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
@@ -333,12 +334,23 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
         while (iterator.hasNext()) {
             final StateEntry<K, N, V> entry = iterator.next();
-            stateTable.put(
-                    entry.getKey(),
-                    KeyGroupRangeAssignment.assignToKeyGroup(entry.getKey(), numberOfKeyGroups),
-                    entry.getNamespace(),
-                    heapState.migrateTtlValue(
-                            entry.getState(), currentTtlAwareSerializer, ttlTimeProvider));
+            stateTable
+                    .getMapForKeyGroup(
+                            KeyGroupRangeAssignment.assignToKeyGroup(
+                                    entry.getKey(), numberOfKeyGroups))
+                    .transform(
+                            entry.getKey(),
+                            entry.getNamespace(),
+                            null,
+                            new StateTransformationFunction<V, V>() {
+                                @Override
+                                public V apply(V previousState, V value) throws Exception {
+                                    return heapState.migrateTtlValue(
+                                            previousState,
+                                            currentTtlAwareSerializer,
+                                            ttlTimeProvider);
+                                }
+                            });
         }
     }
 
