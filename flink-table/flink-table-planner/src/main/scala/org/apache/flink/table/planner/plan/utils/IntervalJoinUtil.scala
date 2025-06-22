@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapClassLoader, un
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.Join
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.SqlKind
@@ -466,11 +467,11 @@ object IntervalJoinUtil {
    * @return
    *   True if input join node satisfy preconditions to convert into interval join, else false.
    */
-  def satisfyIntervalJoin(join: FlinkLogicalJoin): Boolean = {
+  def satisfyIntervalJoin(join: Join): Boolean = {
     satisfyIntervalJoin(join, join.getLeft, join.getRight)
   }
 
-  def satisfyIntervalJoin(join: FlinkLogicalJoin, newLeft: RelNode, newRight: RelNode): Boolean = {
+  def satisfyIntervalJoin(join: Join, newLeft: RelNode, newRight: RelNode): Boolean = {
     // TODO support SEMI/ANTI joinSplitAggregateRuleTest
     if (!join.getJoinType.projectsRight) {
       return false
