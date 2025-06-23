@@ -203,6 +203,11 @@ public class TableAsyncExecutionController<IN, OUT, KEY> {
     }
 
     @VisibleForTesting
+    public EpochManager<OUT> getEpochManager() {
+        return epochManager;
+    }
+
+    @VisibleForTesting
     public int getBlockingSize() {
         return recordsBuffer.getBlockingSize();
     }

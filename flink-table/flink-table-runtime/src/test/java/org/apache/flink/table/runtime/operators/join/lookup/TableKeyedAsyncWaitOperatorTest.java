@@ -32,6 +32,7 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.table.runtime.operators.TableKeyedAsyncWaitOperator;
 import org.apache.flink.table.runtime.operators.TableKeyedAsyncWaitOperatorFactory;
 import org.apache.flink.table.runtime.operators.join.lookup.keyordered.Epoch;
+import org.apache.flink.table.runtime.operators.join.lookup.keyordered.EpochManager;
 import org.apache.flink.table.runtime.operators.join.lookup.keyordered.TableAsyncExecutionController;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -345,12 +346,25 @@ public class TableKeyedAsyncWaitOperatorTest {
         testHarness.initializeState(snapshot);
         testHarness.open();
 
+        Optional<Epoch<Integer>> epochWithMinWatermark = unwrapEpoch(testHarness, Long.MIN_VALUE);
+        assertThat(epochWithMinWatermark).isPresent();
+        assertThat(epochWithMinWatermark.get().getOngoingRecordCount()).isEqualTo(4);
+
+        testHarness.processWatermark(1000L);
         testHarness.processElement(new StreamRecord<>(5, initialTime + 5));
         testHarness.processElement(new StreamRecord<>(6, initialTime + 6));
         testHarness.processElement(new StreamRecord<>(7, initialTime + 7));
         testHarness.processElement(new StreamRecord<>(8, initialTime + 8));
-        testHarness.processWatermark(Long.MAX_VALUE);
+        Optional<Epoch<Integer>> epochWithMidWatermark = unwrapEpoch(testHarness, 1000L);
+        assertThat(epochWithMidWatermark).isPresent();
+        assertThat(epochWithMidWatermark.get().getOngoingRecordCount()).isEqualTo(4);
 
+        testHarness.processWatermark(Long.MAX_VALUE);
+        Optional<Epoch<Integer>> epochWithMaxWatermark = unwrapEpoch(testHarness, Long.MAX_VALUE);
+        assertThat(epochWithMaxWatermark).isPresent();
+        assertThat(epochWithMaxWatermark.get().getOngoingRecordCount()).isEqualTo(0);
+
+        expected.add(new Watermark(1000L));
         expected.add(new StreamRecord<>(5, initialTime + 5));
         expected.add(new StreamRecord<>(6, initialTime + 6));
         expected.add(new StreamRecord<>(7, initialTime + 7));
@@ -359,6 +373,16 @@ public class TableKeyedAsyncWaitOperatorTest {
 
         testLazyAsyncFunction.countDown();
         testHarness.endInput();
+
+        // TODO FLINK-37981 send Long.MAX watermark downstream
+        assertThat(unwrapEpochManager(testHarness).getOutputQueue().size()).isEqualTo(1);
+        assertThat(
+                        unwrapEpochManager(testHarness)
+                                .getOutputQueue()
+                                .get(0)
+                                .getWatermark()
+                                .getTimestamp())
+                .isEqualTo(Long.MAX_VALUE);
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "StateAndRestored Test Output was not correct.",
@@ -479,5 +503,20 @@ public class TableKeyedAsyncWaitOperatorTest {
         Map<Integer, Watermark> actualWatermarks = extractWatermarks.apply(actualList);
 
         assertThat(actualWatermarks).as(message).isEqualTo(expectedWatermarks);
+    }
+
+    private EpochManager<Integer> unwrapEpochManager(
+            KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness) {
+        TableKeyedAsyncWaitOperator<Integer, Integer, Integer> operator =
+                (TableKeyedAsyncWaitOperator<Integer, Integer, Integer>) testHarness.getOperator();
+        TableAsyncExecutionController<Integer, Integer, Integer> asyncExecutionController =
+                operator.getAsyncExecutionController();
+        return asyncExecutionController.getEpochManager();
+    }
+
+    private Optional<Epoch<Integer>> unwrapEpoch(
+            KeyedOneInputStreamOperatorTestHarness<Integer, Integer, Integer> testHarness,
+            long targetEpochWatermark) {
+        return unwrapEpochManager(testHarness).getProperEpoch(new Watermark(targetEpochWatermark));
     }
 }

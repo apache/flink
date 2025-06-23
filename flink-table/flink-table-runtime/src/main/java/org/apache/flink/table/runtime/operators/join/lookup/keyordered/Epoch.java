@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.lookup.keyordered;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEntry;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.Preconditions;
@@ -140,6 +141,11 @@ public class Epoch<OUT> {
     public String toString() {
         return String.format(
                 "Epoch{watermark=%s, ongoingRecord=%d}", watermark, ongoingRecordCount);
+    }
+
+    @VisibleForTesting
+    public int getOngoingRecordCount() {
+        return ongoingRecordCount;
     }
 
     /** The status of an epoch. */

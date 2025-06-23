@@ -105,6 +105,11 @@ public class EpochManager<OUT> {
         return activeEpoch;
     }
 
+    @VisibleForTesting
+    public LinkedList<Epoch<OUT>> getOutputQueue() {
+        return outputQueue;
+    }
+
     private void tryFinishInQueue() {
         // If one epoch has been closed before and all records in
         // this epoch have finished, the epoch will be removed from the output queue.
