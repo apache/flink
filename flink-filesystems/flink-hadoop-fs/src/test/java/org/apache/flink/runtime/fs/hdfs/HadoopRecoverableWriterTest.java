@@ -79,6 +79,25 @@ class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
         final Configuration hdConf = new Configuration();
         hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
+
+        final MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
+        hdfsCluster = builder.build();
+
+        final org.apache.hadoop.fs.FileSystem hdfs = hdfsCluster.getFileSystem();
+
+        fileSystem = new HadoopFileSystem(hdfs);
+        basePath = new Path(hdfs.getUri() + "/tests");
+    }
+
+    /**
+     * This method creates a HDFS cluster with 3 DataNodes, which is prepared for
+     * method {@link #testNoLocalWriteFlag}.
+     */
+    static void createHDFSWithMultiNodes() throws Exception {
+        final File baseDir = TempDirUtils.newFolder(tempFolder);
+
+        final Configuration hdConf = new Configuration();
+        hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
         hdConf.set("dfs.replication", "2");
         hdConf.set("dfs.blocksize", String.valueOf(512));
         hdConf.set("dfs.namenode.fs-limits.min-block-size", String.valueOf(512));
@@ -110,7 +129,7 @@ class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
     @Test
     void testNoLocalWriteFlag() throws Exception {
-        createHDFS();
+        createHDFSWithMultiNodes();
         final HadoopRecoverableWriter writer =
                 (HadoopRecoverableWriter) getNoLocalWriteFileSystemWriter();
         BlockManager bm = hdfsCluster.getNameNode().getNamesystem().getBlockManager();
