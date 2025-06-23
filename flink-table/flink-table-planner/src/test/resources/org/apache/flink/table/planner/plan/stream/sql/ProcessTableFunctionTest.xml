@@ -54,6 +54,28 @@ ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT(), DEF
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testViewOfDifferentPartitionKey">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM v]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(score=[$0], out=[$1])
++- LogicalProject(score=[$0], out=[$1])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER score, VARCHAR(2147483647) out)])
+      +- LogicalProject(name=[$0], score=[$1])
+         +- LogicalProject(name=[$0], score=[$1])
+            +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT(), DEFAULT())], uid=[f], select=[score,out], rowType=[RecordType(INTEGER score, VARCHAR(2147483647) out)])
++- Exchange(distribution=[hash[score]])
+   +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testEmptyArgs">
     <Resource name="sql">
       <![CDATA[SELECT * FROM f(uid => 'my-ptf')]]>
