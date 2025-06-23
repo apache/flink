@@ -25,8 +25,6 @@ import org.apache.flink.util.StringUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -43,8 +41,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * filesystem specific writer.
  */
 public abstract class AbstractRecoverableWriterTest {
-
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractRecoverableWriterTest.class);
 
     private static final Random RND = new Random();
 
@@ -200,29 +196,16 @@ public abstract class AbstractRecoverableWriterTest {
         final Map<String, RecoverableWriter.ResumeRecoverable> recoverables = new HashMap<>(4);
         RecoverableFsDataOutputStream stream = null;
         try {
-            // This is just to provide diagnostics to locate the root cause:
-            // https://issues.apache.org/jira/browse/FLINK-37703
-            // After the fix, this logic should be reverted.
-            int times = 0;
-            try {
-                times++;
-                stream = initWriter.open(path);
-                recoverables.put(INIT_EMPTY_PERSIST, stream.persist());
+            stream = initWriter.open(path);
+            recoverables.put(INIT_EMPTY_PERSIST, stream.persist());
 
-                times++;
-                stream.write(testData1.getBytes(StandardCharsets.UTF_8));
+            stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
-                recoverables.put(INTERM_WITH_STATE_PERSIST, stream.persist());
-                recoverables.put(INTERM_WITH_NO_ADDITIONAL_STATE_PERSIST, stream.persist());
+            recoverables.put(INTERM_WITH_STATE_PERSIST, stream.persist());
+            recoverables.put(INTERM_WITH_NO_ADDITIONAL_STATE_PERSIST, stream.persist());
 
-                // and write some more data
-                times++;
-                stream.write(testData2.getBytes(StandardCharsets.UTF_8));
-
-            } catch (IOException e) {
-                LOG.warn("{} execution failed, err message{}: ", times, e.getMessage());
-                throw e;
-            }
+            // and write some more data
+            stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 
             recoverables.put(FINAL_WITH_EXTRA_STATE, stream.persist());
         } finally {
@@ -253,13 +236,9 @@ public abstract class AbstractRecoverableWriterTest {
                 assertThat(fileContents.getKey().getName()).startsWith(".part-0.inprogress.");
                 assertThat(fileContents.getValue()).isEqualTo(expectedPostRecoveryContents);
             }
-            try {
-                recoveredStream.write(testData3.getBytes(StandardCharsets.UTF_8));
-                recoveredStream.closeForCommit().commit();
-            } catch (IOException e) {
-                LOG.warn("Final write failed: {}", e.getMessage());
-                throw e;
-            }
+
+            recoveredStream.write(testData3.getBytes(StandardCharsets.UTF_8));
+            recoveredStream.closeForCommit().commit();
 
             files = getFileContentByPath(testDir);
             assertThat(files).hasSize(1);
