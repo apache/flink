@@ -81,7 +81,7 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
     private static final ArgumentCount AT_LEAST_ONE_ODD =
             new ArgumentCount() {
                 @Override
-                public boolean isValidCount(int count) {
+                public boolean isValidCount(final int count) {
                     return count % 2 == 1;
                 }
 
@@ -97,8 +97,8 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
             };
 
     private static void validateClassInput(
-            final CallContext callContext, final List<DataType> argumentDataTypes) {
-        final LogicalType classArgumentType = argumentDataTypes.get(0).getLogicalType();
+            final CallContext callContext, final DataType firstArgumentDataType) {
+        final LogicalType classArgumentType = firstArgumentDataType.getLogicalType();
 
         final String errorMessage =
                 "The first argument must be a STRING/VARCHAR type representing the class name.";
@@ -115,11 +115,11 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
         final Set<String> fieldNames = new HashSet<>();
         for (int i = 1; i < argumentDataTypes.size(); i += 2) {
             final LogicalType fieldNameLogicalType = argumentDataTypes.get(i).getLogicalType();
-            validateFieldNameInput(callContext, i, fieldNameLogicalType, fieldNames);
+            validateFieldNameArgument(callContext, i, fieldNameLogicalType, fieldNames);
         }
     }
 
-    private static void validateFieldNameInput(
+    private static void validateFieldNameArgument(
             final CallContext callContext,
             final int idx,
             final LogicalType logicalType,
@@ -145,9 +145,7 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
 
         if (!fieldNames.add(fieldName)) {
             throw new ValidationException(
-                    String.format(
-                            "The field name '%s' at position %d is repeated.",
-                            fieldName, keyIndex));
+                    "The field name " + fieldName + " at position " + keyIndex + " is repeated.");
         }
     }
 
@@ -161,7 +159,7 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
             final CallContext callContext, final boolean throwOnFailure) {
         final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
 
-        validateClassInput(callContext, argumentDataTypes);
+        validateClassInput(callContext, argumentDataTypes.get(0));
         validateKeyArguments(callContext, argumentDataTypes);
 
         return Optional.of(argumentDataTypes);
