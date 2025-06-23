@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.join.lookup.keyordered;
 
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEntry;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -72,6 +73,7 @@ public class Epoch<OUT> {
 
     public void decrementCount() {
         ongoingRecordCount--;
+        Preconditions.checkState(ongoingRecordCount >= 0);
     }
 
     public void incrementCount() {

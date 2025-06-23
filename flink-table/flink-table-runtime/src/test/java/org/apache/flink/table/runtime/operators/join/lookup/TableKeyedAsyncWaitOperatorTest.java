@@ -340,7 +340,6 @@ public class TableKeyedAsyncWaitOperatorTest {
         testHarness.close();
 
         testLazyAsyncFunction = new LazyAsyncFunction();
-        testLazyAsyncFunction.countDown();
         testHarness = createKeyedTestHarness(testLazyAsyncFunction, TIMEOUT, 10);
 
         testHarness.initializeState(snapshot);
