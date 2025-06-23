@@ -83,6 +83,7 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotPayload;
+import org.apache.flink.runtime.util.ContextGetter;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
@@ -621,20 +622,8 @@ public class Task
 
             // activate fileSystem Context for task thread
             LOG.debug("Creating FileSystem caller context for task {}", this);
-            String context = "FLINK";
-            if (System.getenv().get("CONTAINER_ID") != null) {
-                String[] application = System.getenv().get("CONTAINER_ID").split("_");
-                context = context + "_application_" + application[2] + "_" + application[3];
-            } else if (System.getenv().get("KUBERNETES_SERVICE_HOST") != null) {
-                String podName = System.getenv("HOSTNAME");
-
-                context = context + "_pod_" + podName;
-
-            } else {
-                context = context + "_local";
-            }
-            context = context + "JobID_" + jobId + "_TaskName_" + taskInfo.getTaskName();
-            FileSystemContext.initializeContextForThread(context);
+            FileSystemContext.initializeContextForThread(
+                    ContextGetter.getContext(jobId.toString(), taskInfo.getTaskName()));
 
             // activate safety net for task thread
             LOG.debug("Creating FileSystem stream leak safety net for task {}", this);

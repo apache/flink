@@ -30,6 +30,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
+import org.apache.flink.runtime.util.ContextGetter;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.util.ExceptionUtils;
@@ -116,20 +117,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 checkpointMetaData.getCheckpointId(),
                 asyncStartDelayMillis);
 
-        String context = "FLINK";
-        if (System.getenv().get("CONTAINER_ID") != null) {
-            String[] application = System.getenv().get("CONTAINER_ID").split("_");
-            context = context + "_application_" + application[2] + "_" + application[3];
-        } else if (System.getenv().get("KUBERNETES_SERVICE_HOST") != null) {
-            String podName = System.getenv("HOSTNAME");
-
-            context = context + "_pod_" + podName;
-
-        } else {
-            context = context + "_local";
-        }
-        context = context + "JobID_" + taskEnvironment.getJobID() + "_TaskName_" + taskName;
-        FileSystemContext.initializeContextForThread(context);
+        FileSystemContext.initializeContextForThread(
+                ContextGetter.getContext(taskEnvironment.getJobID().toString(), taskName));
 
         FileSystemSafetyNet.initializeSafetyNetForThread();
         try {
