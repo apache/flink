@@ -44,8 +44,8 @@ import java.util.stream.IntStream;
  * <ul>
  *   <li>Extracts the class name from the first argument (must be a string literal)
  *   <li>Processes key-value pairs starting from the second argument
- *   <li>Extracts field names from odd-positioned arguments (indices 1, 3, 5, ...)
- *   <li>Normalizes field types from even-positioned arguments (indices 2, 4, 6, ...)
+ *   <li>Extracts field names (keys) from odd-positioned arguments (indices 1, 3, 5, ...)
+ *   <li>Normalizes field types (values) from even-positioned arguments (indices 2, 4, 6, ...)
  *   <li>Creates a structured type with the given class name and normalized fields
  * </ul>
  *
@@ -57,7 +57,7 @@ import java.util.stream.IntStream;
  * </ul>
  *
  * <p>The strategy returns {@code Optional.empty()} if the class name argument is not available as a
- * literal value (e.g., during type inference testing scenarios).
+ * literal value.
  *
  * <p><b>Note: Users are responsible for providing a valid fully qualified class name that exists in
  * the classpath. The class name should follow Java naming conventions. If an invalid or
@@ -71,14 +71,6 @@ import java.util.stream.IntStream;
  *       STRUCTURED<com.example.User>(name STRING, age INT)}
  *   <li>{@code OBJECT_OF('com.example.Point', 'x', 1.5, 'y', 2.0)} → {@code
  *       STRUCTURED<com.example.Point>(x DOUBLE, y DOUBLE)}
- * </ul>
- *
- * <p><b>Implementation Notes:</b>
- *
- * <ul>
- *   <li>Field names must be available as string literals during type inference
- *   <li>The class name is used for type identification but the runtime representation is RowData
- *   <li>Uses {@link IntStream} for efficient processing of key-value pairs
  * </ul>
  *
  * @see org.apache.flink.table.functions.BuiltInFunctionDefinitions#OBJECT_OF
@@ -114,7 +106,7 @@ public class ObjectOfTypeStrategy implements TypeStrategy {
      * Normalizes field types for structured types: - Converts CHARACTER_STRING types (CHAR,
      * VARCHAR) to VARCHAR (STRING) - Makes all types nullable for flexibility in structured types.
      */
-    private static DataType normalizeFieldType(DataType fieldType) {
+    private static DataType normalizeFieldType(final DataType fieldType) {
         final LogicalType logicalType = fieldType.getLogicalType();
 
         if (logicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
