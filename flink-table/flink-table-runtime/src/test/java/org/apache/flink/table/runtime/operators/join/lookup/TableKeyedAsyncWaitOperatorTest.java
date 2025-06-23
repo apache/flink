@@ -340,6 +340,7 @@ public class TableKeyedAsyncWaitOperatorTest {
         testHarness.close();
 
         testLazyAsyncFunction = new LazyAsyncFunction();
+        testLazyAsyncFunction.countDown();
         testHarness = createKeyedTestHarness(testLazyAsyncFunction, TIMEOUT, 10);
 
         testHarness.initializeState(snapshot);
@@ -349,23 +350,20 @@ public class TableKeyedAsyncWaitOperatorTest {
         testHarness.processElement(new StreamRecord<>(6, initialTime + 6));
         testHarness.processElement(new StreamRecord<>(7, initialTime + 7));
         testHarness.processElement(new StreamRecord<>(8, initialTime + 8));
+        testHarness.processWatermark(Long.MAX_VALUE);
 
-        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-        expectedOutput.add(new StreamRecord<>(1, initialTime + 1));
-        expectedOutput.add(new StreamRecord<>(2, initialTime + 2));
-        expectedOutput.add(new StreamRecord<>(3, initialTime + 3));
-        expectedOutput.add(new StreamRecord<>(4, initialTime + 4));
-        expectedOutput.add(new StreamRecord<>(5, initialTime + 5));
-        expectedOutput.add(new StreamRecord<>(6, initialTime + 6));
-        expectedOutput.add(new StreamRecord<>(7, initialTime + 7));
-        expectedOutput.add(new StreamRecord<>(8, initialTime + 8));
+        expected.add(new StreamRecord<>(5, initialTime + 5));
+        expected.add(new StreamRecord<>(6, initialTime + 6));
+        expected.add(new StreamRecord<>(7, initialTime + 7));
+        expected.add(new StreamRecord<>(8, initialTime + 8));
+        expected.add(new Watermark(Long.MAX_VALUE));
 
         testLazyAsyncFunction.countDown();
         testHarness.endInput();
 
         TestHarnessUtil.assertOutputEqualsSorted(
                 "StateAndRestored Test Output was not correct.",
-                expectedOutput,
+                expected,
                 testHarness.getOutput(),
                 new StreamRecordComparator());
         testHarness.close();

@@ -35,6 +35,7 @@ import org.junit.jupiter.api.{BeforeEach, Test}
 import javax.annotation.Nullable
 
 import java.time.LocalDateTime
+import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConversions._
 
@@ -434,7 +435,7 @@ class DeltaJoinITCase extends StreamingTestBase {
 
     tEnv
       .executeSql(s"insert into testSnk select * from testLeft join testRight on $joinKeyStr")
-      .await()
+      .await(60, TimeUnit.SECONDS)
     val result = TestValuesTableFactory.getResultsAsStrings("testSnk")
 
     assertThat(result.sorted).isEqualTo(expected.sorted)
