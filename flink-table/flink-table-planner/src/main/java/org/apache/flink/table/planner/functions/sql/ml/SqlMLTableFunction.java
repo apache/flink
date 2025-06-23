@@ -54,7 +54,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC;
-import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC_CAPACITY;
+import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC_MAX_CONCURRENT_OPERATIONS;
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_STRING;
 
@@ -247,13 +247,14 @@ public abstract class SqlMLTableFunction extends SqlFunction implements SqlTable
         // async options are all optional
         Boolean async = config.get(ASYNC);
         if (Boolean.TRUE.equals(async)) {
-            Integer capacity = config.get(ASYNC_CAPACITY);
-            if (capacity != null && capacity <= 0) {
+            Integer maxConcurrentOperations = config.get(ASYNC_MAX_CONCURRENT_OPERATIONS);
+            if (maxConcurrentOperations != null && maxConcurrentOperations <= 0) {
                 return Optional.of(
                         new ValidationException(
                                 String.format(
                                         "Invalid runtime config option '%s'. Its value should be positive integer but was %s.",
-                                        ASYNC_CAPACITY.key(), capacity)));
+                                        ASYNC_MAX_CONCURRENT_OPERATIONS.key(),
+                                        maxConcurrentOperations)));
             }
         }
 
