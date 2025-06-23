@@ -34,7 +34,6 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.HeapPriorityQueuesManager;
 import org.apache.flink.runtime.state.InternalKeyContext;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateFunction;
@@ -332,26 +331,15 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 (TtlAwareSerializer<V, ?>)
                         TtlAwareSerializer.wrapTtlAwareSerializer(currentSerializer);
 
-        while (iterator.hasNext()) {
-            final StateEntry<K, N, V> entry = iterator.next();
-            stateTable
-                    .getMapForKeyGroup(
-                            KeyGroupRangeAssignment.assignToKeyGroup(
-                                    entry.getKey(), numberOfKeyGroups))
-                    .transform(
-                            entry.getKey(),
-                            entry.getNamespace(),
-                            null,
-                            new StateTransformationFunction<V, V>() {
-                                @Override
-                                public V apply(V previousState, V value) throws Exception {
-                                    return heapState.migrateTtlValue(
-                                            previousState,
-                                            currentTtlAwareSerializer,
-                                            ttlTimeProvider);
-                                }
-                            });
-        }
+        stateTable.transformAll(
+                null,
+                new StateTransformationFunction<V, V>() {
+                    @Override
+                    public V apply(V previousState, V value) throws Exception {
+                        return heapState.migrateTtlValue(
+                                previousState, currentTtlAwareSerializer, ttlTimeProvider);
+                    }
+                });
     }
 
     @SuppressWarnings("unchecked")

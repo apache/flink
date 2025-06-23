@@ -212,6 +212,28 @@ public abstract class StateTable<K, N, S>
         getMapForKeyGroup(keyGroup).transform(key, namespace, value, transformation);
     }
 
+    /**
+     * Applies the given {@link StateTransformationFunction} to all state (1st input argument),
+     * using the given value as second input argument. The result of {@link
+     * StateTransformationFunction#apply(Object, Object)} is then stored as the new state. This
+     * function is basically an optimization for get-update-put pattern.
+     *
+     * @param value the value to use in transforming the state. Can be null.
+     * @throws Exception if some exception happens in the transformation function.
+     */
+    public <T> void transformAll(T value, StateTransformationFunction<S, T> transformation)
+            throws Exception {
+        final Iterator<StateEntry<K, N, S>> iterator = iterator();
+        while (iterator.hasNext()) {
+            StateEntry<K, N, S> entry = iterator.next();
+            StateMap<K, N, S> stateMap =
+                    getMapForKeyGroup(
+                            KeyGroupRangeAssignment.assignToKeyGroup(
+                                    entry.getKey(), keyContext.getNumberOfKeyGroups()));
+            stateMap.transform(entry.getKey(), entry.getNamespace(), value, transformation);
+        }
+    }
+
     // For queryable state ------------------------------------------------------------------------
 
     /**
