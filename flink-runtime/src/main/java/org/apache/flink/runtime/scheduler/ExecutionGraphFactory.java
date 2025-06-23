@@ -28,6 +28,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.VertexAttemptNumberStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.scheduler.adaptivebatch.ExecutionPlanSchedulingContext;
 
 import org.slf4j.Logger;
 
@@ -52,6 +53,8 @@ public interface ExecutionGraphFactory {
      * @param executionStateUpdateListener listener for state transitions of the individual
      *     executions
      * @param log log to use for logging
+     * @param executionPlanSchedulingContext execution plan scheduling context that retrieve
+     *     execution context details for adaptive batch jobs
      * @return restored {@link ExecutionGraph}
      * @throws Exception if the {@link ExecutionGraph} could not be created and restored
      */
@@ -67,6 +70,7 @@ public interface ExecutionGraphFactory {
             VertexParallelismStore vertexParallelismStore,
             ExecutionStateUpdateListener executionStateUpdateListener,
             MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
+            ExecutionPlanSchedulingContext executionPlanSchedulingContext,
             Logger log)
             throws Exception;
 }

@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCalc;
-import org.apache.flink.table.planner.plan.utils.AsyncUtil;
+import org.apache.flink.table.planner.plan.utils.AsyncScalarUtil;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -70,7 +70,7 @@ public class StreamPhysicalAsyncCalc extends StreamPhysicalCalcBase {
             throw new IllegalStateException(
                     "The condition of StreamPhysicalAsyncCalc should be null.");
         }
-        if (projection.stream().filter(AsyncUtil::containsAsyncCall).count() > 1) {
+        if (projection.stream().filter(AsyncScalarUtil::containsAsyncCall).count() > 1) {
             throw new IllegalStateException(
                     "Only a single async projection is allowed in StreamPhysicalAsyncCalc.");
         }

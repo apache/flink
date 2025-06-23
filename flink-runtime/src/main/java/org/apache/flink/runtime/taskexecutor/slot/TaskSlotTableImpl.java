@@ -31,6 +31,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
+import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -274,18 +275,20 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 
     @VisibleForTesting
     @Override
-    public boolean allocateSlot(
-            int index, JobID jobId, AllocationID allocationId, Duration slotTimeout) {
-        return allocateSlot(index, jobId, allocationId, defaultSlotResourceProfile, slotTimeout);
+    public void allocateSlot(
+            int index, JobID jobId, AllocationID allocationId, Duration slotTimeout)
+            throws SlotAllocationException {
+        allocateSlot(index, jobId, allocationId, defaultSlotResourceProfile, slotTimeout);
     }
 
     @Override
-    public boolean allocateSlot(
+    public void allocateSlot(
             int requestedIndex,
             JobID jobId,
             AllocationID allocationId,
             ResourceProfile resourceProfile,
-            Duration slotTimeout) {
+            Duration slotTimeout)
+            throws SlotAllocationException {
         checkRunning();
 
         Preconditions.checkArgument(requestedIndex < numberSlots);
@@ -300,23 +303,38 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
 
         TaskSlot<T> taskSlot = allocatedSlots.get(allocationId);
         if (taskSlot != null) {
-            return isDuplicatedSlot(taskSlot, jobId, effectiveResourceProfile, index);
+            if (isDuplicatedSlot(taskSlot, jobId, effectiveResourceProfile, index)) {
+                LOG.info(
+                        "Slot with allocationId {} already exist, with resource profile {}, job id {} and index {}. The required index is {}. No further allocation necessary.",
+                        taskSlot.getAllocationId(),
+                        taskSlot.getResourceProfile(),
+                        taskSlot.getJobId(),
+                        taskSlot.getIndex(),
+                        index);
+                return;
+            }
+
+            throw new SlotAllocationException(
+                    String.format(
+                            "A slot with allocationId %s and resource profile %s is already assigned to job %s with subtask index %d.",
+                            taskSlot.getAllocationId(),
+                            taskSlot.getResourceProfile(),
+                            taskSlot.getJobId(),
+                            taskSlot.getIndex()));
         } else if (isIndexAlreadyTaken(index)) {
-            LOG.info(
-                    "The slot with index {} is already assigned to another allocation with id {}.",
-                    index,
-                    taskSlots.get(index).getAllocationId());
-            return false;
+            throw new SlotAllocationException(
+                    String.format(
+                            "The slot with index %d is already assigned to another allocation with id %s.",
+                            index, taskSlots.get(index).getAllocationId()));
         }
 
         if (!budgetManager.reserve(effectiveResourceProfile)) {
-            LOG.info(
-                    "Cannot allocate the requested resources. Trying to allocate {}, "
-                            + "while the currently remaining available resources are {}, total is {}.",
-                    effectiveResourceProfile,
-                    budgetManager.getAvailableBudget(),
-                    budgetManager.getTotalBudget());
-            return false;
+            throw new SlotAllocationException(
+                    String.format(
+                            "Cannot allocate the requested resources. Trying to allocate %s, while the currently remaining available resources are %s, total is %s.",
+                            effectiveResourceProfile,
+                            budgetManager.getAvailableBudget(),
+                            budgetManager.getTotalBudget()));
         }
         LOG.info(
                 "Allocated slot for {} with resources {}.", allocationId, effectiveResourceProfile);
@@ -346,19 +364,10 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         }
 
         slots.add(allocationId);
-
-        return true;
     }
 
     private boolean isDuplicatedSlot(
             TaskSlot taskSlot, JobID jobId, ResourceProfile resourceProfile, int index) {
-        LOG.info(
-                "Slot with allocationId {} already exist, with resource profile {}, job id {} and index {}. The required index is {}.",
-                taskSlot.getAllocationId(),
-                taskSlot.getResourceProfile(),
-                taskSlot.getJobId(),
-                taskSlot.getIndex(),
-                index);
         return taskSlot.getJobId().equals(jobId)
                 && taskSlot.getResourceProfile().equals(resourceProfile)
                 && (isDynamicIndex(index) || taskSlot.getIndex() == index);

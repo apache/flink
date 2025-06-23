@@ -31,7 +31,7 @@ under the License.
 Flink 的 Java DataStream API 可以将任何可序列化的对象转化为流。Flink  自带的序列化器有
 
 - 基本类型，即 String、Long、Integer、Boolean、Array
-- 复合类型：Tuples、POJOs 和 Scala case classes
+- 复合类型：Tuples、POJOs
 
 而且 Flink 会交给 Kryo 序列化其他类型。也可以将其他序列化器和 Flink 一起使用。特别是有良好支持的 Avro。
 
@@ -76,18 +76,6 @@ Person person = new Person("Fred Flintstone", 35);
 
 Flink 的序列化器[支持的 POJO 类型数据结构升级]({{< ref "docs/dev/datastream/fault-tolerance/serialization/schema_evolution" >}}#pojo-types)。
 
-### Scala tuples 和 case classes
-
-如果你了解 Scala，那一定知道 tuple 和 case class。
-
-{{< hint warning >}}
-All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
-
-See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
-{{< /hint >}}
-
-{{< top >}}
-
 ## 一个完整的示例
 
 该示例将关于人的记录流作为输入，并且过滤后只包含成年人。
@@ -103,7 +91,7 @@ public class Example {
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Person> flintstones = env.fromElements(
+        DataStream<Person> flintstones = env.fromData(
                 new Person("Fred", 35),
                 new Person("Wilma", 35),
                 new Person("Pebbles", 2));
@@ -151,17 +139,7 @@ DataStream API 将你的应用构建为一个 job graph，并附加到 `StreamEx
 
 ### 基本的 stream source
 
-上述示例用 `env.fromElements(...)` 方法构造 `DataStream<Person>` 。这样将简单的流放在一起是为了方便用于原型或测试。`StreamExecutionEnvironment` 上还有一个 `fromCollection(Collection)` 方法。因此，你可以这样做：
-
-```java
-List<Person> people = new ArrayList<Person>();
-
-people.add(new Person("Fred", 35));
-people.add(new Person("Wilma", 35));
-people.add(new Person("Pebbles", 2));
-
-DataStream<Person> flintstones = env.fromCollection(people);
-```
+上述示例用 `env.fromData(...)` 方法构造 `DataStream<Person>` 。这样将简单的流放在一起是为了方便用于原型或测试。
 
 另一个获取数据到流中的便捷方法是用 socket
 
@@ -172,7 +150,14 @@ DataStream<String> lines = env.socketTextStream("localhost", 9999)
 或读取文件
 
 ```java
-DataStream<String> lines = env.readTextFile("file:///path");
+FileSource<String> fileSource = FileSource.forRecordStreamFormat(
+        new TextLineInputFormat(), new Path("file:///path")
+).build();
+DataStream<String> lines = env.fromSource(
+        fileSource,
+        WatermarkStrategy.noWatermarks(),
+        "file-input"
+);
 ```
 
 在真实的应用中，最常用的数据源是那些支持低延迟，高吞吐并行读取以及重复（高性能和容错能力为先决条件）的数据源，例如 Apache Kafka，Kinesis 和各种文件系统。REST API 和数据库也经常用于增强流处理的能力（stream enrichment）。

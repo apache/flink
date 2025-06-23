@@ -27,7 +27,6 @@ import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
@@ -44,6 +43,7 @@ import org.apache.flink.runtime.operators.coordination.AcknowledgeCheckpointEven
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventDispatcher;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.runtime.state.ChannelStateHelper;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.streaming.api.graph.NonChainedOutput;
@@ -71,7 +71,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.SerializedValue;
 
-import org.apache.flink.shaded.guava32.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava33.com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -469,14 +469,14 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             snapshotInProgress.setInputChannelStateFuture(
                     channelStateWriteResult
                             .getInputChannelStateHandles()
-                            .thenApply(StateObjectCollection::new)
+                            .thenApply(ChannelStateHelper::mergeInputStateCollection)
                             .thenApply(SnapshotResult::of));
         }
         if (op == getTailOperator()) {
             snapshotInProgress.setResultSubpartitionStateFuture(
                     channelStateWriteResult
                             .getResultSubpartitionStateHandles()
-                            .thenApply(StateObjectCollection::new)
+                            .thenApply(ChannelStateHelper::mergeOutputStateCollection)
                             .thenApply(SnapshotResult::of));
         }
     }

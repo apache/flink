@@ -56,6 +56,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SsgNetworkMemoryCalculationUtils}. */
@@ -298,16 +299,28 @@ class SsgNetworkMemoryCalculationUtilsTest {
         trySetParallelism(sink, parallelisms.get(2));
         sink.setSlotSharingGroup(slotSharingGroups.get(2));
 
-        map.connectNewDataSetAsInput(source, DistributionPattern.POINTWISE, resultPartitionType);
+        connectNewDataSetAsInput(map, source, DistributionPattern.POINTWISE, resultPartitionType);
         if (resultPartitionType == ResultPartitionType.BLOCKING) {
             IntermediateDataSetID dataSetId = new IntermediateDataSetID();
-            sink.connectNewDataSetAsInput(
-                    map, DistributionPattern.ALL_TO_ALL, resultPartitionType, dataSetId, false);
-            sink.connectNewDataSetAsInput(
-                    map, DistributionPattern.ALL_TO_ALL, resultPartitionType, dataSetId, false);
+            connectNewDataSetAsInput(
+                    sink,
+                    map,
+                    DistributionPattern.ALL_TO_ALL,
+                    resultPartitionType,
+                    dataSetId,
+                    false);
+            connectNewDataSetAsInput(
+                    sink,
+                    map,
+                    DistributionPattern.ALL_TO_ALL,
+                    resultPartitionType,
+                    dataSetId,
+                    false);
         } else {
-            sink.connectNewDataSetAsInput(map, DistributionPattern.ALL_TO_ALL, resultPartitionType);
-            sink.connectNewDataSetAsInput(map, DistributionPattern.ALL_TO_ALL, resultPartitionType);
+            connectNewDataSetAsInput(
+                    sink, map, DistributionPattern.ALL_TO_ALL, resultPartitionType);
+            connectNewDataSetAsInput(
+                    sink, map, DistributionPattern.ALL_TO_ALL, resultPartitionType);
         }
 
         if (!resultPartitionType.isBlockingOrBlockingPersistentResultPartition()) {

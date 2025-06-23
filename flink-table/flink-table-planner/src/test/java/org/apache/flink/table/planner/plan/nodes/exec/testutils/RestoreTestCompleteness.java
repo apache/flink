@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonOve
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil.ExecNodeNameVersion;
 
-import org.apache.flink.shaded.guava32.com.google.common.reflect.ClassPath;
+import org.apache.flink.shaded.guava33.com.google.common.reflect.ClassPath;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -59,7 +59,9 @@ public class RestoreTestCompleteness {
             };
 
     private Class<? extends ExecNode<?>> getExecNode(Class<?> restoreTest)
-            throws NoSuchMethodException, InvocationTargetException, InstantiationException,
+            throws NoSuchMethodException,
+                    InvocationTargetException,
+                    InstantiationException,
                     IllegalAccessException {
         Method getExecNodeMethod = restoreTest.getMethod("getExecNode");
         Class<? extends ExecNode<?>> execNode =
@@ -70,7 +72,9 @@ public class RestoreTestCompleteness {
     }
 
     private List<Class<? extends ExecNode<?>>> getChildExecNodes(Class<?> restoreTest)
-            throws NoSuchMethodException, InvocationTargetException, InstantiationException,
+            throws NoSuchMethodException,
+                    InvocationTargetException,
+                    InstantiationException,
                     IllegalAccessException {
         Method getChildExecNodesMethod = restoreTest.getMethod("getChildExecNodes");
         List<Class<? extends ExecNode<?>>> childExecNodes =
@@ -82,8 +86,11 @@ public class RestoreTestCompleteness {
 
     @Test
     public void testMissingRestoreTest()
-            throws IOException, NoSuchMethodException, InstantiationException,
-                    IllegalAccessException, InvocationTargetException {
+            throws IOException,
+                    NoSuchMethodException,
+                    InstantiationException,
+                    IllegalAccessException,
+                    InvocationTargetException {
         Map<ExecNodeNameVersion, Class<? extends ExecNode<?>>> versionedExecNodes =
                 ExecNodeMetadataUtil.getVersionedExecNodes();
 

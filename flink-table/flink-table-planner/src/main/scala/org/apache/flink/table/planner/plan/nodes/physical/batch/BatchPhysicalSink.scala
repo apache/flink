@@ -42,7 +42,7 @@ class BatchPhysicalSink(
     contextResolvedTable: ContextResolvedTable,
     tableSink: DynamicTableSink,
     targetColumns: Array[Array[Int]],
-    abilitySpecs: Array[SinkAbilitySpec])
+    val abilitySpecs: Array[SinkAbilitySpec])
   extends Sink(cluster, traitSet, inputRel, hints, targetColumns, contextResolvedTable, tableSink)
   with BatchPhysicalRel {
 

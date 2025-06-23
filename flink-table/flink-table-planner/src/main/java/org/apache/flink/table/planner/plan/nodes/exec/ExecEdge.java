@@ -42,10 +42,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ExecEdge {
     /** The source node of this edge. */
     private final ExecNode<?> source;
+
     /** The target node of this edge. */
     private final ExecNode<?> target;
+
     /** The {@link Shuffle} on this edge from source to target. */
     private final Shuffle shuffle;
+
     /** The {@link StreamExchangeMode} defines the data exchange mode on this edge. */
     private final StreamExchangeMode exchangeMode;
 

@@ -34,7 +34,7 @@ public interface ApplicationDeployer {
      * @param applicationConfiguration an {@link ApplicationConfiguration} specific to the
      *     application to be executed.
      */
-    <ClusterID> void run(
+    <ClusterID> ClusterID run(
             final Configuration configuration,
             final ApplicationConfiguration applicationConfiguration)
             throws Exception;

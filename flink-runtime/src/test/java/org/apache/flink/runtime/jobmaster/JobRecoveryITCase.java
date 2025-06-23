@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the recovery of task failures. */
@@ -92,8 +93,8 @@ class JobRecoveryITCase {
             sender.setSlotSharingGroup(slotSharingGroup);
         }
 
-        receiver.connectNewDataSetAsInput(
-                sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                receiver, sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         JobGraph jobGraph =
                 JobGraphBuilder.newStreamingJobGraphBuilder()

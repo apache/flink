@@ -70,7 +70,7 @@ public class JSONGenerator {
     }
 
     private void visit(
-            ArrayNode jsonArray, List<Integer> toVisit, Map<Integer, Integer> edgeRemapings) {
+            ArrayNode jsonArray, List<Integer> toVisit, Map<Integer, Integer> edgeRemappings) {
 
         Integer vertexID = toVisit.get(0);
         StreamNode vertex = streamGraph.getStreamNode(vertexID);
@@ -89,8 +89,8 @@ public class JSONGenerator {
                     int inputID = inEdge.getSourceId();
 
                     Integer mappedID =
-                            (edgeRemapings.keySet().contains(inputID))
-                                    ? edgeRemapings.get(inputID)
+                            (edgeRemappings.keySet().contains(inputID))
+                                    ? edgeRemappings.get(inputID)
                                     : inputID;
                     decorateEdge(inputs, inEdge, mappedID);
                 }
@@ -117,12 +117,12 @@ public class JSONGenerator {
             ArrayNode iterationInputs = mapper.createArrayNode();
             obj.put(PREDECESSORS, iterationInputs);
             toVisit.remove(iterationHead);
-            visitIteration(iterationSteps, toVisit, iterationHead, edgeRemapings, iterationInputs);
+            visitIteration(iterationSteps, toVisit, iterationHead, edgeRemappings, iterationInputs);
             jsonArray.add(obj);
         }
 
         if (!toVisit.isEmpty()) {
-            visit(jsonArray, toVisit, edgeRemapings);
+            visit(jsonArray, toVisit, edgeRemappings);
         }
     }
 
@@ -130,7 +130,7 @@ public class JSONGenerator {
             ArrayNode jsonArray,
             List<Integer> toVisit,
             int headId,
-            Map<Integer, Integer> edgeRemapings,
+            Map<Integer, Integer> edgeRemappings,
             ArrayNode iterationInEdges) {
 
         Integer vertexID = toVisit.get(0);
@@ -148,15 +148,15 @@ public class JSONGenerator {
             for (StreamEdge inEdge : vertex.getInEdges()) {
                 int inputID = inEdge.getSourceId();
 
-                if (edgeRemapings.keySet().contains(inputID)) {
+                if (edgeRemappings.keySet().contains(inputID)) {
                     decorateEdge(inEdges, inEdge, inputID);
                 } else if (!streamGraph.vertexIDtoLoopTimeout.containsKey(inputID)) {
                     decorateEdge(iterationInEdges, inEdge, inputID);
                 }
             }
 
-            edgeRemapings.put(vertexID, headId);
-            visitIteration(jsonArray, toVisit, headId, edgeRemapings, iterationInEdges);
+            edgeRemappings.put(vertexID, headId);
+            visitIteration(jsonArray, toVisit, headId, edgeRemappings, iterationInEdges);
         }
     }
 

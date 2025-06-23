@@ -93,8 +93,7 @@ class StreamPhysicalTableSourceScanRule(config: Config) extends ConverterRule(co
         scan.getCluster,
         traitSet,
         newInput,
-        primaryKeyIndices,
-        table.contextResolvedTable
+        primaryKeyIndices
       )
     } else {
       newScan

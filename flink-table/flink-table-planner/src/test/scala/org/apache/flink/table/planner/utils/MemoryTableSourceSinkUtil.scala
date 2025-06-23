@@ -25,8 +25,6 @@ import org.apache.flink.legacy.table.factories.StreamTableSinkFactory
 import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, OutputFormatTableSink, StreamTableSink}
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction
-import org.apache.flink.table.api.TableEnvironment
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.legacy.api.TableSchema
@@ -50,31 +48,6 @@ object MemoryTableSourceSinkUtil {
 
   def clear(): Unit = {
     MemoryTableSourceSinkUtil.tableData.clear()
-  }
-
-  def createDataTypeOutputFormatTable(
-      tEnv: TableEnvironment,
-      schema: TableSchema,
-      tableName: String): Unit = {
-    val sink = new DataTypeOutputFormatTableSink(schema)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, sink)
-  }
-
-  def createLegacyUnsafeMemoryAppendTable(
-      tEnv: TableEnvironment,
-      schema: TableSchema,
-      tableName: String): Unit = {
-    val sink = new UnsafeMemoryAppendTableSink
-    sink.configure(schema.getFieldNames, schema.getFieldTypes)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, sink)
-  }
-
-  def createDataTypeAppendStreamTable(
-      tEnv: TableEnvironment,
-      schema: TableSchema,
-      tableName: String): Unit = {
-    val sink = new DataTypeAppendStreamTableSink(schema)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, sink)
   }
 
   final class UnsafeMemoryAppendTableSink

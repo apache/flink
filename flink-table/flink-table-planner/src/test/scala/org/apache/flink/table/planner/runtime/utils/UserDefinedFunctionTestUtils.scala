@@ -382,20 +382,15 @@ object UserDefinedFunctionTestUtils {
       TestAddWithOpen.aliveCounter.incrementAndGet()
     }
 
-    @FunctionHint(
-      input = Array(
-        new DataTypeHint(value = "BIGINT", bridgedTo = classOf[JLong]),
-        new DataTypeHint(value = "BIGINT", bridgedTo = classOf[JLong])),
-      output = new DataTypeHint(value = "BIGINT", bridgedTo = classOf[JLong]))
-    def eval(a: Long, b: Long): Long = {
+    def eval(a: JLong, b: JLong): JLong = {
       if (!isOpened) {
         throw new IllegalStateException("Open method is not called.")
       }
       a + b
     }
 
-    def eval(a: Long, b: Int): Long = {
-      eval(a, b.asInstanceOf[Long])
+    def eval(a: JLong, b: JInt): JLong = {
+      eval(a, b.toLong)
     }
 
     override def close(): Unit = {
@@ -411,13 +406,7 @@ object UserDefinedFunctionTestUtils {
 
   @SerialVersionUID(1L)
   object TestMod extends ScalarFunction {
-    @FunctionHint(
-      input = Array(
-        new DataTypeHint(value = "BIGINT", bridgedTo = classOf[JLong]),
-        new DataTypeHint(value = "INT", bridgedTo = classOf[JInt])
-      ),
-      output = new DataTypeHint(value = "BIGINT", bridgedTo = classOf[JLong]))
-    def eval(src: Long, mod: Int): Long = {
+    def eval(src: JLong, mod: JInt): JLong = {
       src % mod
     }
   }

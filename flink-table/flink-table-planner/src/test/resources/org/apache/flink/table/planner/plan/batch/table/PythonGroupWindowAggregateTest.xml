@@ -21,7 +21,7 @@ limitations under the License.
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
 +- LogicalWindowAggregate(group=[{1}], EXPR$2=[PandasAggregateFunction($0, $2)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$0, EXPR$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -31,7 +31,7 @@ Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
    +- Exchange(distribution=[keep_input_as_is[hash[b]]])
       +- Sort(orderBy=[b ASC, rowtime ASC])
          +- Exchange(distribution=[hash[b]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -40,7 +40,7 @@ Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
 +- LogicalWindowAggregate(group=[{1}], EXPR$2=[PandasAggregateFunction($0, $2)], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -50,7 +50,7 @@ Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
    +- Exchange(distribution=[keep_input_as_is[hash[b]]])
       +- Sort(orderBy=[b ASC, rowtime ASC])
          +- Exchange(distribution=[hash[b]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -59,7 +59,7 @@ Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$0])
 +- LogicalWindowAggregate(group=[{}], EXPR$2=[PandasAggregateFunction($0, $2)], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -68,7 +68,7 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2])
 +- PythonGroupWindowAggregate(window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1], select=[PandasAggregateFunction(a, c) AS EXPR$2])
    +- Sort(orderBy=[rowtime ASC])
       +- Exchange(distribution=[single])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>

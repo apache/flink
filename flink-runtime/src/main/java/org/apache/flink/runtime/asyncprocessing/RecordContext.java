@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Consumer;
 
 /**
@@ -37,8 +38,10 @@ import java.util.function.Consumer;
  * @param <K> The type of the key inside the record.
  */
 public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRunner> {
-    /** The empty record for timer and non-record input usage. */
+    /** The empty record for non-record input usage. */
     static final Object EMPTY_RECORD = new Object();
+
+    static final int PRIORITY_MIN = 0;
 
     /** The record to be processed. */
     private final Object record;
@@ -62,6 +65,9 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
     /** The namespaces of states. Lazy initialization for saving memory. */
     private Map<InternalPartitionedState<?>, Object> namespaces = null;
 
+    /** User-defined variables. */
+    private final AtomicReferenceArray<Object> contextVariables;
+
     /**
      * The extra context info which is used to hold customized data defined by state backend. The
      * state backend can use this field to cache some data that can be used multiple times in
@@ -72,8 +78,51 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
     /** The epoch of this context. */
     private final Epoch epoch;
 
+    private final int priority;
+
     public RecordContext(
-            Object record, K key, Consumer<RecordContext<K>> disposer, int keyGroup, Epoch epoch) {
+            Object record,
+            K key,
+            Consumer<RecordContext<K>> disposer,
+            int keyGroup,
+            Epoch epoch,
+            int variableCount) {
+        this(
+                record,
+                key,
+                disposer,
+                keyGroup,
+                epoch,
+                new AtomicReferenceArray<>(variableCount),
+                PRIORITY_MIN);
+    }
+
+    public RecordContext(
+            Object record,
+            K key,
+            Consumer<RecordContext<K>> disposer,
+            int keyGroup,
+            Epoch epoch,
+            int variableCount,
+            int priority) {
+        this(
+                record,
+                key,
+                disposer,
+                keyGroup,
+                epoch,
+                new AtomicReferenceArray<>(variableCount),
+                priority);
+    }
+
+    public RecordContext(
+            Object record,
+            K key,
+            Consumer<RecordContext<K>> disposer,
+            int keyGroup,
+            Epoch epoch,
+            AtomicReferenceArray<Object> variables,
+            int priority) {
         super(0);
         this.record = record;
         this.key = key;
@@ -81,6 +130,8 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
         this.disposer = disposer;
         this.keyGroup = keyGroup;
         this.epoch = epoch;
+        this.contextVariables = variables;
+        this.priority = priority;
     }
 
     public Object getRecord() {
@@ -129,6 +180,29 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
         namespaces.put(state, namespace);
     }
 
+    @SuppressWarnings("unchecked")
+    public <T> T getVariable(int i) {
+        checkVariableIndex(i);
+        return (T) contextVariables.get(i);
+    }
+
+    public <T> void setVariable(int i, T value) {
+        checkVariableIndex(i);
+        contextVariables.set(i, value);
+    }
+
+    private void checkVariableIndex(int i) {
+        if (i >= contextVariables.length()) {
+            throw new UnsupportedOperationException(
+                    "Variable index out of bounds. Maybe you are accessing "
+                            + "a variable that have not been declared.");
+        }
+    }
+
+    AtomicReferenceArray<Object> getVariablesReference() {
+        return contextVariables;
+    }
+
     public void setExtra(Object extra) {
         this.extra = extra;
     }
@@ -139,6 +213,10 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
 
     public Epoch getEpoch() {
         return epoch;
+    }
+
+    public int getPriority() {
+        return priority;
     }
 
     @Override
@@ -180,6 +258,8 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
                 + getReferenceCount()
                 + ", epoch="
                 + epoch.id
+                + ", priority="
+                + priority
                 + "}";
     }
 

@@ -335,7 +335,9 @@ public class PythonDependencyUtils {
 
         private void registerCachedFileIfNotExist(String name, String path) {
             final List<Tuple2<String, String>> cachedFilePairs =
-                    config.getOptional(PipelineOptions.CACHED_FILES).orElse(new ArrayList<>())
+                    config
+                            .getOptional(PipelineOptions.CACHED_FILES)
+                            .orElse(new ArrayList<>())
                             .stream()
                             .map(
                                     m ->
@@ -367,7 +369,9 @@ public class PythonDependencyUtils {
 
         private void removeCachedFilesByPrefix(String prefix) {
             final List<String> cachedFiles =
-                    config.getOptional(PipelineOptions.CACHED_FILES).orElse(new ArrayList<>())
+                    config
+                            .getOptional(PipelineOptions.CACHED_FILES)
+                            .orElse(new ArrayList<>())
                             .stream()
                             .map(m -> Tuple2.of(ConfigurationUtils.parseStringToMap(m), m))
                             .filter(

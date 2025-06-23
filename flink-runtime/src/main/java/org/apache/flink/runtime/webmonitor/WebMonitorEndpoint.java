@@ -177,8 +177,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava32.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava33.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava33.com.google.common.cache.CacheBuilder;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
 import javax.annotation.Nullable;
@@ -1213,7 +1213,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 "{} was granted leadership with leaderSessionID={}",
                 getRestBaseUrl(),
                 leaderSessionID);
-        leaderElection.confirmLeadership(leaderSessionID, getRestBaseUrl());
+        leaderElection.confirmLeadershipAsync(leaderSessionID, getRestBaseUrl());
     }
 
     @Override

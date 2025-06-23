@@ -58,6 +58,10 @@ public class CollectSinkOperatorFactory<IN> extends SimpleUdfStreamOperatorFacto
         this.socketTimeoutMillis = (int) socketTimeout.toMillis();
     }
 
+    public int getSocketTimeoutMillis() {
+        return socketTimeoutMillis;
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public <T extends StreamOperator<Object>> T createStreamOperator(

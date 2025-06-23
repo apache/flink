@@ -45,4 +45,45 @@ public class AggregatingStateAdaptor<K, N, IN, ACC, OUT>
             throw new RuntimeException("Error while get value from raw AggregatingState", e);
         }
     }
+
+    @Override
+    public StateFuture<ACC> asyncGetInternal() {
+        try {
+            return StateFutureUtils.completedFuture(delegatedState.getInternal());
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Error while get internal value from raw AggregatingState", e);
+        }
+    }
+
+    @Override
+    public StateFuture<Void> asyncUpdateInternal(ACC valueToStore) {
+        try {
+            delegatedState.updateInternal(valueToStore);
+            return StateFutureUtils.completedVoidFuture();
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Error while update internal value to raw AggregatingState", e);
+        }
+    }
+
+    @Override
+    public ACC getInternal() {
+        try {
+            return delegatedState.getInternal();
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Error while get internal value from raw AggregatingState", e);
+        }
+    }
+
+    @Override
+    public void updateInternal(ACC valueToStore) {
+        try {
+            delegatedState.updateInternal(valueToStore);
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Error while update internal value to raw AggregatingState", e);
+        }
+    }
 }

@@ -643,7 +643,9 @@ public class Pattern<T, F extends T> {
         }
     }
 
-    /** @return the pattern's {@link AfterMatchSkipStrategy.SkipStrategy} after match. */
+    /**
+     * @return the pattern's {@link AfterMatchSkipStrategy.SkipStrategy} after match.
+     */
     public AfterMatchSkipStrategy getAfterMatchSkipStrategy() {
         return afterMatchSkipStrategy;
     }

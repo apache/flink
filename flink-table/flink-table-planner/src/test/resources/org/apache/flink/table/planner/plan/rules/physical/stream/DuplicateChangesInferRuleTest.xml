@@ -1,0 +1,1009 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAggregate[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
++- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
++- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS EXPR$1, SUM(c) AS EXPR$2], duplicateChanges=[ALLOW])
+   +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAppendOnlySinkWithPk[testSinkWithPk = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.append_only_sink_with_pk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.append_only_sink_with_pk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalc[testSinkWithPk = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalc[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNestedNonDeterministicFilter[testSinkWithPk = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalFilter(condition=[<($2, CAST(CAST(NOW()):INTEGER NOT NULL):BIGINT NOT NULL)])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], where=[<(c, CAST(CAST(NOW() AS INTEGER) AS BIGINT))], duplicateChanges=[DISALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNestedNonDeterministicFilter[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalFilter(condition=[<($2, CAST(CAST(NOW()):INTEGER NOT NULL):BIGINT NOT NULL)])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], where=[<(c, CAST(CAST(NOW() AS INTEGER) AS BIGINT))], duplicateChanges=[ALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNestedNonDeterministicProjection[testSinkWithPk = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, EXPR$2])
++- LogicalProject(a=[$0], b=[$1], EXPR$2=[CAST(CAST(NOW()):INTEGER NOT NULL):BIGINT NOT NULL])
+   +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
++- Calc(select=[a, b, CAST(CAST(NOW() AS INTEGER) AS BIGINT) AS EXPR$2], duplicateChanges=[DISALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNestedNonDeterministicProjection[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2])
++- LogicalProject(a=[$0], b=[$1], EXPR$2=[CAST(CAST(NOW()):INTEGER NOT NULL):BIGINT NOT NULL])
+   +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
++- Calc(select=[a, b, CAST(CAST(NOW() AS INTEGER) AS BIGINT) AS EXPR$2], duplicateChanges=[ALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNonDeterministicFilter1[testSinkWithPk = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalFilter(condition=[<($2, CAST(NOW()):BIGINT NOT NULL)])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], where=[<(c, CAST(NOW() AS BIGINT))], duplicateChanges=[DISALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNonDeterministicFilter1[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalFilter(condition=[<($2, CAST(NOW()):BIGINT NOT NULL)])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], where=[<(c, CAST(NOW() AS BIGINT))], duplicateChanges=[ALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNonDeterministicFilter2[testSinkWithPk = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalFilter(condition=[AND(<>($0, 1), <($2, CAST(NOW()):BIGINT NOT NULL))])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], where=[AND(<>(a, 1), <(c, CAST(NOW() AS BIGINT)))], duplicateChanges=[DISALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNonDeterministicFilter2[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalFilter(condition=[AND(<>($0, 1), <($2, CAST(NOW()):BIGINT NOT NULL))])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], where=[AND(<>(a, 1), <(c, CAST(NOW() AS BIGINT)))], duplicateChanges=[ALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNonDeterministicProjection[testSinkWithPk = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, EXPR$2])
++- LogicalProject(a=[$0], b=[$1], EXPR$2=[CAST(NOW()):BIGINT NOT NULL])
+   +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
++- Calc(select=[a, b, CAST(NOW() AS BIGINT) AS EXPR$2], duplicateChanges=[DISALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNonDeterministicProjection[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2])
++- LogicalProject(a=[$0], b=[$1], EXPR$2=[CAST(NOW()):BIGINT NOT NULL])
+   +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
++- Calc(select=[a, b, CAST(NOW() AS BIGINT) AS EXPR$2], duplicateChanges=[ALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogNormalize[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- ChangelogNormalize(key=[a], duplicateChanges=[ALLOW])
+   +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, upsert_src]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDropUpdateBefore[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, retract_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, retract_src]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExpandAndIncrementalAggregate[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
++- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[COUNT(DISTINCT $2)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, $f1, $f2], duplicateChanges=[NONE])
++- Calc(select=[a, CAST($f1 AS VARCHAR(2147483647)) AS $f1, $f2], duplicateChanges=[ALLOW])
+   +- GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, MAX(max$0) AS $f1, $SUM0(count$1) AS $f2], duplicateChanges=[ALLOW])
+      +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+         +- IncrementalGroupAggregate(partialAggGrouping=[a, $f3, $f4], finalAggGrouping=[a], select=[a, MAX(max$0) AS max$0, COUNT(distinct$0 count$1) AS count$1], duplicateChanges=[DISALLOW])
+            +- Exchange(distribution=[hash[a, $f3, $f4]], duplicateChanges=[DISALLOW])
+               +- LocalGroupAggregate(groupBy=[a, $f3, $f4], partialFinalType=[PARTIAL], select=[a, $f3, $f4, MAX(b) FILTER $g_1 AS max$0, COUNT(distinct$0 c) FILTER $g_2 AS count$1, DISTINCT(c) AS distinct$0], duplicateChanges=[DISALLOW])
+                  +- Calc(select=[a, b, c, $f3, $f4, =($e, 1) AS $g_1, =($e, 2) AS $g_2], duplicateChanges=[DISALLOW])
+                     +- Expand(projects=[{a, b, c, $f3, null AS $f4, 1 AS $e}, {a, b, c, null AS $f3, $f4, 2 AS $e}], duplicateChanges=[DISALLOW])
+                        +- Calc(select=[a, b, c, MOD(HASH_CODE(b), 1024) AS $f3, MOD(HASH_CODE(c), 1024) AS $f4], duplicateChanges=[DISALLOW])
+                           +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], duplicateChanges=[DISALLOW])
+                              +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+                                 +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIntervalJoin[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$5], c=[$2])
+   +- LogicalJoin(condition=[AND(=($0, $4), >($3, -($7, 60000:INTERVAL MINUTE)), <($3, +($7, 60000:INTERVAL MINUTE)))], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
+   +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-59999, leftUpperBound=59999, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >(rt, -(rt0, 60000:INTERVAL MINUTE)), <(rt, +(rt0, 60000:INTERVAL MINUTE)))], select=[a, c, rt, a0, b, rt0], duplicateChanges=[ALLOW])
+      :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      :  +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, c, rt], metadata=[]]], fields=[a, c, rt], duplicateChanges=[DISALLOW])
+      +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src2, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoin[testSinkWithPk = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$5], c=[$2])
+   +- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+   +- Join(joinType=[InnerJoin], where=[=(a, a0)], select=[a, c, a0, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], duplicateChanges=[DISALLOW])
+      :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      :  +- Calc(select=[a, c], duplicateChanges=[DISALLOW])
+      :     +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, c, rt], metadata=[]]], fields=[a, c, rt], duplicateChanges=[DISALLOW])
+      +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+         +- Calc(select=[a, b], duplicateChanges=[DISALLOW])
+            +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+               +- TableSourceScan(table=[[default_catalog, default_database, append_src2, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoin[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$5], c=[$2])
+   +- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+      :- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
+   +- Join(joinType=[InnerJoin], where=[=(a, a0)], select=[a, c, a0, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], duplicateChanges=[ALLOW])
+      :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      :  +- Calc(select=[a, c], duplicateChanges=[DISALLOW])
+      :     +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, c, rt], metadata=[]]], fields=[a, c, rt], duplicateChanges=[DISALLOW])
+      +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+         +- Calc(select=[a, b], duplicateChanges=[DISALLOW])
+            +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+               +- TableSourceScan(table=[[default_catalog, default_database, append_src2, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimit[testSinkWithPk = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
++- LogicalSort(fetch=[10])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+   +- Limit(offset=[0], fetch=[10], duplicateChanges=[DISALLOW])
+      +- Exchange(distribution=[single], duplicateChanges=[DISALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimit[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
++- LogicalSort(fetch=[10])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
+   +- Limit(offset=[0], fetch=[10], duplicateChanges=[ALLOW])
+      +- Exchange(distribution=[single], duplicateChanges=[DISALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLookupJoin[testSinkWithPk = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], pt=[PROCTIME()])
+      :  +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.pt])
+            +- LogicalTableScan(table=[[default_catalog, default_database, dim_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+   +- LookupJoin(table=[default_catalog.default_database.dim_src], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0], duplicateChanges=[DISALLOW])
+      +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLookupJoin[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], pt=[PROCTIME()])
+      :  +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.pt])
+            +- LogicalTableScan(table=[[default_catalog, default_database, dim_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
+   +- LookupJoin(table=[default_catalog.default_database.dim_src], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0], duplicateChanges=[ALLOW])
+      +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMiniBatchTwoStageAggregate[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
++- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
++- GlobalGroupAggregate(groupBy=[a], select=[a, MAX(max$0) AS EXPR$1, SUM(sum$1) AS EXPR$2], duplicateChanges=[ALLOW])
+   +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      +- LocalGroupAggregate(groupBy=[a], select=[a, MAX(b) AS max$0, SUM(c) AS sum$1], duplicateChanges=[DISALLOW])
+         +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], duplicateChanges=[DISALLOW])
+               +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+                  +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSink1[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2])
++- LogicalProject(a=[$0], b=[$1], EXPR$2=[/($2, 2)])
+   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+
+LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1, EXPR$2])
++- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
+   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
++- Calc(select=[a, b, /(c, 2) AS EXPR$2], duplicateChanges=[ALLOW])
+   +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+         +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+
+Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
++- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS EXPR$1, SUM(c) AS EXPR$2], duplicateChanges=[ALLOW])
+   +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSink2[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
++- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
+   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+
+LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR$2])
++- LogicalProject(a=[$0], b=[$1], EXPR$2=[/($2, 2)])
+   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
++- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS EXPR$1, SUM(c) AS EXPR$2], duplicateChanges=[ALLOW])
+   +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+
+Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
++- Calc(select=[a, b, /(c, 2) AS EXPR$2], duplicateChanges=[ALLOW])
+   +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+         +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSink3[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2])
++- LogicalProject(a=[$0], b=[$1], EXPR$2=[/($2, 3)])
+   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+
+LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR$2])
++- LogicalProject(a=[$0], b=[$1], EXPR$2=[/($2, 2)])
+   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
++- Calc(select=[a, b, /(c, 3) AS EXPR$2], duplicateChanges=[ALLOW])
+   +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[ALLOW])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
+         +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])
+
+Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
++- Calc(select=[a, b, /(c, 2) AS EXPR$2], duplicateChanges=[ALLOW])
+   +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[ALLOW])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
+         +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSink4[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
++- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
+   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+
+LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1, EXPR$2])
++- LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($2)])
+   +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
++- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS EXPR$1, SUM(c) AS EXPR$2], duplicateChanges=[ALLOW])
+   +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+
+Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
++- GroupAggregate(groupBy=[a], select=[a, MIN(b) AS EXPR$1, MAX(c) AS EXPR$2], duplicateChanges=[ALLOW])
+   +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOneStageWindowAggregate[testSinkWithPk = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, EXPR$1, EXPR$2])
++- LogicalProject(a=[$0], EXPR$1=[$3], EXPR$2=[$4])
+   +- LogicalAggregate(group=[{0, 1, 2}], EXPR$1=[MAX($3)], EXPR$2=[MAX($4)])
+      +- LogicalProject(a=[$0], window_start=[$4], window_end=[$5], b=[$1], c=[$2])
+         +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+               +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
++- Calc(select=[a, EXPR$1, EXPR$2], duplicateChanges=[DISALLOW])
+   +- WindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rt], size=[1 min])], select=[a, MAX(b) AS EXPR$1, MAX(c) AS EXPR$2, start('w$) AS window_start, end('w$) AS window_end], duplicateChanges=[DISALLOW])
+      +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOneStageWindowAggregate[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
++- LogicalProject(a=[$0], EXPR$1=[$3], EXPR$2=[$4])
+   +- LogicalAggregate(group=[{0, 1, 2}], EXPR$1=[MAX($3)], EXPR$2=[MAX($4)])
+      +- LogicalProject(a=[$0], window_start=[$4], window_end=[$5], b=[$1], c=[$2])
+         +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+               +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
++- Calc(select=[a, EXPR$1, EXPR$2], duplicateChanges=[ALLOW])
+   +- WindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rt], size=[1 min])], select=[a, MAX(b) AS EXPR$1, MAX(c) AS EXPR$2, start('w$) AS window_start, end('w$) AS window_end], duplicateChanges=[ALLOW])
+      +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRank[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalFilter(condition=[<=($3, 1)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+         +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[c DESC], select=[a, b, c], duplicateChanges=[ALLOW])
+   +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+         +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+            +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSinkWithMaterialize[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.another_pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, retract_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.another_pk_snk], fields=[a, b, c], upsertMaterialize=[true], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, retract_src]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTemporalJoin[testSinkWithPk = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], pt=[PROCTIME()])
+      :  +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.pt])
+            +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, dim_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+   +- TemporalJoin(joinType=[InnerJoin], where=[AND(=(a, a0), __TEMPORAL_JOIN_CONDITION(pt, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(a0), __TEMPORAL_JOIN_LEFT_KEY(a), __TEMPORAL_JOIN_RIGHT_KEY(a0)))], select=[a, b, c, pt, a0], duplicateChanges=[DISALLOW])
+      :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      :  +- Calc(select=[a, b, c, PROCTIME() AS pt], duplicateChanges=[DISALLOW])
+      :     +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+      +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+         +- Calc(select=[a], duplicateChanges=[DISALLOW])
+            +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+               +- TableSourceScan(table=[[default_catalog, default_database, dim_src, project=[a, rt], metadata=[]]], fields=[a, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTemporalJoin[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], pt=[PROCTIME()])
+      :  +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.pt])
+            +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, dim_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
+   +- TemporalJoin(joinType=[InnerJoin], where=[AND(=(a, a0), __TEMPORAL_JOIN_CONDITION(pt, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(a0), __TEMPORAL_JOIN_LEFT_KEY(a), __TEMPORAL_JOIN_RIGHT_KEY(a0)))], select=[a, b, c, pt, a0], duplicateChanges=[ALLOW])
+      :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      :  +- Calc(select=[a, b, c, PROCTIME() AS pt], duplicateChanges=[DISALLOW])
+      :     +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+      +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+         +- Calc(select=[a], duplicateChanges=[DISALLOW])
+            +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+               +- TableSourceScan(table=[[default_catalog, default_database, dim_src, project=[a, rt], metadata=[]]], fields=[a, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTwoStageWindowAggregate[testSinkWithPk = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, EXPR$1, EXPR$2])
++- LogicalProject(a=[$0], EXPR$1=[$3], EXPR$2=[$4])
+   +- LogicalAggregate(group=[{0, 1, 2}], EXPR$1=[MAX($3)], EXPR$2=[MAX($4)])
+      +- LogicalProject(a=[$0], window_start=[$4], window_end=[$5], b=[$1], c=[$2])
+         +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+               +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
++- Calc(select=[a, EXPR$1, EXPR$2], duplicateChanges=[DISALLOW])
+   +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[1 min])], select=[a, MAX(max$0) AS EXPR$1, MAX(max$1) AS EXPR$2, start('w$) AS window_start, end('w$) AS window_end], duplicateChanges=[DISALLOW])
+      +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+         +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rt], size=[1 min])], select=[a, MAX(b) AS max$0, MAX(c) AS max$1, slice_end('w$) AS $slice_end], duplicateChanges=[DISALLOW])
+            +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+               +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTwoStageWindowAggregate[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
++- LogicalProject(a=[$0], EXPR$1=[$3], EXPR$2=[$4])
+   +- LogicalAggregate(group=[{0, 1, 2}], EXPR$1=[MAX($3)], EXPR$2=[MAX($4)])
+      +- LogicalProject(a=[$0], window_start=[$4], window_end=[$5], b=[$1], c=[$2])
+         +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+               +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
++- Calc(select=[a, EXPR$1, EXPR$2], duplicateChanges=[ALLOW])
+   +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[1 min])], select=[a, MAX(max$0) AS EXPR$1, MAX(max$1) AS EXPR$2, start('w$) AS window_start, end('w$) AS window_end], duplicateChanges=[ALLOW])
+      +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+         +- LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rt], size=[1 min])], select=[a, MAX(b) AS max$0, MAX(c) AS max$1, slice_end('w$) AS $slice_end], duplicateChanges=[DISALLOW])
+            +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+               +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnion[testSinkWithPk = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c])
++- LogicalUnion(all=[true])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :  +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Union(all=[true], union=[a, b, c], duplicateChanges=[DISALLOW])
+   :- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+   :  +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+   +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+         +- TableSourceScan(table=[[default_catalog, default_database, append_src2]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnion[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
++- LogicalUnion(all=[true])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :  +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, append_src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Union(all=[true], union=[a, b, c], duplicateChanges=[ALLOW])
+   :- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+   :  +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+   +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+         +- TableSourceScan(table=[[default_catalog, default_database, append_src2]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowTVF[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk_with_time_col], fields=[a, b, c, window_start, window_end])
++- LogicalProject(a=[$0], b=[$1], c=[$2], window_start=[$4], window_end=[$5])
+   +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+         +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk_with_time_col], fields=[a, b, c, window_start, window_end], duplicateChanges=[NONE])
++- Calc(select=[a, b, c, window_start, window_end], duplicateChanges=[ALLOW])
+   +- WindowTableFunction(window=[TUMBLE(time_col=[rt], size=[1 min])], duplicateChanges=[ALLOW])
+      +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+         +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowJoin[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$8], c=[$2])
+   +- LogicalJoin(condition=[AND(=($0, $7), =($4, $11), =($5, $12))], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], window_start=[$4], window_end=[$5], window_time=[$6])
+      :  +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+      :     +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+      :        +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      :           +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], window_start=[$4], window_end=[$5], window_time=[$6])
+         +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+               +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, append_src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
+   +- WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[1 min])], rightWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[1 min])], joinType=[InnerJoin], where=[=(a, a0)], select=[a, c, window_start, window_end, a0, b, window_start0, window_end0], duplicateChanges=[ALLOW])
+      :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      :  +- Calc(select=[a, c, window_start, window_end], duplicateChanges=[DISALLOW])
+      :     +- WindowTableFunction(window=[TUMBLE(time_col=[rt], size=[1 min])], duplicateChanges=[DISALLOW])
+      :        +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      :           +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, c, rt], metadata=[]]], fields=[a, c, rt], duplicateChanges=[DISALLOW])
+      +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+         +- Calc(select=[a, b, window_start, window_end], duplicateChanges=[DISALLOW])
+            +- WindowTableFunction(window=[TUMBLE(time_col=[rt], size=[1 min])], duplicateChanges=[DISALLOW])
+               +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+                  +- TableSourceScan(table=[[default_catalog, default_database, append_src2, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowRank[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.pk_snk_with_time_col], fields=[a, b, c, window_start, window_end])
++- LogicalProject(a=[$0], b=[$1], c=[$2], window_start=[$3], window_end=[$4])
+   +- LogicalFilter(condition=[<=($5, 1)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], window_start=[$4], window_end=[$5], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0, $4, $5 ORDER BY $2 DESC NULLS LAST)])
+         +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
+               +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.pk_snk_with_time_col], fields=[a, b, c, window_start, window_end], duplicateChanges=[NONE])
++- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[1 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[c DESC], select=[a, b, c, window_start, window_end], duplicateChanges=[ALLOW])
+   +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
+      +- Calc(select=[a, b, c, window_start, window_end], duplicateChanges=[DISALLOW])
+         +- WindowTableFunction(window=[TUMBLE(time_col=[rt], size=[1 min])], duplicateChanges=[DISALLOW])
+            +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+               +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

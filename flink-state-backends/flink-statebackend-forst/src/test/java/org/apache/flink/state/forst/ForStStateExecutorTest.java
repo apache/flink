@@ -347,9 +347,10 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
             R record) {
         int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(key, 128);
         RecordContext<K> recordContext =
-                new RecordContext<>(record, key, t -> {}, keyGroup, new Epoch(0));
+                new RecordContext<>(record, key, t -> {}, keyGroup, new Epoch(0), 0);
         TestStateFuture stateFuture = new TestStateFuture<>();
-        return new StateRequest<>(innerTable, requestType, value, stateFuture, recordContext);
+        return new StateRequest<>(
+                innerTable, requestType, false, value, stateFuture, recordContext);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -361,8 +362,9 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
             R record) {
         int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(key, 128);
         RecordContext<K> recordContext =
-                new RecordContext<>(record, key, t -> {}, keyGroup, new Epoch(0));
+                new RecordContext<>(record, key, t -> {}, keyGroup, new Epoch(0), 0);
         TestStateFuture stateFuture = new TestStateFuture<>();
-        return new StateRequest<>(innerTable, requestType, value, stateFuture, recordContext);
+        return new StateRequest<>(
+                innerTable, requestType, false, value, stateFuture, recordContext);
     }
 }

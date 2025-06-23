@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.TokenStreamRewriter;
 import org.antlr.v4.runtime.atn.PredictionMode;
 
@@ -143,20 +144,50 @@ public class FunctionSplitter implements CodeRewriter {
         }
 
         @Override
+        public Void visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
+            return doFunctionSplit(
+                    ctx,
+                    ctx.constructorBody,
+                    "void",
+                    ctx.IDENTIFIER().getText(),
+                    CodeSplitUtil.getContextString(ctx.formalParameters()),
+                    ctx.THROWS() != null,
+                    CodeSplitUtil.getContextString(ctx.qualifiedNameList()));
+        }
+
+        @Override
         public Void visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
 
             if (!"void".equals(ctx.typeTypeOrVoid().getText())) {
                 return null;
             }
 
-            long methodBodyLength = CodeSplitUtil.getContextTextLength(ctx.methodBody().block());
+            return doFunctionSplit(
+                    ctx,
+                    ctx.methodBody().block(),
+                    CodeSplitUtil.getContextString(ctx.typeTypeOrVoid()),
+                    ctx.IDENTIFIER().getText(),
+                    CodeSplitUtil.getContextString(ctx.formalParameters()),
+                    ctx.THROWS() != null,
+                    CodeSplitUtil.getContextString(ctx.qualifiedNameList()));
+        }
+
+        private Void doFunctionSplit(
+                ParserRuleContext ctx,
+                JavaParser.BlockContext blockContext,
+                String returnType,
+                String functionName,
+                String parameters,
+                boolean hasThrowable,
+                String throwables) {
+            long methodBodyLength = CodeSplitUtil.getContextTextLength(blockContext);
 
             if (methodBodyLength < maxMethodLength) {
                 return null;
             }
 
-            if (ctx.methodBody().block().blockStatement() == null
-                    || ctx.methodBody().block().blockStatement().size() <= 1) {
+            if (blockContext.blockStatement() == null
+                    || blockContext.blockStatement().size() <= 1) {
                 return null;
             }
 
@@ -173,13 +204,8 @@ public class FunctionSplitter implements CodeRewriter {
                 }
             }.visit(ctx);
 
-            // function definition
-            String type = CodeSplitUtil.getContextString(ctx.typeTypeOrVoid());
-            String functionName = ctx.IDENTIFIER().getText();
-            String parameters = CodeSplitUtil.getContextString(ctx.formalParameters());
-
             for (JavaParser.BlockStatementContext blockStatementContext :
-                    ctx.methodBody().block().blockStatement()) {
+                    blockContext.blockStatement()) {
                 blockStatementContexts.add(blockStatementContext);
                 splitFuncBodies.add(CodeSplitUtil.getContextString(blockStatementContext));
             }
@@ -189,16 +215,14 @@ public class FunctionSplitter implements CodeRewriter {
             List<String> newSplitMethodCalls = new ArrayList<>();
 
             String methodQualifier = "";
-            if (ctx.THROWS() != null) {
-                methodQualifier =
-                        " throws " + CodeSplitUtil.getContextString(ctx.qualifiedNameList());
+            if (hasThrowable) {
+                methodQualifier = " throws " + throwables;
             }
 
             String hasReturnedVarName = boolVarNames.get(classCount).get(functionName + parameters);
             if (hasReturnedVarName != null) {
                 rewriter.insertAfter(
-                        ctx.methodBody().block().start,
-                        String.format("\n%s = false;", hasReturnedVarName));
+                        blockContext.start, String.format("\n%s = false;", hasReturnedVarName));
             }
 
             for (String methodBody : mergedCodeBlocks) {
@@ -206,7 +230,7 @@ public class FunctionSplitter implements CodeRewriter {
 
                 // void f_splitXX(int x, String y)
                 String splitMethodDef =
-                        type
+                        returnType
                                 + " "
                                 + functionName
                                 + "_split"

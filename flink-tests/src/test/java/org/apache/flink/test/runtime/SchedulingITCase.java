@@ -52,6 +52,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVER_STRATEGY;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -140,8 +141,8 @@ public class SchedulingITCase extends TestLogger {
         sink.setParallelism(parallelism);
         sink.setSlotSharingGroup(slotSharingGroup);
 
-        sink.connectNewDataSetAsInput(
-                source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                sink, source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         JobGraph jobGraph =
                 JobGraphBuilder.newStreamingJobGraphBuilder()

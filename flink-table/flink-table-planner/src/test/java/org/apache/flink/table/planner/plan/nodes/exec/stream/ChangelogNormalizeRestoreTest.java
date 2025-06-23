@@ -39,6 +39,8 @@ public class ChangelogNormalizeRestoreTest extends RestoreTestBase {
         return Arrays.asList(
                 ChangelogNormalizeTestPrograms.CHANGELOG_SOURCE,
                 ChangelogNormalizeTestPrograms.CHANGELOG_SOURCE_MINI_BATCH,
-                ChangelogNormalizeTestPrograms.UPSERT_SOURCE);
+                ChangelogNormalizeTestPrograms.UPSERT_SOURCE,
+                ChangelogNormalizeTestPrograms.UPSERT_SOURCE_WITH_FILTER,
+                ChangelogNormalizeTestPrograms.UPSERT_SOURCE_WITH_FILTER_ON_WATERMARK);
     }
 }

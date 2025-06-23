@@ -33,6 +33,7 @@ public class JobEvents {
         jobEventTypeIdMapping.put(ExecutionVertexFinishedEvent.class, 1);
         jobEventTypeIdMapping.put(ExecutionVertexResetEvent.class, 2);
         jobEventTypeIdMapping.put(ExecutionJobVertexInitializedEvent.class, 3);
+        jobEventTypeIdMapping.put(ExecutionJobVertexFinishedEvent.class, 4);
     }
 
     public static int getTypeID(Class<? extends JobEvent> clazz) {

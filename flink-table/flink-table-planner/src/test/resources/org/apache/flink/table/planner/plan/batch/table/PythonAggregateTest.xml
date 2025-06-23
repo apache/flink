@@ -21,7 +21,7 @@ limitations under the License.
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$1])
 +- LogicalAggregate(group=[{1}], EXPR$0=[PandasAggregateFunction($0, $2)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -30,7 +30,7 @@ PythonGroupAggregate(groupBy=[b], select=[b, PandasAggregateFunction(a, c) AS EX
 +- Exchange(distribution=[keep_input_as_is[hash[b]]])
    +- Sort(orderBy=[b ASC])
       +- Exchange(distribution=[hash[b]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -39,14 +39,14 @@ PythonGroupAggregate(groupBy=[b], select=[b, PandasAggregateFunction(a, c) AS EX
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
 +- LogicalAggregate(group=[{}], EXPR$0=[PandasAggregateFunction($0, $2)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 PythonGroupAggregate(select=[PandasAggregateFunction(a, c) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

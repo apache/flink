@@ -46,7 +46,7 @@ public class PrintSink<IN> implements Sink<IN>, SupportsConcurrentExecutionAttem
 
     private static final long serialVersionUID = 1L;
     private final String sinkIdentifier;
-    private final boolean stdErr;
+    private final boolean isStdErr;
 
     /** Instantiates a print sink function that prints to STDOUT. */
     public PrintSink() {
@@ -56,10 +56,10 @@ public class PrintSink<IN> implements Sink<IN>, SupportsConcurrentExecutionAttem
     /**
      * Instantiates a print sink that prints to STDOUT or STDERR.
      *
-     * @param stdErr True, if the format should print to standard error instead of standard out.
+     * @param isStdErr True, if the format should print to standard error instead of standard out.
      */
-    public PrintSink(final boolean stdErr) {
-        this("", stdErr);
+    public PrintSink(final boolean isStdErr) {
+        this("", isStdErr);
     }
 
     /**
@@ -77,17 +77,17 @@ public class PrintSink<IN> implements Sink<IN>, SupportsConcurrentExecutionAttem
      *
      * @param sinkIdentifier Message that identifies the sink and is prefixed to the output of the
      *     value
-     * @param stdErr True if the sink should print to STDERR instead of STDOUT.
+     * @param isStdErr True if the sink should print to STDERR instead of STDOUT.
      */
-    public PrintSink(final String sinkIdentifier, final boolean stdErr) {
+    public PrintSink(final String sinkIdentifier, final boolean isStdErr) {
         this.sinkIdentifier = sinkIdentifier;
-        this.stdErr = stdErr;
+        this.isStdErr = isStdErr;
     }
 
     @Override
     public SinkWriter<IN> createWriter(WriterInitContext context) throws IOException {
         final PrintSinkOutputWriter<IN> writer =
-                new PrintSinkOutputWriter<>(sinkIdentifier, stdErr);
+                new PrintSinkOutputWriter<>(sinkIdentifier, isStdErr);
         writer.open(
                 context.getTaskInfo().getIndexOfThisSubtask(),
                 context.getTaskInfo().getNumberOfParallelSubtasks());
@@ -96,6 +96,6 @@ public class PrintSink<IN> implements Sink<IN>, SupportsConcurrentExecutionAttem
 
     @Override
     public String toString() {
-        return "Print to " + (stdErr ? "System.err" : "System.out");
+        return "Print to " + (isStdErr ? "System.err" : "System.out");
     }
 }

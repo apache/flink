@@ -43,6 +43,8 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * {@code ClasspathProviderExtension} offers utility methods for creating a classpath based on
  * actual jars.
@@ -88,6 +90,24 @@ public class ClasspathProviderExtension implements BeforeEachCallback, AfterEach
                     copyJar(JOB_LIB_JAR_PATH, directory);
                     copyJar(JOB_JAR_PATH, directory);
                     createTestFile(directory);
+                },
+                JOB_JAR_PATH.toFile());
+    }
+
+    public static ClasspathProviderExtension createWithSymlink() {
+        return new ClasspathProviderExtension(
+                "_user_dir_with_symlink",
+                directory -> {
+                    final File actualUsrLib = new File(directory, "usrlib");
+                    final File symLinkDir = new File(directory, "symlink");
+                    assertThat(actualUsrLib.mkdirs()).isTrue();
+                    assertThat(symLinkDir.mkdirs()).isTrue();
+
+                    copyJar(JOB_LIB_JAR_PATH, symLinkDir);
+                    copyJar(JOB_JAR_PATH, actualUsrLib);
+
+                    Files.createSymbolicLink(
+                            actualUsrLib.toPath().resolve("symlink"), symLinkDir.toPath());
                 },
                 JOB_JAR_PATH.toFile());
     }

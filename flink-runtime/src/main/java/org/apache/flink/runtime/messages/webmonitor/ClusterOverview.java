@@ -114,6 +114,7 @@ public class ClusterOverview extends JobsOverview {
     public int getNumSlotsFreeAndBlocked() {
         return numSlotsFreeAndBlocked;
     }
+
     // ------------------------------------------------------------------------
 
     @Override

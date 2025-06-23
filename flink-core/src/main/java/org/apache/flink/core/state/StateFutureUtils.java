@@ -20,7 +20,9 @@ package org.apache.flink.core.state;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.common.state.v2.StateIterator;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -104,5 +106,31 @@ public class StateFutureUtils {
             }
             return ret;
         }
+    }
+
+    /**
+     * Convert a future of state iterator to a future of iterable. There is no good reason to do so,
+     * since this may disable the capability of lazy loading. Only useful when the further
+     * calculation depends on the whole data from the iterator.
+     */
+    public static <T> StateFuture<Iterable<T>> toIterable(StateFuture<StateIterator<T>> future) {
+        return future.thenCompose(
+                iterator -> {
+                    if (iterator == null) {
+                        return StateFutureUtils.completedFuture(Collections.emptyList());
+                    }
+                    InternalStateIterator<T> theIterator = ((InternalStateIterator<T>) iterator);
+                    if (!theIterator.hasNextLoading()) {
+                        return StateFutureUtils.completedFuture(theIterator.getCurrentCache());
+                    } else {
+                        final ArrayList<T> result = new ArrayList<>();
+                        return theIterator
+                                .onNext(
+                                        next -> {
+                                            result.add(next);
+                                        })
+                                .thenApply(ignored -> result);
+                    }
+                });
     }
 }

@@ -80,7 +80,6 @@ flink-table/flink-table-test-utils,\
 "
 
 MODULES_CONNECTORS="\
-flink-contrib/flink-connector-wikiedits,\
 flink-filesystems,\
 flink-filesystems/flink-azure-fs-hadoop,\
 flink-filesystems/flink-fs-hadoop-shaded,\
@@ -119,6 +118,7 @@ flink-metrics/flink-metrics-prometheus,\
 flink-metrics/flink-metrics-statsd,\
 flink-metrics/flink-metrics-datadog,\
 flink-metrics/flink-metrics-slf4j,\
+flink-metrics/flink-metrics-otel,\
 flink-connectors/flink-connector-base,\
 "
 

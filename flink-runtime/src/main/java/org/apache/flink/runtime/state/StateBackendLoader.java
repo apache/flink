@@ -58,7 +58,7 @@ public class StateBackendLoader {
 
     /** Used for loading RocksDBStateBackend. */
     private static final String ROCKSDB_STATE_BACKEND_FACTORY =
-            "org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory";
+            "org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory";
 
     /** Used for loading ForStStateBackend. */
     private static final String FORST_STATE_BACKEND_FACTORY =

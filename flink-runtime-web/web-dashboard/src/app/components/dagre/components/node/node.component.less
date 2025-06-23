@@ -71,5 +71,13 @@
         margin-bottom: 0;
       }
     }
+
+    &.pending {
+      border: none;
+      background: linear-gradient(to right, #000 50%, #fff 0%) top/20px 1px repeat-x,
+        /* top */ linear-gradient(#000 50%, #fff 0%) right/1px 20px repeat-y,
+        /* right */ linear-gradient(to right, #000 50%, #fff 0%) bottom/20px 1px repeat-x,
+        /* bottom */ linear-gradient(#000 50%, #fff 0%) left/1px 20px repeat-y; /* left */
+    }
   }
 }

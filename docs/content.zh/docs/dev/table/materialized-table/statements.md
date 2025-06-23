@@ -148,12 +148,12 @@ FRESHNESS = INTERVAL '5' HOUR
 
 <span class="label label-danger">注意</span>
 - 尽管物化表数据将尽可能在定义的新鲜度内刷新，但不能保证完全满足新鲜度要求。
-- 在连续模式下，数据新鲜度和 `checkpoint` 间隔一致，设置过短的数据新鲜度可能会对作业性能产生影响。此外，为了优化 `checkpoint` 性能，建议[开启 Changelog]({{< ref "docs/ops/state/state_backends" >}}#开启-changelog)。
+- 在持续模式下，数据新鲜度和 `checkpoint` 间隔一致，设置过短的数据新鲜度可能会对作业性能产生影响。此外，为了优化 `checkpoint` 性能，建议[开启 Changelog]({{< ref "docs/ops/state/state_backends" >}}#开启-changelog)。
 - 在全量模式下，数据新鲜度会转换为 `cron` 表达式，因此目前仅支持在预定义时间间隔单位内的新鲜度间隔，这种设计确保了与 `cron` 表达式语义的一致性。具体支持以下新鲜度间隔：
-  - 秒：30、15、10、5、2 和 1 秒间隔。
-  - 分钟：30、15、10、5、2 和 1 分钟间隔。
-  - 小时：8、4、2 和 1 小时间隔。
-  - 天：1 天。
+  - 秒：1、2、3、4、5、6、10、12、15、20、30。
+  - 分钟：1、2、3、4、5、6、10、12、15、20、30。
+  - 小时：1、2、3、4、6、8、12。
+  - 天：1。
 
 ## REFRESH_MODE
 
@@ -163,17 +163,17 @@ FRESHNESS = INTERVAL '5' HOUR
 (假定 `materialized-table.refresh-mode.freshness-threshold` 为 30 分钟)
 
 ```sql
--- 创建的物化表的刷新模式为连续模式，作业的 checkpoint 间隔为 1 小时。
+-- 创建的物化表的刷新模式为持续模式，作业的 checkpoint 间隔为 1 小时。
 CREATE MATERIALIZED TABLE my_materialized_table
-    REFRESH_MODE = CONTINUOUS
     FRESHNESS = INTERVAL '1' HOUR
+    REFRESH_MODE = CONTINUOUS
     AS SELECT
        ...    
 
 -- 创建的物化表的刷新模式为全量模式，作业的调度周期为 10 分钟。
 CREATE MATERIALIZED TABLE my_materialized_table
-    REFRESH_MODE = FULL
     FRESHNESS = INTERVAL '10' MINUTE
+    REFRESH_MODE = FULL
     AS SELECT
        ...    
 ```
@@ -192,19 +192,18 @@ CREATE MATERIALIZED TABLE my_materialized_table
 
 ## 示例
 
-（假设 materialized-table.refresh-mode.freshness-threshold 为 30 分钟）
+假定 `materialized-table.refresh-mode.freshness-threshold` 为 30 分钟。
 
-创建一个数据新鲜度为 `10` 秒的物化表，推导出的刷新模式为连续模式:
+创建一个数据新鲜度为 `10` 秒的物化表，推导出的刷新模式为持续模式:
 
 ```sql
 CREATE MATERIALIZED TABLE my_materialized_table_continuous
     PARTITIONED BY (ds)
     WITH (
-        'format' = 'json',
+        'format' = 'debezium-json',
         'partition.fields.ds.date-formatter' = 'yyyy-MM-dd'
     )
     FRESHNESS = INTERVAL '10' SECOND
-    REFRESH_MODE = 'CONTINUOUS'
     AS 
     SELECT 
         k.ds,
@@ -233,8 +232,7 @@ CREATE MATERIALIZED TABLE my_materialized_table_full
         'format' = 'json',
         'partition.fields.ds.date-formatter' = 'yyyy-MM-dd'
     )
-    FRESHNESS = INTERVAL '10' MINUTE
-    REFRESH_MODE = 'FULL'
+    FRESHNESS = INTERVAL '1' HOUR
     AS 
     SELECT 
         p.ds,
@@ -255,17 +253,19 @@ CREATE MATERIALIZED TABLE my_materialized_table_full
 ```
 
 ## 限制
-- 不支持显式指定列
-- 不支持修改查询语句
-- 不支持在 select 查询中使用临时表、临时视图或临时函数
+- 不支持显式指定列名
+- 不支持在 select 查询语句中引用临时表、临时视图或临时函数
 
 # ALTER MATERIALIZED TABLE
 
 ```
-ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name SUSPEND | RESUME [WITH (key1=val1, key2=val2, ...)] | REFRESH [PARTITION partition_spec]
+ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name
+    SUSPEND | RESUME [WITH (key1=val1, key2=val2, ...)] |
+    REFRESH [PARTITION partition_spec] |
+    AS <select_statement>
 ```
 
-`ALTER MATERIALIZED TABLE` 用于管理物化表。用户可以使用此命令暂停和恢复物化表的刷新管道，并手动触发数据刷新。
+`ALTER MATERIALIZED TABLE` 用于管理物化表。用户可以使用此命令暂停和恢复物化表的刷新管道，并手动触发数据刷新，以及修改物化表的查询定义。
 
 
 ## SUSPEND
@@ -287,7 +287,7 @@ ALTER MATERIALIZED TABLE my_materialized_table SUSPEND;
 ```
 
 <span class="label label-danger">注意</span>
-- 暂停连续模式的表时，默认会使用 `STOP WITH SAVEPOINT` 暂停作业，你需要使用[参数]({{< ref "docs/deployment/config" >}}#execution-checkpointing-savepoint-dir)设置 `SAVEPOINT` 保存路径。
+- 暂停持续模式的表时，默认会使用 `STOP WITH SAVEPOINT` 暂停作业，你需要使用[参数]({{< ref "docs/deployment/config" >}}#execution-checkpointing-savepoint-dir)设置 `SAVEPOINT` 保存路径。
 
 ## RESUME
 
@@ -327,6 +327,67 @@ ALTER MATERIALIZED TABLE my_materialized_table REFRESH PARTITION (ds='2024-06-28
 
 <span class="label label-danger">注意</span>
 - REFRESH 操作会启动批作业来刷新表的数据。
+
+## AS <select_statement>
+```sql
+ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name AS <select_statement>
+```
+
+`AS <select_statement>` 子句用于修改刷新物化表的查询定义。它会先使用新查询推导的 `schema` 更新表的 `schema`，然后使用新查询刷新表数据。需要特别强调的是，默认情况下，这不会影响历史数据。
+
+具体修改流程取决于物化表的刷新模式：
+
+**全量模式：**
+
+1. 更新物化表的 `schema` 和查询定义。
+2. 在刷新作业下次触发执行时，将使用新的查询定义刷新数据:
+   - 如果修改的物化表是分区表，且[partition.fields.#.date-formatter]({{< ref "docs/dev/table/config" >}}#partition-fields-date-formatter) 配置正确，则仅刷新最新分区。
+   - 否则，将刷新整个表的数据。
+
+**持续模式：**
+
+1. 暂停当前的流式刷新作业。
+2. 更新物化表的 `schema` 和查询定义。
+3. 启动新的流式作业以刷新物化表：
+   - 新的流式作业会从头开始，而不会从之前的流式作业状态恢复。
+   - 数据源的起始位点会由到连接器的默认实现或查询中设置的 [dynamic hint]({{< ref "docs/dev/table/sql/queries/hints" >}}#dynamic-table-options) 决定。
+
+**示例：**
+
+```sql
+-- 原始物化表定义
+CREATE MATERIALIZED TABLE my_materialized_table
+    FRESHNESS = INTERVAL '10' SECOND
+    AS 
+    SELECT 
+        user_id,
+        COUNT(*) AS event_count,
+        SUM(amount) AS total_amount
+    FROM 
+        kafka_catalog.db1.events
+    WHERE 
+        event_type = 'purchase'
+    GROUP BY 
+        user_id;
+
+-- 修改现有物化表的查询
+ALTER MATERIALIZED TABLE my_materialized_table
+AS SELECT 
+    user_id,
+    COUNT(*) AS event_count,
+    SUM(amount) AS total_amount,
+    AVG(amount) AS avg_amount  -- 在末尾追加新的可为空列
+FROM
+    kafka_catalog.db1.events
+WHERE
+    event_type = 'purchase'
+GROUP BY
+    user_id;
+```
+
+<span class="label label-danger">注意</span>
+- Schema 演进当前仅支持在原表 schema 尾部追加`可空列`。
+- 在持续模式下，新的流式作业不会从原来的流式作业的状态恢复。这可能会导致短暂的数据重复或丢失。
 
 # DROP MATERIALIZED TABLE
 

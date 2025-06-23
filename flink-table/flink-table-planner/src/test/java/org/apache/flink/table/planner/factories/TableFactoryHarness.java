@@ -306,8 +306,12 @@ public class TableFactoryHarness {
         @Override
         public CatalogTable copy(Map<String, String> options) {
             final CatalogTable parentTable =
-                    CatalogTable.of(
-                            getUnresolvedSchema(), getComment(), getPartitionKeys(), options);
+                    CatalogTable.newBuilder()
+                            .schema(getUnresolvedSchema())
+                            .comment(getComment())
+                            .partitionKeys(getPartitionKeys())
+                            .options(options)
+                            .build();
             return new HarnessCatalogTable(parentTable, source, sink);
         }
     }

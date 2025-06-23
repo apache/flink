@@ -65,7 +65,9 @@ public class OptionalFailure<T> implements Serializable {
         }
     }
 
-    /** @return stored value or throw a {@link FlinkException} with {@code failureCause}. */
+    /**
+     * @return stored value or throw a {@link FlinkException} with {@code failureCause}.
+     */
     public T get() throws FlinkException {
         if (value != null) {
             return value;
@@ -74,7 +76,9 @@ public class OptionalFailure<T> implements Serializable {
         throw new FlinkException(failureCause);
     }
 
-    /** @return same as {@link #get()} but throws a {@link FlinkRuntimeException}. */
+    /**
+     * @return same as {@link #get()} but throws a {@link FlinkRuntimeException}.
+     */
     public T getUnchecked() throws FlinkRuntimeException {
         if (value != null) {
             return value;

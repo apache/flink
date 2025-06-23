@@ -39,15 +39,11 @@ On session clusters, the provided configuration will only be used for configurin
 
 # Flink Configuration File
 
-Starting with version 1.19, Flink has officially introduced full support for the standard YAML 1.2 syntax. Compared to the previous versions which only supported simple key-value pairs, this update provides users with more flexible and powerful configuration capabilities. To take advantage of this new feature, users need to use the newly introduced `config.yaml` configuration file. The existing `flink-conf.yaml` configuration file is deprecated and will no longer work in the upcoming version 2.0. To ensure a smooth transition, users are advised to migrate their existing Flink configuration to the new configuration file as soon as possible.
+Starting with Flink version 2.0, Flink only supports the configuration file `config.yaml`, which adheres to the standard YAML 1.2 syntax. The previous `flink-conf.yaml` configuration file is no longer supported. Compared to the previous versions which only supported simple key-value pairs, this update provides users with more flexible and powerful configuration capabilities.
 
 This section will help users understand how to configure the Flink cluster and jobs through the `config.yaml` configuration file, as well as how to migrate old configuration to the new configuration file.
 
 ### Usage
-
-Starting from Flink-1.19, the default configuration file has been changed to `config.yaml` and placed in the `conf/` directory. Users should directly modify this file to configure Flink.
-
-To continue using the legacy configuration file `flink-conf.yaml`, users just need to copy this file into the `conf/` directory. Once the legacy configuration file `flink-conf.yaml` is detected, Flink will prioritize using it as the configuration file.
 
 The usage for `config.yaml` is as follows:
 
@@ -119,8 +115,6 @@ bin/migrate-config-file.sh
 ````
 After running the command above, the migration script will automatically read the old configuration file `flink-conf.yaml` from the `conf/` directory and output the migrated results to the new configuration file `config.yaml` in the `conf/` directory. Note that due to the limitation of the legacy configuration parser, all values in flink-conf.yaml will be recognized as String type, so the values in the generated config.yaml file will also be of String type, which means some values will be enclosed in quotes. However, Flink will convert them to the actual types defined using `ConfigOption` during subsequent configuration parsing.
 
-Additionally, users need to delete the `flink-conf.yaml` file in the `conf/` directory after migration to make the `config.yaml` file take effect.
-
 # Basic Setup
 
 The default configuration supports starting a single-node Flink session cluster without any changes.
@@ -160,7 +154,7 @@ These values are configured as memory sizes, for example *1536m* or *2g*.
 
 You can configure checkpointing directly in code within your Flink job or application. Putting these values here in the configuration defines them as defaults in case the application does not configure anything.
 
-  - `state.backend.type`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `hashmap` or `rocksdb`.
+  - `state.backend.type`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `hashmap`, `rocksdb` or `forst`.
   - `execution.checkpointing.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
   - `execution.checkpointing.savepoint-dir`: The default directory for savepoints. Takes a path URI, similar to `execution.checkpointing.dir`.
   - `execution.checkpointing.interval`: The base interval setting. To enable checkpointing, you need to set this value larger than 0.
@@ -206,7 +200,7 @@ You do not need to configure any TaskManager hosts and ports, unless the setup r
 ### Fault Tolerance
 
 These configuration options control Flink's restart behaviour in case of failures during the execution. 
-By configuring these options in your `flink-conf.yaml`, you define the cluster's default restart strategy. 
+By configuring these options in your `config.yaml`, you define the cluster's default restart strategy. 
 
 The default restart strategy will only take effect if no job specific restart strategy has been configured via the `ExecutionConfig`.
 
@@ -354,6 +348,12 @@ These are the options commonly needed to configure the RocksDB state backend. Se
 
 {{< generated/state_backend_rocksdb_section >}}
 
+### ForSt State Backend
+
+These are the options commonly needed to configure the ForSt state backend. See the [Advanced ForSt Backend Section](#advanced-forst-state-backends-options) for options necessary for advanced low level configurations and trouble-shooting.
+
+{{< generated/state_backend_forst_section >}}
+
 ----
 ----
 
@@ -375,6 +375,16 @@ Enabling RocksDB's native metrics may cause degraded performance and should be s
 {{< /hint >}}
 
 {{< generated/rocksdb_native_metric_configuration >}}
+
+### ForSt Native Metrics
+
+ForSt has similar native metric mechanism to RocksDB.
+
+{{< hint warning >}}
+Enabling ForSt's native metrics may cause degraded performance and should be set carefully.
+{{< /hint >}}
+
+{{< generated/forst_native_metric_configuration >}}
 
 ----
 ----
@@ -476,6 +486,12 @@ Advanced options to tune RocksDB and RocksDB checkpoints.
 
 {{< generated/expert_rocksdb_section >}}
 
+### Advanced ForSt State Backends Options
+
+Advanced options to tune ForSt and ForSt checkpoints.
+
+{{< generated/expert_forst_section >}}
+
 ### State Changelog Options
 
 Please refer to [State Backends]({{< ref "docs/ops/state/state_backends#enabling-changelog" >}}) for information on
@@ -486,12 +502,16 @@ using State Changelog. {{< generated/state_changelog_section >}}
 These settings take effect when the `state.changelog.storage`  is set to `filesystem` (see [above](#state-changelog-storage)).
 {{< generated/fs_state_changelog_configuration >}}
 
-**RocksDB Configurable Options**
+### RocksDB Configurable Options
 
 These options give fine-grained control over the behavior and resources of ColumnFamilies.
 With the introduction of `state.backend.rocksdb.memory.managed` and `state.backend.rocksdb.memory.fixed-per-slot` (Apache Flink 1.10), it should be only necessary to use the options here for advanced performance tuning. These options here can also be specified in the application program via `RocksDBStateBackend.setRocksDBOptions(RocksDBOptionsFactory)`.
 
 {{< generated/rocksdb_configurable_configuration >}}
+
+### ForSt State Backend Configurable Options
+
+{{< generated/forst_configurable_configuration >}}
 
 ### Advanced Fault Tolerance Options
 
@@ -587,7 +607,7 @@ You can configure environment variables to be set on the JobManager and TaskMana
 
   - `containerized.master.env.`: Prefix for passing custom environment variables to Flink's JobManager process. 
    For example for passing LD_LIBRARY_PATH as an env variable to the JobManager, set containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
-    in the flink-conf.yaml.
+    in the config.yaml.
 
   - `containerized.taskmanager.env.`: Similar to the above, this configuration prefix allows setting custom environment variables for the workers (TaskManagers).
 
@@ -599,15 +619,15 @@ You can configure environment variables to be set on the JobManager and TaskMana
 These options relate to parts of Flink that are not actively developed any more.
 These options may be removed in a future release.
 
-**DataSet API Optimizer**
+**Optimizer**
 
 {{< generated/optimizer_configuration >}}
 
-**DataSet API Runtime Algorithms**
+**Runtime Algorithms**
 
 {{< generated/algorithm_configuration >}}
 
-**DataSet File Sinks**
+**File Sinks**
 
 {{< generated/deprecated_file_sinks_section >}}
 

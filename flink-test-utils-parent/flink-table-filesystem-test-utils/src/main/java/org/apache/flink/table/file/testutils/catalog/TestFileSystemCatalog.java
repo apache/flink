@@ -58,6 +58,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.file.testutils.TestFileSystemTableFactory;
@@ -273,7 +274,7 @@ public class TestFileSystemCatalog extends AbstractCatalog {
             return deserializeTable(
                     tableInfo.getTableKind(),
                     tableInfo.getCatalogTableInfo(),
-                    tableDataPath.getPath());
+                    tableDataPath.toString());
         } catch (IOException e) {
             throw new CatalogException(
                     String.format("Getting table %s occur exception.", tablePath), e);
@@ -429,8 +430,10 @@ public class TestFileSystemCatalog extends AbstractCatalog {
     @Override
     public List<CatalogPartitionSpec> listPartitions(
             ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-            throws TableNotExistException, TableNotPartitionedException,
-                    PartitionSpecInvalidException, CatalogException {
+            throws TableNotExistException,
+                    TableNotPartitionedException,
+                    PartitionSpecInvalidException,
+                    CatalogException {
         return Collections.emptyList();
     }
 
@@ -459,8 +462,10 @@ public class TestFileSystemCatalog extends AbstractCatalog {
             CatalogPartitionSpec partitionSpec,
             CatalogPartition partition,
             boolean ignoreIfExists)
-            throws TableNotExistException, TableNotPartitionedException,
-                    PartitionSpecInvalidException, PartitionAlreadyExistsException,
+            throws TableNotExistException,
+                    TableNotPartitionedException,
+                    PartitionSpecInvalidException,
+                    PartitionAlreadyExistsException,
                     CatalogException {
         throw new UnsupportedOperationException("createPartition is not implemented.");
     }
@@ -645,12 +650,13 @@ public class TestFileSystemCatalog extends AbstractCatalog {
 
     private Map<String, String> serializeTable(
             ResolvedCatalogBaseTable<?> resolvedCatalogBaseTable) {
+        final DefaultSqlFactory sqlFactory = DefaultSqlFactory.INSTANCE;
         if (resolvedCatalogBaseTable instanceof ResolvedCatalogTable) {
             return CatalogPropertiesUtil.serializeCatalogTable(
-                    (ResolvedCatalogTable) resolvedCatalogBaseTable);
+                    (ResolvedCatalogTable) resolvedCatalogBaseTable, sqlFactory);
         } else if (resolvedCatalogBaseTable instanceof ResolvedCatalogMaterializedTable) {
             return CatalogPropertiesUtil.serializeCatalogMaterializedTable(
-                    (ResolvedCatalogMaterializedTable) resolvedCatalogBaseTable);
+                    (ResolvedCatalogMaterializedTable) resolvedCatalogBaseTable, sqlFactory);
         }
 
         throw new IllegalArgumentException(

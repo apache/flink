@@ -39,7 +39,7 @@ def _from_j_state_backend(j_state_backend):
     gateway = get_gateway()
     JStateBackend = gateway.jvm.org.apache.flink.runtime.state.StateBackend
     JHashMapStateBackend = gateway.jvm.org.apache.flink.runtime.state.hashmap.HashMapStateBackend
-    JEmbeddedRocksDBStateBackend = gateway.jvm.org.apache.flink.contrib.streaming.state.\
+    JEmbeddedRocksDBStateBackend = gateway.jvm.org.apache.flink.state.rocksdb.\
         EmbeddedRocksDBStateBackend
     j_clz = j_state_backend.getClass()
 
@@ -191,7 +191,7 @@ class EmbeddedRocksDBStateBackend(StateBackend):
         if j_embedded_rocks_db_state_backend is None:
             gateway = get_gateway()
             JTernaryBoolean = gateway.jvm.org.apache.flink.util.TernaryBoolean
-            JEmbeddedRocksDBStateBackend = gateway.jvm.org.apache.flink.contrib.streaming.state \
+            JEmbeddedRocksDBStateBackend = gateway.jvm.org.apache.flink.state.rocksdb \
                 .EmbeddedRocksDBStateBackend
 
             if enable_incremental_checkpointing not in (None, True, False):
@@ -316,7 +316,7 @@ class EmbeddedRocksDBStateBackend(StateBackend):
                                            The options factory must have a default constructor.
         """
         gateway = get_gateway()
-        JOptionsFactory = gateway.jvm.org.apache.flink.contrib.streaming.state.RocksDBOptionsFactory
+        JOptionsFactory = gateway.jvm.org.apache.flink.state.rocksdb.RocksDBOptionsFactory
         j_options_factory_clz = load_java_class(options_factory_class_name)
         if not get_java_class(JOptionsFactory).isAssignableFrom(j_options_factory_clz):
             raise ValueError("The input class does not implement RocksDBOptionsFactory.")
@@ -448,7 +448,7 @@ class PredefinedOptions(Enum):
 
     def _to_j_predefined_options(self):
         gateway = get_gateway()
-        JPredefinedOptions = gateway.jvm.org.apache.flink.contrib.streaming.state.PredefinedOptions
+        JPredefinedOptions = gateway.jvm.org.apache.flink.state.rocksdb.PredefinedOptions
         return getattr(JPredefinedOptions, self.name)
 
 

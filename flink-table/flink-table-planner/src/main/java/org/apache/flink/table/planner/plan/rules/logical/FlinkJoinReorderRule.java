@@ -54,7 +54,7 @@ public class FlinkJoinReorderRule extends RelRule<FlinkJoinReorderRule.Config>
     private static final FlinkBushyJoinReorderRule BUSHY_JOIN_REORDER =
             FlinkBushyJoinReorderRule.Config.DEFAULT.toRule();
 
-    /** Creates an SparkJoinReorderRule. */
+    /** Creates a FlinkJoinReorderRule. */
     protected FlinkJoinReorderRule(FlinkJoinReorderRule.Config config) {
         super(config);
     }

@@ -18,15 +18,33 @@
 
 package org.apache.flink.streaming.api.connector.sink2;
 
+import org.assertj.core.api.InstanceOfAssertFactory;
+
 /** Custom assertions for Sink V2 related classes. */
 public class SinkV2Assertions {
-
-    public static CommittableSummaryAssert assertThat(CommittableSummary<?> summary) {
-        return new CommittableSummaryAssert(summary);
+    @SuppressWarnings({"rawtypes"})
+    public static <CommT>
+            InstanceOfAssertFactory<CommittableWithLineage, CommittableWithLineageAssert<CommT>>
+                    committableWithLineage() {
+        return new InstanceOfAssertFactory<>(
+                CommittableWithLineage.class, SinkV2Assertions::<CommT>assertThat);
     }
 
-    public static CommittableWithLinageAssert assertThat(
-            CommittableWithLineage<?> committableWithLineage) {
-        return new CommittableWithLinageAssert(committableWithLineage);
+    @SuppressWarnings({"rawtypes"})
+    public static <CommT>
+            InstanceOfAssertFactory<CommittableSummary, CommittableSummaryAssert<CommT>>
+                    committableSummary() {
+        return new InstanceOfAssertFactory<>(
+                CommittableSummary.class, SinkV2Assertions::<CommT>assertThat);
+    }
+
+    public static <CommT> CommittableSummaryAssert<CommT> assertThat(
+            CommittableSummary<CommT> summary) {
+        return new CommittableSummaryAssert<>(summary);
+    }
+
+    public static <CommT> CommittableWithLineageAssert<CommT> assertThat(
+            CommittableWithLineage<CommT> committableWithLineage) {
+        return new CommittableWithLineageAssert<>(committableWithLineage);
     }
 }

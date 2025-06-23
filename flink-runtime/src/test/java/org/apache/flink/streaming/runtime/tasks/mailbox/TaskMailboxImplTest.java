@@ -47,6 +47,7 @@ class TaskMailboxImplTest {
 
     private static final RunnableWithException NO_OP = () -> {};
     private static final int DEFAULT_PRIORITY = 0;
+
     /** Object under test. */
     private TaskMailbox taskMailbox;
 

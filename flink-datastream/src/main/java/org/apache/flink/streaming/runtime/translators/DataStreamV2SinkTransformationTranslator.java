@@ -36,6 +36,8 @@ import org.apache.flink.streaming.api.connector.sink2.SupportsPostCommitTopology
 import org.apache.flink.streaming.api.connector.sink2.SupportsPreCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.SupportsPreWriteTopology;
 import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.transformations.DataStreamV2SinkTransformation;
@@ -140,6 +142,40 @@ public class DataStreamV2SinkTransformationTranslator<Input, Output>
             this.isBatchMode = isBatchMode;
         }
 
+        /**
+         * Checks if {@link Sink} will add commit topology.
+         *
+         * @param sink the sink to check
+         * @return true if the {@link Sink} do not add a commit topology, false otherwise
+         */
+        private <CommT, WriteResultT> boolean checkSinkDoNotAddCommitTopology(Sink<T> sink) {
+            SupportsCommitter<CommT> committingSink = (SupportsCommitter<CommT>) sink;
+            SupportsPreCommitTopology<WriteResultT, CommT> preCommittingSink =
+                    (SupportsPreCommitTopology<WriteResultT, CommT>) sink;
+            TypeInformation<CommittableMessage<WriteResultT>> writeResultTypeInformation =
+                    CommittableMessageTypeInfo.of(preCommittingSink::getWriteResultSerializer);
+            Transformation<CommittableMessage<WriteResultT>> dummyTransformation =
+                    new Transformation<>("dummy", writeResultTypeInformation, 1) {
+                        @Override
+                        protected List<Transformation<?>> getTransitivePredecessorsInternal() {
+                            return List.of();
+                        }
+
+                        @Override
+                        public List<Transformation<?>> getInputs() {
+                            return List.of();
+                        }
+                    };
+            DataStream<CommittableMessage<CommT>> committableMessageDataStream =
+                    preCommittingSink.addPreCommitTopology(
+                            new DataStream<>(
+                                    new StreamExecutionEnvironment(), dummyTransformation));
+            return committableMessageDataStream
+                    .getExecutionEnvironment()
+                    .getTransformations()
+                    .isEmpty();
+        }
+
         private void expand() {
 
             final int sizeBefore = executionEnvironment.getTransformations().size();
@@ -150,8 +186,17 @@ public class DataStreamV2SinkTransformationTranslator<Input, Output>
                 throw new UnsupportedOperationException(
                         "Sink with pre-write topology is not supported for DataStream v2 atm.");
             } else if (sink instanceof SupportsPreCommitTopology) {
-                throw new UnsupportedOperationException(
-                        "Sink with pre-commit topology is not supported for DataStream v2 atm.");
+                if (sink.getClass()
+                        .getName()
+                        .equals("org.apache.flink.connector.file.sink.FileSink")) {
+                    if (!checkSinkDoNotAddCommitTopology(sink)) {
+                        throw new UnsupportedOperationException(
+                                "Sink with pre-commit topology is not supported for DataStream v2 atm.");
+                    }
+                } else {
+                    throw new UnsupportedOperationException(
+                            "Sink with pre-commit topology is not supported for DataStream v2 atm.");
+                }
             } else if (sink instanceof SupportsPostCommitTopology) {
                 throw new UnsupportedOperationException(
                         "Sink with post-commit topology is not supported for DataStream v2 atm.");

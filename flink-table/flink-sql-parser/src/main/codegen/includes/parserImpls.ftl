@@ -804,6 +804,25 @@ SqlShowCreate SqlShowCreate() :
 }
 
 /**
+ * DESCRIBE | DESC FUNCTION [ EXTENDED] [[catalogName.] dataBasesName].functionName sql call.
+ * Here we add Rich in className to match the naming of SqlRichDescribeTable.
+ */
+SqlRichDescribeFunction SqlRichDescribeFunction() :
+{
+    SqlIdentifier functionName;
+    SqlParserPos pos;
+    boolean isExtended = false;
+}
+{
+    ( <DESCRIBE> | <DESC> ) <FUNCTION> { pos = getPos();}
+    [ <EXTENDED> { isExtended = true;} ]
+    functionName = CompoundIdentifier()
+    {
+        return new SqlRichDescribeFunction(pos, functionName, isExtended);
+    }
+}
+
+/**
  * DESCRIBE | DESC MODEL [ EXTENDED] [[catalogName.] dataBasesName].modelName sql call.
  * Here we add Rich in className to match the naming of SqlRichDescribeTable.
  */
@@ -850,7 +869,6 @@ SqlAlterTable SqlAlterTable() :
     boolean ifNotExists = false;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
-    SqlNodeList partitionSpec = null;
     SqlDistribution distribution = null;
     SqlIdentifier constraintName;
     SqlTableConstraint constraint;
@@ -1028,17 +1046,6 @@ SqlAlterTable SqlAlterTable() :
             }
          )
         )
-    |
-        [
-            <PARTITION>
-            {   partitionSpec = new SqlNodeList(getPos());
-                PartitionSpecCommaList(partitionSpec);
-            }
-        ]
-        <COMPACT>
-        {
-            return new SqlAlterTableCompact(startPos.plus(getPos()), tableIdentifier, partitionSpec, ifExists);
-        }
     )
 }
 
@@ -1990,6 +1997,7 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
     SqlNodeList partSpec = SqlNodeList.EMPTY;
     SqlNode freshness = null;
+    SqlNode asQuery = null;
 }
 {
     <ALTER> <MATERIALIZED> <TABLE> { startPos = getPos();}
@@ -2069,6 +2077,15 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
                     startPos.plus(getPos()),
                     tableIdentifier,
                     propertyKeyList);
+            }
+        |
+        <AS>
+            asQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+            {
+                return new SqlAlterMaterializedTableAsQuery(
+                    startPos.plus(getPos()),
+                    tableIdentifier,
+                    asQuery);
             }
     )
 }
@@ -2469,6 +2486,34 @@ SqlTypeNameSpec ExtendedSqlRowTypeName() :
             fieldTypes,
             comments,
             unparseAsStandard);
+    }
+}
+
+/**
+ * Parse inline structured type such as STRUCTURED&lt;'className', name1 type1 'comment', name2 type2&gt;.
+ */
+SqlTypeNameSpec SqlStructuredTypeName() :
+{
+    final SqlNode className;
+    final List<SqlIdentifier> fieldNames = new ArrayList<SqlIdentifier>();
+    final List<SqlDataTypeSpec> fieldTypes = new ArrayList<SqlDataTypeSpec>();
+    final List<SqlCharStringLiteral> comments = new ArrayList<SqlCharStringLiteral>();
+}
+{
+    <STRUCTURED>
+    <LT>
+        className = StringLiteral()
+        [
+            <COMMA>ExtendedFieldNameTypeCommaList(fieldNames, fieldTypes, comments)
+        ]
+    <GT>
+    {
+        return new SqlStructuredTypeNameSpec(
+            getPos(),
+            className,
+            fieldNames,
+            fieldTypes,
+            comments);
     }
 }
 
@@ -3073,6 +3118,22 @@ SqlNode TryCastFunctionCall() :
 }
 
 /**
+ * Parses an explicit Model m reference.
+ */
+SqlNode ExplicitModel() :
+{
+    SqlNode modelRef;
+    final Span s;
+}
+{
+    <MODEL> modelRef = CompoundIdentifier()
+    {
+        s = span();
+        return new SqlExplicitModelOperator(2).createCall(s.pos(), modelRef);
+    }
+}
+
+/**
 * Parses a partition key/value,
 * e.g. p or p = '10'.
 */
@@ -3257,7 +3318,7 @@ SqlTruncateTable SqlTruncateTable() :
 }
 
 /**
-* SHOW MODELS [FROM [catalog.] database] sql call.
+* SHOW MODELS [FROM [catalog.] database] [[NOT] LIKE pattern]; sql call.
 */
 SqlShowModels SqlShowModels() :
 {
@@ -3296,6 +3357,7 @@ SqlShowModels SqlShowModels() :
 /**
 * ALTER MODEL [IF EXISTS] modelName SET (property_key = property_val, ...)
 * ALTER MODEL [IF EXISTS] modelName RENAME TO newModelName
+* ALTER MODEL [IF EXISTS] modelName RESET (property_key, ...)
 */
 SqlAlterModel SqlAlterModel() :
 {
@@ -3304,6 +3366,7 @@ SqlAlterModel SqlAlterModel() :
     SqlIdentifier modelIdentifier;
     SqlIdentifier newModelIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
 }
 {
     <ALTER> <MODEL> { startPos = getPos(); }
@@ -3314,7 +3377,7 @@ SqlAlterModel SqlAlterModel() :
         <RENAME> <TO>
         newModelIdentifier = CompoundIdentifier()
         {
-            return new SqlAlterModel(
+            return new SqlAlterModelRename(
                         startPos.plus(getPos()),
                         modelIdentifier,
                         newModelIdentifier,
@@ -3324,11 +3387,21 @@ SqlAlterModel SqlAlterModel() :
         <SET>
         propertyList = Properties()
         {
-            return new SqlAlterModel(
+            return new SqlAlterModelSet(
                         startPos.plus(getPos()),
                         modelIdentifier,
-                        propertyList,
-                        ifExists);
+                        ifExists,
+                        propertyList);
+        }
+    |
+        <RESET>
+        propertyKeyList = PropertyKeys()
+        {
+            return new SqlAlterModelReset(
+                        startPos.plus(getPos()),
+                        modelIdentifier,
+                        ifExists,
+                        propertyKeyList);
         }
     )
 }

@@ -73,7 +73,7 @@ Number Sequence
 Kafka
 =====
 
-Kakfa Producer and Consumer
+Kafka Producer and Consumer
 ---------------------------
 
 .. currentmodule:: pyflink.datastream.connectors.kafka

@@ -29,11 +29,11 @@ jobs:
     name: "Pre-compile Checks"
     uses: ./.github/workflows/template.pre-compile-checks.yml
   ci:
-    name: "Default (Java 11)"
+    name: "Default (Java 17)"
     uses: ./.github/workflows/template.flink-ci.yml
     with:
-      environment: 'PROFILE="-Dinclude_hadoop_aws"'
-      jdk_version: 11
+      environment: 'PROFILE="-Dinclude_hadoop_aws -Djdk17 -Pjava17-target"'
+      jdk_version: 17
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}

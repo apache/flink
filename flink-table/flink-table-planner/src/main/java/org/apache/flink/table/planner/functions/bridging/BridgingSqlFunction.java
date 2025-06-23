@@ -32,21 +32,28 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexFactory;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
+import org.apache.flink.table.types.inference.SystemTypeInference;
 import org.apache.flink.table.types.inference.TypeInference;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlTableFunction;
+import org.apache.calcite.sql.TableCharacteristic;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.tools.RelBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createName;
-import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createParamTypes;
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createSqlFunctionCategory;
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createSqlIdentifier;
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createSqlOperandTypeChecker;
@@ -67,7 +74,8 @@ public class BridgingSqlFunction extends SqlFunction {
     private final FlinkTypeFactory typeFactory;
     private final RexFactory rexFactory;
     private final ContextResolvedFunction resolvedFunction;
-    private final TypeInference typeInference;
+
+    protected final TypeInference typeInference;
 
     private BridgingSqlFunction(
             DataTypeFactory dataTypeFactory,
@@ -86,7 +94,6 @@ public class BridgingSqlFunction extends SqlFunction {
                         dataTypeFactory, resolvedFunction.getDefinition(), typeInference),
                 createSqlOperandTypeChecker(
                         dataTypeFactory, resolvedFunction.getDefinition(), typeInference),
-                createParamTypes(typeFactory, typeInference),
                 createSqlFunctionCategory(resolvedFunction));
 
         this.dataTypeFactory = dataTypeFactory;
@@ -118,20 +125,29 @@ public class BridgingSqlFunction extends SqlFunction {
         checkState(
                 functionKind == FunctionKind.SCALAR
                         || functionKind == FunctionKind.ASYNC_SCALAR
-                        || functionKind == FunctionKind.TABLE,
+                        || functionKind == FunctionKind.TABLE
+                        || functionKind == FunctionKind.PROCESS_TABLE,
                 "Scalar or table function kind expected.");
 
-        if (functionKind == FunctionKind.TABLE) {
+        final TypeInference systemTypeInference =
+                SystemTypeInference.of(functionKind, typeInference);
+
+        if (functionKind == FunctionKind.TABLE || functionKind == FunctionKind.PROCESS_TABLE) {
             return new BridgingSqlFunction.WithTableFunction(
                     dataTypeFactory,
                     typeFactory,
                     rexFactory,
                     kind,
                     resolvedFunction,
-                    typeInference);
+                    systemTypeInference);
         }
         return new BridgingSqlFunction(
-                dataTypeFactory, typeFactory, rexFactory, kind, resolvedFunction, typeInference);
+                dataTypeFactory,
+                typeFactory,
+                rexFactory,
+                kind,
+                resolvedFunction,
+                systemTypeInference);
     }
 
     /** Creates an instance of a scalar or table function during translation. */
@@ -193,14 +209,6 @@ public class BridgingSqlFunction extends SqlFunction {
     }
 
     @Override
-    public List<String> getParamNames() {
-        if (typeInference.getNamedArguments().isPresent()) {
-            return typeInference.getNamedArguments().get();
-        }
-        return super.getParamNames();
-    }
-
-    @Override
     public boolean isDeterministic() {
         return resolvedFunction.getDefinition().isDeterministic();
     }
@@ -218,19 +226,68 @@ public class BridgingSqlFunction extends SqlFunction {
                 RexFactory rexFactory,
                 SqlKind kind,
                 ContextResolvedFunction resolvedFunction,
-                TypeInference typeInference) {
-            super(dataTypeFactory, typeFactory, rexFactory, kind, resolvedFunction, typeInference);
+                TypeInference systemTypeInference) {
+            super(
+                    dataTypeFactory,
+                    typeFactory,
+                    rexFactory,
+                    kind,
+                    resolvedFunction,
+                    systemTypeInference);
         }
 
         /**
-         * The conversion to a row type is handled on the caller side. This allows us to perform it
-         * SQL/Table API-specific. This is in particular important to set the aliases of fields
-         * correctly (see {@link FlinkRelBuilder#pushFunctionScan(RelBuilder, SqlOperator, int,
-         * Iterable, List)}).
+         * The conversion to a row type is handled by the system type inference.
+         *
+         * @see FlinkRelBuilder#pushFunctionScan(RelBuilder, SqlOperator, int, Iterable, List)
          */
         @Override
         public SqlReturnTypeInference getRowTypeInference() {
-            return getReturnTypeInference();
+            final SqlReturnTypeInference inference = getReturnTypeInference();
+            assert inference != null;
+            return (opBinding) -> {
+                final RelDataType relDataType = inference.inferReturnType(opBinding);
+                assert relDataType != null;
+                final List<RelDataTypeField> fields = relDataType.getFieldList();
+                return opBinding
+                        .getTypeFactory()
+                        .createStructType(
+                                StructKind.FULLY_QUALIFIED,
+                                fields.stream()
+                                        .map(RelDataTypeField::getType)
+                                        .collect(Collectors.toList()),
+                                fields.stream()
+                                        .map(RelDataTypeField::getName)
+                                        .collect(Collectors.toList()));
+            };
+        }
+
+        @Override
+        public @Nullable TableCharacteristic tableCharacteristic(int ordinal) {
+            final List<StaticArgument> args = typeInference.getStaticArguments().orElse(null);
+            if (args == null || ordinal >= args.size()) {
+                return null;
+            }
+            final StaticArgument arg = args.get(ordinal);
+            final TableCharacteristic.Semantics semantics;
+            if (arg.is(StaticArgumentTrait.TABLE_AS_ROW)) {
+                semantics = TableCharacteristic.Semantics.ROW;
+            } else if (arg.is(StaticArgumentTrait.TABLE_AS_SET)) {
+                semantics = TableCharacteristic.Semantics.SET;
+            } else {
+                return null;
+            }
+            return TableCharacteristic.builder(semantics).build();
+        }
+
+        @Override
+        public boolean argumentMustBeScalar(int ordinal) {
+            final List<StaticArgument> args = typeInference.getStaticArguments().orElse(null);
+            if (args == null || ordinal >= args.size()) {
+                return true;
+            }
+            final StaticArgument arg = args.get(ordinal);
+            return !arg.is(StaticArgumentTrait.TABLE);
         }
     }
 }

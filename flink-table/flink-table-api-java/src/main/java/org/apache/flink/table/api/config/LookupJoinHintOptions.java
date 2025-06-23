@@ -21,7 +21,7 @@ package org.apache.flink.table.api.config;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableSet;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableSet;
 
 import java.time.Duration;
 import java.util.HashSet;
@@ -100,6 +100,12 @@ public class LookupJoinHintOptions {
                     .noDefaultValue()
                     .withDescription("Max attempt number of the 'fixed-delay' retry strategy.");
 
+    public static final ConfigOption<Boolean> SHUFFLE =
+            key("shuffle")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Enable shuffle before lookup join.");
+
     public static final String LOOKUP_MISS_PREDICATE = "lookup_miss";
 
     private static final Set<ConfigOption<?>> requiredKeys = new HashSet<>();
@@ -117,6 +123,7 @@ public class LookupJoinHintOptions {
         supportedKeys.add(RETRY_STRATEGY);
         supportedKeys.add(FIXED_DELAY);
         supportedKeys.add(MAX_ATTEMPTS);
+        supportedKeys.add(SHUFFLE);
     }
 
     public static ImmutableSet<ConfigOption> getRequiredOptions() {

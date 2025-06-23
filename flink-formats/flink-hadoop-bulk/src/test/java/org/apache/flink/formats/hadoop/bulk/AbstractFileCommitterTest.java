@@ -18,7 +18,6 @@
 
 package org.apache.flink.formats.hadoop.bulk;
 
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.IOUtils;
 
 import org.apache.hadoop.conf.Configuration;
@@ -27,10 +26,9 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.junit.After;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -38,38 +36,28 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the behaviors of {@link HadoopFileCommitter}. */
-@RunWith(Parameterized.class)
-public abstract class AbstractFileCommitterTest extends AbstractTestBaseJUnit4 {
+public abstract class AbstractFileCommitterTest {
 
     private static final List<String> CONTENTS =
             new ArrayList<>(Arrays.asList("first line", "second line", "third line"));
 
-    private boolean override;
+    private final Configuration configuration;
 
-    private Configuration configuration;
+    private final Path basePath;
 
-    private Path basePath;
-
-    @Parameterized.Parameters(name = "Override: {0}")
-    public static Collection<Boolean> parameters() {
-        return Arrays.asList(true, false);
-    }
-
-    public AbstractFileCommitterTest(boolean override) throws IOException {
-        this.override = override;
+    public AbstractFileCommitterTest() {
         this.configuration = getConfiguration();
         this.basePath = getBasePath();
     }
 
-    @After
-    public void cleanup() throws IOException {
+    @AfterEach
+    void cleanup() throws IOException {
         cleanup(configuration, basePath);
     }
 
@@ -81,16 +69,17 @@ public abstract class AbstractFileCommitterTest extends AbstractTestBaseJUnit4 {
     protected abstract HadoopFileCommitter createPendingCommitter(
             Configuration configuration, Path targetFilePath, Path tempFilePath) throws IOException;
 
-    protected abstract Path getBasePath() throws IOException;
+    protected abstract Path getBasePath();
 
     protected abstract void cleanup(Configuration configuration, Path basePath) throws IOException;
 
-    @Test
-    public void testCommitOneFile() throws IOException {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testCommitOneFile(boolean override) throws IOException {
         Path targetFilePath = new Path(basePath, "part-0-0.txt");
 
         HadoopFileCommitter committer = createNewCommitter(configuration, targetFilePath);
-        writeFile(committer.getTempFilePath(), configuration);
+        writeFile(committer.getTempFilePath(), configuration, override);
 
         committer.preCommit();
         verifyFileNotExists(configuration, basePath, "part-0-0.txt");
@@ -99,17 +88,18 @@ public abstract class AbstractFileCommitterTest extends AbstractTestBaseJUnit4 {
         verifyFolderAfterAllCommitted(configuration, basePath, "part-0-0.txt");
     }
 
-    @Test
-    public void testCommitReWrittenFileAfterFailOver() throws IOException {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testCommitReWrittenFileAfterFailOver(boolean override) throws IOException {
         Path targetFilePath = new Path(basePath, "part-0-0.txt");
 
         HadoopFileCommitter committer = createNewCommitter(configuration, targetFilePath);
-        writeFile(committer.getTempFilePath(), configuration);
+        writeFile(committer.getTempFilePath(), configuration, override);
         Path firstTempFilePath = committer.getTempFilePath();
 
         // Simulates restart the process and re-write the file.
         committer = createNewCommitter(configuration, targetFilePath);
-        writeFile(committer.getTempFilePath(), configuration);
+        writeFile(committer.getTempFilePath(), configuration, override);
 
         committer.preCommit();
         verifyFileNotExists(configuration, basePath, "part-0-0.txt");
@@ -119,12 +109,13 @@ public abstract class AbstractFileCommitterTest extends AbstractTestBaseJUnit4 {
                 configuration, basePath, "part-0-0.txt", firstTempFilePath.getName());
     }
 
-    @Test
-    public void testCommitPreCommittedFileAfterFailOver() throws IOException {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testCommitPreCommittedFileAfterFailOver(boolean override) throws IOException {
         Path targetFilePath = new Path(basePath, "part-0-0.txt");
 
         HadoopFileCommitter committer = createNewCommitter(configuration, targetFilePath);
-        writeFile(committer.getTempFilePath(), configuration);
+        writeFile(committer.getTempFilePath(), configuration, override);
 
         committer.preCommit();
         verifyFileNotExists(configuration, basePath, "part-0-0.txt");
@@ -136,12 +127,13 @@ public abstract class AbstractFileCommitterTest extends AbstractTestBaseJUnit4 {
         verifyFolderAfterAllCommitted(configuration, basePath, "part-0-0.txt");
     }
 
-    @Test
-    public void testRepeatCommitAfterFailOver() throws IOException {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testRepeatCommitAfterFailOver(boolean override) throws IOException {
         Path targetFilePath = new Path(basePath, "part-0-0.txt");
 
         HadoopFileCommitter committer = createNewCommitter(configuration, targetFilePath);
-        writeFile(committer.getTempFilePath(), configuration);
+        writeFile(committer.getTempFilePath(), configuration, override);
 
         committer.preCommit();
         verifyFileNotExists(configuration, basePath, "part-0-0.txt");
@@ -157,16 +149,17 @@ public abstract class AbstractFileCommitterTest extends AbstractTestBaseJUnit4 {
         verifyFolderAfterAllCommitted(configuration, basePath, "part-0-0.txt");
     }
 
-    @Test
-    public void testCommitMultipleFilesOneByOne() throws IOException {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testCommitMultipleFilesOneByOne(boolean override) throws IOException {
         Path targetFilePath1 = new Path(basePath, "part-0-0.txt");
         Path targetFilePath2 = new Path(basePath, "part-1-1.txt");
 
         HadoopFileCommitter committer1 = createNewCommitter(configuration, targetFilePath1);
         HadoopFileCommitter committer2 = createNewCommitter(configuration, targetFilePath2);
 
-        writeFile(committer1.getTempFilePath(), configuration);
-        writeFile(committer2.getTempFilePath(), configuration);
+        writeFile(committer1.getTempFilePath(), configuration, override);
+        writeFile(committer2.getTempFilePath(), configuration, override);
 
         committer1.preCommit();
         committer1.commit();
@@ -180,16 +173,17 @@ public abstract class AbstractFileCommitterTest extends AbstractTestBaseJUnit4 {
         verifyFolderAfterAllCommitted(configuration, basePath, "part-0-0.txt", "part-1-1.txt");
     }
 
-    @Test
-    public void testCommitMultipleFilesMixed() throws IOException {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testCommitMultipleFilesMixed(boolean override) throws IOException {
         Path targetFilePath1 = new Path(basePath, "part-0-0.txt");
         Path targetFilePath2 = new Path(basePath, "part-1-1.txt");
 
         HadoopFileCommitter committer1 = createNewCommitter(configuration, targetFilePath1);
         HadoopFileCommitter committer2 = createNewCommitter(configuration, targetFilePath2);
 
-        writeFile(committer1.getTempFilePath(), configuration);
-        writeFile(committer2.getTempFilePath(), configuration);
+        writeFile(committer1.getTempFilePath(), configuration, override);
+        writeFile(committer2.getTempFilePath(), configuration, override);
 
         committer1.preCommit();
         committer2.preCommit();
@@ -207,7 +201,8 @@ public abstract class AbstractFileCommitterTest extends AbstractTestBaseJUnit4 {
 
     // ---------------------------------------------------------------------------------------
 
-    private void writeFile(Path path, Configuration configuration) throws IOException {
+    private void writeFile(Path path, Configuration configuration, boolean override)
+            throws IOException {
         FileSystem fileSystem = FileSystem.get(path.toUri(), configuration);
 
         FSDataOutputStream fsDataOutputStream = null;
@@ -232,7 +227,7 @@ public abstract class AbstractFileCommitterTest extends AbstractTestBaseJUnit4 {
         FileSystem fileSystem = FileSystem.get(basePath.toUri(), configuration);
         for (String targetFileName : targetFileNames) {
             assertThat(fileSystem.exists(new Path(basePath, targetFileName)))
-                    .as("Pre-committed file should not exists: " + targetFileName)
+                    .as("Pre-committed file should not exist: " + targetFileName)
                     .isFalse();
         }
     }
@@ -245,7 +240,7 @@ public abstract class AbstractFileCommitterTest extends AbstractTestBaseJUnit4 {
         for (String targetFileName : targetFileNames) {
             Path targetFilePath = new Path(basePath, targetFileName);
             assertThat(fileSystem.exists(targetFilePath))
-                    .as("Committed file should exists: " + targetFileName)
+                    .as("Committed file should exist: " + targetFileName)
                     .isTrue();
             List<String> written = readFile(fileSystem, targetFilePath);
             assertThat(written)

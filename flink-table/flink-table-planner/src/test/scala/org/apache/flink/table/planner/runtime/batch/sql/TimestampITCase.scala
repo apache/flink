@@ -17,12 +17,10 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.legacy.api.TableSchema
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
-import org.apache.flink.table.planner.utils.TestDataTypeTableSource
 import org.apache.flink.types.Row
 
 import org.junit.jupiter.api.{BeforeEach, Test}
@@ -37,23 +35,6 @@ class TimestampITCase extends BatchTestBase {
   @BeforeEach
   override def before(): Unit = {
     super.before()
-
-    val tableSchema = TableSchema
-      .builder()
-      .fields(
-        Array("a", "b", "c", "d", "e", "f", "g", "h"),
-        Array(
-          DataTypes.INT(),
-          DataTypes.BIGINT(),
-          DataTypes.TIMESTAMP(9),
-          DataTypes.TIMESTAMP(9),
-          DataTypes.TIMESTAMP(3),
-          DataTypes.TIMESTAMP(3),
-          DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9),
-          DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)
-        )
-      )
-      .build()
 
     val ints = List(1, 2, 3, 4, null)
 
@@ -127,7 +108,24 @@ class TimestampITCase extends BatchTestBase {
         instantsOfTimestamp(i))
     }
 
-    TestDataTypeTableSource.createTemporaryTable(tEnv, tableSchema, "T", data.seq)
+    val dataId = TestValuesTableFactory.registerData(data.seq)
+
+    tEnv.executeSql(s"""
+                       |create table T (
+                       |  a int,
+                       |  b bigint,
+                       |  c timestamp(9),
+                       |  d timestamp(9),
+                       |  e timestamp(3),
+                       |  f timestamp(3),
+                       |  g timestamp_ltz(9),
+                       |  h timestamp_ltz(9)
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'true',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
   }
 
   @Test

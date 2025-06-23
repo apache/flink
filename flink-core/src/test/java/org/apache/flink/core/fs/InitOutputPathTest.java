@@ -115,7 +115,9 @@ class InitOutputPathTest {
     }
 
     private static Unsafe getUnsafe()
-            throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException,
+            throws IllegalArgumentException,
+                    IllegalAccessException,
+                    NoSuchFieldException,
                     SecurityException {
         Field field1 = Unsafe.class.getDeclaredField("theUnsafe");
         field1.setAccessible(true);

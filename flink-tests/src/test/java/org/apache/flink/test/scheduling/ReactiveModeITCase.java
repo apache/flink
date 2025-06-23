@@ -37,9 +37,6 @@ import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.jackson.JacksonMapperFactory;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -55,8 +52,6 @@ public class ReactiveModeITCase extends TestLogger {
     private static final int INITIAL_NUMBER_TASK_MANAGERS = 1;
 
     private static final Configuration configuration = getReactiveModeConfiguration();
-
-    private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -140,10 +135,8 @@ public class ReactiveModeITCase extends TestLogger {
                         .get();
 
         assertThat(
-                        OBJECT_MAPPER
-                                .readTree(archivedExecutionGraph.getJsonPlan())
-                                .findValues("parallelism"))
-                .allMatch(n -> n.asInt() == initialParallelism);
+                archivedExecutionGraph.getPlan().getNodes().stream()
+                        .allMatch(n -> n.getParallelism() == (long) initialParallelism));
 
         // scale up to 2 TaskManagers:
         miniClusterResource.getMiniCluster().startTaskManager();
@@ -162,10 +155,8 @@ public class ReactiveModeITCase extends TestLogger {
                         .get();
 
         assertThat(
-                        OBJECT_MAPPER
-                                .readTree(archivedExecutionGraph.getJsonPlan())
-                                .findValues("parallelism"))
-                .allMatch(n -> n.asInt() == rescaledParallelism);
+                archivedExecutionGraph.getPlan().getNodes().stream()
+                        .allMatch(n -> n.getParallelism() == (long) rescaledParallelism));
     }
 
     @Test

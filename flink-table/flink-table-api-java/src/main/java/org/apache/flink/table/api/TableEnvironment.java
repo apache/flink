@@ -21,6 +21,7 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
@@ -28,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.Module;
@@ -719,6 +721,37 @@ public interface TableEnvironment {
     void createTemporaryTable(String path, TableDescriptor descriptor);
 
     /**
+     * Registers the given {@link TableDescriptor} as a temporary catalog table.
+     *
+     * <p>The {@link TableDescriptor descriptor} is converted into a {@link CatalogTable} and stored
+     * in the catalog.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+     * it will be inaccessible in the current session. To make the permanent object available again
+     * one can drop the corresponding temporary object.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * tEnv.createTemporaryTable("MyTable", TableDescriptor.forConnector("datagen")
+     *   .schema(Schema.newBuilder()
+     *     .column("f0", DataTypes.STRING())
+     *     .build())
+     *   .option(DataGenOptions.ROWS_PER_SECOND, 10)
+     *   .option("fields.f0.kind", "random")
+     *   .build(),
+     *  true);
+     * }</pre>
+     *
+     * @param path The path under which the table will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor Template for creating a {@link CatalogTable} instance.
+     * @param ignoreIfExists If a table exists under the given path and this flag is set, no
+     *     operation is executed. An exception is thrown otherwise.
+     */
+    void createTemporaryTable(String path, TableDescriptor descriptor, boolean ignoreIfExists);
+
+    /**
      * Registers the given {@link TableDescriptor} as a catalog table.
      *
      * <p>The {@link TableDescriptor descriptor} is converted into a {@link CatalogTable} and stored
@@ -744,6 +777,38 @@ public interface TableEnvironment {
      * @param descriptor Template for creating a {@link CatalogTable} instance.
      */
     void createTable(String path, TableDescriptor descriptor);
+
+    /**
+     * Registers the given {@link TableDescriptor} as a catalog table.
+     *
+     * <p>The {@link TableDescriptor descriptor} is converted into a {@link CatalogTable} and stored
+     * in the catalog.
+     *
+     * <p>If the table should not be permanently stored in a catalog, use {@link
+     * #createTemporaryTable(String, TableDescriptor, boolean)} instead.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * tEnv.createTable("MyTable", TableDescriptor.forConnector("datagen")
+     *   .schema(Schema.newBuilder()
+     *     .column("f0", DataTypes.STRING())
+     *     .build())
+     *   .option(DataGenOptions.ROWS_PER_SECOND, 10)
+     *   .option("fields.f0.kind", "random")
+     *   .build(),
+     *  true);
+     * }</pre>
+     *
+     * @param path The path under which the table will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor Template for creating a {@link CatalogTable} instance.
+     * @param ignoreIfExists If a table exists under the given path and this flag is set, no
+     *     operation is executed. An exception is thrown otherwise.
+     * @return true if table was created in the given path, false if a permanent object already
+     *     exists in the given path.
+     */
+    boolean createTable(String path, TableDescriptor descriptor, boolean ignoreIfExists);
 
     /**
      * Registers a {@link Table} under a unique name in the TableEnvironment's catalog. Registered
@@ -772,6 +837,36 @@ public interface TableEnvironment {
      * @param view The view to register.
      */
     void createTemporaryView(String path, Table view);
+
+    /**
+     * Registers a {@link Table} API object as a view similar to SQL views.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a temporary object in a given path exists,
+     * the permanent one will be inaccessible in the current session. To make the permanent object
+     * available again one can drop the corresponding temporary object.
+     *
+     * @param path The path under which the view will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param view The view to register.
+     */
+    void createView(String path, Table view);
+
+    /**
+     * Registers a {@link Table} API object as a view similar to SQL views.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a temporary object in a given path exists,
+     * the permanent one will be inaccessible in the current session. To make the permanent object
+     * available again one can drop the corresponding temporary object.
+     *
+     * @param path The path under which the view will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param view The view to register.
+     * @param ignoreIfExists If a view or a table exists and the given flag is set, no operation is
+     *     executed. An exception is thrown otherwise.
+     * @return true if view was created in the given path, false if a permanent object already
+     *     exists in the given path.
+     */
+    boolean createView(String path, Table view, boolean ignoreIfExists);
 
     /**
      * Scans a registered table and returns the resulting {@link Table}.
@@ -873,6 +968,74 @@ public interface TableEnvironment {
     Table from(TableDescriptor descriptor);
 
     /**
+     * Returns a {@link Table} backed by a call to a process table function (PTF).
+     *
+     * <p>A PTF maps zero, one, or multiple tables to a new table. PTFs are the most powerful
+     * function kind for Flink SQL and Table API. They enable implementing user-defined operators
+     * that can be as feature-rich as built-in operations. PTFs have access to Flink's managed
+     * state, event-time and timer services, underlying table changelogs, and can take multiple
+     * partitioned tables to produce a new table.
+     *
+     * <p>This method assumes a call to a previously registered function.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * env.createFunction("MyPTF", MyPTF.class);
+     *
+     * Table table = env.fromCall(
+     *   "MyPTF",
+     *   table.partitionBy($("key")).asArgument("input_table"),
+     *   lit("Bob").asArgument("default_name"),
+     *   lit(42).asArgument("default_threshold")
+     * );
+     * }</pre>
+     *
+     * <p>A PTF can digest tables either per row (with row semantics) or per set (with set
+     * semantics). For set semantics ({@link ArgumentTrait#TABLE_AS_SET}), make sure to partition
+     * the table first using {@link Table#partitionBy(Expression...)}.
+     *
+     * @param path The path of a function.
+     * @param arguments Table and scalar argument {@link Expressions}.
+     * @return The {@link Table} object describing the pipeline for further transformations.
+     * @see Expressions#call(String, Object...)
+     * @see ProcessTableFunction
+     */
+    Table fromCall(String path, Object... arguments);
+
+    /**
+     * Returns a {@link Table} backed by a call to a process table function (PTF).
+     *
+     * <p>A PTF maps zero, one, or multiple tables to a new table. PTFs are the most powerful
+     * function kind for Flink SQL and Table API. They enable implementing user-defined operators
+     * that can be as feature-rich as built-in operations. PTFs have access to Flink's managed
+     * state, event-time and timer services, underlying table changelogs, and can take multiple
+     * partitioned tables to produce a new table.
+     *
+     * <p>This method assumes a call to an unregistered, inline function.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * Table table = env.fromCall(
+     *   MyPTF.class,
+     *   table.partitionBy($("key")).asArgument("input_table")
+     * );
+     * }</pre>
+     *
+     * <p>A PTF can digest tables either per row (with row semantics) or per set (with set
+     * semantics). For set semantics ({@link ArgumentTrait#TABLE_AS_SET}), make sure to partition
+     * the table first using {@link Table#partitionBy(Expression...)}.
+     *
+     * @param function The class containing the function's logic.
+     * @param arguments Table and scalar argument {@link Expressions}.
+     * @return The {@link Table} object describing the pipeline for further transformations.
+     * @see Expressions#call(Class, Object...)
+     * @see ProcessTableFunction
+     */
+    Table fromCall(Class<? extends UserDefinedFunction> function, Object... arguments);
+
+    /**
      * Gets the names of all catalogs registered in this environment.
      *
      * @return A list of the names of all registered catalogs.
@@ -965,9 +1128,44 @@ public interface TableEnvironment {
      * <p>If a permanent table with a given path exists, it will be used from now on for any queries
      * that reference this path.
      *
+     * @param path The given path under which the temporary table will be dropped. See also the
+     *     {@link TableEnvironment} class description for the format of the path.
      * @return true if a table existed in the given path and was removed
      */
     boolean dropTemporaryTable(String path);
+
+    /**
+     * Drops a table registered in the given path.
+     *
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryTable}.
+     *
+     * <p>Compared to SQL, this method will not throw an error if the table does not exist. Use
+     * {@link #dropTable(java.lang.String, boolean)} to change the default behavior.
+     *
+     * @param path The given path under which the table will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @return true if table existed in the given path and was dropped, false if table didn't exist
+     *     in the given path.
+     */
+    boolean dropTable(String path);
+
+    /**
+     * Drops a table registered in the given path.
+     *
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryTable}.
+     *
+     * @param path The given path under which the given table will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param ignoreIfNotExists If false exception will be thrown if the view to drop does not
+     *     exist.
+     * @return true if table existed in the given path and was dropped, false if table didn't exist
+     *     in the given path.
+     */
+    boolean dropTable(String path, boolean ignoreIfNotExists);
 
     /**
      * Drops a temporary view registered in the given path.
@@ -975,9 +1173,44 @@ public interface TableEnvironment {
      * <p>If a permanent table or view with a given path exists, it will be used from now on for any
      * queries that reference this path.
      *
+     * @param path The given path under which the temporary view will be dropped. See also the
+     *     {@link TableEnvironment} class description for the format of the path.
      * @return true if a view existed in the given path and was removed
      */
     boolean dropTemporaryView(String path);
+
+    /**
+     * Drops a view registered in the given path.
+     *
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryView}.
+     *
+     * <p>Compared to SQL, this method will not throw an error if the view does not exist. Use
+     * {@link #dropView(java.lang.String, boolean)} to change the default behavior.
+     *
+     * @param path The given path under which the view will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @return true if view existed in the given path and was dropped, false if view didn't exist in
+     *     the given path.
+     */
+    boolean dropView(String path);
+
+    /**
+     * Drops a view registered in the given path.
+     *
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryView}.
+     *
+     * @param path The given path under which the view will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param ignoreIfNotExists If false exception will be thrown if the view to drop does not
+     *     exist.
+     * @return true if view existed in the given path and was dropped, false if view didn't exist in
+     *     the given path and ignoreIfNotExists was true.
+     */
+    boolean dropView(String path, boolean ignoreIfNotExists);
 
     /**
      * Returns the AST of the specified statement and the execution plan to compute the result of

@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
+import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
 
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.RelOptCluster;
@@ -38,6 +39,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.tools.RelBuilder;
 
@@ -140,9 +142,21 @@ public final class ShortcutUtils {
         }
         final RexCall call = (RexCall) rexNode;
         if (!(call.getOperator() instanceof BridgingSqlFunction)) {
+            // legacy
+            if (call.getOperator() instanceof TableSqlFunction) {
+                return ((TableSqlFunction) call.getOperator()).udtf();
+            }
             return null;
         }
         return ((BridgingSqlFunction) call.getOperator()).getDefinition();
+    }
+
+    public static @Nullable BridgingSqlFunction unwrapBridgingSqlFunction(RexCall call) {
+        final SqlOperator operator = call.getOperator();
+        if (operator instanceof BridgingSqlFunction) {
+            return (BridgingSqlFunction) operator;
+        }
+        return null;
     }
 
     private ShortcutUtils() {

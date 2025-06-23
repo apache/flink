@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -93,16 +92,6 @@ class MailboxWatermarkProcessorTest {
                 TypeSerializer<Object> keySerializer,
                 TypeSerializer<N> namespaceSerializer,
                 Triggerable<Object, N> triggerable) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public <N> InternalTimerService<N> getAsyncInternalTimerService(
-                String name,
-                TypeSerializer<Object> keySerializer,
-                TypeSerializer<N> namespaceSerializer,
-                Triggerable<Object, N> triggerable,
-                AsyncExecutionController<Object> asyncExecutionController) {
             throw new UnsupportedOperationException();
         }
 

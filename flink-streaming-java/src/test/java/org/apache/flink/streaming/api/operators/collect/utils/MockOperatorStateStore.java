@@ -22,6 +22,8 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.runtime.state.v2.StateDescriptorUtils;
+import org.apache.flink.runtime.state.v2.adaptor.OperatorListStateAdaptor;
 import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils;
 
 import java.util.Collections;
@@ -63,6 +65,29 @@ public class MockOperatorStateStore implements OperatorStateStore {
     public <S> ListState<S> getUnionListState(ListStateDescriptor<S> stateDescriptor)
             throws Exception {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public <K, V> BroadcastState<K, V> getBroadcastState(
+            org.apache.flink.api.common.state.v2.MapStateDescriptor<K, V> stateDescriptor)
+            throws Exception {
+        return getBroadcastState(StateDescriptorUtils.transformFromV2ToV1(stateDescriptor));
+    }
+
+    @Override
+    public <S> org.apache.flink.api.common.state.v2.ListState<S> getListState(
+            org.apache.flink.api.common.state.v2.ListStateDescriptor<S> stateDescriptor)
+            throws Exception {
+        return new OperatorListStateAdaptor<>(
+                getListState(StateDescriptorUtils.transformFromV2ToV1(stateDescriptor)));
+    }
+
+    @Override
+    public <S> org.apache.flink.api.common.state.v2.ListState<S> getUnionListState(
+            org.apache.flink.api.common.state.v2.ListStateDescriptor<S> stateDescriptor)
+            throws Exception {
+        return new OperatorListStateAdaptor<>(
+                getListState(StateDescriptorUtils.transformFromV2ToV1(stateDescriptor)));
     }
 
     @Override

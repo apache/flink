@@ -25,7 +25,6 @@ import org.apache.flink.table.legacy.factories.TableFactory;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.module.ModuleException;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -38,20 +37,7 @@ import java.util.Set;
  * instead.
  */
 @PublicEvolving
-public interface ModuleFactory extends TableFactory, Factory {
-
-    /**
-     * Creates and configures a {@link Module} using the given properties.
-     *
-     * @param properties normalized properties describing a module.
-     * @return the configured module.
-     * @deprecated Use {@link #createModule(Context)} instead and implement {@link Factory} instead
-     *     of {@link TableFactory}.
-     */
-    @Deprecated
-    default Module createModule(Map<String, String> properties) {
-        throw new ModuleException("Module factories must implement createModule().");
-    }
+public interface ModuleFactory extends Factory {
 
     /** Creates and configures a {@link Module}. */
     default Module createModule(Context context) {
@@ -79,45 +65,9 @@ public interface ModuleFactory extends TableFactory, Factory {
         ClassLoader getClassLoader();
     }
 
-    default String factoryIdentifier() {
-        if (requiredContext() == null || supportedProperties() == null) {
-            throw new ModuleException("Module factories must implement factoryIdentifier()");
-        }
+    String factoryIdentifier();
 
-        return null;
-    }
+    Set<ConfigOption<?>> requiredOptions();
 
-    default Set<ConfigOption<?>> requiredOptions() {
-        if (requiredContext() == null || supportedProperties() == null) {
-            throw new ModuleException("Module factories must implement requiredOptions()");
-        }
-
-        return null;
-    }
-
-    default Set<ConfigOption<?>> optionalOptions() {
-        if (requiredContext() == null || supportedProperties() == null) {
-            throw new ModuleException("Module factories must implement optionalOptions()");
-        }
-
-        return null;
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // Default implementations for legacy {@link TableFactory} stack.
-    // --------------------------------------------------------------------------------------------
-
-    /** @deprecated Implement the {@link Factory} based stack instead. */
-    @Deprecated
-    default Map<String, String> requiredContext() {
-        // Default implementation for modules implementing the new {@link Factory} stack instead.
-        return null;
-    }
-
-    /** @deprecated Implement the {@link Factory} based stack instead. */
-    @Deprecated
-    default List<String> supportedProperties() {
-        // Default implementation for modules implementing the new {@link Factory} stack instead.
-        return null;
-    }
+    Set<ConfigOption<?>> optionalOptions();
 }

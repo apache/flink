@@ -52,20 +52,20 @@ public class PrintSinkFunction<IN> extends RichSinkFunction<IN>
     /**
      * Instantiates a print sink function that prints to standard out.
      *
-     * @param stdErr True, if the format should print to standard error instead of standard out.
+     * @param isStdErr True, if the format should print to standard error instead of standard out.
      */
-    public PrintSinkFunction(final boolean stdErr) {
-        writer = new PrintSinkOutputWriter<>(stdErr);
+    public PrintSinkFunction(final boolean isStdErr) {
+        writer = new PrintSinkOutputWriter<>(isStdErr);
     }
 
     /**
      * Instantiates a print sink function that prints to standard out and gives a sink identifier.
      *
-     * @param stdErr True, if the format should print to standard error instead of standard out.
+     * @param isStdErr True, if the format should print to standard error instead of standard out.
      * @param sinkIdentifier Message that identify sink and is prefixed to the output of the value
      */
-    public PrintSinkFunction(final String sinkIdentifier, final boolean stdErr) {
-        writer = new PrintSinkOutputWriter<>(sinkIdentifier, stdErr);
+    public PrintSinkFunction(final String sinkIdentifier, final boolean isStdErr) {
+        writer = new PrintSinkOutputWriter<>(sinkIdentifier, isStdErr);
     }
 
     @Override

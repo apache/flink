@@ -21,6 +21,12 @@ package org.apache.flink.runtime.state.v2;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
+import org.apache.flink.api.common.state.v2.ListStateDescriptor;
+import org.apache.flink.api.common.state.v2.MapStateDescriptor;
+import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.v2.StateDescriptor;
+import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -36,6 +42,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
 import org.apache.flink.runtime.state.v2.internal.InternalAggregatingState;
@@ -63,7 +70,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
                 new ValueStateDescriptor<>("testState", BasicTypeInfo.INT_TYPE_INFO);
 
         org.apache.flink.api.common.state.v2.ValueState<Integer> valueState =
-                adaptor.createState(
+                adaptor.getOrCreateKeyedState(
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descriptor);
 
         // test synchronous interfaces.
@@ -102,7 +109,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
                 new ListStateDescriptor<>("testState", BasicTypeInfo.INT_TYPE_INFO);
 
         org.apache.flink.api.common.state.v2.ListState<Integer> listState =
-                adaptor.createState(
+                adaptor.getOrCreateKeyedState(
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descriptor);
 
         // test synchronous interfaces.
@@ -154,7 +161,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
                         "testState", BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 
         org.apache.flink.api.common.state.v2.MapState<Integer, Integer> mapState =
-                adaptor.createState(
+                adaptor.getOrCreateKeyedState(
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descriptor);
 
         final HashMap<Integer, Integer> groundTruth =
@@ -247,7 +254,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
                         "testState", Integer::sum, BasicTypeInfo.INT_TYPE_INFO);
 
         InternalReducingState<String, Long, Integer> reducingState =
-                adaptor.createState(0L, LongSerializer.INSTANCE, descriptor);
+                adaptor.getOrCreateKeyedState(0L, LongSerializer.INSTANCE, descriptor);
 
         // test synchronous interfaces.
         reducingState.clear();
@@ -353,7 +360,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
                         BasicTypeInfo.INT_TYPE_INFO);
 
         InternalAggregatingState<String, Long, Integer, Integer, String> aggState =
-                adaptor.createState(0L, LongSerializer.INSTANCE, descriptor);
+                adaptor.getOrCreateKeyedState(0L, LongSerializer.INSTANCE, descriptor);
 
         // test synchronous interfaces.
         aggState.clear();
@@ -436,6 +443,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
                         executionConfig,
                         TtlTimeProvider.DEFAULT,
                         LatencyTrackingStateConfig.disabled(),
+                        SizeTrackingStateConfig.disabled(),
                         Collections.EMPTY_LIST,
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
                         TestLocalRecoveryConfig.disabled(),

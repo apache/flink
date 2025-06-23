@@ -20,7 +20,7 @@ package org.apache.flink.configuration.description;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-import org.apache.flink.shaded.guava32.com.google.common.base.Strings;
+import org.apache.flink.shaded.guava33.com.google.common.base.Strings;
 
 import java.util.Arrays;
 import java.util.Collections;

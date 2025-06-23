@@ -62,7 +62,7 @@ public abstract class ComponentMetricGroup<P extends AbstractMetricGroup<?>>
                 super.close();
 
                 // remove and close all subcomponent metrics
-                for (ComponentMetricGroup group : subComponents()) {
+                for (ComponentMetricGroup<?> group : subComponents()) {
                     group.close();
                 }
             }
@@ -78,5 +78,5 @@ public abstract class ComponentMetricGroup<P extends AbstractMetricGroup<?>>
      *
      * @return All component metric groups that are contained in this component metric group.
      */
-    protected abstract Iterable<? extends ComponentMetricGroup> subComponents();
+    protected abstract Iterable<? extends ComponentMetricGroup<?>> subComponents();
 }

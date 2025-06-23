@@ -21,7 +21,7 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
 import org.apache.calcite.plan.RelOptRule.{any, operandJ}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Aggregate, Filter, RelFactories}
-import org.apache.calcite.rex.{RexShuttle, _}
+import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeFamily
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlCountAggFunction
@@ -39,11 +39,11 @@ import scala.collection.JavaConversions._
  * {{{
  * LogicalProject(a=[$0], b=[$1], c=[$2])
  * +- LogicalJoin(condition=[$3], joinType=[semi])
- *    :- LogicalTableScan(table=[[x, source: [TestTableSource(a, b, c)]]])
+ *    :- LogicalTableScan(table=[[x]])
  *    +- LogicalProject($f0=[IS NOT NULL($0)])
  *       +- LogicalAggregate(group=[{}], m=[MIN($0)])
  *          +- LogicalProject(i=[true])
- *             +- LogicalTableScan(table=[[y, source: [TestTableSource(d, e, f)]]])
+ *             +- LogicalTableScan(table=[[y]])
  * }}}
  */
 class FlinkRewriteSubQueryRule(

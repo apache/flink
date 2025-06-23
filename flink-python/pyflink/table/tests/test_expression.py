@@ -132,6 +132,8 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('PERCENTILE(a, array(0.1, 0.5))', str(expr1.percentile(array(0.1, 0.5))))
         self.assertEqual('PERCENTILE(a, array(0.1, 0.5), b)',
                          str(expr1.percentile(array(0.1, 0.5), expr2)))
+        self.assertEqual("ASSIGNMENT('a2', a)", str(expr1.as_argument('a2')))
+        self.assertEqual("ASSIGNMENT('a', 10)", str(expr5.as_argument('a')))
 
         # string functions
         self.assertEqual('substring(a, b)', str(expr1.substring(expr2)))
@@ -285,7 +287,14 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual("toDate('2018-03-18')", str(to_date('2018-03-18')))
         self.assertEqual("toDate('2018-03-18', 'yyyy-MM-dd')",
                          str(to_date('2018-03-18', 'yyyy-MM-dd')))
-        self.assertEqual('toTimestampLtz(123, 0)', str(to_timestamp_ltz(123, 0)))
+        self.assertEqual('TO_TIMESTAMP_LTZ(100)', str(to_timestamp_ltz(100)))
+        self.assertEqual("TO_TIMESTAMP_LTZ('2023-01-01 00:00:00')",
+                         str(to_timestamp_ltz('2023-01-01 00:00:00')))
+        self.assertEqual("TO_TIMESTAMP_LTZ('01/01/2023 00:00:00', 'MM/dd/yyyy HH:mm:ss')",
+                         str(to_timestamp_ltz("01/01/2023 00:00:00", "MM/dd/yyyy HH:mm:ss")))
+        self.assertEqual("TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', 'yyyy-MM-dd HH:mm:ss', 'UTC')",
+                         str(to_timestamp_ltz("2023-01-01 00:00:00", "yyyy-MM-dd HH:mm:ss", "UTC")))
+        self.assertEqual("TO_TIMESTAMP_LTZ(123, 0)", str(to_timestamp_ltz(123, 0)))
         self.assertEqual("toTimestamp('1970-01-01 08:01:40')",
                          str(to_timestamp('1970-01-01 08:01:40')))
         self.assertEqual("toTimestamp('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')",

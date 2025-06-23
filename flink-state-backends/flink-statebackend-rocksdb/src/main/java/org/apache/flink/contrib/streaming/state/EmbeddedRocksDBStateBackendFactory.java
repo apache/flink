@@ -23,13 +23,21 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.StateBackendFactory;
 
-/** A factory that creates an {@link EmbeddedRocksDBStateBackend} from a configuration. */
+/**
+ * @deprecated This class has been moved to {@link
+ *     org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory}. Please use the one under
+ *     the new package instead.
+ */
+@Deprecated
 @PublicEvolving
 public class EmbeddedRocksDBStateBackendFactory
-        implements StateBackendFactory<EmbeddedRocksDBStateBackend> {
+        implements StateBackendFactory<
+                org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend> {
+
     @Override
-    public EmbeddedRocksDBStateBackend createFromConfig(
+    public org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend createFromConfig(
             ReadableConfig config, ClassLoader classLoader) throws IllegalConfigurationException {
-        return new EmbeddedRocksDBStateBackend().configure(config, classLoader);
+        return new org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend()
+                .configure(config, classLoader);
     }
 }

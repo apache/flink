@@ -338,7 +338,7 @@ public abstract class SourceTestSuiteBase<T> {
         String savepointPath =
                 jobClient
                         .stopWithSavepoint(
-                                true, testEnv.getCheckpointUri(), SavepointFormatType.CANONICAL)
+                                false, testEnv.getCheckpointUri(), SavepointFormatType.CANONICAL)
                         .get(30, TimeUnit.SECONDS);
         waitForJobStatus(jobClient, singletonList(JobStatus.FINISHED));
 
@@ -675,10 +675,12 @@ public abstract class SourceTestSuiteBase<T> {
                 new CollectSinkOperatorFactory<>(serializer, accumulatorName);
 
         CollectStreamSink<T> sink = new CollectStreamSink<>(stream, factory);
+        String operatorUid = "dataStreamCollect";
         sink.name("Data stream collect sink");
+        sink.uid(operatorUid);
         stream.getExecutionEnvironment().addOperator(sink.getTransformation());
         return new CollectIteratorBuilder<>(
-                accumulatorName,
+                operatorUid,
                 serializer,
                 accumulatorName,
                 stream.getExecutionEnvironment().getCheckpointConfig());

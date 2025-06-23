@@ -37,10 +37,13 @@ public class DefaultOperatorStateBackendBuilder
         implements StateBackendBuilder<DefaultOperatorStateBackend, BackendBuildingException> {
     /** The user code classloader. */
     @VisibleForTesting protected final ClassLoader userClassloader;
+
     /** The execution configuration. */
     @VisibleForTesting protected final ExecutionConfig executionConfig;
+
     /** Flag to de/activate asynchronous snapshots. */
     @VisibleForTesting protected final boolean asynchronousSnapshots;
+
     /** State handles for restore. */
     @VisibleForTesting protected final Collection<OperatorStateHandle> restoreStateHandles;
 

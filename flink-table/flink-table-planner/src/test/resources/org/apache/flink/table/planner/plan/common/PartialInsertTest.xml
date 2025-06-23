@@ -22,21 +22,21 @@ limitations under the License.
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[3]], fields=[a, EXPR$1, d, e, EXPR$4, EXPR$5])
 +- LogicalProject(a=[$0], EXPR$1=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], d=[$3], e=[$4], EXPR$4=[null:BIGINT], EXPR$5=[null:INTEGER])
    +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[3]], fields=[a, EXPR$1, d, e, EXPR$4, EXPR$5])
 +- Calc(select=[a, null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE" AS EXPR$1, d, e, null:BIGINT AS EXPR$4, null:INTEGER AS EXPR$5])
    +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
       +- Exchange(distribution=[hash[a, b, c, d, e]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[3]], fields=[a, EXPR$1, d, e, EXPR$4, EXPR$5])
 +- Calc(select=[a, null:VARCHAR(2147483647) AS EXPR$1, d, e, null:BIGINT AS EXPR$4, null:INTEGER AS EXPR$5])
    +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
       +- Exchange(distribution=[hash[a, b, c, d, e]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -51,10 +51,10 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetCol
    +- LogicalUnion(all=[true])
       :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -66,12 +66,12 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
       :  +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
       :     +- Exchange(distribution=[hash[a, b, c, d, e]])
       :        +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-      :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+      :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
       +- Calc(select=[a, c, d, e, CAST(456 AS BIGINT) AS f, CAST(789 AS INTEGER) AS g])
          +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
             +- Exchange(distribution=[hash[a, b, c, d, e]])
                +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -81,7 +81,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[3]], fields=[a, EXPR$1, d, e, EXPR$4, EXPR$5])
 +- LogicalProject(a=[$0], EXPR$1=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], d=[$3], e=[$4], EXPR$4=[null:BIGINT], EXPR$5=[null:INTEGER])
    +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
 Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[3]], fields=[a, EXPR$1, d, e, EXPR$4, EXPR$5])
@@ -90,7 +90,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
       +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
          +- Exchange(distribution=[hash[a, b, c, d, e]])
             +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[3]], fields=[a, EXPR$1, d, e, EXPR$4, EXPR$5])
@@ -99,7 +99,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
       +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
          +- Exchange(distribution=[hash[a, b, c, d, e]])
             +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -112,7 +112,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
 LogicalSink(table=[default_catalog.default_database.sink], targetColumns=[[1],[4],[0],[6],[5],[2],[3]], fields=[a, b, c, d, e, f, g])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[123:BIGINT], g=[456])
    +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -121,7 +121,7 @@ Sink(table=[default_catalog.default_database.sink], targetColumns=[[1],[4],[0],[
 +- Calc(select=[a, b, c, d, e, 123 AS f, 456 AS g])
    +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
       +- Exchange(distribution=[hash[a, b, c, d, e]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -134,7 +134,7 @@ Sink(table=[default_catalog.default_database.sink], targetColumns=[[1],[4],[0],[
 LogicalSink(table=[default_catalog.default_database.sink], targetColumns=[[1],[4],[0],[6],[5],[2],[3]], fields=[a, b, c, d, e, f, g])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[123:BIGINT], g=[456])
    +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -144,7 +144,7 @@ Sink(table=[default_catalog.default_database.sink], targetColumns=[[1],[4],[0],[
    +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
       +- Exchange(distribution=[hash[a, b, c, d, e]])
          +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -157,7 +157,7 @@ Sink(table=[default_catalog.default_database.sink], targetColumns=[[1],[4],[0],[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
 +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], f=[123:BIGINT], g=[456])
    +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -166,7 +166,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
 +- Calc(select=[a, c, d, e, 123 AS f, 456 AS g])
    +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
       +- Exchange(distribution=[hash[a, b, c, d, e]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -179,7 +179,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
 LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[4],[0],[6],[5],[2],[3]], fields=[a, c, d, e, f, g])
 +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], f=[123:BIGINT], g=[456])
    +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -190,7 +190,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
       +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
          +- Exchange(distribution=[hash[a, b, c, d, e]])
             +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -205,10 +205,10 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetCol
    +- LogicalMinus(all=[true])
       :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -223,11 +223,11 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
                   :- Calc(select=[a, c, d, e, CAST(123 AS BIGINT) AS f, CAST(456 AS INTEGER) AS g, 1 AS vcol_marker])
                   :  +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
                   :     +- Exchange(distribution=[hash[a, b, c, d, e]])
-                  :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                  :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
                   +- Calc(select=[a, c, d, e, CAST(123 AS BIGINT) AS f, CAST(456 AS INTEGER) AS g, -1 AS vcol_marker])
                      +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
                         +- Exchange(distribution=[hash[a, b, c, d, e]])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -242,10 +242,10 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetCol
    +- LogicalMinus(all=[true])
       :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -263,12 +263,12 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
                         :  +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
                         :     +- Exchange(distribution=[hash[a, b, c, d, e]])
                         :        +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-                        :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                        :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
                         +- Calc(select=[a, c, d, e, CAST(123 AS BIGINT) AS f, CAST(456 AS INTEGER) AS g, -1 AS vcol_marker])
                            +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
                               +- Exchange(distribution=[hash[a, b, c, d, e]])
                                  +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-                                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -283,10 +283,10 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetCol
    +- LogicalIntersect(all=[true])
       :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -301,11 +301,11 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
                   :- Calc(select=[a, c, d, e, CAST(123 AS BIGINT) AS f, CAST(456 AS INTEGER) AS g, true AS vcol_left_marker, null:BOOLEAN AS vcol_right_marker])
                   :  +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
                   :     +- Exchange(distribution=[hash[a, b, c, d, e]])
-                  :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                  :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
                   +- Calc(select=[a, c, d, e, CAST(456 AS BIGINT) AS f, CAST(789 AS INTEGER) AS g, null:BOOLEAN AS vcol_left_marker, true AS vcol_right_marker])
                      +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
                         +- Exchange(distribution=[hash[a, b, c, d, e]])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -320,10 +320,10 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetCol
    +- LogicalIntersect(all=[true])
       :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -341,12 +341,12 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
                         :  +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
                         :     +- Exchange(distribution=[hash[a, b, c, d, e]])
                         :        +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-                        :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                        :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
                         +- Calc(select=[a, c, d, e, CAST(456 AS BIGINT) AS f, CAST(789 AS INTEGER) AS g, null:BOOLEAN AS vcol_left_marker, true AS vcol_right_marker])
                            +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
                               +- Exchange(distribution=[hash[a, b, c, d, e]])
                                  +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-                                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -360,7 +360,7 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetCol
 +- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
    +- LogicalSort(sort0=[$0], sort1=[$3], sort2=[$1], sort3=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first], dir3=[ASC-nulls-first])
       +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -369,7 +369,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
 +- Calc(select=[a, c, d, e, CAST(123 AS BIGINT) AS f, CAST(456 AS INTEGER) AS g])
    +- Sort(orderBy=[a ASC, e ASC, c ASC, d ASC])
       +- Exchange(distribution=[single])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -383,7 +383,7 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetCol
 +- LogicalProject(a=[$0], c=[$1], d=[$2], e=[$3], f=[CAST($4):BIGINT], g=[CAST($5):INTEGER])
    +- LogicalSort(sort0=[$0], sort1=[$3], sort2=[$1], sort3=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], dir2=[ASC-nulls-first], dir3=[ASC-nulls-first])
       +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -392,7 +392,7 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
 +- Calc(select=[a, c, d, e, CAST(123 AS BIGINT) AS f, CAST(456 AS INTEGER) AS g])
    +- Sort(orderBy=[a ASC, e ASC, c ASC, d ASC])
       +- Exchange(distribution=[single])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -404,14 +404,14 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.metadata_sink], targetColumns=[[0],[1],[2],[3],[4],[5]], fields=[a, b, c, d, e, f])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[CAST(123:BIGINT):BIGINT])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.metadata_sink], targetColumns=[[0],[1],[2],[3],[4],[5]], fields=[a, b, c, d, e, f])
 +- Calc(select=[a, b, c, d, e, CAST(123 AS BIGINT) AS f])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -423,14 +423,14 @@ Sink(table=[default_catalog.default_database.metadata_sink], targetColumns=[[0],
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.metadata_sink], targetColumns=[[0],[1],[2],[3],[4],[5]], fields=[a, b, c, d, e, f])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[CAST(123:BIGINT):BIGINT])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.metadata_sink], targetColumns=[[0],[1],[2],[3],[4],[5]], fields=[a, b, c, d, e, f])
 +- Calc(select=[a, b, c, d, e, CAST(123 AS BIGINT) AS f])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -445,10 +445,10 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetCol
    +- LogicalUnion(all=[false])
       :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -461,11 +461,11 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
             :- Calc(select=[a, c, d, e, 123 AS EXPR$4, 456 AS EXPR$5])
             :  +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
             :     +- Exchange(distribution=[hash[a, b, c, d, e]])
-            :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+            :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
             +- Calc(select=[a, c, d, e, 456 AS EXPR$4, 789 AS EXPR$5])
                +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
                   +- Exchange(distribution=[hash[a, b, c, d, e]])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -480,10 +480,10 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetCol
    +- LogicalUnion(all=[true])
       :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -493,11 +493,11 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
    :- Calc(select=[a, c, d, e, CAST(123 AS BIGINT) AS f, CAST(456 AS INTEGER) AS g])
    :  +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
    :     +- Exchange(distribution=[hash[a, b, c, d, e]])
-   :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
    +- Calc(select=[a, c, d, e, CAST(456 AS BIGINT) AS f, CAST(789 AS INTEGER) AS g])
       +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
          +- Exchange(distribution=[hash[a, b, c, d, e]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -513,13 +513,13 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetCol
       :- LogicalUnion(all=[true])
       :  :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
       :  :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      :  :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      :  :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       :  +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
       :     +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[123])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -532,17 +532,17 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
       :  :  +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
       :  :     +- Exchange(distribution=[hash[a, b, c, d, e]])
       :  :        +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-      :  :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+      :  :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
       :  +- Calc(select=[a, c, d, e, CAST(456 AS BIGINT) AS f, CAST(789 AS INTEGER) AS g])
       :     +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
       :        +- Exchange(distribution=[hash[a, b, c, d, e]])
       :           +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-      :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+      :              +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
       +- Calc(select=[a, c, d, e, CAST(456 AS BIGINT) AS f, CAST(123 AS INTEGER) AS g])
          +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
             +- Exchange(distribution=[hash[a, b, c, d, e]])
                +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -557,10 +557,10 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetCol
    +- LogicalUnion(all=[false])
       :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
       :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -576,12 +576,12 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
                   :  +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
                   :     +- Exchange(distribution=[hash[a, b, c, d, e]])
                   :        +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-                  :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                  :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
                   +- Calc(select=[a, c, d, e, 456 AS EXPR$4, 789 AS EXPR$5])
                      +- HashAggregate(isMerge=[true], groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
                         +- Exchange(distribution=[hash[a, b, c, d, e]])
                            +- LocalHashAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
-                              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -597,13 +597,13 @@ LogicalSink(table=[default_catalog.default_database.partitioned_sink], targetCol
       :- LogicalUnion(all=[true])
       :  :- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[123], EXPR$5=[456])
       :  :  +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      :  :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      :  :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       :  +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[789])
       :     +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(a=[$0], c=[$2], d=[$3], e=[$4], EXPR$4=[456], EXPR$5=[123])
          +- LogicalAggregate(group=[{0, 1, 2, 3, 4}])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -614,15 +614,15 @@ Sink(table=[default_catalog.default_database.partitioned_sink], targetColumns=[[
    :  :- Calc(select=[a, c, d, e, CAST(123 AS BIGINT) AS f, CAST(456 AS INTEGER) AS g])
    :  :  +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
    :  :     +- Exchange(distribution=[hash[a, b, c, d, e]])
-   :  :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+   :  :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
    :  +- Calc(select=[a, c, d, e, CAST(456 AS BIGINT) AS f, CAST(789 AS INTEGER) AS g])
    :     +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
    :        +- Exchange(distribution=[hash[a, b, c, d, e]])
-   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
    +- Calc(select=[a, c, d, e, CAST(456 AS BIGINT) AS f, CAST(123 AS INTEGER) AS g])
       +- GroupAggregate(groupBy=[a, b, c, d, e], select=[a, b, c, d, e])
          +- Exchange(distribution=[hash[a, b, c, d, e]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>

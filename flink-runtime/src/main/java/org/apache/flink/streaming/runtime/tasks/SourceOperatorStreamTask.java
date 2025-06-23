@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.metrics.MetricNames;
@@ -60,11 +61,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T, ?>> {
 
     private AsyncDataOutputToOutput<T> output;
+
     /**
      * Contains information about all checkpoints where RPC from checkpoint coordinator arrives
      * before the source reader triggers it. (Common case)
      */
     private SortedMap<Long, UntriggeredCheckpoint> untriggeredCheckpoints = new TreeMap<>();
+
     /**
      * Contains the checkpoints that are triggered by the source but the RPC from checkpoint
      * coordinator has yet to arrive. This may happen if the barrier is inserted as an event into
@@ -72,11 +75,13 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
      * before receiving Flink's checkpoint RPC. (Rare case)
      */
     private SortedSet<Long> triggeredCheckpoints = new TreeSet<>();
+
     /**
      * Blocks input until the RPC call has been received that corresponds to the triggered
      * checkpoint. This future must only be accessed and completed in the mailbox thread.
      */
     private CompletableFuture<Void> waitForRPC = FutureUtils.completedVoidFuture();
+
     /** Only set for externally induced sources. See also {@link #isExternallyInducedSource()}. */
     private StreamTaskExternallyInducedSourceInput<T> externallyInducedSourceInput;
 
@@ -318,6 +323,11 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) {
             output.emitRecordAttributes(recordAttributes);
+        }
+
+        @Override
+        public void emitWatermark(WatermarkEvent watermark) throws Exception {
+            output.emitWatermark(watermark);
         }
 
         @Override

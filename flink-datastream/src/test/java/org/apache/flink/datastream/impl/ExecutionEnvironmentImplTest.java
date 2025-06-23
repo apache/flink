@@ -113,7 +113,7 @@ class ExecutionEnvironmentImplTest {
                 new OneInputStreamProcessFunction<Long, Long>() {
                     @Override
                     public void processRecord(
-                            Long record, Collector<Long> output, PartitionedContext ctx)
+                            Long record, Collector<Long> output, PartitionedContext<Long> ctx)
                             throws Exception {
                         // do nothing.
                     }

@@ -48,7 +48,12 @@ object BatchPhysicalLookupJoinRule {
         input: FlinkLogicalRel,
         temporalTable: RelOptTable,
         calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin = {
-      doTransform(join, input, temporalTable, calcProgram)
+      transformToLookupJoin(
+        join,
+        input,
+        temporalTable,
+        calcProgram,
+        FlinkConventions.BATCH_PHYSICAL)
     }
   }
 
@@ -60,29 +65,12 @@ object BatchPhysicalLookupJoinRule {
         input: FlinkLogicalRel,
         temporalTable: RelOptTable,
         calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin = {
-      doTransform(join, input, temporalTable, calcProgram)
+      transformToLookupJoin(
+        join,
+        input,
+        temporalTable,
+        calcProgram,
+        FlinkConventions.BATCH_PHYSICAL)
     }
-
-  }
-
-  private def doTransform(
-      join: FlinkLogicalJoin,
-      input: FlinkLogicalRel,
-      temporalTable: RelOptTable,
-      calcProgram: Option[RexProgram]): BatchPhysicalLookupJoin = {
-    val joinInfo = join.analyzeCondition
-    val cluster = join.getCluster
-
-    val providedTrait = join.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    val requiredTrait = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    val convInput = RelOptRule.convert(input, requiredTrait)
-    new BatchPhysicalLookupJoin(
-      cluster,
-      providedTrait,
-      convInput,
-      temporalTable,
-      calcProgram,
-      joinInfo,
-      join.getJoinType)
   }
 }

@@ -100,7 +100,9 @@ enum CompatibilityRoutines {
                     QueryParameterContainer.class,
                     header -> {
                         List<QueryParameterContainer.QueryParameter> pathParameters =
-                                header.getUnresolvedMessageParameters().getQueryParameters()
+                                header
+                                        .getUnresolvedMessageParameters()
+                                        .getQueryParameters()
                                         .stream()
                                         .map(
                                                 param ->

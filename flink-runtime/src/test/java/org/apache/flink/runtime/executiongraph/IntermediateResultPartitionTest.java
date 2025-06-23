@@ -22,11 +22,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
@@ -41,11 +44,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler.computeVertexParallelismStoreForDynamicGraph;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link IntermediateResultPartition}. */
@@ -159,6 +165,85 @@ public class IntermediateResultPartitionTest {
     }
 
     @Test
+    void testReleasePartitionGroupsForDynamicGroup() throws Exception {
+        JobVertex source = new JobVertex("source");
+        source.setParallelism(1);
+        source.setInvokableClass(NoOpInvokable.class);
+
+        JobVertex sink1 = new JobVertex("sink1");
+        sink1.setParallelism(1);
+        sink1.setInvokableClass(NoOpInvokable.class);
+
+        JobVertex sink2 = new JobVertex("sink2");
+        sink2.setParallelism(1);
+        sink2.setInvokableClass(NoOpInvokable.class);
+
+        // At first, create job graph with topology: source -> sink1
+        IntermediateDataSetID dataSetId = new IntermediateDataSetID();
+        IntermediateDataSet dataSet =
+                source.getOrCreateResultDataSet(dataSetId, ResultPartitionType.BLOCKING);
+        // add two stream edges
+        dataSet.increaseNumJobEdgesToCreate();
+        dataSet.increaseNumJobEdgesToCreate();
+
+        sink1.connectNewDataSetAsInput(
+                source,
+                DistributionPattern.ALL_TO_ALL,
+                ResultPartitionType.BLOCKING,
+                dataSetId,
+                false,
+                false);
+        JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(source, sink1);
+        jobGraph.setDynamic(true);
+
+        SchedulerBase scheduler =
+                new DefaultSchedulerBuilder(
+                                jobGraph,
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                new DirectScheduledExecutorService())
+                        .buildAdaptiveBatchJobScheduler();
+
+        ExecutionJobVertex sourceVertex = scheduler.getExecutionJobVertex(source.getID());
+        ExecutionJobVertex sinkVertex1 = scheduler.getExecutionJobVertex(sink1.getID());
+        scheduler.getExecutionGraph().initializeJobVertex(sourceVertex, 1L);
+        scheduler.getExecutionGraph().initializeJobVertex(sinkVertex1, 1L);
+
+        // mark partition can be released
+        IntermediateResultPartition partition =
+                sourceVertex.getProducedDataSets()[0].getPartitions()[0];
+        assertThat(partition.canBeReleased()).isFalse();
+        List<ConsumedPartitionGroup> consumedPartitionGroup =
+                partition.getConsumedPartitionGroups();
+        partition.markPartitionGroupReleasable(consumedPartitionGroup.get(0));
+
+        // because not all job vertices are created, partition can not be released
+        assertThat(partition.canBeReleased()).isFalse();
+
+        // add a new job vertex
+        dataSet.addConsumer(
+                new JobEdge(
+                        dataSet,
+                        sink2,
+                        DistributionPattern.ALL_TO_ALL,
+                        false,
+                        false,
+                        1,
+                        false,
+                        false));
+        scheduler
+                .getExecutionGraph()
+                .addNewJobVertices(
+                        Collections.singletonList(sink2),
+                        UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup(),
+                        computeVertexParallelismStoreForDynamicGraph(
+                                Collections.singletonList(sink2), 1));
+        ExecutionJobVertex sinkVertex2 = scheduler.getExecutionJobVertex(sink2.getID());
+        scheduler.getExecutionGraph().initializeJobVertex(sinkVertex2, 1L);
+
+        assertThat(partition.canBeReleased()).isTrue();
+    }
+
+    @Test
     void testGetNumberOfSubpartitionsForNonDynamicAllToAllGraph() throws Exception {
         testGetNumberOfSubpartitions(7, DistributionPattern.ALL_TO_ALL, false, Arrays.asList(7, 7));
     }
@@ -262,10 +347,10 @@ public class IntermediateResultPartitionTest {
         }
 
         IntermediateDataSetID dataSetId = new IntermediateDataSetID();
-        v2.connectNewDataSetAsInput(
-                v1, distributionPattern, ResultPartitionType.BLOCKING, dataSetId, false);
-        v3.connectNewDataSetAsInput(
-                v1, distributionPattern, ResultPartitionType.BLOCKING, dataSetId, false);
+        connectNewDataSetAsInput(
+                v2, v1, distributionPattern, ResultPartitionType.BLOCKING, dataSetId, false);
+        connectNewDataSetAsInput(
+                v3, v1, distributionPattern, ResultPartitionType.BLOCKING, dataSetId, false);
 
         final JobGraph jobGraph =
                 JobGraphBuilder.newBatchJobGraphBuilder()
@@ -316,10 +401,20 @@ public class IntermediateResultPartitionTest {
         sink2.setParallelism(parallelism);
 
         IntermediateDataSetID dataSetId = new IntermediateDataSetID();
-        sink1.connectNewDataSetAsInput(
-                source, DistributionPattern.ALL_TO_ALL, resultPartitionType, dataSetId, false);
-        sink2.connectNewDataSetAsInput(
-                source, DistributionPattern.ALL_TO_ALL, resultPartitionType, dataSetId, false);
+        connectNewDataSetAsInput(
+                sink1,
+                source,
+                DistributionPattern.ALL_TO_ALL,
+                resultPartitionType,
+                dataSetId,
+                false);
+        connectNewDataSetAsInput(
+                sink2,
+                source,
+                DistributionPattern.ALL_TO_ALL,
+                resultPartitionType,
+                dataSetId,
+                false);
 
         ScheduledExecutorService executorService = new DirectScheduledExecutorService();
 

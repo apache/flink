@@ -35,7 +35,11 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExpand;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLimit;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLookupJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMatch;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNestedLoopJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecOverAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecRank;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSink;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSort;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate;
@@ -43,6 +47,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortLimit;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecUnion;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecValues;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecWindowTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize;
@@ -66,11 +71,14 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLimit;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalGroupAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMiniBatchAssigner;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultiJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecProcessTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupAggregate;
@@ -119,7 +127,7 @@ public final class ExecNodeMetadataUtil {
     }
 
     private static final Set<Class<? extends ExecNode<?>>> EXEC_NODES =
-            new HashSet<Class<? extends ExecNode<?>>>() {
+            new HashSet<>() {
                 {
                     add(StreamExecCalc.class);
                     add(StreamExecChangelogNormalize.class);
@@ -141,6 +149,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecLookupJoin.class);
                     add(StreamExecMatch.class);
                     add(StreamExecMiniBatchAssigner.class);
+                    add(StreamExecMultiJoin.class);
                     add(StreamExecOverAggregate.class);
                     add(StreamExecRank.class);
                     add(StreamExecSink.class);
@@ -159,10 +168,12 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecWindowTableFunction.class);
                     add(StreamExecPythonCalc.class);
                     add(StreamExecAsyncCalc.class);
+                    add(StreamExecProcessTableFunction.class);
                     add(StreamExecPythonCorrelate.class);
                     add(StreamExecPythonGroupAggregate.class);
                     add(StreamExecPythonGroupWindowAggregate.class);
                     add(StreamExecPythonOverAggregate.class);
+                    add(StreamExecMLPredictTableFunction.class);
                     // Batch execution mode
                     add(BatchExecSink.class);
                     add(BatchExecTableSourceScan.class);
@@ -179,6 +190,11 @@ public final class ExecNodeMetadataUtil {
                     add(BatchExecExpand.class);
                     add(BatchExecSortAggregate.class);
                     add(BatchExecSortLimit.class);
+                    add(BatchExecWindowTableFunction.class);
+                    add(BatchExecLookupJoin.class);
+                    add(BatchExecMatch.class);
+                    add(BatchExecOverAggregate.class);
+                    add(BatchExecRank.class);
                 }
             };
 

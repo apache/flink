@@ -32,7 +32,6 @@ import org.apache.flink.table.types.AbstractDataType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -151,11 +150,10 @@ class RTASITCase extends BatchTestBase {
 
     private CatalogTable getExpectCatalogTable(
             String[] cols, AbstractDataType<?>[] fieldDataTypes) {
-        return CatalogTable.of(
-                Schema.newBuilder().fromFields(cols, fieldDataTypes).build(),
-                null,
-                Collections.emptyList(),
-                getDefaultTargetTableOptions());
+        return CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().fromFields(cols, fieldDataTypes).build())
+                .options(getDefaultTargetTableOptions())
+                .build();
     }
 
     private Map<String, String> getDefaultTargetTableOptions() {

@@ -31,7 +31,7 @@ import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableSet;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableSet;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.util.ImmutableBitSet;
@@ -80,7 +80,11 @@ public class CatalogConstraintTest {
 
         catalog.createTable(
                 new ObjectPath(databaseName, "T1"),
-                CatalogTable.of(tableSchema, "", Collections.emptyList(), properties),
+                CatalogTable.newBuilder()
+                        .schema(tableSchema)
+                        .comment("")
+                        .options(properties)
+                        .build(),
                 false);
 
         RelNode t1 = TableTestUtil.toRelNode(tEnv.sqlQuery("select * from T1"));
@@ -104,7 +108,11 @@ public class CatalogConstraintTest {
 
         catalog.createTable(
                 new ObjectPath(databaseName, "T1"),
-                CatalogTable.of(tableSchema, "", Collections.emptyList(), properties),
+                CatalogTable.newBuilder()
+                        .schema(tableSchema)
+                        .comment("")
+                        .options(properties)
+                        .build(),
                 false);
 
         RelNode t1 = TableTestUtil.toRelNode(tEnv.sqlQuery("select * from T1"));

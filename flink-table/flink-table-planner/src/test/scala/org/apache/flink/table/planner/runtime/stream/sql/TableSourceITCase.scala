@@ -24,7 +24,6 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.TestData.data1
-import org.apache.flink.table.planner.utils._
 import org.apache.flink.table.runtime.functions.scalar.SourceWatermarkFunction
 import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.types.Row
@@ -57,7 +56,7 @@ class TableSourceITCase extends StreamingTestBase {
                        |""".stripMargin)
 
     val filterableTableDataId =
-      TestValuesTableFactory.registerData(TestLegacyFilterableTableSource.defaultRows)
+      TestValuesTableFactory.registerData(TestData.orderedLoopRows)
     tEnv.executeSql(s"""
                        |CREATE TABLE FilterableTable (
                        |  name STRING,

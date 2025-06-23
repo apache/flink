@@ -124,7 +124,8 @@ public abstract class JoinHintTestBase extends TableTestBase {
                 false,
                 new Enumeration.Value[] {PlanKind.AST(), PlanKind.OPT_REL()},
                 () -> UNIT,
-                true);
+                true,
+                false);
     }
 
     protected List<String> getOtherJoinHints() {
@@ -896,7 +897,8 @@ public abstract class JoinHintTestBase extends TableTestBase {
                                                 false,
                                                 true,
                                                 false,
-                                                true)));
+                                                true,
+                                                false)));
         return astBuilder.toString();
     }
 

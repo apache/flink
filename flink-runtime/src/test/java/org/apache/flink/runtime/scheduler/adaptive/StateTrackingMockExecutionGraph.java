@@ -56,7 +56,9 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
+import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
@@ -72,6 +74,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -182,12 +185,17 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     }
 
     @Override
-    public String getJsonPlan() {
-        return "";
+    public JobPlanInfo.Plan getPlan() {
+        return new JobPlanInfo.Plan("", "", "", new ArrayList<>());
     }
 
     @Override
-    public void setJsonPlan(String jsonPlan) {}
+    public String getStreamGraphJson() {
+        return null;
+    }
+
+    @Override
+    public void setPlan(JobPlanInfo.Plan jsonPlan) {}
 
     @Override
     public JobID getJobID() {
@@ -246,6 +254,11 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     @Override
     public Optional<String> getChangelogStorageName() {
         return Optional.empty();
+    }
+
+    @Override
+    public int getPendingOperatorCount() {
+        return 0;
     }
 
     @Override
@@ -401,6 +414,15 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
 
     @Override
     public void notifyNewlyInitializedJobVertices(List<ExecutionJobVertex> vertices) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void addNewJobVertices(
+            List<JobVertex> sortedJobVertices,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup,
+            VertexParallelismStore newVerticesParallelismStore)
+            throws JobException {
         throw new UnsupportedOperationException();
     }
 

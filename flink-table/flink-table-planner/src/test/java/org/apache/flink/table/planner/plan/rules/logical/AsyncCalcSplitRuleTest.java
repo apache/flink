@@ -22,6 +22,7 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.functions.AsyncScalarFunction;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.plan.optimize.program.BatchOptimizeContext;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChainedProgram;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkHepRuleSetProgramBuilder;
@@ -62,6 +63,8 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
                         + "  b bigint,\n"
                         + "  c string,\n"
                         + "  d ARRAY<INT NOT NULL>\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'test-simple-table-source'\n"
                         + ") ;");
 
         tEnv.executeSql(
@@ -70,6 +73,8 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
                         + "  b2 bigint,\n"
                         + "  c2 string,\n"
                         + "  d2 ARRAY<INT NOT NULL>\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'test-simple-table-source'\n"
                         + ") ;");
 
         util.addTemporarySystemFunction("func1", new Func1());
@@ -78,6 +83,7 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
         util.addTemporarySystemFunction("func4", new Func4());
         util.addTemporarySystemFunction("func5", new Func5());
         util.addTemporarySystemFunction("func6", new Func6());
+        util.addTemporarySystemFunction("tableFunc", new RandomTableFunction());
     }
 
     @Test
@@ -364,6 +370,15 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
     public static class Func6 extends AsyncScalarFunction {
         public void eval(CompletableFuture<Integer> future, Integer param, Integer param2) {
             future.complete(param + param2);
+        }
+    }
+
+    /** Test function. */
+    public static class RandomTableFunction extends TableFunction<String> {
+
+        public void eval(Integer i) {
+            collect("blah " + i);
+            collect("foo " + i);
         }
     }
 }

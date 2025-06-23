@@ -34,6 +34,9 @@ import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideS
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.types.RowKind;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Streaming unbounded Join operator based on async state api, which supports INNER/LEFT/RIGHT/FULL
  * JOIN.
@@ -41,6 +44,9 @@ import org.apache.flink.types.RowKind;
 public class AsyncStateStreamingJoinOperator extends AbstractAsyncStateStreamingJoinOperator {
 
     private static final long serialVersionUID = 1L;
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AsyncStateStreamingJoinOperator.class);
 
     // whether left side is outer side, e.g. left is outer but right is not when LEFT OUTER JOIN
     private final boolean leftIsOuter;
@@ -85,6 +91,8 @@ public class AsyncStateStreamingJoinOperator extends AbstractAsyncStateStreaming
     @Override
     public void open() throws Exception {
         super.open();
+
+        LOG.info("Join is using async state");
 
         this.outRow = new JoinedRowData();
         this.leftNullRow = new GenericRowData(leftType.toRowSize());

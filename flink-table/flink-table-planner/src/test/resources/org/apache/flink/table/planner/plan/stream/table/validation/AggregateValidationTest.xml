@@ -21,7 +21,7 @@ limitations under the License.
       <![CDATA[
 LogicalProject(_c0=[func(_UTF-16LE'abc')])
 +- LogicalAggregate(group=[{0}], TMP_0=[SUM($1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -29,7 +29,7 @@ LogicalProject(_c0=[func(_UTF-16LE'abc')])
 Calc(select=[func('abc') AS _c0])
 +- GroupAggregate(groupBy=[a], select=[a])
    +- Exchange(distribution=[hash[a]])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

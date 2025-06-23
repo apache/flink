@@ -56,6 +56,11 @@ public interface AsyncStateProcessing {
             AsyncStateProcessingOperator asyncOperator,
             KeySelector<T, ?> keySelector,
             ThrowingConsumer<StreamRecord<T>, Exception> processor) {
+        if (keySelector == null) {
+            // A non-keyed input does not need to set the key context and perform async context
+            // switches.
+            return processor;
+        }
         switch (asyncOperator.getElementOrder()) {
             case RECORD_ORDER:
                 return (record) -> {

@@ -79,11 +79,10 @@ public class TemporalTableSourceSpecSerdeTest {
                         null);
 
         final CatalogTable catalogTable1 =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build(),
-                        null,
-                        Collections.emptyList(),
-                        options1);
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build())
+                        .options(options1)
+                        .build();
 
         ResolvedCatalogTable resolvedCatalogTable =
                 new ResolvedCatalogTable(catalogTable1, resolvedSchema1);

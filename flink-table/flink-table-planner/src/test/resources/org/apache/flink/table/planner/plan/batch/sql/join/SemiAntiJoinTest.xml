@@ -24,12 +24,12 @@ limitations under the License.
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(NOT(EXISTS({
-LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+LogicalTableScan(table=[[default_catalog, default_database, r]])
 })), NOT(EXISTS({
 LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 })))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -37,17 +37,17 @@ LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
 HashJoin(joinType=[LeftAntiJoin], where=[(a = i)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
-:     :- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     :- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 :     +- Exchange(distribution=[broadcast])
 :        +- Calc(select=[m IS NOT NULL AS $f0])
 :           +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
 :              +- Exchange(distribution=[single])
 :                 +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
 :                    +- Calc(select=[true AS i])
-:                       +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:                       +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 +- Exchange(distribution=[hash[i]])
    +- Calc(select=[i], where=[(j < 100)])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+      +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -62,23 +62,23 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[MAX($4)])
   LogicalProject(d=[$0], $f1=[true], f=[$2], $f3=[1], e=[$1])
     LogicalFilter(condition=[AND(=($cor0.b, $1), <($0, 100), =($cor0.c, $2))])
-      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+      LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[((b = e) AND (c = f))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b, c]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[e, f]])
    +- Calc(select=[f, e])
       +- HashAggregate(isMerge=[true], groupBy=[d, e, f], select=[d, e, f])
          +- Exchange(distribution=[hash[d, e, f]])
             +- LocalHashAggregate(groupBy=[d, e, f], select=[d, e, f])
                +- Calc(select=[d, e, f], where=[(d < 100)])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                  +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -92,21 +92,21 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[=($cor1.a, $0)])
   LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
     LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
 })], variablesSet=[[$cor1]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d])
       +- Correlate(invocation=[table_func($cor0.f)], correlate=[table(table_func($cor0.f))], select=[d,e,f,EXPR$0], rowType=[RecordType(INTEGER d, BIGINT e, VARCHAR(2147483647) f, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -119,18 +119,18 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[righ
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[<($cor0.a, $0)])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftSemiJoin], where=[(a < d)], select=[a, b, c], build=[right])
-:- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -143,20 +143,20 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[(a < d)], select=[a, b, c], build
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[<($cor0.a, 10)])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[right])
 :- Calc(select=[a, b, c], where=[(a < 10)])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- LocalHashAggregate(select=[])
       +- Calc(select=[])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -171,23 +171,23 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 LogicalAggregate(group=[{0}])
   LogicalProject(e=[$1])
     LogicalFilter(condition=[=($cor0.c, $2)])
-      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+      LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[(c = f)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[c]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[f]])
    +- Calc(select=[f])
       +- HashAggregate(isMerge=[true], groupBy=[e, f], select=[e, f])
          +- Exchange(distribution=[hash[e, f]])
             +- LocalHashAggregate(groupBy=[e, f], select=[e, f])
                +- Calc(select=[e, f])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                  +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -200,19 +200,19 @@ HashJoin(joinType=[LeftSemiJoin], where=[(c = f)], select=[a, b, c], build=[righ
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[=($cor0.a, $0)])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -224,9 +224,9 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[righ
       <![CDATA[
 LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 10), NOT(OR(LIKE($2, _UTF-16LE'abc'), NOT(EXISTS({
-LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+LogicalTableScan(table=[[default_catalog, default_database, r]])
 })))))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -234,14 +234,14 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
 Calc(select=[(a + 10) AS EXPR$0, c])
 +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, c], build=[right], singleRowJoin=[true])
    :- Calc(select=[a, c], where=[((b > 10) AND NOT(LIKE(c, 'abc')))])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[], where=[m IS NOT NULL])
          +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
                   +- Calc(select=[true AS i])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -254,19 +254,19 @@ Calc(select=[(a + 10) AS EXPR$0, c])
 LogicalProject(c=[$2])
 +- LogicalFilter(condition=[EXISTS({
 LogicalJoin(condition=[=($1, $3)], joinType=[full])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
   LogicalProject(j=[$1])
     LogicalFilter(condition=[>($0, 10)])
-      LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+      LogicalTableScan(table=[[default_catalog, default_database, t]])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[c], build=[right], singleRowJoin=[true])
 :- Calc(select=[c])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[], where=[m IS NOT NULL])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
@@ -276,10 +276,10 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[c], build=[right],
                   +- HashJoin(joinType=[FullOuterJoin], where=[(e = j)], select=[e, j], build=[right])
                      :- Exchange(distribution=[hash[e]])
                      :  +- Calc(select=[e])
-                     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                     :     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
                      +- Exchange(distribution=[hash[j]])
                         +- Calc(select=[j], where=[(i > 10)])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+                           +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -292,19 +292,19 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[c], build=[right],
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[EXISTS({
-LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+LogicalTableScan(table=[[default_catalog, default_database, t]])
 })])
   LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
     LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[right], singleRowJoin=[true])
-:- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[], where=[m IS NOT NULL])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
@@ -314,14 +314,14 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[r
                   +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[d], build=[right], singleRowJoin=[true])
                      :- Calc(select=[d])
                      :  +- Correlate(invocation=[table_func($cor0.f)], correlate=[table(table_func($cor0.f))], select=[d,e,f,EXPR$0], rowType=[RecordType(INTEGER d, BIGINT e, VARCHAR(2147483647) f, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
-                     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                     :     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
                      +- Exchange(distribution=[broadcast])
                         +- Calc(select=[], where=[m IS NOT NULL])
                            +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
                               +- Exchange(distribution=[single])
                                  +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
                                     +- Calc(select=[true AS i])
-                                       +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+                                       +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -333,22 +333,22 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[r
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
-LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+LogicalTableScan(table=[[default_catalog, default_database, r]])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[right], singleRowJoin=[true])
-:- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[], where=[m IS NOT NULL])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
                +- Calc(select=[true AS i])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                  +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -360,23 +360,23 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[r
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(EXISTS({
-LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+LogicalTableScan(table=[[default_catalog, default_database, r]])
 }), >($1, 10))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[right], singleRowJoin=[true])
 :- Calc(select=[a, b, c], where=[(b > 10)])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[], where=[m IS NOT NULL])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
                +- Calc(select=[true AS i])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                  +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -391,19 +391,19 @@ LogicalProject(a=[$0])
 LogicalUnion(all=[false])
   LogicalProject(e=[$1], f=[$2])
     LogicalFilter(condition=[>($0, 10)])
-      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+      LogicalTableScan(table=[[default_catalog, default_database, r]])
   LogicalProject(j=[$1], k=[$2])
     LogicalFilter(condition=[<($0, 100)])
-      LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+      LogicalTableScan(table=[[default_catalog, default_database, t]])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a], build=[right], singleRowJoin=[true])
 :- Calc(select=[a])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[], where=[m IS NOT NULL])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
@@ -415,9 +415,9 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a], build=[right],
                         +- LocalHashAggregate(groupBy=[e, f], select=[e, f])
                            +- Union(all=[true], union=[e, f])
                               :- Calc(select=[e, f], where=[(d > 10)])
-                              :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                              :  +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
                               +- Calc(select=[j, k], where=[(i < 100)])
-                                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+                                 +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -430,13 +430,13 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a], build=[right],
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(EXISTS({
 LogicalFilter(condition=[=($cor0.a, $0)])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }), IN($0, {
 LogicalProject(i=[$0])
   LogicalFilter(condition=[=($cor0.b, $1)])
-    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, t]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -445,13 +445,13 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = i) AND (b = j))], select=[a, b, c
 :- Exchange(distribution=[hash[a, b]])
 :  +- HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :     :- Exchange(distribution=[hash[a]])
-:     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[d]])
 :        +- Calc(select=[d])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:           +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 +- Exchange(distribution=[hash[i, j]])
    +- Calc(select=[i, j])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+      +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -464,12 +464,12 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = i) AND (b = j))], select=[a, b, c
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(IN($1, {
 LogicalProject(j=[$1])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 }), EXISTS({
 LogicalFilter(condition=[=($cor0.a, $0)])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -478,13 +478,13 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[righ
 :- Exchange(distribution=[hash[a]])
 :  +- HashJoin(joinType=[LeftSemiJoin], where=[(b = j)], select=[a, b, c], build=[right])
 :     :- Exchange(distribution=[hash[b]])
-:     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[j]])
 :        +- Calc(select=[j])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+:           +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -497,21 +497,21 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[righ
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(IN($0, {
 LogicalProject(d=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }), NOT(IN($1, {
 LogicalProject(i=[$0])
   LogicalFilter(condition=[AND(=($cor0.c, $2), >($0, 10))])
-    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, t]])
 })), EXISTS({
 LogicalAggregate(group=[{0}], EXPR$0=[COUNT($0)])
   LogicalProject(l=[$0])
     LogicalFilter(condition=[LIKE($2, _UTF-16LE'Test')])
-      LogicalTableScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(l, m, n)]]])
+      LogicalTableScan(table=[[default_catalog, default_database, t2]])
 }), NOT(EXISTS({
 LogicalFilter(condition=[<>($cor0.b, $1)])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 })))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -519,7 +519,7 @@ LogicalFilter(condition=[<>($cor0.b, $1)])
 MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftAntiJoin], where=[(b <> e)], select=[a, b, c], build=[right])\n:- HashJoin(joinType=[LeftAntiJoin], where=[((b IS NULL OR i IS NULL OR (b = i)) AND (c = k))], select=[a, b, c], build=[right])\n:  :- [#2] Exchange(distribution=[hash[c]])\n:  +- [#3] Exchange(distribution=[hash[k]])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- Calc(select=[e])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])(reuse_id=[1])
+:     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])(reuse_id=[1])
 :- Exchange(distribution=[hash[c]])
 :  +- MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[right], singleRowJoin=[true])\n:- HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])\n:  :- [#2] Exchange(distribution=[hash[a]])\n:  +- [#3] Exchange(distribution=[hash[d]])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :     :- Exchange(distribution=[broadcast])
@@ -532,15 +532,15 @@ MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftAntiJoi
 :     :                    +- Exchange(distribution=[hash[l]])
 :     :                       +- LocalHashAggregate(groupBy=[l], select=[l])
 :     :                          +- Calc(select=[l], where=[LIKE(n, 'Test')])
-:     :                             +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(l, m, n)]]], fields=[l, m, n])
+:     :                             +- TableSourceScan(table=[[default_catalog, default_database, t2]], fields=[l, m, n])
 :     :- Exchange(distribution=[hash[a]])
-:     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[d]])
 :        +- Calc(select=[d])
 :           +- Reused(reference_id=[1])
 +- Exchange(distribution=[hash[k]])
    +- Calc(select=[i, k], where=[(i > 10)])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+      +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -556,23 +556,23 @@ LogicalProject(EXPR$0=[$1])
   LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)])
     LogicalProject(f=[$2], e=[$1])
       LogicalFilter(condition=[AND(=($cor0.c, $2), <($0, 3))])
-        LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+        LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[((b = EXPR$0) AND (c = f))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b, c]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[EXPR$0, f]])
    +- Calc(select=[EXPR$0, f])
       +- HashAggregate(isMerge=[true], groupBy=[f], select=[f, Final_MAX(max$0) AS EXPR$0])
          +- Exchange(distribution=[hash[f]])
             +- LocalHashAggregate(groupBy=[f], select=[f, Partial_MAX(e) AS max$0])
                +- Calc(select=[f, e], where=[(d < 3)])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                  +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -588,22 +588,22 @@ LogicalProject(EXPR$0=[$4], d=[$0])
   LogicalAggregate(group=[{0, 1, 2, 3}], EXPR$0=[COUNT()])
     LogicalProject(d=[$0], $f1=[true], e=[$1], $f3=[1])
       LogicalFilter(condition=[=($cor0.c, $2)])
-        LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+        LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[((b = EXPR$0) AND (a = d) AND (c = f))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b, a, c]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[EXPR$0, d, f]])
    +- Calc(select=[EXPR$0, d, f])
       +- HashAggregate(isMerge=[true], groupBy=[d, e, f], select=[d, e, f, Final_COUNT(count1$0) AS EXPR$0])
          +- Exchange(distribution=[hash[d, e, f]])
             +- LocalHashAggregate(groupBy=[d, e, f], select=[d, e, f, Partial_COUNT(*) AS count1$0])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+               +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -617,9 +617,9 @@ LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
 +- LogicalFilter(condition=[IN(SUBSTRING($2, 1, 5), {
 LogicalProject(EXPR$0=[SUBSTRING($2, 1, 5)])
   LogicalFilter(condition=[=(+($cor0.b, 1), $1)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -628,10 +628,10 @@ Calc(select=[(a + 10) AS EXPR$0, c])
 +- HashJoin(joinType=[LeftSemiJoin], where=[(($f3 = EXPR$0) AND ($f4 = e))], select=[a, c, $f3, $f4], build=[right])
    :- Exchange(distribution=[hash[$f3, $f4]])
    :  +- Calc(select=[a, c, SUBSTRING(c, 1, 5) AS $f3, (b + 1) AS $f4])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[hash[EXPR$0, e]])
       +- Calc(select=[SUBSTRING(f, 1, 5) AS EXPR$0, e])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -645,9 +645,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 10), NOT(LIKE($2, _UTF-16LE'abc')), IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[=($cor0.b, $1)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -655,10 +655,10 @@ LogicalProject(d=[$0])
 HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], build=[left])
 :- Exchange(distribution=[hash[a, b]])
 :  +- Calc(select=[a, b, c], where=[((b > 10) AND NOT(LIKE(c, 'abc')))])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d, e]])
    +- Calc(select=[d, e])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -671,13 +671,13 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[IN(CASE(IN($0, {
 LogicalProject(EXPR$0=[1])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 }), 1, 2), {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[=($cor0.c, $2)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -686,15 +686,15 @@ Calc(select=[b])
 +- HashJoin(joinType=[LeftSemiJoin], where=[(($f3 = d) AND (c = f))], select=[b, c, $f3], build=[left])
    :- Exchange(distribution=[hash[$f3, c]])
    :  +- Calc(select=[b, c, CASE(((c0 <> 0) AND i IS NOT NULL AND a IS NOT NULL), 1, 2) AS $f3])
-   :     +- MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = 1)], select=[a, b, c, c0, i], build=[right])\n:- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, c0], build=[right], singleRowJoin=[true])\n:  :- [#2] LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])\n:  +- [#3] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
+   :     +- MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = 1)], select=[a, b, c, c0, i], build=[right])\n:- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, c0], build=[right], singleRowJoin=[true])\n:  :- [#2] TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])\n:  +- [#3] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
    :        :- Exchange(distribution=[broadcast])
    :        :  +- Calc(select=[true AS i])
    :        :     +- HashAggregate(isMerge=[true], groupBy=[EXPR$0], select=[EXPR$0])
    :        :        +- Exchange(distribution=[hash[EXPR$0]])
    :        :           +- LocalHashAggregate(groupBy=[EXPR$0], select=[EXPR$0])
    :        :              +- Calc(select=[1 AS EXPR$0])
-   :        :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])(reuse_id=[1])
-   :        :- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :        :                 +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])(reuse_id=[1])
+   :        :- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    :        +- Exchange(distribution=[broadcast])
    :           +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c])
    :              +- Exchange(distribution=[single])
@@ -702,7 +702,7 @@ Calc(select=[b])
    :                    +- Reused(reference_id=[1])
    +- Exchange(distribution=[hash[d, f]])
       +- Calc(select=[d, f])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -718,12 +718,12 @@ LogicalProject(e=[$0])
   LogicalJoin(condition=[=($0, $1)], joinType=[inner])
     LogicalProject(e=[$1])
       LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 50))])
-        LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+        LogicalTableScan(table=[[default_catalog, default_database, r]])
     LogicalProject(j=[$1])
       LogicalFilter(condition=[AND(=($cor0.c, $2), >($0, 10))])
-        LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+        LogicalTableScan(table=[[default_catalog, default_database, t]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -731,16 +731,16 @@ LogicalProject(e=[$0])
 Calc(select=[c])
 +- HashJoin(joinType=[LeftSemiJoin], where=[((b = e) AND (a = d) AND (c = k))], select=[a, b, c], build=[right])
    :- Exchange(distribution=[hash[b, a, c]])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[hash[e, d, k]])
       +- Calc(select=[e, d, k])
          +- HashJoin(joinType=[InnerJoin], where=[(e = j)], select=[e, d, j, k], build=[left])
             :- Exchange(distribution=[hash[e]])
             :  +- Calc(select=[e, d], where=[(e < 50)])
-            :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
             +- Exchange(distribution=[hash[j]])
                +- Calc(select=[j, k], where=[(i > 10)])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+                  +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -756,10 +756,10 @@ LogicalProject(j=[$3])
   LogicalJoin(condition=[=($1, $4)], joinType=[left])
     LogicalProject(e=[$1], f=[$2])
       LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 50))])
-        LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
-    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+        LogicalTableScan(table=[[default_catalog, default_database, r]])
+    LogicalTableScan(table=[[default_catalog, default_database, t]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -767,16 +767,16 @@ LogicalProject(j=[$3])
 Calc(select=[c])
 +- HashJoin(joinType=[LeftSemiJoin], where=[((b = j) AND (a = d))], select=[a, b, c], build=[right])
    :- Exchange(distribution=[hash[b, a]])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[hash[j, d]])
       +- Calc(select=[j, d])
          +- HashJoin(joinType=[LeftOuterJoin], where=[(f = k)], select=[f, d, j, k], build=[left])
             :- Exchange(distribution=[hash[f]])
             :  +- Calc(select=[f, d], where=[(e < 50)])
-            :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
             +- Exchange(distribution=[hash[k]])
                +- Calc(select=[j, k])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+                  +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -790,12 +790,12 @@ LogicalProject(c=[$2])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
   LogicalJoin(condition=[=($0, $3)], joinType=[right])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
     LogicalProject(i=[$0])
       LogicalFilter(condition=[AND(=($cor0.c, $2), >($0, 10))])
-        LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+        LogicalTableScan(table=[[default_catalog, default_database, t]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -804,16 +804,16 @@ Calc(select=[c])
 +- HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (c = k))], select=[a, c], build=[right])
    :- Exchange(distribution=[hash[a, c]])
    :  +- Calc(select=[a, c])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d, k]])
       +- Calc(select=[d, k])
          +- HashJoin(joinType=[RightOuterJoin], where=[(d = i)], select=[d, i, k], build=[left])
             :- Exchange(distribution=[hash[d]])
             :  +- Calc(select=[d])
-            :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
             +- Exchange(distribution=[hash[i]])
                +- Calc(select=[i, k], where=[(i > 10)])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+                  +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -828,21 +828,21 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 LogicalProject(f1=[$3])
   LogicalFilter(condition=[=($cor1.a, $0)])
     LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
-      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+      LogicalTableScan(table=[[default_catalog, default_database, r]])
       LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
 })], variablesSet=[[$cor1]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[((c = f1) AND (a = d))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[c, a]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[f1, d]])
    +- Calc(select=[EXPR$0 AS f1, d])
       +- Correlate(invocation=[table_func($cor0.f)], correlate=[table(table_func($cor0.f))], select=[d,e,f,EXPR$0], rowType=[RecordType(INTEGER d, BIGINT e, VARCHAR(2147483647) f, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -856,9 +856,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, SUBSTRING($2, 1, 5), {
 LogicalProject(d=[$0], EXPR$1=[SUBSTRING($2, 1, 5)])
   LogicalFilter(condition=[=($cor0.b, $1)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -867,10 +867,10 @@ Calc(select=[a, b, c])
 +- HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND ($f3 = EXPR$1) AND (b = e))], select=[a, b, c, $f3], build=[right])
    :- Exchange(distribution=[hash[a, $f3, b]])
    :  +- Calc(select=[a, b, c, SUBSTRING(c, 1, 5) AS $f3])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d, EXPR$1, e]])
       +- Calc(select=[d, SUBSTRING(f, 1, 5) AS EXPR$1, e])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -884,19 +884,19 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[>($cor0.b, $1)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b > e))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d, e])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -910,9 +910,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[>($cor0.b, 10)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -920,10 +920,10 @@ LogicalProject(d=[$0])
 HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a, b, c], where=[(b > 10)])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -938,16 +938,16 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 LogicalProject(rk=[$2])
   LogicalFilter(condition=[<>($cor0.a, $0)])
     LogicalProject(d=[$0], e=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
-      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+      LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[((b = rk) AND (a <> d))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[rk]])
    +- Calc(select=[w0$o0 AS rk, d])
       +- OverAggregate(partitionBy=[d], orderBy=[e ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[d, e, w0$o0])
@@ -955,7 +955,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((b = rk) AND (a <> d))], select=[a, b,
             +- Sort(orderBy=[d ASC, e ASC])
                +- Exchange(distribution=[hash[d]])
                   +- Calc(select=[d, e])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -971,15 +971,15 @@ LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
   LogicalProject(d=[$0])
     LogicalFilter(condition=[IN($1, {
 LogicalProject(j=[$1])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 })])
-      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+      LogicalTableScan(table=[[default_catalog, default_database, r]])
 }), {
 LogicalProject(i=[$0])
   LogicalFilter(condition=[=($2, $cor0.c)])
-    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, t]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -989,7 +989,7 @@ Calc(select=[a])
    :- Exchange(distribution=[hash[EXPR$0, c]])
    :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, c, EXPR$0], build=[right], singleRowJoin=[true])
    :     :- Calc(select=[a, c])
-   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    :     +- Exchange(distribution=[broadcast])
    :        +- HashAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0])
    :           +- Exchange(distribution=[single])
@@ -998,11 +998,11 @@ Calc(select=[a])
    :                    +- MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(e = j)], select=[d, e, j], build=[right])\n:- [#1] Exchange(distribution=[hash[e]])\n+- HashAggregate(isMerge=[true], groupBy=[j], select=[j])\n   +- [#2] Exchange(distribution=[hash[j]])\n])
    :                       :- Exchange(distribution=[hash[e]])
    :                       :  +- Calc(select=[d, e])
-   :                       :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+   :                       :     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
    :                       +- Exchange(distribution=[hash[j]])
    :                          +- LocalHashAggregate(groupBy=[j], select=[j])
    :                             +- Calc(select=[j])
-   :                                +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])(reuse_id=[1])
+   :                                +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])(reuse_id=[1])
    +- Exchange(distribution=[hash[i, k]])
       +- Calc(select=[i, k])
          +- Reused(reference_id=[1])
@@ -1019,19 +1019,19 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[=($cor0.b, $1)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a, b]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d, e]])
    +- Calc(select=[d, e])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1045,9 +1045,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 1), IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[AND(=($cor0.b, $1), >($0, 10))])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1055,10 +1055,10 @@ LogicalProject(d=[$0])
 HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a, b]])
 :  +- Calc(select=[a, b, c], where=[(b > 1)])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d, e]])
    +- Calc(select=[d, e], where=[(d > 10)])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1072,9 +1072,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[=(CAST($cor0.b):INTEGER, $0)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1082,10 +1082,10 @@ LogicalProject(d=[$0])
 HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[left])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a, b, c], where=[(a = CAST(b AS INTEGER))])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1101,9 +1101,9 @@ LogicalProject(EXPR$0=[$1])
   LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)])
     LogicalProject(f=[$2], e=[$1])
       LogicalFilter(condition=[<($0, 3)])
-        LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+        LogicalTableScan(table=[[default_catalog, default_database, r]])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1112,14 +1112,14 @@ Calc(select=[a])
 +- HashJoin(joinType=[LeftSemiJoin], where=[(b = EXPR$0)], select=[a, b], build=[right])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[a, b])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[hash[EXPR$0]])
       +- Calc(select=[EXPR$0])
          +- HashAggregate(isMerge=[true], groupBy=[f], select=[f, Final_MAX(max$0) AS EXPR$0])
             +- Exchange(distribution=[hash[f]])
                +- LocalHashAggregate(groupBy=[f], select=[f, Partial_MAX(e) AS max$0])
                   +- Calc(select=[f, e], where=[(d < 3)])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1133,22 +1133,22 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, $1, {
 LogicalAggregate(group=[{0}], EXPR$1=[COUNT()])
   LogicalProject(d=[$0])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = EXPR$1))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a, b]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d, EXPR$1]])
    +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count1$0) AS EXPR$1])
       +- Exchange(distribution=[hash[d]])
          +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(*) AS count1$0])
             +- Calc(select=[d])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+               +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1161,9 +1161,9 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = EXPR$1))], select=[a,
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 10), NOT(LIKE($2, _UTF-16LE'abc')), IN($0, {
 LogicalProject(d=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1171,10 +1171,10 @@ LogicalProject(d=[$0])
 HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a, b, c], where=[((b > 10) AND NOT(LIKE(c, 'abc')))])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1187,19 +1187,19 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[righ
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IS TRUE(IN($0, {
 LogicalProject(d=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1215,12 +1215,12 @@ SELECT b FROM l WHERE (CASE WHEN a IN
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[IN(CASE(IN($0, {
 LogicalProject(EXPR$0=[1])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 }), 1, 2), {
 LogicalProject(d=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1236,9 +1236,9 @@ Calc(select=[b])
    :        :        +- Exchange(distribution=[hash[EXPR$0]])
    :        :           +- LocalHashAggregate(groupBy=[EXPR$0], select=[EXPR$0])
    :        :              +- Calc(select=[1 AS EXPR$0])
-   :        :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])(reuse_id=[1])
+   :        :                 +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])(reuse_id=[1])
    :        :- Calc(select=[a, b])
-   :        :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :        :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    :        +- Exchange(distribution=[broadcast])
    :           +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c])
    :              +- Exchange(distribution=[single])
@@ -1246,7 +1246,7 @@ Calc(select=[b])
    :                    +- Reused(reference_id=[1])
    +- Exchange(distribution=[hash[d]])
       +- Calc(select=[d])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1261,12 +1261,12 @@ LogicalProject(a=[$0])
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
   LogicalProject(e=[$1])
     LogicalFilter(condition=[>($0, 0)])
-      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+      LogicalTableScan(table=[[default_catalog, default_database, r]])
 }), {
 LogicalProject(j=[$1])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1276,16 +1276,16 @@ Calc(select=[a])
    :- Exchange(distribution=[hash[EXPR$0]])
    :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, EXPR$0], build=[right], singleRowJoin=[true])
    :     :- Calc(select=[a])
-   :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    :     +- Exchange(distribution=[broadcast])
    :        +- HashAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0])
    :           +- Exchange(distribution=[single])
    :              +- LocalHashAggregate(select=[Partial_MAX(e) AS max$0])
    :                 +- Calc(select=[e], where=[(d > 0)])
-   :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
    +- Exchange(distribution=[hash[j]])
       +- Calc(select=[j])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+         +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -1299,15 +1299,15 @@ LogicalProject(b=[$1])
 +- LogicalFilter(condition=[AND(IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[>($1, 10)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 }), >($1, $SCALAR_QUERY({
 LogicalProject(EXPR$0=[*(0.5:DECIMAL(2, 1), $0)])
   LogicalAggregate(group=[{}], agg#0=[SUM($0)])
     LogicalProject(j=[$1])
       LogicalFilter(condition=[<($0, 100)])
-        LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+        LogicalTableScan(table=[[default_catalog, default_database, t]])
 })))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1321,13 +1321,13 @@ Calc(select=[b])
    :           +- Exchange(distribution=[single])
    :              +- LocalHashAggregate(select=[Partial_SUM(j) AS sum$0])
    :                 +- Calc(select=[j], where=[(i < 100)])
-   :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d]])
       +- Calc(select=[d], where=[(e > 10)])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1340,11 +1340,11 @@ Calc(select=[b])
 LogicalProject(s=[$1])
 +- LogicalFilter(condition=[AND(>($2, 2), IN($3, {
 LogicalProject(e=[$1])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))])
    +- LogicalAggregate(group=[{0}], s=[SUM($1)], agg#1=[COUNT()], agg#2=[MAX($0)])
       +- LogicalProject(b=[$1], a=[$0])
-         +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1357,10 +1357,10 @@ Calc(select=[s])
    :        +- Exchange(distribution=[hash[b]])
    :           +- LocalHashAggregate(groupBy=[b], select=[b, Partial_SUM(a) AS sum$0, Partial_COUNT(*) AS count1$1, Partial_MAX(b) AS max$2])
    :              +- Calc(select=[b, a])
-   :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :                 +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[hash[e]])
       +- Calc(select=[e])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1378,13 +1378,13 @@ LogicalProject(c=[$2])
 LogicalProject(d=[$0])
   LogicalProject(d=[$0], e=[$1], f=[$2], i=[$3])
     LogicalJoin(condition=[=($1, $4)], joinType=[full])
-      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+      LogicalTableScan(table=[[default_catalog, default_database, r]])
       LogicalProject(i=[$0], i0=[CAST($0):BIGINT])
         LogicalProject(i=[$0])
           LogicalFilter(condition=[>($0, 10)])
-            LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+            LogicalTableScan(table=[[default_catalog, default_database, t]])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1393,16 +1393,16 @@ Calc(select=[c])
 +- HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, c], build=[right])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, c])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d]])
       +- Calc(select=[d])
          +- HashJoin(joinType=[FullOuterJoin], where=[(e = i0)], select=[d, e, i0], build=[right])
             :- Exchange(distribution=[hash[e]])
             :  +- Calc(select=[d, e])
-            :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
             +- Exchange(distribution=[hash[i0]])
                +- Calc(select=[CAST(i AS BIGINT) AS i0], where=[(i > 10)])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+                  +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -1416,21 +1416,21 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($2, {
 LogicalProject(f1=[$3])
   LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
     LogicalTableFunctionScan(invocation=[table_func($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[(c = f1)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[c]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[f1]])
    +- Calc(select=[EXPR$0 AS f1])
       +- Correlate(invocation=[table_func($cor0.f)], correlate=[table(table_func($cor0.f))], select=[d,e,f,EXPR$0], rowType=[RecordType(INTEGER d, BIGINT e, VARCHAR(2147483647) f, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1446,9 +1446,9 @@ SELECT * FROM l WHERE
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN(+($0, 10), SUBSTRING($2, 1, 5), {
 LogicalProject(EXPR$0=[+($0, 100)], EXPR$1=[SUBSTRING($2, 1, 5)])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1457,10 +1457,10 @@ Calc(select=[a, b, c])
 +- HashJoin(joinType=[LeftSemiJoin], where=[(($f3 = EXPR$0) AND ($f4 = EXPR$1))], select=[a, b, c, $f3, $f4], build=[right])
    :- Exchange(distribution=[hash[$f3, $f4]])
    :  +- Calc(select=[a, b, c, (a + 10) AS $f3, SUBSTRING(c, 1, 5) AS $f4])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[hash[EXPR$0, EXPR$1]])
       +- Calc(select=[(d + 100) AS EXPR$0, SUBSTRING(f, 1, 5) AS EXPR$1])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1476,16 +1476,16 @@ SELECT * FROM l WHERE (a, b) IN
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, $1, {
 LogicalProject(EXPR$0=[MAX($0) OVER ()], EXPR$1=[MIN($1) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST)])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[((a = $0) AND (b = $1))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a, b]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[$0, $1]])
    +- Calc(select=[w0$o0 AS $0, w1$o0 AS $1])
       +- OverAggregate(partitionBy=[f], orderBy=[d ASC], window#0=[MIN(e) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[d, e, f, w0$o0, w1$o0])
@@ -1494,7 +1494,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = $0) AND (b = $1))], select=[a, b,
                +- Exchange(distribution=[hash[f]])
                   +- OverAggregate(window#0=[MAX(d) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[d, e, f, w0$o0])
                      +- Exchange(distribution=[single])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                        +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1507,19 +1507,19 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = $0) AND (b = $1))], select=[a, b,
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN($0, {
 LogicalProject(d=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1533,9 +1533,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[<($1, 100)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 }), >($1, 10))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1543,10 +1543,10 @@ LogicalProject(d=[$0])
 HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a, b, c], where=[(b > 10)])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d], where=[(e < 100)])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1559,9 +1559,9 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[righ
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IN(+($0, 1), {
 LogicalProject(d=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1570,10 +1570,10 @@ Calc(select=[a, b, c])
 +- HashJoin(joinType=[LeftSemiJoin], where=[($f3 = d)], select=[a, b, c, $f3], build=[right])
    :- Exchange(distribution=[hash[$f3]])
    :  +- Calc(select=[a, b, c, (a + 1) AS $f3])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[hash[d]])
       +- Calc(select=[d])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1591,12 +1591,12 @@ LogicalProject(a=[$0])
 LogicalUnion(all=[false])
   LogicalProject(e=[$1])
     LogicalFilter(condition=[>($0, 10)])
-      LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+      LogicalTableScan(table=[[default_catalog, default_database, r]])
   LogicalProject(i=[$0])
     LogicalFilter(condition=[<($0, 100)])
-      LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+      LogicalTableScan(table=[[default_catalog, default_database, t]])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1605,14 +1605,14 @@ Calc(select=[a])
 +- MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[LeftSemiJoin], where=[(b = e)], select=[a, b], build=[right])\n:- [#1] Exchange(distribution=[hash[b]])\n+- HashAggregate(isMerge=[true], groupBy=[e], select=[e])\n   +- [#2] Exchange(distribution=[hash[e]])\n])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[a, b])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[hash[e]])
       +- LocalHashAggregate(groupBy=[e], select=[e])
          +- Union(all=[true], union=[e])
             :- Calc(select=[e], where=[(d > 10)])
-            :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+            :  +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
             +- Calc(select=[CAST(i AS BIGINT) AS i], where=[(i < 100)])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+               +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -1625,28 +1625,28 @@ Calc(select=[a])
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(EXISTS({
 LogicalFilter(condition=[<>($cor0.a, $0)])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }), EXISTS({
 LogicalFilter(condition=[<($1, 100)])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[(a <> d)], select=[a, b, c], build=[right])\n:  :- [#2] LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])\n:  +- [#3] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
+MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, b, c], build=[right], singleRowJoin=[true])\n:- NestedLoopJoin(joinType=[LeftSemiJoin], where=[(a <> d)], select=[a, b, c], build=[right])\n:  :- [#2] TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])\n:  +- [#3] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- Calc(select=[], where=[m IS NOT NULL])
 :     +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
 :        +- Exchange(distribution=[single])
 :           +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
 :              +- Calc(select=[true AS i], where=[(j < 100)])
-:                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
-:- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
+:- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1659,29 +1659,29 @@ MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftSemiJoi
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[EXISTS({
 LogicalFilter(condition=[AND(EXISTS({
-LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+LogicalTableScan(table=[[default_catalog, default_database, t]])
 }), =($cor0.a, $0))])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[d], build=[right], singleRowJoin=[true])
       :- Calc(select=[d])
-      :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
       +- Exchange(distribution=[broadcast])
          +- Calc(select=[], where=[m IS NOT NULL])
             +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
                +- Exchange(distribution=[single])
                   +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
                      +- Calc(select=[true AS i])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+                        +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -1694,14 +1694,14 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[righ
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalFilter(condition=[AND(=($0, $3), EXISTS({
 LogicalFilter(condition=[>($0, 50)])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 }), >=($1, 1), EXISTS({
 LogicalFilter(condition=[<($1, 100)])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 }))])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+      :- LogicalTableScan(table=[[default_catalog, default_database, l]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, r]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1713,7 +1713,7 @@ MultipleInput(readOrder=[0,0,0,1], members=[\nNestedLoopJoin(joinType=[LeftSemiJ
 :        +- Exchange(distribution=[single])
 :           +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
 :              +- Calc(select=[true AS i], where=[(j < 100)])
-:                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])(reuse_id=[1])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])(reuse_id=[1])
 :- Exchange(distribution=[broadcast])
 :  +- Calc(select=[true AS $f0], where=[m IS NOT NULL])
 :     +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
@@ -1723,9 +1723,9 @@ MultipleInput(readOrder=[0,0,0,1], members=[\nNestedLoopJoin(joinType=[LeftSemiJ
 :                 +- Reused(reference_id=[1])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a, b, c], where=[(b >= 1)])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+   +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1739,13 +1739,13 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[=($cor0.c, $2)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 }), IN($1, {
 LogicalProject(j=[$1])
   LogicalFilter(condition=[AND(=($cor0.a, $0), <>($2, _UTF-16LE'test'))])
-    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, t]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1754,13 +1754,13 @@ HashJoin(joinType=[LeftSemiJoin], where=[((b = j) AND (a = i))], select=[a, b, c
 :- Exchange(distribution=[hash[b, a]])
 :  +- HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (c = f))], select=[a, b, c], build=[right])
 :     :- Exchange(distribution=[hash[a, c]])
-:     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[d, f]])
 :        +- Calc(select=[d, f])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:           +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 +- Exchange(distribution=[hash[j, i]])
    +- Calc(select=[j, i], where=[(k <> 'test')])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+      +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -1776,26 +1776,26 @@ LogicalProject(d=[$0])
   LogicalFilter(condition=[AND(=($cor0.b, $1), IN($2, {
 LogicalProject(k=[$2])
   LogicalFilter(condition=[=($cor1.e, $1)])
-    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, t]])
 }))], variablesSet=[[$cor1]])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 })], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a, b]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d, e]])
    +- Calc(select=[d, e])
       +- HashJoin(joinType=[LeftSemiJoin], where=[((f = k) AND (e = j))], select=[d, e, f], build=[right])
          :- Exchange(distribution=[hash[f, e]])
-         :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         :  +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
          +- Exchange(distribution=[hash[k, j]])
             +- Calc(select=[k, j])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+               +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -1808,13 +1808,13 @@ HashJoin(joinType=[LeftSemiJoin], where=[((a = d) AND (b = e))], select=[a, b, c
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(IN($0, {
 LogicalProject(d=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }), IN($1, {
 LogicalProject(j=[$1])
   LogicalFilter(condition=[=($2, $cor0.c)])
-    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, t]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1823,13 +1823,13 @@ HashJoin(joinType=[LeftSemiJoin], where=[((b = j) AND (k = c))], select=[a, b, c
 :- Exchange(distribution=[hash[b, c]])
 :  +- HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :     :- Exchange(distribution=[hash[a]])
-:     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[d]])
 :        +- Calc(select=[d])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:           +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 +- Exchange(distribution=[hash[j, k]])
    +- Calc(select=[j, k])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+      +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -1842,12 +1842,12 @@ HashJoin(joinType=[LeftSemiJoin], where=[((b = j) AND (k = c))], select=[a, b, c
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(IN($0, {
 LogicalProject(d=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }), IN($1, {
 LogicalProject(j=[$1])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 }))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1856,13 +1856,13 @@ HashJoin(joinType=[LeftSemiJoin], where=[(b = j)], select=[a, b, c], build=[righ
 :- Exchange(distribution=[hash[b]])
 :  +- HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :     :- Exchange(distribution=[hash[a]])
-:     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[d]])
 :        +- Calc(select=[d])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:           +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 +- Exchange(distribution=[hash[j]])
    +- Calc(select=[j])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+      +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -1877,27 +1877,27 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 LogicalProject(d=[$0])
   LogicalFilter(condition=[IN($1, {
 LogicalProject(j=[$1])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 })])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 })])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d])
       +- HashJoin(joinType=[LeftSemiJoin], where=[(e = j)], select=[d, e], build=[right])
          :- Exchange(distribution=[hash[e]])
          :  +- Calc(select=[d, e])
-         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
          +- Exchange(distribution=[hash[j]])
             +- Calc(select=[j])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+               +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -1910,14 +1910,14 @@ HashJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c], build=[righ
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
 LogicalFilter(condition=[AND(=($cor0.b, $1), >(CAST($2):BIGINT, 50))])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 })), >=(CAST($2):BIGINT, 1), NOT(EXISTS({
 LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 })))], variablesSet=[[$cor0]])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+      :- LogicalTableScan(table=[[default_catalog, default_database, l]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, r]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1929,12 +1929,12 @@ HashJoin(joinType=[LeftAntiJoin], where=[(a = i)], select=[a, b, c, d, e, f], bu
 :     :  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], build=[left])
 :     :     :- Exchange(distribution=[hash[a]])
 :     :     :  +- Calc(select=[a, b, c], where=[(CAST(c AS BIGINT) >= 1)])
-:     :     :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     :     :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 :     :     +- Exchange(distribution=[hash[d]])
-:     :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:     :        +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 :     +- Exchange(distribution=[hash[j]])
 :        +- Calc(select=[j], where=[(CAST(k AS BIGINT) > 50)])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])(reuse_id=[1])
+:           +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])(reuse_id=[1])
 +- Exchange(distribution=[hash[i]])
    +- Calc(select=[i], where=[(j < 100)])
       +- Reused(reference_id=[1])
@@ -1950,14 +1950,14 @@ HashJoin(joinType=[LeftAntiJoin], where=[(a = i)], select=[a, b, c, d, e, f], bu
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 +- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
 LogicalFilter(condition=[>($0, 50)])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 })), >=($1, 1), NOT(EXISTS({
 LogicalFilter(condition=[<($1, 100)])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 })))])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+      :- LogicalTableScan(table=[[default_catalog, default_database, l]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, r]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1969,7 +1969,7 @@ MultipleInput(readOrder=[0,0,0,1], members=[\nNestedLoopJoin(joinType=[LeftAntiJ
 :        +- Exchange(distribution=[single])
 :           +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
 :              +- Calc(select=[true AS i], where=[(j < 100)])
-:                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])(reuse_id=[1])
+:                 +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])(reuse_id=[1])
 :- Exchange(distribution=[broadcast])
 :  +- Calc(select=[m IS NOT NULL AS $f0])
 :     +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
@@ -1979,9 +1979,9 @@ MultipleInput(readOrder=[0,0,0,1], members=[\nNestedLoopJoin(joinType=[LeftAntiJ
 :                 +- Reused(reference_id=[1])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a, b, c], where=[(b >= 1)])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+   +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -1997,26 +1997,26 @@ LogicalProject(d=[$0])
   LogicalFilter(condition=[NOT(IN($1, {
 LogicalProject(j=[$1])
   LogicalFilter(condition=[=($0, $cor0.d)])
-    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, t]])
 }))], variablesSet=[[$cor0]])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], select=[a, b, c], build=[right])
-:- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
       +- HashJoin(joinType=[LeftAntiJoin], where=[((e IS NULL OR j IS NULL OR (e = j)) AND (i = d))], select=[d, e], build=[right])
          :- Exchange(distribution=[hash[d]])
          :  +- Calc(select=[d, e])
-         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
          +- Exchange(distribution=[hash[i]])
             +- Calc(select=[j, i])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+               +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -2029,18 +2029,18 @@ NestedLoopJoin(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(EXISTS({
 LogicalFilter(condition=[<($cor0.a, $0)])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[(a < d)], select=[a, b, c], build=[right])
-:- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2053,9 +2053,9 @@ NestedLoopJoin(joinType=[LeftAntiJoin], where=[(a < d)], select=[a, b, c], build
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(EXISTS({
 LogicalFilter(condition=[<($cor0.a, 10)])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -2063,11 +2063,11 @@ LogicalFilter(condition=[<($cor0.a, 10)])
 Calc(select=[a, b, c])
 +- NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f3], select=[a, b, c, $f3], build=[right])
    :- Calc(select=[a, b, c, (a < 10) AS $f3])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
       +- LocalHashAggregate(select=[])
          +- Calc(select=[])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+            +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2080,19 +2080,19 @@ Calc(select=[a, b, c])
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(EXISTS({
 LogicalFilter(condition=[=($cor0.a, $0)])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftAntiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[a]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[d]])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2104,9 +2104,9 @@ HashJoin(joinType=[LeftAntiJoin], where=[(a = d)], select=[a, b, c], build=[righ
       <![CDATA[
 LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
 +- LogicalFilter(condition=[NOT(OR(>($1, 10), LIKE($2, _UTF-16LE'abc'), NOT(EXISTS({
-LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -2114,14 +2114,14 @@ LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTabl
 Calc(select=[(a + 10) AS EXPR$0, c])
 +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[true], select=[a, c], build=[right], singleRowJoin=[true])
    :- Calc(select=[a, c], where=[((b <= 10) AND NOT(LIKE(c, 'abc')))])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[], where=[m IS NOT NULL])
          +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
                   +- Calc(select=[true AS i])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2133,22 +2133,22 @@ Calc(select=[(a + 10) AS EXPR$0, c])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(EXISTS({
-LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
-:- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[m IS NOT NULL AS $f0])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
                +- Calc(select=[true AS i])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                  +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2160,23 +2160,23 @@ NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[ri
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(NOT(EXISTS({
-LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+LogicalTableScan(table=[[default_catalog, default_database, r]])
 })), >($1, 10))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[$f0], select=[a, b, c], build=[right], singleRowJoin=[true])
 :- Calc(select=[a, b, c], where=[(b > 10)])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[m IS NOT NULL AS $f0])
       +- HashAggregate(isMerge=[true], select=[Final_MIN(min$0) AS m])
          +- Exchange(distribution=[single])
             +- LocalHashAggregate(select=[Partial_MIN(i) AS min$0])
                +- Calc(select=[true AS i])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                  +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2191,20 +2191,20 @@ LogicalProject(a=[$0], b=[$1])
 LogicalFilter(condition=[=($cor0.a, $0)])
   LogicalAggregate(group=[{0}])
     LogicalProject(c=[$0])
-      LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+      LogicalTableScan(table=[[default_catalog, default_database, rightT]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, leftT]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[LeftAntiJoin], where=[(a = c)], select=[a, b], build=[right])\n:- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[c], select=[c])\n   +- [#2] Exchange(distribution=[hash[c]])\n])
 :- Exchange(distribution=[hash[a]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]], fields=[a, b])
+:  +- TableSourceScan(table=[[default_catalog, default_database, leftT]], fields=[a, b])
 +- Exchange(distribution=[hash[c]])
    +- LocalHashAggregate(groupBy=[c], select=[c])
       +- Calc(select=[c])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]], fields=[c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, rightT]], fields=[c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -2217,13 +2217,13 @@ MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[LeftAntiJoin], wher
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(NOT(EXISTS({
 LogicalFilter(condition=[=($cor0.a, $0)])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 })), NOT(IN($0, {
 LogicalProject(i=[$0])
   LogicalFilter(condition=[=($cor0.b, $1)])
-    LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, t]])
 })))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -2232,13 +2232,13 @@ HashJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR i IS NULL OR (a = i)) AN
 :- Exchange(distribution=[hash[b]])
 :  +- HashJoin(joinType=[LeftAntiJoin], where=[(a = d)], select=[a, b, c], build=[right])
 :     :- Exchange(distribution=[hash[a]])
-:     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[d]])
 :        +- Calc(select=[d])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:           +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 +- Exchange(distribution=[hash[j]])
    +- Calc(select=[i, j])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])
+      +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
 ]]>
     </Resource>
   </TestCase>
@@ -2252,9 +2252,9 @@ LogicalProject(EXPR$0=[+($0, 10)], c=[$2])
 +- LogicalFilter(condition=[NOT(IN(SUBSTRING($2, 1, 5), {
 LogicalProject(EXPR$0=[SUBSTRING($2, 1, 5)])
   LogicalFilter(condition=[=(+($cor0.b, 1), $1)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -2263,10 +2263,10 @@ Calc(select=[(a + 10) AS EXPR$0, c])
 +- HashJoin(joinType=[LeftAntiJoin], where=[(($f3 IS NULL OR EXPR$0 IS NULL OR ($f3 = EXPR$0)) AND ($f4 = e))], select=[a, c, $f3, $f4], build=[right])
    :- Exchange(distribution=[hash[$f4]])
    :  +- Calc(select=[a, c, SUBSTRING(c, 1, 5) AS $f3, (b + 1) AS $f4])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[hash[e]])
       +- Calc(select=[SUBSTRING(f, 1, 5) AS EXPR$0, e])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2279,16 +2279,16 @@ Calc(select=[(a + 10) AS EXPR$0, c])
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[NOT(IN(CASE(NOT(IN($0, {
 LogicalProject(i=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 })), 1, NOT(IN($0, {
 LogicalProject(EXPR$0=[CAST($1):INTEGER])
-  LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 })), 2, 3), {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[=($cor0.c, $2)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -2303,12 +2303,12 @@ Calc(select=[b])
    :        :     +- Exchange(distribution=[single])
    :        :        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0, Partial_COUNT(EXPR$0) AS count$1])
    :        :           +- Calc(select=[CAST(j AS INTEGER) AS EXPR$0])(reuse_id=[1])
-   :        :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(i, j, k)]]], fields=[i, j, k])(reuse_id=[2])
+   :        :              +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])(reuse_id=[2])
    :        :- Exchange(distribution=[hash[EXPR$0]])
    :        :  +- LocalHashAggregate(groupBy=[EXPR$0], select=[EXPR$0])
    :        :     +- Reused(reference_id=[1])
    :        :- Exchange(distribution=[hash[a]])
-   :        :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :        :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    :        :- Exchange(distribution=[broadcast])
    :        :  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c, Final_COUNT(count$1) AS ck])
    :        :     +- Exchange(distribution=[single])
@@ -2320,7 +2320,7 @@ Calc(select=[b])
    :              +- Reused(reference_id=[3])
    +- Exchange(distribution=[hash[f]])
       +- Calc(select=[d, f])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2334,19 +2334,19 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, $2, {
 LogicalProject(d=[$0], f=[$2])
   LogicalFilter(condition=[=($cor0.b, $1)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (c IS NULL OR f IS NULL OR (c = f)) AND (b = e))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[e]])
    +- Calc(select=[d, f, e])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2360,18 +2360,18 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[>($cor0.b, $1)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (b > e))], select=[a, b, c], build=[right])
-:- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d, e])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2385,18 +2385,18 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[>($cor0.b, 10)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (b > 10))], select=[a, b, c], build=[right])
-:- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2410,19 +2410,19 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[=($cor0.b, $1)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 HashJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (b = e))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[e]])
    +- Calc(select=[d, e])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2436,9 +2436,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 1), NOT(IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[AND(=($cor0.b, $1), >($0, 10))])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 })))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -2446,10 +2446,10 @@ LogicalProject(d=[$0])
 HashJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (b = e))], select=[a, b, c], build=[right])
 :- Exchange(distribution=[hash[b]])
 :  +- Calc(select=[a, b, c], where=[(b > 1)])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[hash[e]])
    +- Calc(select=[d, e], where=[(d > 10)])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2462,18 +2462,18 @@ HashJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AN
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
 LogicalProject(d=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], select=[a, b, c], build=[right])
-:- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2486,19 +2486,19 @@ NestedLoopJoin(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(>($1, 10), LIKE($2, _UTF-16LE'abc'), NOT(IN($0, {
 LogicalProject(d=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 })))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], select=[a, b, c], build=[right])
 :- Calc(select=[a, b, c], where=[((b > 10) AND LIKE(c, 'abc'))])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2511,15 +2511,15 @@ NestedLoopJoin(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d
 LogicalProject(b=[$1])
 +- LogicalFilter(condition=[NOT(IN($1, CASE(NOT(IN($0, {
 LogicalProject(i=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(i)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t1]])
 })), 1, NOT(IN($0, {
 LogicalProject(j=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(j)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, t2]])
 })), 2, 3), {
 LogicalProject(e=[$1], d=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -2528,23 +2528,23 @@ Calc(select=[b])
 +- MultipleInput(readOrder=[0,0,0,1,0,0], members=[\nNestedLoopJoin(joinType=[LeftAntiJoin], where=[((b IS NULL OR e IS NULL OR (b = e)) AND (d IS NULL OR ($f3 = d)))], select=[b, $f3], build=[right])\n:- Calc(select=[b, CASE(((c0 = 0) OR (i0 IS NULL AND (ck >= c0) AND a IS NOT NULL)), 1, ((c = 0) OR (i IS NULL AND (ck0 >= c) AND a IS NOT NULL)), 2, 3) AS $f3])\n:  +- HashJoin(joinType=[LeftOuterJoin], where=[(a = j)], select=[a, b, c0, ck, i0, c, ck0, j, i], build=[right])\n:     :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c0, ck, i0, c, ck0], build=[right], singleRowJoin=[true])\n:     :  :- Calc(select=[a, b, c AS c0, ck, i0])\n:     :  :  +- HashJoin(joinType=[LeftOuterJoin], where=[(a = i)], select=[a, b, c, ck, i, i0], build=[right])\n:     :  :     :- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, b, c, ck], build=[right], singleRowJoin=[true])\n:     :  :     :  :- [#4] Exchange(distribution=[hash[a]])\n:     :  :     :  +- [#5] Exchange(distribution=[broadcast])\n:     :  :     +- Calc(select=[i, true AS i0])\n:     :  :        +- HashAggregate(isMerge=[true], groupBy=[i], select=[i])\n:     :  :           +- [#6] Exchange(distribution=[hash[i]])\n:     :  +- [#2] Exchange(distribution=[broadcast])\n:     +- Calc(select=[j, true AS i])\n:        +- HashAggregate(isMerge=[true], groupBy=[j], select=[j])\n:           +- [#3] Exchange(distribution=[hash[j]])\n+- [#1] Exchange(distribution=[broadcast])\n])
    :- Exchange(distribution=[broadcast])
    :  +- Calc(select=[e, d])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
    :- Exchange(distribution=[broadcast])
    :  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c, Final_COUNT(count$1) AS ck])
    :     +- Exchange(distribution=[single])
    :        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0, Partial_COUNT(j) AS count$1])
-   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(j)]]], fields=[j])(reuse_id=[1])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, t2]], fields=[j])(reuse_id=[1])
    :- Exchange(distribution=[hash[j]])
    :  +- LocalHashAggregate(groupBy=[j], select=[j])
    :     +- Reused(reference_id=[1])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    :- Exchange(distribution=[broadcast])
    :  +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS c, Final_COUNT(count$1) AS ck])
    :     +- Exchange(distribution=[single])
    :        +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0, Partial_COUNT(i) AS count$1])
-   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(i)]]], fields=[i])(reuse_id=[2])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[i])(reuse_id=[2])
    +- Exchange(distribution=[hash[i]])
       +- LocalHashAggregate(groupBy=[i], select=[i])
          +- Reused(reference_id=[2])
@@ -2560,18 +2560,18 @@ Calc(select=[b])
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, $2, {
 LogicalProject(d=[$0], f=[$2])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = d)) AND (c IS NULL OR f IS NULL OR (c = f)))], select=[a, b, c], build=[right])
-:- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d, f])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2584,18 +2584,18 @@ NestedLoopJoin(joinType=[LeftAntiJoin], where=[((a IS NULL OR d IS NULL OR (a = 
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN($0, {
 LogicalProject(d=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], select=[a, b, c], build=[right])
-:- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2609,19 +2609,19 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[AND(NOT(IN($0, {
 LogicalProject(d=[$0])
   LogicalFilter(condition=[<($1, 100)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 })), >($1, 10))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 NestedLoopJoin(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d))], select=[a, b, c], build=[right])
 :- Calc(select=[a, b, c], where=[(b > 10)])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
 +- Exchange(distribution=[broadcast])
    +- Calc(select=[d], where=[(e < 100)])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+      +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2634,9 +2634,9 @@ NestedLoopJoin(joinType=[LeftAntiJoin], where=[(a IS NULL OR d IS NULL OR (a = d
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[NOT(IN(*($0, $1), {
 LogicalProject(d=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+  LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -2644,10 +2644,10 @@ LogicalProject(d=[$0])
 Calc(select=[a, b, c])
 +- NestedLoopJoin(joinType=[LeftAntiJoin], where=[($f3 IS NULL OR d IS NULL OR ($f3 = d))], select=[a, b, c, $f3], build=[right])
    :- Calc(select=[a, b, c, (a * b) AS $f3])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[d])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -2666,9 +2666,9 @@ LogicalProject(a=[$0])
 +- LogicalFilter(condition=[NOT(IN($2, {
 LogicalProject(f=[$2])
   LogicalFilter(condition=[=($2, $cor0.c)])
-    LogicalTableScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]])
+    LogicalTableScan(table=[[default_catalog, default_database, r]])
 }))], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, l]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -2677,10 +2677,10 @@ Calc(select=[a])
 +- HashJoin(joinType=[LeftAntiJoin], where=[AND(OR(IS NULL(c), IS NULL(f), =(c, f)), =(f, c))], select=[a, c], build=[right])
    :- Exchange(distribution=[hash[c]])
    :  +- Calc(select=[a, c])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, l, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
    +- Exchange(distribution=[hash[f]])
       +- Calc(select=[f])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, r, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>

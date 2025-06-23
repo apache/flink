@@ -94,7 +94,7 @@ class JarSubmissionITCase {
         final JobPlanInfo planResponse = showPlan(planHandler, storedJarName, restfulGateway);
         // we're only interested in the core functionality so checking for a small detail is
         // sufficient
-        assertThat(planResponse.getJsonPlan()).contains("\"name\":\"Flink Streaming Job\"");
+        assertThat(planResponse.getPlan().getName()).isEqualTo("Flink Streaming Job");
 
         runJar(runHandler, storedJarName, restfulGateway);
 

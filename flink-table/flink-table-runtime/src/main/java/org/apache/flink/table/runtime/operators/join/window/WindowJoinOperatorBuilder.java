@@ -19,9 +19,11 @@
 package org.apache.flink.table.runtime.operators.join.window;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.window.asyncprocessing.AsyncStateWindowJoinOperator;
 
 import java.time.ZoneId;
 
@@ -41,6 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   .rightWindowEndIndex(rightWindowEndIndex)
  *   .filterNullKeys(filterNullKeys)
  *   .joinType(joinType)
+ *   .enableAsyncState()
  *   .build();
  * </pre>
  */
@@ -58,6 +61,7 @@ public class WindowJoinOperatorBuilder {
     private boolean[] filterNullKeys;
     private FlinkJoinType joinType;
     private ZoneId shiftTimeZone = ZoneId.of("UTC");
+    private boolean enableAsyncState = false;
 
     public WindowJoinOperatorBuilder leftSerializer(TypeSerializer<RowData> leftSerializer) {
         this.leftSerializer = leftSerializer;
@@ -105,7 +109,12 @@ public class WindowJoinOperatorBuilder {
         return this;
     }
 
-    public WindowJoinOperator build() {
+    public WindowJoinOperatorBuilder enableAsyncState() {
+        this.enableAsyncState = true;
+        return this;
+    }
+
+    public TwoInputStreamOperator<RowData, RowData, RowData> build() {
         checkNotNull(leftSerializer);
         checkNotNull(rightSerializer);
         checkNotNull(generatedJoinCondition);
@@ -123,65 +132,26 @@ public class WindowJoinOperatorBuilder {
                         "Illegal window end index %s, it should not be negative!",
                         rightWindowEndIndex));
 
-        switch (joinType) {
-            case INNER:
-                return new WindowJoinOperator.InnerJoinOperator(
-                        leftSerializer,
-                        rightSerializer,
-                        generatedJoinCondition,
-                        leftWindowEndIndex,
-                        rightWindowEndIndex,
-                        filterNullKeys,
-                        shiftTimeZone);
-            case SEMI:
-                return new WindowJoinOperator.SemiAntiJoinOperator(
-                        leftSerializer,
-                        rightSerializer,
-                        generatedJoinCondition,
-                        leftWindowEndIndex,
-                        rightWindowEndIndex,
-                        filterNullKeys,
-                        false,
-                        shiftTimeZone);
-            case ANTI:
-                return new WindowJoinOperator.SemiAntiJoinOperator(
-                        leftSerializer,
-                        rightSerializer,
-                        generatedJoinCondition,
-                        leftWindowEndIndex,
-                        rightWindowEndIndex,
-                        filterNullKeys,
-                        true,
-                        shiftTimeZone);
-            case LEFT:
-                return new WindowJoinOperator.LeftOuterJoinOperator(
-                        leftSerializer,
-                        rightSerializer,
-                        generatedJoinCondition,
-                        leftWindowEndIndex,
-                        rightWindowEndIndex,
-                        filterNullKeys,
-                        shiftTimeZone);
-            case RIGHT:
-                return new WindowJoinOperator.RightOuterJoinOperator(
-                        leftSerializer,
-                        rightSerializer,
-                        generatedJoinCondition,
-                        leftWindowEndIndex,
-                        rightWindowEndIndex,
-                        filterNullKeys,
-                        shiftTimeZone);
-            case FULL:
-                return new WindowJoinOperator.FullOuterJoinOperator(
-                        leftSerializer,
-                        rightSerializer,
-                        generatedJoinCondition,
-                        leftWindowEndIndex,
-                        rightWindowEndIndex,
-                        filterNullKeys,
-                        shiftTimeZone);
-            default:
-                throw new IllegalArgumentException("Invalid join type: " + joinType);
+        if (enableAsyncState) {
+            return new AsyncStateWindowJoinOperator(
+                    leftSerializer,
+                    rightSerializer,
+                    generatedJoinCondition,
+                    leftWindowEndIndex,
+                    rightWindowEndIndex,
+                    filterNullKeys,
+                    shiftTimeZone,
+                    joinType);
+        } else {
+            return new WindowJoinOperator(
+                    leftSerializer,
+                    rightSerializer,
+                    generatedJoinCondition,
+                    leftWindowEndIndex,
+                    rightWindowEndIndex,
+                    filterNullKeys,
+                    shiftTimeZone,
+                    joinType);
         }
     }
 }

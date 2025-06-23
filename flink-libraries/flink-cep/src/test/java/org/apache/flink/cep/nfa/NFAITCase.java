@@ -34,7 +34,7 @@ import org.apache.flink.cep.utils.TestTimerService;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -59,7 +59,7 @@ import static org.apache.flink.cep.utils.NFAUtils.compile;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyLong;
 
 /**
  * General tests for {@link NFA} features. See also {@link IterativeConditionsITCase}, {@link
@@ -1829,6 +1829,7 @@ public class NFAITCase extends TestLogger {
                                 ConsecutiveData.end),
                         Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end)));
     }
+
     ///////////////////////////////         Consecutive
     // ////////////////////////////////////////
 

@@ -19,6 +19,8 @@
 package org.apache.flink.datastream.api.function;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.watermark.Watermark;
+import org.apache.flink.api.common.watermark.WatermarkHandlingResult;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
@@ -27,13 +29,26 @@ import org.apache.flink.datastream.api.context.PartitionedContext;
 @Experimental
 public interface OneInputStreamProcessFunction<IN, OUT> extends ProcessFunction {
     /**
+     * Initialization method for the function. It is called before the actual working methods (like
+     * processRecord) and thus suitable for one time setup work.
+     *
+     * <p>By default, this method does nothing.
+     *
+     * @throws Exception Implementations may forward exceptions, which are caught by the runtime.
+     *     When the runtime catches an exception, it aborts the task and lets the fail-over logic
+     *     decide whether to retry the task execution.
+     */
+    default void open(NonPartitionedContext<OUT> ctx) throws Exception {}
+
+    /**
      * Process record and emit data through {@link Collector}.
      *
      * @param record to process.
      * @param output to emit processed records.
      * @param ctx runtime context in which this function is executed.
      */
-    void processRecord(IN record, Collector<OUT> output, PartitionedContext ctx) throws Exception;
+    void processRecord(IN record, Collector<OUT> output, PartitionedContext<OUT> ctx)
+            throws Exception;
 
     /**
      * This is a life-cycle method indicates that this function will no longer receive any data from
@@ -41,7 +56,7 @@ public interface OneInputStreamProcessFunction<IN, OUT> extends ProcessFunction 
      *
      * @param ctx the context in which this function is executed.
      */
-    default void endInput(NonPartitionedContext<OUT> ctx) {}
+    default void endInput(NonPartitionedContext<OUT> ctx) throws Exception {}
 
     /**
      * Callback for processing timer.
@@ -50,5 +65,13 @@ public interface OneInputStreamProcessFunction<IN, OUT> extends ProcessFunction 
      * @param output to emit record.
      * @param ctx runtime context in which this function is executed.
      */
-    default void onProcessingTimer(long timestamp, Collector<OUT> output, PartitionedContext ctx) {}
+    default void onProcessingTimer(
+            long timestamp, Collector<OUT> output, PartitionedContext<OUT> ctx) throws Exception {}
+
+    /** Callback function when receive watermark. */
+    default WatermarkHandlingResult onWatermark(
+            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx)
+            throws Exception {
+        return WatermarkHandlingResult.PEEK;
+    }
 }

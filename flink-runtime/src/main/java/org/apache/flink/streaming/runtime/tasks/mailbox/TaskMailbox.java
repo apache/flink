@@ -73,6 +73,7 @@ public interface TaskMailbox {
      * mail.
      */
     int MIN_PRIORITY = -1;
+
     /**
      * The maximal priority for mails. This priority indicates that the message should be performed
      * before any mail associated with an operator.

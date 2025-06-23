@@ -28,6 +28,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -51,12 +52,14 @@ public class ArchivedExecutionGraphBuilder {
     private long[] stateTimestamps;
     private JobStatus state;
     private ErrorInfo failureCause;
-    private String jsonPlan;
+    private JobPlanInfo.Plan plan;
     private StringifiedAccumulatorResult[] archivedUserAccumulators;
     private ArchivedExecutionConfig archivedExecutionConfig;
     private boolean isStoppable;
     private Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators;
     private CheckpointStatsSnapshot checkpointStatsSnapshot;
+    private String streamGraphJson;
+    private int pendingOperatorCounts = 0;
 
     public ArchivedExecutionGraphBuilder setJobID(JobID jobID) {
         this.jobID = jobID;
@@ -96,8 +99,13 @@ public class ArchivedExecutionGraphBuilder {
         return this;
     }
 
-    public ArchivedExecutionGraphBuilder setJsonPlan(String jsonPlan) {
-        this.jsonPlan = jsonPlan;
+    public ArchivedExecutionGraphBuilder setPlan(JobPlanInfo.Plan plan) {
+        this.plan = plan;
+        return this;
+    }
+
+    public ArchivedExecutionGraphBuilder setStreamGraphJson(String streamGraphJson) {
+        this.streamGraphJson = streamGraphJson;
         return this;
     }
 
@@ -130,6 +138,11 @@ public class ArchivedExecutionGraphBuilder {
         return this;
     }
 
+    public ArchivedExecutionGraphBuilder setPendingOperatorCounts(int pendingOperatorCounts) {
+        this.pendingOperatorCounts = pendingOperatorCounts;
+        return this;
+    }
+
     public ArchivedExecutionGraph build() {
         JobID jobID = this.jobID != null ? this.jobID : new JobID();
         String jobName = this.jobName != null ? this.jobName : "job_" + RANDOM.nextInt();
@@ -149,13 +162,9 @@ public class ArchivedExecutionGraphBuilder {
                 state != null ? state : JobStatus.FINISHED,
                 JobType.STREAMING,
                 failureCause,
-                jsonPlan != null
-                        ? jsonPlan
-                        : "{\"jobid\":\""
-                                + jobID
-                                + "\", \"name\":\""
-                                + jobName
-                                + "\", \"nodes\":[]}",
+                plan != null
+                        ? plan
+                        : new JobPlanInfo.Plan(jobID.toString(), jobName, "", new ArrayList<>()),
                 archivedUserAccumulators != null
                         ? archivedUserAccumulators
                         : new StringifiedAccumulatorResult[0],
@@ -171,6 +180,8 @@ public class ArchivedExecutionGraphBuilder {
                 "stateBackendName",
                 "checkpointStorageName",
                 TernaryBoolean.UNDEFINED,
-                "changelogStorageName");
+                "changelogStorageName",
+                streamGraphJson,
+                pendingOperatorCounts);
     }
 }

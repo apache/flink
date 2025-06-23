@@ -90,6 +90,7 @@ import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.shuffle.ShuffleMasterSnapshotUtil;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
@@ -368,6 +369,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void startDispatcherServices() throws Exception {
         try {
+            ShuffleMasterSnapshotUtil.restoreOrSnapshotShuffleMaster(
+                    jobManagerSharedServices.getShuffleMaster(),
+                    configuration,
+                    jobManagerSharedServices.getIoExecutor());
             registerDispatcherMetrics(jobManagerMetricGroup);
         } catch (Exception e) {
             handleStartDispatcherServicesException(e);
@@ -873,8 +878,19 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
                     completedJobDetails.forEach(job -> deduplicatedJobs.put(job.getJobId(), job));
                     runningJobDetails.forEach(job -> deduplicatedJobs.put(job.getJobId(), job));
+                    Collection<JobDetails> orderedDeduplicatedJobs =
+                            deduplicatedJobs.values().stream()
+                                    .sorted(
+                                            (jd1, jd2) ->
+                                                    jd1.getStartTime() == jd2.getStartTime()
+                                                            ? jd1.getJobId()
+                                                                    .compareTo(jd2.getJobId())
+                                                            : Long.compare(
+                                                                    jd2.getStartTime(),
+                                                                    jd1.getStartTime()))
+                                    .collect(Collectors.toList());
 
-                    return new MultipleJobsDetails(new HashSet<>(deduplicatedJobs.values()));
+                    return new MultipleJobsDetails(orderedDeduplicatedJobs);
                 });
     }
 
@@ -1077,13 +1093,25 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     @Override
     public CompletableFuture<Acknowledge> shutDownCluster() {
-        return shutDownCluster(ApplicationStatus.SUCCEEDED);
+        return internalShutDownCluster(ApplicationStatus.SUCCEEDED, false);
     }
 
     @Override
     public CompletableFuture<Acknowledge> shutDownCluster(
             final ApplicationStatus applicationStatus) {
-        shutDownFuture.complete(applicationStatus);
+        return internalShutDownCluster(applicationStatus, true);
+    }
+
+    private CompletableFuture<Acknowledge> internalShutDownCluster(
+            final ApplicationStatus applicationStatus,
+            final boolean waitForAllJobTerminationFutures) {
+        final CompletableFuture<Void> allJobsTerminationFuture =
+                waitForAllJobTerminationFutures
+                        ? FutureUtils.completeAll(jobManagerRunnerTerminationFutures.values())
+                        : CompletableFuture.completedFuture(null);
+
+        FutureUtils.runAfterwards(
+                allJobsTerminationFuture, () -> shutDownFuture.complete(applicationStatus));
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
@@ -1240,7 +1268,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         }
     }
 
-    private void registerJobManagerRunnerTerminationFuture(
+    @VisibleForTesting
+    void registerJobManagerRunnerTerminationFuture(
             JobID jobId, CompletableFuture<Void> jobManagerRunnerTerminationFuture) {
         Preconditions.checkState(!jobManagerRunnerTerminationFutures.containsKey(jobId));
         jobManagerRunnerTerminationFutures.put(jobId, jobManagerRunnerTerminationFuture);

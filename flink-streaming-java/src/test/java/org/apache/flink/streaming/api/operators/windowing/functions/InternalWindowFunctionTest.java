@@ -58,10 +58,10 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.collection.IsMapContaining.hasEntry;
 import static org.hamcrest.core.AllOf.allOf;
-import static org.mockito.Mockito.anyObject;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -151,7 +151,7 @@ class InternalWindowFunctionTest {
         InternalWindowFunction.InternalWindowContext ctx =
                 mock(InternalWindowFunction.InternalWindowContext.class);
         windowFunction.process(((byte) 0), w, ctx, i, c);
-        verify(mock).process((ProcessAllWindowFunctionMock.Context) anyObject(), eq(i), eq(c));
+        verify(mock).process(any(), eq(i), eq(c));
 
         // check close
         windowFunction.close();
@@ -252,7 +252,7 @@ class InternalWindowFunctionTest {
                             }
                         })
                 .when(mock)
-                .process(eq(42L), (ProcessWindowFunctionMock.Context) anyObject(), eq(i), eq(c));
+                .process(eq(42L), any(), eq(i), eq(c));
 
         windowFunction.process(42L, w, ctx, i, c);
         verify(ctx).currentProcessingTime();
@@ -398,7 +398,7 @@ class InternalWindowFunctionTest {
         windowFunction.process(((byte) 0), w, ctx, 23L, c);
         verify(mock)
                 .process(
-                        (ProcessAllWindowFunctionMock.Context) anyObject(),
+                        (ProcessAllWindowFunctionMock.Context) any(),
                         (Iterable<Long>) argThat(IsIterableContainingInOrder.contains(23L)),
                         eq(c));
 
@@ -459,7 +459,7 @@ class InternalWindowFunctionTest {
                 .when(mock)
                 .process(
                         eq(42L),
-                        (ProcessWindowFunctionMock.Context) anyObject(),
+                        (ProcessWindowFunctionMock.Context) any(),
                         (Iterable<Long>) argThat(IsIterableContainingInOrder.contains(23L)),
                         eq(c));
 
@@ -563,10 +563,10 @@ class InternalWindowFunctionTest {
                 .when(mock)
                 .process(
                         eq(42L),
-                        (AggregateProcessWindowFunctionMock.Context) anyObject(),
+                        any(),
                         (Iterable)
                                 argThat(
-                                        containsInAnyOrder(
+                                        contains(
                                                 allOf(
                                                         hasEntry(is(23L), is(23L)),
                                                         hasEntry(is(24L), is(24L))))),
@@ -658,10 +658,10 @@ class InternalWindowFunctionTest {
         windowFunction.process(((byte) 0), w, ctx, args, c);
         verify(mock)
                 .process(
-                        (AggregateProcessAllWindowFunctionMock.Context) anyObject(),
+                        any(),
                         (Iterable)
                                 argThat(
-                                        containsInAnyOrder(
+                                        contains(
                                                 allOf(
                                                         hasEntry(is(23L), is(23L)),
                                                         hasEntry(is(24L), is(24L))))),

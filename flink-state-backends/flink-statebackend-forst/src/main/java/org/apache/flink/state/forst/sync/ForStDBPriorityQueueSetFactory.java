@@ -68,7 +68,7 @@ public class ForStDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
     private final KeyGroupRange keyGroupRange;
     private final int keyGroupPrefixBytes;
     private final int numberOfKeyGroups;
-    private final Map<String, ForStSyncKeyedStateBackend.ForStDbKvStateInfo> kvStateInformation;
+    private final Map<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation;
     private final RocksDB db;
     private final ReadOptions readOptions;
     private final ForStDBWriteBatchWrapper writeBatchWrapper;
@@ -80,7 +80,7 @@ public class ForStDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
             KeyGroupRange keyGroupRange,
             int keyGroupPrefixBytes,
             int numberOfKeyGroups,
-            Map<String, ForStSyncKeyedStateBackend.ForStDbKvStateInfo> kvStateInformation,
+            Map<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
             RocksDB db,
             ReadOptions readOptions,
             ForStDBWriteBatchWrapper writeBatchWrapper,
@@ -121,7 +121,7 @@ public class ForStDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer,
                     boolean allowFutureMetadataUpdates) {
 
-        final ForStSyncKeyedStateBackend.ForStDbKvStateInfo stateCFHandle =
+        final ForStOperationUtils.ForStKvStateInfo stateCFHandle =
                 tryRegisterPriorityQueueMetaInfo(
                         stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
 
@@ -158,12 +158,12 @@ public class ForStDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
     }
 
     @Nonnull
-    private <T> ForStSyncKeyedStateBackend.ForStDbKvStateInfo tryRegisterPriorityQueueMetaInfo(
+    private <T> ForStOperationUtils.ForStKvStateInfo tryRegisterPriorityQueueMetaInfo(
             @Nonnull String stateName,
             @Nonnull TypeSerializer<T> byteOrderedElementSerializer,
             boolean allowFutureMetadataUpdates) {
 
-        ForStSyncKeyedStateBackend.ForStDbKvStateInfo stateInfo = kvStateInformation.get(stateName);
+        ForStOperationUtils.ForStKvStateInfo stateInfo = kvStateInformation.get(stateName);
 
         if (stateInfo == null) {
             // Currently this class is for timer service and TTL feature is not applicable here,
@@ -227,7 +227,7 @@ public class ForStDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 
                 // update meta info with new serializer
                 stateInfo =
-                        new ForStSyncKeyedStateBackend.ForStDbKvStateInfo(
+                        new ForStOperationUtils.ForStKvStateInfo(
                                 stateInfo.columnFamilyHandle, metaInfo);
                 kvStateInformation.put(stateName, stateInfo);
             }

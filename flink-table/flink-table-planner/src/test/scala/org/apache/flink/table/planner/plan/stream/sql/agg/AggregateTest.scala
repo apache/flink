@@ -17,12 +17,10 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
-import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
+import org.apache.flink.table.types.AbstractDataType
 
 import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
 import org.junit.jupiter.api.Test
@@ -44,20 +42,20 @@ class AggregateTest extends TableTestBase {
   util.addTableSource[(Long, Int, String)]("T2", 'a, 'b, 'c)
   util.addTableSource(
     "MyTable1",
-    Array[TypeInformation[_]](
-      Types.BYTE,
-      Types.SHORT,
-      Types.INT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.BOOLEAN,
-      Types.STRING,
-      Types.LOCAL_DATE,
-      Types.LOCAL_TIME,
-      Types.LOCAL_DATE_TIME,
-      DecimalDataTypeInfo.of(30, 20),
-      DecimalDataTypeInfo.of(10, 5)
+    Array[AbstractDataType[_]](
+      DataTypes.TINYINT,
+      DataTypes.SMALLINT,
+      DataTypes.INT,
+      DataTypes.BIGINT,
+      DataTypes.FLOAT,
+      DataTypes.DOUBLE,
+      DataTypes.BOOLEAN,
+      DataTypes.STRING,
+      DataTypes.DATE,
+      DataTypes.TIME(0),
+      DataTypes.TIMESTAMP(3),
+      DataTypes.DECIMAL(30, 20),
+      DataTypes.DECIMAL(10, 5)
     ),
     Array(
       "byte",

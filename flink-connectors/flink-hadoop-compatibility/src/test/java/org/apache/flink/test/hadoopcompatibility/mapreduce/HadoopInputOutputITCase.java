@@ -24,11 +24,10 @@ import org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat;
 import org.apache.flink.test.hadoopcompatibility.mapreduce.example.WordCount;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
-import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.OperatingSystem;
 
-import org.junit.experimental.categories.Category;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -38,7 +37,7 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 // It is essentially a batch job, but the HadoopInputFormat is an unbounded source.
 // As a result, the test case cannot be set to batch runtime mode and should not run with the
 // adaptive scheduler.
-@Category(FailsWithAdaptiveScheduler.class)
+@Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
 class HadoopInputOutputITCase extends JavaProgramTestBase {
 
     private String textPath;

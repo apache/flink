@@ -25,9 +25,8 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions.AsyncOutputMode
 import org.apache.flink.table.connector.source.lookup.LookupOptions
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.binary.BinaryStringData
-import org.apache.flink.table.legacy.api.{TableSchema, Types}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
 import org.apache.flink.table.runtime.functions.table.lookup.LookupCacheManager
@@ -45,7 +44,6 @@ import scala.collection.JavaConversions._
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class AsyncLookupJoinITCase(
-    legacyTableSource: Boolean,
     backend: StateBackendMode,
     objectReuse: Boolean,
     asyncOutputMode: AsyncOutputMode,
@@ -64,11 +62,7 @@ class AsyncLookupJoinITCase(
   @BeforeEach
   override def before(): Unit = {
     super.before()
-    if (legacyTableSource) {
-      InMemoryLookupableTableSource.RESOURCE_COUNTER.set(0)
-    } else {
-      TestValuesTableFactory.RESOURCE_COUNTER.set(0)
-    }
+    TestValuesTableFactory.RESOURCE_COUNTER.set(0)
     if (objectReuse) {
       env.getConfig.enableObjectReuse()
     } else {
@@ -88,57 +82,38 @@ class AsyncLookupJoinITCase(
   @AfterEach
   override def after(): Unit = {
     super.after()
-    if (legacyTableSource) {
-      assertThat(InMemoryLookupableTableSource.RESOURCE_COUNTER).hasValue(0)
-    } else {
-      assertThat(TestValuesTableFactory.RESOURCE_COUNTER).hasValue(0)
-    }
+    assertThat(TestValuesTableFactory.RESOURCE_COUNTER).hasValue(0)
   }
 
   private def createLookupTable(
       tableName: String,
       data: List[Row],
       lookupThreshold: Int = -1): Unit = {
-    if (legacyTableSource) {
-      val userSchema = TableSchema
-        .builder()
-        .field("age", Types.INT)
-        .field("id", Types.LONG)
-        .field("name", Types.STRING)
-        .build()
-      InMemoryLookupableTableSource.createTemporaryTable(
-        tEnv,
-        isAsync = true,
-        data,
-        userSchema,
-        tableName)
-    } else {
-      val dataId = TestValuesTableFactory.registerData(data)
-      val cacheOptions =
-        if (enableCache)
-          s"""
-             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupOptions.LookupCacheType.PARTIAL}',
-             |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
-             |""".stripMargin
-        else ""
-      val lookupThresholdOption = if (lookupThreshold > 0) {
-        s"'start-lookup-threshold'='$lookupThreshold',"
-      } else ""
+    val dataId = TestValuesTableFactory.registerData(data)
+    val cacheOptions =
+      if (enableCache) {
+        s"""
+           |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupOptions.LookupCacheType.PARTIAL}',
+           |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
+           |""".stripMargin
+      } else { "" }
+    val lookupThresholdOption = if (lookupThreshold > 0) {
+      s"'start-lookup-threshold'='$lookupThreshold',"
+    } else ""
 
-      tEnv.executeSql(s"""
-                         |CREATE TABLE $tableName (
-                         |  `age` INT,
-                         |  `id` BIGINT,
-                         |  `name` STRING
-                         |) WITH (
-                         |  $cacheOptions
-                         |  $lookupThresholdOption
-                         |  'connector' = 'values',
-                         |  'data-id' = '$dataId',
-                         |  'async' = 'true'
-                         |)
-                         |""".stripMargin)
-    }
+    tEnv.executeSql(s"""
+                       |CREATE TABLE $tableName (
+                       |  `age` INT,
+                       |  `id` BIGINT,
+                       |  `name` STRING
+                       |) WITH (
+                       |  $cacheOptions
+                       |  $lookupThresholdOption
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'async' = 'true'
+                       |)
+                       |""".stripMargin)
   }
 
   // TODO a base class or utility class is better to reuse code for this and LookupJoinITCase
@@ -470,15 +445,8 @@ class AsyncLookupJoinITCase(
       .addSink(sink)
     env.execute()
 
-    val expected = if (legacyTableSource) {
-      // test legacy lookup source do not support lookup threshold
-      // also legacy lookup source do not support retry
-      Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    } else {
-      // the user_table_with_lookup_threshold3 will return null result before 3rd lookup
-      Seq()
-    }
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    // the user_table_with_lookup_threshold3 will return null result before 3rd lookup
+    assertThat(sink.getAppendResults).isEqualTo(Seq())
   }
 
   @TestTemplate
@@ -508,65 +476,22 @@ class AsyncLookupJoinITCase(
 
 object AsyncLookupJoinITCase {
 
-  val LEGACY_TABLE_SOURCE: JBoolean = JBoolean.TRUE;
-  val DYNAMIC_TABLE_SOURCE: JBoolean = JBoolean.FALSE;
   val ENABLE_OBJECT_REUSE: JBoolean = JBoolean.TRUE;
   val DISABLE_OBJECT_REUSE: JBoolean = JBoolean.FALSE;
   val ENABLE_CACHE: JBoolean = JBoolean.TRUE;
   val DISABLE_CACHE: JBoolean = JBoolean.FALSE;
 
-  @Parameters(name =
-    "LegacyTableSource={0}, StateBackend={1}, ObjectReuse={2}, AsyncOutputMode={3}, EnableCache={4}")
+  @Parameters(name = "StateBackend={0}, ObjectReuse={1}, AsyncOutputMode={2}, EnableCache={3}")
   def parameters(): JCollection[Array[Object]] = {
     Seq[Array[AnyRef]](
-      Array(
-        LEGACY_TABLE_SOURCE,
-        HEAP_BACKEND,
-        ENABLE_OBJECT_REUSE,
-        AsyncOutputMode.ALLOW_UNORDERED,
-        DISABLE_CACHE),
-      Array(
-        LEGACY_TABLE_SOURCE,
-        ROCKSDB_BACKEND,
-        DISABLE_OBJECT_REUSE,
-        AsyncOutputMode.ORDERED,
-        DISABLE_CACHE),
-      Array(
-        DYNAMIC_TABLE_SOURCE,
-        HEAP_BACKEND,
-        DISABLE_OBJECT_REUSE,
-        AsyncOutputMode.ORDERED,
-        DISABLE_CACHE),
-      Array(
-        DYNAMIC_TABLE_SOURCE,
-        HEAP_BACKEND,
-        ENABLE_OBJECT_REUSE,
-        AsyncOutputMode.ORDERED,
-        DISABLE_CACHE),
-      Array(
-        DYNAMIC_TABLE_SOURCE,
-        ROCKSDB_BACKEND,
-        DISABLE_OBJECT_REUSE,
-        AsyncOutputMode.ALLOW_UNORDERED,
-        DISABLE_CACHE),
-      Array(
-        DYNAMIC_TABLE_SOURCE,
-        ROCKSDB_BACKEND,
-        ENABLE_OBJECT_REUSE,
-        AsyncOutputMode.ALLOW_UNORDERED,
-        DISABLE_CACHE),
-      Array(
-        DYNAMIC_TABLE_SOURCE,
-        HEAP_BACKEND,
-        DISABLE_OBJECT_REUSE,
-        AsyncOutputMode.ORDERED,
-        ENABLE_CACHE),
-      Array(
-        DYNAMIC_TABLE_SOURCE,
-        HEAP_BACKEND,
-        ENABLE_OBJECT_REUSE,
-        AsyncOutputMode.ALLOW_UNORDERED,
-        ENABLE_CACHE)
+      Array(HEAP_BACKEND, ENABLE_OBJECT_REUSE, AsyncOutputMode.ALLOW_UNORDERED, DISABLE_CACHE),
+      Array(ROCKSDB_BACKEND, DISABLE_OBJECT_REUSE, AsyncOutputMode.ORDERED, DISABLE_CACHE),
+      Array(HEAP_BACKEND, DISABLE_OBJECT_REUSE, AsyncOutputMode.ORDERED, DISABLE_CACHE),
+      Array(HEAP_BACKEND, ENABLE_OBJECT_REUSE, AsyncOutputMode.ORDERED, DISABLE_CACHE),
+      Array(ROCKSDB_BACKEND, DISABLE_OBJECT_REUSE, AsyncOutputMode.ALLOW_UNORDERED, DISABLE_CACHE),
+      Array(ROCKSDB_BACKEND, ENABLE_OBJECT_REUSE, AsyncOutputMode.ALLOW_UNORDERED, DISABLE_CACHE),
+      Array(HEAP_BACKEND, DISABLE_OBJECT_REUSE, AsyncOutputMode.ORDERED, ENABLE_CACHE),
+      Array(HEAP_BACKEND, ENABLE_OBJECT_REUSE, AsyncOutputMode.ALLOW_UNORDERED, ENABLE_CACHE)
     )
   }
 }

@@ -20,7 +20,9 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.DescribeCatalogOperation;
+import org.apache.flink.table.operations.DescribeFunctionOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowCatalogsOperation;
@@ -104,6 +106,31 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
                         String.format(
                                 "DESCRIBE CATALOG: (identifier: [%s], isExtended: [%b])",
                                 catalogName, extended));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"true,true", "true,false", "false,true", "false,false"})
+    void testDescribeFunction(boolean abbr, boolean extended) {
+        final String functionName = "f1";
+        final UnresolvedIdentifier functionIdentifier = UnresolvedIdentifier.of(functionName);
+        final String sql =
+                String.format(
+                        "%s FUNCTION %s %s",
+                        abbr ? "DESC" : "DESCRIBE", extended ? "EXTENDED" : "", functionName);
+        Operation operation = parse(sql);
+        assertThat(operation)
+                .isInstanceOf(DescribeFunctionOperation.class)
+                .asInstanceOf(InstanceOfAssertFactories.type(DescribeFunctionOperation.class))
+                .extracting(
+                        DescribeFunctionOperation::getSqlIdentifier,
+                        DescribeFunctionOperation::isExtended,
+                        DescribeFunctionOperation::asSummaryString)
+                .containsExactly(
+                        functionIdentifier,
+                        extended,
+                        String.format(
+                                "DESCRIBE FUNCTION: (identifier: [%s], isExtended: [%b])",
+                                functionIdentifier, extended));
     }
 
     @Test

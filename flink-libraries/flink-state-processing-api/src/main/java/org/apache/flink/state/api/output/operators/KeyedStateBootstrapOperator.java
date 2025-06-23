@@ -48,6 +48,8 @@ public class KeyedStateBootstrapOperator<K, IN>
 
     private static final long serialVersionUID = 1L;
 
+    private final long checkpointId;
+
     private final long timestamp;
 
     private final Path savepointPath;
@@ -55,9 +57,13 @@ public class KeyedStateBootstrapOperator<K, IN>
     private transient KeyedStateBootstrapOperator<K, IN>.ContextImpl context;
 
     public KeyedStateBootstrapOperator(
-            long timestamp, Path savepointPath, KeyedStateBootstrapFunction<K, IN> function) {
+            long checkpointId,
+            long timestamp,
+            Path savepointPath,
+            KeyedStateBootstrapFunction<K, IN> function) {
         super(function);
 
+        this.checkpointId = checkpointId;
         this.timestamp = timestamp;
         this.savepointPath = savepointPath;
     }
@@ -88,6 +94,7 @@ public class KeyedStateBootstrapOperator<K, IN>
     public void endInput() throws Exception {
         TaggedOperatorSubtaskState state =
                 SnapshotUtils.snapshot(
+                        checkpointId,
                         this,
                         getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                         timestamp,

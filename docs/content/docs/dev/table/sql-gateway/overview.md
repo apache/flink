@@ -41,7 +41,7 @@ Getting Started
 
 This section describes how to setup and run your first Flink SQL program from the command-line.
 
-The SQL Gateway is bundled in the regular Flink distribution and thus runnable out-of-the-box. It requires only a running Flink cluster where table programs can be executed. For more information about setting up a Flink cluster see the [Cluster & Deployment]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) part. If you simply want to try out the SQL Client, you can also start a local cluster with one worker using the following command:
+The SQL Gateway is bundled in the regular Flink distribution and thus runnable out-of-the-box. It requires only a running Flink cluster where table programs can be executed. For more information about setting up a Flink cluster see the [Cluster & Deployment]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) part. If you simply want to try out the SQL Gateway, you can also start a local cluster with one worker using the following command:
 
 ```bash
 $ ./bin/start-cluster.sh
@@ -84,6 +84,14 @@ $ curl --request POST http://localhost:8083/v1/sessions/${sessionHandle}/stateme
 
 The `operationHandle` in the return results is used by the SQL Gateway to uniquely identify the submitted SQL.
 
+The Flink SQL Gateway allows clients to specify which Flink cluster to submit jobs to, enabling remote execution of SQL statements and facilitating easier interaction with Flink clusters through a REST API. Enrich the POST request body with [rest.address](https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/config/#rest-address) and [rest.port](https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/config/#rest-port) inside the `executionConfig` variable to set the Flink cluster address. For example:
+
+```bash
+$ curl --request POST http://localhost:8083/v1/sessions/${sessionHandle}/statements/ --data '{"executionConfig": {"rest.address":"jobmanager-host", "rest.port":8081},"statement": "SELECT 1"}'
+{"operationHandle":"..."}
+```
+
+
 
 **Step 3: Fetch results**
 
@@ -121,6 +129,34 @@ The `nextResultUri` in the results is used to fetch the next batch results if it
 ```bash
 $ curl --request GET ${nextResultUri}
 ```
+
+### Deploying a Script
+
+SQL Gateway supports deploying a script in [Application Mode]({{< ref "docs/deployment/overview" >}}). In application mode, [JobManager]({{< ref "docs/concepts/flink-architecture" >}}#jobmanager) is responsible for compiling the script.
+If you want to use custom resources in the script, e.g. Kafka Source, please use [ADD JAR]({{< ref "docs/dev/table/sql/jar">}}) command to download the [required artifacts]({{< ref "docs/dev/configuration/connector" >}}#available-artifacts). 
+
+Here is an example for deploying a script to a Flink native K8S Cluster with cluster id `CLUSTER_ID`.
+
+```bash
+$ curl --request POST http://localhost:8083/sessions/${SESSION_HANDLE}/scripts \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "script": "CREATE TEMPORARY TABLE sink(a INT) WITH ( '\''connector'\'' = '\''blackhole'\''); INSERT INTO sink VALUES (1), (2), (3);",
+    "executionConfig": {
+        "execution.target": "kubernetes-application",
+        "kubernetes.cluster-id": "'${CLUSTER_ID}'",
+        "kubernetes.container.image.ref": "'${FLINK_IMAGE_NAME}'",
+        "jobmanager.memory.process.size": "1000m",
+        "taskmanager.memory.process.size": "1000m",
+        "kubernetes.jobmanager.cpu": 0.5,
+        "kubernetes.taskmanager.cpu": 0.5,
+        "kubernetes.rest-service.exposed.type": "NodePort"
+    }
+}'
+```
+
+<span class="label label-info">Note</span> If you want to run the script with PyFlink, please use an image with PyFlink installed. You can refer to 
+[Enabling PyFlink in docker]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#enabling-python) for more details.
 
 Configuration
 ----------------

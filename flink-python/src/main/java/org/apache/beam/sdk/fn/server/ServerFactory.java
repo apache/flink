@@ -19,17 +19,17 @@ package org.apache.beam.sdk.fn.server;
 
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.BindableService;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.ServerInterceptors;
-import org.apache.beam.vendor.grpc.v1p48p1.io.grpc.netty.NettyServerBuilder;
-import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.EpollEventLoopGroup;
-import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.EpollServerDomainSocketChannel;
-import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.epoll.EpollServerSocketChannel;
-import org.apache.beam.vendor.grpc.v1p48p1.io.netty.channel.unix.DomainSocketAddress;
-import org.apache.beam.vendor.grpc.v1p48p1.io.netty.util.internal.ThreadLocalRandom;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ServerInterceptors;
+import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.netty.NettyServerBuilder;
+import org.apache.beam.vendor.grpc.v1p60p1.io.netty.channel.epoll.EpollEventLoopGroup;
+import org.apache.beam.vendor.grpc.v1p60p1.io.netty.channel.epoll.EpollServerDomainSocketChannel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.netty.channel.epoll.EpollServerSocketChannel;
+import org.apache.beam.vendor.grpc.v1p60p1.io.netty.channel.unix.DomainSocketAddress;
+import org.apache.beam.vendor.grpc.v1p60p1.io.netty.util.internal.ThreadLocalRandom;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,7 +40,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 // This class is copied from Beam's org.apache.beam.sdk.fn.server.ServerFactory,
 // can be removed after https://github.com/apache/beam/issues/21598 is fixed.
@@ -107,6 +107,7 @@ public abstract class ServerFactory {
     public abstract Server create(
             List<BindableService> services, Endpoints.ApiServiceDescriptor serviceDescriptor)
             throws IOException;
+
     /**
      * Creates a {@link Server gRPC Server} using the default server factory.
      *

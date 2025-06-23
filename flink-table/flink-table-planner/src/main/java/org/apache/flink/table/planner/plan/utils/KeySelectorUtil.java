@@ -35,6 +35,9 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import java.util.Arrays;
+import java.util.Map;
+
 /** Utility for KeySelector. */
 public class KeySelectorUtil {
 
@@ -90,5 +93,61 @@ public class KeySelectorUtil {
         } else {
             return EmptyRowDataKeySelector.INSTANCE;
         }
+    }
+
+    /**
+     * Create a {@link RowDataKeySelector} which select the columns of lookup keys from the row of
+     * left table in lookup join.
+     *
+     * @param classLoader the user classloader
+     * @param lookupKeysOfRightTable the lookup keys
+     * @param leftTableRowType the row type of left table
+     * @return the RowDataKeySelector
+     */
+    public static RowDataKeySelector getLookupKeysSelectorFromLeftTable(
+            ClassLoader classLoader,
+            Map<Integer, FunctionCallUtils.FunctionParam> lookupKeysOfRightTable,
+            InternalTypeInfo<RowData> leftTableRowType) {
+        LogicalType[] inputFieldTypes = leftTableRowType.toRowFieldTypes();
+        int[] lookupKeyIndicesInOrder =
+                LookupJoinUtil.getOrderedLookupKeys(lookupKeysOfRightTable.keySet());
+        // 1. Generate the map from left table to lookup keys.
+        int[] inputMapping = new int[lookupKeysOfRightTable.size()];
+        Arrays.fill(inputMapping, ProjectionCodeGenerator.EMPTY_INPUT_MAPPING_VALUE());
+        // 2. Generate all lookup keys in order.
+        FunctionCallUtils.FunctionParam[] orderedLookupKeys =
+                new FunctionCallUtils.FunctionParam[lookupKeyIndicesInOrder.length];
+        // 3. Generate the logical types of all lookup keys.
+        LogicalType[] orderedLookupKeyLogicalTypes = new LogicalType[lookupKeysOfRightTable.size()];
+        int cnt = 0;
+        for (int idx : lookupKeyIndicesInOrder) {
+            FunctionCallUtils.FunctionParam key = lookupKeysOfRightTable.get(idx);
+            if (key instanceof FunctionCallUtils.Constant) {
+                LogicalType keyType = ((FunctionCallUtils.Constant) key).sourceType;
+                orderedLookupKeyLogicalTypes[cnt] = keyType;
+            } else if (key instanceof FunctionCallUtils.FieldRef) {
+                int leftIdx = ((FunctionCallUtils.FieldRef) key).index;
+                inputMapping[cnt] = leftIdx;
+                orderedLookupKeyLogicalTypes[cnt] = inputFieldTypes[leftIdx];
+            } else {
+                throw new UnsupportedOperationException("The lookup key " + key + " is invalid.");
+            }
+            orderedLookupKeys[cnt] = key;
+            cnt++;
+        }
+        RowType orderedLookupKeyRowType = RowType.of(orderedLookupKeyLogicalTypes);
+        GeneratedProjection generatedProjection =
+                ProjectionCodeGenerator.generateProjectionForLookupKeysFromLeftTable(
+                        orderedLookupKeys,
+                        new CodeGeneratorContext(new Configuration(), classLoader),
+                        "LookupKeyProjection",
+                        leftTableRowType.toRowType(),
+                        orderedLookupKeyRowType,
+                        inputMapping,
+                        GenericRowData.class);
+        return new GenericRowDataKeySelector(
+                InternalTypeInfo.of(orderedLookupKeyRowType),
+                InternalSerializers.create(orderedLookupKeyRowType),
+                generatedProjection);
     }
 }

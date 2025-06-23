@@ -627,7 +627,12 @@ public class DescriptorProperties {
     /** Returns the DataType under the given key if it exists. */
     public Optional<DataType> getOptionalDataType(String key) {
         return optionalGet(key)
-                .map(t -> TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(t)));
+                .map(
+                        t ->
+                                TypeConversions.fromLogicalToDataType(
+                                        LogicalTypeParser.parse(
+                                                t,
+                                                Thread.currentThread().getContextClassLoader())));
     }
 
     /** Returns the DataType under the given existing key. */
@@ -722,7 +727,10 @@ public class DescriptorProperties {
                 final String typeString =
                         optionalGet(typeKey).orElseThrow(exceptionSupplier(typeKey));
                 final DataType exprType =
-                        TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(typeString));
+                        TypeConversions.fromLogicalToDataType(
+                                LogicalTypeParser.parse(
+                                        typeString,
+                                        Thread.currentThread().getContextClassLoader()));
                 schemaBuilder.watermark(rowtime, exprString, exprType);
             }
         }
@@ -1367,7 +1375,9 @@ public class DescriptorProperties {
                     // we don't validate the string but let the parser do the work for us
                     // it throws a validation exception
                     v -> {
-                        LogicalType t = LogicalTypeParser.parse(v);
+                        LogicalType t =
+                                LogicalTypeParser.parse(
+                                        v, Thread.currentThread().getContextClassLoader());
                         if (t.getTypeRoot() == LogicalTypeRoot.UNRESOLVED) {
                             throw new ValidationException(
                                     "Could not parse type string '" + v + "'.");

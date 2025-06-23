@@ -45,7 +45,13 @@ public class MdcUtils {
     public static MdcCloseable withContext(Map<String, String> context) {
         final Map<String, String> orig = MDC.getCopyOfContextMap();
         MDC.setContextMap(context);
-        return () -> MDC.setContextMap(orig);
+        return () -> {
+            if (orig != null) {
+                MDC.setContextMap(orig);
+            } else {
+                MDC.clear();
+            }
+        };
     }
 
     /** {@link AutoCloseable } that restores the {@link MDC} contents on close. */

@@ -51,11 +51,6 @@ dataStream.map(new MapFunction<Integer, Integer>() {
 });
 ```
 {{< /tab >}}
-{{< tab "Scala">}}
-```scala
-dataStream.map { x => x * 2 }
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=[1, 2, 3, 4, 5])
@@ -83,11 +78,6 @@ dataStream.flatMap(new FlatMapFunction<String, String>() {
 });
 ```
 {{< /tab >}}
-{{< tab "Scala">}}
-```scala
-dataStream.flatMap { str => str.split(" ") }
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=['hello apache flink', 'streaming compute'])
@@ -112,11 +102,6 @@ dataStream.filter(new FilterFunction<Integer>() {
 });
 ```
 {{< /tab >}}
-{{< tab "Scala">}}
-```scala
-dataStream.filter { _ != 0 }
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=[0, 1, 2, 3, 4, 5])
@@ -135,12 +120,6 @@ Logically partitions a stream into disjoint partitions. All records with the sam
 ```java
 dataStream.keyBy(value -> value.getSomeKey());
 dataStream.keyBy(value -> value.f0);
-```
-{{< /tab >}}
-{{< tab "Scala">}}
-```scala
-dataStream.keyBy(_.someKey)
-dataStream.keyBy(_._1)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -177,11 +156,6 @@ keyedStream.reduce(new ReduceFunction<Integer>() {
 });
 ```
 {{< /tab >}}
-{{< tab "Scala">}}
-```scala
-keyedStream.reduce { _ + _ }
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=[(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')], type_info=Types.TUPLE([Types.INT(), Types.STRING()]))
@@ -202,13 +176,6 @@ See [windows]({{< ref "docs/dev/datastream/operators/windows" >}}) for a complet
 dataStream
   .keyBy(value -> value.f0)
   .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))); 
-```
-{{< /tab >}}
-{{< tab "Scala">}}
-```scala
-dataStream
-  .keyBy(_._1)
-  .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) 
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -232,12 +199,6 @@ This is in many cases a non-parallel transformation. All records will be gathere
 ```java
 dataStream
   .windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(5)));
-```
-{{< /tab >}}
-{{< tab "Scala">}}
-```scala
-dataStream
-  .windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -287,14 +248,6 @@ allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, 
 });
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-windowedStream.apply { WindowFunction }
-
-// applying an AllWindowFunction on non-keyed window stream
-allWindowedStream.apply { AllWindowFunction }
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 class MyWindowFunction(WindowFunction[tuple, int, int, TimeWindow]):
@@ -338,11 +291,6 @@ windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>>() {
 });
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-windowedStream.reduce { _ + _ }
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 class MyReduceFunction(ReduceFunction):
@@ -367,11 +315,6 @@ Union of two or more data streams creating a new stream containing all the eleme
 dataStream.union(otherStream1, otherStream2, ...);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-dataStream.union(otherStream1, otherStream2, ...)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 data_stream.union(otherStream1, otherStream2, ...)
@@ -391,14 +334,6 @@ dataStream.join(otherStream)
     .where(<key selector>).equalTo(<key selector>)
     .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply (new JoinFunction () {...});
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-dataStream.join(otherStream)
-    .where(<key selector>).equalTo(<key selector>)
-    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
-    .apply { ... }
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -423,18 +358,6 @@ keyedStream.intervalJoin(otherKeyedStream)
     .process(new IntervalJoinFunction() {...});
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-// this will join the two streams so that
-// key1 == key2 && leftTs - 2 < rightTs < leftTs + 2
-keyedStream.intervalJoin(otherKeyedStream)
-    .between(Duration.ofMillis(-2), Duration.ofMillis(2)) 
-    // lower and upper bound
-    .upperBoundExclusive(true) // optional
-    .lowerBoundExclusive(true) // optional
-    .process(new IntervalJoinFunction() {...})
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 This feature is not yet supported in Python
 {{< /tab >}}
@@ -454,14 +377,6 @@ dataStream.coGroup(otherStream)
     .apply (new CoGroupFunction () {...});
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-dataStream.coGroup(otherStream)
-    .where(0).equalTo(1)
-    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
-    .apply {}
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 This feature is not yet supported in Python
 {{< /tab >}}
@@ -479,14 +394,6 @@ DataStream<Integer> someStream = //...
 DataStream<String> otherStream = //...
 
 ConnectedStreams<Integer, String> connectedStreams = someStream.connect(otherStream);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-someStream : DataStream[Int] = ...
-otherStream : DataStream[String] = ...
-
-val connectedStreams = someStream.connect(otherStream)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -533,18 +440,6 @@ connectedStreams.flatMap(new CoFlatMapFunction<Integer, String, String>() {
 });
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-connectedStreams.map(
-    (_ : Int) => true,
-    (_ : String) => false
-)
-connectedStreams.flatMap(
-    (_ : Int) => true,
-    (_ : String) => false
-)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 class MyCoMapFunction(CoMapFunction):
@@ -589,18 +484,6 @@ env.execute(); // Execute and create cache.
         
 cachedDataStream.print(); // Consume cached result.
 env.execute();
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val dataStream : DataStream[Int] = //...
-val cachedDataStream = dataStream.cache()
-cachedDataStream.print() // Do anything with the cachedDataStream
-...
-env.execute() // Execute and create cache.
-
-cachedDataStream.print() // Consume cached result.
-env.execute()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -661,12 +544,6 @@ dataStream.partitionCustom(partitioner, "someKey");
 dataStream.partitionCustom(partitioner, 0);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-dataStream.partitionCustom(partitioner, "someKey")
-dataStream.partitionCustom(partitioner, 0)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=[(2, 'a'), (2, 'a'), (3, 'b')])
@@ -684,11 +561,6 @@ Partitions elements randomly according to a uniform distribution.
 {{< tab "Java" >}}
 ```java
 dataStream.shuffle();
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-dataStream.shuffle()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -718,11 +590,6 @@ Please see this figure for a visualization of the connection pattern in the abov
 dataStream.rescale();
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-dataStream.rescale()
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 data_stream.rescale()
@@ -739,11 +606,6 @@ Broadcasts elements to every partition.
 {{< tab "Java" >}}
 ```java
 dataStream.broadcast();
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-dataStream.broadcast()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -772,11 +634,6 @@ The two mappers will be chained, and filter will not be chained to the first map
 someStream.filter(...).map(...).startNewChain().map(...);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-someStream.filter(...).map(...).startNewChain().map(...)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 some_stream.filter(...).map(...).start_new_chain().map(...)
@@ -794,11 +651,6 @@ Do not chain the map operator.
 someStream.map(...).disableChaining();
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-someStream.map(...).disableChaining()
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 some_stream.map(...).disable_chaining()
@@ -814,11 +666,6 @@ Set the slot sharing group of an operation. Flink will put operations with the s
 {{< tab "Java" >}}
 ```java
 someStream.filter(...).slotSharingGroup("name");
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-someStream.filter(...).slotSharingGroup("name")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -844,11 +691,6 @@ The description can contain detail information about operators to facilitate deb
 {{< tab "Java" >}}
 ```java
 someStream.filter(...).name("filter").setDescription("x in (1, 2, 3, 4) and y > 1");
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-someStream.filter(...).name("filter").setDescription("x in (1, 2, 3, 4) and y > 1")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

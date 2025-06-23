@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.eventtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.clock.Clock;
@@ -84,7 +85,8 @@ public class WatermarksWithIdleness<T> implements WatermarkGenerator<T> {
     // ------------------------------------------------------------------------
 
     @VisibleForTesting
-    static final class IdlenessTimer {
+    @Internal
+    public static final class IdlenessTimer {
 
         /** The clock used to measure elapsed time. */
         private final RelativeClock clock;
@@ -104,7 +106,7 @@ public class WatermarksWithIdleness<T> implements WatermarkGenerator<T> {
         /** The duration before the output is marked as idle. */
         private final long maxIdleTimeNanos;
 
-        IdlenessTimer(RelativeClock clock, Duration idleTimeout) {
+        public IdlenessTimer(RelativeClock clock, Duration idleTimeout) {
             this.clock = clock;
 
             long idleNanos;

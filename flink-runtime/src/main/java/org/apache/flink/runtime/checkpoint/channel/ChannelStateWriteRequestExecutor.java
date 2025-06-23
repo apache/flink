@@ -27,7 +27,9 @@ import java.io.IOException;
  */
 interface ChannelStateWriteRequestExecutor {
 
-    /** @throws IllegalStateException if called more than once or after {@link #releaseSubtask} */
+    /**
+     * @throws IllegalStateException if called more than once or after {@link #releaseSubtask}
+     */
     void start() throws IllegalStateException;
 
     /**

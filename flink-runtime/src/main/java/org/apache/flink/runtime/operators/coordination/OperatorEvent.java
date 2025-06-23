@@ -24,4 +24,12 @@ import java.io.Serializable;
  * Root interface for all events sent between {@link OperatorCoordinator} and an {@link
  * OperatorEventHandler}.
  */
-public interface OperatorEvent extends Serializable {}
+public interface OperatorEvent extends Serializable {
+    /**
+     * @return true if event is optional and an occasional loss or inability to deliver that event
+     *     doesn't affect the job's correctness.
+     */
+    default boolean isLossTolerant() {
+        return false;
+    }
+}

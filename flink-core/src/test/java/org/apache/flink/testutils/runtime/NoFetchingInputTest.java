@@ -62,7 +62,7 @@ class NoFetchingInputTest {
         }
 
         @Override
-        public Object read(Kryo kryo, Input input, Class<Object> pbClass) {
+        public Object read(Kryo kryo, Input input, Class<? extends Object> pbClass) {
             try {
                 int size = input.readInt(true);
                 assertThat(size).isZero();

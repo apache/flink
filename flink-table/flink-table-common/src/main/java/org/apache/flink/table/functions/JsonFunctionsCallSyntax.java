@@ -25,7 +25,6 @@ import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
 import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
-import org.apache.flink.table.expressions.ResolvedExpression;
 
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -37,11 +36,11 @@ import static org.apache.flink.table.functions.CallSyntaxUtils.getSymbolLiteral;
 class JsonFunctionsCallSyntax {
 
     static final SqlCallSyntax IS_JSON =
-            (sqlName, operands) -> {
+            (sqlName, operands, sqlFactory) -> {
                 final String s =
                         String.format(
                                 "%s IS JSON",
-                                CallSyntaxUtils.asSerializableOperand(operands.get(0)));
+                                CallSyntaxUtils.asSerializableOperand(operands.get(0), sqlFactory));
                 if (operands.size() > 1) {
                     return s + " " + getSymbolLiteral(operands.get(1), JsonType.class);
                 }
@@ -50,20 +49,23 @@ class JsonFunctionsCallSyntax {
             };
 
     static final SqlCallSyntax JSON_VALUE =
-            (sqlName, operands) -> {
+            (sqlName, operands, sqlFactory) -> {
                 StringBuilder s =
                         new StringBuilder(
                                 String.format(
                                         "JSON_VALUE(%s, %s RETURNING %s ",
-                                        operands.get(0).asSerializableString(),
-                                        operands.get(1).asSerializableString(),
-                                        operands.get(2).asSerializableString()));
+                                        operands.get(0).asSerializableString(sqlFactory),
+                                        operands.get(1).asSerializableString(sqlFactory),
+                                        operands.get(2).asSerializableString(sqlFactory)));
 
                 final JsonValueOnEmptyOrError onEmpty =
                         getSymbolLiteral(operands.get(3), JsonValueOnEmptyOrError.class);
 
                 if (onEmpty == JsonValueOnEmptyOrError.DEFAULT) {
-                    s.append(String.format("DEFAULT %s", operands.get(4).asSerializableString()));
+                    s.append(
+                            String.format(
+                                    "DEFAULT %s",
+                                    operands.get(4).asSerializableString(sqlFactory)));
                 } else {
                     s.append(onEmpty);
                 }
@@ -73,7 +75,10 @@ class JsonFunctionsCallSyntax {
                         getSymbolLiteral(operands.get(5), JsonValueOnEmptyOrError.class);
 
                 if (onError == JsonValueOnEmptyOrError.DEFAULT) {
-                    s.append(String.format("DEFAULT %s", operands.get(6).asSerializableString()));
+                    s.append(
+                            String.format(
+                                    "DEFAULT %s",
+                                    operands.get(6).asSerializableString(sqlFactory)));
                 } else {
                     s.append(onError);
                 }
@@ -83,21 +88,21 @@ class JsonFunctionsCallSyntax {
             };
 
     static final SqlCallSyntax JSON_EXISTS =
-            (sqlName, operands) -> {
+            (sqlName, operands, sqlFactory) -> {
                 if (operands.size() == 3) {
                     return String.format(
                             "%s(%s, %s %s ON ERROR)",
                             sqlName,
-                            operands.get(0).asSerializableString(),
-                            operands.get(1).asSerializableString(),
+                            operands.get(0).asSerializableString(sqlFactory),
+                            operands.get(1).asSerializableString(sqlFactory),
                             getSymbolLiteral(operands.get(2), JsonExistsOnError.class));
                 } else {
-                    return SqlCallSyntax.FUNCTION.unparse(sqlName, operands);
+                    return SqlCallSyntax.FUNCTION.unparse(sqlName, operands, sqlFactory);
                 }
             };
 
     static final SqlCallSyntax JSON_QUERY =
-            (sqlName, operands) -> {
+            (sqlName, operands, sqlFactory) -> {
                 final JsonQueryWrapper wrapper =
                         getSymbolLiteral(operands.get(3), JsonQueryWrapper.class);
                 final JsonQueryOnEmptyOrError onEmpty =
@@ -107,16 +112,16 @@ class JsonFunctionsCallSyntax {
 
                 return String.format(
                         "JSON_QUERY(%s, %s RETURNING %s %s WRAPPER %s ON EMPTY %s ON ERROR)",
-                        operands.get(0).asSerializableString(),
-                        operands.get(1).asSerializableString(),
-                        operands.get(2).asSerializableString(),
+                        operands.get(0).asSerializableString(sqlFactory),
+                        operands.get(1).asSerializableString(sqlFactory),
+                        operands.get(2).asSerializableString(sqlFactory),
                         toString(wrapper),
                         onEmpty.toString().replaceAll("_", " "),
                         onError.toString().replaceAll("_", " "));
             };
 
     static final SqlCallSyntax JSON_OBJECT =
-            (sqlName, operands) -> {
+            (sqlName, operands, sqlFactory) -> {
                 final String entries =
                         IntStream.range(0, operands.size() / 2)
                                 .mapToObj(
@@ -124,9 +129,9 @@ class JsonFunctionsCallSyntax {
                                                 String.format(
                                                         "KEY %s VALUE %s",
                                                         operands.get(2 * i + 1)
-                                                                .asSerializableString(),
+                                                                .asSerializableString(sqlFactory),
                                                         operands.get(2 * i + 2)
-                                                                .asSerializableString()))
+                                                                .asSerializableString(sqlFactory)))
                                 .collect(Collectors.joining(", "));
 
                 final JsonOnNull onNull = getSymbolLiteral(operands.get(0), JsonOnNull.class);
@@ -134,13 +139,15 @@ class JsonFunctionsCallSyntax {
             };
 
     static final SqlCallSyntax JSON_ARRAY =
-            (sqlName, operands) -> {
+            (sqlName, operands, sqlFactory) -> {
                 if (operands.size() == 1) {
                     return "JSON_ARRAY()";
                 }
                 final String entries =
                         operands.subList(1, operands.size()).stream()
-                                .map(ResolvedExpression::asSerializableString)
+                                .map(
+                                        resolvedExpression ->
+                                                resolvedExpression.asSerializableString(sqlFactory))
                                 .collect(Collectors.joining(", "));
 
                 final JsonOnNull onNull = getSymbolLiteral(operands.get(0), JsonOnNull.class);
@@ -148,19 +155,19 @@ class JsonFunctionsCallSyntax {
             };
 
     static SqlCallSyntax jsonArrayAgg(JsonOnNull onNull) {
-        return (sqlName, operands) ->
+        return (sqlName, operands, sqlFactory) ->
                 String.format(
                         "%s(%s %s ON NULL)",
-                        sqlName, operands.get(0).asSerializableString(), onNull);
+                        sqlName, operands.get(0).asSerializableString(sqlFactory), onNull);
     }
 
     static SqlCallSyntax jsonObjectAgg(JsonOnNull onNull) {
-        return (sqlName, operands) ->
+        return (sqlName, operands, sqlFactory) ->
                 String.format(
                         "%s(KEY %s VALUE %s %s ON NULL)",
                         sqlName,
-                        operands.get(0).asSerializableString(),
-                        operands.get(1).asSerializableString(),
+                        operands.get(0).asSerializableString(sqlFactory),
+                        operands.get(1).asSerializableString(sqlFactory),
                         onNull);
     }
 

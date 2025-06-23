@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 public abstract class AbstractRecoverableWriterTest {
 
-    private static final Logger Log = LoggerFactory.getLogger(AbstractRecoverableWriterTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractRecoverableWriterTest.class);
 
     private static final Random RND = new Random();
 
@@ -200,7 +200,7 @@ public abstract class AbstractRecoverableWriterTest {
         final Map<String, RecoverableWriter.ResumeRecoverable> recoverables = new HashMap<>(4);
         RecoverableFsDataOutputStream stream = null;
         try {
-            // This is just for locate  the root cause:
+            // This is just to provide diagnostics to locate the root cause:
             // https://issues.apache.org/jira/browse/FLINK-37703
             // After the fix, this logic should be reverted.
             int times = 0;
@@ -220,7 +220,7 @@ public abstract class AbstractRecoverableWriterTest {
                 stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 
             } catch (IOException e) {
-                Log.warn("{} execution failed, err message{}: ", times, e.getMessage());
+                LOG.warn("{} execution failed, err message{}: ", times, e.getMessage());
                 throw e;
             }
 
@@ -257,7 +257,7 @@ public abstract class AbstractRecoverableWriterTest {
                 recoveredStream.write(testData3.getBytes(StandardCharsets.UTF_8));
                 recoveredStream.closeForCommit().commit();
             } catch (IOException e) {
-                Log.warn("Final write failed: {}", e.getMessage());
+                LOG.warn("Final write failed: {}", e.getMessage());
                 throw e;
             }
 

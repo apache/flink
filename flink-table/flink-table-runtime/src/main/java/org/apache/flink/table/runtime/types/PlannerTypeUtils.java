@@ -146,10 +146,10 @@ public class PlannerTypeUtils {
         }
 
         switch (t1.getTypeRoot()) {
-                // only support precisions for DECIMAL, TIMESTAMP_WITHOUT_TIME_ZONE,
-                // TIMESTAMP_WITH_LOCAL_TIME_ZONE
-                // still consider precision for others (e.g. TIME).
-                // TODO: add other precision types here in the future
+            // only support precisions for DECIMAL, TIMESTAMP_WITHOUT_TIME_ZONE,
+            // TIMESTAMP_WITH_LOCAL_TIME_ZONE
+            // still consider precision for others (e.g. TIME).
+            // TODO: add other precision types here in the future
             case DECIMAL:
             case TIMESTAMP_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:

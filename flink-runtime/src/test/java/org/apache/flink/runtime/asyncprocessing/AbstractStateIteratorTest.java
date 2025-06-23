@@ -20,7 +20,9 @@ package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateIterator;
+import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.util.Preconditions;
 
@@ -49,10 +51,12 @@ public class AbstractStateIteratorTest {
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         stateExecutor,
+                        new DeclarationManager(),
                         1,
                         100,
                         1000,
                         1,
+                        null,
                         null);
         stateExecutor.bindAec(aec);
         RecordContext<String> recordContext = aec.buildContext("1", "key1");
@@ -87,10 +91,12 @@ public class AbstractStateIteratorTest {
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         stateExecutor,
+                        new DeclarationManager(),
                         1,
                         100,
                         1000,
                         1,
+                        null,
                         null);
         stateExecutor.bindAec(aec);
         RecordContext<String> recordContext = aec.buildContext("1", "key1");
@@ -119,6 +125,43 @@ public class AbstractStateIteratorTest {
                                                             .isEqualTo(String.valueOf(validate++));
                                                 }
                                             });
+                        });
+        aec.drainInflightRecords(0);
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void testPartialLoadingWithConversionToIterable() {
+        TestIteratorStateExecutor stateExecutor = new TestIteratorStateExecutor(100, 3);
+        AsyncExecutionController aec =
+                new AsyncExecutionController(
+                        new SyncMailboxExecutor(),
+                        (a, b) -> {},
+                        stateExecutor,
+                        new DeclarationManager(),
+                        1,
+                        100,
+                        1000,
+                        1,
+                        null,
+                        null);
+        stateExecutor.bindAec(aec);
+        RecordContext<String> recordContext = aec.buildContext("1", "key1");
+        aec.setCurrentContext(recordContext);
+
+        AtomicInteger processed = new AtomicInteger();
+
+        StateFutureUtils.toIterable(aec.handleRequest(null, StateRequestType.MAP_ITER, null))
+                .thenAccept(
+                        (iter) -> {
+                            assertThat(iter instanceof Iterable);
+                            ((Iterable<Integer>) iter)
+                                    .forEach(
+                                            item -> {
+                                                assertThat(item)
+                                                        .isEqualTo(processed.getAndIncrement());
+                                            });
+                            assertThat(processed.get()).isEqualTo(100);
                         });
         aec.drainInflightRecords(0);
     }
@@ -157,40 +200,7 @@ public class AbstractStateIteratorTest {
             CompletableFuture<Void> future = new CompletableFuture<>();
             for (StateRequest request :
                     ((MockStateRequestContainer) stateRequestContainer).getStateRequestList()) {
-                if (request.getRequestType() == StateRequestType.MAP_ITER) {
-                    ArrayList<Integer> results = new ArrayList<>(step);
-                    for (int i = 0; current < limit && i < step; i++) {
-                        results.add(current++);
-                    }
-                    request.getFuture()
-                            .complete(
-                                    new TestIterator(
-                                            request.getState(),
-                                            request.getRequestType(),
-                                            aec,
-                                            results,
-                                            current,
-                                            limit));
-                } else if (request.getRequestType() == StateRequestType.ITERATOR_LOADING) {
-                    assertThat(request.getPayload()).isInstanceOf(TestIterator.class);
-                    assertThat(((TestIterator) request.getPayload()).current).isEqualTo(current);
-                    ArrayList<Integer> results = new ArrayList<>(step);
-                    for (int i = 0; current < limit && i < step; i++) {
-                        results.add(current++);
-                    }
-                    request.getFuture()
-                            .complete(
-                                    new TestIterator(
-                                            request.getState(),
-                                            ((TestIterator) request.getPayload()).getRequestType(),
-                                            aec,
-                                            results,
-                                            current,
-                                            limit));
-                } else {
-                    fail("Unsupported request type " + request.getRequestType());
-                }
-                processedCount.incrementAndGet();
+                executeRequestSync(request);
             }
             future.complete(null);
             return future;
@@ -199,6 +209,44 @@ public class AbstractStateIteratorTest {
         @Override
         public StateRequestContainer createStateRequestContainer() {
             return new MockStateRequestContainer();
+        }
+
+        @Override
+        public void executeRequestSync(StateRequest<?, ?, ?, ?> request) {
+            if (request.getRequestType() == StateRequestType.MAP_ITER) {
+                ArrayList<Integer> results = new ArrayList<>(step);
+                for (int i = 0; current < limit && i < step; i++) {
+                    results.add(current++);
+                }
+                ((InternalStateFuture<StateIterator<Integer>>) request.getFuture())
+                        .complete(
+                                new TestIterator(
+                                        request.getState(),
+                                        request.getRequestType(),
+                                        aec,
+                                        results,
+                                        current,
+                                        limit));
+            } else if (request.getRequestType() == StateRequestType.ITERATOR_LOADING) {
+                assertThat(request.getPayload()).isInstanceOf(TestIterator.class);
+                assertThat(((TestIterator) request.getPayload()).current).isEqualTo(current);
+                ArrayList<Integer> results = new ArrayList<>(step);
+                for (int i = 0; current < limit && i < step; i++) {
+                    results.add(current++);
+                }
+                ((InternalStateFuture<StateIterator<Integer>>) request.getFuture())
+                        .complete(
+                                new TestIterator(
+                                        request.getState(),
+                                        ((TestIterator) request.getPayload()).getRequestType(),
+                                        aec,
+                                        results,
+                                        current,
+                                        limit));
+            } else {
+                fail("Unsupported request type " + request.getRequestType());
+            }
+            processedCount.incrementAndGet();
         }
 
         @Override
@@ -228,7 +276,7 @@ public class AbstractStateIteratorTest {
             }
 
             @Override
-            protected boolean hasNext() {
+            public boolean hasNextLoading() {
                 return current < limit;
             }
 

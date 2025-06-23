@@ -24,9 +24,8 @@ import org.apache.flink.annotation.PublicEvolving;
  * Defines the chaining scheme for the operator. When an operator is chained to the predecessor, it
  * means that they run in the same thread. They become one operator consisting of multiple steps.
  *
- * <p>The default value used by the StreamOperator is {@link #HEAD}, which means that the operator
- * is not chained to its predecessor. Most operators override this with {@link #ALWAYS}, meaning
- * they will be chained to predecessors whenever possible.
+ * <p>The default value used by the StreamOperator is {@link #ALWAYS}, which means that the operator
+ * will be chained to predecessors whenever possible.
  */
 @PublicEvolving
 public enum ChainingStrategy {

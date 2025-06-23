@@ -17,10 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.common
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
-import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
+import org.apache.flink.table.types.AbstractDataType
 
 import org.junit.jupiter.api.Test
 
@@ -102,7 +101,10 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
   def testCrossWithUnnestForMap(): Unit = {
     util.addTableSource(
       "MyTable",
-      Array[TypeInformation[_]](Types.INT, Types.LONG, Types.MAP(Types.STRING, Types.STRING)),
+      Array[AbstractDataType[_]](
+        DataTypes.INT,
+        DataTypes.BIGINT,
+        DataTypes.MAP(DataTypes.STRING, DataTypes.STRING)),
       Array("a", "b", "c"))
     verifyPlan("SELECT a, b, v FROM MyTable CROSS JOIN UNNEST(c) as f(k, v)")
   }
@@ -141,6 +143,93 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
         |WHERE b2 <> 'Hello'
     """.stripMargin
     verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testUnnestWithOrdinalityAndValues(): Unit = {
+    verifyPlan("SELECT val, pos FROM UNNEST(ARRAY[1,2,3]) WITH ORDINALITY AS t(val, pos)")
+  }
+
+  @Test
+  def testUnnestWithOrdinalityArray(): Unit = {
+    util.addTableSource[(Int, Array[Int])]("MyTable", 'a, 'b)
+    verifyPlan(
+      "SELECT a, number, ordinality FROM MyTable CROSS JOIN UNNEST(b) WITH ORDINALITY AS t(number, ordinality)")
+  }
+
+  @Test
+  def testUnnestWithOrdinalityArrayOfRowsWithoutAlias(): Unit = {
+    util.addTableSource[(Int, Array[(Int, String)])]("MyTable", 'a, 'b)
+    verifyPlan(
+      "SELECT a, b, A._1, A._2, A.`ORDINALITY` FROM MyTable, UNNEST(MyTable.b) WITH ORDINALITY AS A where A._1 > 1")
+  }
+
+  @Test
+  def testUnnestWithOrdinalityArrayOfRowsFromTableWithFilter(): Unit = {
+    util.addTableSource[(Int, Array[(Int, String)])]("MyTable", 'a, 'b)
+    verifyPlan(
+      "SELECT a, b, s, t, o FROM MyTable, UNNEST(MyTable.b) WITH ORDINALITY AS A (s, t, o) WHERE s > 13")
+  }
+
+  @Test
+  def testUnnestWithOrdinalityArrayOfArray(): Unit = {
+    util.addTableSource[(Int, Array[Array[Int]])]("MyTable", 'id, 'nested_array)
+    val sqlQuery =
+      """
+        |SELECT id, array_val, array_pos, elem, element_pos
+        |FROM MyTable
+        |CROSS JOIN UNNEST(nested_array) WITH ORDINALITY AS A(array_val, array_pos)
+        |CROSS JOIN UNNEST(array_val) WITH ORDINALITY AS B(elem, element_pos)
+        |""".stripMargin
+    verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testUnnestWithOrdinalityMultiset(): Unit = {
+    util.addDataStream[(Int, String, String)]("MyTable", 'a, 'b, 'c)
+    val sqlQuery =
+      """
+        |WITH T AS (SELECT a, COLLECT(c) as words FROM MyTable GROUP BY a)
+        |SELECT a, word, pos
+        |FROM T CROSS JOIN UNNEST(words) WITH ORDINALITY AS A(word, pos)
+        |""".stripMargin
+    verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testUnnestWithOrdinalityMap(): Unit = {
+    util.addTableSource(
+      "MyTable",
+      Array[AbstractDataType[_]](
+        DataTypes.INT(),
+        DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+      Array("id", "map_data"))
+    verifyPlan(
+      "SELECT id, k, v, pos FROM MyTable CROSS JOIN UNNEST(map_data) WITH ORDINALITY AS f(k, v, pos)")
+  }
+
+  @Test
+  def testUnnestWithOrdinalityWithFilter(): Unit = {
+    util.addTableSource[(Int, Array[Int])]("MyTable", 'a, 'b)
+    verifyPlan("""
+                 |SELECT a, number, ordinality 
+                 |FROM MyTable 
+                 |CROSS JOIN UNNEST(b) WITH ORDINALITY AS t(number, ordinality)
+                 |WHERE number > 10 AND ordinality < 3
+                 |""".stripMargin)
+  }
+
+  @Test
+  def testUnnestWithOrdinalityInSubquery(): Unit = {
+    util.addTableSource[(Int, Array[Int])]("MyTable", 'a, 'b)
+    verifyPlan("""
+                 |SELECT * FROM (
+                 |  SELECT a, number, ordinality 
+                 |  FROM MyTable 
+                 |  CROSS JOIN UNNEST(b) WITH ORDINALITY AS t(number, ordinality)
+                 |) subquery 
+                 |WHERE ordinality = 1
+                 |""".stripMargin)
   }
 
   def verifyPlan(sql: String): Unit = {

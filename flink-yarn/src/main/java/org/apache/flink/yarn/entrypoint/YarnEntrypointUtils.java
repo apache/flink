@@ -41,10 +41,7 @@ import java.util.Optional;
 import static org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils.tryFindUserLibDirectory;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * This class contains utility methods for the {@link YarnSessionClusterEntrypoint} and {@link
- * YarnJobClusterEntrypoint}.
- */
+/** This class contains utility methods for the {@link YarnSessionClusterEntrypoint}. */
 public class YarnEntrypointUtils {
 
     public static Configuration loadConfiguration(
@@ -62,7 +59,9 @@ public class YarnEntrypointUtils {
 
         configuration.set(JobManagerOptions.ADDRESS, hostname);
         configuration.set(RestOptions.ADDRESS, hostname);
-        configuration.set(RestOptions.BIND_ADDRESS, hostname);
+        if (!configuration.contains(RestOptions.BIND_ADDRESS)) {
+            configuration.set(RestOptions.BIND_ADDRESS, hostname);
+        }
 
         if (!configuration.contains(RestOptions.BIND_PORT)) {
             // set the REST port to 0 to select it randomly

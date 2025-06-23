@@ -48,6 +48,7 @@ public class StreamingProgram {
 
         env.execute();
     }
+
     // --------------------------------------------------------------------------------------------
 
     /** POJO with word and count. */

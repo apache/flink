@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
@@ -27,21 +29,22 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedThrowable;
 
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -51,6 +54,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -95,28 +99,32 @@ abstract class BuiltInFunctionTestBase {
 
     @ParameterizedTest
     @MethodSource("getTestCases")
-    final void test(TestCase testCase) throws Throwable {
-        testCase.execute();
+    final void test(TestCase testCase, @InjectMiniCluster MiniCluster miniCluster)
+            throws Throwable {
+        testCase.execute(new MiniClusterClient(miniCluster.getConfiguration(), miniCluster));
     }
 
     // --------------------------------------------------------------------------------------------
     // Test model
     // --------------------------------------------------------------------------------------------
 
+    interface TestCaseWithClusterClient {
+        void execute(MiniClusterClient clusterClient) throws Throwable;
+    }
+
     /** Single test case. */
-    static class TestCase implements Executable {
+    static class TestCase implements TestCaseWithClusterClient {
 
         private final String name;
-        private final Executable executable;
+        private final TestCaseWithClusterClient executable;
 
-        TestCase(String name, Executable executable) {
+        TestCase(String name, TestCaseWithClusterClient executable) {
             this.name = name;
             this.executable = executable;
         }
 
-        @Override
-        public void execute() throws Throwable {
-            this.executable.execute();
+        public void execute(MiniClusterClient clusterClient) throws Throwable {
+            this.executable.execute(clusterClient);
         }
 
         @Override
@@ -324,7 +332,7 @@ abstract class BuiltInFunctionTestBase {
         private TestCase getTestCase(Configuration configuration, TestItem testItem) {
             return new TestCase(
                     testItem.toString(),
-                    () -> {
+                    (clusterClient) -> {
                         final TableEnvironmentInternal env =
                                 (TableEnvironmentInternal)
                                         TableEnvironment.create(
@@ -353,7 +361,7 @@ abstract class BuiltInFunctionTestBase {
                             inputTable = env.fromValues(DataTypes.ROW(fields), Row.of(fieldData));
                         }
 
-                        testItem.test(env, inputTable);
+                        testItem.test(env, inputTable, clusterClient);
                     });
         }
 
@@ -370,7 +378,11 @@ abstract class BuiltInFunctionTestBase {
          * @param inputTable The input table of this test that contains input data and data type. If
          *     it is null, the test is not dependent on the input data.
          */
-        void test(TableEnvironmentInternal env, @Nullable Table inputTable) throws Exception;
+        void test(
+                TableEnvironmentInternal env,
+                @Nullable Table inputTable,
+                MiniClusterClient clusterClient)
+                throws Exception;
     }
 
     private abstract static class ResultTestItem<T> implements TestItem {
@@ -387,7 +399,10 @@ abstract class BuiltInFunctionTestBase {
         abstract Table query(TableEnvironment env, @Nullable Table inputTable);
 
         @Override
-        public void test(TableEnvironmentInternal env, @Nullable Table inputTable)
+        public void test(
+                TableEnvironmentInternal env,
+                @Nullable Table inputTable,
+                MiniClusterClient clusterClient)
                 throws Exception {
             final Table resultTable = this.query(env, inputTable);
 
@@ -459,7 +474,10 @@ abstract class BuiltInFunctionTestBase {
         }
 
         @Override
-        public void test(TableEnvironmentInternal env, @Nullable Table inputTable) {
+        public void test(
+                TableEnvironmentInternal env,
+                @Nullable Table inputTable,
+                MiniClusterClient clusterClient) {
             AtomicReference<TableResult> tableResult = new AtomicReference<>();
 
             Throwable t =
@@ -475,7 +493,22 @@ abstract class BuiltInFunctionTestBase {
                 assertThat(t).as("Error while validating the query").isNull();
             }
 
-            assertThatThrownBy(() -> tableResult.get().await())
+            assertThatThrownBy(
+                            () -> {
+                                final TableResult result = tableResult.get();
+                                result.await();
+                                final Optional<SerializedThrowable> serializedThrowable =
+                                        clusterClient
+                                                .requestJobResult(
+                                                        result.getJobClient().get().getJobID())
+                                                .get()
+                                                .getSerializedThrowable();
+                                if (serializedThrowable.isPresent()) {
+                                    throw serializedThrowable
+                                            .get()
+                                            .deserializeError(getClass().getClassLoader());
+                                }
+                            })
                     .isNotNull()
                     .satisfies(this.errorMatcher());
         }
@@ -526,7 +559,10 @@ abstract class BuiltInFunctionTestBase {
                     (ProjectQueryOperation) select.getQueryOperation();
             final String exprAsSerializableString =
                     projectQueryOperation.getProjectList().stream()
-                            .map(ResolvedExpression::asSerializableString)
+                            .map(
+                                    resolvedExpression ->
+                                            resolvedExpression.asSerializableString(
+                                                    DefaultSqlFactory.INSTANCE))
                             .collect(Collectors.joining(", "));
             return env.sqlQuery("SELECT " + exprAsSerializableString + " FROM " + inputTable);
         }

@@ -23,10 +23,10 @@ import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, RexFactory}
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, ModifyKindSet, ModifyKindSetTraitDef, UpdateKind, UpdateKindTraitDef}
+import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalDataStreamScan, StreamPhysicalIntermediateTableScan, StreamPhysicalLegacyTableSourceScan, StreamPhysicalRel, StreamPhysicalTableSourceScan}
+import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkStreamProgram, StreamOptimizeContext}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
@@ -69,6 +69,9 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
             MiniBatchIntervalTrait.NONE.getMiniBatchInterval
           }
         sinkBlock.setMiniBatchInterval(miniBatchInterval)
+
+        // disallow to produce duplicate changes by default
+        sinkBlock.mergeAllowDuplicateChanges(false)
     }
 
     if (sinkBlocks.size == 1) {
@@ -80,6 +83,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
         block.getPlan,
         block.isUpdateBeforeRequired,
         block.getMiniBatchInterval,
+        block.isDuplicateChangesAllowed,
         isSinkBlock = true)
       block.setOptimizedPlan(optimizedTree)
       return sinkBlocks
@@ -94,6 +98,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
           b,
           b.isUpdateBeforeRequired,
           b.getMiniBatchInterval,
+          b.isDuplicateChangesAllowed,
           isSinkBlock = true)
     }
     // clear the intermediate result
@@ -140,7 +145,9 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
           blockLogicalPlan,
           updateBeforeRequired = block.isUpdateBeforeRequired,
           miniBatchInterval = block.getMiniBatchInterval,
-          isSinkBlock = true)
+          allowDuplicateChanges = block.isDuplicateChangesAllowed,
+          isSinkBlock = true
+        )
         block.setOptimizedPlan(optimizedTree)
 
       case o =>
@@ -148,7 +155,9 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
           o,
           updateBeforeRequired = block.isUpdateBeforeRequired,
           miniBatchInterval = block.getMiniBatchInterval,
-          isSinkBlock = isSinkBlock)
+          allowDuplicateChanges = block.isDuplicateChangesAllowed,
+          isSinkBlock = isSinkBlock
+        )
         val modifyKindSetTrait = optimizedPlan.getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
         val name = createUniqueIntermediateRelTableName
         val intermediateRelTable = createIntermediateRelTable(
@@ -172,6 +181,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
    *   True if UPDATE_BEFORE message is required for updates
    * @param miniBatchInterval
    *   mini-batch interval of the block.
+   * @param allowDuplicateChanges
+   *   True if the block allows to produce duplicate changes.
    * @param isSinkBlock
    *   True if the given block is sink block.
    * @return
@@ -181,6 +192,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       relNode: RelNode,
       updateBeforeRequired: Boolean,
       miniBatchInterval: MiniBatchInterval,
+      allowDuplicateChanges: Boolean,
       isSinkBlock: Boolean): RelNode = {
 
     val tableConfig = planner.getTableConfig
@@ -213,6 +225,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
         def getMiniBatchInterval: MiniBatchInterval = miniBatchInterval
 
+        override def isAllowDuplicateChanges: Boolean = allowDuplicateChanges
+
         override def needFinalTimeIndicatorConversion: Boolean = isSinkBlock
 
         override def getClassLoader: ClassLoader = context.getClassLoader
@@ -230,6 +244,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
    *   True if UPDATE_BEFORE message is required for updates
    * @param miniBatchInterval
    *   mini-batch interval of the block.
+   * @param allowDuplicateChanges
+   *   True if the block allows to produce duplicate changes.
    * @param isSinkBlock
    *   True if the given block is sink block.
    */
@@ -237,11 +253,17 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       block: RelNodeBlock,
       updateBeforeRequired: Boolean,
       miniBatchInterval: MiniBatchInterval,
+      allowDuplicateChanges: Boolean,
       isSinkBlock: Boolean): Unit = {
     val blockLogicalPlan = block.getPlan
     // infer updateKind and miniBatchInterval with required trait
     val optimizedPlan =
-      optimizeTree(blockLogicalPlan, updateBeforeRequired, miniBatchInterval, isSinkBlock)
+      optimizeTree(
+        blockLogicalPlan,
+        updateBeforeRequired,
+        miniBatchInterval,
+        allowDuplicateChanges,
+        isSinkBlock)
     // propagate the inferred updateKind and miniBatchInterval to the child blocks
     propagateTraits(optimizedPlan)
 
@@ -251,7 +273,9 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
           child,
           updateBeforeRequired = child.isUpdateBeforeRequired,
           miniBatchInterval = child.getMiniBatchInterval,
-          isSinkBlock = false)
+          allowDuplicateChanges = child.isDuplicateChangesAllowed,
+          isSinkBlock = false
+        )
     }
 
     def propagateTraits(rel: RelNode): Unit = rel match {
@@ -260,6 +284,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
         val scan = rel.asInstanceOf[TableScan]
         val updateKindTrait = scan.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
         val miniBatchIntervalTrait = scan.getTraitSet.getTrait(MiniBatchIntervalTraitDef.INSTANCE)
+        val duplicateChangesTrait = scan.getTraitSet.getTrait(DuplicateChangesTraitDef.INSTANCE)
         val tableName = scan.getTable.getQualifiedName.mkString(".")
         val inputBlocks = block.children.filter(b => tableName.equals(b.getOutputTableName))
         Preconditions.checkArgument(inputBlocks.size <= 1)
@@ -270,9 +295,19 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
           // propagate updateKind trait to child block
           val requireUB = updateKindTrait.updateKind == UpdateKind.BEFORE_AND_AFTER
           childBlock.setUpdateBeforeRequired(requireUB || childBlock.isUpdateBeforeRequired)
+          // propagate duplicateChanges trait to child block
+          val allowDuplicateChanges = isAllowDuplicateChanges(duplicateChangesTrait)
+          childBlock.mergeAllowDuplicateChanges(allowDuplicateChanges)
         }
       case ser: StreamPhysicalRel => ser.getInputs.foreach(e => propagateTraits(e))
       case _ => // do nothing
+    }
+
+    def isAllowDuplicateChanges(duplicateChangesTrait: DuplicateChangesTrait): Boolean = {
+      duplicateChangesTrait.getDuplicateChanges match {
+        case DuplicateChanges.ALLOW => true
+        case _ => false
+      }
     }
   }
 

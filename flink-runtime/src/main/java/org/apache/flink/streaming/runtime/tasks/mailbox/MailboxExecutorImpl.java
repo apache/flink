@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
@@ -115,5 +116,10 @@ public final class MailboxExecutorImpl implements MailboxExecutor {
         // TODO: FLINK-35051 we shouldn't interrupt for every mail, but only for the time sensitive
         // ones, for example related to checkpointing.
         return mailbox.hasMail();
+    }
+
+    @VisibleForTesting
+    public int getPriority() {
+        return priority;
     }
 }

@@ -34,7 +34,9 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import java.util.ArrayList;
 import java.util.List;
 
-/** @see org.apache.flink.api.common.functions.FlatMapFunction */
+/**
+ * @see org.apache.flink.api.common.functions.FlatMapFunction
+ */
 @Internal
 public class FilterOperatorBase<T, FT extends FlatMapFunction<T, T>>
         extends SingleInputOperator<T, T, FT> {

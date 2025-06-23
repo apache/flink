@@ -77,6 +77,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.finishJobVertex;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -354,8 +355,13 @@ public class SchedulerTestingUtils {
         final List<JobVertex> vertices = new ArrayList<>(Collections.singletonList(producer));
         IntermediateDataSetID dataSetId = new IntermediateDataSetID();
         for (JobVertex consumer : consumers) {
-            consumer.connectNewDataSetAsInput(
-                    producer, distributionPattern, ResultPartitionType.BLOCKING, dataSetId, false);
+            connectNewDataSetAsInput(
+                    consumer,
+                    producer,
+                    distributionPattern,
+                    ResultPartitionType.BLOCKING,
+                    dataSetId,
+                    false);
             vertices.add(consumer);
         }
 

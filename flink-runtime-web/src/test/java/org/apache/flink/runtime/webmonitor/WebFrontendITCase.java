@@ -19,30 +19,51 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
+import org.apache.flink.api.connector.source.lib.util.IteratorSourceReader;
+import org.apache.flink.api.connector.source.lib.util.IteratorSourceSplit;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationRequestBody;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
+import org.apache.flink.streaming.api.operators.collect.CollectCoordinationRequest;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorCoordinator;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.InjectClusterRESTAddress;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.apache.commons.io.FileUtils;
@@ -55,9 +76,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -408,6 +431,63 @@ class WebFrontendITCase {
     }
 
     @Test
+    void testClientCoordinationHandler(
+            @InjectClusterClient ClusterClient<?> clusterClient,
+            @InjectClusterRESTAddress URI restAddress)
+            throws Exception {
+        // this only works if there is no active job at this point
+        assertThat(getRunningJobs(clusterClient).isEmpty());
+
+        // Create a task
+        final JobVertex sender = new JobVertex("Sender");
+        sender.setParallelism(2);
+        sender.setInvokableClass(BlockingInvokable.class);
+
+        String operatorUid = "opId";
+        OperatorID opId = StreamingJobGraphGenerator.generateOperatorID(operatorUid);
+        sender.addOperatorCoordinator(
+                new SerializedValue<>(new CollectSinkOperatorCoordinator.Provider(opId, 10_000)));
+
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender);
+
+        clusterClient.submitJob(jobGraph).get();
+
+        // wait for job to show up
+        while (getRunningJobs(clusterClient).isEmpty()) {
+            Thread.sleep(10);
+        }
+
+        // wait for tasks to be properly running
+        BlockingInvokable.latch.await();
+
+        SerializedValue<CoordinationRequest> serializedRequest =
+                new SerializedValue<>(new CollectCoordinationRequest("version", 0L));
+        ClientCoordinationRequestBody requestBody =
+                new ClientCoordinationRequestBody(serializedRequest);
+        String json =
+                postAndGetHttpResponse(
+                        "http://localhost:"
+                                + restAddress.getPort()
+                                + "/jobs/"
+                                + jobGraph.getJobID()
+                                + "/coordinators/"
+                                + operatorUid,
+                        OBJECT_MAPPER.writeValueAsString(requestBody));
+
+        JsonNode parsed = OBJECT_MAPPER.readTree(json);
+        assertThat(parsed.get("serializedCoordinationResult")).isNotNull();
+
+        clusterClient.cancel(jobGraph.getJobID()).get();
+
+        // ensure cancellation is finished
+        while (!getRunningJobs(clusterClient).isEmpty()) {
+            Thread.sleep(20);
+        }
+
+        BlockingInvokable.reset();
+    }
+
+    @Test
     void testCancelYarn(
             @InjectClusterClient ClusterClient<?> clusterClient,
             @InjectClusterRESTAddress URI restAddress)
@@ -449,6 +529,63 @@ class WebFrontendITCase {
         }
 
         // wait for cancellation to finish
+        while (!getRunningJobs(clusterClient).isEmpty()) {
+            Thread.sleep(20);
+        }
+
+        BlockingInvokable.reset();
+    }
+
+    @Test
+    void getStreamGraphFromBatchJobDetailsHandler(
+            @InjectClusterClient ClusterClient<?> clusterClient,
+            @InjectClusterRESTAddress URI restAddress)
+            throws Exception {
+        // this only works if there is no active job at this point
+        assertThat(getRunningJobs(clusterClient).isEmpty());
+
+        // Create a task
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.fromSource(
+                        new BlockingNumberSequenceSource(),
+                        WatermarkStrategy.noWatermarks(),
+                        "block-source")
+                .setParallelism(2)
+                .addSink(new SinkFunction<>() {});
+        StreamGraph streamGraph = env.getStreamGraph();
+        final JobID jid = streamGraph.getJobID();
+
+        clusterClient.submitJob(streamGraph).get();
+
+        // wait for job to show up
+        while (getRunningJobs(clusterClient).isEmpty()) {
+            Thread.sleep(10);
+        }
+
+        // wait for tasks to be properly running
+        BlockingInvokable.latch.await();
+
+        final Duration testTimeout = Duration.ofMinutes(2);
+        final Deadline deadline = Deadline.fromNow(testTimeout);
+        try (HttpTestClient client = new HttpTestClient("localhost", restAddress.getPort())) {
+            // Request the file from the web server
+            client.sendGetRequest("/jobs/" + jid, deadline.timeLeft());
+
+            HttpTestClient.SimpleHttpResponse response =
+                    client.getNextResponse(deadline.timeLeft());
+
+            assertThat(response.getStatus()).isEqualTo(HttpResponseStatus.OK);
+            assertThat(response.getType()).isEqualTo("application/json; charset=UTF-8");
+            String content = response.getContent();
+            JsonNode jsonNode = OBJECT_MAPPER.readTree(content);
+            assertThat(jsonNode.has("stream-graph")).isTrue();
+            assertThat(jsonNode.has("pending-operators")).isTrue();
+        }
+
+        clusterClient.cancel(jid).get();
+
+        // ensure cancellation is finished
         while (!getRunningJobs(clusterClient).isEmpty()) {
             Thread.sleep(20);
         }
@@ -501,6 +638,101 @@ class WebFrontendITCase {
 
         throw new TimeoutException(
                 "Could not get HTTP response in time since the service is still unavailable.");
+    }
+
+    private static String postAndGetHttpResponse(String url, String jsonData) throws Exception {
+        final URL u = new URL(url);
+        LOG.info("Accessing URL " + url + " as URL: " + u);
+
+        final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10L));
+
+        while (deadline.hasTimeLeft()) {
+            HttpURLConnection connection = (HttpURLConnection) u.openConnection();
+            connection.setConnectTimeout(100000);
+            connection.setRequestMethod(HttpMethod.POST.name());
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setDoOutput(true);
+
+            try (OutputStream os = connection.getOutputStream()) {
+                byte[] input = jsonData.getBytes(StandardCharsets.UTF_8);
+                os.write(input, 0, input.length);
+            }
+
+            if (Objects.equals(
+                    HttpResponseStatus.SERVICE_UNAVAILABLE,
+                    HttpResponseStatus.valueOf(connection.getResponseCode()))) {
+                // service not available --> Sleep and retry
+                LOG.debug("Web service currently not available. Retrying the request in a bit.");
+                Thread.sleep(100L);
+            } else {
+                InputStream is;
+
+                if (connection.getResponseCode() >= 400) {
+                    // error!
+                    LOG.warn(
+                            "HTTP Response code when connecting to {} was {}",
+                            url,
+                            connection.getResponseCode());
+                    is = connection.getErrorStream();
+                } else {
+                    is = connection.getInputStream();
+                }
+
+                return IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
+            }
+        }
+
+        throw new TimeoutException(
+                "Could not get HTTP response in time since the service is still unavailable.");
+    }
+
+    /**
+     * Test sequence source with blocker, which blocks reader by blocker at EOI and only exit when
+     * job cancelled.
+     */
+    private static class BlockingNumberSequenceSource extends NumberSequenceSource {
+        public BlockingNumberSequenceSource() {
+            super(0, 1);
+        }
+
+        @Override
+        public SourceReader<Long, NumberSequenceSplit> createReader(
+                SourceReaderContext readerContext) {
+            return new BlockingIteratorSourceReader<>(readerContext);
+        }
+    }
+
+    private static class BlockingIteratorSourceReader<
+                    E, IterT extends Iterator<E>, SplitT extends IteratorSourceSplit<E, IterT>>
+            extends IteratorSourceReader<E, IterT, SplitT> {
+        private transient BlockingInvokable blocker;
+
+        public BlockingIteratorSourceReader(SourceReaderContext context) {
+            super(context);
+        }
+
+        @Override
+        public void start() {
+            super.start();
+            blocker = new BlockingInvokable(new DummyEnvironment());
+        }
+
+        @Override
+        public InputStatus pollNext(ReaderOutput<E> output) {
+            InputStatus inputStatus = super.pollNext(output);
+            if (inputStatus == InputStatus.END_OF_INPUT) {
+                try {
+                    blocker.invoke();
+                } catch (Exception ignored) {
+                }
+            }
+            return inputStatus;
+        }
+
+        @Override
+        public void close() {
+            blocker.cancel();
+        }
     }
 
     /** Test invokable that allows waiting for all subtasks to be running. */

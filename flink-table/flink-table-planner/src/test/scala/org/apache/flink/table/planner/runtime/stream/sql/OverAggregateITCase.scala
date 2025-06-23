@@ -21,14 +21,15 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingWithStateTestBase, TestData, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeProcessOperator
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{CountNullNonNull, CountPairs, LargerThanCount}
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
@@ -37,11 +38,13 @@ import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.time.{Instant, LocalDateTime}
+import java.util
 
 import scala.collection.{mutable, Seq}
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
+class OverAggregateITCase(mode: StateBackendMode, unboundedOverVersion: Int)
+  extends StreamingWithStateTestBase(mode) {
 
   val data = List(
     (1L, 1, "Hello"),
@@ -60,6 +63,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     // unaligned checkpoints are regenerating watermarks after recovery of in-flight data
     // https://issues.apache.org/jira/browse/FLINK-18405
     env.getCheckpointConfig.enableUnalignedCheckpoints(false)
+    tEnv.getConfig.set[Integer](ExecutionConfigOptions.UNBOUNDED_OVER_VERSION, unboundedOverVersion)
   }
 
   @TestTemplate
@@ -1494,5 +1498,18 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
         assertThat(actual(j).toDouble).isCloseTo(expected(i)(j), ERROR_RATE)
       }
     }
+  }
+}
+
+object OverAggregateITCase {
+  @Parameters(name = "StateBackend={0}, unboundedOverVersion2={1}")
+  def parameters(): util.Collection[Array[Any]] = {
+    scala.collection.JavaConverters.seqAsJavaList(
+      Seq[Array[Any]](
+        Array(HEAP_BACKEND, 1),
+        Array(HEAP_BACKEND, 2),
+        Array(ROCKSDB_BACKEND, 1),
+        Array(ROCKSDB_BACKEND, 2)
+      ))
   }
 }

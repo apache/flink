@@ -34,7 +34,9 @@ public class DeduplicatedQueue<T> {
      */
     private final Set<T> set = new HashSet<>();
 
-    /** @return true if this queue did not already contain the specified element */
+    /**
+     * @return true if this queue did not already contain the specified element
+     */
     public boolean add(T t) {
         if (set.add(t)) {
             queue.add(t);

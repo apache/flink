@@ -32,7 +32,7 @@ import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.metrics.ReporterSetup;
+import org.apache.flink.runtime.metrics.ReporterSetupBuilder;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
@@ -281,7 +281,9 @@ public class MetricGroupTest {
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
-                        Arrays.asList(ReporterSetup.forReporter("test", new TestReporter())));
+                        Arrays.asList(
+                                ReporterSetupBuilder.METRIC_SETUP_BUILDER.forReporter(
+                                        "test", new TestReporter())));
         try {
             GenericMetricGroup root =
                     new GenericMetricGroup(
@@ -434,12 +436,12 @@ public class MetricGroupTest {
         }
 
         @Override
-        public void register(Metric metric, String name, AbstractMetricGroup parent) {
+        public void register(Metric metric, String name, AbstractMetricGroup<?> parent) {
             fail("Metric should never be registered");
         }
 
         @Override
-        public void unregister(Metric metric, String name, AbstractMetricGroup parent) {
+        public void unregister(Metric metric, String name, AbstractMetricGroup<?> parent) {
             fail("Metric should never be un-registered");
         }
     }
@@ -450,10 +452,18 @@ public class MetricGroupTest {
      * A dummy {@link AbstractMetricGroup} to be used when a group is required as an argument but
      * not actually used.
      */
-    public static class DummyAbstractMetricGroup extends AbstractMetricGroup {
+    public static class DummyAbstractMetricGroup
+            extends AbstractMetricGroup<DummyAbstractMetricGroup> {
+
+        final String groupName;
 
         public DummyAbstractMetricGroup(MetricRegistry registry) {
+            this(registry, "foo");
+        }
+
+        public DummyAbstractMetricGroup(MetricRegistry registry, String groupName) {
             super(registry, new String[0], null);
+            this.groupName = groupName;
         }
 
         @Override
@@ -463,7 +473,7 @@ public class MetricGroupTest {
 
         @Override
         protected String getGroupName(CharacterFilter filter) {
-            return "foo";
+            return groupName;
         }
 
         @Override

@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.Expressions.toTimestampLtz
 import org.apache.flink.table.expressions.TimeIntervalUnit
 import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
@@ -1282,11 +1283,6 @@ class TemporalTypesTest extends ExpressionTestBase {
       s"TO_TIMESTAMP_LTZ(253402300800000, 3)",
       "NULL")
 
-    // test invalid number of arguments
-    testExpectedSqlException(
-      "TO_TIMESTAMP_LTZ(123)",
-      "Invalid number of arguments to function 'TO_TIMESTAMP_LTZ'. Was expecting 2 arguments")
-
     // invalid precision
     testExpectedAllApisException(
       toTimestampLtz(12, 1),
@@ -1308,29 +1304,28 @@ class TemporalTypesTest extends ExpressionTestBase {
     // invalid type for the first input
     testExpectedSqlException(
       "TO_TIMESTAMP_LTZ('test_string_type', 0)",
-      "Cannot apply 'TO_TIMESTAMP_LTZ' to arguments of type" +
-        " 'TO_TIMESTAMP_LTZ(<CHAR(16)>, <INTEGER>)'. Supported form(s):" +
-        " 'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'",
+      "SQL validation failed. Invalid function call:\n" +
+        "TO_TIMESTAMP_LTZ(CHAR(16) NOT NULL, INT NOT NULL)",
       classOf[ValidationException]
     )
+
     testExpectedTableApiException(
       toTimestampLtz("test_string_type", 0),
-      "Unsupported argument type. " +
-        "Expected type of family 'NUMERIC' but actual type was 'CHAR(16) NOT NULL'"
+      "Invalid function call:\n" +
+        "TO_TIMESTAMP_LTZ(CHAR(16) NOT NULL, INT NOT NULL)"
     )
 
     // invalid type for the second input
     testExpectedSqlException(
       "TO_TIMESTAMP_LTZ(123, 'test_string_type')",
-      "Cannot apply 'TO_TIMESTAMP_LTZ' to arguments of type" +
-        " 'TO_TIMESTAMP_LTZ(<INTEGER>, <CHAR(16)>)'. Supported form(s):" +
-        " 'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'"
+      "SQL validation failed. Invalid function call:\n" +
+        "TO_TIMESTAMP_LTZ(INT NOT NULL, CHAR(16) NOT NULL)"
     )
 
     testExpectedTableApiException(
       toTimestampLtz(123, "test_string_type"),
-      "Unsupported argument type. " +
-        "Expected type of family 'INTEGER_NUMERIC' but actual type was 'CHAR(16) NOT NULL'"
+      "Invalid function call:\n" +
+        "TO_TIMESTAMP_LTZ(INT NOT NULL, CHAR(16) NOT NULL)"
     )
   }
 
@@ -1448,7 +1443,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     testExpectedSqlException(
       s"TIMESTAMPDIFF(SECOND, ${timestampLtz("1970-01-01 00:00:00.123")}, 'test_string_type')",
       "Cannot apply 'TIMESTAMPDIFF' to arguments of type" +
-        " 'TIMESTAMPDIFF(<SYMBOL>, <TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)>, <CHAR(16)>)'." +
+        " 'TIMESTAMPDIFF(<INTERVAL SECOND>, <TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)>, <CHAR(16)>)'." +
         " Supported form(s): 'TIMESTAMPDIFF(<ANY>, <DATETIME>, <DATETIME>)'"
     )
   }

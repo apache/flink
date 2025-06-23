@@ -113,7 +113,7 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
 
     @Override
     public T getClusterId() {
-        throw new UnsupportedOperationException();
+        return (T) "test-cluster";
     }
 
     @Override

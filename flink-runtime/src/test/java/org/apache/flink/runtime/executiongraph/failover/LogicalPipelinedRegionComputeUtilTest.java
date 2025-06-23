@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link LogicalPipelinedRegionComputeUtil}. */
@@ -85,8 +86,8 @@ class LogicalPipelinedRegionComputeUtilTest {
         JobVertex v2 = new JobVertex("v2");
         JobVertex v3 = new JobVertex("v3");
 
-        v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, resultPartitionType1);
-        v3.connectNewDataSetAsInput(v2, DistributionPattern.POINTWISE, resultPartitionType2);
+        connectNewDataSetAsInput(v2, v1, DistributionPattern.ALL_TO_ALL, resultPartitionType1);
+        connectNewDataSetAsInput(v3, v2, DistributionPattern.POINTWISE, resultPartitionType2);
 
         Set<Set<LogicalVertex>> regions = computePipelinedRegions(v1, v2, v3);
 
@@ -114,12 +115,12 @@ class LogicalPipelinedRegionComputeUtilTest {
         JobVertex v3 = new JobVertex("v3");
         JobVertex v4 = new JobVertex("v4");
 
-        v3.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        v3.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        v4.connectNewDataSetAsInput(
-                v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v3, v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v3, v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                v4, v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
         Set<Set<LogicalVertex>> regions = computePipelinedRegions(v1, v2, v3, v4);
 
@@ -147,12 +148,12 @@ class LogicalPipelinedRegionComputeUtilTest {
         JobVertex v3 = new JobVertex("v3");
         JobVertex v4 = new JobVertex("v4");
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v3.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        v4.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v3, v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v4, v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
         Set<Set<LogicalVertex>> regions = computePipelinedRegions(v1, v2, v3, v4);
 
@@ -183,14 +184,14 @@ class LogicalPipelinedRegionComputeUtilTest {
         JobVertex v3 = new JobVertex("v3");
         JobVertex v4 = new JobVertex("v4");
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        v4.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        v3.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        v4.connectNewDataSetAsInput(
-                v3, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                v4, v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v3, v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v4, v3, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         Set<Set<LogicalVertex>> regions = computePipelinedRegions(v1, v2, v3, v4);
 

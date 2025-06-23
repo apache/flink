@@ -181,6 +181,8 @@ public class FlinkSecurityManager extends SecurityManager {
         // At this point, exit is determined. Halt if defined, otherwise check ended, JVM will call
         // System.exit
         if (haltOnSystemExit) {
+            // null the security manager to prevent infinite recursion
+            System.setSecurityManager(null);
             Runtime.getRuntime().halt(status);
         }
     }
