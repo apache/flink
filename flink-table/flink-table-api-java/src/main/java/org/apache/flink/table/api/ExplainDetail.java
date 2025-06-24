@@ -36,5 +36,10 @@ public enum ExplainDetail {
     CHANGELOG_MODE,
 
     /** The execution plan in json format of the program. */
-    JSON_EXECUTION_PLAN
+    JSON_EXECUTION_PLAN,
+
+    /**
+     * The potential risk warnings and SQL optimizer tuning advice analyzed from the physical plan.
+     */
+    PLAN_ADVICE
 }

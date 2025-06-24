@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.StringValue;
 
-public class CopyableValueComparatorTest extends ComparatorTestBase<StringValue> {
+class CopyableValueComparatorTest extends ComparatorTestBase<StringValue> {
 
     StringValue[] data =
             new StringValue[] {

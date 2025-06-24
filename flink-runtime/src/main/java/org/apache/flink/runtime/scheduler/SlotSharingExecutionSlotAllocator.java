@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
@@ -35,16 +36,20 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Allocates {@link LogicalSlot}s from physical shared slots.
@@ -72,7 +77,7 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
 
     private final PhysicalSlotRequestBulkChecker bulkChecker;
 
-    private final Time allocationTimeout;
+    private final Duration allocationTimeout;
 
     private final Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever;
 
@@ -82,7 +87,7 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
             SlotSharingStrategy slotSharingStrategy,
             SharedSlotProfileRetrieverFactory sharedSlotProfileRetrieverFactory,
             PhysicalSlotRequestBulkChecker bulkChecker,
-            Time allocationTimeout,
+            Duration allocationTimeout,
             Function<ExecutionVertexID, ResourceProfile> resourceProfileRetriever) {
         this.slotProvider = checkNotNull(slotProvider);
         this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
@@ -92,6 +97,39 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
         this.allocationTimeout = checkNotNull(allocationTimeout);
         this.resourceProfileRetriever = checkNotNull(resourceProfileRetriever);
         this.sharedSlots = new IdentityHashMap<>();
+
+        this.slotProvider.disableBatchSlotRequestTimeoutCheck();
+    }
+
+    @Override
+    public Map<ExecutionAttemptID, ExecutionSlotAssignment> allocateSlotsFor(
+            List<ExecutionAttemptID> executionAttemptIds) {
+
+        final Map<ExecutionVertexID, ExecutionAttemptID> vertexIdToExecutionId = new HashMap<>();
+        executionAttemptIds.forEach(
+                executionId ->
+                        vertexIdToExecutionId.put(executionId.getExecutionVertexId(), executionId));
+
+        checkState(
+                vertexIdToExecutionId.size() == executionAttemptIds.size(),
+                "SlotSharingExecutionSlotAllocator does not support one execution vertex to have multiple concurrent executions");
+
+        final List<ExecutionVertexID> vertexIds =
+                executionAttemptIds.stream()
+                        .map(ExecutionAttemptID::getExecutionVertexId)
+                        .collect(Collectors.toList());
+
+        return allocateSlotsForVertices(vertexIds).stream()
+                .collect(
+                        Collectors.toMap(
+                                vertexAssignment ->
+                                        vertexIdToExecutionId.get(
+                                                vertexAssignment.getExecutionVertexId()),
+                                vertexAssignment ->
+                                        new ExecutionSlotAssignment(
+                                                vertexIdToExecutionId.get(
+                                                        vertexAssignment.getExecutionVertexId()),
+                                                vertexAssignment.getLogicalSlotFuture())));
     }
 
     /**
@@ -117,8 +155,7 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
      *
      * @param executionVertexIds Execution vertices to allocate slots for
      */
-    @Override
-    public List<SlotExecutionVertexAssignment> allocateSlotsFor(
+    private List<SlotExecutionVertexAssignment> allocateSlotsForVertices(
             List<ExecutionVertexID> executionVertexIds) {
 
         SharedSlotProfileRetriever sharedSlotProfileRetriever =
@@ -128,13 +165,23 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
                         .collect(
                                 Collectors.groupingBy(
                                         slotSharingStrategy::getExecutionSlotSharingGroup));
-        Map<ExecutionSlotSharingGroup, SharedSlot> slots =
-                executionsByGroup.keySet().stream()
-                        .map(group -> getOrAllocateSharedSlot(group, sharedSlotProfileRetriever))
-                        .collect(
-                                Collectors.toMap(
-                                        SharedSlot::getExecutionSlotSharingGroup,
-                                        Function.identity()));
+
+        Map<ExecutionSlotSharingGroup, SharedSlot> slots = new HashMap<>(executionsByGroup.size());
+        Set<ExecutionSlotSharingGroup> groupsToAssign = new HashSet<>(executionsByGroup.keySet());
+
+        Map<ExecutionSlotSharingGroup, SharedSlot> assignedSlots =
+                tryAssignExistingSharedSlots(groupsToAssign);
+        slots.putAll(assignedSlots);
+        groupsToAssign.removeAll(assignedSlots.keySet());
+
+        if (!groupsToAssign.isEmpty()) {
+            Map<ExecutionSlotSharingGroup, SharedSlot> allocatedSlots =
+                    allocateSharedSlots(groupsToAssign, sharedSlotProfileRetriever);
+            slots.putAll(allocatedSlots);
+            groupsToAssign.removeAll(allocatedSlots.keySet());
+            Preconditions.checkState(groupsToAssign.isEmpty());
+        }
+
         Map<ExecutionVertexID, SlotExecutionVertexAssignment> assignments =
                 allocateLogicalSlotsFromSharedSlots(slots, executionsByGroup);
 
@@ -149,8 +196,8 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
     }
 
     @Override
-    public void cancel(ExecutionVertexID executionVertexId) {
-        cancelLogicalSlotRequest(executionVertexId, null);
+    public void cancel(ExecutionAttemptID executionAttemptId) {
+        cancelLogicalSlotRequest(executionAttemptId.getExecutionVertexId(), null);
     }
 
     private void cancelLogicalSlotRequest(ExecutionVertexID executionVertexId, Throwable cause) {
@@ -193,35 +240,64 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
         return assignments;
     }
 
-    private SharedSlot getOrAllocateSharedSlot(
-            ExecutionSlotSharingGroup executionSlotSharingGroup,
+    private Map<ExecutionSlotSharingGroup, SharedSlot> tryAssignExistingSharedSlots(
+            Set<ExecutionSlotSharingGroup> executionSlotSharingGroups) {
+        Map<ExecutionSlotSharingGroup, SharedSlot> assignedSlots =
+                new HashMap<>(executionSlotSharingGroups.size());
+        for (ExecutionSlotSharingGroup group : executionSlotSharingGroups) {
+            SharedSlot sharedSlot = sharedSlots.get(group);
+            if (sharedSlot != null) {
+                assignedSlots.put(group, sharedSlot);
+            }
+        }
+        return assignedSlots;
+    }
+
+    private Map<ExecutionSlotSharingGroup, SharedSlot> allocateSharedSlots(
+            Set<ExecutionSlotSharingGroup> executionSlotSharingGroups,
             SharedSlotProfileRetriever sharedSlotProfileRetriever) {
-        return sharedSlots.computeIfAbsent(
-                executionSlotSharingGroup,
-                group -> {
-                    SlotRequestId physicalSlotRequestId = new SlotRequestId();
-                    ResourceProfile physicalSlotResourceProfile =
-                            getPhysicalSlotResourceProfile(group);
-                    SlotProfile slotProfile =
-                            sharedSlotProfileRetriever.getSlotProfile(
-                                    group, physicalSlotResourceProfile);
-                    PhysicalSlotRequest physicalSlotRequest =
-                            new PhysicalSlotRequest(
-                                    physicalSlotRequestId,
-                                    slotProfile,
-                                    slotWillBeOccupiedIndefinitely);
+
+        List<PhysicalSlotRequest> slotRequests = new ArrayList<>();
+        Map<ExecutionSlotSharingGroup, SharedSlot> allocatedSlots = new HashMap<>();
+
+        Map<SlotRequestId, ExecutionSlotSharingGroup> requestToGroup = new HashMap<>();
+        Map<SlotRequestId, ResourceProfile> requestToPhysicalResources = new HashMap<>();
+
+        for (ExecutionSlotSharingGroup group : executionSlotSharingGroups) {
+            SlotRequestId physicalSlotRequestId = new SlotRequestId();
+            ResourceProfile physicalSlotResourceProfile = getPhysicalSlotResourceProfile(group);
+            SlotProfile slotProfile =
+                    sharedSlotProfileRetriever.getSlotProfile(group, physicalSlotResourceProfile);
+            PhysicalSlotRequest request =
+                    new PhysicalSlotRequest(
+                            physicalSlotRequestId, slotProfile, slotWillBeOccupiedIndefinitely);
+            slotRequests.add(request);
+            requestToGroup.put(physicalSlotRequestId, group);
+            requestToPhysicalResources.put(physicalSlotRequestId, physicalSlotResourceProfile);
+        }
+
+        Map<SlotRequestId, CompletableFuture<PhysicalSlotRequest.Result>> allocateResult =
+                slotProvider.allocatePhysicalSlots(slotRequests);
+
+        allocateResult.forEach(
+                (slotRequestId, resultCompletableFuture) -> {
+                    ExecutionSlotSharingGroup group = requestToGroup.get(slotRequestId);
                     CompletableFuture<PhysicalSlot> physicalSlotFuture =
-                            slotProvider
-                                    .allocatePhysicalSlot(physicalSlotRequest)
-                                    .thenApply(PhysicalSlotRequest.Result::getPhysicalSlot);
-                    return new SharedSlot(
-                            physicalSlotRequestId,
-                            physicalSlotResourceProfile,
-                            group,
-                            physicalSlotFuture,
-                            slotWillBeOccupiedIndefinitely,
-                            this::releaseSharedSlot);
+                            resultCompletableFuture.thenApply(
+                                    PhysicalSlotRequest.Result::getPhysicalSlot);
+                    SharedSlot slot =
+                            new SharedSlot(
+                                    slotRequestId,
+                                    requestToPhysicalResources.get(slotRequestId),
+                                    group,
+                                    physicalSlotFuture,
+                                    slotWillBeOccupiedIndefinitely,
+                                    this::releaseSharedSlot);
+                    allocatedSlots.put(group, slot);
+                    Preconditions.checkState(!sharedSlots.containsKey(group));
+                    sharedSlots.put(group, slot);
                 });
+        return allocatedSlots;
     }
 
     private void releaseSharedSlot(ExecutionSlotSharingGroup executionSlotSharingGroup) {
@@ -282,6 +358,29 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
                         bulk.clearPendingRequests();
                         return null;
                     });
+        }
+    }
+
+    /** The slot assignment for an {@link ExecutionVertex}. */
+    private static class SlotExecutionVertexAssignment {
+
+        private final ExecutionVertexID executionVertexId;
+
+        private final CompletableFuture<LogicalSlot> logicalSlotFuture;
+
+        SlotExecutionVertexAssignment(
+                ExecutionVertexID executionVertexId,
+                CompletableFuture<LogicalSlot> logicalSlotFuture) {
+            this.executionVertexId = checkNotNull(executionVertexId);
+            this.logicalSlotFuture = checkNotNull(logicalSlotFuture);
+        }
+
+        ExecutionVertexID getExecutionVertexId() {
+            return executionVertexId;
+        }
+
+        CompletableFuture<LogicalSlot> getLogicalSlotFuture() {
+            return logicalSlotFuture;
         }
     }
 }

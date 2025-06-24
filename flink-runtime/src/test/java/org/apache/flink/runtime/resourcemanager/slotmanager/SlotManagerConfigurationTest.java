@@ -19,54 +19,184 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import java.math.BigDecimal;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /** Tests for {@link SlotManagerConfiguration}. */
-public class SlotManagerConfigurationTest extends TestLogger {
-
-    /**
-     * Tests that {@link SlotManagerConfiguration#getSlotRequestTimeout()} returns the value
-     * configured under key {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT}.
-     */
+class SlotManagerConfigurationTest {
     @Test
-    public void testSetSlotRequestTimeout() throws Exception {
-        final long slotIdleTimeout = 42;
-
+    void testComputeMinTotalCpu() throws Exception {
         final Configuration configuration = new Configuration();
-        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotIdleTimeout);
+        final int minSlotNum = 9;
+        final int numSlots = 3;
+        final double cpuCores = 10;
+        configuration.set(ResourceManagerOptions.MIN_SLOT_NUM, minSlotNum);
         final SlotManagerConfiguration slotManagerConfiguration =
-                SlotManagerConfiguration.fromConfiguration(configuration, WorkerResourceSpec.ZERO);
-
-        assertThat(
-                slotManagerConfiguration.getSlotRequestTimeout().toMilliseconds(),
-                is(equalTo(slotIdleTimeout)));
+                SlotManagerConfiguration.fromConfiguration(
+                        configuration,
+                        new WorkerResourceSpec.Builder()
+                                .setNumSlots(numSlots)
+                                .setCpuCores(cpuCores)
+                                .build());
+        assertThat(slotManagerConfiguration.getMinTotalCpu().getValue().doubleValue())
+                .isEqualTo(cpuCores * minSlotNum / numSlots);
     }
 
-    /**
-     * Tests that {@link ResourceManagerOptions#SLOT_REQUEST_TIMEOUT} is preferred over {@link
-     * JobManagerOptions#SLOT_REQUEST_TIMEOUT} if set.
-     */
     @Test
-    public void testPreferLegacySlotRequestTimeout() throws Exception {
-        final long legacySlotIdleTimeout = 42;
-
+    void testComputeMaxTotalCpu() throws Exception {
         final Configuration configuration = new Configuration();
-        configuration.setLong(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT, legacySlotIdleTimeout);
-        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 300000L);
+        final int maxSlotNum = 9;
+        final int numSlots = 3;
+        final double cpuCores = 10;
+        configuration.set(ResourceManagerOptions.MAX_SLOT_NUM, maxSlotNum);
         final SlotManagerConfiguration slotManagerConfiguration =
-                SlotManagerConfiguration.fromConfiguration(configuration, WorkerResourceSpec.ZERO);
+                SlotManagerConfiguration.fromConfiguration(
+                        configuration,
+                        new WorkerResourceSpec.Builder()
+                                .setNumSlots(numSlots)
+                                .setCpuCores(cpuCores)
+                                .build());
+        assertThat(slotManagerConfiguration.getMaxTotalCpu().getValue().doubleValue())
+                .isEqualTo(cpuCores * maxSlotNum / numSlots);
+    }
 
-        assertThat(
-                slotManagerConfiguration.getSlotRequestTimeout().toMilliseconds(),
-                is(equalTo(legacySlotIdleTimeout)));
+    @Test
+    void testComputeMinTotalMemory() throws Exception {
+        final Configuration configuration = new Configuration();
+        final int minSlotNum = 1000;
+        final int numSlots = 10;
+        final int totalTaskManagerMB =
+                MemorySize.parse("1", MemorySize.MemoryUnit.TERA_BYTES).getMebiBytes();
+        configuration.set(ResourceManagerOptions.MIN_SLOT_NUM, minSlotNum);
+        final SlotManagerConfiguration slotManagerConfiguration =
+                SlotManagerConfiguration.fromConfiguration(
+                        configuration,
+                        new WorkerResourceSpec.Builder()
+                                .setNumSlots(numSlots)
+                                .setTaskHeapMemoryMB(totalTaskManagerMB)
+                                .build());
+        assertThat(slotManagerConfiguration.getMinTotalMem().getBytes())
+                .isEqualTo(
+                        BigDecimal.valueOf(MemorySize.ofMebiBytes(totalTaskManagerMB).getBytes())
+                                .multiply(BigDecimal.valueOf(minSlotNum))
+                                .divide(BigDecimal.valueOf(numSlots))
+                                .longValue());
+    }
+
+    @Test
+    void testComputeMaxTotalMemory() throws Exception {
+        final Configuration configuration = new Configuration();
+        final int maxSlotNum = 1_000_000;
+        final int numSlots = 10;
+        final int totalTaskManagerMB =
+                MemorySize.parse("1", MemorySize.MemoryUnit.TERA_BYTES).getMebiBytes();
+        configuration.set(ResourceManagerOptions.MAX_SLOT_NUM, maxSlotNum);
+        final SlotManagerConfiguration slotManagerConfiguration =
+                SlotManagerConfiguration.fromConfiguration(
+                        configuration,
+                        new WorkerResourceSpec.Builder()
+                                .setNumSlots(numSlots)
+                                .setTaskHeapMemoryMB(totalTaskManagerMB)
+                                .build());
+        assertThat(slotManagerConfiguration.getMaxTotalMem().getBytes())
+                .isEqualTo(
+                        BigDecimal.valueOf(MemorySize.ofMebiBytes(totalTaskManagerMB).getBytes())
+                                .multiply(BigDecimal.valueOf(maxSlotNum))
+                                .divide(BigDecimal.valueOf(numSlots))
+                                .longValue());
+    }
+
+    @Test
+    void testComputeMinMaxSlotNumIsValid() throws Exception {
+        final Configuration configuration = new Configuration();
+        final int minSlotNum = 9;
+        final int maxSlotNum = 12;
+        final int numSlots = 3;
+        final double cpuCores = 10;
+        configuration.set(ResourceManagerOptions.MIN_SLOT_NUM, minSlotNum);
+        configuration.set(ResourceManagerOptions.MAX_SLOT_NUM, maxSlotNum);
+
+        final SlotManagerConfiguration slotManagerConfiguration =
+                SlotManagerConfiguration.fromConfiguration(
+                        configuration,
+                        new WorkerResourceSpec.Builder()
+                                .setNumSlots(numSlots)
+                                .setCpuCores(cpuCores)
+                                .build());
+        assertThat(slotManagerConfiguration.getMinTotalCpu().getValue().doubleValue())
+                .isEqualTo(cpuCores * minSlotNum / numSlots);
+        assertThat(slotManagerConfiguration.getMaxTotalCpu().getValue().doubleValue())
+                .isEqualTo(cpuCores * maxSlotNum / numSlots);
+    }
+
+    @Test
+    void testComputeMinMaxSlotNumIsInvalid() {
+        final Configuration configuration = new Configuration();
+        final int minSlotNum = 10;
+        final int maxSlotNum = 11;
+        final int numSlots = 3;
+        configuration.set(ResourceManagerOptions.MIN_SLOT_NUM, minSlotNum);
+        configuration.set(ResourceManagerOptions.MAX_SLOT_NUM, maxSlotNum);
+
+        assertThatIllegalStateException()
+                .isThrownBy(
+                        () ->
+                                SlotManagerConfiguration.fromConfiguration(
+                                        configuration,
+                                        new WorkerResourceSpec.Builder()
+                                                .setNumSlots(numSlots)
+                                                .build()));
+    }
+
+    @Test
+    void testComputeMinMaxCpuIsInvalid() {
+        final Configuration configuration = new Configuration();
+        final double minTotalCpu = 10.0;
+        final double maxTotalCpu = 11.0;
+        final int numSlots = 3;
+        final double cpuCores = 3;
+        configuration.set(ResourceManagerOptions.MIN_TOTAL_CPU, minTotalCpu);
+        configuration.set(ResourceManagerOptions.MAX_TOTAL_CPU, maxTotalCpu);
+
+        assertThatIllegalStateException()
+                .isThrownBy(
+                        () ->
+                                SlotManagerConfiguration.fromConfiguration(
+                                        configuration,
+                                        new WorkerResourceSpec.Builder()
+                                                .setNumSlots(numSlots)
+                                                .setCpuCores(cpuCores)
+                                                .build()));
+    }
+
+    @Test
+    void testComputeMinMaxMemoryIsInvalid() {
+        final Configuration configuration = new Configuration();
+        final MemorySize minMemorySize = MemorySize.ofMebiBytes(500);
+        final MemorySize maxMemorySize = MemorySize.ofMebiBytes(700);
+        final int numSlots = 3;
+        configuration.set(ResourceManagerOptions.MIN_TOTAL_MEM, minMemorySize);
+        configuration.set(ResourceManagerOptions.MAX_TOTAL_MEM, maxMemorySize);
+
+        assertThatIllegalStateException()
+                .isThrownBy(
+                        () ->
+                                SlotManagerConfiguration.fromConfiguration(
+                                        configuration,
+                                        new WorkerResourceSpec.Builder()
+                                                .setNumSlots(numSlots)
+                                                .setTaskHeapMemoryMB(100)
+                                                .setManagedMemoryMB(100)
+                                                .setNetworkMemoryMB(100)
+                                                .setTaskOffHeapMemoryMB(100)
+                                                .build()));
     }
 }

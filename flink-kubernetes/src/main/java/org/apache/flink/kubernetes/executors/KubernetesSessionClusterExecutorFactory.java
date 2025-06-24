@@ -44,6 +44,6 @@ public class KubernetesSessionClusterExecutorFactory implements PipelineExecutor
 
     @Override
     public PipelineExecutor getExecutor(@Nonnull final Configuration configuration) {
-        return new KubernetesSessionClusterExecutor();
+        return new KubernetesSessionClusterExecutor(configuration);
     }
 }

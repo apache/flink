@@ -31,13 +31,12 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.utils.NoOpCommit
 import org.apache.flink.streaming.api.functions.sink.filesystem.utils.NoOpRecoverable;
 import org.apache.flink.streaming.api.functions.sink.filesystem.utils.NoOpRecoverableFsDataOutputStream;
 import org.apache.flink.streaming.api.functions.sink.filesystem.utils.NoOpRecoverableWriter;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,17 +46,17 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for the {@code Bucket}. */
-public class BucketTest {
+class BucketTest {
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @TempDir private static java.nio.file.Path tempFolder;
 
     @Test
-    public void shouldNotCleanupResumablesThatArePartOfTheAckedCheckpoint() throws IOException {
-        final File outDir = TEMP_FOLDER.newFolder();
+    void shouldNotCleanupResumablesThatArePartOfTheAckedCheckpoint() throws IOException {
+        final File outDir = TempDirUtils.newFolder(tempFolder);
         final Path path = new Path(outDir.toURI());
 
         final TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
@@ -67,17 +66,16 @@ public class BucketTest {
         bucketUnderTest.write("test-element", 0L);
 
         final BucketState<String> state = bucketUnderTest.onReceptionOfCheckpoint(0L);
-        assertThat(state, hasActiveInProgressFile());
+        assertThat(state).is(matching(hasActiveInProgressFile()));
 
         bucketUnderTest.onSuccessfulCompletionOfCheckpoint(0L);
-        assertThat(
-                recoverableWriter,
-                hasCalledDiscard(0)); // it did not discard as this is still valid.
+        assertThat(recoverableWriter)
+                .is(matching(hasCalledDiscard(0))); // it did not discard as this is still valid.
     }
 
     @Test
-    public void shouldCleanupOutdatedResumablesOnCheckpointAck() throws IOException {
-        final File outDir = TEMP_FOLDER.newFolder();
+    void shouldCleanupOutdatedResumablesOnCheckpointAck() throws IOException {
+        final File outDir = TempDirUtils.newFolder(tempFolder);
         final Path path = new Path(outDir.toURI());
 
         final TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
@@ -87,7 +85,7 @@ public class BucketTest {
         bucketUnderTest.write("test-element", 0L);
 
         final BucketState<String> state = bucketUnderTest.onReceptionOfCheckpoint(0L);
-        assertThat(state, hasActiveInProgressFile());
+        assertThat(state).is(matching(hasActiveInProgressFile()));
 
         bucketUnderTest.onSuccessfulCompletionOfCheckpoint(0L);
 
@@ -95,12 +93,13 @@ public class BucketTest {
         bucketUnderTest.onReceptionOfCheckpoint(2L);
 
         bucketUnderTest.onSuccessfulCompletionOfCheckpoint(2L);
-        assertThat(recoverableWriter, hasCalledDiscard(2)); // that is for checkpoints 0 and 1
+        assertThat(recoverableWriter)
+                .is(matching(hasCalledDiscard(2))); // that is for checkpoints 0 and 1
     }
 
     @Test
-    public void shouldNotCallCleanupWithoutInProgressPartFiles() throws Exception {
-        final File outDir = TEMP_FOLDER.newFolder();
+    void shouldNotCallCleanupWithoutInProgressPartFiles() throws Exception {
+        final File outDir = TempDirUtils.newFolder(tempFolder);
         final Path path = new Path(outDir.toURI());
 
         final TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
@@ -108,18 +107,19 @@ public class BucketTest {
                 createBucket(recoverableWriter, path, 0, 0, OutputFileConfig.builder().build());
 
         final BucketState<String> state = bucketUnderTest.onReceptionOfCheckpoint(0L);
-        assertThat(state, hasNoActiveInProgressFile());
+        assertThat(state).is(matching(hasNoActiveInProgressFile()));
 
         bucketUnderTest.onReceptionOfCheckpoint(1L);
         bucketUnderTest.onReceptionOfCheckpoint(2L);
 
         bucketUnderTest.onSuccessfulCompletionOfCheckpoint(2L);
-        assertThat(recoverableWriter, hasCalledDiscard(0)); // we have no in-progress file.
+        assertThat(recoverableWriter)
+                .is(matching(hasCalledDiscard(0))); // we have no in-progress file.
     }
 
     @Test
-    public void shouldCleanupOutdatedResumablesAfterResumed() throws Exception {
-        final File outDir = TEMP_FOLDER.newFolder();
+    void shouldCleanupOutdatedResumablesAfterResumed() throws Exception {
+        final File outDir = TempDirUtils.newFolder(tempFolder);
         final Path path = new Path(outDir.toURI());
 
         final TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
@@ -128,55 +128,55 @@ public class BucketTest {
 
         bucketUnderTest.write("test-element", 0L);
         final BucketState<String> state0 = bucketUnderTest.onReceptionOfCheckpoint(0L);
-        assertThat(state0, hasActiveInProgressFile());
+        assertThat(state0).is(matching(hasActiveInProgressFile()));
         bucketUnderTest.onSuccessfulCompletionOfCheckpoint(0L);
-        assertThat(recoverableWriter, hasCalledDiscard(0));
+        assertThat(recoverableWriter).is(matching(hasCalledDiscard(0)));
 
-        final File newOutDir = TEMP_FOLDER.newFolder();
+        final File newOutDir = TempDirUtils.newFolder(tempFolder);
         final Path newPath = new Path(newOutDir.toURI());
         final TestRecoverableWriter newRecoverableWriter = getRecoverableWriter(newPath);
         final Bucket<String, String> bucketAfterResume =
                 restoreBucket(
                         newRecoverableWriter, 0, 0, state0, OutputFileConfig.builder().build());
         final BucketState<String> state1 = bucketAfterResume.onReceptionOfCheckpoint(1L);
-        assertThat(state1, hasActiveInProgressFile());
+        assertThat(state1).is(matching(hasActiveInProgressFile()));
         bucketAfterResume.onSuccessfulCompletionOfCheckpoint(1L);
-        assertThat(newRecoverableWriter, hasCalledDiscard(1));
+        assertThat(newRecoverableWriter).is(matching(hasCalledDiscard(1)));
     }
 
     // --------------------------- Checking Restore ---------------------------
 
     @Test
-    public void inProgressFileShouldBeCommittedIfWriterDoesNotSupportResume() throws IOException {
+    void inProgressFileShouldBeCommittedIfWriterDoesNotSupportResume() throws IOException {
         final StubNonResumableWriter nonResumableWriter = new StubNonResumableWriter();
         final Bucket<String, String> bucket =
                 getRestoredBucketWithOnlyInProgressPart(nonResumableWriter);
 
-        Assert.assertThat(nonResumableWriter, hasMethodCallCountersEqualTo(1, 0, 1));
-        Assert.assertThat(bucket, hasNullInProgressFile(true));
+        assertThat(nonResumableWriter).is(matching(hasMethodCallCountersEqualTo(1, 0, 1)));
+        assertThat(bucket).is(matching(hasNullInProgressFile(true)));
     }
 
     @Test
-    public void inProgressFileShouldBeRestoredIfWriterSupportsResume() throws IOException {
+    void inProgressFileShouldBeRestoredIfWriterSupportsResume() throws IOException {
         final StubResumableWriter resumableWriter = new StubResumableWriter();
         final Bucket<String, String> bucket =
                 getRestoredBucketWithOnlyInProgressPart(resumableWriter);
 
-        Assert.assertThat(resumableWriter, hasMethodCallCountersEqualTo(1, 1, 0));
-        Assert.assertThat(bucket, hasNullInProgressFile(false));
+        assertThat(resumableWriter).is(matching(hasMethodCallCountersEqualTo(1, 1, 0)));
+        assertThat(bucket).is(matching(hasNullInProgressFile(false)));
     }
 
     @Test
-    public void pendingFilesShouldBeRestored() throws IOException {
+    void pendingFilesShouldBeRestored() throws IOException {
         final int expectedRecoverForCommitCounter = 10;
 
         final StubNonResumableWriter writer = new StubNonResumableWriter();
         final Bucket<String, String> bucket =
                 getRestoredBucketWithOnlyPendingParts(writer, expectedRecoverForCommitCounter);
 
-        Assert.assertThat(
-                writer, hasMethodCallCountersEqualTo(0, 0, expectedRecoverForCommitCounter));
-        Assert.assertThat(bucket, hasNullInProgressFile(true));
+        assertThat(writer)
+                .is(matching(hasMethodCallCountersEqualTo(0, 0, expectedRecoverForCommitCounter)));
+        assertThat(bucket).is(matching(hasNullInProgressFile(true)));
     }
 
     // ------------------------------- Matchers --------------------------------
@@ -432,21 +432,12 @@ public class BucketTest {
                 outputFileConfig);
     }
 
-    private static TestRecoverableWriter getRecoverableWriter(Path path) {
-        try {
-            final FileSystem fs = FileSystem.get(path.toUri());
-            if (!(fs instanceof LocalFileSystem)) {
-                fail(
-                        "Expected Local FS but got a "
-                                + fs.getClass().getName()
-                                + " for path: "
-                                + path);
-            }
-            return new TestRecoverableWriter((LocalFileSystem) fs);
-        } catch (IOException e) {
-            fail();
-        }
-        return null;
+    private static TestRecoverableWriter getRecoverableWriter(Path path) throws IOException {
+        final FileSystem fs = FileSystem.get(path.toUri());
+        assertThat(fs)
+                .as("Expected Local FS but got a " + fs.getClass().getName() + " for path: " + path)
+                .isInstanceOf(LocalFileSystem.class);
+        return new TestRecoverableWriter((LocalFileSystem) fs);
     }
 
     private Bucket<String, String> getRestoredBucketWithOnlyInProgressPart(

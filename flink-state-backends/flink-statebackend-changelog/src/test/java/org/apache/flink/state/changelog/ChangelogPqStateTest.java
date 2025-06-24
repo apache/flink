@@ -18,7 +18,7 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.function.FunctionWithException;
@@ -157,22 +157,19 @@ public class ChangelogPqStateTest {
 
         @Override
         public void valueElementAdded(
-                ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer,
-                Void ns) {
+                ThrowingConsumer<DataOutputView, IOException> dataSerializer, Void ns) {
             stateElementAdded = true;
         }
 
         @Override
         public void valueElementAddedOrUpdated(
-                ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer,
-                Void ns) {
+                ThrowingConsumer<DataOutputView, IOException> dataSerializer, Void ns) {
             stateElementChanged = true;
         }
 
         @Override
         public void valueElementRemoved(
-                ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer,
-                Void ns) {
+                ThrowingConsumer<DataOutputView, IOException> dataSerializer, Void ns) {
             stateElementRemoved = true;
         }
 

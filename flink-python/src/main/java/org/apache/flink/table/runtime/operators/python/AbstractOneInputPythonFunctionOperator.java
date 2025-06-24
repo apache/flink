@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.python.AbstractExternalPythonFunctionOperator;
+import org.apache.flink.streaming.api.operators.python.process.AbstractExternalPythonFunctionOperator;
 
 /** Base class for all one input stream operators to execute Python functions. */
 @Internal

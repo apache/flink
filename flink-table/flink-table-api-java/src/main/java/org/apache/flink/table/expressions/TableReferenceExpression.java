@@ -19,9 +19,15 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.operations.OperationUtils;
+import org.apache.flink.table.operations.PartitionQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -37,10 +43,22 @@ public final class TableReferenceExpression implements ResolvedExpression {
 
     private final String name;
     private final QueryOperation queryOperation;
+    // The environment is optional but serves validation purposes
+    // to ensure that all referenced tables belong to the same
+    // environment.
+    private final @Nullable TableEnvironment env;
 
+    @Deprecated
     TableReferenceExpression(String name, QueryOperation queryOperation) {
         this.name = Preconditions.checkNotNull(name);
         this.queryOperation = Preconditions.checkNotNull(queryOperation);
+        this.env = null;
+    }
+
+    TableReferenceExpression(String name, QueryOperation queryOperation, TableEnvironment env) {
+        this.name = Preconditions.checkNotNull(name);
+        this.queryOperation = Preconditions.checkNotNull(queryOperation);
+        this.env = Preconditions.checkNotNull(env);
     }
 
     public String getName() {
@@ -51,14 +69,28 @@ public final class TableReferenceExpression implements ResolvedExpression {
         return queryOperation;
     }
 
+    public @Nullable TableEnvironment getTableEnvironment() {
+        return env;
+    }
+
     @Override
     public DataType getOutputDataType() {
-        return queryOperation.getResolvedSchema().toSourceRowDataType();
+        return DataTypeUtils.fromResolvedSchemaPreservingTimeAttributes(
+                queryOperation.getResolvedSchema());
     }
 
     @Override
     public List<ResolvedExpression> getResolvedChildren() {
         return Collections.emptyList();
+    }
+
+    @Override
+    public String asSerializableString(SqlFactory sqlFactory) {
+        if (queryOperation instanceof PartitionQueryOperation) {
+            return OperationUtils.indent(queryOperation.asSerializableString(sqlFactory));
+        }
+        return String.format(
+                "(%s\n)", OperationUtils.indent(queryOperation.asSerializableString(sqlFactory)));
     }
 
     @Override
@@ -86,12 +118,14 @@ public final class TableReferenceExpression implements ResolvedExpression {
         }
         TableReferenceExpression that = (TableReferenceExpression) o;
         return Objects.equals(name, that.name)
-                && Objects.equals(queryOperation, that.queryOperation);
+                && Objects.equals(queryOperation, that.queryOperation)
+                // Effectively means reference equality
+                && Objects.equals(env, that.env);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, queryOperation);
+        return Objects.hash(name, queryOperation, env);
     }
 
     @Override

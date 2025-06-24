@@ -21,13 +21,14 @@ package org.apache.flink.types;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class NormalizableKeyTest {
+import static org.assertj.core.api.Assertions.assertThat;
+
+class NormalizableKeyTest {
 
     @Test
-    public void testIntValue() {
+    void testIntValue() {
         IntValue int0 = new IntValue(10);
         IntValue int1 = new IntValue(10);
         IntValue int2 = new IntValue(-10);
@@ -51,7 +52,7 @@ public class NormalizableKeyTest {
     }
 
     @Test
-    public void testLongValue() {
+    void testLongValue() {
         LongValue long0 = new LongValue(10);
         LongValue long1 = new LongValue(10);
         LongValue long2 = new LongValue(-10);
@@ -75,7 +76,7 @@ public class NormalizableKeyTest {
     }
 
     @Test
-    public void testStringValue() {
+    void testStringValue() {
         StringValue string0 = new StringValue("This is a test");
         StringValue string1 = new StringValue("This is a test with some longer String");
         StringValue string2 = new StringValue("This is a tesa");
@@ -91,7 +92,7 @@ public class NormalizableKeyTest {
     }
 
     @Test
-    public void testPactNull() {
+    void testPactNull() {
 
         final NullValue pn1 = new NullValue();
         final NullValue pn2 = new NullValue();
@@ -100,7 +101,7 @@ public class NormalizableKeyTest {
     }
 
     @Test
-    public void testPactChar() {
+    void testPactChar() {
 
         final CharValue c1 = new CharValue((char) 0);
         final CharValue c2 = new CharValue((char) 1);
@@ -139,16 +140,13 @@ public class NormalizableKeyTest {
             int normKey2 = normalizedKeys[len + i] & 0xFF;
 
             if ((comp = (normKey1 - normKey2)) != 0) {
-                if (Math.signum(key1.compareTo((T) key2)) != Math.signum(comp)) {
-                    Assert.fail("Normalized key comparison differs from actual key comparison");
-                }
+                assertThat(Math.signum(key1.compareTo((T) key2)) != Math.signum(comp))
+                        .isFalse()
+                        .describedAs(
+                                "Normalized key comparison differs from actual key comparison");
                 return;
             }
         }
-        if (key1.compareTo((T) key2) != 0 && key1.getMaxNormalizedKeyLen() <= len) {
-            Assert.fail(
-                    "Normalized key was not able to distinguish keys, "
-                            + "although it should as the length of it sufficies to uniquely identify them");
-        }
+        assertThat(key1.compareTo((T) key2) == 0 || key1.getMaxNormalizedKeyLen() > len).isTrue();
     }
 }

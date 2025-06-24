@@ -18,23 +18,29 @@
 ################################################################################
 set -e
 
+# override env to use Java 17 to for build instead default Java 8
+# path to JDK is taken from https://github.com/apache/flink-connector-shared-utils/blob/ci_utils/docker/base/Dockerfile#L37-L40
+export JAVA_HOME=$JAVA_HOME_17_X64
+export PATH=$JAVA_HOME_17_X64/bin:$PATH
+
 mvn --version
 java -version
 javadoc -J-version
 
-# setup hugo
-HUGO_REPO=https://github.com/gohugoio/hugo/releases/download/v0.98.0/hugo_extended_0.98.0_Linux-64bit.tar.gz
-HUGO_ARTIFACT=hugo_extended_0.98.0_Linux-64bit.tar.gz
-if ! curl --fail -OL $HUGO_REPO ; then
-	echo "Failed to download Hugo binary"
-	exit 1
-fi
-tar -zxvf $HUGO_ARTIFACT -C /usr/local/bin
+# workaround for a git security patch
+git config --global --add safe.directory /root/flink
 git submodule update --init --recursive
-# Setup the external documentation modules
+
 cd docs
+
+# setup hugo
+source setup_hugo.sh
+
+# Setup the external documentation modules
 source setup_docs.sh
+
 cd ..
+
 # Build the docs
 hugo --source docs
 
@@ -46,24 +52,18 @@ if [ $? -ne 0 ]; then
 fi
 
 # build Flink; required for Javadoc step
-mvn clean install -B -DskipTests -Dfast -Pskip-webui-build
+mvn clean install -B -DskipTests -Dfast -Dskip.npm -Pskip-webui-build
 
 # build java/scala docs
 mkdir -p docs/target/api
 mvn javadoc:aggregate -B \
-    -Paggregate-scaladoc \
-    -DadditionalJOption="-Xdoclint:none --allow-script-in-comments" \
-    -Dmaven.javadoc.failOnError=false \
+    -Pskip-webui-build \
+    -Dmaven.javadoc.failOnError=true \
     -Dcheckstyle.skip=true \
     -Dspotless.check.skip=true \
     -Denforcer.skip=true \
     -Dheader="<a href=\"http://flink.apache.org/\" target=\"_top\"><h1>Back to Flink Website</h1></a> <script>var _paq=window._paq=window._paq||[];_paq.push([\"disableCookies\"]),_paq.push([\"setDomains\",[\"*.flink.apache.org\",\"*.nightlies.apache.org/flink\"]]),_paq.push([\"trackPageView\"]),_paq.push([\"enableLinkTracking\"]),function(){var u=\"//matomo.privacy.apache.org/\";_paq.push([\"setTrackerUrl\",u+\"matomo.php\"]),_paq.push([\"setSiteId\",\"1\"]);var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s)}();</script>"
 mv target/site/apidocs docs/target/api/java
-mvn -pl flink-scala scala:doc -B \
-    -Dcheckstyle.skip=true \
-    -Dspotless.skip=true \
-    -Denforcer.skip=true
-mv flink-scala/target/site/scaladocs docs/target/api/scala
 
 # build python docs
 if [ -f  ./flink-python/dev/lint-python.sh ]; then

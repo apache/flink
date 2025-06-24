@@ -22,11 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
@@ -36,11 +34,10 @@ import java.nio.file.Path;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link TransientBlobCache}. */
-@ExtendWith(TestLoggerExtension.class)
-public class TransientBlobCacheTest {
+class TransientBlobCacheTest {
 
     @Test
-    public void transientBlobCacheCanServeFilesFromPrepopulatedStorageDirectory(
+    void transientBlobCacheCanServeFilesFromPrepopulatedStorageDirectory(
             @TempDir Path storageDirectory) throws IOException {
         final JobID jobId = new JobID();
 
@@ -55,7 +52,7 @@ public class TransientBlobCacheTest {
     }
 
     @Test
-    public void transientBlobCacheChecksForCorruptedBlobsAtStart(@TempDir Path storageDirectory)
+    void transientBlobCacheChecksForCorruptedBlobsAtStart(@TempDir Path storageDirectory)
             throws IOException {
         final JobID jobId = new JobID();
 
@@ -76,8 +73,7 @@ public class TransientBlobCacheTest {
     }
 
     @Test
-    public void transientBlobCacheTimesOutRecoveredBlobs(@TempDir Path storageDirectory)
-            throws Exception {
+    void transientBlobCacheTimesOutRecoveredBlobs(@TempDir Path storageDirectory) throws Exception {
         final JobID jobId = new JobID();
         final TransientBlobKey transientBlobKey =
                 TestingBlobUtils.writeTransientBlob(

@@ -21,17 +21,18 @@ import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
-import { BASE_URL } from 'config';
-import { JarList, NodesItemCorrect, Plan, VerticesLink } from 'interfaces';
+import { JarList, NodesItemCorrect, Plan, PlanDetail, VerticesLink } from '@flink-runtime-web/interfaces';
+
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class JarService {
-  constructor(private readonly httpClient: HttpClient) {}
+  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
 
   public loadJarList(): Observable<JarList> {
-    return this.httpClient.get<JarList>(`${BASE_URL}/jars`).pipe(
+    return this.httpClient.get<JarList>(`${this.configService.BASE_URL}/jars`).pipe(
       catchError(() => {
         return of({
           address: '',
@@ -45,14 +46,14 @@ export class JarService {
   public uploadJar(fd: File): Observable<HttpEvent<unknown>> {
     const formData = new FormData();
     formData.append('jarfile', fd, fd.name);
-    const req = new HttpRequest('POST', `${BASE_URL}/jars/upload`, formData, {
+    const req = new HttpRequest('POST', `${this.configService.BASE_URL}/jars/upload`, formData, {
       reportProgress: true
     });
     return this.httpClient.request(req);
   }
 
   public deleteJar(jarId: string): Observable<void> {
-    return this.httpClient.delete<void>(`${BASE_URL}/jars/${jarId}`);
+    return this.httpClient.delete<void>(`${this.configService.BASE_URL}/jars/${jarId}`);
   }
 
   public runJob(
@@ -80,15 +81,12 @@ export class JarService {
     if (allowNonRestoredState) {
       params = params.append('allowNonRestoredState', allowNonRestoredState);
     }
-    return this.httpClient.post<{ jobid: string }>(`${BASE_URL}/jars/${jarId}/run`, requestParam, { params });
+    return this.httpClient.post<{ jobid: string }>(`${this.configService.BASE_URL}/jars/${jarId}/run`, requestParam, {
+      params
+    });
   }
 
-  public getPlan(
-    jarId: string,
-    entryClass: string,
-    parallelism: string,
-    programArgs: string
-  ): Observable<{ nodes: NodesItemCorrect[]; links: VerticesLink[] }> {
+  public getPlan(jarId: string, entryClass: string, parallelism: string, programArgs: string): Observable<PlanDetail> {
     let params = new HttpParams();
     if (entryClass) {
       params = params.append('entry-class', entryClass);
@@ -99,7 +97,7 @@ export class JarService {
     if (programArgs) {
       params = params.append('program-args', programArgs);
     }
-    return this.httpClient.get<Plan>(`${BASE_URL}/jars/${jarId}/plan`, { params }).pipe(
+    return this.httpClient.get<Plan>(`${this.configService.BASE_URL}/jars/${jarId}/plan`, { params }).pipe(
       map(data => {
         const links: VerticesLink[] = [];
         let nodes: NodesItemCorrect[] = [];

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -28,10 +27,12 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.util.AutoCloseableAsync;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.UUID;
@@ -93,10 +94,11 @@ public interface TaskSlotTable<T extends TaskSlotPayload>
      * @param jobId to allocate the task slot for
      * @param allocationId identifying the allocation
      * @param slotTimeout until the slot times out
-     * @return True if the task slot could be allocated; otherwise false
+     * @throws SlotAllocationException if allocating the slot failed.
      */
     @VisibleForTesting
-    boolean allocateSlot(int index, JobID jobId, AllocationID allocationId, Time slotTimeout);
+    void allocateSlot(int index, JobID jobId, AllocationID allocationId, Duration slotTimeout)
+            throws SlotAllocationException;
 
     /**
      * Allocate the slot with the given index for the given job and allocation id. If negative index
@@ -109,14 +111,15 @@ public interface TaskSlotTable<T extends TaskSlotPayload>
      * @param resourceProfile of the requested slot, used only for dynamic slot allocation and will
      *     be ignored otherwise
      * @param slotTimeout until the slot times out
-     * @return True if the task slot could be allocated; otherwise false
+     * @throws SlotAllocationException if allocating the slot failed.
      */
-    boolean allocateSlot(
+    void allocateSlot(
             int index,
             JobID jobId,
             AllocationID allocationId,
             ResourceProfile resourceProfile,
-            Time slotTimeout);
+            Duration slotTimeout)
+            throws SlotAllocationException;
 
     /**
      * Marks the slot under the given allocation id as active. If the slot could not be found, then
@@ -137,7 +140,7 @@ public interface TaskSlotTable<T extends TaskSlotPayload>
      * @throws SlotNotFoundException if the slot could not be found for the given allocation id
      * @return True if the slot could be marked inactive
      */
-    boolean markSlotInactive(AllocationID allocationId, Time slotTimeout)
+    boolean markSlotInactive(AllocationID allocationId, Duration slotTimeout)
             throws SlotNotFoundException;
 
     /**

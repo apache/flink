@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -35,6 +34,7 @@ import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.core.Values;
+import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.calcite.rel.logical.LogicalFilter;
@@ -70,6 +70,7 @@ import org.apache.calcite.util.ReflectUtil;
 import org.apache.calcite.util.ReflectiveVisitor;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.mapping.Mappings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import javax.annotation.Nonnull;
 
@@ -121,9 +122,7 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
      * @return Decorrelate result.
      */
     public static Result decorrelateQuery(RelNode rootRel) {
-        int maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(rootRel);
-
-        final CorelMapBuilder builder = new CorelMapBuilder(maxCnfNodeCount);
+        final CorelMapBuilder builder = new CorelMapBuilder();
         final CorelMap corelMap = builder.build(rootRel);
         if (builder.hasNestedCorScope || builder.hasUnsupportedCorCondition) {
             return null;
@@ -139,9 +138,7 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
 
         final SubQueryDecorrelator decorrelator =
                 new SubQueryDecorrelator(
-                        new SubQueryRelDecorrelator(
-                                corelMap, relBuilder, rexBuilder, maxCnfNodeCount),
-                        relBuilder);
+                        new SubQueryRelDecorrelator(corelMap, relBuilder, rexBuilder), relBuilder);
         rootRel.accept(decorrelator);
 
         return new Result(decorrelator.subQueryMap);
@@ -262,13 +259,12 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
             final Set<CorrelationId> variableSet,
             final RexNode condition,
             final RexBuilder rexBuilder,
-            final int maxCnfNodeCount,
             final List<RexNode> corConditions,
             final List<RexNode> nonCorConditions,
             final List<RexNode> unsupportedCorConditions) {
         // converts the expanded expression to conjunctive normal form,
         // like "(a AND b) OR c" will be converted to "(a OR c) AND (b OR c)"
-        final RexNode cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, condition);
+        final RexNode cnf = FlinkRexUtil.toCnf(rexBuilder, condition);
         // converts the cnf condition to a list of AND conditions
         final List<RexNode> conjunctions = RelOptUtil.conjunctions(cnf);
         // `true` for RexNode is supported correlation condition,
@@ -416,14 +412,11 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
         private final ReflectUtil.MethodDispatcher<Frame> dispatcher =
                 ReflectUtil.createMethodDispatcher(
                         Frame.class, this, "decorrelateRel", RelNode.class);
-        private final int maxCnfNodeCount;
 
-        SubQueryRelDecorrelator(
-                CorelMap cm, RelBuilder relBuilder, RexBuilder rexBuilder, int maxCnfNodeCount) {
+        SubQueryRelDecorrelator(CorelMap cm, RelBuilder relBuilder, RexBuilder rexBuilder) {
             this.cm = cm;
             this.relBuilder = relBuilder;
             this.rexBuilder = rexBuilder;
-            this.maxCnfNodeCount = maxCnfNodeCount;
         }
 
         Frame getInvoke(RelNode r) {
@@ -451,7 +444,7 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
 
             // Project projects the original expressions,
             // plus any correlated variables the input wants to pass along.
-            final List<Pair<RexNode, String>> projects = new ArrayList<>();
+            final List<Pair<RexNode, ? extends @Nullable String>> projects = new ArrayList<>();
 
             // If this Project has correlated reference, produce the correlated variables in the new
             // output.
@@ -492,6 +485,7 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
                 }
             }
             RelNode newProject = RelOptUtil.createProject(newInput, projects, false);
+            newProject = ((LogicalProject) newProject).withHints(rel.getHints());
 
             final RexNode newCorCondition;
             if (frame.c != null) {
@@ -533,7 +527,6 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
                     cm.mapSubQueryNodeToCorSet.get(rel),
                     rel.getCondition(),
                     rexBuilder,
-                    maxCnfNodeCount,
                     corConditions,
                     nonCorConditions,
                     unsupportedCorConditions);
@@ -544,11 +537,13 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
 
             // Using LogicalFilter.create instead of RelBuilder.filter to create Filter
             // because RelBuilder.filter method does not have VariablesSet arg.
-            final LogicalFilter newFilter =
+            final RelNode newFilter =
                     LogicalFilter.create(
-                            frame.r,
-                            remainingCondition,
-                            com.google.common.collect.ImmutableSet.copyOf(rel.getVariablesSet()));
+                                    frame.r,
+                                    remainingCondition,
+                                    com.google.common.collect.ImmutableSet.copyOf(
+                                            rel.getVariablesSet()))
+                            .withHints(rel.getHints());
 
             // Adds input's correlation condition
             if (frame.c != null) {
@@ -589,7 +584,7 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
 
             // Project projects the original expressions,
             // plus any correlated variables the input wants to pass along.
-            final List<Pair<RexNode, String>> projects = new ArrayList<>();
+            final List<Pair<RexNode, ? extends @Nullable String>> projects = new ArrayList<>();
             final List<RelDataTypeField> newInputOutput = newInput.getRowType().getFieldList();
 
             // oldInput has the original group by keys in the front.
@@ -705,7 +700,8 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
             }
 
             relBuilder.push(
-                    LogicalAggregate.create(newProject, false, newGroupSet, null, newAggCalls));
+                    LogicalAggregate.create(
+                            newProject, rel.getHints(), newGroupSet, null, newAggCalls));
 
             if (!omittedConstants.isEmpty()) {
                 final List<RexNode> postProjects = new ArrayList<>(relBuilder.fields());
@@ -876,7 +872,9 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
             RelCollation oldCollation = rel.getCollation();
             RelCollation newCollation = RexUtil.apply(mapping, oldCollation);
 
-            final Sort newSort = LogicalSort.create(newInput, newCollation, rel.offset, rel.fetch);
+            final RelNode newSort =
+                    LogicalSort.create(newInput, newCollation, rel.offset, rel.fetch)
+                            .withHints(rel.getHints());
 
             // Sort does not change input ordering
             return new Frame(rel, newSort, frame.c, frame.oldToNewOutputs);
@@ -917,6 +915,9 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
                 if (!Util.equalShallow(oldInputs, newInputs)) {
                     newRel = rel.copy(rel.getTraitSet(), newInputs);
                 }
+                if (rel instanceof Hintable) {
+                    newRel = ((Hintable) newRel).withHints(((Hintable) rel).getHints());
+                }
             }
             // the output position should not change since there are no corVars coming from below.
             return new Frame(rel, newRel, null, identityMap(rel.getRowType().getFieldCount()));
@@ -947,7 +948,7 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
 
     /** Builds a {@link CorelMap}. */
     private static class CorelMapBuilder extends RelShuttleImpl {
-        private final int maxCnfNodeCount;
+
         // nested correlation variables in SubQuery, such as:
         // SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t2 WHERE t1.a = t2.c AND
         // t2.d IN (SELECT t3.d FROM t3 WHERE t1.b = t3.e)
@@ -965,10 +966,6 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
         boolean hasAggregateNode = false;
         // true if SubQuery rel tree has Over node, else false.
         boolean hasOverNode = false;
-
-        public CorelMapBuilder(int maxCnfNodeCount) {
-            this.maxCnfNodeCount = maxCnfNodeCount;
-        }
 
         final SortedMap<CorrelationId, RelNode> mapCorToCorRel = new TreeMap<>();
         final com.google.common.collect.SortedSetMultimap<RelNode, CorRef> mapRefRelToCorRef =
@@ -1143,7 +1140,6 @@ public class SubQueryDecorrelator extends RelShuttleImpl {
                         mapSubQueryNodeToCorSet.get(filter),
                         filter.getCondition(),
                         filter.getCluster().getRexBuilder(),
-                        maxCnfNodeCount,
                         corConditions,
                         new ArrayList<>(),
                         unsupportedCorConditions);

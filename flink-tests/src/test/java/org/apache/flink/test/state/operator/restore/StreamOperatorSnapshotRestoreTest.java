@@ -26,29 +26,32 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
-import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
-import org.apache.flink.runtime.state.LocalRecoveryDirectoryProviderImpl;
+import org.apache.flink.runtime.state.LocalSnapshotDirectoryProvider;
+import org.apache.flink.runtime.state.LocalSnapshotDirectoryProviderImpl;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
+import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.TestTaskStateManager;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.KeyContext;
@@ -58,6 +61,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.TestLogger;
@@ -70,7 +74,6 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -154,16 +157,16 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
         // -------------------------------------------------------------------------- snapshot
 
         StateBackend stateBackend;
-        FsStateBackend fsstateBackend = createStateBackendInternal();
+        HashMapStateBackend hashMapStateBackend = createStateBackendInternal();
         switch (stateBackendEnum) {
             case FILE:
-                stateBackend = fsstateBackend;
+                stateBackend = hashMapStateBackend;
                 break;
             case ROCKSDB_FULLY_ASYNC:
-                stateBackend = new RocksDBStateBackend(fsstateBackend, TernaryBoolean.FALSE);
+                stateBackend = new EmbeddedRocksDBStateBackend(TernaryBoolean.FALSE);
                 break;
             case ROCKSDB_INCREMENTAL:
-                stateBackend = new RocksDBStateBackend(fsstateBackend, TernaryBoolean.TRUE);
+                stateBackend = new EmbeddedRocksDBStateBackend(TernaryBoolean.TRUE);
                 break;
             default:
                 throw new IllegalStateException(
@@ -176,13 +179,16 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
         JobVertexID jobVertexID = new JobVertexID();
         int subtaskIdx = 0;
 
-        LocalRecoveryDirectoryProvider directoryProvider =
+        LocalSnapshotDirectoryProvider directoryProvider =
                 mode == ONLY_JM_RECOVERY
                         ? null
-                        : new LocalRecoveryDirectoryProviderImpl(
+                        : new LocalSnapshotDirectoryProviderImpl(
                                 temporaryFolder.newFolder(), jobID, jobVertexID, subtaskIdx);
 
-        LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(directoryProvider);
+        LocalRecoveryConfig localRecoveryConfig =
+                (directoryProvider == null)
+                        ? LocalRecoveryConfig.BACKUP_AND_RECOVERY_DISABLED
+                        : LocalRecoveryConfig.backupAndRecoveryEnabled(directoryProvider);
 
         MockEnvironment mockEnvironment =
                 new MockEnvironmentBuilder()
@@ -206,6 +212,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                         mockEnvironment);
 
         testHarness.setStateBackend(stateBackend);
+        testHarness.setCheckpointStorage(new JobManagerCheckpointStorage());
         testHarness.open();
 
         for (int i = 0; i < 10; ++i) {
@@ -232,11 +239,14 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                 new InternalTimeServiceManager.Provider() {
                     @Override
                     public <K> InternalTimeServiceManager<K> create(
-                            CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+                            TaskIOMetricGroup taskIOMetricGroup,
+                            PriorityQueueSetFactory factory,
+                            KeyGroupRange keyGroupRange,
                             ClassLoader userClassloader,
                             KeyContext keyContext,
                             ProcessingTimeService processingTimeService,
-                            Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates)
+                            Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
+                            StreamTaskCancellationContext cancellationContext)
                             throws IOException {
                         return null;
                     }
@@ -269,9 +279,8 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
         testHarness.close();
     }
 
-    private FsStateBackend createStateBackendInternal() throws IOException {
-        File checkpointDir = temporaryFolder.newFolder();
-        return new FsStateBackend(checkpointDir.toURI());
+    private HashMapStateBackend createStateBackendInternal() throws IOException {
+        return new HashMapStateBackend();
     }
 
     static class TestOneInputStreamOperator extends AbstractStreamOperator<Integer>

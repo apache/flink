@@ -69,6 +69,25 @@ final class RequiredDistributionJsonDeserializer extends StdDeserializer<Require
                     keys[i] = keysNode.get(i).asInt();
                 }
                 return InputProperty.hashDistribution(keys);
+            case KEEP_INPUT_AS_IS:
+                JsonNode inputDistributionNode = jsonNode.get("inputDistribution");
+                if (inputDistributionNode == null) {
+                    throw new TableException(
+                            "KeepInputAsIs distribution requires non-empty "
+                                    + "inputDistribution field.");
+                }
+                RequiredDistribution inputDistribution =
+                        inputDistributionNode
+                                .traverse(jsonParser.getCodec())
+                                .readValueAs(RequiredDistribution.class);
+
+                JsonNode isStrictNode = jsonNode.get("isStrict");
+                if (isStrictNode == null) {
+                    throw new TableException(
+                            "KeepInputAsIs distribution requires non-empty isStrict field.");
+                }
+                boolean isStrict = isStrictNode.asBoolean();
+                return InputProperty.keepInputAsIsDistribution(inputDistribution, isStrict);
             default:
                 throw new TableException("Unsupported distribution type: " + type);
         }

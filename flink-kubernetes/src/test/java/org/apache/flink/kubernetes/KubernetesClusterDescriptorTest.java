@@ -24,6 +24,7 @@ import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -32,6 +33,9 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
+import org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
@@ -44,6 +48,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.concurrent.Executors;
 
 import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_IP_ADDRESS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -69,7 +74,20 @@ class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     protected void onSetup() throws Exception {
         super.onSetup();
 
-        descriptor = new KubernetesClusterDescriptor(flinkConfig, flinkKubeClient);
+        descriptor =
+                new KubernetesClusterDescriptor(
+                        flinkConfig,
+                        new FlinkKubeClientFactory() {
+                            @Override
+                            public FlinkKubeClient fromConfiguration(
+                                    Configuration flinkConfig, String useCase) {
+                                return new Fabric8FlinkKubeClient(
+                                        flinkConfig,
+                                        server.createClient().inNamespace(NAMESPACE),
+                                        Executors.newSingleThreadScheduledExecutor());
+                            }
+                        },
+                        config -> {});
     }
 
     @Test
@@ -84,8 +102,7 @@ class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     @Test
     void testDeployHighAvailabilitySessionCluster() throws ClusterDeploymentException {
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.SESSION.getName());
-        flinkConfig.setString(
-                HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.toString());
+        flinkConfig.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.toString());
         final ClusterClient<String> clusterClient = deploySessionCluster().getClusterClient();
         checkClusterClient(clusterClient);
 
@@ -141,18 +158,18 @@ class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
     }
 
     @Test
-    void testDeployApplicationClusterWithNonLocalSchema() {
-        flinkConfig.set(
-                PipelineOptions.JARS, Collections.singletonList("file:///path/of/user.jar"));
+    void testDeployApplicationClusterWithoutJar() {
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.APPLICATION.getName());
-        assertThatThrownBy(
-                        () -> descriptor.deployApplicationCluster(clusterSpecification, appConfig))
-                .satisfies(
-                        cause ->
-                                assertThat(cause)
-                                        .isInstanceOf(IllegalArgumentException.class)
-                                        .hasMessageContaining(
-                                                "Only \"local\" is supported as schema for application mode."));
+        try {
+            descriptor.deployApplicationCluster(clusterSpecification, appConfig);
+        } catch (Exception ignored) {
+        }
+
+        mockExpectedServiceFromServerSide(loadBalancerSvc);
+        final ClusterClient<String> clusterClient =
+                descriptor.retrieve(CLUSTER_ID).getClusterClient();
+        checkClusterClient(clusterClient);
+        checkUpdatedConfigAndResourceSetting();
     }
 
     @Test
@@ -200,7 +217,7 @@ class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
                         cause ->
                                 assertThat(cause)
                                         .isInstanceOf(IllegalArgumentException.class)
-                                        .hasMessageContaining("Should only have one jar"));
+                                        .hasMessageContaining("Should only have at most one jar"));
     }
 
     @Test
@@ -238,11 +255,11 @@ class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 
     private void checkUpdatedConfigAndResourceSetting() {
         // Check updated flink config options
-        assertThat(flinkConfig.getString(BlobServerOptions.PORT))
+        assertThat(flinkConfig.get(BlobServerOptions.PORT))
                 .isEqualTo(String.valueOf(Constants.BLOB_SERVER_PORT));
-        assertThat(flinkConfig.getString(TaskManagerOptions.RPC_PORT))
+        assertThat(flinkConfig.get(TaskManagerOptions.RPC_PORT))
                 .isEqualTo(String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
-        assertThat(flinkConfig.getString(JobManagerOptions.ADDRESS))
+        assertThat(flinkConfig.get(JobManagerOptions.ADDRESS))
                 .isEqualTo(
                         InternalServiceDecorator.getNamespacedInternalServiceName(
                                 CLUSTER_ID, NAMESPACE));

@@ -23,6 +23,8 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
+import java.time.Duration;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /** The set of configuration options relating to heartbeat manager settings. */
@@ -31,24 +33,26 @@ public class HeartbeatManagerOptions {
 
     /** Time interval for requesting heartbeat from sender side. */
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
-    public static final ConfigOption<Long> HEARTBEAT_INTERVAL =
+    public static final ConfigOption<Duration> HEARTBEAT_INTERVAL =
             key("heartbeat.interval")
-                    .longType()
-                    .defaultValue(10000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(10000L))
                     .withDescription(
                             "Time interval between heartbeat RPC requests from the sender to the receiver side.");
 
     /** Timeout for requesting and receiving heartbeat for both sender and receiver sides. */
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
-    public static final ConfigOption<Long> HEARTBEAT_TIMEOUT =
+    public static final ConfigOption<Duration> HEARTBEAT_TIMEOUT =
             key("heartbeat.timeout")
-                    .longType()
-                    .defaultValue(50000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(50000L))
                     .withDescription(
                             "Timeout for requesting and receiving heartbeats for both sender and receiver sides.");
 
     private static final String HEARTBEAT_RPC_FAILURE_THRESHOLD_KEY =
             "heartbeat.rpc-failure-threshold";
+
+    public static final int FAILED_RPC_DETECTION_DISABLED = -1;
 
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Integer> HEARTBEAT_RPC_FAILURE_THRESHOLD =
@@ -68,7 +72,9 @@ public class HeartbeatManagerOptions {
                                             TextElement.code(HEARTBEAT_RPC_FAILURE_THRESHOLD_KEY),
                                             TextElement.code(HEARTBEAT_TIMEOUT.key()),
                                             TextElement.code(HEARTBEAT_INTERVAL.key()),
-                                            TextElement.code("-1"))
+                                            TextElement.code(
+                                                    Integer.toString(
+                                                            FAILED_RPC_DETECTION_DISABLED)))
                                     .build());
 
     // ------------------------------------------------------------------------

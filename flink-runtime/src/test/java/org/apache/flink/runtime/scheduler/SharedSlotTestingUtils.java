@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 class SharedSlotTestingUtils {
@@ -25,7 +26,7 @@ class SharedSlotTestingUtils {
 
     static ExecutionSlotSharingGroup createExecutionSlotSharingGroup(
             ExecutionVertexID... executions) {
-        ExecutionSlotSharingGroup group = new ExecutionSlotSharingGroup();
+        ExecutionSlotSharingGroup group = new ExecutionSlotSharingGroup(new SlotSharingGroup());
         for (ExecutionVertexID execution : executions) {
             group.addVertex(execution);
         }

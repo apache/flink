@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.rules.logical.subquery
 
 import org.apache.flink.table.planner.calcite.CalciteConfig
+import org.apache.flink.table.planner.hint.FlinkHintStrategies
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableConfigUtils, TableTestBase}
 
@@ -35,7 +36,8 @@ class SubQueryTestBase extends TableTestBase {
       .config()
       .withTrimUnusedFields(false)
       .withExpand(false)
-      .withInSubQueryThreshold(3))
+      .withInSubQueryThreshold(3)
+      .withHintStrategyTable(FlinkHintStrategies.createHintStrategyTable()))
 
   util.tableEnv.getConfig.setPlannerConfig(builder.build())
 }

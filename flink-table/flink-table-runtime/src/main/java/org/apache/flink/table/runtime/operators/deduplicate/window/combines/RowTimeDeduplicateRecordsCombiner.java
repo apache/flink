@@ -22,17 +22,17 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.operators.window.combines.RecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.slicing.WindowTimerService;
-import org.apache.flink.table.runtime.operators.window.state.StateKeyContext;
-import org.apache.flink.table.runtime.operators.window.state.WindowState;
-import org.apache.flink.table.runtime.operators.window.state.WindowValueState;
+import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
+import org.apache.flink.table.runtime.operators.window.tvf.state.StateKeyContext;
+import org.apache.flink.table.runtime.operators.window.tvf.state.WindowState;
+import org.apache.flink.table.runtime.operators.window.tvf.state.WindowValueState;
 import org.apache.flink.table.runtime.util.WindowKey;
 
 import java.util.Iterator;
 
 import static org.apache.flink.table.data.util.RowDataUtil.isAccumulateMsg;
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.isDuplicate;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.shouldKeepCurrentRow;
 
 /**
  * An implementation of {@link RecordsCombiner} that stores the first/last records of incremental
@@ -82,7 +82,7 @@ public final class RowTimeDeduplicateRecordsCombiner implements RecordsCombiner 
                         "Window deduplicate does not support input RowKind: "
                                 + record.getRowKind().shortString());
             }
-            if (isDuplicate(bufferedResult, record, rowtimeIndex, keepLastRow)) {
+            if (shouldKeepCurrentRow(bufferedResult, record, rowtimeIndex, keepLastRow)) {
                 // the incoming record is reused, we should copy it
                 bufferedResult = recordSerializer.copy(record);
             }
@@ -94,7 +94,7 @@ public final class RowTimeDeduplicateRecordsCombiner implements RecordsCombiner 
         keyContext.setCurrentKey(windowKey.getKey());
         Long window = windowKey.getWindow();
         RowData preRow = dataState.value(window);
-        if (isDuplicate(preRow, bufferedResult, rowtimeIndex, keepLastRow)) {
+        if (shouldKeepCurrentRow(preRow, bufferedResult, rowtimeIndex, keepLastRow)) {
             dataState.update(window, bufferedResult);
         }
         // step 3: register timer for current window

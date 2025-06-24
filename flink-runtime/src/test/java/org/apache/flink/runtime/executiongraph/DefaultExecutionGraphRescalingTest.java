@@ -27,31 +27,30 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * This class contains tests that verify when rescaling a {@link JobGraph}, constructed {@link
  * ExecutionGraph}s are correct.
  */
-public class DefaultExecutionGraphRescalingTest extends TestLogger {
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+class DefaultExecutionGraphRescalingTest {
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     @Test
-    public void testExecutionGraphArbitraryDopConstructionTest() throws Exception {
+    void testExecutionGraphArbitraryDopConstructionTest() throws Exception {
 
         final int initialParallelism = 5;
         final int maxParallelism = 10;
@@ -65,7 +64,7 @@ public class DefaultExecutionGraphRescalingTest extends TestLogger {
                         .build(EXECUTOR_RESOURCE.getExecutor());
 
         for (JobVertex jv : jobVertices) {
-            assertThat(jv.getParallelism(), is(initialParallelism));
+            assertThat(jv.getParallelism()).isEqualTo(initialParallelism);
         }
         verifyGeneratedExecutionGraphOfSimpleBitartiteJobGraph(eg, jobVertices);
 
@@ -83,7 +82,7 @@ public class DefaultExecutionGraphRescalingTest extends TestLogger {
                         .build(EXECUTOR_RESOURCE.getExecutor());
 
         for (JobVertex jv : jobVertices) {
-            assertThat(jv.getParallelism(), is(1));
+            assertThat(jv.getParallelism()).isOne();
         }
         verifyGeneratedExecutionGraphOfSimpleBitartiteJobGraph(eg, jobVertices);
 
@@ -101,7 +100,7 @@ public class DefaultExecutionGraphRescalingTest extends TestLogger {
                         .build(EXECUTOR_RESOURCE.getExecutor());
 
         for (JobVertex jv : jobVertices) {
-            assertThat(jv.getParallelism(), is(scaleUpParallelism));
+            assertThat(jv.getParallelism()).isEqualTo(scaleUpParallelism);
         }
         verifyGeneratedExecutionGraphOfSimpleBitartiteJobGraph(eg, jobVertices);
     }
@@ -111,8 +110,7 @@ public class DefaultExecutionGraphRescalingTest extends TestLogger {
      * higher than the maximum parallelism fails.
      */
     @Test
-    public void testExecutionGraphConstructionFailsRescaleDopExceedMaxParallelism()
-            throws Exception {
+    void testExecutionGraphConstructionFailsRescaleDopExceedMaxParallelism() throws Exception {
 
         final Configuration config = new Configuration();
 
@@ -155,16 +153,16 @@ public class DefaultExecutionGraphRescalingTest extends TestLogger {
             jobVertex.setMaxParallelism(maxParallelism);
         }
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v4.connectNewDataSetAsInput(
-                v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v4.connectNewDataSetAsInput(
-                v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v5.connectNewDataSetAsInput(
-                v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v5.connectNewDataSetAsInput(
-                v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v4, v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v4, v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v5, v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v5, v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
         return jobVertices;
     }

@@ -19,7 +19,9 @@ package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import com.esotericsoftware.kryo.Kryo;
 
-/** Interface for flink-core to interact with the FlinkChillPackageRegistrar in flink-java. */
+/**
+ * Interface for flink-core to interact with the FlinkChillPackageRegistrar in flink-streaming-java.
+ */
 public interface ChillSerializerRegistrar {
     /**
      * Registers all serializers with the given {@link Kryo}. All serializers are registered with

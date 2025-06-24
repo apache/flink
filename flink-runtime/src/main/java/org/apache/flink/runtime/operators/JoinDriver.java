@@ -139,7 +139,7 @@ public class JoinDriver<IT1, IT2, OT> implements Driver<FlatJoinFunction<IT1, IT
                 taskContext
                         .getTaskManagerInfo()
                         .getConfiguration()
-                        .getBoolean(AlgorithmOptions.HASH_JOIN_BLOOM_FILTERS);
+                        .get(AlgorithmOptions.HASH_JOIN_BLOOM_FILTERS);
 
         // create and return joining iterator according to provided local strategy.
         if (objectReuseEnabled) {

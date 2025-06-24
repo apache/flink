@@ -23,12 +23,15 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonValue;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DatabindContext;
+
+import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nullable;
 
@@ -102,6 +105,9 @@ public final class ExecNodeContext {
     public ExecNodeContext(String value) {
         this.id = null;
         String[] split = value.split("_");
+        if ("null".equals(split[0]) || "null".equals(split[1])) {
+            throw new TableException(String.format("Unsupported exec node type: '%s'.", value));
+        }
         this.name = split[0];
         this.version = Integer.valueOf(split[1]);
     }
@@ -122,7 +128,7 @@ public final class ExecNodeContext {
     }
 
     /** Returns a new {@code uid} for transformations. */
-    public String generateUid(String transformationName) {
+    public String generateUid(String transformationName, ExecNodeConfig config) {
         if (!transformationNamePattern.matcher(transformationName).matches()) {
             throw new TableException(
                     "Invalid transformation name '"
@@ -130,7 +136,20 @@ public final class ExecNodeContext {
                             + "'. "
                             + "This is a bug, please file an issue.");
         }
-        return String.format("%s_%s_%s", getId(), getTypeAsString(), transformationName);
+        final String uidPattern = config.get(ExecutionConfigOptions.TABLE_EXEC_UID_FORMAT);
+        // Note: name and version are not included in the UID by default as they would prevent
+        // migration.
+        // No version because: An operator can change its state layout and bump up the ExecNode
+        // version, in this case the UID should still be able to map state even after plan
+        // migration to the new version.
+        // No name because: We might fuse operators in the future, and a new operator might
+        // subscribe to multiple old UIDs.
+        return StringUtils.replaceEach(
+                uidPattern,
+                new String[] {"<id>", "<type>", "<version>", "<transformation>"},
+                new String[] {
+                    String.valueOf(id), name, String.valueOf(version), transformationName
+                });
     }
 
     /**
@@ -151,12 +170,19 @@ public final class ExecNodeContext {
      */
     @JsonValue
     public String getTypeAsString() {
+        if (name == null || version == null) {
+            throw new TableException(
+                    String.format(
+                            "Can not serialize ExecNode with id: %d. Missing type, this is a bug,"
+                                    + " please file a ticket.",
+                            getId()));
+        }
         return name + "_" + version;
     }
 
     @Override
     public String toString() {
-        return getId() + "_" + getTypeAsString();
+        return getId() + "_" + getName() + "_" + getVersion();
     }
 
     public static <T extends ExecNode<?>> ExecNodeContext newContext(Class<T> execNodeClass) {
@@ -165,7 +191,8 @@ public final class ExecNodeContext {
             if (!ExecNodeMetadataUtil.isUnsupported(execNodeClass)) {
                 throw new IllegalStateException(
                         String.format(
-                                "ExecNode: %s is not listed in the unsupported classes since it is not annotated with: %s.",
+                                "ExecNode: %s is not listed in the unsupported classes and"
+                                        + " it is not annotated with: %s.",
                                 execNodeClass.getCanonicalName(),
                                 ExecNodeMetadata.class.getSimpleName()));
             }

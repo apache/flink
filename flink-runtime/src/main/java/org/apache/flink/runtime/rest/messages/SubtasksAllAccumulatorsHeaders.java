@@ -26,7 +26,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Message headers for the {@link SubtasksAllAccumulatorsHandler}. */
 public class SubtasksAllAccumulatorsHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 EmptyRequestBody, SubtasksAllAccumulatorsInfo, JobVertexMessageParameters> {
 
     private static final SubtasksAllAccumulatorsHeaders INSTANCE =

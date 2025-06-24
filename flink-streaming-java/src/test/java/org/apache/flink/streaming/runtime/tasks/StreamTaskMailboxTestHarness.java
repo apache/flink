@@ -29,7 +29,7 @@ import java.util.Queue;
 import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test harness for testing a {@link StreamTask}.
@@ -167,6 +167,10 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
         streamTask.cleanUp(null);
     }
 
+    public void cancel() throws Exception {
+        streamTask.cancel();
+    }
+
     @Override
     public void close() throws Exception {
         if (streamTask.isRunning()) {
@@ -177,9 +181,9 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
         streamMockEnvironment.getIOManager().close();
         MemoryManager memMan = this.streamMockEnvironment.getMemoryManager();
         if (memMan != null) {
-            assertTrue(
-                    "Memory Manager managed memory was not completely freed.",
-                    memMan.verifyEmpty());
+            assertThat(memMan.verifyEmpty())
+                    .as("Memory Manager managed memory was not completely freed.")
+                    .isTrue();
             memMan.shutdown();
         }
     }
@@ -190,5 +194,9 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
 
     public TestCheckpointResponder getCheckpointResponder() {
         return (TestCheckpointResponder) taskStateManager.getCheckpointResponder();
+    }
+
+    public StreamMockEnvironment getStreamMockEnvironment() {
+        return streamMockEnvironment;
     }
 }

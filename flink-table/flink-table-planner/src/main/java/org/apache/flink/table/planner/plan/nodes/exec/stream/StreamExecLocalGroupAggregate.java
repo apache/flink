@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.plan.utils.MinibatchUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -139,7 +140,8 @@ public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
 
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(
+                                config, planner.getFlinkContext().getClassLoader()),
                         planner.createRelBuilder(),
                         JavaScalaConversionUtil.toScala(inputRowType.getChildren()),
                         // the local aggregate result will be buffered, so need copy
@@ -165,17 +167,20 @@ public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
 
         final RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(
-                        grouping, (InternalTypeInfo<RowData>) inputTransform.getOutputType());
+                        planner.getFlinkContext().getClassLoader(),
+                        grouping,
+                        (InternalTypeInfo<RowData>) inputTransform.getOutputType());
 
         final MapBundleOperator<RowData, RowData, RowData, RowData> operator =
                 new MapBundleOperator<>(
-                        aggFunction, AggregateUtil.createMiniBatchTrigger(config), selector);
+                        aggFunction, MinibatchUtil.createMiniBatchTrigger(config), selector);
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
                 createTransformationMeta(LOCAL_GROUP_AGGREGATE_TRANSFORMATION, config),
                 operator,
                 InternalTypeInfo.of(getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

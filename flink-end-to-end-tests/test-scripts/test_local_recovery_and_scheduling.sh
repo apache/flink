@@ -73,6 +73,8 @@ function run_local_recovery_test {
     TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-local-recovery-and-allocation-test/target/StickyAllocationAndLocalRecoveryTestJob.jar
     # configure for HA
     create_ha_config
+    # required for PID business in StickyAllocationAndLocalRecoveryTestJob
+    set_config_key env.java.opts.taskmanager "--add-opens=java.management/sun.management=ALL-UNNAMED"
 
     # Enable debug logging
     sed -i -e 's/rootLogger.level = .*/rootLogger.level = DEBUG/' "$FLINK_DIR/conf/log4j.properties"

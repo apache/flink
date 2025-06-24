@@ -45,18 +45,17 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.types.utils.LogicalTypeDataTypeConverter;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.Variant;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
@@ -66,6 +65,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -98,6 +98,7 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.DataTypes.VARCHAR;
+import static org.apache.flink.table.api.DataTypes.VARIANT;
 import static org.apache.flink.table.test.TableAssertions.assertThat;
 import static org.apache.flink.table.types.logical.DayTimeIntervalType.DEFAULT_DAY_PRECISION;
 import static org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution.MINUTE_TO_SECOND;
@@ -105,12 +106,10 @@ import static org.apache.flink.table.types.utils.DataTypeFactoryMock.dummyRaw;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DataTypes} and {@link LogicalTypeDataTypeConverter}. */
-@RunWith(Parameterized.class)
-public class DataTypesTest {
+class DataTypesTest {
 
-    @Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        return Arrays.asList(
+    private static Stream<TestSpec> testData() {
+        return Stream.of(
                 TestSpec.forDataType(CHAR(2))
                         .expectLogicalType(new CharType(2))
                         .expectConversionClass(String.class),
@@ -222,6 +221,9 @@ public class DataTypesTest {
                 TestSpec.forDataType(RAW(Void.class, VoidSerializer.INSTANCE))
                         .expectLogicalType(new RawType<>(Void.class, VoidSerializer.INSTANCE))
                         .expectConversionClass(Void.class),
+                TestSpec.forDataType(VARIANT())
+                        .expectLogicalType(new VariantType())
+                        .expectConversionClass(Variant.class),
                 TestSpec.forUnresolvedDataType(RAW(Types.VOID))
                         .expectUnresolvedString("[RAW('java.lang.Void', '?')]")
                         .lookupReturns(dummyRaw(Void.class))
@@ -291,13 +293,15 @@ public class DataTypesTest {
                 TestSpec.forUnresolvedDataType(DataTypes.of(Types.ENUM(DayOfWeek.class)))
                         .expectUnresolvedString("['EnumTypeInfo<java.time.DayOfWeek>']")
                         .lookupReturns(dummyRaw(DayOfWeek.class))
-                        .expectResolvedDataType(dummyRaw(DayOfWeek.class)));
+                        .expectResolvedDataType(dummyRaw(DayOfWeek.class)),
+                TestSpec.forUnresolvedDataType(DataTypes.of(Variant.class))
+                        .expectUnresolvedString("['org.apache.flink.types.variant.Variant']")
+                        .expectResolvedDataType(VARIANT()));
     }
 
-    @Parameter public TestSpec testSpec;
-
-    @Test
-    public void testLogicalType() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testLogicalType(TestSpec testSpec) {
         if (testSpec.expectedLogicalType != null) {
             final DataType dataType =
                     testSpec.typeFactory.createDataType(testSpec.abstractDataType);
@@ -309,16 +313,18 @@ public class DataTypesTest {
         }
     }
 
-    @Test
-    public void testConversionClass() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testConversionClass(TestSpec testSpec) {
         if (testSpec.expectedConversionClass != null) {
             assertThat(testSpec.typeFactory.createDataType(testSpec.abstractDataType))
                     .hasConversionClass(testSpec.expectedConversionClass);
         }
     }
 
-    @Test
-    public void testChildren() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testChildren(TestSpec testSpec) {
         if (testSpec.expectedChildren != null) {
             assertThat(testSpec.typeFactory.createDataType(testSpec.abstractDataType))
                     .getChildren()
@@ -326,16 +332,18 @@ public class DataTypesTest {
         }
     }
 
-    @Test
-    public void testUnresolvedString() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testUnresolvedString(TestSpec testSpec) {
         if (testSpec.expectedUnresolvedString != null) {
             assertThat(testSpec.abstractDataType.toString())
                     .isEqualTo(testSpec.expectedUnresolvedString);
         }
     }
 
-    @Test
-    public void testResolvedDataType() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testResolvedDataType(TestSpec testSpec) {
         if (testSpec.expectedResolvedDataType != null) {
             assertThat(testSpec.typeFactory.createDataType(testSpec.abstractDataType))
                     .isEqualTo(testSpec.expectedResolvedDataType);

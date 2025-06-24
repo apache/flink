@@ -21,9 +21,9 @@ package org.apache.flink.state.changelog;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.state.InternalKeyContext;
 import org.apache.flink.runtime.state.changelog.StateChange;
-import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.state.changelog.restore.ChangelogApplierFactory;
@@ -35,6 +35,7 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Delegated partitioned {@link MapState} that forwards changes to {@link StateChange} upon {@link
@@ -82,6 +83,16 @@ class ChangelogMapState<K, N, UK, UV>
                     ExceptionUtils.rethrow(e);
                 }
                 return oldValue;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (!(o instanceof Map.Entry)) {
+                    return false;
+                }
+                Map.Entry<?, ?> e = (Map.Entry<?, ?>) o;
+                return Objects.equals(entry.getKey(), e.getKey())
+                        && Objects.equals(entry.getValue(), e.getValue());
             }
         };
     }
@@ -199,15 +210,15 @@ class ChangelogMapState<K, N, UK, UV>
         }
     }
 
-    private void serializeValue(UV value, DataOutputViewStreamWrapper out) throws IOException {
+    private void serializeValue(UV value, DataOutputView out) throws IOException {
         getMapSerializer().getValueSerializer().serialize(value, out);
     }
 
-    private void serializeKey(UK key, DataOutputViewStreamWrapper out) throws IOException {
+    private void serializeKey(UK key, DataOutputView out) throws IOException {
         getMapSerializer().getKeySerializer().serialize(key, out);
     }
 
-    private ThrowingConsumer<DataOutputViewStreamWrapper, IOException> getWriter(UK key, UV value) {
+    private ThrowingConsumer<DataOutputView, IOException> getWriter(UK key, UV value) {
         return out -> {
             serializeKey(key, out);
             serializeValue(value, out);

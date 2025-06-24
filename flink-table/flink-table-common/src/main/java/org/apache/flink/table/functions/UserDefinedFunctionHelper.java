@@ -36,6 +36,7 @@ import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.python.utils.PythonFunctionUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.ExtractionUtils;
+import org.apache.flink.table.types.extraction.ExtractionUtils.Autoboxing;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -44,10 +45,13 @@ import javax.annotation.Nullable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
@@ -66,6 +70,8 @@ public final class UserDefinedFunctionHelper {
     // method names of code generated UDFs
 
     public static final String SCALAR_EVAL = "eval";
+
+    public static final String ASYNC_SCALAR_EVAL = "eval";
 
     public static final String TABLE_EVAL = "eval";
 
@@ -86,6 +92,12 @@ public final class UserDefinedFunctionHelper {
     public static final String TABLE_AGGREGATE_EMIT_RETRACT = "emitUpdateWithRetract";
 
     public static final String ASYNC_TABLE_EVAL = "eval";
+
+    public static final String PROCESS_TABLE_EVAL = "eval";
+
+    public static final String PROCESS_TABLE_ON_TIMER = "onTimer";
+
+    public static final String DEFAULT_ACCUMULATOR_NAME = "acc";
 
     /**
      * Tries to infer the TypeInformation of an AggregateFunction's accumulator type.
@@ -315,9 +327,13 @@ public final class UserDefinedFunctionHelper {
                 methods.stream()
                         .anyMatch(
                                 method ->
-                                        ExtractionUtils.isInvokable(method, argumentClasses)
+                                        // Strict autoboxing is disabled for backwards compatibility
+                                        ExtractionUtils.isInvokable(
+                                                        Autoboxing.JVM, method, argumentClasses)
                                                 && ExtractionUtils.isAssignable(
-                                                        outputClass, method.getReturnType(), true));
+                                                        outputClass,
+                                                        method.getReturnType(),
+                                                        Autoboxing.JVM));
         if (!isMatching) {
             throw new ValidationException(
                     String.format(
@@ -459,6 +475,9 @@ public final class UserDefinedFunctionHelper {
             Class<? extends UserDefinedFunction> functionClass) {
         if (ScalarFunction.class.isAssignableFrom(functionClass)) {
             validateImplementationMethod(functionClass, false, false, SCALAR_EVAL);
+        } else if (AsyncScalarFunction.class.isAssignableFrom(functionClass)) {
+            validateImplementationMethod(functionClass, false, false, ASYNC_SCALAR_EVAL);
+            validateAsyncImplementationMethod(functionClass, ASYNC_SCALAR_EVAL);
         } else if (TableFunction.class.isAssignableFrom(functionClass)) {
             validateImplementationMethod(functionClass, true, false, TABLE_EVAL);
         } else if (AsyncTableFunction.class.isAssignableFrom(functionClass)) {
@@ -518,6 +537,40 @@ public final class UserDefinedFunctionHelper {
                             nameSet.stream()
                                     .map(s -> "'" + s + "'")
                                     .collect(Collectors.joining(" or "))));
+        }
+    }
+
+    private static void validateAsyncImplementationMethod(
+            Class<? extends UserDefinedFunction> clazz, String... methodNameOptions) {
+        final Set<String> nameSet = new HashSet<>(Arrays.asList(methodNameOptions));
+        final List<Method> methods = getAllDeclaredMethods(clazz);
+        for (Method method : methods) {
+            if (!nameSet.contains(method.getName())) {
+                continue;
+            }
+            if (!method.getReturnType().equals(Void.TYPE)) {
+                throw new ValidationException(
+                        String.format(
+                                "Method '%s' of function class '%s' must be void.",
+                                method.getName(), clazz.getName()));
+            }
+            boolean foundParam = false;
+            if (method.getParameterCount() >= 1) {
+                Type firstParam = method.getGenericParameterTypes()[0];
+                firstParam = ExtractionUtils.resolveVariableWithClassContext(clazz, firstParam);
+                if (CompletableFuture.class.equals(firstParam)
+                        || firstParam instanceof ParameterizedType
+                                && CompletableFuture.class.equals(
+                                        ((ParameterizedType) firstParam).getRawType())) {
+                    foundParam = true;
+                }
+            }
+            if (!foundParam) {
+                throw new ValidationException(
+                        String.format(
+                                "Method '%s' of function class '%s' must have a first argument of type java.util.concurrent.CompletableFuture.",
+                                method.getName(), clazz.getName()));
+            }
         }
     }
 

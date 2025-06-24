@@ -57,6 +57,7 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider.JDK;
 import static org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslProvider.OPENSSL;
@@ -109,8 +110,8 @@ public class SSLUtils {
 
         return new SSLHandlerFactory(
                 sslContext,
-                config.getInteger(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT),
-                config.getInteger(SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT));
+                config.get(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT),
+                config.get(SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT));
     }
 
     /** Creates a SSLEngineFactory to be used by internal communication client endpoints. */
@@ -124,8 +125,8 @@ public class SSLUtils {
 
         return new SSLHandlerFactory(
                 sslContext,
-                config.getInteger(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT),
-                config.getInteger(SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT));
+                config.get(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT),
+                config.get(SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT));
     }
 
     /**
@@ -168,18 +169,18 @@ public class SSLUtils {
 
     private static String[] getEnabledProtocols(final Configuration config) {
         checkNotNull(config, "config must not be null");
-        return config.getString(SecurityOptions.SSL_PROTOCOL).split(",");
+        return config.get(SecurityOptions.SSL_PROTOCOL).split(",");
     }
 
     private static String[] getEnabledCipherSuites(final Configuration config) {
         checkNotNull(config, "config must not be null");
-        return config.getString(SecurityOptions.SSL_ALGORITHMS).split(",");
+        return config.get(SecurityOptions.SSL_ALGORITHMS).split(",");
     }
 
     @VisibleForTesting
     static SslProvider getSSLProvider(final Configuration config) {
         checkNotNull(config, "config must not be null");
-        String providerString = config.getString(SecurityOptions.SSL_PROVIDER);
+        String providerString = config.get(SecurityOptions.SSL_PROVIDER);
         if (providerString.equalsIgnoreCase("OPENSSL")) {
             if (OpenSsl.isAvailable()) {
                 return OPENSSL;
@@ -194,33 +195,58 @@ public class SSLUtils {
         }
     }
 
-    private static TrustManagerFactory getTrustManagerFactory(
+    private static Optional<TrustManagerFactory> getTrustManagerFactory(
             Configuration config, boolean internal)
             throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException {
+
         String trustStoreFilePath =
-                getAndCheckOption(
-                        config,
+                config.get(
                         internal
                                 ? SecurityOptions.SSL_INTERNAL_TRUSTSTORE
                                 : SecurityOptions.SSL_REST_TRUSTSTORE,
-                        SecurityOptions.SSL_TRUSTSTORE);
+                        config.get(SecurityOptions.SSL_TRUSTSTORE));
 
         String trustStorePassword =
-                getAndCheckOption(
-                        config,
+                config.get(
                         internal
                                 ? SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD
                                 : SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD,
-                        SecurityOptions.SSL_TRUSTSTORE_PASSWORD);
+                        config.get(SecurityOptions.SSL_TRUSTSTORE_PASSWORD));
+        // do not use getAndCheckOption here as there is no fallback option and a default is
+        // specified
+        String truststoreType =
+                internal
+                        ? config.get(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_TYPE)
+                        : config.get(SecurityOptions.SSL_REST_TRUSTSTORE_TYPE);
 
-        KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        // Support for the REST client connecting to external HTTPS URLs to fall back to the
+        // default trust store of the provider (JDK).
+        if (!internal && trustStoreFilePath == null && trustStorePassword == null) {
+            return Optional.empty();
+        } else if (trustStoreFilePath == null) {
+            throw new IllegalConfigurationException(
+                    "The config option "
+                            + SecurityOptions.SSL_INTERNAL_TRUSTSTORE.key()
+                            + " or "
+                            + SecurityOptions.SSL_TRUSTSTORE.key()
+                            + " is missing.");
+        } else if (trustStorePassword == null) {
+            throw new IllegalConfigurationException(
+                    "The config option "
+                            + SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD.key()
+                            + " or "
+                            + SecurityOptions.SSL_TRUSTSTORE_PASSWORD
+                            + " is missing.");
+        }
+
+        KeyStore trustStore = KeyStore.getInstance(truststoreType);
         try (InputStream trustStoreFile =
                 Files.newInputStream(new File(trustStoreFilePath).toPath())) {
             trustStore.load(trustStoreFile, trustStorePassword.toCharArray());
         }
 
         String certFingerprint =
-                config.getString(
+                config.get(
                         internal
                                 ? SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT
                                 : SecurityOptions.SSL_REST_CERT_FINGERPRINT);
@@ -234,12 +260,15 @@ public class SSLUtils {
 
         tmf.init(trustStore);
 
-        return tmf;
+        return Optional.of(tmf);
     }
 
     private static KeyManagerFactory getKeyManagerFactory(
             Configuration config, boolean internal, SslProvider provider)
-            throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException,
+            throws KeyStoreException,
+                    IOException,
+                    NoSuchAlgorithmException,
+                    CertificateException,
                     UnrecoverableKeyException {
         String keystoreFilePath =
                 getAndCheckOption(
@@ -265,7 +294,14 @@ public class SSLUtils {
                                 : SecurityOptions.SSL_REST_KEY_PASSWORD,
                         SecurityOptions.SSL_KEY_PASSWORD);
 
-        KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        // do not use getAndCheckOption here as there is no fallback option and a default is
+        // specified
+        String keystoreType =
+                internal
+                        ? config.get(SecurityOptions.SSL_INTERNAL_KEYSTORE_TYPE)
+                        : config.get(SecurityOptions.SSL_REST_KEYSTORE_TYPE);
+
+        KeyStore keyStore = KeyStore.getInstance(keystoreType);
         try (InputStream keyStoreFile = Files.newInputStream(new File(keystoreFilePath).toPath())) {
             keyStore.load(keyStoreFile, keystorePassword.toCharArray());
         }
@@ -318,11 +354,10 @@ public class SSLUtils {
 
         String[] sslProtocols = getEnabledProtocols(config);
         List<String> ciphers = Arrays.asList(getEnabledCipherSuites(config));
-        int sessionCacheSize = config.getInteger(SecurityOptions.SSL_INTERNAL_SESSION_CACHE_SIZE);
-        int sessionTimeoutMs = config.getInteger(SecurityOptions.SSL_INTERNAL_SESSION_TIMEOUT);
+        int sessionCacheSize = config.get(SecurityOptions.SSL_INTERNAL_SESSION_CACHE_SIZE);
+        int sessionTimeoutMs = config.get(SecurityOptions.SSL_INTERNAL_SESSION_TIMEOUT);
 
         KeyManagerFactory kmf = getKeyManagerFactory(config, true, provider);
-        TrustManagerFactory tmf = getTrustManagerFactory(config, true);
         ClientAuth clientAuth = ClientAuth.REQUIRE;
 
         final SslContextBuilder sslContextBuilder;
@@ -332,11 +367,13 @@ public class SSLUtils {
             sslContextBuilder = SslContextBuilder.forServer(kmf);
         }
 
+        Optional<TrustManagerFactory> tmf = getTrustManagerFactory(config, true);
+        tmf.map(sslContextBuilder::trustManager);
+
         return sslContextBuilder
                 .sslProvider(provider)
                 .protocols(sslProtocols)
                 .ciphers(ciphers)
-                .trustManager(tmf)
                 .clientAuth(clientAuth)
                 .sessionCacheSize(sessionCacheSize)
                 .sessionTimeout(sessionTimeoutMs / 1000)
@@ -382,6 +419,7 @@ public class SSLUtils {
         }
 
         String[] sslProtocols = getEnabledProtocols(config);
+        List<String> ciphers = Arrays.asList(getEnabledCipherSuites(config));
 
         final SslContextBuilder sslContextBuilder;
         if (clientMode) {
@@ -396,15 +434,19 @@ public class SSLUtils {
         }
 
         if (clientMode || clientAuth != ClientAuth.NONE) {
-            TrustManagerFactory tmf = getTrustManagerFactory(config, false);
-            sslContextBuilder.trustManager(tmf);
+            Optional<TrustManagerFactory> tmf = getTrustManagerFactory(config, false);
+            tmf.map(
+                    // Use specific ciphers and protocols if SSL is configured with self-signed
+                    // certificates (user-supplied truststore)
+                    tm ->
+                            sslContextBuilder
+                                    .trustManager(tm)
+                                    .protocols(sslProtocols)
+                                    .ciphers(ciphers)
+                                    .clientAuth(clientAuth));
         }
 
-        return sslContextBuilder
-                .sslProvider(provider)
-                .protocols(sslProtocols)
-                .clientAuth(clientAuth)
-                .build();
+        return sslContextBuilder.sslProvider(provider).build();
     }
 
     // ------------------------------------------------------------------------
@@ -415,7 +457,7 @@ public class SSLUtils {
             Configuration config,
             ConfigOption<String> primaryOption,
             ConfigOption<String> fallbackOption) {
-        String value = config.getString(primaryOption, config.getString(fallbackOption));
+        String value = config.get(primaryOption, config.get(fallbackOption));
         if (value != null) {
             return value;
         } else {

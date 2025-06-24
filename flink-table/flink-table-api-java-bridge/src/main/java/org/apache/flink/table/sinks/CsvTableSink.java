@@ -22,10 +22,15 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.legacy.table.sinks.AppendStreamTableSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
+import org.apache.flink.streaming.api.legacy.io.TextOutputFormat;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.sinks.TableSink;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.TableConnectorUtils;
@@ -118,19 +123,20 @@ public class CsvTableSink implements AppendStreamTableSink<Row> {
                 dataStream.map(new CsvFormatter(fieldDelim == null ? "," : fieldDelim));
 
         DataStreamSink<String> sink;
+        TextOutputFormat<String> textOutputFormat = new TextOutputFormat<>(new Path(path));
         if (writeMode != null) {
-            sink = csvRows.writeAsText(path, writeMode);
-        } else {
-            sink = csvRows.writeAsText(path);
+            textOutputFormat.setWriteMode(writeMode);
         }
+
+        sink = csvRows.addSink(new OutputFormatSinkFunction<>(textOutputFormat));
 
         if (numFiles > 0) {
             csvRows.setParallelism(numFiles);
             sink.setParallelism(numFiles);
         } else {
             // if file number is not set, use input parallelism to make it chained.
-            csvRows.setParallelism(dataStream.getParallelism());
-            sink.setParallelism(dataStream.getParallelism());
+            csvRows.getTransformation().setParallelism(dataStream.getParallelism(), false);
+            sink.getTransformation().setParallelism(dataStream.getParallelism(), false);
         }
 
         sink.name(TableConnectorUtils.generateRuntimeName(CsvTableSink.class, fieldNames));
@@ -162,6 +168,7 @@ public class CsvTableSink implements AppendStreamTableSink<Row> {
     }
 
     /** Formats a Row into a String with fields separated by the field delimiter. */
+    @Internal
     public static class CsvFormatter implements MapFunction<Row, String> {
         private static final long serialVersionUID = 1L;
 

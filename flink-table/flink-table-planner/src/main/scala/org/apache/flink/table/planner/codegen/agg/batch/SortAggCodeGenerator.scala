@@ -25,6 +25,7 @@ import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, ProjectionCodeGenerator}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
+import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.types.logical.RowType
@@ -55,7 +56,8 @@ object SortAggCodeGenerator {
       .filter(_.isInstanceOf[AggregateFunction[_, _]])
       .map(ctx.addReusableFunction(_))
     val functionIdentifiers = AggCodeGenHelper.getFunctionIdentifiers(aggInfos)
-    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(auxGrouping, aggInfos)
+    val aggBufferPrefix = "sort"
+    val aggBufferNames = AggCodeGenHelper.getAggBufferNames(aggBufferPrefix, auxGrouping, aggInfos)
     val aggBufferTypes = AggCodeGenHelper.getAggBufferTypes(inputType, auxGrouping, aggInfos)
 
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
@@ -63,7 +65,7 @@ object SortAggCodeGenerator {
     val currentKeyTerm = "currentKey"
     val currentKeyWriterTerm = "currentKeyWriter"
 
-    val groupKeyRowType = AggCodeGenHelper.projectRowType(inputType, grouping)
+    val groupKeyRowType = RowTypeUtils.projectRowType(inputType, grouping)
     val keyProjectionCode = ProjectionCodeGenerator
       .generateProjectionExpression(
         ctx,
@@ -88,9 +90,11 @@ object SortAggCodeGenerator {
       functionIdentifiers,
       inputTerm,
       inputType,
+      aggBufferPrefix,
       aggBufferNames,
       aggBufferTypes,
-      outputType)
+      outputType
+    )
 
     val joinedRow = "joinedRow"
     ctx.addReusableOutputRecord(outputType, classOf[JoinedRowData], joinedRow)

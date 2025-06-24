@@ -23,10 +23,10 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SimpleVersionedSerializerTypeSerializerProxy}. */
-public class SimpleVersionedSerializerTypeSerializerProxyTest extends SerializerTestBase<String> {
+class SimpleVersionedSerializerTypeSerializerProxyTest extends SerializerTestBase<String> {
 
     @Override
     protected TypeSerializer<String> createSerializer() {
@@ -79,7 +79,7 @@ public class SimpleVersionedSerializerTypeSerializerProxyTest extends Serializer
 
         @Override
         public String deserialize(int version, byte[] serialized) {
-            assertEquals(VERSION, version);
+            assertThat(version).isEqualTo(VERSION);
             return new String(serialized, StandardCharsets.UTF_8);
         }
 

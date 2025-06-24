@@ -46,6 +46,7 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.operations.DistinctQueryOperation;
 import org.apache.flink.table.operations.FilterQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
+import org.apache.flink.table.operations.PartitionQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
@@ -83,6 +84,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 public final class OperationTreeBuilder {
 
     private final TableConfig tableConfig;
+    private final ClassLoader userClassLoader;
     private final FunctionLookup functionCatalog;
     private final DataTypeFactory typeFactory;
     private final TableReferenceLookup tableReferenceLookup;
@@ -93,7 +95,8 @@ public final class OperationTreeBuilder {
     private final ProjectionOperationFactory projectionOperationFactory;
 
     private final SortOperationFactory sortOperationFactory;
-    private final CalculatedTableFactory calculatedTableFactory;
+    private final FunctionTableFactory functionTableFactory;
+    private final CorrelatedFunctionTableFactory correlatedFunctionTableFactory;
     private final SetOperationFactory setOperationFactory;
     private final AggregateOperationFactory aggregateOperationFactory;
     private final JoinOperationFactory joinOperationFactory;
@@ -101,25 +104,29 @@ public final class OperationTreeBuilder {
 
     private OperationTreeBuilder(
             TableConfig tableConfig,
+            ClassLoader userClassLoader,
             FunctionLookup functionLookup,
             DataTypeFactory typeFactory,
             TableReferenceLookup tableReferenceLookup,
             SqlExpressionResolver sqlExpressionResolver,
             ProjectionOperationFactory projectionOperationFactory,
             SortOperationFactory sortOperationFactory,
-            CalculatedTableFactory calculatedTableFactory,
+            FunctionTableFactory functionTableFactory,
+            CorrelatedFunctionTableFactory correlatedFunctionTableFactory,
             SetOperationFactory setOperationFactory,
             AggregateOperationFactory aggregateOperationFactory,
             JoinOperationFactory joinOperationFactory,
             ValuesOperationFactory valuesOperationFactory) {
         this.tableConfig = tableConfig;
+        this.userClassLoader = userClassLoader;
         this.functionCatalog = functionLookup;
         this.typeFactory = typeFactory;
         this.tableReferenceLookup = tableReferenceLookup;
         this.sqlExpressionResolver = sqlExpressionResolver;
         this.projectionOperationFactory = projectionOperationFactory;
         this.sortOperationFactory = sortOperationFactory;
-        this.calculatedTableFactory = calculatedTableFactory;
+        this.functionTableFactory = functionTableFactory;
+        this.correlatedFunctionTableFactory = correlatedFunctionTableFactory;
         this.setOperationFactory = setOperationFactory;
         this.aggregateOperationFactory = aggregateOperationFactory;
         this.joinOperationFactory = joinOperationFactory;
@@ -129,6 +136,7 @@ public final class OperationTreeBuilder {
 
     public static OperationTreeBuilder create(
             TableConfig tableConfig,
+            ClassLoader userClassLoader,
             FunctionLookup functionCatalog,
             DataTypeFactory typeFactory,
             TableReferenceLookup tableReferenceLookup,
@@ -136,13 +144,15 @@ public final class OperationTreeBuilder {
             boolean isStreamingMode) {
         return new OperationTreeBuilder(
                 tableConfig,
+                userClassLoader,
                 functionCatalog,
                 typeFactory,
                 tableReferenceLookup,
                 sqlExpressionResolver,
                 new ProjectionOperationFactory(),
                 new SortOperationFactory(),
-                new CalculatedTableFactory(),
+                new FunctionTableFactory(),
+                new CorrelatedFunctionTableFactory(),
                 new SetOperationFactory(isStreamingMode),
                 new AggregateOperationFactory(isStreamingMode),
                 new JoinOperationFactory(),
@@ -376,13 +386,14 @@ public final class OperationTreeBuilder {
         ResolvedExpression resolvedFunction = resolveSingleExpression(tableFunction, resolver);
 
         QueryOperation temporalTable =
-                calculatedTableFactory.create(
+                correlatedFunctionTableFactory.create(
                         resolvedFunction, left.getResolvedSchema().getColumnNames());
 
         return join(left, temporalTable, joinType, condition, true);
     }
 
-    public Expression resolveExpression(Expression expression, QueryOperation... tableOperation) {
+    public ResolvedExpression resolveExpression(
+            Expression expression, QueryOperation... tableOperation) {
         final ExpressionResolver resolver = getResolver(tableOperation);
         return resolveSingleExpression(expression, resolver);
     }
@@ -391,6 +402,7 @@ public final class OperationTreeBuilder {
             QueryOperation... tableOperation) {
         return ExpressionResolver.resolverFor(
                 tableConfig,
+                userClassLoader,
                 tableReferenceLookup,
                 functionCatalog,
                 typeFactory,
@@ -592,6 +604,18 @@ public final class OperationTreeBuilder {
         return valuesInternal(null, expressions);
     }
 
+    public QueryOperation tableFunction(Expression call) {
+        final ExpressionResolver resolver = getResolverBuilder().build();
+        final ResolvedExpression resolvedCall = resolveSingleExpression(call, resolver);
+        return functionTableFactory.create(resolvedCall);
+    }
+
+    public QueryOperation partition(List<Expression> partitionKeys, QueryOperation child) {
+        final ExpressionResolver resolver = getResolverBuilder(child).build();
+        final List<ResolvedExpression> resolvedPartitionKeys = resolver.resolve(partitionKeys);
+        return new PartitionQueryOperation(resolvedPartitionKeys, child);
+    }
+
     private QueryOperation valuesInternal(
             @Nullable ResolvedSchema valuesSchema, Expression... expressions) {
         if (expressions.length == 0) {
@@ -655,7 +679,9 @@ public final class OperationTreeBuilder {
         }
 
         private List<String> extractAliases(UnresolvedCallExpression unresolvedCall) {
-            return unresolvedCall.getChildren().subList(1, unresolvedCall.getChildren().size())
+            return unresolvedCall
+                    .getChildren()
+                    .subList(1, unresolvedCall.getChildren().size())
                     .stream()
                     .map(
                             ex ->

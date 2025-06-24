@@ -39,7 +39,7 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,10 +49,10 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link BatchMultipleInputStreamOperator}. */
-public class BatchMultipleInputStreamOperatorTest extends MultipleInputTestBase {
+class BatchMultipleInputStreamOperatorTest extends MultipleInputTestBase {
 
     @Test
-    public void testOpen() throws Exception {
+    void testOpen() throws Exception {
         TestingBatchMultipleInputStreamOperator op = createMultipleInputStreamOperator();
         TestingTwoInputStreamOperator joinOp2 =
                 (TestingTwoInputStreamOperator) op.getTailWrapper().getStreamOperator();
@@ -83,7 +83,7 @@ public class BatchMultipleInputStreamOperatorTest extends MultipleInputTestBase 
     }
 
     @Test
-    public void testNextSelectionAndEndInput() throws Exception {
+    void testNextSelectionAndEndInput() throws Exception {
         TestingBatchMultipleInputStreamOperator op = createMultipleInputStreamOperator();
         TestingTwoInputStreamOperator joinOp2 =
                 (TestingTwoInputStreamOperator) op.getTailWrapper().getStreamOperator();
@@ -129,7 +129,7 @@ public class BatchMultipleInputStreamOperatorTest extends MultipleInputTestBase 
     }
 
     @Test
-    public void testClose() throws Exception {
+    void testClose() throws Exception {
         TestingBatchMultipleInputStreamOperator op = createMultipleInputStreamOperator();
         TestingTwoInputStreamOperator joinOp2 =
                 (TestingTwoInputStreamOperator) op.getTailWrapper().getStreamOperator();
@@ -160,7 +160,7 @@ public class BatchMultipleInputStreamOperatorTest extends MultipleInputTestBase 
     }
 
     @Test
-    public void testProcess() throws Exception {
+    void testProcess() throws Exception {
         TestingBatchMultipleInputStreamOperator op = createMultipleInputStreamOperator();
         List<StreamElement> outputData = op.getOutputData();
 

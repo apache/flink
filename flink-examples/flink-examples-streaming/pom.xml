@@ -25,10 +25,10 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>2.1-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
+	<artifactId>flink-examples-streaming</artifactId>
 	<name>Flink : Examples : Streaming</name>
 
 	<packaging>jar</packaging>
@@ -36,6 +36,10 @@ under the License.
 	<!-- Allow users to pass custom jcuda versions -->
 	<properties>
 		<jcuda.version>10.0.0</jcuda.version>
+		<surefire.module.config><!--
+			DataStream V2 API examples
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>
@@ -45,12 +49,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -69,6 +67,18 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-kafka</artifactId>
+			<version>3.0.0-1.17</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-csv</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-datagen</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -91,6 +101,12 @@ under the License.
             <artifactId>flink-statebackend-rocksdb</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-statebackend-forst</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 
 		<!-- Dependencies for MatrixVectorMul. We exclude native libraries
 		because it is not available in all the operating systems and architectures. Moreover,
@@ -123,41 +139,6 @@ under the License.
 
 	<build>
 		<plugins>
-			<plugin>
-				<groupId>com.diffplug.spotless</groupId>
-				<artifactId>spotless-maven-plugin</artifactId>
-				<configuration>
-					<scala>
-						<scalafmt>
-							<version>${spotless.scalafmt.version}</version>
-							<file>${project.basedir}/../../.scalafmt.conf</file>
-						</scalafmt>
-						<licenseHeader>
-							<content>${spotless.license.header}</content>
-							<delimiter>${spotless.delimiter}</delimiter>
-						</licenseHeader>
-					</scala>
-				</configuration>
-			</plugin>
-			<!-- Fail compilation on deprecation warnings to prevent from showing users outdated examples. -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>compile</id>
-						<phase>process-sources</phase>
-						<goals>
-							<goal>compile</goal>
-						</goals>
-						<configuration>
-							<compilerArgument>-Xlint:deprecation</compilerArgument>
-							<failOnWarning>true</failOnWarning>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
 			<!-- self-contained jars for each example -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -171,30 +152,6 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
-					</execution>
-					
-					<!-- Iteration -->
-					<execution>
-						<id>Iteration</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>Iteration</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.iteration.IterateExample</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/iteration/*.class</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
 					</execution>
 
 					<!-- WindowJoin -->
@@ -216,30 +173,6 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/join/*.class</include>
 								<include>org/apache/flink/streaming/examples/utils/ThrottledIterator.class</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
-					</execution>
-
-					<!-- Async I/O -->
-					<execution>
-						<id>AsyncIO</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>AsyncIO</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.async.AsyncIOExample</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/async/*.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
@@ -298,65 +231,55 @@ under the License.
 						</configuration>
 					</execution>
 
-					<!-- TopSpeedWindowing -->
-					<execution>
-						<id>TopSpeedWindowing</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>TopSpeedWindowing</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.windowing.TopSpeedWindowing</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing.class</include>
-								<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing$*.class</include>
-								<include>org/apache/flink/streaming/examples/windowing/util/CarSource.class</include>
-								<include>org/apache/flink/streaming/examples/wordcount/util/CLI.class</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
-					</execution>
-
-					<!-- SessionWindowing -->
-					<execution>
-						<id>SessionWindowing</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>SessionWindowing</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.windowing.SessionWindowing</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/windowing/SessionWindowing.class</include>
-								<include>org/apache/flink/streaming/examples/windowing/SessionWindowing$*.class</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
-					</execution>
-
 				</executions>
 			</plugin>
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
+				<configuration>
+					<createDependencyReducedPom>false</createDependencyReducedPom>
+				</configuration>
 				<executions>
+					<!-- Async I/O -->
+					<execution>
+						<id>AsyncIO</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<finalName>AsyncIO</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>AsyncIO</shadedClassifierName>
+							<artifactSet>
+								<includes>
+									<include>org.apache.flink:flink-connector-datagen</include>
+								</includes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:*</artifact>
+									<includes>
+										<include>org/apache/flink/connector/datagen/**</include>
+										<include>org/apache/flink/streaming/examples/async/*.class</include>
+										<include>META-INF/LICENSE</include>
+										<include>META-INF/NOTICE</include>
+									</includes>
+								</filter>
+							</filters>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.async.AsyncIOExample</mainClass>
+								</transformer>
+							</transformers>
+						</configuration>
+					</execution>
+
+					<!-- MatrixVectorMul. It is not bundled with Flink dist, nor deployed in Maven repo,
+					as it is platform-dependent. Users are expected to compile and run it with custom
+					jcuda version specified by themselves with the "jcuda.version" property.-->
 					<execution>
 						<id>MatrixVectorMul</id>
 						<phase>package</phase>
@@ -368,6 +291,7 @@ under the License.
 							<finalName>MatrixVectorMul</finalName>
 							<artifactSet>
 								<includes>
+									<include>org.apache.flink:flink-connector-datagen</include>
 									<include>org.jcuda:*</include>
 								</includes>
 							</artifactSet>
@@ -375,6 +299,7 @@ under the License.
 								<filter>
 									<artifact>org.apache.flink:*</artifact>
 									<includes>
+										<include>org/apache/flink/connector/datagen/**</include>
 										<include>org/apache/flink/streaming/examples/gpu/MatrixVectorMul.class</include>
 										<include>org/apache/flink/streaming/examples/gpu/MatrixVectorMul$*.class</include>
 									</includes>
@@ -387,107 +312,83 @@ under the License.
 							</transformers>
 						</configuration>
 					</execution>
-				</executions>
-			</plugin>
 
-			<!-- Scala Compiler -->
-			<plugin>
-				<groupId>net.alchim31.maven</groupId>
-				<artifactId>scala-maven-plugin</artifactId>
-				<executions>
-					<!-- Run scala compiler in the process-resources phase, so that dependencies on
-						scala classes can be resolved later in the (Java) compile phase -->
+					<!-- TopSpeedWindowing -->
 					<execution>
-						<id>scala-compile-first</id>
-						<phase>process-resources</phase>
+						<id>TopSpeedWindowing</id>
+						<phase>package</phase>
 						<goals>
-							<goal>compile</goal>
+							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<args>
-								<arg>-Xfatal-warnings</arg>
-							</args>
+							<shadeTestJar>false</shadeTestJar>
+							<finalName>TopSpeedWindowing</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>TopSpeedWindowing</shadedClassifierName>
+							<artifactSet>
+								<includes>
+									<include>org.apache.flink:flink-connector-datagen</include>
+								</includes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:*</artifact>
+									<includes>
+										<include>org/apache/flink/connector/datagen/**</include>
+										<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing.class</include>
+										<include>org/apache/flink/streaming/examples/windowing/TopSpeedWindowing$*.class</include>
+										<include>org/apache/flink/streaming/examples/windowing/util/CarGeneratorFunction.class</include>
+										<include>org/apache/flink/streaming/examples/wordcount/util/CLI.class</include>
+										<include>META-INF/LICENSE</include>
+										<include>META-INF/NOTICE</include>
+									</includes>
+								</filter>
+							</filters>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.windowing.TopSpeedWindowing</mainClass>
+								</transformer>
+							</transformers>
 						</configuration>
 					</execution>
- 
-					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
-						 scala classes can be resolved later in the (Java) test-compile phase -->
-					<execution>
-						<id>scala-test-compile</id>
-						<phase>process-test-resources</phase>
-						<goals>
-							<goal>testCompile</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<jvmArgs>
-						<jvmArg>-Xms128m</jvmArg>
-						<jvmArg>-Xmx512m</jvmArg>
-					</jvmArgs>
-				</configuration>
-			</plugin>
-			
-			<!-- Eclipse Integration -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-eclipse-plugin</artifactId>
-				<version>2.8</version>
-				<configuration>
-					<downloadSources>true</downloadSources>
-					<projectnatures>
-						<projectnature>org.scala-ide.sdt.core.scalanature</projectnature>
-						<projectnature>org.eclipse.jdt.core.javanature</projectnature>
-					</projectnatures>
-					<buildcommands>
-						<buildcommand>org.scala-ide.sdt.core.scalabuilder</buildcommand>
-					</buildcommands>
-					<classpathContainers>
-						<classpathContainer>org.scala-ide.sdt.launching.SCALA_CONTAINER</classpathContainer>
-						<classpathContainer>org.eclipse.jdt.launching.JRE_CONTAINER</classpathContainer>
-					</classpathContainers>
-					<excludes>
-						<exclude>org.scala-lang:scala-library</exclude>
-						<exclude>org.scala-lang:scala-compiler</exclude>
-					</excludes>
-					<sourceIncludes>
-						<sourceInclude>**/*.scala</sourceInclude>
-						<sourceInclude>**/*.java</sourceInclude>
-					</sourceIncludes>
-				</configuration>
-			</plugin>
 
-			<!-- Adding scala source directories to build path -->
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>build-helper-maven-plugin</artifactId>
-				<executions>
-					<!-- Add src/main/scala to eclipse build path -->
+					<!-- SessionWindowing -->
 					<execution>
-						<id>add-source</id>
-						<phase>generate-sources</phase>
+						<id>SessionWindowing</id>
+						<phase>package</phase>
 						<goals>
-							<goal>add-source</goal>
+							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<sources>
-								<source>src/main/scala</source>
-							</sources>
+							<shadeTestJar>false</shadeTestJar>
+							<finalName>SessionWindowing</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>SessionWindowing</shadedClassifierName>
+							<artifactSet>
+								<includes>
+									<include>org.apache.flink:flink-connector-datagen</include>
+								</includes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:*</artifact>
+									<includes>
+										<include>org/apache/flink/connector/datagen/**</include>
+										<include>org/apache/flink/streaming/examples/windowing/SessionWindowing.class</include>
+										<include>org/apache/flink/streaming/examples/windowing/SessionWindowing$*.class</include>
+										<include>META-INF/LICENSE</include>
+										<include>META-INF/NOTICE</include>
+									</includes>
+								</filter>
+							</filters>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.windowing.SessionWindowing</mainClass>
+								</transformer>
+							</transformers>
 						</configuration>
 					</execution>
-					<!-- Add src/test/scala to eclipse build path -->
-					<execution>
-						<id>add-test-source</id>
-						<phase>generate-test-sources</phase>
-						<goals>
-							<goal>add-test-source</goal>
-						</goals>
-						<configuration>
-							<sources>
-								<source>src/test/scala</source>
-							</sources>
-						</configuration>
-					</execution>
+
 				</executions>
 			</plugin>
 
@@ -500,12 +401,9 @@ under the License.
 						<id>rename</id>
 						<configuration>
 							<target>
-								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-Iteration.jar" tofile="${project.basedir}/target/Iteration.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-SessionWindowing.jar" tofile="${project.basedir}/target/SessionWindowing.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-TopSpeedWindowing.jar" tofile="${project.basedir}/target/TopSpeedWindowing.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-WindowJoin.jar" tofile="${project.basedir}/target/WindowJoin.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
-								<copy file="${project.basedir}/target/flink-examples-streaming_${scala.binary.version}-${project.version}-SocketWindowWordCount.jar" tofile="${project.basedir}/target/SocketWindowWordCount.jar" />
+								<copy file="${project.basedir}/target/flink-examples-streaming-${project.version}-WindowJoin.jar" tofile="${project.basedir}/target/WindowJoin.jar" />
+								<copy file="${project.basedir}/target/flink-examples-streaming-${project.version}-WordCount.jar" tofile="${project.basedir}/target/WordCount.jar" />
+								<copy file="${project.basedir}/target/flink-examples-streaming-${project.version}-SocketWindowWordCount.jar" tofile="${project.basedir}/target/SocketWindowWordCount.jar" />
 							</target>
 						</configuration>
 					</execution>

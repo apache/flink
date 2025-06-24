@@ -23,27 +23,24 @@ import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.KvStateLocationOracle;
 import org.apache.flink.runtime.query.KvStateLocation;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link KvStateClientProxyImpl}. */
-public class KvStateClientProxyImplTest extends TestLogger {
+class KvStateClientProxyImplTest {
 
     private KvStateClientProxyImpl kvStateClientProxy;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         kvStateClientProxy =
                 new KvStateClientProxyImpl(
                         InetAddress.getLoopbackAddress().getHostName(),
@@ -53,14 +50,14 @@ public class KvStateClientProxyImplTest extends TestLogger {
                         new DisabledKvStateRequestStats());
     }
 
-    @After
-    public void shutdown() {
+    @AfterEach
+    void shutdown() {
         kvStateClientProxy.shutdown();
     }
 
     /** Tests that we can set and retrieve the {@link KvStateLocationOracle}. */
     @Test
-    public void testKvStateLocationOracle() {
+    void testKvStateLocationOracle() {
         final JobID jobId1 = new JobID();
         final TestingKvStateLocationOracle kvStateLocationOracle1 =
                 new TestingKvStateLocationOracle();
@@ -70,17 +67,15 @@ public class KvStateClientProxyImplTest extends TestLogger {
                 new TestingKvStateLocationOracle();
         kvStateClientProxy.updateKvStateLocationOracle(jobId2, kvStateLocationOracle2);
 
-        assertThat(kvStateClientProxy.getKvStateLocationOracle(new JobID()), nullValue());
+        assertThat(kvStateClientProxy.getKvStateLocationOracle(new JobID())).isNull();
 
-        assertThat(
-                kvStateClientProxy.getKvStateLocationOracle(jobId1),
-                equalTo(kvStateLocationOracle1));
-        assertThat(
-                kvStateClientProxy.getKvStateLocationOracle(jobId2),
-                equalTo(kvStateLocationOracle2));
+        assertThat(kvStateClientProxy.getKvStateLocationOracle(jobId1))
+                .isEqualTo(kvStateLocationOracle1);
+        assertThat(kvStateClientProxy.getKvStateLocationOracle(jobId2))
+                .isEqualTo(kvStateLocationOracle2);
 
         kvStateClientProxy.updateKvStateLocationOracle(jobId1, null);
-        assertThat(kvStateClientProxy.getKvStateLocationOracle(jobId1), nullValue());
+        assertThat(kvStateClientProxy.getKvStateLocationOracle(jobId1)).isNull();
     }
 
     /**
@@ -88,7 +83,7 @@ public class KvStateClientProxyImplTest extends TestLogger {
      * HighAvailabilityServices#DEFAULT_JOB_ID} will be used for all requests.
      */
     @Test
-    public void testLegacyCodePathPreference() {
+    void testLegacyCodePathPreference() {
         final TestingKvStateLocationOracle kvStateLocationOracle =
                 new TestingKvStateLocationOracle();
         kvStateClientProxy.updateKvStateLocationOracle(
@@ -96,8 +91,8 @@ public class KvStateClientProxyImplTest extends TestLogger {
         final JobID jobId = new JobID();
         kvStateClientProxy.updateKvStateLocationOracle(jobId, new TestingKvStateLocationOracle());
 
-        assertThat(
-                kvStateClientProxy.getKvStateLocationOracle(jobId), equalTo(kvStateLocationOracle));
+        assertThat(kvStateClientProxy.getKvStateLocationOracle(jobId))
+                .isEqualTo(kvStateLocationOracle);
     }
 
     /** Testing implementation of {@link KvStateLocationOracle}. */

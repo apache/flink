@@ -22,22 +22,23 @@ import org.apache.flink.core.fs.AbstractRecoverableWriterTest;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-import org.junit.AfterClass;
-import org.junit.Assume;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 
-/** Tests for the {@link HadoopRecoverableWriter}. */
-public class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
+import static org.assertj.core.api.Assumptions.assumeThat;
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+/** Tests for the {@link HadoopRecoverableWriter}. */
+class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
+
+    @TempDir private static java.nio.file.Path tempFolder;
 
     private static MiniDFSCluster hdfsCluster;
 
@@ -46,21 +47,19 @@ public class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
 
     private static Path basePath;
 
-    @BeforeClass
-    public static void testHadoopVersion() {
-        Assume.assumeTrue(HadoopUtils.isMinHadoopVersion(2, 7));
+    @BeforeAll
+    static void testHadoopVersion() {
+        assumeThat(HadoopUtils.isMinHadoopVersion(2, 6)).isTrue();
     }
 
-    @BeforeClass
-    public static void verifyOS() {
-        Assume.assumeTrue(
-                "HDFS cluster cannot be started on Windows without extensions.",
-                !OperatingSystem.isWindows());
+    @BeforeAll
+    static void verifyOS() {
+        assumeThat(OperatingSystem.isWindows()).isFalse();
     }
 
-    @BeforeClass
-    public static void createHDFS() throws Exception {
-        final File baseDir = TEMP_FOLDER.newFolder();
+    @BeforeAll
+    static void createHDFS() throws Exception {
+        final File baseDir = TempDirUtils.newFolder(tempFolder);
 
         final Configuration hdConf = new Configuration();
         hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
@@ -74,8 +73,8 @@ public class HadoopRecoverableWriterTest extends AbstractRecoverableWriterTest {
         basePath = new Path(hdfs.getUri() + "/tests");
     }
 
-    @AfterClass
-    public static void destroyHDFS() throws Exception {
+    @AfterAll
+    static void destroyHDFS() throws Exception {
         if (hdfsCluster != null) {
             hdfsCluster
                     .getFileSystem()

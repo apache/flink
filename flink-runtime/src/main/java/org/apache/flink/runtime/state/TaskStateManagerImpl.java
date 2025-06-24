@@ -19,19 +19,25 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReaderImpl;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +45,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -72,8 +79,13 @@ public class TaskStateManagerImpl implements TaskStateManager {
     /** The local state store to which this manager reports local state snapshots. */
     private final TaskLocalStateStore localStateStore;
 
+    /** The file merging snapshot manager */
+    @Nullable private final FileMergingSnapshotManagerClosableWrapper fileMergingSnapshotManager;
+
     /** The changelog storage where the manager reads and writes the changelog */
     @Nullable private final StateChangelogStorage<?> stateChangelogStorage;
+
+    private final TaskExecutorStateChangelogStoragesManager changelogStoragesManager;
 
     /** The checkpoint responder through which this manager can report to the job manager. */
     private final CheckpointResponder checkpointResponder;
@@ -84,14 +96,18 @@ public class TaskStateManagerImpl implements TaskStateManager {
             @Nonnull JobID jobId,
             @Nonnull ExecutionAttemptID executionAttemptID,
             @Nonnull TaskLocalStateStore localStateStore,
+            @Nullable FileMergingSnapshotManagerClosableWrapper fileMergingSnapshotManager,
             @Nullable StateChangelogStorage<?> stateChangelogStorage,
+            @Nonnull TaskExecutorStateChangelogStoragesManager changelogStoragesManager,
             @Nullable JobManagerTaskRestore jobManagerTaskRestore,
             @Nonnull CheckpointResponder checkpointResponder) {
         this(
                 jobId,
                 executionAttemptID,
                 localStateStore,
+                fileMergingSnapshotManager,
                 stateChangelogStorage,
+                changelogStoragesManager,
                 jobManagerTaskRestore,
                 checkpointResponder,
                 new SequentialChannelStateReaderImpl(
@@ -104,17 +120,28 @@ public class TaskStateManagerImpl implements TaskStateManager {
             @Nonnull JobID jobId,
             @Nonnull ExecutionAttemptID executionAttemptID,
             @Nonnull TaskLocalStateStore localStateStore,
+            @Nullable FileMergingSnapshotManagerClosableWrapper fileMergingSnapshotManager,
             @Nullable StateChangelogStorage<?> stateChangelogStorage,
+            @Nonnull TaskExecutorStateChangelogStoragesManager changelogStoragesManager,
             @Nullable JobManagerTaskRestore jobManagerTaskRestore,
             @Nonnull CheckpointResponder checkpointResponder,
             @Nonnull SequentialChannelStateReaderImpl sequentialChannelStateReader) {
         this.jobId = jobId;
         this.localStateStore = localStateStore;
+        this.fileMergingSnapshotManager = fileMergingSnapshotManager;
         this.stateChangelogStorage = stateChangelogStorage;
+        this.changelogStoragesManager = changelogStoragesManager;
         this.jobManagerTaskRestore = jobManagerTaskRestore;
         this.executionAttemptID = executionAttemptID;
         this.checkpointResponder = checkpointResponder;
         this.sequentialChannelStateReader = sequentialChannelStateReader;
+    }
+
+    @Override
+    public void reportInitializationMetrics(
+            SubTaskInitializationMetrics subTaskInitializationMetrics) {
+        checkpointResponder.reportInitializationMetrics(
+                jobId, executionAttemptID, subTaskInitializationMetrics);
     }
 
     @Override
@@ -227,6 +254,17 @@ public class TaskStateManagerImpl implements TaskStateManager {
         return builder.build();
     }
 
+    public Optional<OperatorSubtaskState> getSubtaskJobManagerRestoredState(OperatorID operatorID) {
+        if (jobManagerTaskRestore == null) {
+            return Optional.empty();
+        }
+        OperatorSubtaskState state =
+                jobManagerTaskRestore
+                        .getTaskStateSnapshot()
+                        .getSubtaskStateByOperatorID(operatorID);
+        return (state == null) ? Optional.empty() : Optional.of(state);
+    }
+
     @Nonnull
     @Override
     public LocalRecoveryConfig createLocalRecoveryConfig() {
@@ -244,6 +282,27 @@ public class TaskStateManagerImpl implements TaskStateManager {
         return stateChangelogStorage;
     }
 
+    @Nullable
+    @Override
+    public StateChangelogStorageView<?> getStateChangelogStorageView(
+            Configuration configuration, ChangelogStateHandle changelogStateHandle) {
+        StateChangelogStorageView<?> storageView = null;
+        try {
+            storageView =
+                    changelogStoragesManager.stateChangelogStorageViewForJob(
+                            jobId, configuration, changelogStateHandle);
+        } catch (IOException e) {
+            ExceptionUtils.rethrow(e);
+        }
+        return storageView;
+    }
+
+    @Nullable
+    @Override
+    public FileMergingSnapshotManager getFileMergingSnapshotManager() {
+        return fileMergingSnapshotManager == null ? null : fileMergingSnapshotManager.get();
+    }
+
     /** Tracking when local state can be confirmed and disposed. */
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
@@ -259,5 +318,8 @@ public class TaskStateManagerImpl implements TaskStateManager {
     @Override
     public void close() throws Exception {
         sequentialChannelStateReader.close();
+        if (fileMergingSnapshotManager != null) {
+            fileMergingSnapshotManager.close();
+        }
     }
 }

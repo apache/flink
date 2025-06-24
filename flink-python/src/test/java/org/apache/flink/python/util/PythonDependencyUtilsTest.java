@@ -17,17 +17,15 @@
 
 package org.apache.flink.python.util;
 
-import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.python.PythonOptions;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -42,25 +40,18 @@ import static org.apache.flink.python.util.PythonDependencyUtils.CACHE;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE;
 import static org.apache.flink.python.util.PythonDependencyUtils.configurePythonDependencies;
 import static org.apache.flink.python.util.PythonDependencyUtils.merge;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for PythonDependencyUtils. */
-public class PythonDependencyUtilsTest {
-
-    private List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles;
-
-    @Before
-    public void setUp() {
-        cachedFiles = new ArrayList<>();
-    }
+class PythonDependencyUtilsTest {
 
     @Test
-    public void testPythonFiles() {
+    void testPythonFiles() {
         Configuration config = new Configuration();
         config.set(
                 PythonOptions.PYTHON_FILES,
                 "hdfs:///tmp_dir/test_file1.py,tmp_dir/test_file2.py,tmp_dir/test_dir,hdfs:///tmp_dir/test_file1.py");
-        Configuration actual = configurePythonDependencies(cachedFiles, config);
+        Configuration actual = configurePythonDependencies(config);
 
         Map<String, String> expectedCachedFiles = new HashMap<>();
         expectedCachedFiles.put(
@@ -72,7 +63,7 @@ public class PythonDependencyUtilsTest {
         expectedCachedFiles.put(
                 "python_file_e56bc55ff643576457b3d012b2bba888727c71cf05a958930f2263398c4e9798",
                 "tmp_dir/test_dir");
-        verifyCachedFiles(expectedCachedFiles);
+        verifyCachedFiles(expectedCachedFiles, config);
 
         Configuration expectedConfiguration = new Configuration();
         expectedConfiguration.set(PYTHON_FILES_DISTRIBUTED_CACHE_INFO, new HashMap<>());
@@ -95,16 +86,16 @@ public class PythonDependencyUtilsTest {
     }
 
     @Test
-    public void testPythonRequirements() {
+    void testPythonRequirements() {
         Configuration config = new Configuration();
         config.set(PYTHON_REQUIREMENTS, "tmp_dir/requirements.txt");
-        Configuration actual = configurePythonDependencies(cachedFiles, config);
+        Configuration actual = configurePythonDependencies(config);
 
         Map<String, String> expectedCachedFiles = new HashMap<>();
         expectedCachedFiles.put(
                 "python_requirements_file_69390ca43c69ada3819226fcfbb5b6d27e111132a9427e7f201edd82e9d65ff6",
                 "tmp_dir/requirements.txt");
-        verifyCachedFiles(expectedCachedFiles);
+        verifyCachedFiles(expectedCachedFiles, config);
 
         Configuration expectedConfiguration = new Configuration();
         expectedConfiguration.set(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO, new HashMap<>());
@@ -116,7 +107,7 @@ public class PythonDependencyUtilsTest {
         verifyConfiguration(expectedConfiguration, actual);
 
         config.set(PYTHON_REQUIREMENTS, "tmp_dir/requirements2.txt#tmp_dir/cache");
-        actual = configurePythonDependencies(cachedFiles, config);
+        actual = configurePythonDependencies(config);
 
         expectedCachedFiles = new HashMap<>();
         expectedCachedFiles.put(
@@ -125,7 +116,7 @@ public class PythonDependencyUtilsTest {
         expectedCachedFiles.put(
                 "python_requirements_cache_2f563dd6731c2c7c5e1ef1ef8279f61e907dc3bfc698adb71b109e43ed93e143",
                 "tmp_dir/cache");
-        verifyCachedFiles(expectedCachedFiles);
+        verifyCachedFiles(expectedCachedFiles, config);
 
         expectedConfiguration = new Configuration();
         expectedConfiguration.set(PYTHON_REQUIREMENTS_FILE_DISTRIBUTED_CACHE_INFO, new HashMap<>());
@@ -143,7 +134,7 @@ public class PythonDependencyUtilsTest {
     }
 
     @Test
-    public void testPythonArchives() {
+    void testPythonArchives() {
         Configuration config = new Configuration();
         config.set(
                 PythonOptions.PYTHON_ARCHIVES,
@@ -152,7 +143,7 @@ public class PythonDependencyUtilsTest {
                         + "tmp_dir/py37.zip,"
                         + "tmp_dir/py37.zip#venv,"
                         + "tmp_dir/py37.zip#venv2,tmp_dir/py37.zip#venv");
-        Configuration actual = configurePythonDependencies(cachedFiles, config);
+        Configuration actual = configurePythonDependencies(config);
 
         Map<String, String> expectedCachedFiles = new HashMap<>();
         expectedCachedFiles.put(
@@ -167,7 +158,7 @@ public class PythonDependencyUtilsTest {
         expectedCachedFiles.put(
                 "python_archive_c7d970ce1c5794367974ce8ef536c2343bed8fcfe7c2422c51548e58007eee6a",
                 "tmp_dir/py37.zip");
-        verifyCachedFiles(expectedCachedFiles);
+        verifyCachedFiles(expectedCachedFiles, config);
 
         Configuration expectedConfiguration = new Configuration();
         expectedConfiguration.set(PYTHON_ARCHIVES_DISTRIBUTED_CACHE_INFO, new HashMap<>());
@@ -195,11 +186,11 @@ public class PythonDependencyUtilsTest {
     }
 
     @Test
-    public void testPythonExecutables() {
+    void testPythonExecutables() {
         Configuration config = new Configuration();
         config.set(PYTHON_EXECUTABLE, "venv/bin/python3");
         config.set(PYTHON_CLIENT_EXECUTABLE, "python37");
-        Configuration actual = configurePythonDependencies(cachedFiles, config);
+        Configuration actual = configurePythonDependencies(config);
 
         Configuration expectedConfiguration = new Configuration();
         expectedConfiguration.set(PYTHON_EXECUTABLE, "venv/bin/python3");
@@ -208,7 +199,7 @@ public class PythonDependencyUtilsTest {
     }
 
     @Test
-    public void testPythonDependencyConfigMerge() {
+    void testPythonDependencyConfigMerge() {
         Configuration config = new Configuration();
         config.set(
                 PythonOptions.PYTHON_ARCHIVES,
@@ -234,11 +225,25 @@ public class PythonDependencyUtilsTest {
         verifyConfiguration(expectedConfiguration, config);
     }
 
-    private void verifyCachedFiles(Map<String, String> expected) {
-        Map<String, String> actual =
-                cachedFiles.stream().collect(Collectors.toMap(t -> t.f0, t -> t.f1.filePath));
+    @Test
+    void testPythonPath() {
+        String pyPath =
+                "venv/bin/python3/lib64/python3.7/site-packages/:venv/bin/python3/lib/python3.7/site-packages/";
+        Configuration config = new Configuration();
+        config.set(PythonOptions.PYTHON_PATH, pyPath);
+        Configuration actual = configurePythonDependencies(config);
+        Configuration expectedConfiguration = new Configuration();
+        expectedConfiguration.set(PythonOptions.PYTHON_PATH, pyPath);
+        verifyConfiguration(expectedConfiguration, actual);
+    }
 
-        assertEquals(expected, actual);
+    private void verifyCachedFiles(Map<String, String> expected, Configuration config) {
+        Map<String, String> actual =
+                config.getOptional(PipelineOptions.CACHED_FILES).orElse(new ArrayList<>()).stream()
+                        .map(ConfigurationUtils::parseStringToMap)
+                        .collect(Collectors.toMap(m -> m.get("name"), m -> m.get("path")));
+
+        assertThat(actual).isEqualTo(expected);
     }
 
     private void verifyConfiguration(Configuration expected, Configuration actual) {
@@ -246,6 +251,6 @@ public class PythonDependencyUtilsTest {
         actual.addAllToProperties(actualProperties);
         Properties expectedProperties = new Properties();
         expected.addAllToProperties(expectedProperties);
-        assertEquals(expectedProperties, actualProperties);
+        assertThat(actualProperties).isEqualTo(expectedProperties);
     }
 }

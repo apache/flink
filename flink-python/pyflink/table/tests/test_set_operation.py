@@ -15,15 +15,18 @@
 # #  See the License for the specific language governing permissions and
 # # limitations under the License.
 ################################################################################
+from pyflink.table import TableEnvironment, EnvironmentSettings
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 
-from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase
 
-
-class StreamTableSetOperationTests(PyFlinkBatchTableTestCase):
+class StreamTableSetOperationTests(PyFlinkTestCase):
 
     data1 = [(1, "Hi", "Hello")]
     data2 = [(3, "Hello", "Hello")]
     schema = ["a", "b", "c"]
+
+    def setUp(self) -> None:
+        self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
 
     def test_minus(self):
         t_env = self.t_env

@@ -29,6 +29,9 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecBoundedStreamScan;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCalc;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
@@ -50,6 +53,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED;
 
 /**
  * A {@link ExecNodeGraphProcessor} which organize {@link ExecNode}s into multiple input nodes.
@@ -88,7 +93,7 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
         // sort all nodes in topological order, sinks come first and sources come last
         List<ExecNodeWrapper> orderedWrappers = topologicalSort(rootWrappers);
         // group nodes into multiple input groups
-        createMultipleInputGroups(orderedWrappers);
+        createMultipleInputGroups(context.getPlanner().getTableConfig(), orderedWrappers);
         // apply optimizations to remove unnecessary nodes out of multiple input groups
         optimizeMultipleInputGroups(orderedWrappers, context);
 
@@ -156,7 +161,8 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
     // Multiple Input Groups Creating
     // --------------------------------------------------------------------------------
 
-    private void createMultipleInputGroups(List<ExecNodeWrapper> orderedWrappers) {
+    private void createMultipleInputGroups(
+            ReadableConfig tableConfig, List<ExecNodeWrapper> orderedWrappers) {
         // wrappers are checked in topological order from sinks to sources
         for (ExecNodeWrapper wrapper : orderedWrappers) {
             // we skip nodes which cannot be a member of a multiple input node
@@ -172,7 +178,7 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
             }
 
             // we then try to create a new multiple input group with this node as the root
-            if (canBeRootOfMultipleInputGroup(wrapper)) {
+            if (canBeRootOfMultipleInputGroup(tableConfig, wrapper)) {
                 wrapper.group = new MultipleInputGroup(wrapper);
             }
 
@@ -219,10 +225,33 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
         return outputGroup;
     }
 
-    private boolean canBeRootOfMultipleInputGroup(ExecNodeWrapper wrapper) {
-        // only a node with more than one input can be the root,
-        // as one-input operator chaining are handled by operator chains
-        return wrapper.inputs.size() >= 2;
+    private boolean canBeRootOfMultipleInputGroup(
+            ReadableConfig tableConfig, ExecNodeWrapper wrapper) {
+        // A node with more than one input can be the root, and one-input operator can also be root
+        // if the upstream node only contain Calc&HashJoin&HashAgg and operator fusion codegen
+        // enabled
+        return wrapper.inputs.size() >= 2
+                || (tableConfig.get(TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED)
+                        && oneInputNodeCanBeRoot(wrapper));
+    }
+
+    private boolean oneInputNodeCanBeRoot(ExecNodeWrapper wrapper) {
+        // The Calc and HashAgg can be the root node of MultipleInputGroup if the upstream node only
+        // contain Calc&HashJoin&HashAgg. This limitation can be removed if all kinds of operator
+        // support OFCG.
+        if (wrapper.inputs.size() == 1) {
+            ExecNodeWrapper inputWrapper = wrapper.inputs.get(0);
+            ExecNode<?> execNode = inputWrapper.execNode;
+            // must have HashJoin which support OFCG as the upstream node
+            if (execNode instanceof BatchExecHashJoin && execNode.supportFusionCodegen()) {
+                return true;
+            } else if (execNode instanceof BatchExecCalc
+                    || execNode instanceof BatchExecHashAggregate) {
+                return oneInputNodeCanBeRoot(inputWrapper);
+            }
+        }
+
+        return false;
     }
 
     // --------------------------------------------------------------------------------
@@ -381,7 +410,20 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
                 }
             } else if (wrapper.inputs.size() == 1) {
                 // optimization 6. operators with only 1 input are not allowed to be the root,
-                // as their chaining will be handled by operator chains.
+                // as their chaining will be handled by operator chains. But Calc and HashAgg can be
+                // the root node for OFCG
+                // TODO If all kinds of one input operator support OFCG, we can remove this
+                // limitation
+                boolean fusionCodegenEnabled =
+                        context.getPlanner()
+                                .getTableConfig()
+                                .get(TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED);
+                if (fusionCodegenEnabled
+                        && (wrapper.execNode instanceof BatchExecCalc
+                                || wrapper.execNode instanceof BatchExecHashAggregate)) {
+                    continue;
+                }
+
                 wrapper.group.removeRoot();
             }
         }
@@ -581,11 +623,21 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
             originalEdges.add(edge);
         }
 
+        List<ExecNode<?>> memberExecNodes =
+                group.members.stream()
+                        .map(ExecNodeWrapper::getExecNode)
+                        .collect(Collectors.toList());
+
         String description =
                 ExecNodeUtil.getMultipleInputDescription(rootNode, inputNodes, inputProperties);
         BatchExecMultipleInput multipleInput =
                 new BatchExecMultipleInput(
-                        tableConfig, inputProperties, rootNode, originalEdges, description);
+                        tableConfig,
+                        inputProperties,
+                        rootNode,
+                        memberExecNodes,
+                        originalEdges,
+                        description);
 
         List<ExecEdge> inputEdges = new ArrayList<>(inputNodes.size());
         for (ExecNode<?> inputNode : inputNodes) {
@@ -610,6 +662,10 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
             this.inputs = new ArrayList<>();
             this.outputs = new ArrayList<>();
             this.group = null;
+        }
+
+        public ExecNode<?> getExecNode() {
+            return execNode;
         }
     }
 

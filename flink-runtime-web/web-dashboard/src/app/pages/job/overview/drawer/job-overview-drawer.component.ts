@@ -17,14 +17,22 @@
  */
 
 import { animate, style, transition, trigger } from '@angular/animations';
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ChangeDetectionStrategy, Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { combineLatest, Subject } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
 
-import { JobChartService } from 'share/customize/job-chart/job-chart.service';
+import { JobChartService } from '@flink-runtime-web/components/job-chart/job-chart.service';
+import { NavigationComponent } from '@flink-runtime-web/components/navigation/navigation.component';
+import { RouterTab } from '@flink-runtime-web/core/module-config';
+import {
+  JOB_OVERVIEW_MODULE_CONFIG,
+  JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
+  JobOverviewModuleConfig
+} from '@flink-runtime-web/pages/job/overview/job-overview.config';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 
-import { JobService } from 'services';
+import { JobLocalService } from '../../job-local.service';
 
 @Component({
   selector: 'flink-job-overview-drawer',
@@ -46,36 +54,33 @@ import { JobService } from 'services';
     '[@drawer]': '',
     '[class.full-width]': 'fullScreen'
   },
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NavigationComponent, RouterOutlet, NzIconModule],
+  standalone: true
 })
 export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
-  public readonly listOfNavigation = [
-    { title: 'Detail', path: 'detail' },
-    { title: 'SubTasks', path: 'subtasks' },
-    { title: 'TaskManagers', path: 'taskmanagers' },
-    { title: 'Watermarks', path: 'watermarks' },
-    { title: 'Accumulators', path: 'accumulators' },
-    { title: 'BackPressure', path: 'backpressure' },
-    { title: 'Metrics', path: 'metrics' },
-    { title: 'FlameGraph', path: 'flamegraph' }
-  ];
+  public readonly listOfNavigation: RouterTab[] = [];
 
   public fullScreen = false;
 
-  private cachePath = this.listOfNavigation[0].path;
+  private cachePath: string;
 
   private readonly destroy$ = new Subject<void>();
 
   constructor(
     private readonly activatedRoute: ActivatedRoute,
     private readonly router: Router,
-    private readonly jobService: JobService,
-    private readonly jobChartService: JobChartService
-  ) {}
+    private readonly jobLocalService: JobLocalService,
+    private readonly jobChartService: JobChartService,
+    @Inject(JOB_OVERVIEW_MODULE_CONFIG) readonly moduleConfig: JobOverviewModuleConfig
+  ) {
+    this.listOfNavigation = moduleConfig.routerTabs || JOB_OVERVIEW_MODULE_DEFAULT_CONFIG.routerTabs;
+    this.cachePath = this.listOfNavigation[0]?.path;
+  }
 
   public ngOnInit(): void {
     const nodeId$ = this.activatedRoute.params.pipe(map(item => item.vertexId));
-    combineLatest([this.jobService.jobDetail$.pipe(map(item => item.plan.nodes)), nodeId$])
+    combineLatest([this.jobLocalService.jobDetailChanges().pipe(map(item => item.plan.nodes)), nodeId$])
       .pipe(takeUntil(this.destroy$))
       .subscribe(([nodes, nodeId]) => {
         if (!this.activatedRoute.firstChild) {
@@ -84,7 +89,7 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
           this.cachePath = this.activatedRoute.firstChild.snapshot.data.path;
         }
         if (nodes && nodeId) {
-          this.jobService.selectedVertex$.next(nodes.find(item => item.id === nodeId));
+          this.jobLocalService.setSelectedVertex(nodes.find(item => item.id === nodeId) || null);
         }
       });
   }
@@ -92,7 +97,7 @@ export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
   public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.jobService.selectedVertex$.next(null);
+    this.jobLocalService.setSelectedVertex(null);
   }
 
   public closeDrawer(): void {

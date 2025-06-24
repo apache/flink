@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.core.fs.DuplicatingFileSystem;
 import org.apache.flink.core.fs.EntropyInjector;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.OutputStreamAndPath;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.PathsCopyingFileSystem;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -86,9 +86,6 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
     /** Cached handle to the file system for file operations. */
     private final FileSystem filesystem;
 
-    /** Whether the file system dynamically injects entropy into the file paths. */
-    private final boolean entropyInjecting;
-
     private final FsCheckpointStateToolset privateStateToolset;
 
     private final FsCheckpointStateToolset sharedStateToolset;
@@ -135,13 +132,13 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
         this.sharedStateDirectory = checkNotNull(sharedStateDirectory);
         this.fileStateThreshold = fileStateSizeThreshold;
         this.writeBufferSize = writeBufferSize;
-        this.entropyInjecting = EntropyInjector.isEntropyInjecting(fileSystem);
-        if (fileSystem instanceof DuplicatingFileSystem) {
-            final DuplicatingFileSystem duplicatingFileSystem = (DuplicatingFileSystem) fileSystem;
+        if (fileSystem instanceof PathsCopyingFileSystem) {
+            final PathsCopyingFileSystem pathsCopyingFileSystem =
+                    (PathsCopyingFileSystem) fileSystem;
             this.privateStateToolset =
-                    new FsCheckpointStateToolset(checkpointDirectory, duplicatingFileSystem);
+                    new FsCheckpointStateToolset(checkpointDirectory, pathsCopyingFileSystem);
             this.sharedStateToolset =
-                    new FsCheckpointStateToolset(sharedStateDirectory, duplicatingFileSystem);
+                    new FsCheckpointStateToolset(sharedStateDirectory, pathsCopyingFileSystem);
         } else {
             this.privateStateToolset = null;
             this.sharedStateToolset = null;
@@ -156,12 +153,14 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
         Path target = getTargetPath(scope);
         int bufferSize = Math.max(writeBufferSize, fileStateThreshold);
 
+        // Whether the file system dynamically injects entropy into the file paths.
+        final boolean entropyInjecting = EntropyInjector.isEntropyInjecting(filesystem, target);
         final boolean absolutePath = entropyInjecting || scope == CheckpointedStateScope.SHARED;
         return new FsCheckpointStateOutputStream(
                 target, filesystem, bufferSize, fileStateThreshold, !absolutePath);
     }
 
-    private Path getTargetPath(CheckpointedStateScope scope) {
+    public Path getTargetPath(CheckpointedStateScope scope) {
         return scope == CheckpointedStateScope.EXCLUSIVE
                 ? checkpointDirectory
                 : sharedStateDirectory;
@@ -223,7 +222,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
         private int pos;
 
-        private FSDataOutputStream outStream;
+        private volatile FSDataOutputStream outStream;
 
         private final int localStateThreshold;
 
@@ -231,7 +230,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
         private final FileSystem fs;
 
-        private Path statePath;
+        private volatile Path statePath;
 
         private String relativeStatePath;
 
@@ -290,10 +289,14 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
                 System.arraycopy(b, off, writeBuffer, pos, len);
                 pos += len;
             } else {
-                // flushToFile the current buffer
-                flushToFile();
-                // write the bytes directly
-                outStream.write(b, off, len);
+                // acquire lock only when we manipulate outStream to avoid the
+                // additional overhead for the hot path write method
+                synchronized (this) {
+                    // flushToFile the current buffer
+                    flushToFile();
+                    // write the bytes directly
+                    outStream.write(b, off, len);
+                }
             }
         }
 
@@ -302,7 +305,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
             return pos + (outStream == null ? 0 : outStream.getPos());
         }
 
-        public void flushToFile() throws IOException {
+        public synchronized void flushToFile() throws IOException {
             if (!closed) {
                 // initialize stream if this is the first flushToFile (stream flush, not Darjeeling
                 // harvest)
@@ -347,7 +350,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
          * logs the error.
          */
         @Override
-        public void close() {
+        public synchronized void close() {
             if (!closed) {
                 closed = true;
 
@@ -376,66 +379,64 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
         @Nullable
         @Override
-        public StreamStateHandle closeAndGetHandle() throws IOException {
+        public synchronized StreamStateHandle closeAndGetHandle() throws IOException {
             // check if there was nothing ever written
             if (outStream == null && pos == 0) {
                 return null;
             }
 
-            synchronized (this) {
-                if (!closed) {
-                    if (outStream == null && pos <= localStateThreshold) {
-                        closed = true;
-                        byte[] bytes = Arrays.copyOf(writeBuffer, pos);
-                        pos = writeBuffer.length;
-                        return new ByteStreamStateHandle(createStatePath().toString(), bytes);
-                    } else {
-                        try {
-                            flushToFile();
-
-                            pos = writeBuffer.length;
-
-                            long size = -1L;
-
-                            // make a best effort attempt to figure out the size
-                            try {
-                                size = outStream.getPos();
-                            } catch (Exception ignored) {
-                            }
-
-                            outStream.close();
-
-                            return allowRelativePaths
-                                    ? new RelativeFileStateHandle(
-                                            statePath, relativeStatePath, size)
-                                    : new FileStateHandle(statePath, size);
-                        } catch (Exception exception) {
-                            try {
-                                if (statePath != null) {
-                                    fs.delete(statePath, false);
-                                }
-
-                            } catch (Exception deleteException) {
-                                LOG.warn(
-                                        "Could not delete the checkpoint stream file {}.",
-                                        statePath,
-                                        deleteException);
-                            }
-
-                            throw new IOException(
-                                    "Could not flush to file and close the file system "
-                                            + "output stream to "
-                                            + statePath
-                                            + " in order to obtain the "
-                                            + "stream state handle",
-                                    exception);
-                        } finally {
-                            closed = true;
-                        }
-                    }
+            if (!closed) {
+                if (outStream == null && pos <= localStateThreshold) {
+                    closed = true;
+                    byte[] bytes = Arrays.copyOf(writeBuffer, pos);
+                    pos = writeBuffer.length;
+                    return new ByteStreamStateHandle(createStatePath().toString(), bytes);
                 } else {
-                    throw new IOException("Stream has already been closed and discarded.");
+                    try {
+                        flushToFile();
+
+                        pos = writeBuffer.length;
+
+                        long size = -1L;
+
+                        // make a best effort attempt to figure out the size
+                        try {
+                            size = outStream.getPos();
+                        } catch (Exception ignored) {
+                        }
+
+                        sync();
+                        outStream.close();
+
+                        return allowRelativePaths
+                                ? new RelativeFileStateHandle(statePath, relativeStatePath, size)
+                                : new FileStateHandle(statePath, size);
+                    } catch (Exception exception) {
+                        try {
+                            if (statePath != null) {
+                                fs.delete(statePath, false);
+                            }
+
+                        } catch (Exception deleteException) {
+                            LOG.warn(
+                                    "Could not delete the checkpoint stream file {}.",
+                                    statePath,
+                                    deleteException);
+                        }
+
+                        throw new IOException(
+                                "Could not flush to file and close the file system "
+                                        + "output stream to "
+                                        + statePath
+                                        + " in order to obtain the "
+                                        + "stream state handle",
+                                exception);
+                    } finally {
+                        closed = true;
+                    }
                 }
+            } else {
+                throw new IOException("Stream has already been closed and discarded.");
             }
         }
 

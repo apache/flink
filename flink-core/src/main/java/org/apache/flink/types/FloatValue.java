@@ -30,10 +30,7 @@ import java.io.IOException;
  */
 @Public
 public class FloatValue
-        implements Comparable<FloatValue>,
-                ResettableValue<FloatValue>,
-                CopyableValue<FloatValue>,
-                Key<FloatValue> {
+        implements Comparable<FloatValue>, ResettableValue<FloatValue>, CopyableValue<FloatValue> {
     private static final long serialVersionUID = 1L;
 
     private float value;

@@ -31,12 +31,15 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.plan.stats.ColumnStats;
 import org.apache.flink.table.plan.stats.TableStats;
-
-import org.apache.calcite.avatica.util.DateTimeUtils;
+import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.util.Preconditions;
 
 import java.sql.Date;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Utility class for converting {@link CatalogTableStatistics} and {@link CatalogColumnStatistics}
@@ -60,6 +63,29 @@ public class CatalogTableStatisticsConverter {
             columnStatsMap = new HashMap<>();
         }
         return new TableStats(rowCount, columnStatsMap);
+    }
+
+    public static TableStats convertToAccumulatedTableStates(
+            List<CatalogTableStatistics> tableStatisticsList,
+            List<CatalogColumnStatistics> catalogColumnStatisticsList,
+            Set<String> partitionKeys) {
+        Preconditions.checkState(
+                tableStatisticsList.size() == catalogColumnStatisticsList.size(),
+                String.format(
+                        "The size of table statistic is %s, expect column statistic list has same size, but the size is %s.",
+                        tableStatisticsList.size(), catalogColumnStatisticsList.size()));
+        List<TableStats> tableStats = new ArrayList<>();
+        for (int i = 0; i < tableStatisticsList.size(); i++) {
+            CatalogTableStatistics catalogTableStatistics = tableStatisticsList.get(i);
+            CatalogColumnStatistics catalogColumnStatistics = catalogColumnStatisticsList.get(i);
+            tableStats.add(
+                    CatalogTableStatisticsConverter.convertToTableStats(
+                            catalogTableStatistics, catalogColumnStatistics));
+        }
+
+        return tableStats.stream()
+                .reduce((s1, s2) -> s1.merge(s2, partitionKeys))
+                .orElse(TableStats.UNKNOWN);
     }
 
     @VisibleForTesting
@@ -132,13 +158,13 @@ public class CatalogTableStatisticsConverter {
             if (dateData.getMax() != null) {
                 max =
                         Date.valueOf(
-                                DateTimeUtils.unixDateToString(
+                                DateTimeUtils.formatDate(
                                         (int) dateData.getMax().getDaysSinceEpoch()));
             }
             if (dateData.getMin() != null) {
                 min =
                         Date.valueOf(
-                                DateTimeUtils.unixDateToString(
+                                DateTimeUtils.formatDate(
                                         (int) dateData.getMin().getDaysSinceEpoch()));
             }
         } else {

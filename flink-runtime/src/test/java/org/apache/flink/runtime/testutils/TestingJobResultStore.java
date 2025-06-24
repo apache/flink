@@ -23,13 +23,14 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.SupplierWithException;
-import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 /**
  * {@code TestingJobResultStore} is a {@link JobResultStore} implementation that can be used in
@@ -51,25 +52,21 @@ public class TestingJobResultStore implements JobResultStore {
                 .build();
     }
 
-    private final ThrowingConsumer<JobResultEntry, ? extends IOException> createDirtyResultConsumer;
-    private final ThrowingConsumer<JobID, ? extends IOException> markResultAsCleanConsumer;
-    private final FunctionWithException<JobID, Boolean, ? extends IOException>
-            hasJobResultEntryFunction;
-    private final FunctionWithException<JobID, Boolean, ? extends IOException>
-            hasDirtyJobResultEntryFunction;
-    private final FunctionWithException<JobID, Boolean, ? extends IOException>
-            hasCleanJobResultEntryFunction;
+    private final Function<JobResultEntry, CompletableFuture<Void>> createDirtyResultConsumer;
+    private final Function<JobID, CompletableFuture<Void>> markResultAsCleanConsumer;
+
+    private final Function<JobID, CompletableFuture<Boolean>> hasJobResultEntryFunction;
+    private final Function<JobID, CompletableFuture<Boolean>> hasDirtyJobResultEntryFunction;
+    private final Function<JobID, CompletableFuture<Boolean>> hasCleanJobResultEntryFunction;
     private final SupplierWithException<Set<JobResult>, ? extends IOException>
             getDirtyResultsSupplier;
 
     private TestingJobResultStore(
-            ThrowingConsumer<JobResultEntry, ? extends IOException> createDirtyResultConsumer,
-            ThrowingConsumer<JobID, ? extends IOException> markResultAsCleanConsumer,
-            FunctionWithException<JobID, Boolean, ? extends IOException> hasJobResultEntryFunction,
-            FunctionWithException<JobID, Boolean, ? extends IOException>
-                    hasDirtyJobResultEntryFunction,
-            FunctionWithException<JobID, Boolean, ? extends IOException>
-                    hasCleanJobResultEntryFunction,
+            Function<JobResultEntry, CompletableFuture<Void>> createDirtyResultConsumer,
+            Function<JobID, CompletableFuture<Void>> markResultAsCleanConsumer,
+            Function<JobID, CompletableFuture<Boolean>> hasJobResultEntryFunction,
+            Function<JobID, CompletableFuture<Boolean>> hasDirtyJobResultEntryFunction,
+            Function<JobID, CompletableFuture<Boolean>> hasCleanJobResultEntryFunction,
             SupplierWithException<Set<JobResult>, ? extends IOException> getDirtyResultsSupplier) {
         this.createDirtyResultConsumer = createDirtyResultConsumer;
         this.markResultAsCleanConsumer = markResultAsCleanConsumer;
@@ -80,27 +77,27 @@ public class TestingJobResultStore implements JobResultStore {
     }
 
     @Override
-    public void createDirtyResult(JobResultEntry jobResultEntry) throws IOException {
-        createDirtyResultConsumer.accept(jobResultEntry);
+    public CompletableFuture<Void> createDirtyResultAsync(JobResultEntry jobResultEntry) {
+        return createDirtyResultConsumer.apply(jobResultEntry);
     }
 
     @Override
-    public void markResultAsClean(JobID jobId) throws IOException {
-        markResultAsCleanConsumer.accept(jobId);
+    public CompletableFuture<Void> markResultAsCleanAsync(JobID jobId) {
+        return markResultAsCleanConsumer.apply(jobId);
     }
 
     @Override
-    public boolean hasJobResultEntry(JobID jobId) throws IOException {
+    public CompletableFuture<Boolean> hasJobResultEntryAsync(JobID jobId) {
         return hasJobResultEntryFunction.apply(jobId);
     }
 
     @Override
-    public boolean hasDirtyJobResultEntry(JobID jobId) throws IOException {
+    public CompletableFuture<Boolean> hasDirtyJobResultEntryAsync(JobID jobId) {
         return hasDirtyJobResultEntryFunction.apply(jobId);
     }
 
     @Override
-    public boolean hasCleanJobResultEntry(JobID jobId) throws IOException {
+    public CompletableFuture<Boolean> hasCleanJobResultEntryAsync(JobID jobId) {
         return hasCleanJobResultEntryFunction.apply(jobId);
     }
 
@@ -116,50 +113,47 @@ public class TestingJobResultStore implements JobResultStore {
     /** {@code Builder} for instantiating {@code TestingJobResultStore} instances. */
     public static class Builder {
 
-        private ThrowingConsumer<JobResultEntry, ? extends IOException> createDirtyResultConsumer =
-                ignored -> {};
-        private ThrowingConsumer<JobID, ? extends IOException> markResultAsCleanConsumer =
-                ignored -> {};
+        private Function<JobResultEntry, CompletableFuture<Void>> createDirtyResultConsumer =
+                jobResultEntry -> FutureUtils.completedVoidFuture();
+        private Function<JobID, CompletableFuture<Void>> markResultAsCleanConsumer =
+                jobID -> FutureUtils.completedVoidFuture();
 
-        private FunctionWithException<JobID, Boolean, ? extends IOException>
-                hasJobResultEntryFunction = ignored -> false;
-        private FunctionWithException<JobID, Boolean, ? extends IOException>
-                hasDirtyJobResultEntryFunction = ignored -> false;
-        private FunctionWithException<JobID, Boolean, ? extends IOException>
-                hasCleanJobResultEntryFunction = ignored -> false;
+        private Function<JobID, CompletableFuture<Boolean>> hasJobResultEntryFunction =
+                jobID -> CompletableFuture.completedFuture(false);
+        private Function<JobID, CompletableFuture<Boolean>> hasDirtyJobResultEntryFunction =
+                jobID -> CompletableFuture.completedFuture(false);
+        private Function<JobID, CompletableFuture<Boolean>> hasCleanJobResultEntryFunction =
+                jobID -> CompletableFuture.completedFuture(false);
 
         private SupplierWithException<Set<JobResult>, ? extends IOException>
                 getDirtyResultsSupplier = Collections::emptySet;
 
         public Builder withCreateDirtyResultConsumer(
-                ThrowingConsumer<JobResultEntry, ? extends IOException> createDirtyResultConsumer) {
+                Function<JobResultEntry, CompletableFuture<Void>> createDirtyResultConsumer) {
             this.createDirtyResultConsumer = createDirtyResultConsumer;
             return this;
         }
 
         public Builder withMarkResultAsCleanConsumer(
-                ThrowingConsumer<JobID, ? extends IOException> markResultAsCleanConsumer) {
+                Function<JobID, CompletableFuture<Void>> markResultAsCleanConsumer) {
             this.markResultAsCleanConsumer = markResultAsCleanConsumer;
             return this;
         }
 
         public Builder withHasJobResultEntryFunction(
-                FunctionWithException<JobID, Boolean, ? extends IOException>
-                        hasJobResultEntryFunction) {
+                Function<JobID, CompletableFuture<Boolean>> hasJobResultEntryFunction) {
             this.hasJobResultEntryFunction = hasJobResultEntryFunction;
             return this;
         }
 
         public Builder withHasDirtyJobResultEntryFunction(
-                FunctionWithException<JobID, Boolean, ? extends IOException>
-                        hasDirtyJobResultEntryFunction) {
+                Function<JobID, CompletableFuture<Boolean>> hasDirtyJobResultEntryFunction) {
             this.hasDirtyJobResultEntryFunction = hasDirtyJobResultEntryFunction;
             return this;
         }
 
         public Builder withHasCleanJobResultEntryFunction(
-                FunctionWithException<JobID, Boolean, ? extends IOException>
-                        hasCleanJobResultEntryFunction) {
+                Function<JobID, CompletableFuture<Boolean>> hasCleanJobResultEntryFunction) {
             this.hasCleanJobResultEntryFunction = hasCleanJobResultEntryFunction;
             return this;
         }

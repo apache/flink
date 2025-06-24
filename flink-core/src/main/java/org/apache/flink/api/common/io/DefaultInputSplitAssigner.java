@@ -32,8 +32,7 @@ import java.util.List;
 
 /**
  * This is the default implementation of the {@link InputSplitAssigner} interface. The default input
- * split assigner simply returns all input splits of an input vertex in the order they were
- * originally computed.
+ * split assigner simply returns all input splits of an input vertex in an undefined order.
  */
 @Internal
 public class DefaultInputSplitAssigner implements InputSplitAssigner {

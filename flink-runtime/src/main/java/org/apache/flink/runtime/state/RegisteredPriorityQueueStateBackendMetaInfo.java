@@ -71,6 +71,12 @@ public class RegisteredPriorityQueueStateBackendMetaInfo<T> extends RegisteredSt
     }
 
     @Nonnull
+    @Override
+    public RegisteredPriorityQueueStateBackendMetaInfo<T> withSerializerUpgradesAllowed() {
+        return new RegisteredPriorityQueueStateBackendMetaInfo<>(snapshot());
+    }
+
+    @Nonnull
     public TypeSerializer<T> getElementSerializer() {
         return elementSerializerProvider.currentSchemaSerializer();
     }

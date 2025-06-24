@@ -23,8 +23,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.RuntimeConverter;
+import org.apache.flink.table.connector.sink.abilities.SupportsBucketing;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
+import org.apache.flink.table.connector.sink.abilities.SupportsTargetColumnWriting;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
@@ -35,6 +37,7 @@ import org.apache.flink.types.RowKind;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Optional;
 
 /**
  * Sink of a dynamic table to an external storage system.
@@ -65,9 +68,11 @@ import java.io.Serializable;
  * <p>A {@link DynamicTableSink} can implement the following abilities:
  *
  * <ul>
+ *   <li>{@link SupportsBucketing}
  *   <li>{@link SupportsPartitioning}
  *   <li>{@link SupportsOverwrite}
  *   <li>{@link SupportsWritingMetadata}
+ *   <li>{@link SupportsTargetColumnWriting}
  * </ul>
  *
  * <p>In the last step, the planner will call {@link #getSinkRuntimeProvider(Context)} for obtaining
@@ -100,11 +105,11 @@ public interface DynamicTableSink {
      * <p>The given {@link Context} offers utilities by the planner for creating runtime
      * implementation with minimal dependencies to internal data structures.
      *
-     * <p>{@link SinkProvider} is the recommended core interface. {@code SinkFunctionProvider} in
+     * <p>{@link SinkV2Provider} is the recommended core interface. {@code SinkFunctionProvider} in
      * {@code flink-table-api-java-bridge} and {@link OutputFormatProvider} are available for
      * backwards compatibility.
      *
-     * @see SinkProvider
+     * @see SinkV2Provider
      */
     SinkRuntimeProvider getSinkRuntimeProvider(Context context);
 
@@ -167,6 +172,26 @@ public interface DynamicTableSink {
          * @see LogicalType#supportsOutputConversion(Class)
          */
         DataStructureConverter createDataStructureConverter(DataType consumedDataType);
+
+        /**
+         * Returns an {@link Optional} array of column index paths related to user specified target
+         * column list or {@link Optional#empty()} when not specified. The array indices are 0-based
+         * and support composite columns within (possibly nested) structures.
+         *
+         * <p>This information comes from the column list of the DML clause, e.g., for a sink table
+         * t1 which schema is: {@code a STRING, b ROW < b1 INT, b2 STRING>, c BIGINT}
+         *
+         * <ul>
+         *   <li>insert: 'insert into t1(a, b.b2) ...', the column list will be 'a, b.b2', and will
+         *       return {@code [[0], [1, 1]]}. The statement 'insert into t1 select ...' without
+         *       specifying a column list will return {@link Optional#empty()}.
+         *   <li>update: 'update t1 set a=1, b.b1=2 where ...', the column list will be 'a, b.b1',
+         *       and will return {@code [[0], [1, 0]]}.
+         * </ul>
+         *
+         * <p>Note: will always return empty for the delete statement because it has no column list.
+         */
+        Optional<int[][]> getTargetColumns();
     }
 
     /**
@@ -194,11 +219,11 @@ public interface DynamicTableSink {
      * SinkRuntimeProvider} serves as the base interface. Concrete {@link SinkRuntimeProvider}
      * interfaces might be located in other Flink modules.
      *
-     * <p>{@link SinkProvider} is the recommended core interface. {@code SinkFunctionProvider} in
+     * <p>{@link SinkV2Provider} is the recommended core interface.{@code SinkFunctionProvider} in
      * {@code flink-table-api-java-bridge} and {@link OutputFormatProvider} are available for
      * backwards compatibility.
      *
-     * @see SinkProvider
+     * @see SinkV2Provider
      */
     @PublicEvolving
     interface SinkRuntimeProvider {

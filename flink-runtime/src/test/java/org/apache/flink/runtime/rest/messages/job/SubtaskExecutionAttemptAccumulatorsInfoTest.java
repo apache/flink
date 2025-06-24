@@ -19,13 +19,20 @@
 package org.apache.flink.runtime.rest.messages.job;
 
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+
 /** Tests (un)marshalling of the {@link SubtaskExecutionAttemptAccumulatorsInfo}. */
-public class SubtaskExecutionAttemptAccumulatorsInfoTest
+@ExtendWith(NoOpTestExtension.class)
+class SubtaskExecutionAttemptAccumulatorsInfoTest
         extends RestResponseMarshallingTestBase<SubtaskExecutionAttemptAccumulatorsInfo> {
 
     @Override
@@ -42,7 +49,12 @@ public class SubtaskExecutionAttemptAccumulatorsInfoTest
         userAccumulatorList.add(new UserAccumulator("name2", "type1", "value1"));
         userAccumulatorList.add(new UserAccumulator("name3", "type2", "value3"));
 
+        final ExecutionAttemptID executionAttemptId =
+                createExecutionAttemptId(new JobVertexID(), 1, 2);
         return new SubtaskExecutionAttemptAccumulatorsInfo(
-                1, 2, new ExecutionAttemptID().toString(), userAccumulatorList);
+                executionAttemptId.getSubtaskIndex(),
+                executionAttemptId.getAttemptNumber(),
+                executionAttemptId.toString(),
+                userAccumulatorList);
     }
 }

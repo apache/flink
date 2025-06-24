@@ -22,10 +22,11 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -48,83 +49,67 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeFalse;
-import static org.junit.Assume.assumeTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for the {@link FileUtils}. */
-public class FileUtilsTest extends TestLogger {
+public class FileUtilsTest {
 
-    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+    @TempDir private java.nio.file.Path temporaryFolder;
 
     // ------------------------------------------------------------------------
     //  Tests
     // ------------------------------------------------------------------------
 
     @Test
-    public void testReadAllBytes() throws Exception {
-        TemporaryFolder tmpFolder = null;
-        try {
-            tmpFolder = new TemporaryFolder(new File(this.getClass().getResource("/").getPath()));
-            tmpFolder.create();
+    void testReadAllBytes() throws Exception {
 
-            final int fileSize = 1024;
-            final String testFilePath =
-                    tmpFolder.getRoot().getAbsolutePath()
-                            + File.separator
-                            + this.getClass().getSimpleName()
-                            + "_"
-                            + fileSize
-                            + ".txt";
+        File tempFile =
+                TempDirUtils.newFolder(Paths.get(this.getClass().getResource("/").getPath()));
 
-            {
-                String expectedMD5 = generateTestFile(testFilePath, 1024);
-                final byte[] data = FileUtils.readAllBytes((new File(testFilePath)).toPath());
-                assertEquals(expectedMD5, md5Hex(data));
-            }
+        final int fileSize = 1024;
+        final String testFilePath =
+                tempFile.toPath()
+                        .resolve(this.getClass().getSimpleName() + "_" + fileSize + ".txt")
+                        .toString();
 
-            {
-                String expectedMD5 = generateTestFile(testFilePath, 4096);
-                final byte[] data = FileUtils.readAllBytes((new File(testFilePath)).toPath());
-                assertEquals(expectedMD5, md5Hex(data));
-            }
+        {
+            String expectedMD5 = generateTestFile(testFilePath, 1024);
+            final byte[] data = FileUtils.readAllBytes((new File(testFilePath)).toPath());
+            assertThat(md5Hex(data)).isEqualTo(expectedMD5);
+        }
 
-            {
-                String expectedMD5 = generateTestFile(testFilePath, 5120);
-                final byte[] data = FileUtils.readAllBytes((new File(testFilePath)).toPath());
-                assertEquals(expectedMD5, md5Hex(data));
-            }
-        } finally {
-            if (tmpFolder != null) {
-                tmpFolder.delete();
-            }
+        {
+            String expectedMD5 = generateTestFile(testFilePath, 4096);
+            final byte[] data = FileUtils.readAllBytes((new File(testFilePath)).toPath());
+            assertThat(md5Hex(data)).isEqualTo(expectedMD5);
+        }
+
+        {
+            String expectedMD5 = generateTestFile(testFilePath, 5120);
+            final byte[] data = FileUtils.readAllBytes((new File(testFilePath)).toPath());
+            assertThat(md5Hex(data)).isEqualTo(expectedMD5);
         }
     }
 
     @Test
-    public void testDeleteQuietly() throws Exception {
+    void testDeleteQuietly() throws Exception {
         // should ignore the call
         FileUtils.deleteDirectoryQuietly(null);
-
-        File doesNotExist = new File(tmp.getRoot(), "abc");
+        File doesNotExist = TempDirUtils.newFolder(temporaryFolder, "abc");
         FileUtils.deleteDirectoryQuietly(doesNotExist);
 
-        File cannotDeleteParent = tmp.newFolder();
+        File cannotDeleteParent = TempDirUtils.newFolder(temporaryFolder);
         File cannotDeleteChild = new File(cannotDeleteParent, "child");
 
         try {
-            assumeTrue(cannotDeleteChild.createNewFile());
-            assumeTrue(cannotDeleteParent.setWritable(false));
-            assumeTrue(cannotDeleteChild.setWritable(false));
+            assertThat(cannotDeleteChild.createNewFile()).isTrue();
+            assertThat(cannotDeleteParent.setWritable(false)).isTrue();
+            assertThat(cannotDeleteChild.setWritable(false)).isTrue();
 
             FileUtils.deleteDirectoryQuietly(cannotDeleteParent);
         } finally {
@@ -136,27 +121,27 @@ public class FileUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testDeleteDirectory() throws Exception {
-
+    void testDeleteNonExistentDirectory() throws Exception {
         // deleting a non-existent file should not cause an error
 
-        File doesNotExist = new File(tmp.newFolder(), "abc");
+        File doesNotExist = TempDirUtils.newFolder(temporaryFolder, "abc");
         FileUtils.deleteDirectory(doesNotExist);
+    }
 
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
+    @Test
+    void testDeleteProtectedDirectory() throws Exception {
         // deleting a write protected file should throw an error
 
-        File cannotDeleteParent = tmp.newFolder();
+        File cannotDeleteParent = TempDirUtils.newFolder(temporaryFolder);
         File cannotDeleteChild = new File(cannotDeleteParent, "child");
 
         try {
-            assumeTrue(cannotDeleteChild.createNewFile());
-            assumeTrue(cannotDeleteParent.setWritable(false));
-            assumeTrue(cannotDeleteChild.setWritable(false));
-
-            FileUtils.deleteDirectory(cannotDeleteParent);
-            fail("this should fail with an exception");
-        } catch (AccessDeniedException ignored) {
-            // this is expected
+            assumeThat(cannotDeleteChild.createNewFile()).isTrue();
+            assumeThat(cannotDeleteParent.setWritable(false)).isTrue();
+            assumeThat(cannotDeleteChild.setWritable(false)).isTrue();
+            assertThatThrownBy(() -> FileUtils.deleteDirectory(cannotDeleteParent))
+                    .isInstanceOf(AccessDeniedException.class);
         } finally {
             //noinspection ResultOfMethodCallIgnored
             cannotDeleteParent.setWritable(true);
@@ -166,45 +151,43 @@ public class FileUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testDeleteDirectoryWhichIsAFile() throws Exception {
+    void testDeleteDirectoryWhichIsAFile() throws Exception {
 
         // deleting a directory that is actually a file should fails
 
-        File file = tmp.newFile();
-        try {
-            FileUtils.deleteDirectory(file);
-            fail("this should fail with an exception");
-        } catch (IOException ignored) {
-            // this is what we expect
-        }
+        File file = TempDirUtils.newFile(temporaryFolder);
+        assertThatThrownBy(() -> FileUtils.deleteDirectory(file))
+                .withFailMessage("this should fail with an exception")
+                .isInstanceOf(IOException.class);
     }
 
     /** Deleting a symbolic link directory should not delete the files in it. */
     @Test
-    public void testDeleteSymbolicLinkDirectory() throws Exception {
+    void testDeleteSymbolicLinkDirectory() throws Exception {
         // creating a directory to which the test creates a symbolic link
-        File linkedDirectory = tmp.newFolder();
+        File linkedDirectory = TempDirUtils.newFolder(temporaryFolder);
         File fileInLinkedDirectory = new File(linkedDirectory, "child");
-        assertTrue(fileInLinkedDirectory.createNewFile());
+        assertThat(fileInLinkedDirectory.createNewFile()).isTrue();
 
-        File symbolicLink = new File(tmp.getRoot(), "symLink");
+        File symbolicLink = new File(temporaryFolder.toString(), "symLink");
         try {
             Files.createSymbolicLink(symbolicLink.toPath(), linkedDirectory.toPath());
         } catch (FileSystemException e) {
             // this operation can fail under Windows due to: "A required privilege is not held by
             // the client."
-            assumeFalse(
-                    "This test does not work properly under Windows", OperatingSystem.isWindows());
+            assumeThat(OperatingSystem.isWindows())
+                    .withFailMessage("This test does not work properly under Windows")
+                    .isFalse();
             throw e;
         }
 
         FileUtils.deleteDirectory(symbolicLink);
-        assertTrue(fileInLinkedDirectory.exists());
+        assertThat(fileInLinkedDirectory).exists();
     }
 
     @Test
-    public void testDeleteDirectoryConcurrently() throws Exception {
-        final File parent = tmp.newFolder();
+    void testDeleteDirectoryConcurrently() throws Exception {
+        final File parent = TempDirUtils.newFolder(temporaryFolder);
 
         generateRandomDirs(parent, 20, 5, 3);
 
@@ -220,18 +203,20 @@ public class FileUtilsTest extends TestLogger {
         t3.sync();
 
         // assert is empty
-        assertFalse(parent.exists());
+        assertThat(parent).doesNotExist();
     }
 
     @Test
-    public void testCompressionOnAbsolutePath() throws IOException {
-        final java.nio.file.Path testDir = tmp.newFolder("compressDir").toPath();
+    void testCompressionOnAbsolutePath() throws IOException {
+        final java.nio.file.Path testDir =
+                TempDirUtils.newFolder(temporaryFolder, "compressDir").toPath();
         verifyDirectoryCompression(testDir, testDir);
     }
 
     @Test
-    public void testCompressionOnRelativePath() throws IOException {
-        final java.nio.file.Path testDir = tmp.newFolder("compressDir").toPath();
+    void testCompressionOnRelativePath() throws IOException {
+        final java.nio.file.Path testDir =
+                TempDirUtils.newFolder(temporaryFolder, "compressDir").toPath();
         final java.nio.file.Path relativeCompressDir =
                 Paths.get(new File("").getAbsolutePath()).relativize(testDir);
 
@@ -239,90 +224,155 @@ public class FileUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testListFilesInPathWithoutAnyFileReturnEmptyList() throws IOException {
-        final java.nio.file.Path testDir = tmp.newFolder("_test_0").toPath();
+    void testListFilesInPathWithoutAnyFileReturnEmptyList() throws IOException {
+        final java.nio.file.Path testDir =
+                TempDirUtils.newFolder(temporaryFolder, "_test_0").toPath();
 
-        assertThat(FileUtils.listFilesInDirectory(testDir, FileUtils::isJarFile), is(empty()));
+        assertThat(FileUtils.listFilesInDirectory(testDir, FileUtils::isJarFile)).isEmpty();
     }
 
     @Test
-    public void testListFilesInPath() throws IOException {
-        final java.nio.file.Path testDir = tmp.newFolder("_test_1").toPath();
+    void testListFilesInPath() throws IOException {
+        final java.nio.file.Path testDir =
+                TempDirUtils.newFolder(temporaryFolder, "_test_1").toPath();
         final Collection<java.nio.file.Path> testFiles = prepareTestFiles(testDir);
 
         final Collection<java.nio.file.Path> filesInDirectory =
                 FileUtils.listFilesInDirectory(testDir, FileUtils::isJarFile);
-        assertThat(filesInDirectory, containsInAnyOrder(testFiles.toArray()));
+        assertThat(filesInDirectory).containsExactlyInAnyOrderElementsOf(testFiles);
     }
 
     @Test
-    public void testRelativizeOfAbsolutePath() throws IOException {
-        final java.nio.file.Path absolutePath = tmp.newFolder().toPath().toAbsolutePath();
+    void testRelativizeOfAbsolutePath() throws IOException {
+        final java.nio.file.Path absolutePath =
+                TempDirUtils.newFolder(temporaryFolder).toPath().toAbsolutePath();
 
-        final java.nio.file.Path rootPath = tmp.getRoot().toPath();
+        final java.nio.file.Path rootPath = temporaryFolder.getRoot();
         final java.nio.file.Path relativePath = FileUtils.relativizePath(rootPath, absolutePath);
-        assertFalse(relativePath.isAbsolute());
-        assertThat(rootPath.resolve(relativePath), is(absolutePath));
+        assertThat(relativePath).isRelative();
+        assertThat(absolutePath).isEqualTo(rootPath.resolve(relativePath));
     }
 
     @Test
-    public void testRelativizeOfRelativePath() {
+    void testRelativizeOfRelativePath() {
         final java.nio.file.Path path = Paths.get("foobar");
-        assertFalse(path.isAbsolute());
+        assertThat(path).isRelative();
 
         final java.nio.file.Path relativePath =
-                FileUtils.relativizePath(tmp.getRoot().toPath(), path);
-        assertThat(relativePath, is(path));
+                FileUtils.relativizePath(temporaryFolder.getRoot(), path);
+        assertThat(path).isEqualTo(relativePath);
     }
 
     @Test
-    public void testAbsolutePathToURL() throws MalformedURLException {
-        final java.nio.file.Path absolutePath = tmp.getRoot().toPath().toAbsolutePath();
+    void testAbsolutePathToURL() throws MalformedURLException {
+        final java.nio.file.Path absolutePath = temporaryFolder.getRoot().toAbsolutePath();
         final URL absoluteURL = FileUtils.toURL(absolutePath);
 
         final java.nio.file.Path transformedURL = Paths.get(absoluteURL.getPath());
-        assertThat(transformedURL, is(absolutePath));
+        assertThat(transformedURL).isEqualTo(absolutePath);
     }
 
     @Test
-    public void testRelativePathToURL() throws MalformedURLException {
+    void testRelativePathToURL() throws MalformedURLException {
         final java.nio.file.Path relativePath = Paths.get("foobar");
-        assertFalse(relativePath.isAbsolute());
+        assertThat(relativePath).isRelative();
 
         final URL relativeURL = FileUtils.toURL(relativePath);
         final java.nio.file.Path transformedPath = Paths.get(relativeURL.getPath());
 
-        assertThat(transformedPath, is(relativePath));
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testListDirFailsIfDirectoryDoesNotExist() throws IOException {
-        final String fileName = "_does_not_exists_file";
-        FileUtils.listFilesInDirectory(
-                tmp.getRoot().toPath().resolve(fileName), FileUtils::isJarFile);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testListAFileFailsBecauseDirectoryIsExpected() throws IOException {
-        final String fileName = "a.jar";
-        final File file = tmp.newFile(fileName);
-        FileUtils.listFilesInDirectory(file.toPath(), FileUtils::isJarFile);
+        assertThat(transformedPath).isEqualTo(relativePath);
     }
 
     @Test
-    public void testFollowSymbolicDirectoryLink() throws IOException {
-        final File directory = tmp.newFolder("a");
-        final File file = new File(directory, "a.jar");
-        assertTrue(file.createNewFile());
+    void testListDirFailsIfDirectoryDoesNotExist() {
+        final String fileName = "_does_not_exists_file";
+        assertThatThrownBy(
+                        () ->
+                                FileUtils.listFilesInDirectory(
+                                        temporaryFolder.getRoot().resolve(fileName),
+                                        FileUtils::isJarFile))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 
-        final File otherDirectory = tmp.newFolder();
+    @Test
+    void testListAFileFailsBecauseDirectoryIsExpected() throws IOException {
+        final String fileName = "a.jar";
+        final File file = TempDirUtils.newFile(temporaryFolder, fileName);
+        assertThatThrownBy(
+                        () -> FileUtils.listFilesInDirectory(file.toPath(), FileUtils::isJarFile))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testFollowSymbolicDirectoryLink() throws IOException {
+        final File directory = TempDirUtils.newFolder(temporaryFolder, "a");
+        final File file = new File(directory, "a.jar");
+        assertThat(file.createNewFile()).isTrue();
+
+        final File otherDirectory = TempDirUtils.newFolder(temporaryFolder);
         java.nio.file.Path linkPath = Paths.get(otherDirectory.getPath(), "a.lnk");
         Files.createSymbolicLink(linkPath, directory.toPath());
 
         Collection<java.nio.file.Path> paths =
                 FileUtils.listFilesInDirectory(linkPath, FileUtils::isJarFile);
 
-        assertThat(paths, containsInAnyOrder(linkPath.resolve(file.getName())));
+        assertThat(paths).containsExactlyInAnyOrder(linkPath.resolve(file.getName()));
+    }
+
+    @Test
+    void testGetTargetPathNotContainsSymbolicPath() throws IOException {
+        java.nio.file.Path testPath = Paths.get("parent", "child");
+        java.nio.file.Path targetPath = FileUtils.getTargetPathIfContainsSymbolicPath(testPath);
+        assertThat(targetPath).isEqualTo(testPath);
+    }
+
+    @Test
+    void testGetTargetPathContainsSymbolicPath() throws IOException {
+        File linkedDir = TempDirUtils.newFolder(temporaryFolder, "linked");
+        java.nio.file.Path symlink = Paths.get(temporaryFolder.toString(), "symlink");
+        java.nio.file.Path dirInLinked =
+                TempDirUtils.newFolder(linkedDir.toPath(), "one", "two").toPath().toRealPath();
+        Files.createSymbolicLink(symlink, linkedDir.toPath());
+
+        java.nio.file.Path targetPath =
+                FileUtils.getTargetPathIfContainsSymbolicPath(
+                        symlink.resolve("one").resolve("two"));
+        assertThat(targetPath).isEqualTo(dirInLinked);
+    }
+
+    @Test
+    void testGetTargetPathContainsMultipleSymbolicPath() throws IOException {
+        File linked1Dir = TempDirUtils.newFolder(temporaryFolder, "linked1");
+        java.nio.file.Path symlink1 = Paths.get(temporaryFolder.toString(), "symlink1");
+        Files.createSymbolicLink(symlink1, linked1Dir.toPath());
+
+        java.nio.file.Path symlink2 = Paths.get(symlink1.toString(), "symlink2");
+        File linked2Dir = TempDirUtils.newFolder(temporaryFolder, "linked2");
+        Files.createSymbolicLink(symlink2, linked2Dir.toPath());
+        java.nio.file.Path dirInLinked2 =
+                TempDirUtils.newFolder(linked2Dir.toPath(), "one").toPath().toRealPath();
+
+        // symlink3 point to another symbolic link: symlink2
+        java.nio.file.Path symlink3 = Paths.get(symlink1.toString(), "symlink3");
+        Files.createSymbolicLink(symlink3, symlink2);
+
+        java.nio.file.Path targetPath =
+                FileUtils.getTargetPathIfContainsSymbolicPath(
+                        // path contains multiple symlink : xxx/symlink1/symlink3/one
+                        symlink3.resolve("one"));
+        assertThat(targetPath).isEqualTo(dirInLinked2);
+    }
+
+    @Test
+    void testGetDirectorySize() throws Exception {
+        final File parent = TempDirUtils.newFolder(temporaryFolder);
+
+        // Empty directory should have size 0
+        assertThat(FileUtils.getDirectoryFilesSize(parent.toPath())).isZero();
+
+        // Expected size: (20*5^0 + 20*5^1 + 20*5^2 + 20*5^3) * 1 byte = 3120 bytes
+        generateRandomDirs(parent, 20, 5, 3);
+        assertThat(FileUtils.getDirectoryFilesSize(parent.toPath())).isEqualTo(3120);
     }
 
     // ------------------------------------------------------------------------
@@ -331,8 +381,8 @@ public class FileUtilsTest extends TestLogger {
 
     private static void assertDirEquals(java.nio.file.Path expected, java.nio.file.Path actual)
             throws IOException {
-        assertEquals(Files.isDirectory(expected), Files.isDirectory(actual));
-        assertEquals(expected.getFileName(), actual.getFileName());
+        assertThat(Files.isDirectory(actual)).isEqualTo(Files.isDirectory(expected));
+        assertThat(actual.getFileName()).isEqualTo(expected.getFileName());
 
         if (Files.isDirectory(expected)) {
             List<java.nio.file.Path> expectedContents;
@@ -348,7 +398,7 @@ public class FileUtilsTest extends TestLogger {
                                 .collect(Collectors.toList());
             }
 
-            assertEquals(expectedContents.size(), actualContents.size());
+            assertThat(actualContents).hasSameSizeAs(expectedContents);
 
             for (int x = 0; x < expectedContents.size(); x++) {
                 assertDirEquals(expectedContents.get(x), actualContents.get(x));
@@ -356,7 +406,7 @@ public class FileUtilsTest extends TestLogger {
         } else {
             byte[] expectedBytes = Files.readAllBytes(expected);
             byte[] actualBytes = Files.readAllBytes(actual);
-            assertArrayEquals(expectedBytes, actualBytes);
+            assertThat(actualBytes).isEqualTo(expectedBytes);
         }
     }
 
@@ -374,7 +424,7 @@ public class FileUtilsTest extends TestLogger {
             // generate the directories
             for (int i = 0; i < numDirs; i++) {
                 File subdir = new File(dir, new AbstractID().toString());
-                assertTrue(subdir.mkdir());
+                assertThat(subdir.mkdir()).isTrue();
                 generateRandomDirs(subdir, numFiles, numDirs, depth - 1);
             }
         }
@@ -435,7 +485,8 @@ public class FileUtilsTest extends TestLogger {
                         + "Da flammt ein blitzendes Verheeren Dem Pfade vor des Donnerschlags. Doch\n"
                         + "deine Boten, Herr, verehren Das sanfte Wandeln deines Tags.";
 
-        final java.nio.file.Path extractDir = tmp.newFolder("extractDir").toPath();
+        final java.nio.file.Path extractDir =
+                TempDirUtils.newFolder(temporaryFolder, "extractDir").toPath();
 
         final java.nio.file.Path originalDir = Paths.get("rootDir");
         final java.nio.file.Path emptySubDir = originalDir.resolve("emptyDir");
@@ -463,6 +514,50 @@ public class FileUtilsTest extends TestLogger {
         FileUtils.expandDirectory(zip, new Path(extractDir.toAbsolutePath().toString()));
 
         assertDirEquals(compressDir.resolve(originalDir), extractDir.resolve(originalDir));
+    }
+
+    /**
+     * Generates zip archive, containing path to file/dir passed in, un-archives the generated zip
+     * using {@link org.apache.flink.util.FileUtils#expandDirectory(org.apache.flink.core.fs.Path,
+     * org.apache.flink.core.fs.Path)} and returns path to expanded folder.
+     *
+     * @param prefix prefix to use for creating source and destination folders
+     * @param path path to contents of zip
+     * @return Path to folder containing unzipped contents
+     * @throws IOException if I/O error in file creation, un-archiving detects unsafe access outside
+     *     target folder
+     */
+    private Path writeZipAndFetchExpandedPath(String prefix, String path) throws IOException {
+        // random source folder
+        String sourcePath = prefix + "src";
+        String dstPath = prefix + "dst";
+        java.nio.file.Path srcFolder = TempDirUtils.newFolder(temporaryFolder, sourcePath).toPath();
+        java.nio.file.Path zippedFile = srcFolder.resolve("file.zip");
+        ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(zippedFile));
+        ZipEntry e1 = new ZipEntry(path);
+        out.putNextEntry(e1);
+        out.close();
+        java.nio.file.Path dstFolder = TempDirUtils.newFolder(temporaryFolder, dstPath).toPath();
+        return FileUtils.expandDirectory(
+                new Path(zippedFile.toString()), new Path(dstFolder.toString()));
+    }
+
+    @Test
+    void testExpandDirWithValidPaths() throws IOException {
+        writeZipAndFetchExpandedPath("t0", "/level1/level2/");
+        writeZipAndFetchExpandedPath("t1", "/level1/level2/file.txt");
+        writeZipAndFetchExpandedPath("t2", "/level1/../level1/file.txt");
+        writeZipAndFetchExpandedPath("t3", "/level1/level2/level3/../");
+        assertThatThrownBy(() -> writeZipAndFetchExpandedPath("t2", "/level1/level2/../../pass"))
+                .isInstanceOf(IOException.class);
+    }
+
+    @Test
+    void testExpandDirWithForbiddenEscape() {
+        assertThatThrownBy(() -> writeZipAndFetchExpandedPath("t1", "/../../"))
+                .isInstanceOf(IOException.class);
+        assertThatThrownBy(() -> writeZipAndFetchExpandedPath("t2", "../"))
+                .isInstanceOf(IOException.class);
     }
 
     /**

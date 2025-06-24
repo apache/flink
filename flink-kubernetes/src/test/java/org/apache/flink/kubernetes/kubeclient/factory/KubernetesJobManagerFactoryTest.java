@@ -18,6 +18,8 @@
 
 package org.apache.flink.kubernetes.kubeclient.factory;
 
+import org.apache.flink.client.cli.ArtifactFetchOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.SecurityOptions;
@@ -26,7 +28,6 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
-import org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
@@ -38,6 +39,7 @@ import org.apache.flink.kubernetes.kubeclient.decorators.KerberosMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.services.HeadlessClusterIPService;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Container;
@@ -178,7 +180,7 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
 
         assertThat(resultPodSpec.getContainers()).hasSize(1);
         assertThat(resultPodSpec.getServiceAccountName()).isEqualTo(SERVICE_ACCOUNT_NAME);
-        assertThat(resultPodSpec.getVolumes()).hasSize(3);
+        assertThat(resultPodSpec.getVolumes()).hasSize(4);
 
         final Container resultedMainContainer = resultPodSpec.getContainers().get(0);
         assertThat(resultedMainContainer.getName()).isEqualTo(Constants.MAIN_CONTAINER_NAME);
@@ -201,7 +203,7 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
         // The args list is [bash, -c, 'java -classpath $FLINK_CLASSPATH ...'].
         assertThat(resultedMainContainer.getArgs()).hasSize(3);
 
-        assertThat(resultedMainContainer.getVolumeMounts()).hasSize(3);
+        assertThat(resultedMainContainer.getVolumeMounts()).hasSize(4);
     }
 
     @Test
@@ -356,17 +358,9 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
 
         final ConfigMap resultConfigMap =
                 (ConfigMap)
-                        this.kubernetesJobManagerSpecification.getAccompanyingResources().stream()
-                                .filter(
-                                        x ->
-                                                x instanceof ConfigMap
-                                                        && x.getMetadata()
-                                                                .getName()
-                                                                .equals(
-                                                                        FlinkConfMountDecorator
-                                                                                .getFlinkConfConfigMapName(
-                                                                                        CLUSTER_ID)))
-                                .collect(Collectors.toList())
+                        getConfigMapList(
+                                        FlinkConfMountDecorator.getFlinkConfConfigMapName(
+                                                CLUSTER_ID))
                                 .get(0);
 
         assertThat(resultConfigMap.getMetadata().getLabels()).hasSize(2);
@@ -375,11 +369,11 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
         assertThat(resultDatas).hasSize(3);
         assertThat(resultDatas.get(CONFIG_FILE_LOG4J_NAME)).isEqualTo("some data");
         assertThat(resultDatas.get(CONFIG_FILE_LOGBACK_NAME)).isEqualTo("some data");
-        assertThat(resultDatas.get(FLINK_CONF_FILENAME))
-                .contains(
-                        KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS.key()
-                                + ": "
-                                + ENTRY_POINT_CLASS);
+        final Configuration resultFlinkConfig =
+                KubernetesTestUtils.loadConfigurationFromString(
+                        resultDatas.get(FLINK_CONF_FILENAME));
+        assertThat(resultFlinkConfig.get(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS))
+                .isEqualTo(ENTRY_POINT_CLASS);
     }
 
     @Test
@@ -404,9 +398,10 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
         assertThat(podSpec.getVolumes())
                 .anyMatch(
                         volume ->
-                                volume.getConfigMap()
-                                        .getName()
-                                        .equals(EXISTING_HADOOP_CONF_CONFIG_MAP));
+                                volume.getConfigMap() != null
+                                        && volume.getConfigMap()
+                                                .getName()
+                                                .equals(EXISTING_HADOOP_CONF_CONFIG_MAP));
     }
 
     @Test
@@ -419,17 +414,9 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
 
         final ConfigMap resultConfigMap =
                 (ConfigMap)
-                        kubernetesJobManagerSpecification.getAccompanyingResources().stream()
-                                .filter(
-                                        x ->
-                                                x instanceof ConfigMap
-                                                        && x.getMetadata()
-                                                                .getName()
-                                                                .equals(
-                                                                        HadoopConfMountDecorator
-                                                                                .getHadoopConfConfigMapName(
-                                                                                        CLUSTER_ID)))
-                                .collect(Collectors.toList())
+                        getConfigMapList(
+                                        HadoopConfMountDecorator.getHadoopConfConfigMapName(
+                                                CLUSTER_ID))
                                 .get(0);
 
         assertThat(resultConfigMap.getMetadata().getLabels()).hasSize(2);
@@ -459,9 +446,7 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
 
     @Test
     void testSetJobManagerDeploymentReplicas() throws Exception {
-        flinkConfig.set(
-                HighAvailabilityOptions.HA_MODE,
-                KubernetesHaServicesFactory.class.getCanonicalName());
+        flinkConfig.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.KUBERNETES.name());
         flinkConfig.set(
                 KubernetesConfigOptions.KUBERNETES_JOBMANAGER_REPLICAS, JOBMANAGER_REPLICAS);
         kubernetesJobManagerSpecification =
@@ -469,5 +454,59 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
                         flinkPod, kubernetesJobManagerParameters);
         assertThat(kubernetesJobManagerSpecification.getDeployment().getSpec().getReplicas())
                 .isEqualTo(JOBMANAGER_REPLICAS);
+    }
+
+    @Test
+    void testHadoopDecoratorsCanBeTurnedOff() throws Exception {
+        setHadoopConfDirEnv();
+        generateHadoopConfFileItems();
+        flinkConfig.set(
+                KubernetesConfigOptions.KUBERNETES_HADOOP_CONF_MOUNT_DECORATOR_ENABLED, false);
+        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_KERBEROS_MOUNT_DECORATOR_ENABLED, false);
+        kubernetesJobManagerSpecification =
+                KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
+                        flinkPod, kubernetesJobManagerParameters);
+
+        assertThat(
+                        getConfigMapList(
+                                HadoopConfMountDecorator.getHadoopConfConfigMapName(CLUSTER_ID)))
+                .isEmpty();
+        assertThat(
+                        getConfigMapList(
+                                KerberosMountDecorator.getKerberosKrb5confConfigMapName(
+                                        CLUSTER_ID)))
+                .isEmpty();
+        assertThat(getConfigMapList(KerberosMountDecorator.getKerberosKeytabSecretName(CLUSTER_ID)))
+                .isEmpty();
+    }
+
+    private List<HasMetadata> getConfigMapList(String configMapName) {
+        return kubernetesJobManagerSpecification.getAccompanyingResources().stream()
+                .filter(
+                        x ->
+                                x instanceof ConfigMap
+                                        && x.getMetadata().getName().equals(configMapName))
+                .collect(Collectors.toList());
+    }
+
+    @Test
+    public void testArtifactsEmptyDirVolume() throws IOException {
+        flinkConfig.set(ArtifactFetchOptions.BASE_DIR, "/opt/artifacts");
+        kubernetesJobManagerSpecification =
+                KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
+                        flinkPod, kubernetesJobManagerParameters);
+        final PodSpec podSpec =
+                kubernetesJobManagerSpecification.getDeployment().getSpec().getTemplate().getSpec();
+        assertThat(podSpec.getVolumes())
+                .anyMatch(resource -> resource.getName().equals(Constants.USER_ARTIFACTS_VOLUME));
+        final Container container = podSpec.getContainers().get(0);
+        assertThat(container.getVolumeMounts())
+                .anyMatch(
+                        resource ->
+                                resource.getName().equals(Constants.USER_ARTIFACTS_VOLUME)
+                                        && resource.getMountPath()
+                                                .equals(
+                                                        kubernetesJobManagerParameters
+                                                                .getUserArtifactsBaseDir()));
     }
 }

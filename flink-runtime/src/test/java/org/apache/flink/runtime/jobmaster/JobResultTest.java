@@ -26,31 +26,24 @@ import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.core.IsNull.nullValue;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link JobResult}. */
-public class JobResultTest extends TestLogger {
+class JobResultTest {
 
     @Test
-    public void testNetRuntimeMandatory() {
-        try {
-            new JobResult.Builder().jobId(new JobID()).build();
-            fail("Expected exception not thrown");
-        } catch (final IllegalArgumentException e) {
-            assertThat(e.getMessage(), equalTo("netRuntime must be greater than or equals 0"));
-        }
+    void testNetRuntimeMandatory() {
+        assertThatThrownBy(() -> new JobResult.Builder().jobId(new JobID()).build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("netRuntime must be greater than or equals 0");
     }
 
     @Test
-    public void testIsNotSuccess() throws Exception {
+    void testIsNotSuccess() {
         final JobResult jobResult =
                 new JobResult.Builder()
                         .jobId(new JobID())
@@ -58,19 +51,19 @@ public class JobResultTest extends TestLogger {
                         .netRuntime(Long.MAX_VALUE)
                         .build();
 
-        assertThat(jobResult.isSuccess(), equalTo(false));
+        assertThat(jobResult.isSuccess()).isFalse();
     }
 
     @Test
-    public void testIsSuccess() throws Exception {
+    void testIsSuccess() {
         final JobResult jobResult =
                 new JobResult.Builder().jobId(new JobID()).netRuntime(Long.MAX_VALUE).build();
 
-        assertThat(jobResult.isSuccess(), equalTo(true));
+        assertThat(jobResult.isSuccess()).isTrue();
     }
 
     @Test
-    public void testCancelledJobIsFailureResult() {
+    void testCancelledJobIsFailureResult() {
         final JobResult jobResult =
                 JobResult.createFrom(
                         new ArchivedExecutionGraphBuilder()
@@ -78,11 +71,11 @@ public class JobResultTest extends TestLogger {
                                 .setState(JobStatus.CANCELED)
                                 .build());
 
-        assertThat(jobResult.isSuccess(), is(false));
+        assertThat(jobResult.isSuccess()).isFalse();
     }
 
     @Test
-    public void testFailedJobIsFailureResult() {
+    void testFailedJobIsFailureResult() {
         final JobResult jobResult =
                 JobResult.createFrom(
                         new ArchivedExecutionGraphBuilder()
@@ -92,11 +85,11 @@ public class JobResultTest extends TestLogger {
                                         new ErrorInfo(new FlinkException("Test exception"), 42L))
                                 .build());
 
-        assertThat(jobResult.isSuccess(), is(false));
+        assertThat(jobResult.isSuccess()).isFalse();
     }
 
     @Test
-    public void testCancelledJobThrowsJobCancellationException() throws Exception {
+    void testCancelledJobThrowsJobCancellationException() {
         final FlinkException cause = new FlinkException("Test exception");
         final JobResult jobResult =
                 JobResult.createFrom(
@@ -106,18 +99,16 @@ public class JobResultTest extends TestLogger {
                                 .setFailureCause(new ErrorInfo(cause, 42L))
                                 .build());
 
-        try {
-            jobResult.toJobExecutionResult(getClass().getClassLoader());
-            fail("Job should fail with an JobCancellationException.");
-        } catch (JobCancellationException expected) {
-            // the failure cause in the execution graph should not be the cause of the canceled job
-            // result
-            assertThat(expected.getCause(), is(nullValue()));
-        }
+        assertThatThrownBy(
+                        () -> {
+                            jobResult.toJobExecutionResult(getClass().getClassLoader());
+                        })
+                .isInstanceOf(JobCancellationException.class)
+                .hasNoCause();
     }
 
     @Test
-    public void testFailedJobThrowsJobExecutionException() throws Exception {
+    void testFailedJobThrowsJobExecutionException() {
         final FlinkException cause = new FlinkException("Test exception");
         final JobResult jobResult =
                 JobResult.createFrom(
@@ -127,20 +118,21 @@ public class JobResultTest extends TestLogger {
                                 .setFailureCause(new ErrorInfo(cause, 42L))
                                 .build());
 
-        try {
-            jobResult.toJobExecutionResult(getClass().getClassLoader());
-            fail("Job should fail with JobExecutionException.");
-        } catch (JobExecutionException expected) {
-            assertThat(expected.getCause(), is(equalTo(cause)));
-        }
+        assertThatThrownBy(() -> jobResult.toJobExecutionResult(getClass().getClassLoader()))
+                .isInstanceOf(JobExecutionException.class)
+                .cause()
+                .isEqualTo(cause);
     }
 
-    @Test(expected = NullPointerException.class)
-    public void testFailureResultRequiresFailureCause() {
-        JobResult.createFrom(
-                new ArchivedExecutionGraphBuilder()
-                        .setJobID(new JobID())
-                        .setState(JobStatus.FAILED)
-                        .build());
+    @Test
+    void testFailureResultRequiresFailureCause() {
+        assertThatThrownBy(
+                        () ->
+                                JobResult.createFrom(
+                                        new ArchivedExecutionGraphBuilder()
+                                                .setJobID(new JobID())
+                                                .setState(JobStatus.FAILED)
+                                                .build()))
+                .isInstanceOf(NullPointerException.class);
     }
 }

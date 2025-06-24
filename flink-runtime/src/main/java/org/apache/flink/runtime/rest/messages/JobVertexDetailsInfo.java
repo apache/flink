@@ -44,6 +44,7 @@ public class JobVertexDetailsInfo implements ResponseBody {
     public static final String FIELD_NAME_MAX_PARALLELISM = "maxParallelism";
     public static final String FIELD_NAME_NOW = "now";
     public static final String FIELD_NAME_SUBTASKS = "subtasks";
+    public static final String FIELD_NAME_AGGREGATED = "aggregated";
 
     @JsonProperty(FIELD_NAME_VERTEX_ID)
     @JsonSerialize(using = JobVertexIDSerializer.class)
@@ -64,6 +65,9 @@ public class JobVertexDetailsInfo implements ResponseBody {
     @JsonProperty(FIELD_NAME_SUBTASKS)
     private final List<SubtaskExecutionAttemptDetailsInfo> subtasks;
 
+    @JsonProperty(FIELD_NAME_AGGREGATED)
+    private final AggregatedTaskDetailsInfo aggregated;
+
     @JsonCreator
     public JobVertexDetailsInfo(
             @JsonDeserialize(using = JobVertexIDDeserializer.class)
@@ -80,6 +84,7 @@ public class JobVertexDetailsInfo implements ResponseBody {
         this.maxParallelism = maxParallelism;
         this.now = now;
         this.subtasks = checkNotNull(subtasks);
+        this.aggregated = AggregatedTaskDetailsInfo.create(subtasks);
     }
 
     @JsonIgnore
@@ -103,11 +108,12 @@ public class JobVertexDetailsInfo implements ResponseBody {
                 && parallelism == that.parallelism
                 && maxParallelism == that.maxParallelism
                 && now == that.now
-                && Objects.equals(subtasks, that.subtasks);
+                && Objects.equals(subtasks, that.subtasks)
+                && Objects.equals(aggregated, that.aggregated);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, parallelism, maxParallelism, now, subtasks);
+        return Objects.hash(id, name, parallelism, maxParallelism, now, subtasks, aggregated);
     }
 }

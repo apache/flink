@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,10 +36,10 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBefore
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Harness tests for {@link TemporalRowTimeJoinOperatorTest}. */
-public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
+class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
     /** Test rowtime temporal join. */
     @Test
-    public void testRowTimeTemporalJoin() throws Exception {
+    void testRowTimeTemporalJoin() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(new Watermark(1));
         expectedOutput.add(new Watermark(2));
@@ -56,7 +56,7 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
 
     /** Test rowtime left temporal join. */
     @Test
-    public void testRowTimeLeftTemporalJoin() throws Exception {
+    void testRowTimeLeftTemporalJoin() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(new Watermark(1));
         expectedOutput.add(insertRecord(1L, "k1", "1a1", null, null, null));
@@ -121,7 +121,7 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
 
     /** Test rowtime temporal join when set idle state retention. */
     @Test
-    public void testRowTimeTemporalJoinWithStateRetention() throws Exception {
+    void testRowTimeTemporalJoinWithStateRetention() throws Exception {
         final int minRetentionTime = 4;
         final int maxRetentionTime = minRetentionTime * 3 / 2;
         TemporalRowTimeJoinOperator joinOperator =
@@ -190,6 +190,83 @@ public class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTes
                                 .value())
                 .isNull();
 
+        testHarness.close();
+    }
+
+    @Test
+    void testRowTimeTemporalJoinOnUpsertSource() throws Exception {
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(new Watermark(1));
+        expectedOutput.add(new Watermark(2));
+        expectedOutput.add(updateAfterRecord(3L, "k1", "1a3", 2L, "k1", "1a2"));
+        expectedOutput.add(new Watermark(5));
+        expectedOutput.add(insertRecord(6L, "k2", "2a3", 4L, "k2", "2a4"));
+        expectedOutput.add(new Watermark(8));
+        expectedOutput.add(new Watermark(9));
+        expectedOutput.add(insertRecord(11L, "k2", "5a12", 10L, "k2", "2a6"));
+        expectedOutput.add(new Watermark(13));
+
+        testRowTimeTemporalJoinOnUpsertSource(false, expectedOutput);
+    }
+
+    @Test
+    void testRowTimeLeftTemporalJoinOnUpsertSource() throws Exception {
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(new Watermark(1));
+        expectedOutput.add(insertRecord(1L, "k1", "1a1", null, null, null));
+        expectedOutput.add(new Watermark(2));
+        expectedOutput.add(updateAfterRecord(3L, "k1", "1a3", 2L, "k1", "1a2"));
+        expectedOutput.add(new Watermark(5));
+        expectedOutput.add(insertRecord(6L, "k2", "2a3", 4L, "k2", "2a4"));
+        expectedOutput.add(new Watermark(8));
+        expectedOutput.add(insertRecord(9L, "k2", "5a11", null, null, null));
+        expectedOutput.add(new Watermark(9));
+        expectedOutput.add(insertRecord(11L, "k2", "5a12", 10L, "k2", "2a6"));
+        expectedOutput.add(new Watermark(13));
+
+        testRowTimeTemporalJoinOnUpsertSource(true, expectedOutput);
+    }
+
+    private void testRowTimeTemporalJoinOnUpsertSource(
+            boolean isLeftOuterJoin, List<Object> expectedOutput) throws Exception {
+        TemporalRowTimeJoinOperator joinOperator =
+                new TemporalRowTimeJoinOperator(
+                        rowType, rowType, joinCondition, 0, 0, 0, 0, isLeftOuterJoin);
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinOperator);
+
+        testHarness.open();
+
+        testHarness.processWatermark1(new Watermark(1));
+        testHarness.processWatermark2(new Watermark(1));
+
+        testHarness.processElement1(insertRecord(1L, "k1", "1a1"));
+        testHarness.processElement2(insertRecord(2L, "k1", "1a2"));
+
+        testHarness.processWatermark1(new Watermark(2));
+        testHarness.processWatermark2(new Watermark(2));
+
+        testHarness.processElement1(updateAfterRecord(3L, "k1", "1a3"));
+        testHarness.processElement2(insertRecord(4L, "k2", "2a4"));
+
+        testHarness.processWatermark1(new Watermark(5));
+        testHarness.processWatermark2(new Watermark(5));
+
+        testHarness.processElement1(insertRecord(6L, "k2", "2a3"));
+        testHarness.processElement2(updateAfterRecord(7L, "k2", "2a5"));
+
+        testHarness.processWatermark1(new Watermark(8));
+        testHarness.processWatermark2(new Watermark(9));
+
+        testHarness.processElement1(insertRecord(9L, "k2", "5a11"));
+        testHarness.processElement1(insertRecord(11L, "k2", "5a12"));
+        testHarness.processElement2(deleteRecord(9L, "k2", "2a5"));
+        testHarness.processElement2(insertRecord(10L, "k2", "2a6"));
+
+        testHarness.processWatermark1(new Watermark(13));
+        testHarness.processWatermark2(new Watermark(13));
+
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
     }
 

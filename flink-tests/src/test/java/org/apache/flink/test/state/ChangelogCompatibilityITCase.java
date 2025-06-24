@@ -26,7 +26,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.junit.After;
@@ -38,25 +38,25 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
+import static org.apache.flink.configuration.CheckpointingOptions.FILE_MERGING_ENABLED;
 import static org.apache.flink.configuration.CheckpointingOptions.SAVEPOINT_DIRECTORY;
+import static org.apache.flink.configuration.ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION;
 import static org.apache.flink.runtime.jobgraph.SavepointRestoreSettings.forPath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForCheckpoint;
-import static org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION;
 import static org.apache.flink.util.ExceptionUtils.findThrowableSerializedAware;
 import static org.junit.Assert.fail;
 
 /**
  * A test suite to check that restrictions on recovery with changelog enabled are enforced; and that
- * non-restricted scenarios are not blocked. In particular, recovery from non-changelog checkpoints
- * should not be allowed (see <a
- * href="https://issues.apache.org/jira/browse/FLINK-26079">FLINK-26079</a>).
+ * non-restricted scenarios are not blocked.
  */
 @RunWith(Parameterized.class)
 public class ChangelogCompatibilityITCase {
@@ -81,23 +81,32 @@ public class ChangelogCompatibilityITCase {
                         .restoreWithChangelog(true)
                         .from(RestoreSource.CANONICAL_SAVEPOINT)
                         .allowRestore(true),
-                // explicitly disallow recovery from  non-changelog checkpoints
-                // https://issues.apache.org/jira/browse/FLINK-26079
+                // enable recovery from  non-changelog checkpoints
                 TestCase.startWithChangelog(false)
                         .restoreWithChangelog(true)
                         .from(RestoreSource.CHECKPOINT)
-                        .allowRestore(false),
+                        .allowRestore(true),
                 // normal cases: changelog enabled before and after recovery
                 TestCase.startWithChangelog(true)
                         .restoreWithChangelog(true)
                         .from(RestoreSource.CANONICAL_SAVEPOINT)
                         .allowRestore(true),
-                // taking native savepoints is not supported with changelog
+                // enable changelog - allow restore from changelog NATIVE_SAVEPOINT
                 TestCase.startWithChangelog(true)
                         .restoreWithChangelog(true)
                         .from(RestoreSource.NATIVE_SAVEPOINT)
-                        .allowSave(false)
-                        .allowRestore(false),
+                        .allowRestore(true),
+                // enable recovery from non-changelog NATIVE_SAVEPOINT
+                TestCase.startWithChangelog(false)
+                        .restoreWithChangelog(true)
+                        .from(RestoreSource.NATIVE_SAVEPOINT)
+                        .allowRestore(true),
+                // disable changelog - allow restore from changelog NATIVE_SAVEPOINT
+                TestCase.startWithChangelog(true)
+                        .restoreWithChangelog(false)
+                        .from(RestoreSource.NATIVE_SAVEPOINT)
+                        .allowRestore(true),
+                // enable changelog - allow restore from changelog CHECKPOINT
                 TestCase.startWithChangelog(true)
                         .restoreWithChangelog(true)
                         .from(RestoreSource.CHECKPOINT)
@@ -127,11 +136,14 @@ public class ChangelogCompatibilityITCase {
     }
 
     private StreamExecutionEnvironment initEnvironment() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration conf = new Configuration();
+        // TODO:remove file-merging setting after FLINK-32085 & FLINK-32081 are resolved.
+        conf.set(FILE_MERGING_ENABLED, false);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.enableChangelogStateBackend(testCase.startWithChangelog);
         if (testCase.restoreSource == RestoreSource.CHECKPOINT) {
             env.enableCheckpointing(50);
-            env.getCheckpointConfig().setExternalizedCheckpointCleanup(RETAIN_ON_CANCELLATION);
+            env.getCheckpointConfig().setExternalizedCheckpointRetention(RETAIN_ON_CANCELLATION);
         }
         return env;
     }
@@ -140,7 +152,7 @@ public class ChangelogCompatibilityITCase {
         env.fromSequence(Long.MIN_VALUE, Long.MAX_VALUE)
                 .countWindowAll(37) // any stateful transformation suffices
                 .reduce((ReduceFunction<Long>) Long::sum) // overflow is fine, result is discarded
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
         return env.getStreamGraph().getJobGraph();
     }
 
@@ -170,7 +182,10 @@ public class ChangelogCompatibilityITCase {
     }
 
     private void restoreAndValidate(String location) {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration conf = new Configuration();
+        // TODO:remove file-merging setting after FLINK-32085 & FLINK-32081 are resolved.
+        conf.set(FILE_MERGING_ENABLED, false);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.enableChangelogStateBackend(testCase.restoreWithChangelog);
         JobGraph jobGraph = addGraph(env);
         jobGraph.setSavepointRestoreSettings(forPath(location));
@@ -290,9 +305,10 @@ public class ChangelogCompatibilityITCase {
         checkpointDir = TEMPORARY_FOLDER.newFolder();
         savepointDir = TEMPORARY_FOLDER.newFolder();
         Configuration config = new Configuration();
-        config.setString(CHECKPOINTS_DIRECTORY, pathToString(checkpointDir));
-        config.setString(SAVEPOINT_DIRECTORY, pathToString(savepointDir));
-        FsStateChangelogStorageFactory.configure(config, TEMPORARY_FOLDER.newFolder());
+        config.set(CHECKPOINTS_DIRECTORY, pathToString(checkpointDir));
+        config.set(SAVEPOINT_DIRECTORY, pathToString(savepointDir));
+        FsStateChangelogStorageFactory.configure(
+                config, TEMPORARY_FOLDER.newFolder(), Duration.ofMinutes(1), 10);
         miniClusterResource =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()

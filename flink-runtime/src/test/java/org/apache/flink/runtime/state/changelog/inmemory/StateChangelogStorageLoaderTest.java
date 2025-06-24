@@ -17,12 +17,15 @@
 
 package org.apache.flink.runtime.state.changelog.inmemory;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
@@ -31,7 +34,7 @@ import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -40,41 +43,51 @@ import static java.util.Collections.emptyIterator;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup;
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StateChangelogStorageLoader}. */
-public class StateChangelogStorageLoaderTest {
+class StateChangelogStorageLoaderTest {
 
     @Test
-    public void testLoadSpiImplementation() throws IOException {
+    void testLoadSpiImplementation() throws IOException {
         StateChangelogStorageLoader.initialize(getPluginManager(emptyIterator()));
-        assertNotNull(
-                StateChangelogStorageLoader.load(
-                        new Configuration(), createUnregisteredTaskManagerJobMetricGroup()));
+        assertThat(
+                        StateChangelogStorageLoader.load(
+                                JobID.generate(),
+                                new Configuration(),
+                                createUnregisteredTaskManagerJobMetricGroup(),
+                                TestLocalRecoveryConfig.disabled()))
+                .isNotNull();
     }
 
     @Test
-    public void testLoadNotExist() throws IOException {
+    void testLoadNotExist() throws IOException {
         StateChangelogStorageLoader.initialize(getPluginManager(emptyIterator()));
-        assertNull(
-                StateChangelogStorageLoader.load(
-                        new Configuration()
-                                .set(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE, "not_exist"),
-                        createUnregisteredTaskManagerJobMetricGroup()));
+        assertThat(
+                        StateChangelogStorageLoader.load(
+                                JobID.generate(),
+                                new Configuration()
+                                        .set(
+                                                StateChangelogOptions.STATE_CHANGE_LOG_STORAGE,
+                                                "not_exist"),
+                                createUnregisteredTaskManagerJobMetricGroup(),
+                                TestLocalRecoveryConfig.disabled()))
+                .isNull();
     }
 
     @Test
     @SuppressWarnings("rawtypes")
-    public void testLoadPluginImplementation() throws IOException {
+    void testLoadPluginImplementation() throws IOException {
         StateChangelogStorageFactory factory = new TestStateChangelogStorageFactory();
         PluginManager pluginManager = getPluginManager(singletonList(factory).iterator());
         StateChangelogStorageLoader.initialize(pluginManager);
         StateChangelogStorage loaded =
                 StateChangelogStorageLoader.load(
-                        new Configuration(), createUnregisteredTaskManagerJobMetricGroup());
-        assertTrue(loaded instanceof TestStateChangelogStorage);
+                        JobID.generate(),
+                        new Configuration(),
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled());
+        assertThat(loaded).isInstanceOf(TestStateChangelogStorage.class);
     }
 
     private PluginManager getPluginManager(
@@ -114,12 +127,16 @@ public class StateChangelogStorageLoaderTest {
 
         @Override
         public StateChangelogStorage<?> createStorage(
-                Configuration configuration, TaskManagerJobMetricGroup metricGroup) {
+                JobID jobID,
+                Configuration configuration,
+                TaskManagerJobMetricGroup metricGroup,
+                LocalRecoveryConfig localRecoveryConfig) {
             return new TestStateChangelogStorage();
         }
 
         @Override
-        public StateChangelogStorageView<?> createStorageView() throws IOException {
+        public StateChangelogStorageView<?> createStorageView(Configuration configuration)
+                throws IOException {
             return new TestStateChangelogStorage();
         }
     }

@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
@@ -27,6 +28,7 @@ import org.apache.flink.util.CloseableIterator;
 import java.io.Closeable;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /** Writes channel state during checkpoint/savepoint. */
@@ -71,8 +73,20 @@ public interface ChannelStateWriter extends Closeable {
             resultSubpartitionStateHandles.completeExceptionally(e);
         }
 
-        boolean isDone() {
+        public boolean isDone() {
             return inputChannelStateHandles.isDone() && resultSubpartitionStateHandles.isDone();
+        }
+
+        @VisibleForTesting
+        public void waitForDone() {
+            try {
+                inputChannelStateHandles.get();
+            } catch (Throwable ignored) {
+            }
+            try {
+                resultSubpartitionStateHandles.get();
+            } catch (Throwable ignored) {
+            }
         }
     }
 
@@ -95,8 +109,8 @@ public interface ChannelStateWriter extends Closeable {
     /**
      * Add in-flight buffers from the {@link
      * org.apache.flink.runtime.io.network.partition.consumer.InputChannel InputChannel}. Must be
-     * called after {@link #start} (long)} and before {@link #finishInput(long)}. Buffers are
-     * recycled after they are written or exception occurs.
+     * called after {@link #start(long,CheckpointOptions)} and before {@link #finishInput(long)}.
+     * Buffers are recycled after they are written or exception occurs.
      *
      * @param startSeqNum sequence number of the 1st passed buffer. It is intended to use for
      *     incremental snapshots. If no data is passed it is ignored.
@@ -126,6 +140,22 @@ public interface ChannelStateWriter extends Closeable {
      */
     void addOutputData(
             long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data)
+            throws IllegalArgumentException;
+
+    /**
+     * Add in-flight bufferFuture from the {@link
+     * org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition}. Must be
+     * called after {@link #start} and before {@link #finishOutput(long)}. Buffers are recycled
+     * after they are written or exception occurs.
+     *
+     * <p>The method will be called when the unaligned checkpoint is enabled and received an aligned
+     * barrier.
+     */
+    void addOutputDataFuture(
+            long checkpointId,
+            ResultSubpartitionInfo info,
+            int startSeqNum,
+            CompletableFuture<List<Buffer>> data)
             throws IllegalArgumentException;
 
     /**
@@ -177,6 +207,13 @@ public interface ChannelStateWriter extends Closeable {
         @Override
         public void addOutputData(
                 long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data) {}
+
+        @Override
+        public void addOutputDataFuture(
+                long checkpointId,
+                ResultSubpartitionInfo info,
+                int startSeqNum,
+                CompletableFuture<List<Buffer>> data) {}
 
         @Override
         public void finishInput(long checkpointId) {}

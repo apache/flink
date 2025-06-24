@@ -24,24 +24,26 @@ import org.apache.flink.runtime.jobmaster.TestingJobMasterService;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 /** Testing implementation of the {@link JobMasterServiceFactory}. */
 public class TestingJobMasterServiceFactory implements JobMasterServiceFactory {
-    private final Supplier<CompletableFuture<JobMasterService>> jobMasterServiceSupplier;
+    private final Function<OnCompletionActions, CompletableFuture<JobMasterService>>
+            jobMasterServiceFunction;
 
     public TestingJobMasterServiceFactory(
-            Supplier<CompletableFuture<JobMasterService>> jobMasterServiceSupplier) {
-        this.jobMasterServiceSupplier = jobMasterServiceSupplier;
+            Function<OnCompletionActions, CompletableFuture<JobMasterService>>
+                    jobMasterServiceFunction) {
+        this.jobMasterServiceFunction = jobMasterServiceFunction;
     }
 
     public TestingJobMasterServiceFactory() {
-        this(() -> CompletableFuture.completedFuture(new TestingJobMasterService()));
+        this(ignored -> CompletableFuture.completedFuture(new TestingJobMasterService()));
     }
 
     @Override
     public CompletableFuture<JobMasterService> createJobMasterService(
             UUID leaderSessionId, OnCompletionActions onCompletionActions) {
-        return jobMasterServiceSupplier.get();
+        return jobMasterServiceFunction.apply(onCompletionActions);
     }
 }

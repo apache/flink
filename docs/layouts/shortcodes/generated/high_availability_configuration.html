@@ -9,12 +9,6 @@
     </thead>
     <tbody>
         <tr>
-            <td><h5>high-availability</h5></td>
-            <td style="word-wrap: break-word;">"NONE"</td>
-            <td>String</td>
-            <td>Defines high-availability mode used for the cluster execution. To enable high-availability, set this mode to "ZOOKEEPER" or specify FQN of factory class.</td>
-        </tr>
-        <tr>
             <td><h5>high-availability.cluster-id</h5></td>
             <td style="word-wrap: break-word;">"/default"</td>
             <td>String</td>
@@ -33,16 +27,40 @@
             <td>File system path (URI) where Flink persists metadata in high-availability setups.</td>
         </tr>
         <tr>
+            <td><h5>high-availability.type</h5></td>
+            <td style="word-wrap: break-word;">"NONE"</td>
+            <td>String</td>
+            <td>Defines high-availability mode used for cluster execution. To enable high-availability, set this mode to "ZOOKEEPER", "KUBERNETES", or specify the fully qualified name of the factory class.</td>
+        </tr>
+        <tr>
             <td><h5>high-availability.zookeeper.client.acl</h5></td>
             <td style="word-wrap: break-word;">"open"</td>
             <td>String</td>
             <td>Defines the ACL (open|creator) to be configured on ZK node. The configuration value can be set to “creator” if the ZooKeeper server configuration has the “authProvider” property mapped to use SASLAuthenticationProvider and the cluster is configured to run in secure mode (Kerberos).</td>
         </tr>
         <tr>
+            <td><h5>high-availability.zookeeper.client.authorization</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Map</td>
+            <td>Add connection authorization Subsequent calls to this method overwrite the prior calls. In certain cases ZooKeeper requires additional Authorization information. For example list of valid names for ensemble in order to prevent accidentally connecting to a wrong ensemble. Each entry of type Map.Entry&lt;String, String&gt; will be transformed into an AuthInfo object with the constructor AuthInfo(String, byte[]). The field entry.key() will serve as the String scheme value, while the field entry.getValue() will be initially converted to a byte[] using the String#getBytes() method with UTF-8 encoding. If not set the default configuration for a Curator would be applied.</td>
+        </tr>
+        <tr>
             <td><h5>high-availability.zookeeper.client.connection-timeout</h5></td>
-            <td style="word-wrap: break-word;">15000</td>
-            <td>Integer</td>
-            <td>Defines the connection timeout for ZooKeeper in ms.</td>
+            <td style="word-wrap: break-word;">15 s</td>
+            <td>Duration</td>
+            <td>Defines the connection timeout for ZooKeeper.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.client.ensemble-tracker</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Defines whether Curator should enable ensemble tracker. This can be useful in certain scenarios in which CuratorFramework is accessing to ZK clusters via load balancer or Virtual IPs. Default Curator EnsembleTracking logic watches CuratorEventType.GET_CONFIG events and changes ZooKeeper connection string. It is not desired behaviour when ZooKeeper is running under the Virtual IPs. Under certain configurations EnsembleTracking can lead to setting of ZooKeeper connection string with unresolvable hostnames.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.client.max-close-wait</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Duration</td>
+            <td>Defines the time Curator should wait during close to join background threads. If not set the default configuration for a Curator would be applied.</td>
         </tr>
         <tr>
             <td><h5>high-availability.zookeeper.client.max-retry-attempts</h5></td>
@@ -52,15 +70,21 @@
         </tr>
         <tr>
             <td><h5>high-availability.zookeeper.client.retry-wait</h5></td>
-            <td style="word-wrap: break-word;">5000</td>
-            <td>Integer</td>
-            <td>Defines the pause between consecutive retries in ms.</td>
+            <td style="word-wrap: break-word;">5 s</td>
+            <td>Duration</td>
+            <td>Defines the pause between consecutive retries.</td>
         </tr>
         <tr>
             <td><h5>high-availability.zookeeper.client.session-timeout</h5></td>
-            <td style="word-wrap: break-word;">60000</td>
+            <td style="word-wrap: break-word;">1 min</td>
+            <td>Duration</td>
+            <td>Defines the session timeout for the ZooKeeper session.</td>
+        </tr>
+        <tr>
+            <td><h5>high-availability.zookeeper.client.simulated-session-expiration-percent</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
-            <td>Defines the session timeout for the ZooKeeper session in ms.</td>
+            <td>The percentage set by this method determines how and if Curator will check for session expiration. See Curator documentation for <a href="https://curator.apache.org/apidocs/org/apache/curator/framework/CuratorFrameworkFactory.Builder.html#simulatedSessionExpirationPercent(int)">simulatedSessionExpirationPercent</a> property for more information.</td>
         </tr>
         <tr>
             <td><h5>high-availability.zookeeper.client.tolerate-suspended-connections</h5></td>
@@ -69,22 +93,16 @@
             <td>Defines whether a suspended ZooKeeper connection will be treated as an error that causes the leader information to be invalidated or not. In case you set this option to <code class="highlighter-rouge">true</code>, Flink will wait until a ZooKeeper connection is marked as lost before it revokes the leadership of components. This has the effect that Flink is more resilient against temporary connection instabilities at the cost of running more likely into timing issues with ZooKeeper.</td>
         </tr>
         <tr>
-            <td><h5>high-availability.zookeeper.path.jobgraphs</h5></td>
-            <td style="word-wrap: break-word;">"/jobgraphs"</td>
+            <td><h5>high-availability.zookeeper.path.execution-plans</h5></td>
+            <td style="word-wrap: break-word;">"/execution-plans"</td>
             <td>String</td>
-            <td>ZooKeeper root path (ZNode) for job graphs</td>
+            <td>ZooKeeper root path (ZNode) for execution plans</td>
         </tr>
         <tr>
             <td><h5>high-availability.zookeeper.path.root</h5></td>
             <td style="word-wrap: break-word;">"/flink"</td>
             <td>String</td>
             <td>The root path under which Flink stores its entries in ZooKeeper.</td>
-        </tr>
-        <tr>
-            <td><h5>high-availability.zookeeper.path.running-registry</h5></td>
-            <td style="word-wrap: break-word;">"/running_job_registry/"</td>
-            <td>String</td>
-            <td></td>
         </tr>
         <tr>
             <td><h5>high-availability.zookeeper.quorum</h5></td>

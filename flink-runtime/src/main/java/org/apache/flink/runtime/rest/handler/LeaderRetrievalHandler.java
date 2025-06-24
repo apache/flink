@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
@@ -38,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.Map;
 
 /**
@@ -54,17 +54,21 @@ public abstract class LeaderRetrievalHandler<T extends RestfulGateway>
 
     protected final GatewayRetriever<? extends T> leaderRetriever;
 
-    protected final Time timeout;
+    protected final Duration timeout;
 
     protected final Map<String, String> responseHeaders;
 
     protected LeaderRetrievalHandler(
             @Nonnull GatewayRetriever<? extends T> leaderRetriever,
-            @Nonnull Time timeout,
+            @Nonnull Duration timeout,
             @Nonnull Map<String, String> responseHeaders) {
         this.leaderRetriever = Preconditions.checkNotNull(leaderRetriever);
         this.timeout = Preconditions.checkNotNull(timeout);
         this.responseHeaders = Preconditions.checkNotNull(responseHeaders);
+    }
+
+    protected Duration getTimeout() {
+        return timeout;
     }
 
     @Override

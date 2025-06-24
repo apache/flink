@@ -43,17 +43,29 @@ stream will contain the `Rules`.
 Starting from the stream of `Items`, we just need to *key it* by `Color`, as we want pairs of the same color. This will
 make sure that elements of the same color end up on the same physical machine.
 
+{{< tabs "colorPartitionedStream" >}}
+{{< tab "Java" >}}
 ```java
 // key the items by color
 KeyedStream<Item, Color> colorPartitionedStream = itemStream
                         .keyBy(new KeySelector<Item, Color>(){...});
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# key the items by color
+color_partitioned_stream = item_stream.key_by(lambda item: ...)
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 Moving on to the `Rules`, the stream containing them should be broadcasted to all downstream tasks, and these tasks 
 should store them locally so that they can evaluate them against all incoming `Items`. The snippet below will i) broadcast 
 the stream of rules and ii) using the provided `MapStateDescriptor`, it will create the broadcast state where the rules
 will be stored.
 
+{{< tabs "ruleBroadcastStream" >}}
+{{< tab "Java" >}}
 ```java
 
 // a map descriptor to store the name of the rule (string) and the rule itself.
@@ -66,6 +78,17 @@ MapStateDescriptor<String, Rule> ruleStateDescriptor = new MapStateDescriptor<>(
 BroadcastStream<Rule> ruleBroadcastStream = ruleStream
                         .broadcast(ruleStateDescriptor);
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# a map descriptor to store the name of the rule (string) and the rule (Python object) itself.
+rule_state_descriptor = MapStateDescriptor("RuleBroadcastState", Types.STRING(), Types.PICKLED_BYTE_ARRAY())
+
+# broadcast the rules and create the broadcast state
+rule_broadcast_stream = rule_stream.broadcast(rule_state_descriptor)
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 Finally, in order to evaluate the `Rules` against the incoming elements from the `Item` stream, we need to:
  1. connect the two streams, and
@@ -84,6 +107,8 @@ The exact type of the function depends on the type of the non-broadcasted stream
 The connect should be called on the non-broadcasted stream, with the BroadcastStream as an argument.
 {{< /hint >}}
 
+{{< tabs "connect" >}}
+{{< tab "Java" >}}
 ```java
 DataStream<String> output = colorPartitionedStream
                  .connect(ruleBroadcastStream)
@@ -100,6 +125,19 @@ DataStream<String> output = colorPartitionedStream
                      }
                  );
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+class MyKeyedBroadcastProcessFunction(KeyedBroadcastProcessFunction):
+    # my matching logic
+    ...
+
+output = color_partitioned_stream \
+    .connect(rule_broadcast_stream) \
+    .process(MyKeyedBroadcastProcessFunction())
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ### BroadcastProcessFunction and KeyedBroadcastProcessFunction
 
@@ -107,6 +145,8 @@ As in the case of a `CoProcessFunction`, these functions have two process method
 which is responsible for processing incoming elements in the broadcasted stream and the `processElement()` which is used 
 for the non-broadcasted one. The full signatures of the methods are presented below:
 
+{{< tabs "ProcessFunctions" >}}
+{{< tab "Java" >}}
 ```java
 public abstract class BroadcastProcessFunction<IN1, IN2, OUT> extends BaseBroadcastProcessFunction {
 
@@ -126,6 +166,36 @@ public abstract class KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> {
     public void onTimer(long timestamp, OnTimerContext ctx, Collector<OUT> out) throws Exception;
 }
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+class BroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[IN1, IN2, OUT]):
+
+    @abstractmethod
+    def process_element(value: IN1, ctx: ReadOnlyContext):
+        pass
+    
+    @abstractmethod
+    def process_broadcast_element(value: IN2, ctx: Context):
+        pass
+```
+
+```python
+class KeyedBroadcastProcessFunction(BaseBrodcastProcessFunction, Generic[KEY, IN1, IN2, OUT]):
+
+    @abstractmethod
+    def process_element(value: IN1, ctx: ReadOnlyContext):
+        pass
+    
+    @abstractmethod
+    def process_broadcast_element(value: IN2, ctx: Context):
+        pass
+    
+    def on_timer(timestamp: int, ctx: OnTimerContext):
+        pass
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 The first thing to notice is that both functions require the implementation of the `processBroadcastElement()` method 
 for processing elements in the broadcast side and the `processElement()` for elements in the non-broadcasted side. 
@@ -134,11 +204,23 @@ The two methods differ in the context they are provided. The non-broadcast side 
 broadcasted side has a `Context`. 
 
 Both of these contexts (`ctx` in the following enumeration):
+
+{{< tabs "ctx" >}}
+{{< tab "Java" >}}
  1. give access to the broadcast state: `ctx.getBroadcastState(MapStateDescriptor<K, V> stateDescriptor)`
  2. allow to query the timestamp of the element: `ctx.timestamp()`, 
  3. get the current watermark: `ctx.currentWatermark()`
  4. get the current processing time: `ctx.currentProcessingTime()`, and 
  5. emit elements to side-outputs: `ctx.output(OutputTag<X> outputTag, X value)`. 
+{{< /tab >}}
+{{< tab "Python" >}}
+ 1. give access to the broadcast state: `ctx.get_broadcast_state(state_descriptor: MapStateDescriptor)`
+ 2. allow to query the timestamp of the element: `ctx.timestamp()`, 
+ 3. get the current watermark: `ctx.current_watermark()`
+ 4. get the current processing time: `ctx.current_processing_time()`, and 
+ 5. emit elements to side-outputs: `yield output_tag, value`. 
+{{< /tab >}}
+{{< /tabs >}}
 
 The `stateDescriptor` in the `getBroadcastState()` should be identical to the one in the `.broadcast(ruleStateDescriptor)` 
 above.
@@ -164,8 +246,9 @@ exposes some functionality which is not available to the `BroadcastProcessFuncti
    - the ability to ask if the timer that fired was an event or processing time one and 
    - to query the key associated with the timer.
  2. the `Context` in the `processBroadcastElement()` method contains the method 
- `applyToKeyedState(StateDescriptor<S, VS> stateDescriptor, KeyedStateFunction<KS, S> function)`. This allows to 
-  register a `KeyedStateFunction` to be **applied to all states of all keys** associated with the provided `stateDescriptor`. 
+  `applyToKeyedState(StateDescriptor<S, VS> stateDescriptor, KeyedStateFunction<KS, S> function)`. This allows to 
+  register a `KeyedStateFunction` to be **applied to all states of all keys** associated with the provided `stateDescriptor`.
+  Note that `apply_to_keyed_state` is not supported in PyFlink yet.
 
 {{< hint warning >}}
 Registering timers is only possible at `processElement()` of the `KeyedBroadcastProcessFunction`
@@ -174,6 +257,8 @@ Registering timers is only possible at `processElement()` of the `KeyedBroadcast
 {{< /hint >}} 
 Coming back to our original example, our `KeyedBroadcastProcessFunction` could look like the following:
 
+{{< tabs "KeyedBroadcastProcessFunction" >}}
+{{< tab "Java" >}}
 ```java
 new KeyedBroadcastProcessFunction<Color, Item, Rule, String>() {
 
@@ -238,6 +323,46 @@ new KeyedBroadcastProcessFunction<Color, Item, Rule, String>() {
     }
 }
 ```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+class MyKeyedBroadcastProcessFunction(KeyedBroadcastProcessFunction):
+
+    def __init__(self):
+        self._map_state_desc = MapStateDescriptor("item", Types.STRING(), Types.LIST(Types.PICKLED_BYTE_ARRAY()))
+        self._rule_state_desc = MapStateDescriptor("RulesBroadcastState", Types.STRING(), Types.PICKLED_BYTE_ARRAY())
+        self._map_state = None
+    
+    def open(self, ctx: RuntimeContext):
+        self._map_state = ctx.get_map_state(self._map_state_desc)
+    
+    def process_broadcast_element(value: Rule, ctx: KeyedBroadcastProcessFunction.Context):
+        ctx.get_broadcast_state(self._rule_state_desc).put(value.name, value)
+    
+    def process_element(value: Item, ctx: KeyedBroadcastProcessFunction.ReadOnlyContext):
+        shape = value.get_shape()
+
+        for rule_name, rule in ctx.get_broadcast_state(self._rule_state_desc).items():
+
+            stored = self._map_state.get(rule_name)
+            if stored is None:
+                stored = []
+            
+            if shape == rule.second and len(stored) > 0:
+                for i in stored:
+                    yield "MATCH: {} - {}".format(i, value)
+                stored = []
+            
+            if shape == rule.first:
+                stored.append(value)
+            
+            if len(stored) == 0:
+                self._map_state.remove(rule_name)
+            else:
+                self._map_state.put(rule_name, stored)
+```
+{{< /tab >}}
+{{< /tabs >}}
 
 ## Important Considerations
 

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
@@ -44,8 +45,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGroup> {
 
     private final Map<String, InternalOperatorMetricGroup> operators = new HashMap<>();
-
-    static final int METRICS_OPERATOR_NAME_MAX_LENGTH = 80;
 
     private final TaskIOMetricGroup ioMetrics;
 
@@ -67,29 +66,26 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
     TaskMetricGroup(
             MetricRegistry registry,
             TaskManagerJobMetricGroup parent,
-            JobVertexID vertexId,
             ExecutionAttemptID executionId,
-            String taskName,
-            int subtaskIndex,
-            int attemptNumber) {
+            String taskName) {
         super(
                 registry,
                 registry.getScopeFormats()
                         .getTaskFormat()
                         .formatScope(
                                 checkNotNull(parent),
-                                vertexId,
+                                checkNotNull(executionId).getJobVertexId(),
                                 checkNotNull(executionId),
                                 taskName,
-                                subtaskIndex,
-                                attemptNumber),
+                                checkNotNull(executionId).getSubtaskIndex(),
+                                checkNotNull(executionId).getAttemptNumber()),
                 parent);
 
         this.executionId = checkNotNull(executionId);
-        this.vertexId = checkNotNull(vertexId);
+        this.vertexId = executionId.getJobVertexId();
         this.taskName = checkNotNull(taskName);
-        this.subtaskIndex = subtaskIndex;
-        this.attemptNumber = attemptNumber;
+        this.subtaskIndex = executionId.getSubtaskIndex();
+        this.attemptNumber = executionId.getAttemptNumber();
 
         this.ioMetrics = new TaskIOMetricGroup(this);
     }
@@ -137,7 +133,10 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
     protected QueryScopeInfo.TaskQueryScopeInfo createQueryServiceMetricInfo(
             CharacterFilter filter) {
         return new QueryScopeInfo.TaskQueryScopeInfo(
-                this.parent.jobId.toString(), String.valueOf(this.vertexId), this.subtaskIndex);
+                this.parent.jobId.toString(),
+                String.valueOf(this.vertexId),
+                this.subtaskIndex,
+                this.attemptNumber);
     }
 
     // ------------------------------------------------------------------------
@@ -150,16 +149,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 
     public InternalOperatorMetricGroup getOrAddOperator(
             OperatorID operatorID, String operatorName) {
-        final String truncatedOperatorName;
-        if (operatorName != null && operatorName.length() > METRICS_OPERATOR_NAME_MAX_LENGTH) {
-            LOG.warn(
-                    "The operator name {} exceeded the {} characters length limit and was truncated.",
-                    operatorName,
-                    METRICS_OPERATOR_NAME_MAX_LENGTH);
-            truncatedOperatorName = operatorName.substring(0, METRICS_OPERATOR_NAME_MAX_LENGTH);
-        } else {
-            truncatedOperatorName = operatorName;
-        }
+        final String truncatedOperatorName = MetricUtils.truncateOperatorName(operatorName);
 
         // unique OperatorIDs only exist in streaming, so we have to rely on the name for batch
         // operators
@@ -195,7 +185,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
     }
 
     @Override
-    protected Iterable<? extends ComponentMetricGroup> subComponents() {
+    protected Iterable<? extends ComponentMetricGroup<?>> subComponents() {
         return operators.values();
     }
 

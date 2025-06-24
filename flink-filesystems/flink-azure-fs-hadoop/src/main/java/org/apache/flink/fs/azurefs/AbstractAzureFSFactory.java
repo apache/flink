@@ -21,7 +21,6 @@ package org.apache.flink.fs.azurefs;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
-import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 
 import org.slf4j.Logger;
@@ -77,6 +76,6 @@ public abstract class AbstractAzureFSFactory implements FileSystemFactory {
         org.apache.hadoop.conf.Configuration hadoopConfig = configLoader.getOrLoadHadoopConfig();
         org.apache.hadoop.fs.FileSystem fs = createAzureFS();
         fs.initialize(fsUri, hadoopConfig);
-        return new HadoopFileSystem(fs);
+        return new AzureBlobFileSystem(fs);
     }
 }

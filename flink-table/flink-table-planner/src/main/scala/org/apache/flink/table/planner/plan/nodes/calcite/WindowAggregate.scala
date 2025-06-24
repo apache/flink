@@ -26,6 +26,7 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelShuttle, RelWriter}
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
@@ -45,7 +46,14 @@ abstract class WindowAggregate(
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
     namedProperties: util.List[NamedWindowProperty])
-  extends Aggregate(cluster, traitSet, child, groupSet, ImmutableList.of(groupSet), aggCalls) {
+  extends Aggregate(
+    cluster,
+    traitSet,
+    new util.ArrayList[RelHint],
+    child,
+    groupSet,
+    ImmutableList.of(groupSet),
+    aggCalls) {
 
   def getWindow: LogicalWindow = window
 

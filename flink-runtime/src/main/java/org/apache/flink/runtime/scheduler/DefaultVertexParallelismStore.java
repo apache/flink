@@ -18,14 +18,58 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.JobVertexResourceRequirements;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 /** Maintains the configured parallelisms for vertices, which should be defined by a scheduler. */
 public class DefaultVertexParallelismStore implements MutableVertexParallelismStore {
+
+    private static final Function<Integer, Optional<String>> RESCALE_MAX_REJECT =
+            maxParallelism -> Optional.of("Cannot change the max parallelism.");
+
+    /**
+     * Create a new {@link VertexParallelismStore} that reflects given {@link
+     * JobResourceRequirements}.
+     *
+     * @param oldVertexParallelismStore old vertex parallelism store that serves as a base for the
+     *     new one
+     * @param jobResourceRequirements to apply over the old vertex parallelism store
+     * @return new vertex parallelism store iff it was updated
+     */
+    public static Optional<VertexParallelismStore> applyJobResourceRequirements(
+            VertexParallelismStore oldVertexParallelismStore,
+            JobResourceRequirements jobResourceRequirements) {
+        final DefaultVertexParallelismStore newVertexParallelismStore =
+                new DefaultVertexParallelismStore();
+        boolean changed = false;
+        for (final JobVertexID jobVertexId : jobResourceRequirements.getJobVertices()) {
+            final VertexParallelismInformation oldVertexParallelismInfo =
+                    oldVertexParallelismStore.getParallelismInfo(jobVertexId);
+            final JobVertexResourceRequirements.Parallelism parallelismSettings =
+                    jobResourceRequirements.getParallelism(jobVertexId);
+            final int minParallelism = parallelismSettings.getLowerBound();
+            final int parallelism = parallelismSettings.getUpperBound();
+            newVertexParallelismStore.setParallelismInfo(
+                    jobVertexId,
+                    new DefaultVertexParallelismInfo(
+                            minParallelism,
+                            parallelism,
+                            oldVertexParallelismInfo.getMaxParallelism(),
+                            RESCALE_MAX_REJECT));
+            changed |=
+                    oldVertexParallelismInfo.getMinParallelism() != minParallelism
+                            || oldVertexParallelismInfo.getParallelism() != parallelism;
+        }
+        return changed ? Optional.of(newVertexParallelismStore) : Optional.empty();
+    }
+
     private final Map<JobVertexID, VertexParallelismInformation> vertexToParallelismInfo =
             new HashMap<>();
 
@@ -43,5 +87,15 @@ public class DefaultVertexParallelismStore implements MutableVertexParallelismSt
                                         String.format(
                                                 "No parallelism information set for vertex %s",
                                                 vertexId)));
+    }
+
+    @Override
+    public Map<JobVertexID, VertexParallelismInformation> getAllParallelismInfo() {
+        return Collections.unmodifiableMap(vertexToParallelismInfo);
+    }
+
+    @Override
+    public void mergeParallelismStore(VertexParallelismStore parallelismStore) {
+        parallelismStore.getAllParallelismInfo().forEach(this::setParallelismInfo);
     }
 }

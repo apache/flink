@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager.active;
 
+import org.apache.flink.runtime.blocklist.BlockedNodeRetriever;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
@@ -40,11 +41,13 @@ public interface ResourceManagerDriver<WorkerType extends ResourceIDRetrievable>
      * @param resourceEventHandler Handler that handles resource events.
      * @param mainThreadExecutor Rpc main thread executor.
      * @param ioExecutor IO executor.
+     * @param blockedNodeRetriever To retrieve all blocked nodes
      */
     void initialize(
             ResourceEventHandler<WorkerType> resourceEventHandler,
             ScheduledExecutor mainThreadExecutor,
-            Executor ioExecutor)
+            Executor ioExecutor,
+            BlockedNodeRetriever blockedNodeRetriever)
             throws Exception;
 
     /** Terminate the deployment specific components. */
@@ -71,6 +74,10 @@ public interface ResourceManagerDriver<WorkerType extends ResourceIDRetrievable>
      * a task manager inside the allocated resource, with respect to the provided
      * taskExecutorProcessSpec. The returned future will be completed with a worker node in the
      * deployment specific type, or exceptionally if the allocation has failed.
+     *
+     * <p>Note: The returned future could be cancelled by ResourceManager. This means
+     * ResourceManager don't need this resource anymore, Driver should try to cancel this request
+     * from the external resource manager.
      *
      * <p>Note: Completion of the returned future does not necessarily mean the success of resource
      * allocation and task manager launching. Allocation and launching failures can still happen

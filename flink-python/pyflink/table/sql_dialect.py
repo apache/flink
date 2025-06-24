@@ -16,10 +16,12 @@
 # limitations under the License.
 ################################################################################
 from pyflink.java_gateway import get_gateway
+from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ['SqlDialect']
 
 
+@PublicEvolving()
 class SqlDialect(object):
     """
     Enumeration of valid SQL compatibility modes.

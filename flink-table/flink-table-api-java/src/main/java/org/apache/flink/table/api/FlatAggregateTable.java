@@ -38,8 +38,7 @@ public interface FlatAggregateTable {
      * <p>Example:
      *
      * <pre>{@code
-     * TableAggregateFunction tableAggFunc = new MyTableAggregateFunction();
-     * tableEnv.registerFunction("tableAggFunc", tableAggFunc);
+     * tableEnv.createTemporarySystemFunction("tableAggFunc", MyTableAggregateFunction.class);
      * tab.groupBy($("key"))
      *   .flatAggregate(call("tableAggFunc", $("a"), $("b")).as("x", "y", "z"))
      *   .select($("key"), $("x"), $("y"), $("z"));

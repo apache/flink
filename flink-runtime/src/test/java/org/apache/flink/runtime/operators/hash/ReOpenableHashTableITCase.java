@@ -35,12 +35,10 @@ import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.runtime.operators.testutils.UnionIterator;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -48,9 +46,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-public class ReOpenableHashTableITCase extends TestLogger {
+class ReOpenableHashTableITCase {
 
     private static final int PAGE_SIZE = 8 * 1024;
     private static final long MEMORY_SIZE = PAGE_SIZE * 1000; // 100 Pages.
@@ -69,8 +68,8 @@ public class ReOpenableHashTableITCase extends TestLogger {
             pactRecordComparator;
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         this.recordBuildSideAccesssor = TestData.getIntIntTupleSerializer();
         this.recordProbeSideAccesssor = TestData.getIntIntTupleSerializer();
         this.recordBuildSideComparator = TestData.getIntIntTupleComparator();
@@ -87,17 +86,18 @@ public class ReOpenableHashTableITCase extends TestLogger {
         this.ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         if (this.ioManager != null) {
             this.ioManager.close();
             this.ioManager = null;
         }
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory Leak: Not all memory has been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            assertThat(this.memoryManager.verifyEmpty())
+                    .withFailMessage(
+                            "Memory Leak: Not all memory has been returned to the memory manager.")
+                    .isTrue();
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -122,7 +122,7 @@ public class ReOpenableHashTableITCase extends TestLogger {
     }
 
     @Test
-    public void testSpillingHashJoinWithMassiveCollisions() throws IOException {
+    void testSpillingHashJoinWithMassiveCollisions() throws IOException {
         // the following two values are known to have a hash-code collision on the initial level.
         // we use them to make sure one partition grows over-proportionally large
         final int REPEATED_VALUE_1 = 40559;
@@ -198,15 +198,17 @@ public class ReOpenableHashTableITCase extends TestLogger {
                         join.getBuildSideIterator();
                 if ((record = buildSide.next(recordReuse)) != null) {
                     numBuildValues = 1;
-                    Assert.assertEquals(
-                            "Probe-side key was different than build-side key.", key, record.f0);
+                    assertThat(record.f0)
+                            .withFailMessage("Probe-side key was different than build-side key.")
+                            .isEqualTo(key);
                 } else {
                     fail("No build side values found for a probe key.");
                 }
                 while ((record = buildSide.next(recordReuse)) != null) {
                     numBuildValues++;
-                    Assert.assertEquals(
-                            "Probe-side key was different than build-side key.", key, record.f0);
+                    assertThat(record.f0)
+                            .withFailMessage("Probe-side key was different than build-side key.")
+                            .isEqualTo(key);
                 }
 
                 Long contained = map.get(key);
@@ -221,23 +223,24 @@ public class ReOpenableHashTableITCase extends TestLogger {
         }
 
         join.close();
-        Assert.assertEquals("Wrong number of keys", NUM_KEYS, map.size());
+        assertThat(map).withFailMessage("Wrong number of keys").hasSize(NUM_KEYS);
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
 
             if (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2) {
-                Assert.assertEquals(
-                        "Wrong number of values in per-key cross product for key " + key,
-                        (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
-                                * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
-                                * NUM_PROBES,
-                        val);
+                assertThat(val)
+                        .withFailMessage(
+                                "Wrong number of values in per-key cross product for key %d", key)
+                        .isEqualTo(
+                                (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
+                                        * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
+                                        * NUM_PROBES);
             } else {
-                Assert.assertEquals(
-                        "Wrong number of values in per-key cross product for key " + key,
-                        PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY * NUM_PROBES,
-                        val);
+                assertThat(val)
+                        .withFailMessage(
+                                "Wrong number of values in per-key cross product for key %d", key)
+                        .isEqualTo(PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY * NUM_PROBES);
             }
         }
 

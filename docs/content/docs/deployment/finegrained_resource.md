@@ -76,21 +76,7 @@ Please refer to [Resource Allocation Strategy](#resource-allocation-strategy) fo
 
 ## Usage
 
-To use fine-grained resource management, you need to:
-
-  - Configure to enable fine-grained resource management.
-
-  - Specify the resource requirement.
-
-### Enable Fine-Grained Resource Management
-
-To enable fine-grained resource management, you need to configure the [cluster.fine-grained-resource-management.enabled]({{< ref "docs/deployment/config" >}}#cluster-fine-grained-resource-management-enabled) to true.
-
-{{< hint danger >}}
-Without this configuration, the Flink runtime cannot schedule the slots with your specified resource requirement and the job will fail with an exception.
-{{< /hint >}}
-
-### Specify Resource Requirement for Slot Sharing Group
+To use fine-grained resource management, you need to specify the resource requirement.
 
 Fine-grained resource requirements are defined on slot sharing groups. A slot sharing group is a hint that tells the JobManager operators/tasks in it CAN be put into the same slot.
 
@@ -131,26 +117,6 @@ someStream.filter(...).slotSharingGroup("a") // Set the slot sharing group with 
 .map(...).slotSharingGroup(ssgB); // Directly set the slot sharing group with name and resource.
 
 env.registerSlotSharingGroup(ssgA); // Then register the resource of group “a”
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-val ssgA = SlotSharingGroup.newBuilder("a")
-  .setCpuCores(1.0)
-  .setTaskHeapMemoryMB(100)
-  .build()
-
-val ssgB = SlotSharingGroup.newBuilder("b")
-  .setCpuCores(0.5)
-  .setTaskHeapMemoryMB(100)
-  .build()
-
-someStream.filter(...).slotSharingGroup("a") // Set the slot sharing group with name “a”
-.map(...).slotSharingGroup(ssgB) // Directly set the slot sharing group with name and resource.
-
-env.registerSlotSharingGroup(ssgA) // Then register the resource of group “a”
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -203,23 +169,6 @@ SlotSharingGroup ssgWithName = SlotSharingGroup.newBuilder("ssg").build();
 env.registerSlotSharingGroup(ssgWithResource);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-// Directly build a slot sharing group with specific resource
-val ssgWithResource =
-    SlotSharingGroup.newBuilder("ssg")
-        .setCpuCores(1.0) // required
-        .setTaskHeapMemoryMB(100) // required
-        .setTaskOffHeapMemoryMB(50)
-        .setManagedMemory(MemorySize.ofMebiBytes(200))
-        .setExternalResource("gpu", 1.0)
-        .build()
-
-// Build a slot sharing group without specific resource and then register the resource of it in StreamExecutionEnvironment
-val ssgWithName = SlotSharingGroup.newBuilder("ssg").build()
-env.registerSlotSharingGroup(ssgWithResource)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 # Directly build a slot sharing group with specific resource
@@ -249,10 +198,6 @@ Since fine-grained resource management is a new, experimental feature, not all f
 scheduler are also available with it. The Flink community is working on addressing these limitations.
 
   - **No support for the [Elastic Scaling]({{< ref "docs/deployment/elastic_scaling" >}})**. The elastic scaling only supports slot requests without specified-resource at the moment.
-
-  - **No support for task manager redundancy**. The [slotmanager.redundant-taskmanager-num]({{< ref "docs/deployment/config" >}}#slotmanager-redundant-taskmanager-num) is used to start redundant TaskManagers to speed up job recovery. This config option will not take effect in fine-grained resource management at the moment.
-
-  - **No support for evenly spread out slot strategy**. This strategy tries to spread out the slots evenly across all available TaskManagers. The strategy is not supported in the first version of fine-grained resource management and [cluster.evenly-spread-out-slots]({{< ref "docs/deployment/config" >}}#cluster-evenly-spread-out-slots) will not take effect in it at the moment.
 
   - **Limited integration with Flink’s Web UI**. Slots in fine-grained resource management can have different resource specs. The web UI only shows the slot number without its details at the moment.
 

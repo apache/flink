@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,25 +18,17 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
-
-/** Factory for creating {@link LeaderElectionDriver} with different implementation. */
+/** Factory for {@link LeaderElectionDriver}. */
 public interface LeaderElectionDriverFactory {
 
     /**
-     * Create a specific {@link LeaderElectionDriver} and start the necessary services. For example,
-     * LeaderLatch and NodeCache in Zookeeper, KubernetesLeaderElector and ConfigMap watcher in
-     * Kubernetes.
+     * Creates a {@link LeaderElectionDriver} for the given leader contender description. Moreover,
+     * it registers the given leader election listener with the service.
      *
-     * @param leaderEventHandler handler for the leader election driver to process leader events.
-     * @param leaderContenderDescription leader contender description.
-     * @param fatalErrorHandler fatal error handler
-     * @throws Exception when create a specific {@link LeaderElectionDriver} implementation and
-     *     start the necessary services.
+     * @param leaderElectionListener listener for the callbacks of the {@link LeaderElectionDriver}
+     * @return created {@link LeaderElectionDriver} instance
+     * @throws Exception if the creation fails
      */
-    LeaderElectionDriver createLeaderElectionDriver(
-            LeaderElectionEventHandler leaderEventHandler,
-            FatalErrorHandler fatalErrorHandler,
-            String leaderContenderDescription)
+    LeaderElectionDriver create(LeaderElectionDriver.Listener leaderElectionListener)
             throws Exception;
 }

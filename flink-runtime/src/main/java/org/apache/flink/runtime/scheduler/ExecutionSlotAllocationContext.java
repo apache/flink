@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
@@ -75,7 +74,7 @@ interface ExecutionSlotAllocationContext extends InputsLocationsRetriever, State
      * Returns all reserved allocations. These allocations/slots were used to run certain vertices
      * and reserving them can prevent other vertices to take these slots and thus help vertices to
      * be deployed into their previous slots again after failover. It is needed if {@link
-     * CheckpointingOptions#LOCAL_RECOVERY} is enabled.
+     * org.apache.flink.configuration.StateRecoveryOptions#LOCAL_RECOVERY} is enabled.
      *
      * @return all reserved allocations
      */

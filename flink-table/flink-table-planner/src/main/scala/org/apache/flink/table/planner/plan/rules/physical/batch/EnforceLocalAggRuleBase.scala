@@ -94,7 +94,8 @@ abstract class EnforceLocalAggRuleBase(operand: RelOptRuleOperand, description: 
       auxGrouping,
       aggBufferTypes,
       aggCallToAggFunction,
-      isLocalHashAgg
+      isLocalHashAgg,
+      supportAdaptiveLocalHashAgg = false
     )
   }
 

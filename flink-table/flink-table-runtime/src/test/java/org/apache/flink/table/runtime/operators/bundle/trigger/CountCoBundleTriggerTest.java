@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.runtime.operators.bundle.trigger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link CountCoBundleTrigger}. */
-public class CountCoBundleTriggerTest {
+class CountCoBundleTriggerTest {
 
     @Test
-    public void testTrigger() throws Exception {
+    void testTrigger() throws Exception {
         CountCoBundleTrigger<Object, Object> trigger = new CountCoBundleTrigger<>(2);
         TestTriggerCallback callback = new TestTriggerCallback();
         trigger.registerCallback(callback);

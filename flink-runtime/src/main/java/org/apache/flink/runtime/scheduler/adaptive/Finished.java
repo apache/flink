@@ -18,10 +18,14 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 
 import org.slf4j.Logger;
+
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /** State which describes a finished job execution. */
 class Finished implements State {
@@ -54,11 +58,15 @@ class Finished implements State {
     }
 
     @Override
-    public void handleGlobalFailure(Throwable cause) {
+    public JobID getJobId() {
+        return archivedExecutionGraph.getJobID();
+    }
+
+    @Override
+    public void handleGlobalFailure(
+            Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
         logger.debug(
-                "Ignore global failure because we already finished the job {}.",
-                archivedExecutionGraph.getJobID(),
-                cause);
+                "Ignore global failure because we already finished the job {}.", getJobId(), cause);
     }
 
     @Override

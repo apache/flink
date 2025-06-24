@@ -19,8 +19,8 @@
 package org.apache.flink.cep.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.streaming.api.windowing.time.Time;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -42,8 +42,8 @@ public interface TimedOutPartialMatchHandler<IN> {
 
     /**
      * Called for every timed out partial match (due to {@link
-     * org.apache.flink.cep.pattern.Pattern#within(Time)}). It enables custom handling, e.g. one can
-     * emit the timed out results through a side output:
+     * org.apache.flink.cep.pattern.Pattern#within(Duration)}). It enables custom handling, e.g. one
+     * can emit the timed out results through a side output:
      *
      * <pre>{@code
      * private final OutputTag<T> timedOutPartialMatchesTag = ...

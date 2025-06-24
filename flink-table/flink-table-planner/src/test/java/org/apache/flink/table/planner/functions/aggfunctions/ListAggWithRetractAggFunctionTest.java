@@ -28,8 +28,8 @@ import java.util.Arrays;
 import java.util.List;
 
 /** Test case for built-in LISTAGG with retraction aggregate function. */
-public final class ListAggWithRetractAggFunctionTest
-        extends AggFunctionTestBase<StringData, ListAggWithRetractAccumulator> {
+final class ListAggWithRetractAggFunctionTest
+        extends AggFunctionTestBase<StringData, StringData, ListAggWithRetractAccumulator> {
 
     @Override
     protected List<List<StringData>> getInputValueSets() {

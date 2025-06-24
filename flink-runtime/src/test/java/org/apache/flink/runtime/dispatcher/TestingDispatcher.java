@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.dispatcher.cleanup.CleanupRunnerFactory;
@@ -28,12 +27,12 @@ import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleanerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingCleanupRunnerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingRetryStrategies;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.JobGraphWriter;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -44,14 +43,17 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TimeUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -63,29 +65,10 @@ class TestingDispatcher extends Dispatcher {
 
     private final CompletableFuture<Void> startFuture;
 
-    TestingDispatcher(
-            RpcService rpcService,
-            DispatcherId fencingToken,
-            Collection<JobGraph> recoveredJobs,
-            Collection<JobResult> recoveredDirtyJobResults,
-            DispatcherBootstrapFactory dispatcherBootstrapFactory,
-            DispatcherServices dispatcherServices)
-            throws Exception {
-        super(
-                rpcService,
-                fencingToken,
-                recoveredJobs,
-                recoveredDirtyJobResults,
-                dispatcherBootstrapFactory,
-                dispatcherServices);
-
-        this.startFuture = new CompletableFuture<>();
-    }
-
     private TestingDispatcher(
             RpcService rpcService,
             DispatcherId fencingToken,
-            Collection<JobGraph> recoveredJobs,
+            Collection<ExecutionPlan> recoveredJobs,
             Collection<JobResult> recoveredDirtyJobs,
             Configuration configuration,
             HighAvailabilityServices highAvailabilityServices,
@@ -93,7 +76,7 @@ class TestingDispatcher extends Dispatcher {
             HeartbeatServices heartbeatServices,
             BlobServer blobServer,
             FatalErrorHandler fatalErrorHandler,
-            JobGraphWriter jobGraphWriter,
+            ExecutionPlanWriter executionPlanWriter,
             JobResultStore jobResultStore,
             JobManagerMetricGroup jobManagerMetricGroup,
             @Nullable String metricServiceQueryAddress,
@@ -125,11 +108,12 @@ class TestingDispatcher extends Dispatcher {
                         metricServiceQueryAddress,
                         dispatcherOperationCaches,
                         jobManagerMetricGroup,
-                        jobGraphWriter,
+                        executionPlanWriter,
                         jobResultStore,
                         jobManagerRunnerFactory,
                         cleanupRunnerFactory,
-                        ioExecutor),
+                        ioExecutor,
+                        Collections.emptySet()),
                 jobManagerRunnerRegistry,
                 resourceCleanerFactory);
 
@@ -159,15 +143,18 @@ class TestingDispatcher extends Dispatcher {
                 });
     }
 
-    CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
-        return callAsyncWithoutFencing(
-                        () -> getJobTerminationFuture(jobId), TimeUtils.toDuration(timeout))
+    <T> CompletableFuture<T> callAsyncInMainThread(Callable<CompletableFuture<T>> callable) {
+        return callAsync(callable, TestingUtils.TESTING_DURATION).thenCompose(Function.identity());
+    }
+
+    CompletableFuture<Void> getJobTerminationFuture(
+            @Nonnull JobID jobId, @Nonnull Duration timeout) {
+        return callAsync(() -> getJobTerminationFuture(jobId), timeout)
                 .thenCompose(Function.identity());
     }
 
-    CompletableFuture<Integer> getNumberJobs(Time timeout) {
-        return callAsyncWithoutFencing(
-                () -> listJobs(timeout).get().size(), TimeUtils.toDuration(timeout));
+    CompletableFuture<Integer> getNumberJobs(Duration timeout) {
+        return callAsync(() -> listJobs(timeout).get().size(), timeout);
     }
 
     void waitUntilStarted() {
@@ -180,7 +167,7 @@ class TestingDispatcher extends Dispatcher {
 
     public static class Builder {
         private DispatcherId fencingToken = DispatcherId.generate();
-        private Collection<JobGraph> recoveredJobs = Collections.emptyList();
+        private Collection<ExecutionPlan> recoveredJobs = Collections.emptyList();
         @Nullable private Collection<JobResult> recoveredDirtyJobs = null;
         private HighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServices();
@@ -189,9 +176,9 @@ class TestingDispatcher extends Dispatcher {
                 new TestingResourceManagerGateway();
         private GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever =
                 () -> CompletableFuture.completedFuture(resourceManagerGateway);
-        private HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
+        private HeartbeatServices heartbeatServices = new HeartbeatServicesImpl(1000L, 1000L);
 
-        private JobGraphWriter jobGraphWriter = NoOpJobGraphWriter.INSTANCE;
+        private ExecutionPlanWriter executionPlanWriter = NoOpExecutionPlanWriter.INSTANCE;
         private JobResultStore jobResultStore = new EmbeddedJobResultStore();
 
         private Configuration configuration = new Configuration();
@@ -223,7 +210,7 @@ class TestingDispatcher extends Dispatcher {
             return this;
         }
 
-        public Builder setRecoveredJobs(Collection<JobGraph> recoveredJobs) {
+        public Builder setRecoveredJobs(Collection<ExecutionPlan> recoveredJobs) {
             this.recoveredJobs = recoveredJobs;
             return this;
         }
@@ -256,8 +243,8 @@ class TestingDispatcher extends Dispatcher {
             return this;
         }
 
-        public Builder setJobGraphWriter(JobGraphWriter jobGraphWriter) {
-            this.jobGraphWriter = jobGraphWriter;
+        public Builder setExecutionPlanWriter(ExecutionPlanWriter executionPlanWriter) {
+            this.executionPlanWriter = executionPlanWriter;
             return this;
         }
 
@@ -344,7 +331,7 @@ class TestingDispatcher extends Dispatcher {
                     ioExecutor,
                     TestingRetryStrategies.NO_RETRY_STRATEGY,
                     jobManagerRunnerRegistry,
-                    jobGraphWriter,
+                    executionPlanWriter,
                     blobServer,
                     highAvailabilityServices,
                     jobManagerMetricGroup);
@@ -366,7 +353,7 @@ class TestingDispatcher extends Dispatcher {
                             blobServer,
                             "No BlobServer is specified for building the TestingDispatcher"),
                     fatalErrorHandler,
-                    jobGraphWriter,
+                    executionPlanWriter,
                     jobResultStore,
                     jobManagerMetricGroup,
                     metricServiceQueryAddress,

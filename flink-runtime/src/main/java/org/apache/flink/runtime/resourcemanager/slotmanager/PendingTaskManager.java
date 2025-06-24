@@ -18,8 +18,14 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 /** Represents a pending task manager in the {@link SlotManager}. */
 public class PendingTaskManager {
@@ -28,12 +34,17 @@ public class PendingTaskManager {
     private final ResourceProfile defaultSlotResourceProfile;
     private final int numSlots;
 
+    private ResourceProfile unusedResource;
+    Map<JobID, ResourceCounter> pendingSlotAllocationRecords;
+
     public PendingTaskManager(ResourceProfile totalResourceProfile, int numSlots) {
         this.numSlots = numSlots;
         this.totalResourceProfile = Preconditions.checkNotNull(totalResourceProfile);
         this.defaultSlotResourceProfile =
                 SlotManagerUtils.generateDefaultSlotResourceProfile(totalResourceProfile, numSlots);
         this.pendingTaskManagerId = PendingTaskManagerId.generate();
+        this.unusedResource = totalResourceProfile;
+        this.pendingSlotAllocationRecords = new HashMap<>();
     }
 
     public ResourceProfile getTotalResourceProfile() {
@@ -50,6 +61,40 @@ public class PendingTaskManager {
 
     public int getNumSlots() {
         return numSlots;
+    }
+
+    public ResourceProfile getUnusedResource() {
+        return unusedResource;
+    }
+
+    public Map<JobID, ResourceCounter> getPendingSlotAllocationRecords() {
+        return pendingSlotAllocationRecords;
+    }
+
+    public void clearAllPendingAllocations() {
+        pendingSlotAllocationRecords.clear();
+        unusedResource = totalResourceProfile;
+    }
+
+    public void replaceAllPendingAllocations(Map<JobID, ResourceCounter> pendingSlotAllocations) {
+        pendingSlotAllocationRecords.clear();
+        pendingSlotAllocationRecords.putAll(pendingSlotAllocations);
+        unusedResource = calculateUnusedResourceProfile();
+    }
+
+    public void clearPendingAllocationsOfJob(JobID jobId) {
+        Optional.ofNullable(pendingSlotAllocationRecords.remove(jobId))
+                .ifPresent(
+                        resourceCounter ->
+                                unusedResource =
+                                        unusedResource.merge(resourceCounter.getTotalResource()));
+    }
+
+    private ResourceProfile calculateUnusedResourceProfile() {
+        return totalResourceProfile.subtract(
+                pendingSlotAllocationRecords.values().stream()
+                        .map(ResourceCounter::getTotalResource)
+                        .reduce(ResourceProfile.ZERO, ResourceProfile::merge));
     }
 
     @Override

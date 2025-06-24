@@ -39,8 +39,15 @@ Usage
 -----
 
 By default, a DataGen table will create an unbounded number of rows with a random value for each column.
-For variable sized types, char/varchar/string/array/map/multiset, the length can be specified.
 Additionally, a total number of rows can be specified, resulting in a bounded table.
+
+The DataGen connector can generate data that conforms to its defined schema, It should be noted that it handles length-constrained fields as follows:
+
+* For fixed-length data types (char/binary), the field length can only be defined by the schema, 
+and does not support customization.
+* For variable-length data types (varchar/varbinary), the field length is initially defined by the schema, 
+and the customized length cannot be greater than the schema definition.
+* For super-long fields (string/bytes), the default length is 100, but can be set to a length less than 2^31.
 
 There also exists a sequence generator, where users specify a sequence of start and end values.
 If any column in a table is a sequence type, the table will be bounded and end with the first sequence completes.
@@ -77,6 +84,36 @@ WITH (
 LIKE Orders (EXCLUDING ALL)
 ```
 
+Furthermore, for variable sized types, varchar/string/varbinary/bytes, you can specify whether to enable variable-length data generation.
+
+```sql
+CREATE TABLE Orders (
+    order_number BIGINT,
+    price        DECIMAL(32,2),
+    buyer        ROW<first_name STRING, last_name STRING>,
+    order_time   TIMESTAMP(3),
+    seller       VARCHAR(150)
+) WITH (
+  'connector' = 'datagen',
+  'fields.seller.var-len' = 'true'
+)
+```
+
+And for collections it is possible to specify different sized collections.
+
+```sql
+CREATE TABLE Orders (
+    f0 Array<INT>,
+    f1 Map<INT, STRING>,
+    f2 MULTISET<INT>
+) WITH (
+  'connector' = 'datagen',
+  'fields.f0.length' = '10',
+  'fields.f1.length' = '11',
+  'fields.f2.length' = '12'
+);
+```
+
 Types
 -----
 
@@ -101,6 +138,16 @@ Types
         </tr>
         <tr>
             <td>VARCHAR</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>BINARY</td>
+            <td>random / sequence</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>VARBINARY</td>
             <td>random / sequence</td>
             <td></td>
         </tr>
@@ -231,13 +278,20 @@ Connector Options
       <td>Long</td>
       <td>Rows per second to control the emit rate.</td>
     </tr>
-        <tr>
-          <td><h5>number-of-rows</h5></td>
-          <td>optional</td>
-          <td style="word-wrap: break-word;">(none)</td>
-          <td>Long</td>
-          <td>The total number of rows to emit. By default, the table is unbounded.</td>
-        </tr>
+    <tr>
+      <td><h5>number-of-rows</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Long</td>
+      <td>The total number of rows to emit. By default, the table is unbounded.</td>
+    </tr>
+    <tr>
+      <td><h5>scan.parallelism</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>Defines the parallelism of the source. If not set, the global default parallelism is used.</td>
+    </tr>
     <tr>
       <td><h5>fields.#.kind</h5></td>
       <td>optional</td>
@@ -250,14 +304,14 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(Minimum value of type)</td>
       <td>(Type of field)</td>
-      <td>Minimum value of random generator, work for numeric types.</td>
+      <td>Minimum value of random generator, only works for numeric types.</td>
     </tr>
     <tr>
       <td><h5>fields.#.max</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(Maximum value of type)</td>
       <td>(Type of field)</td>
-      <td>Maximum value of random generator, work for numeric types.</td>
+      <td>Maximum value of random generator, only works for numeric types.</td>
     </tr>
     <tr>
       <td><h5>fields.#.max-past</h5></td>
@@ -269,9 +323,21 @@ Connector Options
     <tr>
       <td><h5>fields.#.length</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">100</td>
+      <td style="word-wrap: break-word;">100 for string/bytes, 3 for array/map/multiset </td>
       <td>Integer</td>
-      <td>Size or length of the collection for generating char/varchar/string/array/map/multiset types.</td>
+      <td>
+          Size or length of the collection for generating varchar/varbinary/string/bytes/array/map/multiset types. 
+          Please note that for variable-length fields (varchar/varbinary), the default length is defined by the schema and cannot be set to a length greater than it.
+          For super-long fields (string/bytes), the default length is 100 and can be set to a length less than 2^31.
+          For constructed fields (array/map/multiset), the default number of elements is 3.
+      </td>
+    </tr>
+    <tr>
+      <td><h5>fields.#.var-len</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Whether to generate a variable-length data, only works for variable-length types (varchar, string, varbinary, bytes).</td>
     </tr>
     <tr>
       <td><h5>fields.#.start</h5></td>
@@ -286,6 +352,13 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>(Type of field)</td>
       <td>End value of sequence generator.</td>
+    </tr>
+    <tr>
+      <td><h5>fields.#.null-rate</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">0</td>
+      <td>(Type of field)</td>
+      <td>The proportion of null values.</td>
     </tr>
     </tbody>
 </table>

@@ -22,15 +22,15 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
 import static org.junit.Assert.fail;
 
 /** Manual test to evaluate impact of checkpointing on latency. */
@@ -51,10 +51,9 @@ public class StreamingScalabilityAndLatency {
         try {
             Configuration config = new Configuration();
             config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("80m"));
-            config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 20000);
 
-            config.setInteger("taskmanager.net.server.numThreads", 1);
-            config.setInteger("taskmanager.net.client.numThreads", 1);
+            config.set(getIntConfigOption("taskmanager.net.server.numThreads"), 1);
+            config.set(getIntConfigOption("taskmanager.net.client.numThreads"), 1);
 
             cluster =
                     new MiniClusterWithClientResource(
@@ -86,7 +85,7 @@ public class StreamingScalabilityAndLatency {
 
         env.addSource(new TimeStampingSource())
                 .map(new IdMapper<Tuple2<Long, Long>>())
-                .keyBy(0)
+                .keyBy(x -> x.f0)
                 .addSink(new TimestampingSink());
 
         env.execute("Partitioning Program");

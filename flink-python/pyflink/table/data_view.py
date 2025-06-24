@@ -18,6 +18,8 @@
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, Iterable, List, Any, Iterator, Dict, Tuple
 
+from pyflink.util.api_stability_decorators import PublicEvolving
+
 T = TypeVar('T')
 K = TypeVar('K')
 V = TypeVar('V')
@@ -25,6 +27,7 @@ V = TypeVar('V')
 __all__ = ['DataView', 'ListView', 'MapView']
 
 
+@PublicEvolving()
 class DataView(ABC):
     """
     A DataView is a collection type that can be used in the accumulator of an user defined
@@ -40,6 +43,7 @@ class DataView(ABC):
         pass
 
 
+@PublicEvolving()
 class ListView(DataView, Generic[T]):
     """
     A :class:`DataView` that provides list-like functionality in the accumulator of an
@@ -102,6 +106,7 @@ class ListView(DataView, Generic[T]):
         return iter(self.get())
 
 
+@PublicEvolving()
 class MapView(Generic[K, V]):
     """
     A :class:`DataView` that provides dict-like functionality in the accumulator of an

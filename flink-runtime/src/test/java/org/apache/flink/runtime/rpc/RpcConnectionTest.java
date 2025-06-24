@@ -18,60 +18,56 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This test validates that the RPC service gives a good message when it cannot connect to an
  * RpcEndpoint.
  */
-public class RpcConnectionTest extends TestLogger {
+class RpcConnectionTest {
 
     @Test
-    public void testConnectFailure() throws Exception {
+    void testConnectFailure() throws Exception {
         // we start the RPC service with a very long timeout to ensure that the test
         // can only pass if the connection problem is not recognized merely via a timeout
         Configuration configuration = new Configuration();
-        configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(10000000));
+        configuration.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(10000000));
 
-        final RpcService rpcService =
-                RpcSystem.load()
-                        .localServiceBuilder(configuration)
-                        .withBindAddress("localhost")
-                        .withBindPort(0)
-                        .createAndStart();
-        try {
-            CompletableFuture<TaskExecutorGateway> future =
-                    rpcService.connect("foo.bar.com.test.invalid", TaskExecutorGateway.class);
+        try (RpcSystem rpcSystem = RpcSystem.load()) {
+            final RpcService rpcService =
+                    rpcSystem
+                            .remoteServiceBuilder(configuration, null, "8000-9000")
+                            .withBindAddress("localhost")
+                            .withBindPort(0)
+                            .createAndStart();
 
-            future.get(10000000, TimeUnit.SECONDS);
-            fail("should never complete normally");
-        } catch (TimeoutException e) {
-            fail("should not fail with a generic timeout exception");
-        } catch (ExecutionException e) {
-            // that is what we want
-            assertTrue(e.getCause() instanceof RpcConnectionException);
-            assertTrue(
-                    "wrong error message",
-                    e.getCause().getMessage().contains("foo.bar.com.test.invalid"));
-        } catch (Throwable t) {
-            fail("wrong exception: " + t);
-        } finally {
-            rpcService.stopService().get();
+            final String invalidAddress =
+                    rpcSystem.getRpcUrl(
+                            rpcService.getAddress() + ".invalid",
+                            rpcService.getPort(),
+                            "foo",
+                            AddressResolution.NO_ADDRESS_RESOLUTION,
+                            new Configuration());
+
+            assertThatThrownBy(
+                            () ->
+                                    rpcService
+                                            .connect(invalidAddress, TaskExecutorGateway.class)
+                                            .get(10000000, TimeUnit.SECONDS))
+                    .cause()
+                    .isInstanceOf(RpcConnectionException.class)
+                    .hasMessageContaining(invalidAddress);
+            rpcService.closeAsync().get();
         }
     }
 }

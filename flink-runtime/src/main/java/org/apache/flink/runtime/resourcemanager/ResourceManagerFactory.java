@@ -64,14 +64,10 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
             Executor ioExecutor)
             throws ConfigurationException {
 
-        final Configuration runtimeServicesAndRmConfig =
-                getEffectiveConfigurationForResourceManagerAndRuntimeServices(configuration);
-
         final ResourceManagerRuntimeServicesConfiguration runtimeServiceConfig =
-                createResourceManagerRuntimeServicesConfiguration(runtimeServicesAndRmConfig);
+                createResourceManagerRuntimeServicesConfiguration(configuration);
 
-        final Configuration rmConfig =
-                getEffectiveConfigurationForResourceManager(runtimeServicesAndRmConfig);
+        final Configuration rmConfig = getEffectiveConfigurationForResourceManager(configuration);
 
         return new ResourceManagerProcessContext(
                 rmConfig,
@@ -121,20 +117,7 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
         return true;
     }
 
-    /**
-     * Configuration changes in this method will be visible to both {@link ResourceManager} and
-     * {@link ResourceManagerRuntimeServices}. This can be overwritten by {@link
-     * #getEffectiveConfigurationForResourceManager}.
-     */
-    protected Configuration getEffectiveConfigurationForResourceManagerAndRuntimeServices(
-            final Configuration configuration) {
-        return configuration;
-    }
-
-    /**
-     * Configuration changes in this method will be visible to only {@link ResourceManager}. This
-     * can overwrite {@link #getEffectiveConfigurationForResourceManagerAndRuntimeServices}.
-     */
+    /** Configuration changes in this method will be visible to only {@link ResourceManager}. */
     protected Configuration getEffectiveConfigurationForResourceManager(
             final Configuration configuration) {
         return configuration;

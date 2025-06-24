@@ -20,8 +20,6 @@ package org.apache.flink.connector.file.sink;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.Configuration;
@@ -30,32 +28,29 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamSource;
-
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 
 /** Tests the functionality of the {@link FileSink} in BATCH mode. */
-@RunWith(Parameterized.class)
-public class BatchExecutionFileSinkITCase extends FileSinkITBase {
+class BatchExecutionFileSinkITCase extends FileSinkITBase {
 
     /**
      * Creating the testing job graph in batch mode. The graph created is [Source] -> [Failover Map
      * -> File Sink]. The Failover Map is introduced to ensure the failover would always restart the
      * file writer so the data would be re-written.
      */
-    protected JobGraph createJobGraph(String path) {
+    protected JobGraph createJobGraph(boolean triggerFailover, String path) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         Configuration config = new Configuration();
         config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         env.configure(config, getClass().getClassLoader());
 
         if (triggerFailover) {
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, Time.milliseconds(100)));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 100);
         } else {
-            env.setRestartStrategy(RestartStrategies.noRestart());
+            RestartStrategyUtils.configureNoRestartStrategy(env);
         }
 
         // Create a testing job with a bounded legacy source in a bit hacky way.
@@ -133,8 +128,8 @@ public class BatchExecutionFileSinkITCase extends FileSinkITBase {
         @Override
         public Integer map(Integer value) {
             if (triggerFailover
-                    && getRuntimeContext().getIndexOfThisSubtask() == 0
-                    && getRuntimeContext().getAttemptNumber() == 0
+                    && getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0
+                    && getRuntimeContext().getTaskInfo().getAttemptNumber() == 0
                     && value >= FAILOVER_RATIO * maxNumber) {
                 throw new RuntimeException("Designated Failure");
             }

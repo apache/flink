@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Optional;
 
 /**
  * This is the abstract base class for {@link IOReadableWritable} which allows to differentiate
@@ -71,6 +72,10 @@ public abstract class VersionedIOReadableWritable implements IOReadableWritable,
         return new int[] {getVersion()};
     }
 
+    public Optional<String> getAdditionalDetailsForIncompatibleVersion(int readVersion) {
+        return Optional.empty();
+    }
+
     private void resolveVersionRead(int readVersion) throws VersionMismatchException {
 
         int[] compatibleVersions = getCompatibleVersions();
@@ -80,10 +85,18 @@ public abstract class VersionedIOReadableWritable implements IOReadableWritable,
             }
         }
 
-        throw new VersionMismatchException(
+        String error =
                 "Incompatible version: found "
                         + readVersion
                         + ", compatible versions are "
-                        + Arrays.toString(compatibleVersions));
+                        + Arrays.toString(compatibleVersions);
+
+        Optional<String> incompatibleVersionError =
+                getAdditionalDetailsForIncompatibleVersion(readVersion);
+        if (incompatibleVersionError.isPresent()) {
+            error += ". " + incompatibleVersionError.get();
+        }
+
+        throw new VersionMismatchException(error);
     }
 }

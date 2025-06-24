@@ -20,44 +20,34 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.Value;
 
-import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.assertj.core.api.Condition;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Objects;
 
-import static org.hamcrest.Matchers.is;
-
 /** State migration test for {@link RowSerializer}. */
-@RunWith(Parameterized.class)
-public class ValueSerializerUpgradeTest
+class ValueSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<
                 ValueSerializerUpgradeTest.NameValue, ValueSerializerUpgradeTest.NameValue> {
-    public ValueSerializerUpgradeTest(TestSpecification<NameValue, NameValue> testSpecification) {
-        super(testSpecification);
-    }
 
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "value-serializer",
-                            flinkVersion,
-                            ValueSerializerSetup.class,
-                            ValueSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "value-serializer",
+                        flinkVersion,
+                        ValueSerializerSetup.class,
+                        ValueSerializerVerifier.class));
 
         return testSpecifications;
     }
@@ -85,16 +75,16 @@ public class ValueSerializerUpgradeTest
         }
 
         @Override
-        public Matcher<NameValue> testDataMatcher() {
+        public Condition<NameValue> testDataCondition() {
             NameValue value = new NameValue();
             value.setName("klion26");
-            return is(value);
+            return new Condition<>(value::equals, "value is klion26");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<NameValue>> schemaCompatibilityMatcher(
+        public Condition<TypeSerializerSchemaCompatibility<NameValue>> schemaCompatibilityCondition(
                 FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 

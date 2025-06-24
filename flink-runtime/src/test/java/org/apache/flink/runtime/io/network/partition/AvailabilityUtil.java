@@ -24,8 +24,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Assertions for availability futures. */
 public class AvailabilityUtil {
@@ -37,11 +36,11 @@ public class AvailabilityUtil {
             ThrowingRunnable<E> runnable)
             throws E {
         final CompletableFuture<?> availableFuture = futureSupplier.get();
-        assertEquals(before, availableFuture.isDone());
+        assertThat(availableFuture.isDone()).isEqualTo(before);
         runnable.run();
-        assertEquals(after, futureSupplier.get().isDone());
+        assertThat(futureSupplier.get().isDone()).isEqualTo(after);
         if (after) {
-            assertTrue(availableFuture.isDone());
+            assertThat(availableFuture).isDone();
         }
     }
 

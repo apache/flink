@@ -35,30 +35,33 @@ public class TestLoggerExtension implements TestWatcher, BeforeEachCallback {
     public void beforeEach(ExtensionContext context) {
         LOG.info(
                 "\n================================================================================"
-                        + "\nTest {}.{} is running."
+                        + "\nTest {}.{}[{}] is running."
                         + "\n--------------------------------------------------------------------------------",
                 context.getRequiredTestClass().getCanonicalName(),
-                context.getRequiredTestMethod().getName());
+                context.getRequiredTestMethod().getName(),
+                context.getDisplayName());
     }
 
     @Override
     public void testSuccessful(ExtensionContext context) {
         LOG.info(
                 "\n--------------------------------------------------------------------------------"
-                        + "\nTest {}.{} successfully run."
+                        + "\nTest {}.{}[{}] successfully run."
                         + "\n================================================================================",
                 context.getRequiredTestClass().getCanonicalName(),
-                context.getRequiredTestMethod().getName());
+                context.getRequiredTestMethod().getName(),
+                context.getDisplayName());
     }
 
     @Override
     public void testFailed(ExtensionContext context, Throwable cause) {
         LOG.error(
                 "\n--------------------------------------------------------------------------------"
-                        + "\nTest {}.{} failed with:\n{}"
+                        + "\nTest {}.{}[{}] failed with:\n{}"
                         + "\n================================================================================",
                 context.getRequiredTestClass().getCanonicalName(),
                 context.getRequiredTestMethod().getName(),
+                context.getDisplayName(),
                 exceptionToString(cause));
     }
 

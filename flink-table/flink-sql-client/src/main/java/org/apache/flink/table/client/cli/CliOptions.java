@@ -22,8 +22,11 @@ import org.apache.flink.configuration.Configuration;
 
 import javax.annotation.Nullable;
 
+import java.net.URI;
 import java.net.URL;
 import java.util.List;
+import java.util.Optional;
+import java.util.Properties;
 
 /**
  * Command line options to configure the SQL client. Arguments that have not been specified by the
@@ -33,33 +36,24 @@ public class CliOptions {
 
     private final boolean isPrintHelp;
     private final String sessionId;
-    private final URL initFile;
-    private final URL sqlFile;
-    private final List<URL> jars;
-    private final List<URL> libraryDirs;
-    private final String updateStatement;
+    private final URI initFile;
+    private final URI sqlFile;
     private final String historyFilePath;
-    private final Configuration pythonConfiguration;
+    private final Properties sessionConfig;
 
-    public CliOptions(
+    private CliOptions(
             boolean isPrintHelp,
             String sessionId,
-            URL initFile,
-            URL sqlFile,
-            List<URL> jars,
-            List<URL> libraryDirs,
-            String updateStatement,
+            URI initFile,
+            URI sqlFile,
             String historyFilePath,
-            Configuration pythonConfiguration) {
+            Properties sessionConfig) {
         this.isPrintHelp = isPrintHelp;
         this.sessionId = sessionId;
         this.initFile = initFile;
         this.sqlFile = sqlFile;
-        this.jars = jars;
-        this.libraryDirs = libraryDirs;
-        this.updateStatement = updateStatement;
         this.historyFilePath = historyFilePath;
-        this.pythonConfiguration = pythonConfiguration;
+        this.sessionConfig = sessionConfig;
     }
 
     public boolean isPrintHelp() {
@@ -70,31 +64,78 @@ public class CliOptions {
         return sessionId;
     }
 
-    public @Nullable URL getInitFile() {
+    public @Nullable URI getInitFile() {
         return initFile;
     }
 
-    public @Nullable URL getSqlFile() {
+    public @Nullable URI getSqlFile() {
         return sqlFile;
-    }
-
-    public List<URL> getJars() {
-        return jars;
-    }
-
-    public List<URL> getLibraryDirs() {
-        return libraryDirs;
-    }
-
-    public String getUpdateStatement() {
-        return updateStatement;
     }
 
     public String getHistoryFilePath() {
         return historyFilePath;
     }
 
-    public Configuration getPythonConfiguration() {
-        return pythonConfiguration;
+    public Properties getSessionConfig() {
+        return sessionConfig;
+    }
+
+    /** Command option lines to configure SQL Client in the embedded mode. */
+    public static class EmbeddedCliOptions extends CliOptions {
+
+        private final List<URI> jars;
+        private final List<URI> libraryDirs;
+
+        private final Configuration pythonConfiguration;
+
+        public EmbeddedCliOptions(
+                boolean isPrintHelp,
+                String sessionId,
+                URI initFile,
+                URI sqlFile,
+                String historyFilePath,
+                List<URI> jars,
+                List<URI> libraryDirs,
+                Configuration pythonConfiguration,
+                Properties sessionConfig) {
+            super(isPrintHelp, sessionId, initFile, sqlFile, historyFilePath, sessionConfig);
+            this.jars = jars;
+            this.libraryDirs = libraryDirs;
+            this.pythonConfiguration = pythonConfiguration;
+        }
+
+        public List<URI> getJars() {
+            return jars;
+        }
+
+        public List<URI> getLibraryDirs() {
+            return libraryDirs;
+        }
+
+        public Configuration getPythonConfiguration() {
+            return pythonConfiguration;
+        }
+    }
+
+    /** Command option lines to configure SQL Client in the gateway mode. */
+    public static class GatewayCliOptions extends CliOptions {
+
+        private final @Nullable URL gatewayAddress;
+
+        GatewayCliOptions(
+                boolean isPrintHelp,
+                String sessionId,
+                URI initFile,
+                URI sqlFile,
+                String historyFilePath,
+                @Nullable URL gatewayAddress,
+                Properties sessionConfig) {
+            super(isPrintHelp, sessionId, initFile, sqlFile, historyFilePath, sessionConfig);
+            this.gatewayAddress = gatewayAddress;
+        }
+
+        public Optional<URL> getGatewayAddress() {
+            return Optional.ofNullable(gatewayAddress);
+        }
     }
 }

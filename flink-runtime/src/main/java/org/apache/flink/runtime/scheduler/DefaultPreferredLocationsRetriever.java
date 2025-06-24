@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -30,7 +31,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionVertex.MAX_DISTINCT_LOCATIONS_TO_CONSIDER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -38,6 +38,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * returned if exist. Otherwise locations based on inputs will be returned.
  */
 public class DefaultPreferredLocationsRetriever implements PreferredLocationsRetriever {
+
+    static final int MAX_DISTINCT_LOCATIONS_TO_CONSIDER = 8;
+
+    static final int MAX_DISTINCT_CONSUMERS_TO_CONSIDER = 8;
 
     private final StateLocationRetriever stateLocationRetriever;
 
@@ -84,11 +88,22 @@ public class DefaultPreferredLocationsRetriever implements PreferredLocationsRet
         CompletableFuture<Collection<TaskManagerLocation>> preferredLocations =
                 CompletableFuture.completedFuture(Collections.emptyList());
 
-        final Collection<Collection<ExecutionVertexID>> allProducers =
-                inputsLocationsRetriever.getConsumedResultPartitionsProducers(executionVertexId);
-        for (Collection<ExecutionVertexID> producers : allProducers) {
+        final Collection<ConsumedPartitionGroup> consumedPartitionGroups =
+                inputsLocationsRetriever.getConsumedPartitionGroups(executionVertexId);
+        for (ConsumedPartitionGroup consumedPartitionGroup : consumedPartitionGroups) {
+            // Ignore the location of a consumed partition group if it has too many distinct
+            // consumers. This is to avoid tasks unevenly distributed on nodes when running batch
+            // jobs or running jobs in session/standalone mode.
+            if (consumedPartitionGroup.getConsumerVertexGroup().size()
+                    > MAX_DISTINCT_CONSUMERS_TO_CONSIDER) {
+                continue;
+            }
+
             final Collection<CompletableFuture<TaskManagerLocation>> locationsFutures =
-                    getInputLocationFutures(producersToIgnore, producers);
+                    getInputLocationFutures(
+                            producersToIgnore,
+                            inputsLocationsRetriever.getProducersOfConsumedPartitionGroup(
+                                    consumedPartitionGroup));
 
             preferredLocations = combineLocations(preferredLocations, locationsFutures);
         }

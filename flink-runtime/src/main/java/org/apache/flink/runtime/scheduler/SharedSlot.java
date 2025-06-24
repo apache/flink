@@ -101,8 +101,7 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
                                     "Unexpected physical slot payload assignment failure!");
                             return physicalSlot;
                         });
-        this.requestedLogicalSlots =
-                new DualKeyLinkedMap<>(executionSlotSharingGroup.getExecutionVertexIds().size());
+        this.requestedLogicalSlots = new DualKeyLinkedMap<>();
         this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
         this.externalReleaseCallback = externalReleaseCallback;
         this.state = State.ALLOCATED;
@@ -223,7 +222,7 @@ class SharedSlot implements SlotOwner, PhysicalSlot.Payload {
             }
         } else {
             LOG.debug(
-                    "No SlotExecutionVertexAssignment for logical {} from physical {}}",
+                    "No request for logical {} from physical {}}",
                     logicalSlotRequestId,
                     physicalSlotRequestId);
         }

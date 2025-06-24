@@ -18,42 +18,41 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 
 import javax.annotation.Nonnull;
 
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 class EvenlySpreadOutLocationPreferenceSlotSelectionStrategy
         extends LocationPreferenceSlotSelectionStrategy {
     @Nonnull
     @Override
     protected Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
-            @Nonnull Collection<SlotInfoAndResources> availableSlots,
-            @Nonnull ResourceProfile resourceProfile) {
-        return availableSlots.stream()
-                .filter(
-                        slotInfoAndResources ->
-                                slotInfoAndResources
-                                        .getRemainingResources()
-                                        .isMatching(resourceProfile))
-                .min(Comparator.comparing(SlotInfoAndResources::getTaskExecutorUtilization))
+            @Nonnull FreeSlotTracker freeSlotTracker, @Nonnull ResourceProfile resourceProfile) {
+        return freeSlotTracker.getAvailableSlots().stream()
+                .map(freeSlotTracker::getSlotInfo)
+                .filter(slotInfo -> slotInfo.getResourceProfile().isMatching(resourceProfile))
+                // calculate utilization first to avoid duplicated calculation in min()
+                .map(slot -> new Tuple2<>(slot, freeSlotTracker.getTaskExecutorUtilization(slot)))
+                .min(Comparator.comparingDouble(tuple -> tuple.f1))
                 .map(
-                        slotInfoAndResources ->
+                        slotInfoWithTaskExecutorUtilization ->
                                 SlotInfoAndLocality.of(
-                                        slotInfoAndResources.getSlotInfo(),
+                                        slotInfoWithTaskExecutorUtilization.f0,
                                         Locality.UNCONSTRAINED));
     }
 
     @Override
     protected double calculateCandidateScore(
-            int localWeigh, int hostLocalWeigh, double taskExecutorUtilization) {
+            int localWeigh, int hostLocalWeigh, Supplier<Double> taskExecutorUtilizationSupplier) {
         // taskExecutorUtilization in [0, 1] --> only affects choice if localWeigh and
         // hostLocalWeigh
         // between two candidates are equal
-        return localWeigh * 20 + hostLocalWeigh * 2 - taskExecutorUtilization;
+        return localWeigh * 20 + hostLocalWeigh * 2 - taskExecutorUtilizationSupplier.get();
     }
 }

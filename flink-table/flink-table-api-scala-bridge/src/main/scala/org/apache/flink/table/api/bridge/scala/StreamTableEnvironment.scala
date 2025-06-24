@@ -20,7 +20,8 @@ package org.apache.flink.table.api.bridge.scala
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableEnvironment, _}
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.connector.ChangelogMode
@@ -47,75 +48,17 @@ import org.apache.flink.types.{Row, RowKind}
  *
  * Note: If you don't intend to use the [[DataStream]] API, [[TableEnvironment]] is meant for pure
  * table programs.
+ *
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@deprecated(org.apache.flink.table.api.FLIP_265_WARNING, since = "1.18.0")
 @PublicEvolving
 trait StreamTableEnvironment extends TableEnvironment {
-
-  /**
-   * Registers a [[TableFunction]] under a unique name in the TableEnvironment's catalog. Registered
-   * functions can be referenced in SQL queries.
-   *
-   * @param name
-   *   The name under which the function is registered.
-   * @param tf
-   *   The TableFunction to register
-   *
-   * @deprecated
-   *   Use [[createTemporarySystemFunction(String, UserDefinedFunction)]] instead. Please note that
-   *   the new method also uses the new type system and reflective extraction logic. It might be
-   *   necessary to update the function implementation as well. See the documentation of
-   *   [[TableFunction]] for more information on the new function design.
-   */
-  @deprecated
-  def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit
-
-  /**
-   * Registers an [[AggregateFunction]] under a unique name in the TableEnvironment's catalog.
-   * Registered functions can be referenced in Table API and SQL queries.
-   *
-   * @param name
-   *   The name under which the function is registered.
-   * @param f
-   *   The AggregateFunction to register.
-   * @tparam T
-   *   The type of the output value.
-   * @tparam ACC
-   *   The type of aggregate accumulator.
-   *
-   * @deprecated
-   *   Use [[createTemporarySystemFunction(String, UserDefinedFunction)]] instead. Please note that
-   *   the new method also uses the new type system and reflective extraction logic. It might be
-   *   necessary to update the function implementation as well. See the documentation of
-   *   [[AggregateFunction]] for more information on the new function design.
-   */
-  @deprecated
-  def registerFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      f: AggregateFunction[T, ACC]): Unit
-
-  /**
-   * Registers an [[TableAggregateFunction]] under a unique name in the TableEnvironment's catalog.
-   * Registered functions can only be referenced in Table API.
-   *
-   * @param name
-   *   The name under which the function is registered.
-   * @param f
-   *   The TableAggregateFunction to register.
-   * @tparam T
-   *   The type of the output value.
-   * @tparam ACC
-   *   The type of aggregate accumulator.
-   *
-   * @deprecated
-   *   Use [[createTemporarySystemFunction(String, UserDefinedFunction)]] instead. Please note that
-   *   the new method also uses the new type system and reflective extraction logic. It might be
-   *   necessary to update the function implementation as well. See the documentation of
-   *   [[TableAggregateFunction]] for more information on the new function design.
-   */
-  @deprecated
-  def registerFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      f: TableAggregateFunction[T, ACC]): Unit
 
   /**
    * Converts the given [[DataStream]] into a [[Table]].
@@ -710,97 +653,6 @@ trait StreamTableEnvironment extends TableEnvironment {
    */
   @deprecated
   def fromDataStream[T](dataStream: DataStream[T], fields: Expression*): Table
-
-  /**
-   * Creates a view from the given [[DataStream]]. Registered views can be referenced in SQL
-   * queries.
-   *
-   * The field names of the [[Table]] are automatically derived from the type of the [[DataStream]].
-   *
-   * The view is registered in the namespace of the current catalog and database. To register the
-   * view in a different catalog use [[createTemporaryView]].
-   *
-   * Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it
-   * will be inaccessible in the current session. To make the permanent object available again you
-   * can drop the corresponding temporary object.
-   *
-   * @param name
-   *   The name under which the [[DataStream]] is registered in the catalog.
-   * @param dataStream
-   *   The [[DataStream]] to register.
-   * @tparam T
-   *   The type of the [[DataStream]] to register.
-   * @deprecated
-   *   use [[createTemporaryView]]
-   */
-  @deprecated
-  def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit
-
-  /**
-   * Creates a view from the given [[DataStream]] in a given path with specified field names.
-   * Registered views can be referenced in SQL queries.
-   *
-   * There are two modes for mapping original fields to the fields of the View:
-   *
-   *   1. Reference input fields by name: All fields in the schema definition are referenced by name
-   *      (and possibly renamed using an alias (as). Moreover, we can define proctime and rowtime
-   *      attributes at arbitrary positions using arbitrary names (except those that exist in the
-   *      result schema). In this mode, fields can be reordered and projected out. This mode can be
-   *      used for any input type, including POJOs.
-   *
-   * Example:
-   *
-   * {{{
-   *   val stream: DataStream[(String, Long)] = ...
-   *   tableEnv.registerDataStream(
-   *      "myTable",
-   *      stream,
-   *      $"_2", // reorder and use the original field
-   *      $"rowtime".rowtime, // extract the internally attached timestamp into an event-time
-   *                          // attribute named 'rowtime'
-   *      $"_1" as "name" // reorder and give the original field a better name
-   *   )
-   * }}}
-   *
-   * 2. Reference input fields by position: In this mode, fields are simply renamed. Event-time
-   * attributes can replace the field on their position in the input data (if it is of correct type)
-   * or be appended at the end. Proctime attributes must be appended at the end. This mode can only
-   * be used if the input type has a defined field order (tuple, case class, Row) and none of the
-   * `fields` references a field of the input type.
-   *
-   * Example:
-   *
-   * {{{
-   *   val stream: DataStream[(String, Long)] = ...
-   *   tableEnv.registerDataStream(
-   *      "myTable",
-   *      stream,
-   *      $"a", // rename the first field to 'a'
-   *      $"b" // rename the second field to 'b'
-   *      $"rowtime".rowtime // adds an event-time attribute named 'rowtime'
-   *   )
-   * }}}
-   *
-   * The view is registered in the namespace of the current catalog and database. To register the
-   * view in a different catalog use [[createTemporaryView]].
-   *
-   * Temporary objects can shadow permanent ones. If a permanent object in a given path exists, it
-   * will be inaccessible in the current session. To make the permanent object available again you
-   * can drop the corresponding temporary object.
-   *
-   * @param name
-   *   The name under which the [[DataStream]] is registered in the catalog.
-   * @param dataStream
-   *   The [[DataStream]] to register.
-   * @param fields
-   *   The fields expressions to map original fields of the DataStream to the fields of the View.
-   * @tparam T
-   *   The type of the [[DataStream]] to register.
-   * @deprecated
-   *   use [[createTemporaryView]]
-   */
-  @deprecated
-  def registerDataStream[T](name: String, dataStream: DataStream[T], fields: Expression*): Unit
 
   /**
    * Creates a view from the given [[DataStream]] in a given path with specified field names.

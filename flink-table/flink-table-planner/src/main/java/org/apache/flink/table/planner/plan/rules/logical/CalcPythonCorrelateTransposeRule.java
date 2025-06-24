@@ -78,8 +78,8 @@ public class CalcPythonCorrelateTransposeRule extends RelOptRule {
                 StreamPhysicalCorrelateRule.getTableScan(mergedCalc);
         RexProgram mergedCalcProgram = mergedCalc.getProgram();
 
-        InputRefRewriter inputRefRewriter =
-                new InputRefRewriter(
+        SplitPythonConditionFromCorrelateRule.InputRefRewriter inputRefRewriter =
+                new SplitPythonConditionFromCorrelateRule.InputRefRewriter(
                         correlate.getRowType().getFieldCount()
                                 - mergedCalc.getRowType().getFieldCount());
         List<RexNode> correlateFilters =

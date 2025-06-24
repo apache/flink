@@ -34,7 +34,7 @@ public class CompositeTypeSerializerUtil {
      * can be used by legacy snapshot classes, which have a newer implementation implemented as a
      * {@link CompositeTypeSerializerSnapshot}.
      *
-     * @param newSerializer the new serializer to check for compatibility.
+     * @param legacySerializerSnapshot the legacy serializer snapshot to check for compatibility.
      * @param newCompositeSnapshot an instance of the new snapshot class to delegate compatibility
      *     checks to. This instance should already contain the outer snapshot information.
      * @param legacyNestedSnapshots the nested serializer snapshots of the legacy composite
@@ -42,13 +42,13 @@ public class CompositeTypeSerializerUtil {
      * @return the result compatibility.
      */
     public static <T> TypeSerializerSchemaCompatibility<T> delegateCompatibilityCheckToNewSnapshot(
-            TypeSerializer<T> newSerializer,
-            CompositeTypeSerializerSnapshot<T, ? extends TypeSerializer> newCompositeSnapshot,
+            TypeSerializerSnapshot<T> legacySerializerSnapshot,
+            CompositeTypeSerializerSnapshot<T, ? extends TypeSerializer<T>> newCompositeSnapshot,
             TypeSerializerSnapshot<?>... legacyNestedSnapshots) {
 
         checkArgument(legacyNestedSnapshots.length > 0);
         return newCompositeSnapshot.internalResolveSchemaCompatibility(
-                newSerializer, legacyNestedSnapshots);
+                legacySerializerSnapshot, legacyNestedSnapshots);
     }
 
     /**
@@ -80,26 +80,29 @@ public class CompositeTypeSerializerUtil {
      * TypeSerializerSchemaCompatibility#compatibleAfterMigration()}, and {@link
      * TypeSerializerSchemaCompatibility#incompatible()}, these results are considered final.
      *
-     * @param newNestedSerializers the new nested serializers to check for compatibility.
-     * @param nestedSerializerSnapshots the associated nested serializers' snapshots.
-     * @return the intermediate compatibility result of the new nested serializers.
+     * @param newNestedSerializerSnapshots the new nested serializer snapshots to check for
+     *     compatibility.
+     * @param oldNestedSerializerSnapshots the associated previous nested serializers' snapshots.
+     * @return the intermediate compatibility result of the new nested serializer snapshots.
      */
     public static <T> IntermediateCompatibilityResult<T> constructIntermediateCompatibilityResult(
-            TypeSerializer<?>[] newNestedSerializers,
-            TypeSerializerSnapshot<?>[] nestedSerializerSnapshots) {
+            TypeSerializerSnapshot<?>[] newNestedSerializerSnapshots,
+            TypeSerializerSnapshot<?>[] oldNestedSerializerSnapshots) {
 
         Preconditions.checkArgument(
-                newNestedSerializers.length == nestedSerializerSnapshots.length,
-                "Different number of new serializers and existing serializer snapshots.");
+                newNestedSerializerSnapshots.length == oldNestedSerializerSnapshots.length,
+                "Different number of new serializer snapshots and existing serializer snapshots.");
 
-        TypeSerializer<?>[] nestedSerializers = new TypeSerializer[newNestedSerializers.length];
+        TypeSerializer<?>[] nestedSerializers =
+                new TypeSerializer[newNestedSerializerSnapshots.length];
 
         // check nested serializers for compatibility
         boolean nestedSerializerRequiresMigration = false;
         boolean hasReconfiguredNestedSerializers = false;
-        for (int i = 0; i < nestedSerializerSnapshots.length; i++) {
+        for (int i = 0; i < oldNestedSerializerSnapshots.length; i++) {
             TypeSerializerSchemaCompatibility<?> compatibility =
-                    resolveCompatibility(newNestedSerializers[i], nestedSerializerSnapshots[i]);
+                    resolveCompatibility(
+                            newNestedSerializerSnapshots[i], oldNestedSerializerSnapshots[i]);
 
             // if any one of the new nested serializers is incompatible, we can just short circuit
             // the result
@@ -113,7 +116,7 @@ public class CompositeTypeSerializerUtil {
                 hasReconfiguredNestedSerializers = true;
                 nestedSerializers[i] = compatibility.getReconfiguredSerializer();
             } else if (compatibility.isCompatibleAsIs()) {
-                nestedSerializers[i] = newNestedSerializers[i];
+                nestedSerializers[i] = newNestedSerializerSnapshots[i].restoreSerializer();
             } else {
                 throw new IllegalStateException("Undefined compatibility type.");
             }
@@ -216,11 +219,11 @@ public class CompositeTypeSerializerUtil {
 
     @SuppressWarnings("unchecked")
     private static <E> TypeSerializerSchemaCompatibility<E> resolveCompatibility(
-            TypeSerializer<?> serializer, TypeSerializerSnapshot<?> snapshot) {
+            TypeSerializerSnapshot<?> newSnapshot, TypeSerializerSnapshot<?> oldSnapshot) {
 
-        TypeSerializer<E> typedSerializer = (TypeSerializer<E>) serializer;
-        TypeSerializerSnapshot<E> typedSnapshot = (TypeSerializerSnapshot<E>) snapshot;
+        TypeSerializerSnapshot<E> typedNewSnapshot = (TypeSerializerSnapshot<E>) newSnapshot;
+        TypeSerializerSnapshot<E> typedOldSnapshot = (TypeSerializerSnapshot<E>) oldSnapshot;
 
-        return typedSnapshot.resolveSchemaCompatibility(typedSerializer);
+        return typedNewSnapshot.resolveSchemaCompatibility(typedOldSnapshot);
     }
 }

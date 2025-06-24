@@ -21,9 +21,9 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerUtils;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.LinkedOptionalMap;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -97,24 +96,20 @@ final class PojoSerializerSnapshotData<T> {
             Field field = fields[i];
             String fieldName = (field == null) ? getDummyNameForMissingField(i) : field.getName();
             fieldSerializerSnapshots.put(
-                    fieldName,
-                    field,
-                    TypeSerializerUtils.snapshotBackwardsCompatible(fieldSerializers[i]));
+                    fieldName, field, fieldSerializers[i].snapshotConfiguration());
         }
 
         LinkedHashMap<Class<?>, TypeSerializerSnapshot<?>> registeredSubclassSerializerSnapshots =
-                new LinkedHashMap<>(registeredSubclassSerializers.size());
+                CollectionUtil.newLinkedHashMapWithExpectedSize(
+                        registeredSubclassSerializers.size());
         registeredSubclassSerializers.forEach(
-                (k, v) ->
-                        registeredSubclassSerializerSnapshots.put(
-                                k, TypeSerializerUtils.snapshotBackwardsCompatible(v)));
+                (k, v) -> registeredSubclassSerializerSnapshots.put(k, v.snapshotConfiguration()));
 
         Map<Class<?>, TypeSerializerSnapshot<?>> nonRegisteredSubclassSerializerSnapshots =
-                new HashMap<>(nonRegisteredSubclassSerializers.size());
+                CollectionUtil.newHashMapWithExpectedSize(nonRegisteredSubclassSerializers.size());
         nonRegisteredSubclassSerializers.forEach(
                 (k, v) ->
-                        nonRegisteredSubclassSerializerSnapshots.put(
-                                k, TypeSerializerUtils.snapshotBackwardsCompatible(v)));
+                        nonRegisteredSubclassSerializerSnapshots.put(k, v.snapshotConfiguration()));
 
         return new PojoSerializerSnapshotData<>(
                 pojoClass,

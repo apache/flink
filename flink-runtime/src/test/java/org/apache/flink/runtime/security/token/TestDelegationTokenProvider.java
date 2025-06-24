@@ -19,10 +19,7 @@
 package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.configuration.Configuration;
-
-import org.apache.hadoop.security.Credentials;
-
-import java.util.Optional;
+import org.apache.flink.core.security.token.DelegationTokenProvider;
 
 /** An example implementation of {@link DelegationTokenProvider} which does nothing. */
 public class TestDelegationTokenProvider implements DelegationTokenProvider {
@@ -41,7 +38,7 @@ public class TestDelegationTokenProvider implements DelegationTokenProvider {
     }
 
     @Override
-    public Optional<Long> obtainDelegationTokens(Credentials credentials) {
-        return Optional.empty();
+    public ObtainedDelegationTokens obtainDelegationTokens() {
+        return null;
     }
 }

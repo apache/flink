@@ -19,27 +19,35 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
+import org.apache.flink.table.planner.JDouble
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
+import org.apache.flink.table.planner.hint.JoinStrategy
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalSnapshot}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalJoinBase
 import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil.satisfyIntervalJoin
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.satisfyTemporalJoin
 import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.satisfyWindowJoin
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
-import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType
+import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinInfo, JoinRelType}
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexUtil}
 import org.apache.calcite.sql.validate.SqlValidatorUtil
-import org.apache.calcite.util.ImmutableIntList
+import org.apache.calcite.util.{ImmutableIntList, Util}
 
 import java.util
 import java.util.Collections
@@ -120,11 +128,13 @@ object JoinUtil {
 
   def generateConditionFunction(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       joinSpec: JoinSpec,
       leftType: LogicalType,
       rightType: LogicalType): GeneratedJoinCondition = {
     generateConditionFunction(
       tableConfig,
+      classLoader,
       joinSpec.getNonEquiCondition.orElse(null),
       leftType,
       rightType)
@@ -132,20 +142,21 @@ object JoinUtil {
 
   def generateConditionFunction(
       tableConfig: ReadableConfig,
-      nonEquiCondition: RexNode,
+      classLoader: ClassLoader,
+      joinCondition: RexNode,
       leftType: LogicalType,
       rightType: LogicalType): GeneratedJoinCondition = {
-    val ctx = CodeGeneratorContext(tableConfig)
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
     // should consider null fields
     val exprGenerator = new ExprCodeGenerator(ctx, false)
       .bindInput(leftType)
       .bindSecondInput(rightType)
 
-    val body = if (nonEquiCondition == null) {
-      // only equality condition
+    val body = if (joinCondition == null) {
+      // The join condition is null, which means the join condition is always true
       "return true;"
     } else {
-      val condition = exprGenerator.generateExpression(nonEquiCondition)
+      val condition = exprGenerator.generateExpression(joinCondition)
       s"""
          |${condition.code}
          |return ${condition.resultTerm};
@@ -156,6 +167,7 @@ object JoinUtil {
   }
 
   def analyzeJoinInput(
+      classLoader: ClassLoader,
       inputTypeInfo: InternalTypeInfo[RowData],
       joinKeys: Array[Int],
       uniqueKeys: util.List[Array[Int]]): JoinInputSideSpec = {
@@ -170,13 +182,15 @@ object JoinUtil {
 
       if (uniqueKeysContainedByJoinKey.isEmpty) {
         val smallestUniqueKey = getSmallestKey(uniqueKeys)
-        val uniqueKeySelector = KeySelectorUtil.getRowDataSelector(smallestUniqueKey, inputTypeInfo)
+        val uniqueKeySelector =
+          KeySelectorUtil.getRowDataSelector(classLoader, smallestUniqueKey, inputTypeInfo)
         val uniqueKeyTypeInfo = uniqueKeySelector.getProducedType
         JoinInputSideSpec.withUniqueKey(uniqueKeyTypeInfo, uniqueKeySelector)
       } else {
         // join key contains unique key
         val smallestUniqueKey = getSmallestKey(uniqueKeysContainedByJoinKey)
-        val uniqueKeySelector = KeySelectorUtil.getRowDataSelector(smallestUniqueKey, inputTypeInfo)
+        val uniqueKeySelector =
+          KeySelectorUtil.getRowDataSelector(classLoader, smallestUniqueKey, inputTypeInfo)
         val uniqueKeyTypeInfo = uniqueKeySelector.getProducedType
         JoinInputSideSpec.withUniqueKeyContainedByJoinKey(uniqueKeyTypeInfo, uniqueKeySelector)
       }
@@ -257,5 +271,53 @@ object JoinUtil {
     } else {
       true
     }
+  }
+
+  def binaryRowRelNodeSize(relNode: RelNode): JDouble = {
+    val mq = relNode.getCluster.getMetadataQuery
+    val rowCount = mq.getRowCount(relNode)
+    if (rowCount == null) {
+      null
+    } else {
+      rowCount * FlinkRelMdUtil.binaryRowAverageSize(relNode)
+    }
+  }
+
+  /**
+   * Get managed memory for hash join. Because hash join may fallback to sort merge join, it takes
+   * larger managed memory to support a HashJoin being converted into a SortMergeJoin.
+   */
+  def getManagedMemory(joinType: FlinkJoinType, config: ExecNodeConfig): Long = {
+    val hashJoinManagedMemory =
+      config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY).getBytes
+    // The memory used by SortMergeJoinIterator that buffer the matched rows, each side needs
+    // this memory if it is full outer join
+    val externalBufferMemory =
+      config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY).getBytes
+    // The memory used by BinaryExternalSorter for sort, the left and right side both need it
+    val sortMemory = config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY).getBytes
+    var externalBufferNum = 1
+    if (joinType eq FlinkJoinType.FULL) {
+      externalBufferNum = 2
+    }
+    val sortMergeJoinManagedMemory = externalBufferMemory * externalBufferNum + sortMemory * 2
+    // Due to hash join maybe fallback to sort merge join, so here managed memory choose the
+    // large one
+    Math.max(hashJoinManagedMemory, sortMergeJoinManagedMemory)
+  }
+
+  /** Get estimated row stats for hash join. */
+  def getEstimatedRowStats(joinBase: BatchPhysicalJoinBase): (Int, Long, Int, Long) = {
+    val mq = joinBase.getCluster.getMetadataQuery
+    val leftRowSize = Util.first(mq.getAverageRowSize(joinBase.getLeft), 24).toInt
+    val leftRowCount = Util.first(mq.getRowCount(joinBase.getLeft), 200000).toLong
+    val rightRowSize = Util.first(mq.getAverageRowSize(joinBase.getRight), 24).toInt
+    val rightRowCount = Util.first(mq.getRowCount(joinBase.getRight), 200000).toLong
+
+    (leftRowSize, leftRowCount, rightRowSize, rightRowCount)
+  }
+
+  def containsJoinStrategyHint(relHints: ImmutableList[RelHint]): Boolean = {
+    relHints.exists(relHint => JoinStrategy.isJoinStrategy(relHint.hintName))
   }
 }

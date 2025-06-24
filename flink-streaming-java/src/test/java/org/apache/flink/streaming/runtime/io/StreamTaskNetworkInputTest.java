@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -42,6 +43,7 @@ import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierTracker;
@@ -49,6 +51,8 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate
 import org.apache.flink.streaming.runtime.io.checkpointing.SingleCheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.checkpointing.UpstreamRecoveryTracker;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributesBuilder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -57,8 +61,8 @@ import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.clock.SystemClock;
 
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -67,33 +71,28 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StreamTaskNetworkInput}. */
-public class StreamTaskNetworkInputTest {
+class StreamTaskNetworkInputTest {
 
     private static final int PAGE_SIZE = 1000;
 
     private final IOManager ioManager = new IOManagerAsync();
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    void tearDown() throws Exception {
         ioManager.close();
     }
 
     @Test
-    public void testIsAvailableWithBufferedDataInDeserializer() throws Exception {
+    void testIsAvailableWithBufferedDataInDeserializer() throws Exception {
         List<BufferOrEvent> buffers = Collections.singletonList(createDataBuffer());
 
         VerifyRecordsDataOutput<Long> output = new VerifyRecordsDataOutput<>();
@@ -101,7 +100,7 @@ public class StreamTaskNetworkInputTest {
 
         assertHasNextElement(input, output);
         assertHasNextElement(input, output);
-        assertEquals(2, output.getNumberOfEmittedRecords());
+        assertThat(output.getNumberOfEmittedRecords()).isEqualTo(2);
     }
 
     /**
@@ -110,7 +109,7 @@ public class StreamTaskNetworkInputTest {
      * record.
      */
     @Test
-    public void testNoDataProcessedAfterCheckpointBarrier() throws Exception {
+    void testNoDataProcessedAfterCheckpointBarrier() throws Exception {
         CheckpointBarrier barrier =
                 new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation());
 
@@ -122,7 +121,7 @@ public class StreamTaskNetworkInputTest {
         StreamTaskNetworkInput<Long> input = createStreamTaskNetworkInput(buffers);
 
         assertHasNextElement(input, output);
-        assertEquals(0, output.getNumberOfEmittedRecords());
+        assertThat(output.getNumberOfEmittedRecords()).isZero();
     }
 
     private Map<InputChannelInfo, TestRecordDeserializer> createDeserializers(
@@ -137,7 +136,7 @@ public class StreamTaskNetworkInputTest {
     }
 
     @Test
-    public void testSnapshotAfterEndOfPartition() throws Exception {
+    void testSnapshotAfterEndOfPartition() throws Exception {
         int numInputChannels = 1;
         int channelId = 0;
         int checkpointId = 0;
@@ -162,7 +161,8 @@ public class StreamTaskNetworkInputTest {
                         inSerializer,
                         ioManager,
                         new StatusWatermarkValve(numInputChannels),
-                        0);
+                        0,
+                        () -> false);
 
         inputGate.sendEvent(
                 new CheckpointBarrier(
@@ -174,7 +174,7 @@ public class StreamTaskNetworkInputTest {
 
         assertHasNextElement(input, output);
         assertHasNextElement(input, output);
-        assertEquals(1, output.getNumberOfEmittedRecords());
+        assertThat(output.getNumberOfEmittedRecords()).isOne();
 
         // send EndOfPartitionEvent and ensure that deserializer has been released
         inputGate.sendEvent(EndOfPartitionEvent.INSTANCE, channelId);
@@ -187,7 +187,7 @@ public class StreamTaskNetworkInputTest {
     }
 
     @Test
-    public void testReleasingDeserializerTimely() throws Exception {
+    void testReleasingDeserializerTimely() throws Exception {
 
         int numInputChannels = 2;
         LongSerializer inSerializer = LongSerializer.INSTANCE;
@@ -204,16 +204,16 @@ public class StreamTaskNetworkInputTest {
                         inputGate, inSerializer, numInputChannels, deserializers);
 
         for (InputChannelInfo channelInfo : inputGate.getInputGate().getChannelInfos()) {
-            assertNotNull(deserializers.get(channelInfo));
+            assertThat(deserializers.get(channelInfo)).isNotNull();
             inputGate.sendEvent(EndOfPartitionEvent.INSTANCE, channelInfo.getInputChannelIdx());
             input.emitNext(output);
-            assertTrue(copiedDeserializers.get(channelInfo).isCleared());
-            assertNull(deserializers.get(channelInfo));
+            assertThat(copiedDeserializers.get(channelInfo).isCleared()).isTrue();
+            assertThat(deserializers.get(channelInfo)).isNull();
         }
     }
 
     @Test
-    public void testInputStatusAfterEndOfRecovery() throws Exception {
+    void testInputStatusAfterEndOfRecovery() throws Exception {
         int numInputChannels = 2;
         LongSerializer inSerializer = LongSerializer.INSTANCE;
         StreamTestSingleInputGate<Long> inputGate =
@@ -228,11 +228,145 @@ public class StreamTaskNetworkInputTest {
                         inputGate, inSerializer, numInputChannels, deserializers);
 
         inputGate.sendElement(new StreamRecord<>(42L), 0);
-        assertThat(input.emitNext(output), equalTo(DataInputStatus.MORE_AVAILABLE));
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
         inputGate.sendEvent(EndOfChannelStateEvent.INSTANCE, 0);
-        assertThat(input.emitNext(output), equalTo(DataInputStatus.MORE_AVAILABLE));
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
         inputGate.sendEvent(EndOfChannelStateEvent.INSTANCE, 1);
-        assertThat(input.emitNext(output), equalTo(DataInputStatus.END_OF_RECOVERY));
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.END_OF_RECOVERY);
+    }
+
+    @Test
+    void testRecordsAreProcessedInBatches() throws Exception {
+        int numInputChannels = 2;
+        Random random = new Random();
+        LongSerializer inSerializer = LongSerializer.INSTANCE;
+        StreamTestSingleInputGate<Long> inputGate =
+                new StreamTestSingleInputGate<>(numInputChannels, 0, inSerializer, 1024);
+        StreamTaskNetworkInput<Long> input =
+                new StreamTaskNetworkInput<>(
+                        createCheckpointedInputGate(inputGate.getInputGate()),
+                        inSerializer,
+                        ioManager,
+                        new StatusWatermarkValve(numInputChannels),
+                        0,
+                        () -> true);
+        VerifyRecordsDataOutput<Long> output = new VerifyRecordsDataOutput<>();
+
+        // Test for records are processed in batches
+        int expectedElementCount = 3;
+        for (int i = 0; i < expectedElementCount; i++) {
+            inputGate.sendElement(new StreamRecord<>((long) i), random.nextInt(numInputChannels));
+        }
+
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
+        assertThat(output.getNumberOfEmittedRecords()).isEqualTo(expectedElementCount);
+
+        // Test for records are processed in batches during processing event
+        inputGate.sendEvent(EndOfPartitionEvent.INSTANCE, 0);
+        for (int i = 0; i < expectedElementCount; i++) {
+            inputGate.sendElement(new StreamRecord<>((long) i), 1);
+        }
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
+        assertThat(output.getNumberOfEmittedRecords()).isEqualTo(expectedElementCount * 2);
+    }
+
+    @Test
+    void testBatchProcessingRecordsCanBeInterrupted() throws Exception {
+        int numInputChannels = 2;
+        Random random = new Random();
+        LongSerializer inSerializer = LongSerializer.INSTANCE;
+        StreamTestSingleInputGate<Long> inputGate =
+                new StreamTestSingleInputGate<>(numInputChannels, 0, inSerializer, 1024);
+
+        AtomicBoolean canEmitBatchOfRecords = new AtomicBoolean();
+        StreamTaskNetworkInput<Long> input =
+                new StreamTaskNetworkInput<>(
+                        createCheckpointedInputGate(inputGate.getInputGate()),
+                        inSerializer,
+                        ioManager,
+                        new StatusWatermarkValve(numInputChannels),
+                        0,
+                        canEmitBatchOfRecords::get);
+
+        VerifyRecordsDataOutput<Long> output = new VerifyRecordsDataOutput<>();
+
+        // Test for batch processing records can be interrupted and can be recovered
+        int expectedElementCount = 5;
+        for (int i = 0; i < expectedElementCount; i++) {
+            inputGate.sendElement(new StreamRecord<>((long) i), random.nextInt(numInputChannels));
+        }
+
+        canEmitBatchOfRecords.set(false);
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
+        assertThat(output.getNumberOfEmittedRecords()).isOne();
+
+        canEmitBatchOfRecords.set(true);
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
+        assertThat(output.getNumberOfEmittedRecords()).isEqualTo(expectedElementCount);
+
+        // Test for batch processing records can be interrupted and can be recovered during
+        // processing event
+        inputGate.sendEvent(EndOfPartitionEvent.INSTANCE, 0);
+        for (int i = 0; i < expectedElementCount; i++) {
+            inputGate.sendElement(new StreamRecord<>((long) i), 1);
+        }
+
+        // Just process the event
+        canEmitBatchOfRecords.set(false);
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.MORE_AVAILABLE);
+        assertThat(output.getNumberOfEmittedRecords()).isEqualTo(expectedElementCount);
+
+        canEmitBatchOfRecords.set(true);
+        assertThat(input.emitNext(output)).isEqualTo(DataInputStatus.NOTHING_AVAILABLE);
+        assertThat(output.getNumberOfEmittedRecords()).isEqualTo(expectedElementCount * 2);
+    }
+
+    @Test
+    void testProcessRecordAttributes() throws Exception {
+        int numInputChannels = 2;
+        LongSerializer inSerializer = LongSerializer.INSTANCE;
+        StreamTestSingleInputGate<Long> inputGate =
+                new StreamTestSingleInputGate<>(numInputChannels, 0, inSerializer, 1024);
+        StreamTaskNetworkInput<Long> input =
+                new StreamTaskNetworkInput<>(
+                        createCheckpointedInputGate(inputGate.getInputGate()),
+                        inSerializer,
+                        ioManager,
+                        new StatusWatermarkValve(numInputChannels),
+                        0,
+                        () -> true);
+
+        final CollectingDataOutput<Long> output = new CollectingDataOutput<>();
+
+        final RecordAttributes backlogRecordAttributes =
+                new RecordAttributesBuilder(Collections.emptyList()).setBacklog(true).build();
+        final RecordAttributes nonBacklogRecordAttributes =
+                new RecordAttributesBuilder(Collections.emptyList()).setBacklog(false).build();
+        final StreamRecord<Long> element1 = new StreamRecord<>(0L, 0);
+        final StreamRecord<Long> element2 = new StreamRecord<>(1L, 1);
+        final StreamRecord<Long> element3 = new StreamRecord<>(2L, 2);
+
+        inputGate.sendElement(element1, 1);
+        inputGate.sendElement(backlogRecordAttributes, 0);
+        input.emitNext(output);
+        assertThat(output.getEvents()).containsExactly(element1, backlogRecordAttributes);
+        output.getEvents().clear();
+
+        inputGate.sendElement(backlogRecordAttributes, 1);
+        inputGate.sendElement(element2, 1);
+        inputGate.sendElement(element3, 1);
+        input.emitNext(output);
+        assertThat(output.getEvents()).isEmpty();
+
+        input.emitNext(output);
+        assertThat(output.getEvents()).containsExactly(element2, element3);
+        output.getEvents().clear();
+
+        inputGate.sendElement(nonBacklogRecordAttributes, 0);
+        inputGate.sendElement(nonBacklogRecordAttributes, 1);
+        input.emitNext(output);
+        input.emitNext(output);
+        assertThat(output.getEvents()).containsExactly(nonBacklogRecordAttributes);
     }
 
     private BufferOrEvent createDataBuffer() throws IOException {
@@ -252,7 +386,8 @@ public class StreamTaskNetworkInputTest {
                 LongSerializer.INSTANCE,
                 ioManager,
                 new StatusWatermarkValve(1),
-                0);
+                0,
+                () -> false);
     }
 
     private static CheckpointedInputGate createCheckpointedInputGate(InputGate inputGate) {
@@ -273,14 +408,14 @@ public class StreamTaskNetworkInputTest {
                 RecordWriter.serializeRecord(serializer, serializationDelegate);
         bufferBuilder.appendAndCommit(serializedRecord);
 
-        assertFalse(bufferBuilder.isFull());
+        assertThat(bufferBuilder.isFull()).isFalse();
     }
 
     private static <T> void assertHasNextElement(StreamTaskInput<T> input, DataOutput<T> output)
             throws Exception {
-        assertTrue(input.getAvailableFuture().isDone());
+        assertThat(input.getAvailableFuture().isDone()).isTrue();
         DataInputStatus status = input.emitNext(output);
-        assertThat(status, is(DataInputStatus.MORE_AVAILABLE));
+        assertThat(status).isEqualTo(DataInputStatus.MORE_AVAILABLE);
     }
 
     private static class TestRecordDeserializer
@@ -316,6 +451,12 @@ public class StreamTaskNetworkInputTest {
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {}
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) {}
+
+        @Override
+        public void emitWatermark(WatermarkEvent watermark) {}
     }
 
     private static class VerifyRecordsDataOutput<T> extends NoOpDataOutput<T> {
@@ -344,7 +485,8 @@ public class StreamTaskNetworkInputTest {
                     inSerializer,
                     new StatusWatermarkValve(numInputChannels),
                     0,
-                    deserializers);
+                    deserializers,
+                    () -> false);
         }
 
         @Override

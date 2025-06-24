@@ -24,14 +24,10 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalExp
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 /** Rule that converts [[FlinkLogicalExpand]] to [[BatchPhysicalExpand]]. */
-class BatchPhysicalExpandRule
-  extends ConverterRule(
-    classOf[FlinkLogicalExpand],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchPhysicalExpandRule") {
+class BatchPhysicalExpandRule(config: Config) extends ConverterRule(config) {
 
   def convert(rel: RelNode): RelNode = {
     val expand = rel.asInstanceOf[FlinkLogicalExpand]
@@ -47,5 +43,10 @@ class BatchPhysicalExpandRule
 }
 
 object BatchPhysicalExpandRule {
-  val INSTANCE: RelOptRule = new BatchPhysicalExpandRule
+  val INSTANCE: RelOptRule = new BatchPhysicalExpandRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalExpand],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchPhysicalExpandRule"))
 }

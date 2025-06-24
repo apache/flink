@@ -18,22 +18,18 @@
 
 package org.apache.flink.docs.rest;
 
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.annotation.docs.FlinkJsonSchema;
 import org.apache.flink.docs.rest.data.TestEmptyMessageHeaders;
 import org.apache.flink.docs.rest.data.TestExcludeMessageHeaders;
-import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
-import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.util.FileUtils;
-
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -44,8 +40,19 @@ class RestAPIDocGeneratorTest {
     void testExcludeFromDocumentation() throws Exception {
         File file = File.createTempFile("rest_v0_", ".html");
         RestAPIDocGenerator.createHtmlFile(
-                new TestExcludeDocumentingRestEndpoint(), RestAPIVersion.V0, file.toPath());
-        String actual = FileUtils.readFile(file, "UTF-8");
+                DocumentingRestEndpoint.forRestHandlerSpecifications(
+                        new TestEmptyMessageHeaders("/test/empty1", "This is a testing REST API."),
+                        new TestEmptyMessageHeaders(
+                                "/test/empty2", "This is another testing REST API."),
+                        new TestExcludeMessageHeaders(
+                                "/test/exclude1",
+                                "This REST API should not appear in the generated documentation."),
+                        new TestExcludeMessageHeaders(
+                                "/test/exclude2",
+                                "This REST API should also not appear in the generated documentation.")),
+                RuntimeRestAPIVersion.V0,
+                file.toPath());
+        String actual = FileUtils.readFile(file, StandardCharsets.UTF_8);
 
         assertThat(actual).containsSequence("/test/empty1");
         assertThat(actual).containsSequence("This is a testing REST API.");
@@ -60,30 +67,22 @@ class RestAPIDocGeneratorTest {
                         "This REST API should also not appear in the generated documentation.");
     }
 
-    private static class TestExcludeDocumentingRestEndpoint implements DocumentingRestEndpoint {
-
-        @Override
-        public List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(
-                CompletableFuture<String> localAddressFuture) {
-            return Arrays.asList(
-                    Tuple2.of(
-                            new TestEmptyMessageHeaders(
-                                    "/test/empty1", "This is a testing REST API."),
-                            null),
-                    Tuple2.of(
-                            new TestEmptyMessageHeaders(
-                                    "/test/empty2", "This is another testing REST API."),
-                            null),
-                    Tuple2.of(
-                            new TestExcludeMessageHeaders(
-                                    "/test/exclude1",
-                                    "This REST API should not appear in the generated documentation."),
-                            null),
-                    Tuple2.of(
-                            new TestExcludeMessageHeaders(
-                                    "/test/exclude2",
-                                    "This REST API should also not appear in the generated documentation."),
-                            null));
-        }
+    @Test
+    void testAdditionalFields() {
+        final String messageHtmlEntry =
+                RestAPIDocGenerator.createMessageHtmlEntry(
+                        TestAdditionalFields.class, null, EmptyRequestBody.class);
+        assertThat(messageHtmlEntry)
+                .isEqualTo(
+                        "{\n"
+                                + "  \"type\" : \"object\",\n"
+                                + "  \"id\" : \"urn:jsonschema:org:apache:flink:docs:rest:RestAPIDocGeneratorTest:TestAdditionalFields\",\n"
+                                + "  \"additionalProperties\" : {\n"
+                                + "    \"type\" : \"string\"\n"
+                                + "  }\n"
+                                + "}");
     }
+
+    @FlinkJsonSchema.AdditionalFields(type = String.class)
+    private static class TestAdditionalFields {}
 }

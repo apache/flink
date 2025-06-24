@@ -19,6 +19,7 @@ package org.apache.flink.runtime.state.changelog.inmemory;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -40,6 +42,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static org.apache.flink.runtime.state.changelog.StateChange.META_KEY_GROUP;
 
 @NotThreadSafe
 class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChangelogStateHandle> {
@@ -57,9 +60,25 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
     }
 
     @Override
+    public void appendMeta(byte[] value) throws IOException {
+        LOG.trace("append metadata: {} bytes", value.length);
+        if (closed) {
+            LOG.warn("LogWriter is closed.");
+            return;
+        }
+        changesByKeyGroup
+                .computeIfAbsent(META_KEY_GROUP, unused -> new TreeMap<>())
+                .put(sqn, value);
+        sqn = sqn.next();
+    }
+
+    @Override
     public void append(int keyGroup, byte[] value) {
-        Preconditions.checkState(!closed, "LogWriter is closed");
         LOG.trace("append, keyGroup={}, {} bytes", keyGroup, value.length);
+        if (closed) {
+            LOG.warn("LogWriter is closed.");
+            return;
+        }
         changesByKeyGroup.computeIfAbsent(keyGroup, unused -> new TreeMap<>()).put(sqn, value);
         sqn = sqn.next();
     }
@@ -75,11 +94,16 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
     }
 
     @Override
-    public CompletableFuture<InMemoryChangelogStateHandle> persist(SequenceNumber from) {
+    public CompletableFuture<SnapshotResult<InMemoryChangelogStateHandle>> persist(
+            SequenceNumber from, long checkpointId) {
         LOG.debug("Persist after {}", from);
         Preconditions.checkNotNull(from);
         return completedFuture(
-                new InMemoryChangelogStateHandle(collectChanges(from), from, sqn, keyGroupRange));
+                SnapshotResult.withLocalState(
+                        new InMemoryChangelogStateHandle(
+                                collectChanges(from), from, sqn, keyGroupRange),
+                        new InMemoryChangelogStateHandle(
+                                collectChanges(from), from, sqn, keyGroupRange)));
     }
 
     private List<StateChange> collectChanges(SequenceNumber after) {
@@ -92,8 +116,16 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
 
     private Stream<Tuple2<SequenceNumber, StateChange>> toChangeStream(
             NavigableMap<SequenceNumber, byte[]> changeMap, SequenceNumber after, int keyGroup) {
+        if (keyGroup == META_KEY_GROUP) {
+            return changeMap.tailMap(after, true).entrySet().stream()
+                    .map(e2 -> Tuple2.of(e2.getKey(), StateChange.ofMetadataChange(e2.getValue())));
+        }
         return changeMap.tailMap(after, true).entrySet().stream()
-                .map(e2 -> Tuple2.of(e2.getKey(), new StateChange(keyGroup, e2.getValue())));
+                .map(
+                        e2 ->
+                                Tuple2.of(
+                                        e2.getKey(),
+                                        StateChange.ofDataChange(keyGroup, e2.getValue())));
     }
 
     @Override
@@ -113,8 +145,8 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
     }
 
     @Override
-    public void confirm(SequenceNumber from, SequenceNumber to) {}
+    public void confirm(SequenceNumber from, SequenceNumber to, long checkpointID) {}
 
     @Override
-    public void reset(SequenceNumber from, SequenceNumber to) {}
+    public void reset(SequenceNumber from, SequenceNumber to, long checkpointID) {}
 }

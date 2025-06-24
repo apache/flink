@@ -20,7 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.java.typeutils.runtime.CopyableSerializerUpgradeTest.SimpleCopyable;
@@ -28,39 +28,28 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.CopyableValue;
 
-import org.hamcrest.Matcher;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.assertj.core.api.Condition;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link CopyableValueSerializer}. */
-@RunWith(Parameterized.class)
-public class CopyableSerializerUpgradeTest
+class CopyableSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<SimpleCopyable, SimpleCopyable> {
 
-    public CopyableSerializerUpgradeTest(
-            TestSpecification<SimpleCopyable, SimpleCopyable> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "copyable-value-serializer",
-                            flinkVersion,
-                            CopyableSerializerSetup.class,
-                            CopyableSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "copyable-value-serializer",
+                        flinkVersion,
+                        CopyableSerializerSetup.class,
+                        CopyableSerializerVerifier.class));
         return testSpecifications;
     }
 
@@ -156,20 +145,21 @@ public class CopyableSerializerUpgradeTest
         }
 
         @Override
-        public Matcher<SimpleCopyable> testDataMatcher() {
-            return is(new SimpleCopyable(123456));
+        public Condition<SimpleCopyable> testDataCondition() {
+            return new Condition<>(
+                    value -> new SimpleCopyable(123456).equals(value), "value is 123456");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<SimpleCopyable>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<SimpleCopyable>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 
     @Test
-    public void testF() {
+    void testSimpleCopyableEqualsImplementation() {
         SimpleCopyable a = new SimpleCopyable(123456);
-        Assert.assertThat(a, is(new SimpleCopyable(123456)));
+        assertThat(a).isEqualTo(new SimpleCopyable(123456));
     }
 }

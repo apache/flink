@@ -19,9 +19,11 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -47,6 +49,12 @@ public enum NoOpResourceManagerPartitionTracker implements ResourceManagerPartit
     @Override
     public Map<IntermediateDataSetID, DataSetMetaInfo> listDataSets() {
         return Collections.emptyMap();
+    }
+
+    @Override
+    public List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+            IntermediateDataSetID dataSetID) {
+        return Collections.emptyList();
     }
 
     @SuppressWarnings(

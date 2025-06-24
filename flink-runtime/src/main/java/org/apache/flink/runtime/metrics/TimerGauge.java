@@ -24,6 +24,9 @@ import org.apache.flink.metrics.View;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
+import java.util.ArrayList;
+import java.util.Collection;
+
 /**
  * {@link TimerGauge} measures how much time is spent in a given state, with entry into that state
  * being signaled by {@link #markStart()}. Measuring is stopped by {@link #markEnd()}. This class in
@@ -32,11 +35,28 @@ import org.apache.flink.util.clock.SystemClock;
  * happen in a couple of hours, the returned value will account for this ongoing measurement.
  */
 public class TimerGauge implements Gauge<Long>, View {
+
+    private static final int DEFAULT_TIME_SPAN_IN_SECONDS = 60;
+
     private final Clock clock;
 
-    private long previousCount;
+    private final Collection<StartStopListener> startStopListeners = new ArrayList<>();
+
+    /** The time-span over which the average is calculated. */
+    private final int timeSpanInSeconds;
+
+    /** Circular array containing the history of values. */
+    private final long[] values;
+
+    /** The index in the array for the current time. */
+    private int idx = 0;
+
+    private boolean fullWindow = false;
+
+    private long currentValue;
     private long currentCount;
     private long currentMeasurementStartTS;
+
     /**
      * This differ from {@link #currentMeasurementStartTS} that {@link #currentUpdateTS} is bumped
      * on every {@link #update()} call, while {@link #currentMeasurementStartTS} always marks the
@@ -47,28 +67,68 @@ public class TimerGauge implements Gauge<Long>, View {
     private long previousMaxSingleMeasurement;
     private long currentMaxSingleMeasurement;
 
+    private long accumulatedCount;
+
     public TimerGauge() {
-        this(SystemClock.getInstance());
+        this(DEFAULT_TIME_SPAN_IN_SECONDS);
+    }
+
+    public TimerGauge(int timeSpanInSeconds) {
+        this(SystemClock.getInstance(), timeSpanInSeconds);
     }
 
     public TimerGauge(Clock clock) {
+        this(clock, DEFAULT_TIME_SPAN_IN_SECONDS);
+    }
+
+    public TimerGauge(Clock clock, int timeSpanInSeconds) {
         this.clock = clock;
+        this.timeSpanInSeconds =
+                Math.max(
+                        timeSpanInSeconds - (timeSpanInSeconds % UPDATE_INTERVAL_SECONDS),
+                        UPDATE_INTERVAL_SECONDS);
+        this.values = new long[this.timeSpanInSeconds / UPDATE_INTERVAL_SECONDS];
+    }
+
+    public synchronized void registerListener(StartStopListener listener) {
+        if (currentMeasurementStartTS != 0) {
+            listener.markStart();
+        }
+        startStopListeners.add(listener);
+    }
+
+    public synchronized void unregisterListener(StartStopListener listener) {
+        if (currentMeasurementStartTS != 0) {
+            listener.markEnd();
+        }
+        startStopListeners.remove(listener);
     }
 
     public synchronized void markStart() {
-        if (currentMeasurementStartTS == 0) {
-            currentUpdateTS = clock.absoluteTimeMillis();
-            currentMeasurementStartTS = currentUpdateTS;
+        if (currentMeasurementStartTS != 0) {
+            return;
+        }
+        currentUpdateTS = clock.absoluteTimeMillis();
+        currentMeasurementStartTS = currentUpdateTS;
+        for (StartStopListener startStopListener : startStopListeners) {
+            startStopListener.markStart();
         }
     }
 
     public synchronized void markEnd() {
-        if (currentMeasurementStartTS != 0) {
-            long currentMeasurement = clock.absoluteTimeMillis() - currentMeasurementStartTS;
-            currentCount += currentMeasurement;
-            currentMaxSingleMeasurement = Math.max(currentMaxSingleMeasurement, currentMeasurement);
-            currentUpdateTS = 0;
-            currentMeasurementStartTS = 0;
+        if (currentMeasurementStartTS == 0) {
+            return;
+        }
+        long now = clock.absoluteTimeMillis();
+        long currentMeasurement = now - currentMeasurementStartTS;
+        long currentIncrement = now - currentUpdateTS;
+        currentCount += currentIncrement;
+        accumulatedCount += currentIncrement;
+        currentMaxSingleMeasurement = Math.max(currentMaxSingleMeasurement, currentMeasurement);
+        currentUpdateTS = 0;
+        currentMeasurementStartTS = 0;
+        for (StartStopListener startStopListener : startStopListeners) {
+            startStopListener.markEnd();
         }
     }
 
@@ -79,21 +139,39 @@ public class TimerGauge implements Gauge<Long>, View {
             // we adding to the current count only the time elapsed since last markStart or update
             // call
             currentCount += now - currentUpdateTS;
+            accumulatedCount += now - currentUpdateTS;
             currentUpdateTS = now;
             // on the other hand, max measurement has to be always checked against last markStart
             // call
             currentMaxSingleMeasurement =
                     Math.max(currentMaxSingleMeasurement, now - currentMeasurementStartTS);
         }
-        previousCount = Math.max(Math.min(currentCount / UPDATE_INTERVAL_SECONDS, 1000), 0);
+        updateCurrentValue();
         previousMaxSingleMeasurement = currentMaxSingleMeasurement;
         currentCount = 0;
         currentMaxSingleMeasurement = 0;
     }
 
+    private void updateCurrentValue() {
+        if (idx == values.length - 1) {
+            fullWindow = true;
+        }
+        values[idx] = currentCount;
+        idx = (idx + 1) % values.length;
+
+        int maxIndex = fullWindow ? values.length : idx;
+        long totalTime = 0;
+        for (int i = 0; i < maxIndex; i++) {
+            totalTime += values[i];
+        }
+
+        currentValue =
+                Math.max(Math.min(totalTime / (UPDATE_INTERVAL_SECONDS * maxIndex), 1000), 0);
+    }
+
     @Override
     public synchronized Long getValue() {
-        return previousCount;
+        return currentValue;
     }
 
     /**
@@ -104,13 +182,32 @@ public class TimerGauge implements Gauge<Long>, View {
         return previousMaxSingleMeasurement;
     }
 
+    /**
+     * @return the accumulated period by the given * TimerGauge.
+     */
+    public synchronized long getAccumulatedCount() {
+        return accumulatedCount;
+    }
+
     @VisibleForTesting
     public synchronized long getCount() {
         return currentCount;
     }
 
-    @VisibleForTesting
     public synchronized boolean isMeasuring() {
         return currentMeasurementStartTS != 0;
+    }
+
+    /**
+     * Listens for {@link TimerGauge#markStart()} and {@link TimerGauge#markEnd()} events.
+     *
+     * <p>Beware! As it is right now, {@link StartStopListener} is notified under the {@link
+     * TimerGauge}'s lock, so those callbacks should be very short, without long call stacks that
+     * acquire more locks. Otherwise, a potential for deadlocks can be introduced.
+     */
+    public interface StartStopListener {
+        void markStart();
+
+        void markEnd();
     }
 }

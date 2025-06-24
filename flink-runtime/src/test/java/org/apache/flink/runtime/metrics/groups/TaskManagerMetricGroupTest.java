@@ -24,64 +24,62 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.runtime.metrics.NoOpMetricRegistry.INSTANCE;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link TaskManagerMetricGroup} test. */
-public class TaskManagerMetricGroupTest {
+class TaskManagerMetricGroupTest {
     private static final JobID JOB_ID = new JobID();
     private static final String JOB_NAME = "test job";
     private TaskManagerMetricGroup metricGroup;
 
     @BeforeEach
-    public void before() {
+    void before() {
         metricGroup = new TaskManagerMetricGroup(INSTANCE, "testHost", "testTm");
     }
 
     @AfterEach
-    public void after() {
+    void after() {
         if (!metricGroup.isClosed()) {
             metricGroup.close();
         }
     }
 
     @Test
-    public void testGetSameJob() {
-        assertSame(metricGroup.addJob(JOB_ID, JOB_NAME), metricGroup.addJob(JOB_ID, JOB_NAME));
-        assertNotSame(
-                metricGroup.addJob(JOB_ID, JOB_NAME),
-                metricGroup.addJob(new JobID(), "another job"));
+    void testGetSameJob() {
+        assertThat(metricGroup.addJob(JOB_ID, JOB_NAME))
+                .isSameAs(metricGroup.addJob(JOB_ID, JOB_NAME));
+        assertThat(metricGroup.addJob(new JobID(), "another job"))
+                .isNotSameAs(metricGroup.addJob(JOB_ID, JOB_NAME));
     }
 
     @Test
-    public void testReCreateAfterRemoval() {
+    void testReCreateAfterRemoval() {
         TaskManagerJobMetricGroup oldGroup = metricGroup.addJob(JOB_ID, JOB_NAME);
         metricGroup.removeJobMetricsGroup(JOB_ID);
-        assertNotSame(oldGroup, metricGroup.addJob(JOB_ID, JOB_NAME));
+        assertThat(metricGroup.addJob(JOB_ID, JOB_NAME)).isNotSameAs(oldGroup);
     }
 
     @Test
-    public void testCloseOnRemove() {
+    void testCloseOnRemove() {
         TaskManagerJobMetricGroup tmJobMetricGroup = metricGroup.addJob(JOB_ID, JOB_NAME);
         metricGroup.removeJobMetricsGroup(JOB_ID);
-        assertTrue(tmJobMetricGroup.isClosed());
+        assertThat(tmJobMetricGroup.isClosed()).isTrue();
     }
 
     @Test
-    public void testCloseWithoutRemoval() {
+    void testCloseWithoutRemoval() {
         TaskManagerJobMetricGroup jobGroup = metricGroup.addJob(JOB_ID, JOB_NAME);
         metricGroup.close();
-        assertTrue(jobGroup.isClosed());
+        assertThat(jobGroup.isClosed()).isTrue();
     }
 
     @Test
-    public void testRemoveNullJobID() {
+    void testRemoveNullJobID() {
         metricGroup.removeJobMetricsGroup(null);
     }
 
     @Test
-    public void testRemoveInvalidJobID() {
+    void testRemoveInvalidJobID() {
         metricGroup.removeJobMetricsGroup(JOB_ID);
     }
 }

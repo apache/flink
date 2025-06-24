@@ -270,6 +270,7 @@ public class InputProperty {
      */
     public static class KeepInputAsIsDistribution extends RequiredDistribution {
         private final RequiredDistribution inputDistribution;
+
         /** whether the input distribution is strictly guaranteed. */
         private final boolean strict;
 

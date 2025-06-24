@@ -17,11 +17,10 @@
 ################################################################################
 from abc import ABC, abstractmethod
 from enum import Enum
-
 from typing import TypeVar, Generic, Iterable, List, Iterator, Dict, Tuple, Optional
 
+from pyflink.common.time import Duration, Time
 from pyflink.common.typeinfo import TypeInformation, Types
-from pyflink.common.time import Time
 
 __all__ = [
     'ValueStateDescriptor',
@@ -34,7 +33,10 @@ __all__ = [
     'ReducingState',
     'AggregatingStateDescriptor',
     'AggregatingState',
-    'StateTtlConfig'
+    'ReadOnlyBroadcastState',
+    'BroadcastState',
+    'StateTtlConfig',
+    'OperatorStateStore',
 ]
 
 T = TypeVar('T')
@@ -42,6 +44,22 @@ K = TypeVar('K')
 V = TypeVar('V')
 IN = TypeVar('IN')
 OUT = TypeVar('OUT')
+
+
+class OperatorStateStore(ABC):
+    """
+    Interface for getting operator states. Currently, only :class:`~state.BroadcastState` is
+    supported.
+    .. versionadded:: 1.16.0
+    """
+
+    @abstractmethod
+    def get_broadcast_state(self, state_descriptor: 'MapStateDescriptor') -> 'BroadcastState':
+        """
+        Fetches the :class:`~state.BroadcastState` described by :class:`~state.MapStateDescriptor`,
+        which has read/write access to the broadcast operator state.
+        """
+        pass
 
 
 class State(ABC):
@@ -175,7 +193,7 @@ class ListState(MergingState[T, Iterable[T]]):
     @abstractmethod
     def update(self, values: List[T]) -> None:
         """
-        Updating existing values to to the given list of values.
+        Updating existing values to the given list of values.
         """
         pass
 
@@ -281,6 +299,110 @@ class MapState(State, Generic[K, V]):
         return iter(self.keys())
 
 
+class ReadOnlyBroadcastState(State, Generic[K, V]):
+    """
+    A read-only view of the :class:`BroadcastState`.
+    Although read-only, the user code should not modify the value returned by the :meth:`get` or the
+    items returned by :meth:`items`, as this can lead to inconsistent states. The reason for this is
+    that we do not create extra copies of the elements for performance reasons.
+    """
+
+    @abstractmethod
+    def get(self, key: K) -> V:
+        """
+        Returns the current value associated with the given key.
+        """
+        pass
+
+    @abstractmethod
+    def contains(self, key: K) -> bool:
+        """
+        Returns whether there exists the given mapping.
+        """
+        pass
+
+    @abstractmethod
+    def items(self) -> Iterable[Tuple[K, V]]:
+        """
+        Returns all the mappings in the state.
+        """
+        pass
+
+    @abstractmethod
+    def keys(self) -> Iterable[K]:
+        """
+        Returns all the keys in the state.
+        """
+        pass
+
+    @abstractmethod
+    def values(self) -> Iterable[V]:
+        """
+        Returns all the values in the state.
+        """
+        pass
+
+    @abstractmethod
+    def is_empty(self) -> bool:
+        """
+        Returns true if this state contains no key-value mappings, otherwise false.
+        """
+        pass
+
+    def __getitem__(self, key: K) -> V:
+        return self.get(key)
+
+    def __contains__(self, key: K) -> bool:
+        return self.contains(key)
+
+    def __iter__(self) -> Iterator[K]:
+        return iter(self.keys())
+
+
+class BroadcastState(ReadOnlyBroadcastState[K, V]):
+    """
+    A type of state that can be created to store the state of a :class:`BroadcastStream`. This state
+    assumes that the same elements are sent to all instances of an operator.
+    CAUTION: the user has to guarantee that all task instances store the same elements in
+    this type of state.
+    Each operator instance individually maintains and stores elements in the broadcast state. The
+    fact that the incoming stream is a broadcast one guarantees that all instances see all the
+    elements. Upon recovery or re-scaling, the same state is given to each of the instances.
+    To avoid hotspots, each task reads its previous partition, and if there are more tasks (scale up
+    ), then the new instances read from the old instances in a round-robin fashion. This is why each
+    instance has to guarantee that it stores the same elements as the rest. If not, upon recovery or
+    rescaling you may have unpredictable redistribution of the partitions, thus unpredictable
+    results.
+    """
+
+    @abstractmethod
+    def put(self, key: K, value: V) -> None:
+        """
+        Associates a new value with the given key.
+        """
+        pass
+
+    @abstractmethod
+    def put_all(self, dict_value: Dict[K, V]) -> None:
+        """
+        Copies all of the mappings from the given map into the state.
+        """
+        pass
+
+    @abstractmethod
+    def remove(self, key: K) -> None:
+        """
+        Deletes the mapping of the given key.
+        """
+        pass
+
+    def __setitem__(self, key: K, value: V) -> None:
+        self.put(key, value)
+
+    def __delitem__(self, key: K) -> None:
+        self.remove(key)
+
+
 class StateDescriptor(ABC):
     """
     Base class for state descriptors. A StateDescriptor is used for creating partitioned State in
@@ -296,7 +418,7 @@ class StateDescriptor(ABC):
         """
         self.name = name
         self.type_info = type_info
-        self._ttl_config = None  # type: Optional[StateTtlConfig]
+        self._ttl_config: Optional[StateTtlConfig] = None
 
     def get_name(self) -> str:
         """
@@ -578,7 +700,7 @@ class StateTtlConfig(object):
             self._state_visibility = StateTtlConfig.StateVisibility.NeverReturnExpired
             self._ttl_time_characteristic = StateTtlConfig.TtlTimeCharacteristic.ProcessingTime
             self._is_cleanup_in_background = True
-            self._strategies = {}  # type: Dict
+            self._strategies: Dict = {}
 
         def set_update_type(self,
                             update_type: 'StateTtlConfig.UpdateType') -> 'StateTtlConfig.Builder':
@@ -686,7 +808,9 @@ class StateTtlConfig(object):
 
         def cleanup_in_rocksdb_compact_filter(
                 self,
-                query_time_after_num_entries) -> 'StateTtlConfig.Builder':
+                query_time_after_num_entries,
+                periodic_compaction_time=None) -> \
+                'StateTtlConfig.Builder':
             """
             Cleanup expired state while Rocksdb compaction is running.
 
@@ -695,14 +819,22 @@ class StateTtlConfig(object):
             entries. Updating the timestamp more often can improve cleanup speed but it decreases
             compaction performance because it uses JNI call from native code.
 
+            Periodic compaction could speed up expired state entries cleanup, especially for state
+            entries rarely accessed. Files older than this value will be picked up for compaction,
+            and re-written to the same level as they were before. It makes sure a file goes through
+            compaction filters periodically.
+
             :param query_time_after_num_entries:  number of state entries to process by compaction
                 filter before updating current timestamp
+            :param periodic_compaction_time:   periodic compaction which could
+                speed up expired state cleanup. 0 means turning off periodic compaction.
             :return:
             """
             self._strategies[
                 StateTtlConfig.CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER] = \
                 StateTtlConfig.CleanupStrategies.RocksdbCompactFilterCleanupStrategy(
-                    query_time_after_num_entries)
+                    query_time_after_num_entries,
+                    periodic_compaction_time if periodic_compaction_time else Duration.of_days(30))
             return self
 
         def disable_cleanup_in_background(self) -> 'StateTtlConfig.Builder':
@@ -777,14 +909,14 @@ class StateTtlConfig(object):
             Configuration of cleanup strategy while taking the full snapshot.
             """
 
-            def __init__(self, cleanup_size: int, run_cleanup_for_every_record: int):
+            def __init__(self, cleanup_size: int, run_cleanup_for_every_record: bool):
                 self._cleanup_size = cleanup_size
                 self._run_cleanup_for_every_record = run_cleanup_for_every_record
 
             def get_cleanup_size(self) -> int:
                 return self._cleanup_size
 
-            def run_cleanup_for_every_record(self) -> int:
+            def run_cleanup_for_every_record(self) -> bool:
                 return self._run_cleanup_for_every_record
 
         class RocksdbCompactFilterCleanupStrategy(CleanupStrategy):
@@ -792,11 +924,18 @@ class StateTtlConfig(object):
             Configuration of cleanup strategy using custom compaction filter in RocksDB.
             """
 
-            def __init__(self, query_time_after_num_entries: int):
+            def __init__(self,
+                         query_time_after_num_entries: int,
+                         periodic_compaction_time=None):
                 self._query_time_after_num_entries = query_time_after_num_entries
+                self._periodic_compaction_time = periodic_compaction_time \
+                    if periodic_compaction_time else Duration.of_days(30)
 
             def get_query_time_after_num_entries(self) -> int:
                 return self._query_time_after_num_entries
+
+            def get_periodic_compaction_time(self) -> Duration:
+                return self._periodic_compaction_time
 
         EMPTY_STRATEGY = EmptyCleanupStrategy()
 

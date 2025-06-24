@@ -24,6 +24,7 @@ import org.apache.flink.runtime.operators.lifecycle.graph.TestJobBuilders.Testin
 import org.apache.flink.runtime.operators.lifecycle.validation.DrainingValidator;
 import org.apache.flink.runtime.operators.lifecycle.validation.FinishingValidator;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.util.TestLogger;
@@ -32,11 +33,14 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommand.FINISH_SOURCES;
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher.TestCommandScope.ALL_SUBTASKS;
@@ -69,11 +73,14 @@ public class BoundedSourceITCase extends TestLogger {
 
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
 
+    @Rule public Timeout timeoutRule = new Timeout(10, TimeUnit.MINUTES);
+
     private static Configuration configuration() {
         Configuration conf = new Configuration();
 
         try {
-            FsStateChangelogStorageFactory.configure(conf, TEMPORARY_FOLDER.newFolder());
+            FsStateChangelogStorageFactory.configure(
+                    conf, TEMPORARY_FOLDER.newFolder(), Duration.ofMinutes(1), 10);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -95,9 +102,8 @@ public class BoundedSourceITCase extends TestLogger {
                         sharedObjects,
                         cfg -> {},
                         env ->
-                                env.getCheckpointConfig()
-                                        .setCheckpointStorage(
-                                                TEMPORARY_FOLDER.newFolder().toURI()));
+                                CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                                        env, TEMPORARY_FOLDER.newFolder().toURI()));
 
         TestJobExecutor.execute(testJob, miniClusterResource)
                 .waitForEvent(CheckpointCompletedEvent.class)

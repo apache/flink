@@ -33,16 +33,13 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
@@ -51,12 +48,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link HadoopInputFormat}. */
-public class HadoopInputFormatTest {
-
-    @Rule public final ExpectedException exception = ExpectedException.none();
+class HadoopInputFormatTest {
 
     @Test
-    public void testConfigure() throws Exception {
+    void testConfigure() throws Exception {
 
         ConfigurableDummyInputFormat inputFormat = mock(ConfigurableDummyInputFormat.class);
 
@@ -68,7 +63,7 @@ public class HadoopInputFormatTest {
     }
 
     @Test
-    public void testCreateInputSplits() throws Exception {
+    void testCreateInputSplits() throws Exception {
         DummyInputFormat inputFormat = mock(DummyInputFormat.class);
 
         HadoopInputFormat<String, Long> hadoopInputFormat =
@@ -79,7 +74,7 @@ public class HadoopInputFormatTest {
     }
 
     @Test
-    public void testOpen() throws Exception {
+    void testOpen() throws Exception {
         DummyInputFormat inputFormat = mock(DummyInputFormat.class);
         when(inputFormat.createRecordReader(
                         nullable(InputSplit.class), any(TaskAttemptContext.class)))
@@ -92,11 +87,11 @@ public class HadoopInputFormatTest {
 
         verify(inputFormat, times(1))
                 .createRecordReader(nullable(InputSplit.class), any(TaskAttemptContext.class));
-        assertThat(hadoopInputFormat.fetched, is(false));
+        assertThat(hadoopInputFormat.fetched).isFalse();
     }
 
     @Test
-    public void testClose() throws Exception {
+    void testClose() throws Exception {
 
         DummyRecordReader recordReader = mock(DummyRecordReader.class);
 
@@ -108,7 +103,7 @@ public class HadoopInputFormatTest {
     }
 
     @Test
-    public void testCloseWithoutOpen() throws Exception {
+    void testCloseWithoutOpen() throws Exception {
         HadoopInputFormat<String, Long> hadoopInputFormat =
                 new HadoopInputFormat<>(
                         new DummyInputFormat(), String.class, Long.class, Job.getInstance());
@@ -116,19 +111,19 @@ public class HadoopInputFormatTest {
     }
 
     @Test
-    public void testFetchNextInitialState() throws Exception {
+    void testFetchNextInitialState() throws Exception {
         DummyRecordReader recordReader = new DummyRecordReader();
 
         HadoopInputFormat<String, Long> hadoopInputFormat =
                 setupHadoopInputFormat(new DummyInputFormat(), Job.getInstance(), recordReader);
         hadoopInputFormat.fetchNext();
 
-        assertThat(hadoopInputFormat.fetched, is(true));
-        assertThat(hadoopInputFormat.hasNext, is(false));
+        assertThat(hadoopInputFormat.fetched).isTrue();
+        assertThat(hadoopInputFormat.hasNext).isFalse();
     }
 
     @Test
-    public void testFetchNextRecordReaderHasNewValue() throws Exception {
+    void testFetchNextRecordReaderHasNewValue() throws Exception {
 
         DummyRecordReader recordReader = mock(DummyRecordReader.class);
         when(recordReader.nextKeyValue()).thenReturn(true);
@@ -137,12 +132,12 @@ public class HadoopInputFormatTest {
                 setupHadoopInputFormat(new DummyInputFormat(), Job.getInstance(), recordReader);
         hadoopInputFormat.fetchNext();
 
-        assertThat(hadoopInputFormat.fetched, is(true));
-        assertThat(hadoopInputFormat.hasNext, is(true));
+        assertThat(hadoopInputFormat.fetched).isTrue();
+        assertThat(hadoopInputFormat.hasNext).isTrue();
     }
 
     @Test
-    public void testFetchNextRecordReaderThrowsException() throws Exception {
+    void testFetchNextRecordReaderThrowsException() throws Exception {
 
         DummyRecordReader recordReader = mock(DummyRecordReader.class);
         when(recordReader.nextKeyValue()).thenThrow(new InterruptedException());
@@ -150,14 +145,16 @@ public class HadoopInputFormatTest {
         HadoopInputFormat<String, Long> hadoopInputFormat =
                 setupHadoopInputFormat(new DummyInputFormat(), Job.getInstance(), recordReader);
 
-        exception.expect(IOException.class);
-        hadoopInputFormat.fetchNext();
+        assertThatThrownBy(hadoopInputFormat::fetchNext)
+                .isInstanceOf(IOException.class)
+                .hasCauseInstanceOf(InterruptedException.class);
 
-        assertThat(hadoopInputFormat.hasNext, is(true));
+        assertThat(hadoopInputFormat.hasNext).isFalse();
+        assertThat(hadoopInputFormat.fetched).isTrue();
     }
 
     @Test
-    public void checkTypeInformation() throws Exception {
+    void checkTypeInformation() throws Exception {
 
         HadoopInputFormat<Void, Long> hadoopInputFormat =
                 new HadoopInputFormat<>(
@@ -170,8 +167,8 @@ public class HadoopInputFormatTest {
         TypeInformation<Tuple2<Void, Long>> expectedType =
                 new TupleTypeInfo<>(BasicTypeInfo.VOID_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);
 
-        assertThat(tupleType.isTupleType(), is(true));
-        assertThat(tupleType, is(equalTo(expectedType)));
+        assertThat(tupleType.isTupleType()).isTrue();
+        assertThat(tupleType).isEqualTo(expectedType);
     }
 
     private HadoopInputFormat<String, Long> setupHadoopInputFormat(

@@ -21,11 +21,9 @@ package org.apache.flink.runtime.scheduler.stopwithsavepoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.hamcrest.CoreMatchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,7 +33,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@code StopWithSavepointTerminationManagerTest} tests that {@link
@@ -43,10 +41,10 @@ import static org.junit.Assert.assertThat;
  * StopWithSavepointTerminationHandler} regardless of the completion of the provided {@code
  * CompletableFutures}.
  */
-public class StopWithSavepointTerminationManagerTest extends TestLogger {
+class StopWithSavepointTerminationManagerTest {
 
     @Test
-    public void testCompletionInCorrectOrder() {
+    void testCompletionInCorrectOrder() {
         assertCorrectOrderOfProcessing(
                 (completedSavepointFuture, terminatedExecutionStatesFuture) -> {
                     completedSavepointFuture.complete(null);
@@ -55,7 +53,7 @@ public class StopWithSavepointTerminationManagerTest extends TestLogger {
     }
 
     @Test
-    public void testCompletionInInverseOrder() {
+    void testCompletionInInverseOrder() {
         assertCorrectOrderOfProcessing(
                 (completedSavepointFuture, terminatedExecutionStatesFuture) -> {
                     terminatedExecutionStatesFuture.complete(null);
@@ -80,12 +78,11 @@ public class StopWithSavepointTerminationManagerTest extends TestLogger {
                         ComponentMainThreadExecutorServiceAdapter.forMainThread());
         completion.accept(completedSavepointFuture, terminatedExecutionStateFuture);
 
-        assertThat(
-                stopWithSavepointTerminationHandler.getActualMethodCallOrder(),
-                CoreMatchers.is(
+        assertThat(stopWithSavepointTerminationHandler.getActualMethodCallOrder())
+                .containsAll(
                         Arrays.asList(
                                 MethodCall.SavepointCreationTermination,
-                                MethodCall.ExecutionTermination)));
+                                MethodCall.ExecutionTermination));
     }
 
     private enum MethodCall {

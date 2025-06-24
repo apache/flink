@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.Expressions.toTimestampLtz
 import org.apache.flink.table.expressions.TimeIntervalUnit
 import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
@@ -26,7 +27,7 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.lang.{Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong}
 import java.sql.Timestamp
@@ -548,6 +549,10 @@ class TemporalTypesTest extends ExpressionTestBase {
     tableConfig.setLocalTimeZone(ZoneId.of("UTC"))
 
     testSqlApi("DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')", "2018/03/14 01:02:03")
+    testAllApis(
+      dateFormat("2018-03-14 01:02:03", "yyyy/MM/dd HH:mm:ss"),
+      "DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
+      "2018/03/14 01:02:03")
 
     testSqlApi(
       "DATE_FORMAT(TIMESTAMP '2018-03-14 01:02:03.123456', 'yyyy/MM/dd HH:mm:ss.SSSSSS')",
@@ -611,7 +616,16 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("CAST('12:44:31' AS TIME)", "12:44:31")
     testSqlApi("CAST('2018-03-18' AS DATE)", "2018-03-18")
     testSqlApi("TIME '12:44:31'", "12:44:31")
-    testSqlApi("TO_DATE('2018-03-18')", "2018-03-18")
+
+    testAllApis(toDate("2018-03-18", "yyyy-MM-dd"), "TO_DATE('2018-03-18')", "2018-03-18")
+    testAllApis(
+      toTimestamp("1970-01-01 08:01:40"),
+      "TO_TIMESTAMP('1970-01-01 08:01:40')",
+      "1970-01-01 08:01:40.000")
+    testAllApis(
+      toTimestamp("1970-01-01 08:01:40", "yyyy-MM-dd HH:mm:ss"),
+      "TO_TIMESTAMP('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')",
+      "1970-01-01 08:01:40.000")
 
     // EXTRACT
     // testSqlApi("TO_DATE(1521331200)", "2018-03-18")
@@ -840,7 +854,10 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testSqlApi("DATE_FORMAT(cast(NULL as varchar), 'yyyy/MM/dd HH:mm:ss')", nullable)
 
-    testSqlApi("FROM_UNIXTIME(cast(NULL as bigInt))", nullable)
+    testAllApis(
+      fromUnixtime(nullOf(DataTypes.BIGINT())),
+      "FROM_UNIXTIME(cast(NULL as bigInt))",
+      nullable)
 
     testSqlApi("TO_DATE(cast(NULL as varchar))", nullable)
 
@@ -875,7 +892,10 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testConvertTZ(): Unit = {
-    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'Asia/Shanghai')", "2018-03-14 19:00:00")
+    testAllApis(
+      convertTz("2018-03-14 11:00:00", "UTC", "Asia/Shanghai"),
+      "CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'Asia/Shanghai')",
+      "2018-03-14 19:00:00")
   }
 
   @Test
@@ -886,9 +906,15 @@ class TemporalTypesTest extends ExpressionTestBase {
     val fmt3 = "yy-MM-dd HH-mm-ss"
     val sdf3 = new SimpleDateFormat(fmt3, Locale.US)
 
-    testSqlApi("from_unixtime(f21)", sdf1.format(new Timestamp(44000)))
-    testSqlApi(s"from_unixtime(f21, '$fmt2')", sdf2.format(new Timestamp(44000)))
-    testSqlApi(s"from_unixtime(f21, '$fmt3')", sdf3.format(new Timestamp(44000)))
+    testAllApis(fromUnixtime('f21), "from_unixtime(f21)", sdf1.format(new Timestamp(44000)))
+    testAllApis(
+      fromUnixtime('f21, fmt2),
+      s"from_unixtime(f21, '$fmt2')",
+      sdf2.format(new Timestamp(44000)))
+    testAllApis(
+      fromUnixtime('f21, fmt3),
+      s"from_unixtime(f21, '$fmt3')",
+      sdf3.format(new Timestamp(44000)))
 
     testSqlApi("from_unixtime(f22)", sdf1.format(new Timestamp(3000)))
     testSqlApi(s"from_unixtime(f22, '$fmt2')", sdf2.format(new Timestamp(3000)))
@@ -922,10 +948,19 @@ class TemporalTypesTest extends ExpressionTestBase {
     val ss2 = "2015-07-25 02:02:02"
     val fmt = "yyyy/MM/dd HH:mm:ss.S"
 
+    testAllApis(unixTimestamp(ss1), s"UNIX_TIMESTAMP('$ss1')", (ts1.getTime / 1000L).toString)
+    testAllApis(unixTimestamp(ss2), s"UNIX_TIMESTAMP('$ss2')", (ts2.getTime / 1000L).toString)
+    testAllApis(
+      unixTimestamp(s1, fmt),
+      s"UNIX_TIMESTAMP('$s1', '$fmt')",
+      (ts1.getTime / 1000L).toString)
+    testAllApis(
+      unixTimestamp(s2, fmt),
+      s"UNIX_TIMESTAMP('$s2', '$fmt')",
+      (ts2.getTime / 1000L).toString)
+
     testSqlApi(s"UNIX_TIMESTAMP('$ss1')", (ts1.getTime / 1000L).toString)
-    testSqlApi(s"UNIX_TIMESTAMP('$ss2')", (ts2.getTime / 1000L).toString)
     testSqlApi(s"UNIX_TIMESTAMP('$s1', '$fmt')", (ts1.getTime / 1000L).toString)
-    testSqlApi(s"UNIX_TIMESTAMP('$s2', '$fmt')", (ts2.getTime / 1000L).toString)
   }
 
   @Test
@@ -952,6 +987,13 @@ class TemporalTypesTest extends ExpressionTestBase {
       "2000-02-02 00:59:59.123")
 
     testSqlApi("TO_TIMESTAMP('1234567', 'SSSSSSS')", "1970-01-01 00:00:00.123")
+
+    testSqlApi(
+      "TO_TIMESTAMP('2017-09-15 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSS')",
+      "2017-09-15 00:00:00.123")
+    testSqlApi(
+      "CAST(TO_TIMESTAMP('2017-09-15 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSS') AS STRING)",
+      "2017-09-15 00:00:00.123")
   }
 
   @Test
@@ -1241,11 +1283,6 @@ class TemporalTypesTest extends ExpressionTestBase {
       s"TO_TIMESTAMP_LTZ(253402300800000, 3)",
       "NULL")
 
-    // test invalid number of arguments
-    testExpectedSqlException(
-      "TO_TIMESTAMP_LTZ(123)",
-      "Invalid number of arguments to function 'TO_TIMESTAMP_LTZ'. Was expecting 2 arguments")
-
     // invalid precision
     testExpectedAllApisException(
       toTimestampLtz(12, 1),
@@ -1267,29 +1304,28 @@ class TemporalTypesTest extends ExpressionTestBase {
     // invalid type for the first input
     testExpectedSqlException(
       "TO_TIMESTAMP_LTZ('test_string_type', 0)",
-      "Cannot apply 'TO_TIMESTAMP_LTZ' to arguments of type" +
-        " 'TO_TIMESTAMP_LTZ(<CHAR(16)>, <INTEGER>)'. Supported form(s):" +
-        " 'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'",
+      "SQL validation failed. Invalid function call:\n" +
+        "TO_TIMESTAMP_LTZ(CHAR(16) NOT NULL, INT NOT NULL)",
       classOf[ValidationException]
     )
+
     testExpectedTableApiException(
       toTimestampLtz("test_string_type", 0),
-      "Unsupported argument type. " +
-        "Expected type of family 'NUMERIC' but actual type was 'CHAR(16) NOT NULL'"
+      "Invalid function call:\n" +
+        "TO_TIMESTAMP_LTZ(CHAR(16) NOT NULL, INT NOT NULL)"
     )
 
     // invalid type for the second input
     testExpectedSqlException(
       "TO_TIMESTAMP_LTZ(123, 'test_string_type')",
-      "Cannot apply 'TO_TIMESTAMP_LTZ' to arguments of type" +
-        " 'TO_TIMESTAMP_LTZ(<INTEGER>, <CHAR(16)>)'. Supported form(s):" +
-        " 'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'"
+      "SQL validation failed. Invalid function call:\n" +
+        "TO_TIMESTAMP_LTZ(INT NOT NULL, CHAR(16) NOT NULL)"
     )
 
     testExpectedTableApiException(
       toTimestampLtz(123, "test_string_type"),
-      "Unsupported argument type. " +
-        "Expected type of family 'INTEGER_NUMERIC' but actual type was 'CHAR(16) NOT NULL'"
+      "Invalid function call:\n" +
+        "TO_TIMESTAMP_LTZ(INT NOT NULL, CHAR(16) NOT NULL)"
     )
   }
 
@@ -1407,7 +1443,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     testExpectedSqlException(
       s"TIMESTAMPDIFF(SECOND, ${timestampLtz("1970-01-01 00:00:00.123")}, 'test_string_type')",
       "Cannot apply 'TIMESTAMPDIFF' to arguments of type" +
-        " 'TIMESTAMPDIFF(<SYMBOL>, <TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)>, <CHAR(16)>)'." +
+        " 'TIMESTAMPDIFF(<INTERVAL SECOND>, <TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)>, <CHAR(16)>)'." +
         " Supported form(s): 'TIMESTAMPDIFF(<ANY>, <DATETIME>, <DATETIME>)'"
     )
   }

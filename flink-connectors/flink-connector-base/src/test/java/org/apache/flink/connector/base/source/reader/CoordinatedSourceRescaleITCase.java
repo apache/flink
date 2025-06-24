@@ -18,26 +18,23 @@
 package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.testutils.FlinkMatchers;
-import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
@@ -48,36 +45,35 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Comparator;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_DIR_PREFIX;
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests if the coordinator handles up and downscaling. */
-public class CoordinatedSourceRescaleITCase extends TestLogger {
+class CoordinatedSourceRescaleITCase {
 
     public static final String CREATED_CHECKPOINT = "successfully created checkpoint";
     public static final String RESTORED_CHECKPOINT = "successfully restored checkpoint";
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension miniClusterResource =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(7)
                             .build());
 
-    @Rule public final TemporaryFolder temp = new TemporaryFolder();
-
     @Test
-    public void testDownscaling() throws Exception {
-        final File checkpointDir = temp.newFolder();
+    void testDownscaling(@TempDir Path tempDir) throws Exception {
+        final File checkpointDir = tempDir.toFile();
         final File lastCheckpoint = generateCheckpoint(checkpointDir, 7);
         resumeCheckpoint(checkpointDir, lastCheckpoint, 3);
     }
 
     @Test
-    public void testUpscaling() throws Exception {
-        final File checkpointDir = temp.newFolder();
+    void testUpscaling(@TempDir Path temp) throws Exception {
+        final File checkpointDir = temp.toFile();
         final File lastCheckpoint = generateCheckpoint(checkpointDir, 3);
         resumeCheckpoint(checkpointDir, lastCheckpoint, 7);
     }
@@ -85,16 +81,13 @@ public class CoordinatedSourceRescaleITCase extends TestLogger {
     private File generateCheckpoint(File checkpointDir, int p) throws IOException {
         final StreamExecutionEnvironment env = createEnv(checkpointDir, null, p);
 
-        try {
-            env.execute("create checkpoint");
-            throw new AssertionError("No checkpoint");
-        } catch (Exception e) {
-            assertThat(e, FlinkMatchers.containsMessage(CREATED_CHECKPOINT));
-            return Files.find(checkpointDir.toPath(), 2, this::isCompletedCheckpoint)
-                    .max(Comparator.comparing(Path::toString))
-                    .map(Path::toFile)
-                    .orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint", e));
-        }
+        assertThatThrownBy(() -> env.execute("create checkpoint"))
+                .satisfies(anyCauseMatches(CREATED_CHECKPOINT));
+
+        return Files.find(checkpointDir.toPath(), 2, this::isCompletedCheckpoint)
+                .max(Comparator.comparing(Path::toString))
+                .map(Path::toFile)
+                .orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint"));
     }
 
     private boolean isCompletedCheckpoint(Path path, BasicFileAttributes attr) {
@@ -106,33 +99,28 @@ public class CoordinatedSourceRescaleITCase extends TestLogger {
     private void resumeCheckpoint(File checkpointDir, File restoreCheckpoint, int p) {
         final StreamExecutionEnvironment env = createEnv(checkpointDir, restoreCheckpoint, p);
 
-        try {
-            env.execute("resume checkpoint");
-            throw new AssertionError("No success error");
-        } catch (Exception e) {
-            assertThat(e, FlinkMatchers.containsMessage(RESTORED_CHECKPOINT));
-        }
+        assertThatThrownBy(() -> env.execute("resume checkpoint"))
+                .satisfies(anyCauseMatches(RESTORED_CHECKPOINT));
     }
 
     private StreamExecutionEnvironment createEnv(
             File checkpointDir, @Nullable File restoreCheckpoint, int p) {
         Configuration conf = new Configuration();
-        conf.setString(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+        conf.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
         conf.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("4kb"));
         if (restoreCheckpoint != null) {
-            conf.set(SavepointConfigOptions.SAVEPOINT_PATH, restoreCheckpoint.toURI().toString());
+            conf.set(StateRecoveryOptions.SAVEPOINT_PATH, restoreCheckpoint.toURI().toString());
         }
-        conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, p);
+        conf.set(TaskManagerOptions.NUM_TASK_SLOTS, p);
 
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.setParallelism(p);
         env.enableCheckpointing(100);
         env.getCheckpointConfig()
-                .setExternalizedCheckpointCleanup(
-                        CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+                .setExternalizedCheckpointRetention(
+                        ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
+        RestartStrategyUtils.configureNoRestartStrategy(env);
 
         DataStream<Long> stream = env.fromSequence(0, Long.MAX_VALUE);
         stream.map(new FailingMapFunction(restoreCheckpoint == null)).addSink(new SleepySink());

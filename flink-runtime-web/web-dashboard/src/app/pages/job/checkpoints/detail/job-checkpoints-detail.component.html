@@ -26,6 +26,11 @@
     <nz-divider nzType="vertical"></nz-divider>
     <strong>Checkpoint Type:</strong>
     {{ checkPointType }}
+    <ng-container *ngIf="checkPointDetail?.savepointFormat">
+      <nz-divider nzType="vertical"></nz-divider>
+      <strong>Savepoint Format:</strong>
+      {{ checkPointDetail?.savepointFormat || '-' }}
+    </ng-container>
     <ng-container *ngIf="checkPointDetail?.failure_message">
       <nz-divider nzType="vertical"></nz-divider>
       <strong>Failure Message:</strong>
@@ -74,7 +79,7 @@
           <td *ngIf="checkPointDetail['tasks'][vertex.id]['latest_ack_timestamp'] >= 0">
             {{
               checkPointDetail['tasks'][vertex.id]['latest_ack_timestamp']
-                | date: 'yyyy-MM-dd HH:mm:ss'
+                | date: 'yyyy-MM-dd HH:mm:ss.SSS'
             }}
           </td>
           <td *ngIf="checkPointDetail['tasks'][vertex.id]['latest_ack_timestamp'] < 0">n/a</td>

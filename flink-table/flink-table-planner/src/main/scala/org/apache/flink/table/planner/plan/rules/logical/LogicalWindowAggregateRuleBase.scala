@@ -36,6 +36,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, RelFactories}
 import org.apache.calcite.rel.core.Aggregate.Group
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeUtil
@@ -98,7 +99,7 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
     // we don't use the builder here because it uses RelMetadataQuery which affects the plan
     val newAgg = LogicalAggregate.create(
       newProject,
-      agg.indicator,
+      ImmutableList.of[RelHint](),
       newGroupSet,
       ImmutableList.of(newGroupSet),
       finalCalls)
@@ -234,6 +235,7 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
             aggCall.ignoreNulls(),
             aggCall.getArgList,
             aggCall.filterArg,
+            aggCall.distinctKeys,
             aggCall.collation,
             agg.getGroupCount,
             agg.getInput,

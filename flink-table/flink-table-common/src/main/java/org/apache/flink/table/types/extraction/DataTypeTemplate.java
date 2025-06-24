@@ -20,6 +20,7 @@ package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.ExtractionVersion;
 import org.apache.flink.table.annotation.HintFlag;
@@ -112,6 +113,14 @@ final class DataTypeTemplate {
                     extractDataType(typeFactory, typeName, conversionClass, extractionTemplate));
         }
         return fromAnnotation(hint, null);
+    }
+
+    /**
+     * Creates an instance from the given {@link ArgumentHint} with a resolved data type if
+     * available.
+     */
+    static DataTypeTemplate fromAnnotation(ArgumentHint argumentHint, @Nullable DataType dataType) {
+        return fromAnnotation(argumentHint.type(), dataType);
     }
 
     /**

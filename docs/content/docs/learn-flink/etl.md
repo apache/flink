@@ -262,7 +262,6 @@ Your applications are certainly capable of using state without getting Flink inv
 * **durable**: Flink state is fault-tolerant, i.e., it is automatically checkpointed at regular intervals, and is restored upon failure
 * **vertically scalable**: Flink state can be kept in embedded RocksDB instances that scale by adding more local disk
 * **horizontally scalable**: Flink state is redistributed as your cluster grows and shrinks
-* **queryable**: Flink state can be queried externally via the [Queryable State API]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}).
 
 In this section you will learn how to work with Flink's APIs that manage keyed state.
 
@@ -275,7 +274,7 @@ Abstract Method pattern.
 For each of these interfaces, Flink also provides a so-called "rich" variant, e.g.,
 `RichFlatMapFunction`, which has some additional methods, including:
 
-- `open(Configuration c)`
+- `open(OpenContext context)`
 - `close()`
 - `getRuntimeContext()`
 
@@ -330,7 +329,7 @@ public static class Deduplicator extends RichFlatMapFunction<Event, Event> {
     ValueState<Boolean> keyHasBeenSeen;
 
     @Override
-    public void open(Configuration conf) {
+    public void open(OpenContext ctx) {
         ValueStateDescriptor<Boolean> desc = new ValueStateDescriptor<>("keyHasBeenSeen", Types.BOOLEAN);
         keyHasBeenSeen = getRuntimeContext().getState(desc);
     }
@@ -420,11 +419,11 @@ public static void main(String[] args) throws Exception {
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
     DataStream<String> control = env
-        .fromElements("DROP", "IGNORE")
+        .fromData("DROP", "IGNORE")
         .keyBy(x -> x);
 
     DataStream<String> streamOfWords = env
-        .fromElements("Apache", "DROP", "Flink", "IGNORE")
+        .fromData("Apache", "DROP", "Flink", "IGNORE")
         .keyBy(x -> x);
   
     control
@@ -448,7 +447,7 @@ public static class ControlFunction extends RichCoFlatMapFunction<String, String
     private ValueState<Boolean> blocked;
       
     @Override
-    public void open(Configuration config) {
+    public void open(OpenContext ctx) {
         blocked = getRuntimeContext()
             .getState(new ValueStateDescriptor<>("blocked", Boolean.class));
     }
@@ -475,7 +474,7 @@ mentioned on the `control` stream, and those words are being filtered out of the
 `flatMap1` and `flatMap2` are called by the Flink runtime with elements from each of the two
 connected streams -- in our case, elements from the `control` stream are passed into `flatMap1`, and elements from `streamOfWords` are passed into `flatMap2`. This was determined by the order in which the two streams are connected with `control.connect(streamOfWords)`. 
 
-It is important to recognize that you have no control over the order in which the `flatMap1` and `flatMap2` callbacks are called. These two input streams are racing against each other, and the Flink runtime will do what it wants to regarding consuming events from one stream or the other. In cases where timing and/or ordering matter, you may find it necessary to buffer events in managed Flink state until your application is ready to process them. (Note: if you are truly desperate, it is possible to exert some limited control over the order in which a two-input operator consumes its inputs by using a custom Operator that implements the `InputSelectable` interface.
+It is important to recognize that you have no control over the order in which the `flatMap1` and `flatMap2` callbacks are called. These two input streams are racing against each other, and the Flink runtime will do what it wants to regarding consuming events from one stream or the other. In cases where timing and/or ordering matter, you may find it necessary to buffer events in managed Flink state until your application is ready to process them. (Note: if you are truly desperate, it is possible to exert some limited control over the order in which a two-input operator consumes its inputs by using a custom Operator that implements the {{< javadoc name="InputSelectable" file="org/apache/flink/streaming/api/operators/InputSelectable.html" >}}
 
 {{< top >}}
 

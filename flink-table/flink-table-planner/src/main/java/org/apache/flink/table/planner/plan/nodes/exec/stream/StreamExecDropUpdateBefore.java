@@ -95,6 +95,7 @@ public class StreamExecDropUpdateBefore extends ExecNodeBase<RowData>
                 createTransformationMeta(DROP_UPDATE_BEFORE_TRANSFORMATION, config),
                 operator,
                 inputTransform.getOutputType(),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

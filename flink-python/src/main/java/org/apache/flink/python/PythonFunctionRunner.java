@@ -24,7 +24,7 @@ import org.apache.flink.configuration.ReadableConfig;
 
 /** The base interface of runner which is responsible for the execution of Python functions. */
 @Internal
-public interface PythonFunctionRunner {
+public interface PythonFunctionRunner extends AutoCloseable {
 
     /**
      * Prepares the Python function runner, such as preparing the Python execution environment, etc.
@@ -43,6 +43,8 @@ public interface PythonFunctionRunner {
 
     /** Send the triggered timer to the Python function. */
     void processTimer(byte[] timerData) throws Exception;
+
+    void drainUnregisteredTimers();
 
     /**
      * Retrieves the Python function result.

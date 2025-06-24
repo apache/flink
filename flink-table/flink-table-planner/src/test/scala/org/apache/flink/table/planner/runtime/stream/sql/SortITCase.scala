@@ -17,26 +17,24 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSort
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.utils.InternalConfigOptions
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit._
-import org.junit.Assert._
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
 import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Test
+  @TestTemplate
   def testDisableSortNonTemporalField(): Unit = {
     val sqlQuery = "SELECT * FROM a ORDER BY a2"
     val data = new mutable.MutableList[(String, String)]
@@ -45,15 +43,15 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=(("1", "2"))
     data.+=(("5", "1"))
 
-    val da = env.fromCollection(data).toTable(tEnv, 'a1, 'a2)
-    tEnv.registerTable("a", da)
+    val da = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a1, 'a2)
+    tEnv.createTemporaryView("a", da)
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Sort on a non-time-attribute field is not supported.")
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    assertThatThrownBy(() => tEnv.sqlQuery(sqlQuery).toRetractStream[Row])
+      .hasMessage("Sort on a non-time-attribute field is not supported.")
+      .isInstanceOf[TableException]
   }
 
-  @Test
+  @TestTemplate
   def testSort(): Unit = {
     val sqlQuery = "SELECT * FROM a ORDER BY a2"
     val data = new mutable.MutableList[(String, String)]
@@ -63,7 +61,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=(("5", "1"))
 
     val da = failingDataSource(data).toTable(tEnv, 'a1, 'a2)
-    tEnv.registerTable("a", da)
+    tEnv.createTemporaryView("a", da)
 
     val sink = new TestingRetractSink
     tEnv.getConfig
@@ -74,10 +72,10 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val expected = Seq("5,1", "1,2", "3,3", "0,4")
 
-    assertEquals(expected, sink.getRetractResults)
+    assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testSortOrderByDesc(): Unit = {
     val sqlQuery = "SELECT * FROM a ORDER BY a1 DESC"
 
@@ -88,7 +86,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=(("5", "1"))
 
     val da = failingDataSource(data).toTable(tEnv, 'a1, 'a2)
-    tEnv.registerTable("a", da)
+    tEnv.createTemporaryView("a", da)
 
     val sink = new TestingRetractSink
     tEnv.getConfig.set(
@@ -100,10 +98,10 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val expected = Seq("5,1", "3,3", "1,2", "0,4")
 
-    assertEquals(expected, sink.getRetractResults)
+    assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testSortOrderByMultipleFields(): Unit = {
     val sqlQuery = "SELECT * FROM a ORDER BY a1, a2"
 
@@ -114,7 +112,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=(("1", "2"))
 
     val da = failingDataSource(data).toTable(tEnv, 'a1, 'a2)
-    tEnv.registerTable("a", da)
+    tEnv.createTemporaryView("a", da)
 
     val sink = new TestingRetractSink
     tEnv.getConfig
@@ -125,10 +123,10 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val expected = Seq("0,4", "1,2", "1,7", "5,1")
 
-    assertEquals(expected, sink.getRetractResults)
+    assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testSortOrderByRepeatedFields(): Unit = {
     val sqlQuery = "SELECT * FROM a ORDER BY a1, a1"
 
@@ -139,7 +137,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=(("2", "2"))
 
     val da = failingDataSource(data).toTable(tEnv, 'a1, 'a2)
-    tEnv.registerTable("a", da)
+    tEnv.createTemporaryView("a", da)
 
     val sink = new TestingRetractSink
     tEnv.getConfig
@@ -150,10 +148,10 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val expected = Seq("0,4", "1,7", "2,2", "5,1")
 
-    assertEquals(expected, sink.getRetractResults)
+    assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testSortOrderByWithRetract(): Unit = {
     val sqlQuery = "SELECT a1, count(*) as c FROM a GROUP BY a1 ORDER BY c"
 
@@ -170,7 +168,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=(("6", "2"))
 
     val da = failingDataSource(data).toTable(tEnv, 'a1, 'a2)
-    tEnv.registerTable("a", da)
+    tEnv.createTemporaryView("a", da)
 
     val sink = new TestingRetractSink
     tEnv.getConfig
@@ -181,10 +179,10 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val expected = Seq("2,1", "6,2", "1,3", "3,4")
 
-    assertEquals(expected, sink.getRetractResults)
+    assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testSortWithWhere(): Unit = {
     val sqlQuery =
       s"""
@@ -199,7 +197,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=((4, 5))
 
     val da = failingDataSource(data).toTable(tEnv, 'a1)
-    tEnv.registerTable("a", da)
+    tEnv.createTemporaryView("a", da)
 
     val sink = new TestingRetractSink
     tEnv.getConfig
@@ -210,6 +208,6 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val expected = Seq("7", "6", "5", "4")
 
-    assertEquals(expected, sink.getRetractResults)
+    assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 }

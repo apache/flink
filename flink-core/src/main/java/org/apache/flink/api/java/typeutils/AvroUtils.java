@@ -18,13 +18,14 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 
 import java.util.LinkedHashMap;
+import java.util.Optional;
 
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.hasSuperclass;
 
@@ -37,6 +38,9 @@ public abstract class AvroUtils {
 
     private static final String AVRO_KRYO_UTILS =
             "org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils";
+
+    protected static final String AVRO_SPECIFIC_RECORD_BASE_CLASS =
+            "org.apache.avro.specific.SpecificRecordBase";
 
     /**
      * Returns either the default {@link AvroUtils} which throw an exception in cases where Avro
@@ -57,13 +61,36 @@ public abstract class AvroUtils {
         }
     }
 
+    /**
+     * Returns either {@code Optional#EMPTY} which throw an exception in cases where Avro would be
+     * needed or loads the specific utils for Avro from flink-avro.
+     */
+    public static Optional<AvroUtils> tryGetAvroUtils() {
+        // try and load the special AvroUtils from the flink-avro package
+        try {
+            Class<?> clazz =
+                    Class.forName(
+                            AVRO_KRYO_UTILS, false, Thread.currentThread().getContextClassLoader());
+            return Optional.of(clazz.asSubclass(AvroUtils.class).getConstructor().newInstance());
+        } catch (ClassNotFoundException e) {
+            // cannot find the utils, return none.
+            return Optional.empty();
+        } catch (Exception e) {
+            throw new RuntimeException("Could not instantiate " + AVRO_KRYO_UTILS + ".", e);
+        }
+    }
+
+    public static boolean isAvroSpecificRecord(Class<?> clazz) {
+        return hasSuperclass(clazz, AVRO_SPECIFIC_RECORD_BASE_CLASS);
+    }
+
     // ------------------------------------------------------------------------
 
     /**
      * Loads the utility class from <code>flink-avro</code> and adds Avro-specific serializers. This
      * method will throw an exception if we see an Avro type but flink-avro is not in the classpath.
      */
-    public abstract void addAvroSerializersIfRequired(ExecutionConfig reg, Class<?> type);
+    public abstract void addAvroSerializersIfRequired(SerializerConfig reg, Class<?> type);
 
     /** Registers a special Serializer for GenericData.Array. */
     public abstract void addAvroGenericDataArrayRegistration(
@@ -82,9 +109,6 @@ public abstract class AvroUtils {
     /** A default implementation of the AvroUtils used in the absence of Avro. */
     private static class DefaultAvroUtils extends AvroUtils {
 
-        private static final String AVRO_SPECIFIC_RECORD_BASE =
-                "org.apache.avro.specific.SpecificRecordBase";
-
         private static final String AVRO_GENERIC_RECORD =
                 "org.apache.avro.generic.GenericData$Record";
 
@@ -92,8 +116,8 @@ public abstract class AvroUtils {
                 "org.apache.avro.generic.GenericData$Array";
 
         @Override
-        public void addAvroSerializersIfRequired(ExecutionConfig reg, Class<?> type) {
-            if (hasSuperclass(type, AVRO_SPECIFIC_RECORD_BASE)
+        public void addAvroSerializersIfRequired(SerializerConfig reg, Class<?> type) {
+            if (hasSuperclass(type, AVRO_SPECIFIC_RECORD_BASE_CLASS)
                     || hasSuperclass(type, AVRO_GENERIC_RECORD)) {
 
                 throw new RuntimeException(

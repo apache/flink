@@ -24,8 +24,6 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
-import static org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot.ADAPTER_VERSION;
-
 /**
  * A {@code TypeSerializerSnapshot} is a point-in-time view of a {@link TypeSerializer}'s
  * configuration. The configuration snapshot of a serializer is persisted within checkpoints as a
@@ -38,8 +36,9 @@ import static org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot
  *       This is explained in more detail below.
  *   <li><strong>Compatibility checks for new serializers:</strong> when new serializers are
  *       available, they need to be checked whether or not they are compatible to read the data
- *       written by the previous serializer. This is performed by providing the new serializer to
- *       the corresponding serializer configuration snapshots in checkpoints.
+ *       written by the previous serializer. This is performed by providing the new serializer
+ *       snapshots to resolve the compatibility with the corresponding previous serializer snapshots
+ *       in checkpoints.
  *   <li><strong>Factory for a read serializer when schema conversion is required:</strong> in the
  *       case that new serializers are not compatible to read previous data, a schema conversion
  *       process executed across all data is required before the new serializer can be continued to
@@ -114,7 +113,7 @@ public interface TypeSerializerSnapshot<T> {
     TypeSerializer<T> restoreSerializer();
 
     /**
-     * Checks a new serializer's compatibility to read data written by the prior serializer.
+     * Checks current serializer's compatibility to read data written by the prior serializer.
      *
      * <p>When a checkpoint/savepoint is restored, this method checks whether the serialization
      * format of the data in the checkpoint/savepoint is compatible for the format of the serializer
@@ -126,11 +125,14 @@ public interface TypeSerializerSnapshot<T> {
      * program's serializer re-serializes the data, thus converting the format during the restore
      * operation.
      *
-     * @param newSerializer the new serializer to check.
+     * <p>This method must be implemented to clarify the compatibility. See FLIP-263 for more
+     * details.
+     *
+     * @param oldSerializerSnapshot the old serializer snapshot to check.
      * @return the serializer compatibility result.
      */
     TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-            TypeSerializer<T> newSerializer);
+            TypeSerializerSnapshot<T> oldSerializerSnapshot);
 
     // ------------------------------------------------------------------------
     //  read / write utilities
@@ -162,18 +164,7 @@ public interface TypeSerializerSnapshot<T> {
                 TypeSerializerSnapshotSerializationUtil.readAndInstantiateSnapshotClass(in, cl);
 
         int version = in.readInt();
-
-        if (version == ADAPTER_VERSION && !(snapshot instanceof TypeSerializerConfigSnapshot)) {
-            // the snapshot was upgraded directly in-place from a TypeSerializerConfigSnapshot;
-            // read and drop the previously Java-serialized serializer, and get the actual correct
-            // read version.
-            // NOTE: this implicitly assumes that the version was properly written before the actual
-            // snapshot content.
-            TypeSerializerSerializationUtil.tryReadSerializer(in, cl, true);
-            version = in.readInt();
-        }
         snapshot.readSnapshot(version, in, cl);
-
         return snapshot;
     }
 }

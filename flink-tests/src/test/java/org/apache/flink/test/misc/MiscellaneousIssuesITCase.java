@@ -21,14 +21,16 @@ package org.apache.flink.test.misc;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -63,11 +65,11 @@ public class MiscellaneousIssuesITCase extends TestLogger {
     @Test
     public void testNullValues() {
         try {
-            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(1);
 
-            DataSet<String> data =
-                    env.fromElements("hallo")
+            DataStream<String> data =
+                    env.fromData("hallo")
                             .map(
                                     new MapFunction<String, String>() {
                                         @Override
@@ -75,7 +77,10 @@ public class MiscellaneousIssuesITCase extends TestLogger {
                                             return null;
                                         }
                                     });
-            data.writeAsText("/tmp/myTest", FileSystem.WriteMode.OVERWRITE);
+            data.sinkTo(
+                    FileSink.forRowFormat(
+                                    new Path("/tmp/myTest"), new SimpleStringEncoder<String>())
+                            .build());
 
             try {
                 env.execute();
@@ -92,12 +97,12 @@ public class MiscellaneousIssuesITCase extends TestLogger {
     @Test
     public void testDisjointDataflows() {
         try {
-            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(5);
 
             // generate two different flows
-            env.generateSequence(1, 10).output(new DiscardingOutputFormat<Long>());
-            env.generateSequence(1, 10).output(new DiscardingOutputFormat<Long>());
+            env.fromSequence(1, 10).sinkTo(new DiscardingSink<>());
+            env.fromSequence(1, 10).sinkTo(new DiscardingSink<>());
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -111,10 +116,10 @@ public class MiscellaneousIssuesITCase extends TestLogger {
         final String accName = "test_accumulator";
 
         try {
-            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(6);
 
-            env.generateSequence(1, 1000000)
+            env.fromSequence(1, 1000000)
                     .rebalance()
                     .flatMap(
                             new RichFlatMapFunction<Long, Long>() {
@@ -122,7 +127,7 @@ public class MiscellaneousIssuesITCase extends TestLogger {
                                 private LongCounter counter;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     counter = getRuntimeContext().getLongCounter(accName);
                                 }
 
@@ -131,7 +136,7 @@ public class MiscellaneousIssuesITCase extends TestLogger {
                                     counter.add(1L);
                                 }
                             })
-                    .output(new DiscardingOutputFormat<Long>());
+                    .sinkTo(new DiscardingSink<>());
 
             JobExecutionResult result = env.execute();
 

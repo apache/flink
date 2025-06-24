@@ -17,21 +17,21 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.table.api.ExplainDetail
-import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
-import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
+import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
+
+import java.time.Duration
 
 /** Tests for [[FlinkChangelogModeInferenceProgram]]. */
 class ChangelogModeInferenceTest extends TableTestBase {
 
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.addTable("""
                     |CREATE TABLE MyTable (
@@ -87,41 +87,6 @@ class ChangelogModeInferenceTest extends TableTestBase {
                     |  'changelog-mode' = 'I,UA,UB,D'
                     |)
       """.stripMargin)
-
-    util.addTable("""
-                    |CREATE TABLE upsert_managed_table (
-                    | id INT,
-                    | col1 INT,
-                    | col2 STRING,
-                    | PRIMARY KEY(id) NOT ENFORCED
-                    |) WITH (
-                    |  'changelog-mode' = 'I,UA,D'
-                    |)
-      """.stripMargin)
-
-    util.addTable("""
-                    |CREATE TABLE upsert_sink_table (
-                    | id INT,
-                    | col1 INT,
-                    | col2 STRING,
-                    | PRIMARY KEY(id) NOT ENFORCED
-                    |) WITH (
-                    |  'connector' = 'values',
-                    |  'sink-changelog-mode-enforced' = 'I,UA,D'
-                    |)
-      """.stripMargin)
-
-    util.addTable("""
-                    |CREATE TABLE all_change_sink_table (
-                    | id INT,
-                    | col1 INT,
-                    | col2 STRING,
-                    | PRIMARY KEY(id) NOT ENFORCED
-                    |) WITH (
-                    |  'connector' = 'values',
-                    |  'sink-changelog-mode-enforced' = 'I,UA,UB,D'
-                    |)
-      """.stripMargin)
   }
 
   @Test
@@ -152,10 +117,10 @@ class ChangelogModeInferenceTest extends TableTestBase {
   @Test
   def testTwoLevelGroupByLocalGlobalOn(): Unit = {
     util.enableMiniBatch()
-    util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    util.tableEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
     util.tableEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-      AggregatePhaseStrategy.TWO_PHASE.toString)
+      AggregatePhaseStrategy.TWO_PHASE)
     // two level unbounded groupBy
     val sql =
       """
@@ -189,6 +154,39 @@ class ChangelogModeInferenceTest extends TableTestBase {
   }
 
   @Test
+  def testTemporalJoinWithNonEqualConditionOnKey(): Unit = {
+    val sql =
+      """
+        |SELECT * FROM Orders AS o
+        | JOIN ratesChangelogStream FOR SYSTEM_TIME AS OF o.rowtime AS r
+        | ON o.currency = r.currency and o.currency < 5
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testTemporalJoinWithEqualConditionOnKey(): Unit = {
+    val sql =
+      """
+        |SELECT * FROM Orders AS o
+        | JOIN ratesChangelogStream FOR SYSTEM_TIME AS OF o.rowtime AS r
+        | ON o.currency = r.currency and o.currency = 5
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testTemporalJoinWithNonEqualCondition(): Unit = {
+    val sql =
+      """
+        |SELECT * FROM Orders AS o
+        | JOIN ratesChangelogStream FOR SYSTEM_TIME AS OF o.rowtime AS r
+        | ON o.currency = r.currency and o.amount > 5 and r.rate > 100
+      """.stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
   def testGroupByWithUnion(): Unit = {
     util.addTable("""
                     |CREATE TABLE MyTable2 (
@@ -214,7 +212,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
   @Test
   def testPropagateUpdateKindAmongRelNodeBlocks(): Unit = {
     util.tableEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
       Boolean.box(true))
     util.addTable("""
                     |create table sink1 (
@@ -267,46 +265,4 @@ class ChangelogModeInferenceTest extends TableTestBase {
     util.verifyRelPlan(statementSet, ExplainDetail.CHANGELOG_MODE)
   }
 
-  @Test
-  def testEliminateChangelogNormalizedOnUpsertSink: Unit = {
-    upsertManagedTableWithChangelogNormalizeTestOnSink(isUpsert = true)
-  }
-
-  @Test
-  def testKeepChangelogNormalizedOnNonUpsertSink: Unit = {
-    upsertManagedTableWithChangelogNormalizeTestOnSink(isUpsert = false)
-  }
-
-  @Test
-  def testEliminateChangelogNormalizedOnUpsertJoin(): Unit = {
-    upsertManagedTableWithChangelogNormalizeTestOnJoin(isUpsert = true)
-  }
-
-  @Test
-  def testKeepChangelogNormalizedOnNonUpsertJoin(): Unit = {
-    upsertManagedTableWithChangelogNormalizeTestOnJoin(isUpsert = false)
-  }
-
-  private def upsertManagedTableWithChangelogNormalizeTestOnSink(isUpsert: Boolean): Unit = {
-    val sinkTableName = if (isUpsert) {
-      "upsert_sink_table"
-    } else {
-      "all_change_sink_table"
-    }
-    val sql = s"INSERT INTO $sinkTableName SELECT * FROM upsert_managed_table"
-    util.verifyRelPlanInsert(sql, ExplainDetail.CHANGELOG_MODE)
-  }
-
-  private def upsertManagedTableWithChangelogNormalizeTestOnJoin(isUpsert: Boolean): Unit = {
-    val sinkTableName = if (isUpsert) {
-      "upsert_sink_table"
-    } else {
-      "all_change_sink_table"
-    }
-    val sql = s"""
-                 |INSERT INTO $sinkTableName SELECT a.* FROM upsert_managed_table a
-                 |join upsert_managed_table b on a.id = b.id
-                 |""".stripMargin
-    util.verifyRelPlanInsert(sql, ExplainDetail.CHANGELOG_MODE)
-  }
 }

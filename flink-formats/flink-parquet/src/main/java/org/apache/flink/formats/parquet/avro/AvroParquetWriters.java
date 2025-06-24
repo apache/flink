@@ -63,7 +63,15 @@ public class AvroParquetWriters {
     public static ParquetWriterFactory<GenericRecord> forGenericRecord(Schema schema) {
         final String schemaString = schema.toString();
         final ParquetBuilder<GenericRecord> builder =
-                (out) -> createAvroParquetWriter(schemaString, GenericData.get(), out);
+                // Must override the lambda representation because of a bug in shading lambda
+                // serialization, see similar issue FLINK-28043 for more details.
+                new ParquetBuilder<GenericRecord>() {
+                    @Override
+                    public ParquetWriter<GenericRecord> createWriter(OutputFile out)
+                            throws IOException {
+                        return createAvroParquetWriter(schemaString, GenericData.get(), out);
+                    }
+                };
         return new ParquetWriterFactory<>(builder);
     }
 

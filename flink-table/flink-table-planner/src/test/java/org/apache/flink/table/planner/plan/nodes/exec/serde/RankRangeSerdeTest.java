@@ -22,20 +22,21 @@ import org.apache.flink.table.runtime.operators.rank.ConstantRankRange;
 import org.apache.flink.table.runtime.operators.rank.ConstantRankRangeWithoutEnd;
 import org.apache.flink.table.runtime.operators.rank.RankRange;
 import org.apache.flink.table.runtime.operators.rank.VariableRankRange;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test RankRange json ser/de. */
-public class RankRangeSerdeTest {
+class RankRangeSerdeTest {
 
     @Test
-    public void testRankRange() throws JsonProcessingException {
-        ObjectMapper mapper = new ObjectMapper();
+    void testRankRange() throws JsonProcessingException {
+        ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
         RankRange[] ranges =
                 new RankRange[] {
                     new ConstantRankRange(1, 2),

@@ -51,7 +51,7 @@ public abstract class AbstractBinaryExternalMerger<Entry> implements Closeable {
 
     private final int maxFanIn;
     private final SpillChannelManager channelManager;
-    private final boolean compressionEnable;
+    private final boolean compressionEnabled;
     private final BlockCompressionFactory compressionCodecFactory;
     private final int compressionBlockSize;
 
@@ -63,14 +63,14 @@ public abstract class AbstractBinaryExternalMerger<Entry> implements Closeable {
             int pageSize,
             int maxFanIn,
             SpillChannelManager channelManager,
-            boolean compressionEnable,
+            boolean compressionEnabled,
             BlockCompressionFactory compressionCodecFactory,
             int compressionBlockSize) {
         this.ioManager = ioManager;
         this.pageSize = pageSize;
         this.maxFanIn = maxFanIn;
         this.channelManager = channelManager;
-        this.compressionEnable = compressionEnable;
+        this.compressionEnabled = compressionEnabled;
         this.compressionCodecFactory = compressionCodecFactory;
         this.compressionBlockSize = compressionBlockSize;
     }
@@ -102,7 +102,7 @@ public abstract class AbstractBinaryExternalMerger<Entry> implements Closeable {
                             ioManager,
                             channel,
                             openChannels,
-                            compressionEnable,
+                            compressionEnabled,
                             compressionCodecFactory,
                             compressionBlockSize,
                             pageSize);
@@ -185,7 +185,7 @@ public abstract class AbstractBinaryExternalMerger<Entry> implements Closeable {
                     FileChannelUtil.createOutputView(
                             ioManager,
                             mergedChannelID,
-                            compressionEnable,
+                            compressionEnabled,
                             compressionCodecFactory,
                             compressionBlockSize,
                             pageSize);
@@ -214,14 +214,20 @@ public abstract class AbstractBinaryExternalMerger<Entry> implements Closeable {
 
     // -------------------------------------------------------------------------------------------
 
-    /** @return entry iterator reading from inView. */
+    /**
+     * @return entry iterator reading from inView.
+     */
     protected abstract MutableObjectIterator<Entry> channelReaderInputViewIterator(
             AbstractChannelReaderInputView inView);
 
-    /** @return merging comparator used in merging. */
+    /**
+     * @return merging comparator used in merging.
+     */
     protected abstract Comparator<Entry> mergeComparator();
 
-    /** @return reused entry object used in merging. */
+    /**
+     * @return reused entry object used in merging.
+     */
     protected abstract List<Entry> mergeReusedEntries(int size);
 
     /** read the merged stream and write the data back. */

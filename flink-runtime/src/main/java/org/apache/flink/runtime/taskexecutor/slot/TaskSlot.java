@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -31,7 +32,6 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -102,7 +102,7 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
         this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
         this.asyncExecutor = Preconditions.checkNotNull(asyncExecutor);
 
-        this.tasks = new HashMap<>(4);
+        this.tasks = CollectionUtil.newHashMapWithExpectedSize(4);
         this.state = TaskSlotState.ALLOCATED;
 
         this.jobId = jobId;

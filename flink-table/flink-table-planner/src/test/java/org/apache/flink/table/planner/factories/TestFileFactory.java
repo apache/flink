@@ -77,14 +77,13 @@ public class TestFileFactory implements DynamicTableSourceFactory, DynamicTableS
     public DynamicTableSource createDynamicTableSource(Context context) {
         Configuration conf = Configuration.fromMap(context.getCatalogTable().getOptions());
         return new TestFileTableSource(
-                new Path(conf.getString(FileSystemConnectorOptions.PATH)),
-                conf.getString(RUNTIME_SOURCE));
+                new Path(conf.get(FileSystemConnectorOptions.PATH)), conf.get(RUNTIME_SOURCE));
     }
 
     @Override
     public DynamicTableSink createDynamicTableSink(Context context) {
         Configuration conf = Configuration.fromMap(context.getCatalogTable().getOptions());
-        return new TestFileTableSink(new Path(conf.getString(FileSystemConnectorOptions.PATH)));
+        return new TestFileTableSink(new Path(conf.get(FileSystemConnectorOptions.PATH)));
     }
 
     @Override

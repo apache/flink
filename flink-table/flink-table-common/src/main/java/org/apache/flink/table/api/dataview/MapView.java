@@ -20,28 +20,33 @@ package org.apache.flink.table.api.dataview;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.typeinfo.TypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.dataview.MapViewTypeInfoFactory;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.types.DataType;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 
 /**
- * A {@link DataView} that provides {@link Map}-like functionality in the accumulator of an {@link
- * AggregateFunction} or {@link TableAggregateFunction} when large amounts of data are expected.
+ * A {@link DataView} that provides {@link Map}-like functionality in state entries.
  *
  * <p>A {@link MapView} can be backed by a Java {@link HashMap} or can leverage Flink's state
- * backends depending on the context in which the aggregate function is used. In many unbounded data
- * scenarios, the {@link MapView} delegates all calls to a {@link MapState} instead of the {@link
- * HashMap}.
+ * backends depending on the context. In many unbounded data scenarios, the {@link MapView}
+ * delegates all calls to a {@link MapState} instead of the {@link HashMap}.
+ *
+ * <p>For aggregating functions, the view can be used as a field in the accumulator of an {@link
+ * AggregateFunction} or {@link TableAggregateFunction} when large amounts of data are expected.
+ * Aggregate functions might be used at various locations (pre-aggregation, combiners, merging of
+ * window slides, etc.) for some of these locations the data view is not backed by state but {@link
+ * ArrayList}.
+ *
+ * <p>For process table functions, the view can be used as a top-level state entry. Data views in
+ * PTFs are always backed by state.
  *
  * <p>Note: Keys of a {@link MapView} must not be null. Nulls in values are supported. For
  * heap-based state backends, {@code hashCode/equals} of the original (i.e. external) class are
@@ -61,7 +66,7 @@ import java.util.Objects;
  *   public MapView<String, Integer> map = new MapView<>();
  *
  *   // or explicit:
- *   // {@literal @}DataTypeHint("MAP<STRING, INT>")
+ *   // @DataTypeHint("MAP < STRING, INT >")
  *   // public MapView<String, Integer> map = new MapView<>();
  *
  *   public long count;
@@ -69,7 +74,7 @@ import java.util.Objects;
  *
  * public class MyAggregateFunction extends AggregateFunction<Long, MyAccumulator> {
  *
- *  {@literal @}Override
+ *  @Override
  *  public MyAccumulator createAccumulator() {
  *    return new MyAccumulator();
  *  }
@@ -81,7 +86,7 @@ import java.util.Objects;
  *     }
  *   }
  *
- *  {@literal @}Override
+ *   @Override
  *   public Long getValue(MyAccumulator accumulator) {
  *     return accumulator.count;
  *   }
@@ -92,7 +97,6 @@ import java.util.Objects;
  * @param <K> key type
  * @param <V> value type
  */
-@TypeInfo(MapViewTypeInfoFactory.class)
 @PublicEvolving
 public class MapView<K, V> implements DataView {
 
@@ -120,8 +124,9 @@ public class MapView<K, V> implements DataView {
     /**
      * Return the value for the specified key or {@code null} if the key is not in the map view.
      *
-     * @param key The look up key.
-     * @return The value for the specified key.
+     * @param key The key whose associated value is to be returned
+     * @return The value to which the specified key is mapped, or {@code null} if this map contains
+     *     no mapping for the key
      * @throws Exception Thrown if the system cannot get data.
      */
     public V get(K key) throws Exception {
@@ -254,27 +259,5 @@ public class MapView<K, V> implements DataView {
                 MapView.class,
                 DataTypes.FIELD(
                         "map", DataTypes.MAP(keyDataType, valueDataType).bridgedTo(Map.class)));
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // Legacy
-    // --------------------------------------------------------------------------------------------
-
-    @Deprecated public transient TypeInformation<?> keyType;
-
-    @Deprecated public transient TypeInformation<?> valueType;
-
-    /**
-     * Creates a {@link MapView} with the specified key and value types.
-     *
-     * @param keyType The type of keys of the map view.
-     * @param valueType The type of values of the map view.
-     * @deprecated This method uses the old type system. Please use a {@link DataTypeHint} instead
-     *     if the reflective type extraction is not successful.
-     */
-    @Deprecated
-    public MapView(TypeInformation<?> keyType, TypeInformation<?> valueType) {
-        this.keyType = keyType;
-        this.valueType = valueType;
     }
 }

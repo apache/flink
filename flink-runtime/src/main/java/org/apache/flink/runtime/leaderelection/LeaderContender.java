@@ -48,13 +48,4 @@ public interface LeaderContender {
      * @param exception Caught exception
      */
     void handleError(Exception exception);
-
-    /**
-     * Returns the description of the {@link LeaderContender} for logging purposes.
-     *
-     * @return Description of this contender.
-     */
-    default String getDescription() {
-        return "LeaderContender: " + getClass().getSimpleName();
-    }
 }

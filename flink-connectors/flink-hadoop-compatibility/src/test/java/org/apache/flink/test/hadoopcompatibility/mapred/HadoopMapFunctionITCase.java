@@ -18,12 +18,14 @@
 
 package org.apache.flink.test.hadoopcompatibility.mapred;
 
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.hadoopcompatibility.mapred.HadoopMapFunction;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -31,57 +33,58 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Mapper;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reporter;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 
 /** IT cases for the {@link HadoopMapFunction}. */
-@RunWith(Parameterized.class)
-public class HadoopMapFunctionITCase extends MultipleProgramsTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class HadoopMapFunctionITCase extends MultipleProgramsTestBase {
 
-    public HadoopMapFunctionITCase(TestExecutionMode mode) {
-        super(mode);
-    }
+    @TestTemplate
+    void testNonPassingMapper(@TempDir Path tempFolder) throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
-
-    @Test
-    public void testNonPassingMapper() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-        DataSet<Tuple2<IntWritable, Text>> ds = HadoopTestData.getKVPairDataSet(env);
-        DataSet<Tuple2<IntWritable, Text>> nonPassingFlatMapDs =
+        DataStream<Tuple2<IntWritable, Text>> ds = HadoopTestData.getKVPairDataStream(env);
+        DataStream<Tuple2<IntWritable, Text>> nonPassingFlatMapDs =
                 ds.flatMap(
                         new HadoopMapFunction<IntWritable, Text, IntWritable, Text>(
                                 new NonPassingMapper()));
 
-        String resultPath = tempFolder.newFile().toURI().toString();
+        String resultPath = tempFolder.toUri().toString();
 
-        nonPassingFlatMapDs.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+        nonPassingFlatMapDs.sinkTo(
+                FileSink.forRowFormat(
+                                new org.apache.flink.core.fs.Path(resultPath),
+                                new SimpleStringEncoder<Tuple2<IntWritable, Text>>())
+                        .build());
         env.execute();
 
         compareResultsByLinesInMemory("\n", resultPath);
     }
 
-    @Test
-    public void testDataDuplicatingMapper() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @TestTemplate
+    void testDataDuplicatingMapper(@TempDir Path tempFolder) throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataSet<Tuple2<IntWritable, Text>> ds = HadoopTestData.getKVPairDataSet(env);
-        DataSet<Tuple2<IntWritable, Text>> duplicatingFlatMapDs =
+        DataStream<Tuple2<IntWritable, Text>> ds = HadoopTestData.getKVPairDataStream(env);
+        DataStream<Tuple2<IntWritable, Text>> duplicatingFlatMapDs =
                 ds.flatMap(
                         new HadoopMapFunction<IntWritable, Text, IntWritable, Text>(
                                 new DuplicatingMapper()));
 
-        String resultPath = tempFolder.newFile().toURI().toString();
+        String resultPath = tempFolder.toUri().toString();
 
-        duplicatingFlatMapDs.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+        duplicatingFlatMapDs.sinkTo(
+                FileSink.forRowFormat(
+                                new org.apache.flink.core.fs.Path(resultPath),
+                                new SimpleStringEncoder<Tuple2<IntWritable, Text>>())
+                        .build());
         env.execute();
 
         String expected =
@@ -131,22 +134,26 @@ public class HadoopMapFunctionITCase extends MultipleProgramsTestBase {
         compareResultsByLinesInMemory(expected, resultPath);
     }
 
-    @Test
-    public void testConfigurableMapper() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @TestTemplate
+    void testConfigurableMapper(@TempDir Path tempFolder) throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         JobConf conf = new JobConf();
         conf.set("my.filterPrefix", "Hello");
 
-        DataSet<Tuple2<IntWritable, Text>> ds = HadoopTestData.getKVPairDataSet(env);
-        DataSet<Tuple2<IntWritable, Text>> hellos =
+        DataStream<Tuple2<IntWritable, Text>> ds = HadoopTestData.getKVPairDataStream(env);
+        DataStream<Tuple2<IntWritable, Text>> hellos =
                 ds.flatMap(
                         new HadoopMapFunction<IntWritable, Text, IntWritable, Text>(
                                 new ConfigurableMapper(), conf));
 
-        String resultPath = tempFolder.newFile().toURI().toString();
+        String resultPath = tempFolder.toUri().toString();
 
-        hellos.writeAsText(resultPath, FileSystem.WriteMode.OVERWRITE);
+        hellos.sinkTo(
+                FileSink.forRowFormat(
+                                new org.apache.flink.core.fs.Path(resultPath),
+                                new SimpleStringEncoder<Tuple2<IntWritable, Text>>())
+                        .build());
         env.execute();
 
         String expected = "(2,Hello)\n" + "(3,Hello world)\n" + "(4,Hello world, how are you?)\n";

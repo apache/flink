@@ -19,16 +19,15 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.GenericTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.GenericTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
 import org.objenesis.strategy.StdInstantiatorStrategy;
@@ -128,15 +127,14 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
         if (this.kryo == null) {
             this.kryo = new Kryo();
 
-            Kryo.DefaultInstantiatorStrategy instantiatorStrategy =
-                    new Kryo.DefaultInstantiatorStrategy();
+            DefaultInstantiatorStrategy instantiatorStrategy = new DefaultInstantiatorStrategy();
             instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
             kryo.setInstantiatorStrategy(instantiatorStrategy);
 
-            this.kryo.setAsmEnabled(true);
             this.kryo.register(typeClass);
         }
     }
+
     // --------------------------------------------------------------------------------------------
 
     @Override
@@ -164,39 +162,8 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
         return new WritableSerializerSnapshot<>(typeClass);
     }
 
-    /**
-     * The config snapshot for this serializer.
-     *
-     * @deprecated This class is no longer used as a snapshot for any serializer. It is fully
-     *     replaced by {@link WritableSerializerSnapshot}.
-     */
-    @Deprecated
-    public static final class WritableSerializerConfigSnapshot<T extends Writable>
-            extends GenericTypeSerializerConfigSnapshot<T> {
-
-        private static final int VERSION = 1;
-
-        /** This empty nullary constructor is required for deserializing the configuration. */
-        public WritableSerializerConfigSnapshot() {}
-
-        public WritableSerializerConfigSnapshot(Class<T> writableTypeClass) {
-            super(writableTypeClass);
-        }
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-
-        @Override
-        public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-                TypeSerializer<T> newSerializer) {
-            return new WritableSerializerSnapshot<>(getTypeClass())
-                    .resolveSchemaCompatibility(newSerializer);
-        }
-    }
-
     /** {@link WritableSerializer} snapshot class. */
+    @Internal
     public static final class WritableSerializerSnapshot<T extends Writable>
             extends GenericTypeSerializerSnapshot<T, WritableSerializer> {
 

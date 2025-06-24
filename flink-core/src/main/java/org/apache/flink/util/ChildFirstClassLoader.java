@@ -127,4 +127,10 @@ public final class ChildFirstClassLoader extends FlinkUserCodeClassLoader {
     static {
         ClassLoader.registerAsParallelCapable();
     }
+
+    @Override
+    public MutableURLClassLoader copy() {
+        return new ChildFirstClassLoader(
+                getURLs(), getParent(), alwaysParentFirstPatterns, classLoadingExceptionHandler);
+    }
 }

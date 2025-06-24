@@ -18,6 +18,11 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
@@ -26,6 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Operation to describe a DROP FUNCTION statement for temporary system function. */
+@Internal
 public class DropTempSystemFunctionOperation implements DropOperation {
     private final String functionName;
     private final boolean ifExists;
@@ -54,5 +60,17 @@ public class DropTempSystemFunctionOperation implements DropOperation {
                 params,
                 Collections.emptyList(),
                 Operation::asSummaryString);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        try {
+            ctx.getFunctionCatalog().dropTemporarySystemFunction(getFunctionName(), isIfExists());
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (ValidationException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new TableException(String.format("Could not execute %s", asSummaryString()), e);
+        }
     }
 }

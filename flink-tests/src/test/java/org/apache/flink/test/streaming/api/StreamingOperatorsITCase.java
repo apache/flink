@@ -19,17 +19,17 @@
 package org.apache.flink.test.streaming.api;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MathUtils;
 
@@ -47,7 +47,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /** Integration tests for streaming operators. */
-public class StreamingOperatorsITCase extends AbstractTestBase {
+public class StreamingOperatorsITCase extends AbstractTestBaseJUnit4 {
 
     /**
      * Tests the basic functionality of the AsyncWaitOperator: Processing a limited stream of
@@ -70,8 +70,8 @@ public class StreamingOperatorsITCase extends AbstractTestBase {
                     transient ExecutorService executorService;
 
                     @Override
-                    public void open(Configuration parameters) throws Exception {
-                        super.open(parameters);
+                    public void open(OpenContext openContext) throws Exception {
+                        super.open(openContext);
                         executorService = Executors.newFixedThreadPool(numElements);
                     }
 
@@ -223,7 +223,7 @@ public class StreamingOperatorsITCase extends AbstractTestBase {
     public void testOperatorChainWithObjectReuseAndNoOutputOperators() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().enableObjectReuse();
-        DataStream<Integer> input = env.fromElements(1, 2, 3);
+        DataStream<Integer> input = env.fromData(1, 2, 3);
         input.flatMap(
                 new FlatMapFunction<Integer, Integer>() {
                     @Override

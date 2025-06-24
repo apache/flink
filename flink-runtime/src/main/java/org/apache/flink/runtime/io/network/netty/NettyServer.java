@@ -21,7 +21,7 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.FatalExitExceptionHandler;
 
-import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.flink.shaded.guava33.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
@@ -32,12 +32,15 @@ import org.apache.flink.shaded.netty4.io.netty.channel.epoll.EpollServerSocketCh
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.channel.unix.Errors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.BindException;
 import java.net.InetSocketAddress;
+import java.util.Iterator;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 
@@ -83,34 +86,20 @@ class NettyServer {
         bootstrap = new ServerBootstrap();
 
         // --------------------------------------------------------------------
-        // Transport-specific configuration
+        // Determine transport type automatically
         // --------------------------------------------------------------------
 
-        switch (config.getTransportType()) {
-            case NIO:
-                initNioBootstrap();
-                break;
-
-            case EPOLL:
-                initEpollBootstrap();
-                break;
-
-            case AUTO:
-                if (Epoll.isAvailable()) {
-                    initEpollBootstrap();
-                    LOG.info("Transport type 'auto': using EPOLL.");
-                } else {
-                    initNioBootstrap();
-                    LOG.info("Transport type 'auto': using NIO.");
-                }
+        if (Epoll.isAvailable()) {
+            initEpollBootstrap();
+            LOG.info("Transport type 'auto': using EPOLL.");
+        } else {
+            initNioBootstrap();
+            LOG.info("Transport type 'auto': using NIO.");
         }
 
         // --------------------------------------------------------------------
         // Configuration
         // --------------------------------------------------------------------
-
-        // Server bind address
-        bootstrap.localAddress(config.getServerAddress(), config.getServerPort());
 
         // Pooled allocators for Netty's ByteBuf instances
         bootstrap.option(ChannelOption.ALLOCATOR, nettyBufferPool);
@@ -145,7 +134,36 @@ class NettyServer {
         // Start Server
         // --------------------------------------------------------------------
 
-        bindFuture = bootstrap.bind().syncUninterruptibly();
+        LOG.debug(
+                "Trying to initialize Netty server on address: {} and port range {}",
+                config.getServerAddress(),
+                config.getServerPortRange());
+
+        Iterator<Integer> portsIterator = config.getServerPortRange().getPortsIterator();
+        while (portsIterator.hasNext() && bindFuture == null) {
+            Integer port = portsIterator.next();
+            LOG.debug("Trying to bind Netty server to port: {}", port);
+
+            bootstrap.localAddress(config.getServerAddress(), port);
+            try {
+                bindFuture = bootstrap.bind().syncUninterruptibly();
+            } catch (Exception e) {
+                // syncUninterruptibly() throws checked exceptions via Unsafe
+                // continue if the exception is due to the port being in use, fail early
+                // otherwise
+                if (isBindFailure(e)) {
+                    LOG.debug("Failed to bind Netty server", e);
+                } else {
+                    throw e;
+                }
+            }
+        }
+
+        if (bindFuture == null) {
+            throw new BindException(
+                    "Could not start rest endpoint on any port in port range "
+                            + config.getServerPortRange());
+        }
 
         localAddress = (InetSocketAddress) bindFuture.channel().localAddress();
 
@@ -166,6 +184,10 @@ class NettyServer {
         return bootstrap;
     }
 
+    Integer getListeningPort() {
+        return localAddress == null ? null : localAddress.getPort();
+    }
+
     void shutdown() {
         final long start = System.nanoTime();
         if (bindFuture != null) {
@@ -174,8 +196,8 @@ class NettyServer {
         }
 
         if (bootstrap != null) {
-            if (bootstrap.group() != null) {
-                bootstrap.group().shutdownGracefully();
+            if (bootstrap.config().group() != null) {
+                bootstrap.config().group().shutdownGracefully();
             }
             bootstrap = null;
         }
@@ -186,7 +208,8 @@ class NettyServer {
     private void initNioBootstrap() {
         // Add the server port number to the name in order to distinguish
         // multiple servers running on the same host.
-        String name = NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
+        String name =
+                NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPortRange() + ")";
 
         NioEventLoopGroup nioGroup =
                 new NioEventLoopGroup(config.getServerNumThreads(), getNamedThreadFactory(name));
@@ -196,7 +219,8 @@ class NettyServer {
     private void initEpollBootstrap() {
         // Add the server port number to the name in order to distinguish
         // multiple servers running on the same host.
-        String name = NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
+        String name =
+                NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPortRange() + ")";
 
         EpollEventLoopGroup epollGroup =
                 new EpollEventLoopGroup(config.getServerNumThreads(), getNamedThreadFactory(name));
@@ -205,6 +229,15 @@ class NettyServer {
 
     public static ThreadFactory getNamedThreadFactory(String name) {
         return THREAD_FACTORY_BUILDER.setNameFormat(name + " Thread %d").build();
+    }
+
+    @VisibleForTesting
+    static boolean isBindFailure(Throwable t) {
+        return t instanceof java.net.BindException
+                || (t instanceof Errors.NativeIoException
+                        && t.getMessage() != null
+                        && t.getMessage().matches("^bind\\(.*\\) failed:.*"))
+                || (t.getCause() != null && isBindFailure(t.getCause()));
     }
 
     @VisibleForTesting

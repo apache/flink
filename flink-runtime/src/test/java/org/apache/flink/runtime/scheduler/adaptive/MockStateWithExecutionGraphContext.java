@@ -22,12 +22,11 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+import org.apache.flink.util.Preconditions;
 
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Context, AutoCloseable {
 
@@ -73,8 +72,7 @@ class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Cont
     public void close() throws Exception {
         // trigger executor to make sure there are no outstanding state transitions
         triggerExecutors();
-        executor.shutdown();
-        executor.awaitTermination(10, TimeUnit.MINUTES);
+        Preconditions.checkState(executor.shutdownNow().isEmpty());
         finishedStateValidator.close();
     }
 
@@ -83,6 +81,6 @@ class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Cont
     }
 
     protected final void assertNoStateTransition() {
-        assertThat(hadStateTransition, is(false));
+        assertThat(hadStateTransition).isFalse();
     }
 }

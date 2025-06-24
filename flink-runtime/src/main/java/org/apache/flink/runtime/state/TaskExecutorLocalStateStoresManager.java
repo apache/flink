@@ -20,6 +20,8 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.FileUtils;
@@ -44,6 +46,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * This class holds the all {@link TaskLocalStateStoreImpl} objects for a task executor (manager).
@@ -64,8 +67,11 @@ public class TaskExecutorLocalStateStoresManager {
     private final Map<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>>
             taskStateStoresByAllocationID;
 
-    /** The configured mode for local recovery on this task manager. */
+    /** Whether to recover from the local snapshot. */
     private final boolean localRecoveryEnabled;
+
+    /** Whether to do backup checkpoint on local disk. */
+    private final boolean localBackupEnabled;
 
     /** This is the root directory for all local state of this task manager / executor. */
     private final Reference<File[]> localStateRootDirectories;
@@ -83,6 +89,7 @@ public class TaskExecutorLocalStateStoresManager {
 
     public TaskExecutorLocalStateStoresManager(
             boolean localRecoveryEnabled,
+            boolean localBackupEnabled,
             @Nonnull Reference<File[]> localStateRootDirectories,
             @Nonnull Executor discardExecutor)
             throws IOException {
@@ -94,6 +101,7 @@ public class TaskExecutorLocalStateStoresManager {
 
         this.taskStateStoresByAllocationID = new HashMap<>();
         this.localRecoveryEnabled = localRecoveryEnabled;
+        this.localBackupEnabled = localBackupEnabled;
         this.localStateRootDirectories = localStateRootDirectories;
         this.discardExecutor = discardExecutor;
         this.lock = new Object();
@@ -122,7 +130,9 @@ public class TaskExecutorLocalStateStoresManager {
             @Nonnull JobID jobId,
             @Nonnull AllocationID allocationID,
             @Nonnull JobVertexID jobVertexID,
-            @Nonnegative int subtaskIndex) {
+            @Nonnegative int subtaskIndex,
+            Configuration clusterConfiguration,
+            Configuration jobConfiguration) {
 
         synchronized (lock) {
             if (closed) {
@@ -152,34 +162,47 @@ public class TaskExecutorLocalStateStoresManager {
 
             if (taskLocalStateStore == null) {
 
-                LocalRecoveryDirectoryProviderImpl directoryProvider = null;
-                if (localRecoveryEnabled) {
+                LocalSnapshotDirectoryProviderImpl directoryProvider = null;
+                if (localRecoveryEnabled || localBackupEnabled) {
                     // create the allocation base dirs, one inside each root dir.
                     File[] allocationBaseDirectories = allocationBaseDirectories(allocationID);
                     directoryProvider =
-                            new LocalRecoveryDirectoryProviderImpl(
+                            new LocalSnapshotDirectoryProviderImpl(
                                     allocationBaseDirectories, jobId, jobVertexID, subtaskIndex);
                 }
-
                 LocalRecoveryConfig localRecoveryConfig =
-                        new LocalRecoveryConfig(directoryProvider);
+                        new LocalRecoveryConfig(
+                                localRecoveryEnabled, localBackupEnabled, directoryProvider);
 
-                taskLocalStateStore =
-                        localRecoveryConfig.isLocalRecoveryEnabled()
-                                ?
+                boolean changelogEnabled =
+                        jobConfiguration
+                                .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                                .orElse(
+                                        clusterConfiguration.get(
+                                                StateChangelogOptions.ENABLE_STATE_CHANGE_LOG));
 
-                                // Real store implementation if local recovery is enabled
-                                new TaskLocalStateStoreImpl(
-                                        jobId,
-                                        allocationID,
-                                        jobVertexID,
-                                        subtaskIndex,
-                                        localRecoveryConfig,
-                                        discardExecutor)
-                                :
-
-                                // NOP implementation if local recovery is disabled
-                                new NoOpTaskLocalStateStoreImpl(localRecoveryConfig);
+                if (localRecoveryConfig.isLocalRecoveryOrLocalBackupEnabled() && changelogEnabled) {
+                    taskLocalStateStore =
+                            new ChangelogTaskLocalStateStore(
+                                    jobId,
+                                    allocationID,
+                                    jobVertexID,
+                                    subtaskIndex,
+                                    localRecoveryConfig,
+                                    discardExecutor);
+                } else if (localRecoveryConfig.isLocalRecoveryOrLocalBackupEnabled()) {
+                    taskLocalStateStore =
+                            new TaskLocalStateStoreImpl(
+                                    jobId,
+                                    allocationID,
+                                    jobVertexID,
+                                    subtaskIndex,
+                                    localRecoveryConfig,
+                                    discardExecutor);
+                } else {
+                    // NOP implementation if local recovery is disabled
+                    taskLocalStateStore = new NoOpTaskLocalStateStoreImpl(localRecoveryConfig);
+                }
 
                 taskStateManagers.put(taskKey, taskLocalStateStore);
 
@@ -276,9 +299,11 @@ public class TaskExecutorLocalStateStoresManager {
     @Nonnull
     static Collection<Path> listAllocationDirectoriesIn(File localStateRootDirectory)
             throws IOException {
-        return Files.list(localStateRootDirectory.toPath())
-                .filter(path -> path.getFileName().toString().startsWith(ALLOCATION_DIR_PREFIX))
-                .collect(Collectors.toList());
+        try (Stream<Path> fileListStream = Files.list(localStateRootDirectory.toPath())) {
+            return fileListStream
+                    .filter(path -> path.getFileName().toString().startsWith(ALLOCATION_DIR_PREFIX))
+                    .collect(Collectors.toList());
+        }
     }
 
     public void shutdown() {

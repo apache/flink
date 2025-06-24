@@ -17,26 +17,15 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.util.ResourceCounter;
 
 import java.util.Collection;
-import java.util.Map;
 import java.util.Optional;
 
 /** Provide the information of TaskManager's resource and slot status. */
 interface TaskManagerResourceInfoProvider {
-    /**
-     * Get the pending allocations of the given pending task manager.
-     *
-     * @param pendingTaskManagerId of the pending task manager
-     * @return pending allocations, mapped by jobId
-     */
-    Map<JobID, ResourceCounter> getPendingAllocationsOfPendingTaskManager(
-            PendingTaskManagerId pendingTaskManagerId);
 
     /**
      * Get the {@link TaskManagerInfo}s of all registered task managers.

@@ -65,8 +65,7 @@ public class BinaryKVInMemorySortBuffer extends BinaryIndexedSortable {
             BinaryRowDataSerializer valueSerializer,
             RecordComparator comparator,
             ArrayList<MemorySegment> recordBufferSegments,
-            MemorySegmentPool memorySegmentPool)
-            throws IOException {
+            MemorySegmentPool memorySegmentPool) {
         super(
                 normalizedKeyComputer,
                 keySerializer,

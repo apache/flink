@@ -19,22 +19,30 @@ package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
+import org.apache.flink.runtime.state.changelog.LocalChangelogRegistry;
+import org.apache.flink.runtime.state.changelog.LocalChangelogRegistryImpl;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.NUM_DISCARD_THREADS;
@@ -61,33 +69,58 @@ public class FsStateChangelogStorage extends FsStateChangelogStorageForRecovery
 
     private final TaskChangelogRegistry changelogRegistry;
 
-    public FsStateChangelogStorage(Configuration config, TaskManagerJobMetricGroup metricGroup)
+    @Nullable private LocalChangelogRegistry localChangelogRegistry = LocalChangelogRegistry.NO_OP;
+
+    /** The configuration for local recovery. */
+    @Nonnull private final LocalRecoveryConfig localRecoveryConfig;
+
+    public FsStateChangelogStorage(
+            JobID jobID,
+            Configuration config,
+            TaskManagerJobMetricGroup metricGroup,
+            LocalRecoveryConfig localRecoveryConfig)
             throws IOException {
-        this(config, metricGroup, defaultChangelogRegistry(config.get(NUM_DISCARD_THREADS)));
+        this(
+                jobID,
+                config,
+                metricGroup,
+                defaultChangelogRegistry(config.get(NUM_DISCARD_THREADS)),
+                localRecoveryConfig);
     }
 
     public FsStateChangelogStorage(
+            JobID jobID,
             Configuration config,
             TaskManagerJobMetricGroup metricGroup,
-            TaskChangelogRegistry changelogRegistry)
+            TaskChangelogRegistry changelogRegistry,
+            LocalRecoveryConfig localRecoveryConfig)
             throws IOException {
         this(
-                fromConfig(config, new ChangelogStorageMetricGroup(metricGroup), changelogRegistry),
+                fromConfig(
+                        jobID,
+                        config,
+                        new ChangelogStorageMetricGroup(metricGroup),
+                        changelogRegistry,
+                        localRecoveryConfig),
                 config.get(PREEMPTIVE_PERSIST_THRESHOLD).getBytes(),
-                changelogRegistry);
+                changelogRegistry,
+                localRecoveryConfig);
     }
 
     @VisibleForTesting
     public FsStateChangelogStorage(
+            JobID jobID,
             Path basePath,
             boolean compression,
             int bufferSize,
             ChangelogStorageMetricGroup metricGroup,
-            TaskChangelogRegistry changelogRegistry)
+            TaskChangelogRegistry changelogRegistry,
+            LocalRecoveryConfig localRecoveryConfig)
             throws IOException {
         this(
                 directScheduler(
                         new StateChangeFsUploader(
+                                jobID,
                                 basePath,
                                 basePath.getFileSystem(),
                                 compression,
@@ -95,17 +128,25 @@ public class FsStateChangelogStorage extends FsStateChangelogStorageForRecovery
                                 metricGroup,
                                 changelogRegistry)),
                 PREEMPTIVE_PERSIST_THRESHOLD.defaultValue().getBytes(),
-                changelogRegistry);
+                changelogRegistry,
+                localRecoveryConfig);
     }
 
     @VisibleForTesting
     public FsStateChangelogStorage(
             StateChangeUploadScheduler uploader,
             long preEmptivePersistThresholdInBytes,
-            TaskChangelogRegistry changelogRegistry) {
+            TaskChangelogRegistry changelogRegistry,
+            LocalRecoveryConfig localRecoveryConfig) {
+        super(ChangelogStreamHandleReader.DIRECT_READER);
         this.preEmptivePersistThresholdInBytes = preEmptivePersistThresholdInBytes;
         this.changelogRegistry = changelogRegistry;
         this.uploader = uploader;
+        this.localRecoveryConfig = localRecoveryConfig;
+        if (localRecoveryConfig.isLocalBackupEnabled()) {
+            this.localChangelogRegistry =
+                    new LocalChangelogRegistryImpl(Executors.newSingleThreadExecutor());
+        }
     }
 
     @Override
@@ -119,12 +160,15 @@ public class FsStateChangelogStorage extends FsStateChangelogStorageForRecovery
                 uploader,
                 preEmptivePersistThresholdInBytes,
                 mailboxExecutor,
-                changelogRegistry);
+                changelogRegistry,
+                localRecoveryConfig,
+                localChangelogRegistry);
     }
 
     @Override
     public void close() throws Exception {
         uploader.close();
+        IOUtils.closeQuietly(localChangelogRegistry);
     }
 
     @Override

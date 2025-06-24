@@ -21,7 +21,6 @@ package org.apache.flink.state.api.runtime;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.configuration.UnmodifiableConfiguration;
 
 /** A utility for creating a mutable {@link Configuration} from a {@link ReadableConfig}. */
 @Internal
@@ -36,11 +35,10 @@ public final class MutableConfig {
      * @return A mutable Configuration.
      */
     public static Configuration of(ReadableConfig config) {
-        if (!(config instanceof UnmodifiableConfiguration)) {
+        if (!(config instanceof Configuration)) {
             throw new IllegalStateException(
                     "Unexpected implementation of ReadableConfig: " + config.getClass());
         }
-
-        return new Configuration((UnmodifiableConfiguration) config);
+        return new Configuration((Configuration) config);
     }
 }

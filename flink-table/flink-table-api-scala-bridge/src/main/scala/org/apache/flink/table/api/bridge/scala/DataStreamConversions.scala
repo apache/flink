@@ -18,7 +18,7 @@
 package org.apache.flink.table.api.bridge.scala
 
 import org.apache.flink.annotation.PublicEvolving
-import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{Schema, Table, TableEnvironment, ValidationException}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.expressions.Expression
@@ -32,7 +32,14 @@ import org.apache.flink.util.Preconditions
  *   The [[DataStream]] to convert.
  * @tparam T
  *   The external type of the [[DataStream]].
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@deprecated(org.apache.flink.table.api.FLIP_265_WARNING, since = "1.18.0")
 @PublicEvolving
 class DataStreamConversions[T](dataStream: DataStream[T]) {
 
@@ -115,7 +122,7 @@ class DataStreamConversions[T](dataStream: DataStream[T]) {
    */
   def toChangelogTable(tableEnv: StreamTableEnvironment): Table = {
     Preconditions.checkNotNull(tableEnv, "Table environment must not be null.")
-    if (dataStream.dataType.getTypeClass != classOf[Row]) {
+    if (dataStream.getType.getTypeClass != classOf[Row]) {
       throw new ValidationException(
         "DataStream cannot be converted to a Table. It must contain instances of Row.")
     }
@@ -136,7 +143,7 @@ class DataStreamConversions[T](dataStream: DataStream[T]) {
    */
   def toChangelogTable(tableEnv: StreamTableEnvironment, schema: Schema): Table = {
     Preconditions.checkNotNull(tableEnv, "Table environment must not be null.")
-    if (dataStream.dataType.getTypeClass != classOf[Row]) {
+    if (dataStream.getType.getTypeClass != classOf[Row]) {
       throw new ValidationException(
         "DataStream cannot be converted to a Table. It must contain instances of Row.")
     }
@@ -162,7 +169,7 @@ class DataStreamConversions[T](dataStream: DataStream[T]) {
       schema: Schema,
       changelogMode: ChangelogMode): Table = {
     Preconditions.checkNotNull(tableEnv, "Table environment must not be null.")
-    if (dataStream.dataType.getTypeClass != classOf[Row]) {
+    if (dataStream.getType.getTypeClass != classOf[Row]) {
       throw new ValidationException(
         "DataStream cannot be converted to a Table. It must contain instances of Row.")
     }

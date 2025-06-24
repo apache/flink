@@ -17,13 +17,13 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Test;
 
@@ -31,7 +31,7 @@ import static org.junit.Assert.assertNotEquals;
 
 /** Test creation of context for chained streaming operators. */
 @SuppressWarnings("serial")
-public class ChainedRuntimeContextITCase extends AbstractTestBase {
+public class ChainedRuntimeContextITCase extends AbstractTestBaseJUnit4 {
     private static RuntimeContext srcContext;
     private static RuntimeContext mapContext;
 
@@ -40,7 +40,7 @@ public class ChainedRuntimeContextITCase extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        env.addSource(new TestSource()).map(new TestMap()).addSink(new DiscardingSink<Integer>());
+        env.addSource(new TestSource()).map(new TestMap()).sinkTo(new DiscardingSink<>());
         env.execute();
 
         assertNotEquals(srcContext, mapContext);
@@ -55,7 +55,7 @@ public class ChainedRuntimeContextITCase extends AbstractTestBase {
         public void cancel() {}
 
         @Override
-        public void open(Configuration c) {
+        public void open(OpenContext openContext) {
             srcContext = getRuntimeContext();
         }
     }
@@ -68,7 +68,7 @@ public class ChainedRuntimeContextITCase extends AbstractTestBase {
         }
 
         @Override
-        public void open(Configuration c) {
+        public void open(OpenContext openContext) {
             mapContext = getRuntimeContext();
         }
     }

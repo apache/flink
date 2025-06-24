@@ -22,16 +22,11 @@ import org.apache.flink.runtime.state.HashMapStateBackendTest;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 
-import org.junit.Rule;
-import org.junit.rules.TemporaryFolder;
-
 /**
  * Tests for {@link ChangelogStateBackend} using {@link InMemoryStateChangelogStorage} and
  * delegating {@link HashMapStateBackendTest}.
  */
 public class ChangelogDelegateHashMapInMemoryTest extends ChangelogDelegateHashMapTest {
-
-    @Rule public final TemporaryFolder temp = new TemporaryFolder();
 
     protected TestTaskStateManager getTestTaskStateManager() {
         return TestTaskStateManager.builder().build();

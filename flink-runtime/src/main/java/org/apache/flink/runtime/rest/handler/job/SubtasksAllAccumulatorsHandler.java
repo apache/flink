@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.rest.handler.job;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -35,6 +35,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +47,7 @@ public class SubtasksAllAccumulatorsHandler
 
     public SubtasksAllAccumulatorsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<
                             EmptyRequestBody,
@@ -75,23 +76,25 @@ public class SubtasksAllAccumulatorsHandler
                 new ArrayList<>();
 
         for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
-            TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
-            String locationString = location == null ? "(unassigned)" : location.getHostname();
+            for (AccessExecution execution : vertex.getCurrentExecutions()) {
+                TaskManagerLocation location = execution.getAssignedResourceLocation();
+                String host = location == null ? "(unassigned)" : location.getHostname();
+                String endpoint = location == null ? "(unassigned)" : location.getEndpoint();
 
-            StringifiedAccumulatorResult[] accs =
-                    vertex.getCurrentExecutionAttempt().getUserAccumulatorsStringified();
-            List<UserAccumulator> userAccumulators = new ArrayList<>(accs.length);
-            for (StringifiedAccumulatorResult acc : accs) {
-                userAccumulators.add(
-                        new UserAccumulator(acc.getName(), acc.getType(), acc.getValue()));
+                StringifiedAccumulatorResult[] accs = execution.getUserAccumulatorsStringified();
+                List<UserAccumulator> userAccumulators = new ArrayList<>(accs.length);
+                for (StringifiedAccumulatorResult acc : accs) {
+                    userAccumulators.add(
+                            new UserAccumulator(acc.getName(), acc.getType(), acc.getValue()));
+                }
+
+                subtaskAccumulatorsInfos.add(
+                        new SubtasksAllAccumulatorsInfo.SubtaskAccumulatorsInfo(
+                                execution.getParallelSubtaskIndex(),
+                                execution.getAttemptNumber(),
+                                endpoint,
+                                userAccumulators));
             }
-
-            subtaskAccumulatorsInfos.add(
-                    new SubtasksAllAccumulatorsInfo.SubtaskAccumulatorsInfo(
-                            vertex.getCurrentExecutionAttempt().getParallelSubtaskIndex(),
-                            vertex.getCurrentExecutionAttempt().getAttemptNumber(),
-                            locationString,
-                            userAccumulators));
         }
 
         return new SubtasksAllAccumulatorsInfo(jobVertexId, parallelism, subtaskAccumulatorsInfos);

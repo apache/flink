@@ -85,6 +85,9 @@ For production use, we recommend deploying Flink Applications in the [Applicatio
 
 The [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode) requires that the user code is bundled together with the Flink image because it runs the user code's `main()` method on the cluster.
 The Application Mode makes sure that all Flink components are properly cleaned up after the termination of the application.
+Bundling can be done by modifying the base Flink Docker image, or via the User Artifact Management, which makes it possible to upload and download artifacts that are not available locally.
+
+#### Modify the Docker image
 
 The Flink community provides a [base Docker image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#docker-hub-flink-images) which can be used to bundle the user code:
 
@@ -97,19 +100,73 @@ COPY /path/of/my-flink-job.jar $FLINK_HOME/usrlib/my-flink-job.jar
 After creating and publishing the Docker image under `custom-image-name`, you can start an Application cluster with the following command:
 
 ```bash
-$ ./bin/flink run-application \
+$ ./bin/flink run \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
-    -Dkubernetes.container.image=custom-image-name \
+    -Dkubernetes.container.image.ref=custom-image-name \
     local:///opt/flink/usrlib/my-flink-job.jar
 ```
 
-<span class="label label-info">Note</span> `local` is the only supported scheme in Application Mode.
+#### Configure User Artifact Management
+
+In case you have a locally available Flink job JAR, artifact upload can be used so Flink will upload the local artifact to DFS during deployment and fetch it on the deployed JobManager pod:
+
+```bash
+$ ./bin/flink run \
+    --target kubernetes-application \
+    -Dkubernetes.cluster-id=my-first-application-cluster \
+    -Dkubernetes.container.image=custom-image-name \
+    -Dkubernetes.artifacts.local-upload-enabled=true \
+    -Dkubernetes.artifacts.local-upload-target=s3://my-bucket/ \
+    local:///tmp/my-flink-job.jar
+```
+
+The `kubernetes.artifacts.local-upload-enabled` enables this feature, and `kubernetes.artifacts.local-upload-target` has to point to a valid remote target that exists and has the permissions configured properly.
+You can add additional artifacts via the `user.artifacts.artifact-list` config option, which can contain a mix of local and remote artifacts:
+
+```bash
+$ ./bin/flink run \
+    --target kubernetes-application \
+    -Dkubernetes.cluster-id=my-first-application-cluster \
+    -Dkubernetes.container.image=custom-image-name \
+    -Dkubernetes.artifacts.local-upload-enabled=true \
+    -Dkubernetes.artifacts.local-upload-target=s3://my-bucket/ \
+    -Duser.artifacts.artifact-list=local:///tmp/my-flink-udf1.jar\;s3://my-bucket/my-flink-udf2.jar \
+    local:///tmp/my-flink-job.jar
+```
+
+In case the job JAR or any additional artifact is already available remotely via DFS or HTTP(S), Flink will simply fetch it on the deployed JobManager pod:
+
+```bash
+# FileSystem
+$ ./bin/flink run \
+    --target kubernetes-application \
+    -Dkubernetes.cluster-id=my-first-application-cluster \
+    -Dkubernetes.container.image=custom-image-name \
+    s3://my-bucket/my-flink-job.jar
+
+# HTTP(S)
+$ ./bin/flink run \
+    --target kubernetes-application \
+    -Dkubernetes.cluster-id=my-first-application-cluster \
+    -Dkubernetes.container.image=custom-image-name \
+    https://ip:port/my-flink-job.jar
+```
+
+{{< hint warning >}}
+Please be aware that already existing artifacts will not be overwritten during a local upload!
+{{< /hint >}}
+
+{{< hint info >}}
+JAR fetching supports downloading from [filesystems]({{< ref "docs/deployment/filesystems/overview" >}}) or HTTP(S) in Application Mode.  
+The JAR will be downloaded to
+[user.artifacts.base-dir]({{< ref "docs/deployment/config" >}}#user-artifacts-base-dir)/[kubernetes.namespace]({{< ref "docs/deployment/config" >}}#kubernetes-namespace)/[kubernetes.cluster-id]({{< ref "docs/deployment/config" >}}#kubernetes-cluster-id) path in image.
+{{< /hint >}}
 
 The `kubernetes.cluster-id` option specifies the cluster name and must be unique.
 If you do not specify this option, then Flink will generate a random name.
 
-The `kubernetes.container.image` option specifies the image to start the pods with.
+The `kubernetes.container.image.ref` option specifies the image to start the pods with.
 
 Once the application cluster is deployed you can interact with it:
 
@@ -120,11 +177,7 @@ $ ./bin/flink list --target kubernetes-application -Dkubernetes.cluster-id=my-fi
 $ ./bin/flink cancel --target kubernetes-application -Dkubernetes.cluster-id=my-first-application-cluster <jobId>
 ```
 
-You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/flink`.
-
-### Per-Job Cluster Mode
-
-Flink on Kubernetes does not support Per-Job Cluster Mode.
+You can override configurations set in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) by passing key-value pairs `-Dkey=value` to `bin/flink`.
 
 ### Session Mode
 
@@ -146,7 +199,7 @@ $ ./bin/kubernetes-session.sh \
     -Dexecution.attached=true
 ```
 
-You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/kubernetes-session.sh`.
+You can override configurations set in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) by passing key-value pairs `-Dkey=value` to `bin/kubernetes-session.sh`.
 
 #### Stop a Running Session Cluster
 
@@ -247,7 +300,7 @@ $ ./bin/kubernetes-session.sh
 
 ### Custom Docker Image
 
-If you want to use a custom Docker image, then you can specify it via the configuration option `kubernetes.container.image`.
+If you want to use a custom Docker image, then you can specify it via the configuration option `kubernetes.container.image.ref`.
 The Flink community provides a rich [Flink Docker image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}) which can be a good starting point.
 See [how to customize Flink's Docker image]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#customize-flink-image) for how to enable plugins, add dependencies and other options.
 
@@ -326,7 +379,7 @@ $ kubectl create clusterrolebinding flink-role-binding-default --clusterrole=edi
 ```
 
 If you do not want to use the `default` service account, use the following command to create a new `flink-service-account` service account and set the role binding.
-Then use the config option `-Dkubernetes.service-account=flink-service-account` to make the JobManager pod use the `flink-service-account` service account to create/delete TaskManager pods and leader ConfigMaps. 
+Then use the config option `-Dkubernetes.service-account=flink-service-account` to configure the JobManager pod's service account used to create and delete TaskManager pods and leader ConfigMaps.
 Also this will allow the TaskManager to watch leader ConfigMaps to retrieve the address of JobManager and ResourceManager.
 
 ```bash
@@ -340,7 +393,7 @@ Please refer to the official Kubernetes documentation on [RBAC Authorization](ht
 
 Flink allows users to define the JobManager and TaskManager pods via template files. This allows to support advanced features
 that are not supported by Flink [Kubernetes config options]({{< ref "docs/deployment/config" >}}#kubernetes) directly.
-Use [`kubernetes.pod-template-file`]({{< ref "docs/deployment/config" >}}#kubernetes-pod-template-file)
+Use [`kubernetes.pod-template-file.default`]({{< ref "docs/deployment/config" >}}#kubernetes-pod-template-file-default)
 to specify a local file that contains the pod definition. It will be used to initialize the JobManager and TaskManager.
 The main container should be defined with name `flink-main-container`.
 Please refer to the [pod template example](#example-of-pod-template) for more information.
@@ -481,7 +534,7 @@ All the fields defined in the pod template that are not listed in the tables wil
         <tr>
             <td>image</td>
             <td>Defined by the user</td>
-            <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-container-image">kubernetes.container.image</a></td>
+            <td><a href="{{< ref "docs/deployment/config" >}}#kubernetes-container-image-ref">kubernetes.container.image.ref</a></td>
             <td>The container image will be resolved with respect to the defined precedence order for user defined values.</td>
         </tr>
         <tr>

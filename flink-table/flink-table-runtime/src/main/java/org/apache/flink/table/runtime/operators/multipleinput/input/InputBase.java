@@ -19,15 +19,25 @@
 package org.apache.flink.table.runtime.operators.multipleinput.input;
 
 import org.apache.flink.streaming.api.operators.Input;
+import org.apache.flink.streaming.api.operators.KeyContextHandler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputStreamOperatorBase;
 
 /** Base {@link Input} used in {@link MultipleInputStreamOperatorBase}. */
-public abstract class InputBase implements Input<RowData> {
+public abstract class InputBase implements Input<RowData>, KeyContextHandler {
 
     @Override
     public void setKeyContextElement(StreamRecord<RowData> record) throws Exception {
         // do nothing
+    }
+
+    @Override
+    public boolean hasKeyContext() {
+        // Currently, we can simply return false due to InputBase#setKeyContextElement is an empty
+        // implementation. Once there is a non-empty implementation in the future, this method
+        // should also be adapted, otherwise the InputBase#setKeyContextElement will never be
+        // called.
+        return false;
     }
 }

@@ -1,0 +1,117 @@
+{
+  "lineageEdges": [
+    {
+      "sourceLineageVertex": {
+        "datasets": [
+          {
+            "name": "default_catalog.default_database.FirstTable",
+            "namespace": "values://FromElementsFunction",
+            "objectPath": {
+              "databaseName": "default_database",
+              "objectName": "FirstTable",
+              "fullName": "default_database.FirstTable"
+            },
+            "facets": {}
+          }
+        ],
+        "boundedness": "CONTINUOUS_UNBOUNDED"
+      },
+      "sinkVertex": {
+        "datasets": [
+          {
+            "name": "default_catalog.default_database.SinkTable",
+            "namespace": "values://RetractingSinkFunction",
+            "objectPath": {
+              "databaseName": "default_database",
+              "objectName": "SinkTable",
+              "fullName": "default_database.SinkTable"
+            },
+            "facets": {}
+          }
+        ],
+        "modifyType": "UPDATE"
+      }
+    },
+    {
+      "sourceLineageVertex": {
+        "datasets": [
+          {
+            "name": "default_catalog.default_database.SecondTable",
+            "namespace": "values://FromElementsFunction",
+            "objectPath": {
+              "databaseName": "default_database",
+              "objectName": "SecondTable",
+              "fullName": "default_database.SecondTable"
+            },
+            "facets": {}
+          }
+        ],
+        "boundedness": "CONTINUOUS_UNBOUNDED"
+      },
+      "sinkVertex": {
+        "datasets": [
+          {
+            "name": "default_catalog.default_database.SinkTable",
+            "namespace": "values://RetractingSinkFunction",
+            "objectPath": {
+              "databaseName": "default_database",
+              "objectName": "SinkTable",
+              "fullName": "default_database.SinkTable"
+            },
+            "facets": {}
+          }
+        ],
+        "modifyType": "UPDATE"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "datasets": [
+        {
+          "name": "default_catalog.default_database.FirstTable",
+          "namespace": "values://FromElementsFunction",
+          "objectPath": {
+            "databaseName": "default_database",
+            "objectName": "FirstTable",
+            "fullName": "default_database.FirstTable"
+          },
+          "facets": {}
+        }
+      ],
+      "boundedness": "CONTINUOUS_UNBOUNDED"
+    },
+    {
+      "datasets": [
+        {
+          "name": "default_catalog.default_database.SecondTable",
+          "namespace": "values://FromElementsFunction",
+          "objectPath": {
+            "databaseName": "default_database",
+            "objectName": "SecondTable",
+            "fullName": "default_database.SecondTable"
+          },
+          "facets": {}
+        }
+      ],
+      "boundedness": "CONTINUOUS_UNBOUNDED"
+    }
+  ],
+  "sinks": [
+    {
+      "datasets": [
+        {
+          "name": "default_catalog.default_database.SinkTable",
+          "namespace": "values://RetractingSinkFunction",
+          "objectPath": {
+            "databaseName": "default_database",
+            "objectName": "SinkTable",
+            "fullName": "default_database.SinkTable"
+          },
+          "facets": {}
+        }
+      ],
+      "modifyType": "UPDATE"
+    }
+  ]
+}

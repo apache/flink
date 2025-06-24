@@ -20,48 +20,37 @@ package org.apache.flink.formats.avro.typeutils;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.formats.avro.generated.Address;
 
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.assertj.core.api.Condition;
 
 import java.util.ArrayList;
 import java.util.Collection;
 
-import static org.hamcrest.Matchers.is;
-
 /** Tests based on {@link TypeSerializerUpgradeTestBase} for the {@link AvroSerializer}. */
-@RunWith(Parameterized.class)
-public class AvroSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
+class AvroSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
 
-    public AvroSerializerUpgradeTest(TestSpecification<Object, Object> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "generic-avro-serializer",
-                            flinkVersion,
-                            GenericAvroSerializerSetup.class,
-                            GenericAvroSerializerVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "generic-avro-serializer",
+                        flinkVersion,
+                        GenericAvroSerializerSetup.class,
+                        GenericAvroSerializerVerifier.class));
 
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "specific-avro-serializer",
-                            flinkVersion,
-                            SpecificAvroSerializerSetup.class,
-                            SpecificAvroSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "specific-avro-serializer",
+                        flinkVersion,
+                        SpecificAvroSerializerSetup.class,
+                        SpecificAvroSerializerVerifier.class));
 
         return testSpecifications;
     }
@@ -108,20 +97,20 @@ public class AvroSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obj
         }
 
         @Override
-        public Matcher<GenericRecord> testDataMatcher() {
+        public Condition<GenericRecord> testDataCondition() {
             GenericData.Record record = new GenericData.Record(Address.getClassSchema());
             record.put("num", 239);
             record.put("street", "Baker Street");
             record.put("city", "London");
             record.put("state", "London");
             record.put("zip", "NW1 6XE");
-            return is(record);
+            return new Condition<>(record::equals, "record is " + record);
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<GenericRecord>> schemaCompatibilityMatcher(
-                FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<GenericRecord>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 
@@ -170,20 +159,20 @@ public class AvroSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Obj
         }
 
         @Override
-        public Matcher<Address> testDataMatcher() {
+        public Condition<Address> testDataCondition() {
             Address addr = new Address();
             addr.setNum(239);
             addr.setStreet("Baker Street");
             addr.setCity("London");
             addr.setState("London");
             addr.setZip("NW1 6XE");
-            return is(addr);
+            return new Condition<>(addr::equals, "address is " + addr);
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<Address>> schemaCompatibilityMatcher(
+        public Condition<TypeSerializerSchemaCompatibility<Address>> schemaCompatibilityCondition(
                 FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 }

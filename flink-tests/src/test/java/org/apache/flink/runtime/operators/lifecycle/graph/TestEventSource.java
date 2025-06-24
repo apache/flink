@@ -17,16 +17,20 @@
 
 package org.apache.flink.runtime.operators.lifecycle.graph;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommand;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher;
+import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher.CommandExecutor;
 import org.apache.flink.runtime.operators.lifecycle.event.OperatorStartedEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestCommandAckEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestEventQueue;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -40,11 +44,13 @@ import static org.apache.flink.runtime.operators.lifecycle.command.TestCommand.F
  */
 public class TestEventSource extends RichSourceFunction<TestDataElement>
         implements ParallelSourceFunction<TestDataElement> {
+    private static final Logger LOG = LoggerFactory.getLogger(TestEventSource.class);
     private final String operatorID;
     private final TestCommandDispatcher commandQueue;
-    private transient Queue<TestCommand> scheduledCommands;
+    private transient volatile Queue<TestCommand> scheduledCommands;
     private transient volatile boolean isRunning = true;
     private final TestEventQueue eventQueue;
+    private transient volatile CommandExecutor commandExecutor;
 
     public TestEventSource(
             String operatorID, TestEventQueue eventQueue, TestCommandDispatcher commandQueue) {
@@ -54,27 +60,28 @@ public class TestEventSource extends RichSourceFunction<TestDataElement>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         this.isRunning = true;
         this.scheduledCommands = new LinkedBlockingQueue<>();
-        this.commandQueue.subscribe(cmd -> scheduledCommands.add(cmd), operatorID);
+        this.commandExecutor = cmd -> scheduledCommands.add(cmd);
+        this.commandQueue.subscribe(commandExecutor, operatorID);
         this.eventQueue.add(
                 new OperatorStartedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber()));
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber()));
     }
 
     @Override
     public void run(SourceContext<TestDataElement> ctx) {
         long lastSent = 0;
-        while (isRunning) {
+        while (isRunning || !scheduledCommands.isEmpty()) {
             // Don't finish the source if it has not sent at least one value.
             TestCommand cmd = lastSent == 0 ? null : scheduledCommands.poll();
             if (cmd == FINISH_SOURCES) {
                 ack(cmd);
-                isRunning = false;
+                stop();
             } else if (cmd == FAIL) {
                 ack(cmd);
                 throw new RuntimeException("requested to fail");
@@ -83,7 +90,7 @@ public class TestEventSource extends RichSourceFunction<TestDataElement>
                     ctx.collect(
                             new TestDataElement(
                                     operatorID,
-                                    getRuntimeContext().getIndexOfThisSubtask(),
+                                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                                     ++lastSent));
                 }
             } else {
@@ -96,13 +103,21 @@ public class TestEventSource extends RichSourceFunction<TestDataElement>
         eventQueue.add(
                 new TestCommandAckEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         cmd));
     }
 
     @Override
     public void cancel() {
+        stop();
+    }
+
+    private void stop() {
+        commandQueue.unsubscribe(operatorID, commandExecutor);
         isRunning = false;
+        if (!scheduledCommands.isEmpty()) {
+            LOG.info("Unsubscribed with remaining commands: {}", scheduledCommands);
+        }
     }
 }

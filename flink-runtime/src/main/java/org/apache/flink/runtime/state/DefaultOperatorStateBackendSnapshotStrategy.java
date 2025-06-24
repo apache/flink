@@ -21,34 +21,45 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.state.filemerging.EmptyFileMergingOperatorStreamStateHandle;
+import org.apache.flink.runtime.state.filemerging.FileMergingOperatorStreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsMergingCheckpointStorageLocation;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.util.CollectionUtil;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
-/** Snapshot strategy for this backend. */
+/**
+ * Snapshot strategy for this backend. This strategy compresses the regular and broadcast operator
+ * states if enabled by configuration.
+ */
 class DefaultOperatorStateBackendSnapshotStrategy
         implements SnapshotStrategy<
                 OperatorStateHandle,
                 DefaultOperatorStateBackendSnapshotStrategy
                         .DefaultOperatorStateBackendSnapshotResources> {
+
     private final ClassLoader userClassLoader;
     private final Map<String, PartitionableListState<?>> registeredOperatorStates;
     private final Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates;
+    private final StreamCompressionDecorator compressionDecorator;
 
     protected DefaultOperatorStateBackendSnapshotStrategy(
             ClassLoader userClassLoader,
             Map<String, PartitionableListState<?>> registeredOperatorStates,
-            Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates) {
+            Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStates,
+            StreamCompressionDecorator compressionDecorator) {
         this.userClassLoader = userClassLoader;
         this.registeredOperatorStates = registeredOperatorStates;
         this.registeredBroadcastStates = registeredBroadcastStates;
+        this.compressionDecorator = compressionDecorator;
     }
 
     @Override
@@ -59,9 +70,9 @@ class DefaultOperatorStateBackendSnapshotStrategy
         }
 
         final Map<String, PartitionableListState<?>> registeredOperatorStatesDeepCopies =
-                new HashMap<>(registeredOperatorStates.size());
+                CollectionUtil.newHashMapWithExpectedSize(registeredOperatorStates.size());
         final Map<String, BackendWritableBroadcastState<?, ?>> registeredBroadcastStatesDeepCopies =
-                new HashMap<>(registeredBroadcastStates.size());
+                CollectionUtil.newHashMapWithExpectedSize(registeredBroadcastStates.size());
 
         ClassLoader snapshotClassLoader = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(userClassLoader);
@@ -113,7 +124,17 @@ class DefaultOperatorStateBackendSnapshotStrategy
 
         if (registeredBroadcastStatesDeepCopies.isEmpty()
                 && registeredOperatorStatesDeepCopies.isEmpty()) {
-            return snapshotCloseableRegistry -> SnapshotResult.empty();
+            if (streamFactory instanceof FsMergingCheckpointStorageLocation) {
+                FsMergingCheckpointStorageLocation location =
+                        (FsMergingCheckpointStorageLocation) streamFactory;
+                return snapshotCloseableRegistry ->
+                        SnapshotResult.of(
+                                EmptyFileMergingOperatorStreamStateHandle.create(
+                                        location.getExclusiveStateHandle(),
+                                        location.getSharedStateHandle()));
+            } else {
+                return snapshotCloseableRegistry -> SnapshotResult.empty();
+            }
         }
 
         return (snapshotCloseableRegistry) -> {
@@ -145,7 +166,11 @@ class DefaultOperatorStateBackendSnapshotStrategy
 
             OperatorBackendSerializationProxy backendSerializationProxy =
                     new OperatorBackendSerializationProxy(
-                            operatorMetaInfoSnapshots, broadcastMetaInfoSnapshots);
+                            operatorMetaInfoSnapshots,
+                            broadcastMetaInfoSnapshots,
+                            !Objects.equals(
+                                    UncompressedStreamCompressionDecorator.INSTANCE,
+                                    compressionDecorator));
 
             backendSerializationProxy.write(dov);
 
@@ -156,42 +181,54 @@ class DefaultOperatorStateBackendSnapshotStrategy
                     registeredOperatorStatesDeepCopies.size()
                             + registeredBroadcastStatesDeepCopies.size();
             final Map<String, OperatorStateHandle.StateMetaInfo> writtenStatesMetaData =
-                    new HashMap<>(initialMapCapacity);
+                    CollectionUtil.newHashMapWithExpectedSize(initialMapCapacity);
 
-            for (Map.Entry<String, PartitionableListState<?>> entry :
-                    registeredOperatorStatesDeepCopies.entrySet()) {
+            try (final CompressibleFSDataOutputStream compressedLocalOut =
+                    new CompressibleFSDataOutputStream(
+                            localOut,
+                            compressionDecorator)) { // closes only the outer compression stream
+                for (Map.Entry<String, PartitionableListState<?>> entry :
+                        registeredOperatorStatesDeepCopies.entrySet()) {
 
-                PartitionableListState<?> value = entry.getValue();
-                long[] partitionOffsets = value.write(localOut);
-                OperatorStateHandle.Mode mode = value.getStateMetaInfo().getAssignmentMode();
-                writtenStatesMetaData.put(
-                        entry.getKey(),
-                        new OperatorStateHandle.StateMetaInfo(partitionOffsets, mode));
-            }
+                    PartitionableListState<?> value = entry.getValue();
+                    long[] partitionOffsets = value.write(compressedLocalOut);
+                    OperatorStateHandle.Mode mode = value.getStateMetaInfo().getAssignmentMode();
+                    writtenStatesMetaData.put(
+                            entry.getKey(),
+                            new OperatorStateHandle.StateMetaInfo(partitionOffsets, mode));
+                }
 
-            // ... and the broadcast states themselves ...
-            for (Map.Entry<String, BackendWritableBroadcastState<?, ?>> entry :
-                    registeredBroadcastStatesDeepCopies.entrySet()) {
+                // ... and the broadcast states themselves ...
+                for (Map.Entry<String, BackendWritableBroadcastState<?, ?>> entry :
+                        registeredBroadcastStatesDeepCopies.entrySet()) {
 
-                BackendWritableBroadcastState<?, ?> value = entry.getValue();
-                long[] partitionOffsets = {value.write(localOut)};
-                OperatorStateHandle.Mode mode = value.getStateMetaInfo().getAssignmentMode();
-                writtenStatesMetaData.put(
-                        entry.getKey(),
-                        new OperatorStateHandle.StateMetaInfo(partitionOffsets, mode));
+                    BackendWritableBroadcastState<?, ?> value = entry.getValue();
+                    long[] partitionOffsets = {value.write(compressedLocalOut)};
+                    OperatorStateHandle.Mode mode = value.getStateMetaInfo().getAssignmentMode();
+                    writtenStatesMetaData.put(
+                            entry.getKey(),
+                            new OperatorStateHandle.StateMetaInfo(partitionOffsets, mode));
+                }
             }
 
             // ... and, finally, create the state handle.
             OperatorStateHandle retValue = null;
 
             if (snapshotCloseableRegistry.unregisterCloseable(localOut)) {
-
                 StreamStateHandle stateHandle = localOut.closeAndGetHandle();
-
                 if (stateHandle != null) {
-                    retValue = new OperatorStreamStateHandle(writtenStatesMetaData, stateHandle);
+                    retValue =
+                            streamFactory instanceof FsMergingCheckpointStorageLocation
+                                    ? new FileMergingOperatorStreamStateHandle(
+                                            ((FsMergingCheckpointStorageLocation) streamFactory)
+                                                    .getExclusiveStateHandle(),
+                                            ((FsMergingCheckpointStorageLocation) streamFactory)
+                                                    .getSharedStateHandle(),
+                                            writtenStatesMetaData,
+                                            stateHandle)
+                                    : new OperatorStreamStateHandle(
+                                            writtenStatesMetaData, stateHandle);
                 }
-
                 return SnapshotResult.of(retValue);
             } else {
                 throw new IOException("Stream was already unregistered.");

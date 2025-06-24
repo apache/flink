@@ -40,7 +40,7 @@ Flink can dynamically allocate and de-allocate TaskManager resources depending o
 
 ### Preparation
 
-This *Getting Started* section assumes a functional YARN environment, starting from version 2.8.5. YARN environments are provided most conveniently through services such as Amazon EMR, Google Cloud DataProc or products like Cloudera. [Manually setting up a YARN environment locally](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/SingleCluster.html) or [on a cluster](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/ClusterSetup.html) is not recommended for following through this *Getting Started* tutorial. 
+This *Getting Started* section assumes a functional YARN environment, starting from version 2.10.2. YARN environments are provided most conveniently through services such as Amazon EMR, Google Cloud DataProc or products like Cloudera. [Manually setting up a YARN environment locally](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/SingleCluster.html) or [on a cluster](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/ClusterSetup.html) is not recommended for following through this *Getting Started* tutorial. 
 
 - Make sure your YARN cluster is ready for accepting Flink applications by running `yarn top`. It should show no error messages.
 - Download a recent Flink distribution from the [download page]({{< downloads >}}) and unpack it.
@@ -83,7 +83,7 @@ Congratulations! You have successfully run a Flink application by deploying Flin
 
 ## Deployment Modes Supported by Flink on YARN
 
-For production use, we recommend deploying Flink Applications in the [Per-job or Application Mode]({{< ref "docs/deployment/overview" >}}#deployment-modes), as these modes provide a better isolation for the Applications.
+For production use, we recommend deploying Flink Applications in the [Application Mode]({{< ref "docs/deployment/overview" >}}#deployment-modes), as these modes provide a better isolation for the Applications.
 
 ### Application Mode
 
@@ -91,7 +91,7 @@ Application Mode will launch a Flink cluster on YARN, where the main() method of
 The cluster will shut down as soon as the application has finished. You can manually stop the cluster using `yarn application -kill <ApplicationId>` or by cancelling the Flink job.
 
 ```bash
-./bin/flink run-application -t yarn-application ./examples/streaming/TopSpeedWindowing.jar
+./bin/flink run -t yarn-application ./examples/streaming/TopSpeedWindowing.jar
 ```
 
 
@@ -111,7 +111,7 @@ and pre-upload your application jar to a location accessible by all nodes in you
 command could look like: 
 
 ```bash
-./bin/flink run-application -t yarn-application \
+./bin/flink run -t yarn-application \
 	-Dyarn.provided.lib.dirs="hdfs://myhdfs/my-remote-flink-dist-dir" \
 	hdfs://myhdfs/jars/my-application.jar
 ```
@@ -119,28 +119,6 @@ command could look like:
 The above will allow the job submission to be extra lightweight as the needed Flink jars and the application jar
 are  going to be picked up by the specified remote locations rather than be shipped to the cluster by the 
 client.
-
-### Per-Job Cluster Mode
-
-The Per-job Cluster mode will launch a Flink cluster on YARN, then run the provided application jar locally and finally submit the JobGraph to the JobManager on YARN. If you pass the `--detached` argument, the client will stop once the submission is accepted.
-
-The YARN cluster will stop once the job has stopped.
-
-```bash
-./bin/flink run -t yarn-per-job --detached ./examples/streaming/TopSpeedWindowing.jar
-```
-
-Once a Per-Job Cluster is deployed, you can interact with it for operations like cancelling or taking a savepoint.
-
-```bash
-# List running job on the cluster
-./bin/flink list -t yarn-per-job -Dyarn.application.id=application_XXXX_YY
-# Cancel running job
-./bin/flink cancel -t yarn-per-job -Dyarn.application.id=application_XXXX_YY <jobId>
-```
-
-Note that cancelling your job on an Per-Job Cluster will stop the cluster.
-
 
 ### Session Mode
 
@@ -166,7 +144,7 @@ You can **re-attach to a YARN session** using the following command:
 ./bin/yarn-session.sh -id application_XXXX_YY
 ```
 
-Besides passing [configuration]({{< ref "docs/deployment/config" >}}) via the `conf/flink-conf.yaml` file, you can also pass any configuration at submission time to the `./bin/yarn-session.sh` client using `-Dkey=value` arguments.
+Besides passing [configuration]({{< ref "docs/deployment/config" >}}) via the [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) , you can also pass any configuration at submission time to the `./bin/yarn-session.sh` client using `-Dkey=value` arguments.
 
 The YARN session client also has a few "shortcut arguments" for commonly used settings. They can be listed with `./bin/yarn-session.sh -h`.
 
@@ -211,7 +189,7 @@ Overwriting this configuration parameter can lead to multiple YARN clusters affe
 
 - **YARN 2.3.0 < version < 2.4.0**. All containers are restarted if the application master fails.
 - **YARN 2.4.0 < version < 2.6.0**. TaskManager containers are kept alive across application master failures. This has the advantage that the startup time is faster and that the user does not have to wait for obtaining the container resources again.
-- **YARN 2.6.0 <= version**: Sets the attempt failure validity interval to the Flinks' Akka timeout value. The attempt failure validity interval says that an application is only killed after the system has seen the maximum number of application attempts during one interval. This avoids that a long lasting job will deplete it's application attempts.
+- **YARN 2.6.0 <= version**: Sets the attempt failure validity interval to the Flinks' Pekko timeout value. The attempt failure validity interval says that an application is only killed after the system has seen the maximum number of application attempts during one interval. This avoids that a long lasting job will deplete it's application attempts.
 
 {{< hint danger >}}
 Hadoop YARN 2.4.0 has a major bug (fixed in 2.5.0) preventing container restarts from a restarted Application Master/Job Manager container. See <a href="https://issues.apache.org/jira/browse/FLINK-4142">FLINK-4142</a> for details. We recommend using at least Hadoop 2.5.0 for high availability setups on YARN.</p>
@@ -219,7 +197,7 @@ Hadoop YARN 2.4.0 has a major bug (fixed in 2.5.0) preventing container restarts
 
 ### Supported Hadoop versions.
 
-Flink on YARN is compiled against Hadoop 2.8.5, and all Hadoop versions `>= 2.8.5` are supported, including Hadoop 3.x.
+Flink on YARN is compiled against Hadoop 2.10.2, and all Hadoop versions `>= 2.10.2` are supported, including Hadoop 3.x.
 
 For providing Flink with the required Hadoop dependencies, we recommend setting the `HADOOP_CLASSPATH` environment variable already introduced in the [Getting Started / Preparation](#preparation) section. 
 
@@ -241,9 +219,9 @@ The configuration parameter for specifying the REST endpoint port is [rest.bind-
 
 When deploying Flink with Session Mode on Yarn, only the JAR file specified in startup command will be recognized as user-jars and included into user classpath.
 
-**PerJob Mode & Application Mode**
+**Application Mode**
 
-When deploying Flink with PerJob/Application Mode on Yarn, the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder will be recognized as user-jars.
+When deploying Flink with Application Mode on Yarn, the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder will be recognized as user-jars.
 By default Flink will include the user-jars into the system classpath. This behavior can be controlled with the [yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar) parameter.
 
 When setting this to `DISABLED` Flink will include the jar in the user classpath instead.

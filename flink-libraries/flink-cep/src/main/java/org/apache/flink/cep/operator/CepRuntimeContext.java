@@ -19,8 +19,8 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -40,10 +40,13 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -65,48 +68,23 @@ class CepRuntimeContext implements RuntimeContext {
     }
 
     @Override
-    public JobID getJobId() {
-        return runtimeContext.getJobId();
-    }
-
-    @Override
-    public String getTaskName() {
-        return runtimeContext.getTaskName();
-    }
-
-    @Override
     public OperatorMetricGroup getMetricGroup() {
         return runtimeContext.getMetricGroup();
     }
 
     @Override
-    public int getNumberOfParallelSubtasks() {
-        return runtimeContext.getNumberOfParallelSubtasks();
+    public <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation) {
+        return runtimeContext.createSerializer(typeInformation);
     }
 
     @Override
-    public int getMaxNumberOfParallelSubtasks() {
-        return runtimeContext.getMaxNumberOfParallelSubtasks();
+    public Map<String, String> getGlobalJobParameters() {
+        return runtimeContext.getGlobalJobParameters();
     }
 
     @Override
-    public int getIndexOfThisSubtask() {
-        return runtimeContext.getIndexOfThisSubtask();
-    }
-
-    @Override
-    public int getAttemptNumber() {
-        return runtimeContext.getAttemptNumber();
-    }
-
-    @Override
-    public String getTaskNameWithSubtasks() {
-        return runtimeContext.getTaskNameWithSubtasks();
-    }
-
-    @Override
-    public ExecutionConfig getExecutionConfig() {
-        return runtimeContext.getExecutionConfig();
+    public boolean isObjectReuseEnabled() {
+        return runtimeContext.isObjectReuseEnabled();
     }
 
     @Override
@@ -128,6 +106,16 @@ class CepRuntimeContext implements RuntimeContext {
     @Override
     public Set<ExternalResourceInfo> getExternalResourceInfos(String resourceName) {
         return runtimeContext.getExternalResourceInfos(resourceName);
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return runtimeContext.getJobInfo();
+    }
+
+    @Override
+    public TaskInfo getTaskInfo() {
+        return runtimeContext.getTaskInfo();
     }
 
     // -----------------------------------------------------------------------------------
@@ -204,6 +192,38 @@ class CepRuntimeContext implements RuntimeContext {
 
     @Override
     public <UK, UV> MapState<UK, UV> getMapState(final MapStateDescriptor<UK, UV> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
+
+    @Override
+    public <T> org.apache.flink.api.common.state.v2.ValueState<T> getState(
+            org.apache.flink.api.common.state.v2.ValueStateDescriptor<T> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
+
+    @Override
+    public <T> org.apache.flink.api.common.state.v2.ListState<T> getListState(
+            org.apache.flink.api.common.state.v2.ListStateDescriptor<T> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
+
+    @Override
+    public <T> org.apache.flink.api.common.state.v2.ReducingState<T> getReducingState(
+            org.apache.flink.api.common.state.v2.ReducingStateDescriptor<T> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
+
+    @Override
+    public <IN, ACC, OUT>
+            org.apache.flink.api.common.state.v2.AggregatingState<IN, OUT> getAggregatingState(
+                    org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<IN, ACC, OUT>
+                            stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
+
+    @Override
+    public <UK, UV> org.apache.flink.api.common.state.v2.MapState<UK, UV> getMapState(
+            org.apache.flink.api.common.state.v2.MapStateDescriptor<UK, UV> stateProperties) {
         throw new UnsupportedOperationException("State is not supported.");
     }
 }

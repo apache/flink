@@ -27,6 +27,8 @@ import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.utils.TypeConversions;
 
+import java.util.Arrays;
+
 /** The wrapper of user defined python table aggregate function. */
 @Internal
 public class PythonTableAggregateFunction extends TableAggregateFunction implements PythonFunction {
@@ -35,13 +37,17 @@ public class PythonTableAggregateFunction extends TableAggregateFunction impleme
 
     private final String name;
     private final byte[] serializedTableAggregateFunction;
-    private final DataType[] inputTypes;
-    private final DataType resultType;
-    private final DataType accumulatorType;
     private final PythonFunctionKind pythonFunctionKind;
     private final boolean deterministic;
     private final PythonEnv pythonEnv;
     private final boolean takesRowAsInput;
+
+    private DataType[] inputTypes;
+    private String[] inputTypesString;
+    private DataType resultType;
+    private String resultTypeString;
+    private DataType accumulatorType;
+    private String accumulatorTypeString;
 
     public PythonTableAggregateFunction(
             String name,
@@ -53,11 +59,49 @@ public class PythonTableAggregateFunction extends TableAggregateFunction impleme
             boolean deterministic,
             boolean takesRowAsInput,
             PythonEnv pythonEnv) {
-        this.name = name;
-        this.serializedTableAggregateFunction = serializedTableAggregateFunction;
+        this(
+                name,
+                serializedTableAggregateFunction,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv);
         this.inputTypes = inputTypes;
         this.resultType = resultType;
         this.accumulatorType = accumulatorType;
+    }
+
+    public PythonTableAggregateFunction(
+            String name,
+            byte[] serializedTableAggregateFunction,
+            String[] inputTypesString,
+            String resultTypeString,
+            String accumulatorTypeString,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv) {
+        this(
+                name,
+                serializedTableAggregateFunction,
+                pythonFunctionKind,
+                deterministic,
+                takesRowAsInput,
+                pythonEnv);
+        this.inputTypesString = inputTypesString;
+        this.resultTypeString = resultTypeString;
+        this.accumulatorTypeString = accumulatorTypeString;
+    }
+
+    public PythonTableAggregateFunction(
+            String name,
+            byte[] serializedTableAggregateFunction,
+            PythonFunctionKind pythonFunctionKind,
+            boolean deterministic,
+            boolean takesRowAsInput,
+            PythonEnv pythonEnv) {
+        this.name = name;
+        this.serializedTableAggregateFunction = serializedTableAggregateFunction;
         this.pythonFunctionKind = pythonFunctionKind;
         this.deterministic = deterministic;
         this.pythonEnv = pythonEnv;
@@ -106,20 +150,45 @@ public class PythonTableAggregateFunction extends TableAggregateFunction impleme
 
     @Override
     public TypeInformation getResultType() {
+        if (resultType == null && resultTypeString != null) {
+            throw new RuntimeException(
+                    "String format result type is not supported in old type system. The `register_function` is deprecated, please Use `create_temporary_system_function` instead.");
+        }
         return TypeConversions.fromDataTypeToLegacyInfo(resultType);
     }
 
     @Override
     public TypeInformation getAccumulatorType() {
+        if (accumulatorType == null && accumulatorTypeString != null) {
+            throw new RuntimeException(
+                    "String format result type is not supported in old type system. The `register_function` is deprecated, please Use `create_temporary_system_function` instead.");
+        }
         return TypeConversions.fromDataTypeToLegacyInfo(accumulatorType);
     }
 
     @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
         TypeInference.Builder builder = TypeInference.newBuilder();
+        if (inputTypesString != null) {
+            inputTypes =
+                    (DataType[])
+                            Arrays.stream(inputTypesString)
+                                    .map(typeFactory::createDataType)
+                                    .toArray();
+        }
+
         if (inputTypes != null) {
             builder.typedArguments(inputTypes);
         }
+
+        if (resultType == null) {
+            resultType = typeFactory.createDataType(resultTypeString);
+        }
+
+        if (accumulatorType == null) {
+            accumulatorType = typeFactory.createDataType(accumulatorTypeString);
+        }
+
         return builder.outputTypeStrategy(TypeStrategies.explicit(resultType))
                 .accumulatorTypeStrategy(TypeStrategies.explicit(accumulatorType))
                 .build();

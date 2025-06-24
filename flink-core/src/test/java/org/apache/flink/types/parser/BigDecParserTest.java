@@ -20,7 +20,7 @@ package org.apache.flink.types.parser;
 
 import java.math.BigDecimal;
 
-public class BigDecParserTest extends ParserTestBase<BigDecimal> {
+class BigDecParserTest extends ParserTestBase<BigDecimal> {
 
     @Override
     public String[] getValidTestValues() {

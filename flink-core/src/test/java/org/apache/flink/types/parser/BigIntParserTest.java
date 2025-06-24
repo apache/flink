@@ -20,7 +20,7 @@ package org.apache.flink.types.parser;
 
 import java.math.BigInteger;
 
-public class BigIntParserTest extends ParserTestBase<BigInteger> {
+class BigIntParserTest extends ParserTestBase<BigInteger> {
 
     @Override
     public String[] getValidTestValues() {

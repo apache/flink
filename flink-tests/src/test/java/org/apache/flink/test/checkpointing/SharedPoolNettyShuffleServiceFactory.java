@@ -88,7 +88,6 @@ public final class SharedPoolNettyShuffleServiceFactory
                                 resultPartitionManager,
                                 taskEventPublisher,
                                 nettyConfig,
-                                networkConfig.getMaxNumberOfConnections(),
                                 networkConfig.isConnectionReuseEnabled())
                         : new LocalConnectionManager();
 
@@ -99,6 +98,8 @@ public final class SharedPoolNettyShuffleServiceFactory
                 resultPartitionManager,
                 connectionManager,
                 shuffleEnvironmentContext.getParentMetricGroup(),
-                shuffleEnvironmentContext.getIoExecutor());
+                shuffleEnvironmentContext.getIoExecutor(),
+                shuffleEnvironmentContext.getNumberOfSlots(),
+                shuffleEnvironmentContext.getTmpDirPaths());
     }
 }

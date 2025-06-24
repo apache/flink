@@ -52,7 +52,7 @@ The configuration keys `jobmanager.archive.fs.dir` and `historyserver.archive.fs
 
 **JobManager**
 
-The archiving of completed jobs happens on the JobManager, which uploads the archived job information to a file system directory. You can configure the directory to archive completed jobs in `flink-conf.yaml` by setting a directory via `jobmanager.archive.fs.dir`.
+The archiving of completed jobs happens on the JobManager, which uploads the archived job information to a file system directory. You can configure the directory to archive completed jobs in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) by setting a directory via `jobmanager.archive.fs.dir`.
 
 ```yaml
 # Directory to upload completed job information
@@ -74,6 +74,22 @@ historyserver.archive.fs.refresh-interval: 10000
 The contained archives are downloaded and cached in the local filesystem. The local directory for this is configured via `historyserver.web.tmpdir`.
 
 Check out the configuration page for a [complete list of configuration options]({{< ref "docs/deployment/config" >}}#history-server).
+
+## Log Integration
+
+Flink does not provide built-in methods for archiving logs of completed jobs.
+However, if you already have log archiving and browsing services, you can configure HistoryServer to integrate them
+(via [`historyserver.log.jobmanager.url-pattern`]({{< ref "docs/deployment/config" >}}#historyserver-log-jobmanager-url-pattern)
+and [`historyserver.log.taskmanager.url-pattern`]({{< ref "docs/deployment/config" >}}#historyserver-log-taskmanager-url-pattern)).
+In this way, you can directly link from HistoryServer WebUI to logs of the relevant JobManager / TaskManagers.
+
+```yaml
+# HistoryServer will replace <jobid> with the relevant job id
+historyserver.log.jobmanager.url-pattern: http://my.log-browsing.url/<jobid>
+
+# HistoryServer will replace <jobid> and <tmid> with the relevant job id and taskmanager id
+historyserver.log.taskmanager.url-pattern: http://my.log-browsing.url/<jobid>/<tmid>
+```
 
 ## Available Requests
 
@@ -97,5 +113,9 @@ Values in angle brackets are variables, for example `http://hostname:port/jobs/<
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>/attempts/<attempt>`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>/attempts/<attempt>/accumulators`
   - `/jobs/<jobid>/plan`
+  - `/jobs/<jobid>/jobmanager/config`
+  - `/jobs/<jobid>/jobmanager/environment`
+  - `/jobs/<jobid>/jobmanager/log-url`
+  - `/jobs/<jobid>/taskmanagers/<taskmanagerid>/log-url`
 
 {{< top >}}

@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+
+import java.time.Duration;
 
 /**
  * This class tracks a fulfillability timeout of a bulk of physical slot requests.
@@ -46,5 +47,5 @@ public interface PhysicalSlotRequestBulkChecker {
      * @param timeout timeout after which the bulk should be canceled if it is still not
      *     fulfillable.
      */
-    void schedulePendingRequestBulkTimeoutCheck(PhysicalSlotRequestBulk bulk, Time timeout);
+    void schedulePendingRequestBulkTimeoutCheck(PhysicalSlotRequestBulk bulk, Duration timeout);
 }

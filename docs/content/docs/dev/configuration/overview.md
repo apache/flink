@@ -103,8 +103,8 @@ ext {
     javaVersion = '1.8'
     flinkVersion = '{{< version >}}'
     scalaBinaryVersion = '{{< scala_version >}}'
-    slf4jVersion = '1.7.32'
-    log4jVersion = '2.17.1'
+    slf4jVersion = '1.7.36'
+    log4jVersion = '2.24.3'
 }
 sourceCompatibility = javaVersion
 targetCompatibility = javaVersion
@@ -207,8 +207,7 @@ They can be used separately, or they can be mixed, depending on your use cases:
 
 | APIs you want to use                                                              | Dependency you need to add                          |
 |-----------------------------------------------------------------------------------|-----------------------------------------------------|
-| [DataStream]({{< ref "docs/dev/datastream/overview" >}})                          | `flink-streaming-java`                              |  
-| [DataStream with Scala]({{< ref "docs/dev/datastream/scala_api_extensions" >}})   | `flink-streaming-scala{{< scala_version >}}`        |   
+| [DataStream]({{< ref "docs/dev/datastream/overview" >}})                          | `flink-streaming-java`                              |   
 | [Table API]({{< ref "docs/dev/table/common" >}})                                  | `flink-table-api-java`                              |   
 | [Table API with Scala]({{< ref "docs/dev/table/common" >}})                       | `flink-table-api-scala{{< scala_version >}}`        |
 | [Table API + DataStream]({{< ref "docs/dev/table/data_stream_api" >}})            | `flink-table-api-java-bridge`                       |
@@ -218,12 +217,12 @@ Just include them in your build tool script/descriptor, and you can start develo
 
 ## Running and packaging
 
-If you want to run your job by simply executing the main class, you will need `flink-runtime` in your classpath.
+If you want to run your job by simply executing the main class, you will need `flink-clients` in your classpath.
 In case of Table API programs, you will also need `flink-table-runtime` and `flink-table-planner-loader`.
 
 As a rule of thumb, we **suggest** packaging the application code and all its required dependencies into one fat/uber JAR.
 This includes packaging connectors, formats, and third-party dependencies of your job.
-This rule **does not apply** to Java APIs, DataStream Scala APIs, and the aforementioned runtime modules, 
+This rule **does not apply** to Java APIs and the aforementioned runtime modules, 
 which are already provided by Flink itself and **should not** be included in a job uber JAR.
 This job JAR can be submitted to an already running Flink cluster, or added to a Flink application
 container image easily without modifying the distribution.

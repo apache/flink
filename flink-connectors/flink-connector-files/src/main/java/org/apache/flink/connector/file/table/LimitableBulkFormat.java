@@ -84,6 +84,10 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit>
         return globalNumberRead != null && globalNumberRead.get() >= limit;
     }
 
+    public long getLimit() {
+        return this.limit;
+    }
+
     @Override
     public boolean isSplittable() {
         return format.isSplittable();

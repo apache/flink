@@ -18,9 +18,11 @@
 package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -84,22 +86,37 @@ public interface StateChangeUploadScheduler extends AutoCloseable {
     }
 
     static StateChangeUploadScheduler fromConfig(
+            JobID jobID,
             ReadableConfig config,
             ChangelogStorageMetricGroup metricGroup,
-            TaskChangelogRegistry changelogRegistry)
+            TaskChangelogRegistry changelogRegistry,
+            LocalRecoveryConfig localRecoveryConfig)
             throws IOException {
         Path basePath = new Path(config.get(BASE_PATH));
         long bytes = config.get(UPLOAD_BUFFER_SIZE).getBytes();
         checkArgument(bytes <= Integer.MAX_VALUE);
         int bufferSize = (int) bytes;
-        StateChangeFsUploader store =
-                new StateChangeFsUploader(
-                        basePath,
-                        basePath.getFileSystem(),
-                        config.get(COMPRESSION_ENABLED),
-                        bufferSize,
-                        metricGroup,
-                        changelogRegistry);
+        StateChangeUploader store =
+                localRecoveryConfig.isLocalBackupEnabled()
+                        ? new DuplicatingStateChangeFsUploader(
+                                jobID,
+                                basePath,
+                                basePath.getFileSystem(),
+                                config.get(COMPRESSION_ENABLED),
+                                bufferSize,
+                                metricGroup,
+                                changelogRegistry,
+                                localRecoveryConfig
+                                        .getLocalStateDirectoryProvider()
+                                        .orElseThrow(LocalRecoveryConfig.localRecoveryNotEnabled()))
+                        : new StateChangeFsUploader(
+                                jobID,
+                                basePath,
+                                basePath.getFileSystem(),
+                                config.get(COMPRESSION_ENABLED),
+                                bufferSize,
+                                metricGroup,
+                                changelogRegistry);
         BatchingStateChangeUploadScheduler batchingStore =
                 new BatchingStateChangeUploadScheduler(
                         config.get(PERSIST_DELAY).toMillis(),

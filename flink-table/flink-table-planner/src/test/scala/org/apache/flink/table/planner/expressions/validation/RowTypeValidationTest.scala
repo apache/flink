@@ -20,22 +20,26 @@ package org.apache.flink.table.planner.expressions.validation
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.RowTypeTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class RowTypeValidationTest extends RowTypeTestBase {
 
-  @Test(expected = classOf[SqlParserException])
+  @Test
   def testEmptyRowType(): Unit = {
-    testSqlApi("Row()", "FAIL")
+    assertThatExceptionOfType(classOf[SqlParserException])
+      .isThrownBy(() => testSqlApi("Row()", "FAIL"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testNullRowType(): Unit = {
-    testAllApis("FAIL", "Row(NULL)", "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testAllApis("FAIL", "Row(NULL)", "FAIL"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testSqlRowIllegalAccess(): Unit = {
-    testAllApis('f5.get("f2"), "f5.f2", "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testAllApis('f5.get("f2"), "f5.f2", "FAIL"))
   }
 }

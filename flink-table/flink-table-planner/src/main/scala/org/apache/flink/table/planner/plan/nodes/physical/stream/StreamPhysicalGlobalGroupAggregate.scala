@@ -17,7 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.planner.JList
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.hint.StateTtlHint
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalGroupAggregate
@@ -28,6 +30,9 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.hint.RelHint
+
+import java.util.Collections
 
 /**
  * Stream physical RelNode for unbounded global group aggregate.
@@ -40,14 +45,15 @@ class StreamPhysicalGlobalGroupAggregate(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    val grouping: Array[Int],
-    val aggCalls: Seq[AggregateCall],
+    grouping: Array[Int],
+    aggCalls: Seq[AggregateCall],
     val aggCallNeedRetractions: Array[Boolean],
     val localAggInputRowType: RelDataType,
     val needRetraction: Boolean,
     val partialFinalType: PartialFinalType,
-    indexOfCountStar: Option[Int] = Option.empty)
-  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel) {
+    indexOfCountStar: Option[Int] = Option.empty,
+    hints: JList[RelHint] = Collections.emptyList())
+  extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel, grouping, aggCalls, hints) {
 
   // if the indexOfCountStar is valid, the needRetraction should be true
   require(indexOfCountStar.isEmpty || indexOfCountStar.get >= 0 && needRetraction)
@@ -90,7 +96,8 @@ class StreamPhysicalGlobalGroupAggregate(
       localAggInputRowType,
       needRetraction,
       partialFinalType,
-      indexOfCountStar)
+      indexOfCountStar,
+      hints)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -123,6 +130,7 @@ class StreamPhysicalGlobalGroupAggregate(
       generateUpdateBefore,
       needRetraction,
       indexOfCountStar.map(Integer.valueOf).orNull,
+      StateTtlHint.getStateTtlFromHintOnSingleRel(hints),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

@@ -20,22 +20,22 @@ package org.apache.flink.connector.base.source.reader;
 
 import org.apache.flink.api.common.accumulators.ListAccumulator;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
 import org.apache.flink.connector.base.source.reader.mocks.MockSplitEnumerator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -43,13 +43,13 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for the {@link Source} with a coordinator. */
-public class CoordinatedSourceITCase extends AbstractTestBase {
+class CoordinatedSourceITCase extends AbstractTestBase {
 
     @Test
-    public void testEnumeratorReaderCommunication() throws Exception {
+    void testEnumeratorReaderCommunication() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         MockBaseSource source = new MockBaseSource(2, 10, Boundedness.BOUNDED);
         DataStream<Integer> stream =
@@ -58,7 +58,7 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testMultipleSources() throws Exception {
+    void testMultipleSources() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         MockBaseSource source1 = new MockBaseSource(2, 10, Boundedness.BOUNDED);
         MockBaseSource source2 = new MockBaseSource(2, 10, 20, Boundedness.BOUNDED);
@@ -70,11 +70,11 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testEnumeratorCreationFails() throws Exception {
+    void testEnumeratorCreationFails() throws Exception {
         OnceFailingToCreateEnumeratorSource.reset();
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
         final Source<Integer, ?, ?> source =
                 new OnceFailingToCreateEnumeratorSource(2, 10, Boundedness.BOUNDED);
         final DataStream<Integer> stream =
@@ -83,11 +83,11 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testEnumeratorRestoreFails() throws Exception {
+    void testEnumeratorRestoreFails() throws Exception {
         OnceFailingToRestoreEnumeratorSource.reset();
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
         env.enableCheckpointing(10);
 
         final Source<Integer, ?, ?> source =
@@ -104,7 +104,7 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
         stream.addSink(
                 new RichSinkFunction<Integer>() {
                     @Override
-                    public void open(Configuration parameters) throws Exception {
+                    public void open(OpenContext openContext) throws Exception {
                         getRuntimeContext()
                                 .addAccumulator("result", new ListAccumulator<Integer>());
                     }
@@ -116,9 +116,9 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
                 });
         List<Integer> result = env.execute().getAccumulatorResult("result");
         Collections.sort(result);
-        assertEquals(numRecords, result.size());
-        assertEquals(0, (int) result.get(0));
-        assertEquals(numRecords - 1, (int) result.get(result.size() - 1));
+        assertThat(result).hasSize(numRecords);
+        assertThat((int) result.get(0)).isEqualTo(0);
+        assertThat((int) result.get(result.size() - 1)).isEqualTo(numRecords - 1);
     }
 
     // ------------------------------------------------------------------------

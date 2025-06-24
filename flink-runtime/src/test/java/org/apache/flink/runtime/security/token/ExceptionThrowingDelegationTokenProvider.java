@@ -19,8 +19,7 @@
 package org.apache.flink.runtime.security.token;
 
 import org.apache.flink.configuration.Configuration;
-
-import org.apache.hadoop.security.Credentials;
+import org.apache.flink.core.security.token.DelegationTokenProvider;
 
 import java.util.Optional;
 
@@ -29,11 +28,24 @@ import java.util.Optional;
  */
 public class ExceptionThrowingDelegationTokenProvider implements DelegationTokenProvider {
 
-    public static volatile boolean enabled = false;
-    public static volatile boolean constructed = false;
+    public static volatile ThreadLocal<Boolean> throwInInit =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> throwInUsage =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> addToken =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+    public static volatile ThreadLocal<Boolean> constructed =
+            ThreadLocal.withInitial(() -> Boolean.FALSE);
+
+    public static void reset() {
+        throwInInit.set(false);
+        throwInUsage.set(false);
+        addToken.set(false);
+        constructed.set(false);
+    }
 
     public ExceptionThrowingDelegationTokenProvider() {
-        constructed = true;
+        constructed.set(true);
     }
 
     @Override
@@ -43,24 +55,28 @@ public class ExceptionThrowingDelegationTokenProvider implements DelegationToken
 
     @Override
     public void init(Configuration configuration) {
-        if (enabled) {
+        if (throwInInit.get()) {
             throw new IllegalArgumentException();
         }
     }
 
     @Override
     public boolean delegationTokensRequired() {
-        if (enabled) {
+        if (throwInUsage.get()) {
             throw new IllegalArgumentException();
         }
-        return false;
+        return addToken.get();
     }
 
     @Override
-    public Optional<Long> obtainDelegationTokens(Credentials credentials) {
-        if (enabled) {
+    public ObtainedDelegationTokens obtainDelegationTokens() {
+        if (throwInUsage.get()) {
             throw new IllegalArgumentException();
         }
-        return Optional.empty();
+        if (addToken.get()) {
+            return new ObtainedDelegationTokens("TEST_TOKEN_VALUE".getBytes(), Optional.empty());
+        } else {
+            return null;
+        }
     }
 }

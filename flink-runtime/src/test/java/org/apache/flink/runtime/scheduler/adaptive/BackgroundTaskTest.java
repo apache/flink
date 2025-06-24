@@ -18,14 +18,11 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.hamcrest.Matchers;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -33,46 +30,46 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link BackgroundTask}. */
-public class BackgroundTaskTest extends TestLogger {
+class BackgroundTaskTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ExecutorService> TEST_EXECUTOR_RESOURCE =
-            new TestExecutorResource<>(() -> Executors.newFixedThreadPool(2));
+    @RegisterExtension
+    private static final TestExecutorExtension<ExecutorService> TEST_EXECUTOR_EXTENSION =
+            new TestExecutorExtension<>(() -> Executors.newFixedThreadPool(2));
 
     @Test
-    public void testFinishedBackgroundTaskIsTerminated() {
+    void testFinishedBackgroundTaskIsTerminated() {
         final BackgroundTask<Void> finishedBackgroundTask = BackgroundTask.finishedBackgroundTask();
 
-        assertTrue(finishedBackgroundTask.getTerminationFuture().isDone());
+        assertThatFuture(finishedBackgroundTask.getTerminationFuture()).isDone();
         finishedBackgroundTask.getTerminationFuture().join();
     }
 
     @Test
-    public void testFinishedBackgroundTaskDoesNotContainAResult() {
+    void testFinishedBackgroundTaskDoesNotContainAResult() {
         final BackgroundTask<Void> finishedBackgroundTask = BackgroundTask.finishedBackgroundTask();
 
-        assertTrue(finishedBackgroundTask.getResultFuture().isCompletedExceptionally());
+        assertThatFuture(finishedBackgroundTask.getResultFuture()).isCompletedExceptionally();
     }
 
     @Test
-    public void testNormalCompletionOfBackgroundTask() {
+    void testNormalCompletionOfBackgroundTask() {
         final String expectedValue = "foobar";
         final BackgroundTask<String> backgroundTask =
                 BackgroundTask.finishedBackgroundTask()
-                        .runAfter(() -> expectedValue, TEST_EXECUTOR_RESOURCE.getExecutor());
+                        .runAfter(() -> expectedValue, TEST_EXECUTOR_EXTENSION.getExecutor());
 
-        assertThat(backgroundTask.getResultFuture().join(), Matchers.is(expectedValue));
+        assertThat(backgroundTask.getResultFuture().join()).isEqualTo(expectedValue);
         // check that the termination future has completed normally
         backgroundTask.getTerminationFuture().join();
     }
 
     @Test
-    public void testExceptionalCompletionOfBackgroundTask() throws InterruptedException {
+    void testExceptionalCompletionOfBackgroundTask() throws InterruptedException {
         final Exception expectedException = new Exception("Test exception");
         final BackgroundTask<String> backgroundTask =
                 BackgroundTask.finishedBackgroundTask()
@@ -80,20 +77,18 @@ public class BackgroundTaskTest extends TestLogger {
                                 () -> {
                                     throw expectedException;
                                 },
-                                TEST_EXECUTOR_RESOURCE.getExecutor());
+                                TEST_EXECUTOR_EXTENSION.getExecutor());
 
-        try {
-            backgroundTask.getResultFuture().get();
-            fail("Expected an exceptionally completed result future.");
-        } catch (ExecutionException ee) {
-            assertThat(ee, FlinkMatchers.containsCause(expectedException));
-        }
+        assertThatThrownBy(() -> backgroundTask.getResultFuture().get())
+                .withFailMessage("Expected an exceptionally completed result future.")
+                .isInstanceOf(ExecutionException.class)
+                .hasCause(expectedException);
         // check that the termination future has completed normally
         backgroundTask.getTerminationFuture().join();
     }
 
     @Test
-    public void testRunAfterExecutesBackgroundTaskAfterPreviousHasCompleted() {
+    void testRunAfterExecutesBackgroundTaskAfterPreviousHasCompleted() {
         final OneShotLatch blockingLatch = new OneShotLatch();
         final BlockingQueue<Integer> taskCompletions = new ArrayBlockingQueue<>(2);
         final BackgroundTask<Void> backgroundTask =
@@ -103,23 +98,23 @@ public class BackgroundTaskTest extends TestLogger {
                                     taskCompletions.offer(1);
                                     return null;
                                 },
-                                TEST_EXECUTOR_RESOURCE.getExecutor())
+                                TEST_EXECUTOR_EXTENSION.getExecutor())
                         .runAfter(
                                 () -> {
                                     taskCompletions.offer(2);
                                     return null;
                                 },
-                                TEST_EXECUTOR_RESOURCE.getExecutor());
+                                TEST_EXECUTOR_EXTENSION.getExecutor());
 
         blockingLatch.trigger();
 
         backgroundTask.getTerminationFuture().join();
 
-        assertThat(taskCompletions, Matchers.contains(1, 2));
+        assertThat(taskCompletions).contains(1, 2);
     }
 
     @Test
-    public void testAbortSkipsTasksWhichHaveNotBeenStarted() {
+    void testAbortSkipsTasksWhichHaveNotBeenStarted() {
         final OneShotLatch blockingLatch = new OneShotLatch();
         final BlockingQueue<Integer> taskCompletions = new ArrayBlockingQueue<>(2);
         final BackgroundTask<Void> backgroundTask =
@@ -129,13 +124,13 @@ public class BackgroundTaskTest extends TestLogger {
                                     taskCompletions.offer(1);
                                     return null;
                                 },
-                                TEST_EXECUTOR_RESOURCE.getExecutor())
+                                TEST_EXECUTOR_EXTENSION.getExecutor())
                         .runAfter(
                                 () -> {
                                     taskCompletions.offer(2);
                                     return null;
                                 },
-                                TEST_EXECUTOR_RESOURCE.getExecutor());
+                                TEST_EXECUTOR_EXTENSION.getExecutor());
 
         final BackgroundTask<Void> finalTask =
                 backgroundTask.runAfter(
@@ -143,7 +138,7 @@ public class BackgroundTaskTest extends TestLogger {
                             taskCompletions.offer(3);
                             return null;
                         },
-                        TEST_EXECUTOR_RESOURCE.getExecutor());
+                        TEST_EXECUTOR_EXTENSION.getExecutor());
 
         backgroundTask.abort();
 
@@ -151,6 +146,6 @@ public class BackgroundTaskTest extends TestLogger {
 
         finalTask.getTerminationFuture().join();
 
-        assertThat(taskCompletions, Matchers.contains(1, 3));
+        assertThat(taskCompletions).contains(1, 3);
     }
 }

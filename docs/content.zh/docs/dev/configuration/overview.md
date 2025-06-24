@@ -101,8 +101,8 @@ ext {
     javaVersion = '1.8'
     flinkVersion = '{{< version >}}'
     scalaBinaryVersion = '{{< scala_version >}}'
-    slf4jVersion = '1.7.32'
-    log4jVersion = '2.17.1'
+    slf4jVersion = '1.7.36'
+    log4jVersion = '2.24.3'
 }
 sourceCompatibility = javaVersion
 targetCompatibility = javaVersion
@@ -210,8 +210,7 @@ Flink提供了两大 API：[Datastream API]({{< ref "docs/dev/datastream/overvie
 
 | 你要使用的 API                                                                      | 你需要添加的依赖项                                     |
 |-----------------------------------------------------------------------------------|-----------------------------------------------------|
-| [DataStream]({{< ref "docs/dev/datastream/overview" >}})                          | `flink-streaming-java`                              |  
-| [DataStream Scala 版]({{< ref "docs/dev/datastream/scala_api_extensions" >}})     | `flink-streaming-scala{{< scala_version >}}`        |   
+| [DataStream]({{< ref "docs/dev/datastream/overview" >}})                          | `flink-streaming-java`                              |   
 | [Table API]({{< ref "docs/dev/table/common" >}})                                  | `flink-table-api-java`                              |   
 | [Table API Scala 版]({{< ref "docs/dev/table/common" >}})                         | `flink-table-api-scala{{< scala_version >}}`        |
 | [Table API + DataStream]({{< ref "docs/dev/table/data_stream_api" >}})            | `flink-table-api-java-bridge`                       |
@@ -223,9 +222,9 @@ Flink提供了两大 API：[Datastream API]({{< ref "docs/dev/datastream/overvie
 
 ## 运行和打包
 
-如果你想通过简单地执行主类来运行你的作业，你需要 classpath 里有 `flink-runtime`。对于 Table API 程序，你还需要 `flink-table-runtime` 和 `flink-table-planner-loader`。
+如果你想通过简单地执行主类来运行你的作业，你需要 classpath 里包含 `flink-clients`。对于 Table API 程序，你还需要在 classpath 中包含 `flink-table-runtime` 和 `flink-table-planner-loader`。
 
-根据经验，我们**建议**将应用程序代码及其所有必需的依赖项打包进一个 fat/uber JAR 中。这包括打包你作业用到的连接器、格式和第三方依赖项。此规则**不适用于** Java API、DataStream Scala API 以及前面提到的运行时模块，它们已经由 Flink 本身提供，**不应**包含在作业的 uber JAR 中。你可以把该作业 JAR 提交到已经运行的 Flink 集群，也可以轻松将其添加到 Flink 应用程序容器镜像中，而无需修改发行版。
+根据经验，我们**建议**将应用程序代码及其所有必需的依赖项打包进一个 fat/uber JAR 中。这包括打包你作业用到的连接器、格式和第三方依赖项。此规则**不适用于** Java API 以及前面提到的运行时模块，它们已经由 Flink 本身提供，**不应**包含在作业的 uber JAR 中。你可以把该作业 JAR 提交到已经运行的 Flink 集群，也可以轻松将其添加到 Flink 应用程序容器镜像中，而无需修改发行版。
 
 <a name="whats-next"></a>
 

@@ -22,16 +22,24 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Record;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Path;
 
-public class BinaryInputFormatTest {
+import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Fail.fail;
+
+class BinaryInputFormatTest {
+
+    @TempDir private Path tempDir;
 
     private static final class MyBinaryInputFormat extends BinaryInputFormat<Record> {
 
@@ -41,29 +49,21 @@ public class BinaryInputFormatTest {
         protected Record deserialize(Record record, DataInputView dataInput) {
             return record;
         }
-
-        @Override
-        public boolean supportsMultiPaths() {
-            return true;
-        }
     }
 
     @Test
-    public void testCreateInputSplitsWithOneFile() throws IOException {
-        // create temporary file with 3 blocks
-        final File tempFile = File.createTempFile("binary_input_format_test", "tmp");
-        tempFile.deleteOnExit();
+    void testCreateInputSplitsWithOneFile() throws IOException {
         final int blockInfoSize = new BlockInfo().getInfoSize();
         final int blockSize = blockInfoSize + 8;
         final int numBlocks = 3;
-        FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
-        for (int i = 0; i < blockSize * numBlocks; i++) {
-            fileOutputStream.write(new byte[] {1});
-        }
-        fileOutputStream.close();
+
+        // create temporary file with 3 blocks
+        final File tempFile =
+                createBinaryInputFile(
+                        "test_create_input_splits_with_one_file", blockSize, numBlocks);
 
         final Configuration config = new Configuration();
-        config.setLong("input.block_size", blockSize + 10);
+        config.set(getLongConfigOption("input.block_size"), blockSize + 10L);
 
         final BinaryInputFormat<Record> inputFormat = new MyBinaryInputFormat();
         inputFormat.setFilePath(tempFile.toURI().toString());
@@ -73,17 +73,23 @@ public class BinaryInputFormatTest {
 
         FileInputSplit[] inputSplits = inputFormat.createInputSplits(numBlocks);
 
-        Assert.assertEquals("Returns requested numbers of splits.", numBlocks, inputSplits.length);
-        Assert.assertEquals(
-                "1. split has block size length.", blockSize, inputSplits[0].getLength());
-        Assert.assertEquals(
-                "2. split has block size length.", blockSize, inputSplits[1].getLength());
-        Assert.assertEquals(
-                "3. split has block size length.", blockSize, inputSplits[2].getLength());
+        assertThat(inputSplits).as("Returns requested numbers of splits.").hasSize(numBlocks);
+
+        assertThat(inputSplits[0].getLength())
+                .as("1. split should have block size length.")
+                .isEqualTo(blockSize);
+
+        assertThat(inputSplits[1].getLength())
+                .as("2. split should have block size length.")
+                .isEqualTo(blockSize);
+
+        assertThat(inputSplits[2].getLength())
+                .as("3. split should have block size length.")
+                .isEqualTo(blockSize);
     }
 
     @Test
-    public void testCreateInputSplitsWithMulitpleFiles() throws IOException {
+    void testCreateInputSplitsWithMultipleFiles() throws IOException {
         final int blockInfoSize = new BlockInfo().getInfoSize();
         final int blockSize = blockInfoSize + 8;
         final int numBlocks1 = 3;
@@ -106,27 +112,28 @@ public class BinaryInputFormatTest {
         int numSplitsFile1 = 0;
         int numSplitsFile2 = 0;
 
-        Assert.assertEquals(
-                "Returns requested numbers of splits.", numBlocksTotal, inputSplits.length);
+        assertThat(inputSplits).as("Returns requested numbers of splits.").hasSize(numBlocksTotal);
+
         for (int i = 0; i < inputSplits.length; i++) {
-            Assert.assertEquals(
-                    String.format("%d. split has block size length.", i),
-                    blockSize,
-                    inputSplits[i].getLength());
+
+            assertThat(inputSplits[i].getLength())
+                    .as("%d. split should have block size length.", i)
+                    .isEqualTo(blockSize);
+
             if (inputSplits[i].getPath().toString().equals(pathFile1)) {
                 numSplitsFile1++;
             } else if (inputSplits[i].getPath().toString().equals(pathFile2)) {
                 numSplitsFile2++;
             } else {
-                Assert.fail("Split does not belong to any input file.");
+                fail("Split does not belong to any input file.");
             }
         }
-        Assert.assertEquals(numBlocks1, numSplitsFile1);
-        Assert.assertEquals(numBlocks2, numSplitsFile2);
+        assertThat(numSplitsFile1).isEqualTo(numBlocks1);
+        assertThat(numSplitsFile2).isEqualTo(numBlocks2);
     }
 
     @Test
-    public void testGetStatisticsNonExistingFiles() {
+    void testGetStatisticsNonExistingFiles() {
         final MyBinaryInputFormat format = new MyBinaryInputFormat();
         format.setFilePaths(
                 "file:///some/none/existing/directory/",
@@ -134,11 +141,11 @@ public class BinaryInputFormatTest {
         format.configure(new Configuration());
 
         BaseStatistics stats = format.getStatistics(null);
-        Assert.assertNull("The file statistics should be null.", stats);
+        assertThat(stats).as("The file statistics should be null.").isNull();
     }
 
     @Test
-    public void testGetStatisticsMultiplePaths() throws IOException {
+    void testGetStatisticsMultiplePaths() throws IOException {
         final int blockInfoSize = new BlockInfo().getInfoSize();
         final int blockSize = blockInfoSize + 8;
         final int numBlocks1 = 3;
@@ -154,17 +161,58 @@ public class BinaryInputFormatTest {
         inputFormat.setBlockSize(blockSize);
 
         BaseStatistics stats = inputFormat.getStatistics(null);
-        Assert.assertEquals(
-                "The file size statistics is wrong",
-                blockSize * (numBlocks1 + numBlocks2),
-                stats.getTotalInputSize());
+
+        assertThat(stats.getTotalInputSize())
+                .as("The file size statistics is wrong")
+                .isEqualTo((long) blockSize * (numBlocks1 + numBlocks2));
+    }
+
+    @Test
+    void testCreateInputSplitsWithEmptySplit() throws IOException {
+        final int blockInfoSize = new BlockInfo().getInfoSize();
+        final int blockSize = blockInfoSize + 8;
+        final int numBlocks = 3;
+        final int minNumSplits = 5;
+
+        // create temporary file with 3 blocks
+        final File tempFile =
+                createBinaryInputFile(
+                        "test_create_input_splits_with_empty_split", blockSize, numBlocks);
+
+        final Configuration config = new Configuration();
+        config.set(getLongConfigOption("input.block_size"), blockSize + 10L);
+
+        final BinaryInputFormat<Record> inputFormat = new MyBinaryInputFormat();
+        inputFormat.setFilePath(tempFile.toURI().toString());
+        inputFormat.setBlockSize(blockSize);
+
+        inputFormat.configure(config);
+
+        FileInputSplit[] inputSplits = inputFormat.createInputSplits(minNumSplits);
+
+        assertThat(inputSplits).as("Returns requested numbers of splits.").hasSize(minNumSplits);
+
+        assertThat(inputSplits[0].getLength())
+                .as("1. split should have block size length.")
+                .isEqualTo(blockSize);
+
+        assertThat(inputSplits[1].getLength())
+                .as("2. split should have block size length.")
+                .isEqualTo(blockSize);
+
+        assertThat(inputSplits[2].getLength())
+                .as("3. split should have block size length.")
+                .isEqualTo(blockSize);
+
+        assertThat(inputSplits[3].getLength()).as("4. split should be an empty split.").isZero();
+
+        assertThat(inputSplits[4].getLength()).as("5. split should be an empty split.").isZero();
     }
 
     /** Creates a temp file with a certain number of blocks of a certain size. */
     private File createBinaryInputFile(String fileName, int blockSize, int numBlocks)
             throws IOException {
-        final File tempFile = File.createTempFile(fileName, "tmp");
-        tempFile.deleteOnExit();
+        final File tempFile = TempDirUtils.newFile(tempDir, fileName);
         try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile)) {
             for (int i = 0; i < blockSize * numBlocks; i++) {
                 fileOutputStream.write(new byte[] {1});

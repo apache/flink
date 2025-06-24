@@ -58,7 +58,6 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
 
   private val rexBuilder = rel.getCluster.getRexBuilder
   private val tableConfig = unwrapTableConfig(rel)
-  private val maxCnfNodeCount = tableConfig.get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
 
   // these default values is referred to RelMdUtil#guessSelectivity
   private[flink] val defaultComparisonSelectivity = Some(0.5d)
@@ -83,8 +82,9 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
         Some(1.0)
       } else {
         val rexSimplify =
-          new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, true, RexUtil.EXECUTOR)
-        val simplifiedPredicate = rexSimplify.simplify(predicate)
+          new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, RexUtil.EXECUTOR)
+        val simplifiedPredicate =
+          rexSimplify.simplifyUnknownAs(predicate, RexUnknownAs.falseIf(true))
         if (simplifiedPredicate.isAlwaysTrue) {
           Some(1.0)
         } else if (simplifiedPredicate.isAlwaysFalse) {
@@ -224,7 +224,7 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
    * 40.0` and `CAST(b AS INTEGER) > 30`
    */
   private def splitAndPredicate(call: RexCall): Seq[RexNode] = {
-    val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, call)
+    val cnf = FlinkRexUtil.toCnf(rexBuilder, call)
     val conjunctions = RelOptUtil.conjunctions(cnf)
 
     val combinations = new JHashMap[String, JArrayList[RexNode]]()
@@ -329,7 +329,7 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
    *   None if the condition is not supported.
    */
   private def estimateAndPredicate(andPredicate: RexCall): Option[Double] = {
-    val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, andPredicate)
+    val cnf = FlinkRexUtil.toCnf(rexBuilder, andPredicate)
     val conjunctions = RelOptUtil.conjunctions(cnf)
 
     val inputRefs = new JHashSet[Int]()

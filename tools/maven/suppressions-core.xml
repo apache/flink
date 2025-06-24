@@ -41,6 +41,10 @@ under the License.
 	<suppress files="AbstractGenericTypeComparatorTest.java" checks="NeedBraces"/>
 	<suppress files="ParserTestBase.java" checks="NeedBraces"/>
 
+	<!-- Legacy mockito usages -->
+	<suppress files="MethodForwardingTestUtil.java|InitOutputPathTest.java|LimitedConnectionsFileSystemDelegationTest.java"
+			  checks="IllegalImport"/>
+
 	<suppress
 		files="(.*)api[/\\]java[/\\]typeutils[/\\]runtime[/\\](.*)"
 		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|StaticVariableNameCheck|LocalFinalVariableName|EmptyLineSeparator"/>
@@ -113,4 +117,5 @@ under the License.
 	<suppress
 		files="(.*)test[/\\](.*)testutils[/\\](.*)"
 		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|StaticVariableNameCheck|LocalFinalVariableName|EmptyLineSeparator"/>
+
 </suppressions>

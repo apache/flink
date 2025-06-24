@@ -24,9 +24,12 @@ import org.apache.flink.runtime.execution.librarycache.TestingLibraryCacheManage
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.state.TaskExecutorChannelStateExecutorFactoryManager;
+import org.apache.flink.runtime.state.TaskExecutorFileMergingManager;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.taskexecutor.slot.NoOpSlotAllocationSnapshotPersistenceService;
@@ -36,6 +39,7 @@ import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.runtime.util.NoOpGroupCache;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -56,9 +60,12 @@ public class TaskManagerServicesBuilder {
     private JobTable jobTable;
     private JobLeaderService jobLeaderService;
     private TaskExecutorLocalStateStoresManager taskStateManager;
+    private TaskExecutorFileMergingManager taskFileMergingManager;
     private TaskExecutorStateChangelogStoragesManager taskChangelogStoragesManager;
+    private TaskExecutorChannelStateExecutorFactoryManager taskChannelStateExecutorFactoryManager;
     private TaskEventDispatcher taskEventDispatcher;
     private LibraryCacheManager libraryCacheManager;
+    private SharedResources sharedResources;
     private long managedMemorySize;
     private SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService;
 
@@ -79,11 +86,15 @@ public class TaskManagerServicesBuilder {
                         unresolvedTaskManagerLocation,
                         RetryingRegistrationConfiguration.defaultConfiguration());
         taskStateManager = mock(TaskExecutorLocalStateStoresManager.class);
+        taskFileMergingManager = new TaskExecutorFileMergingManager();
         taskChangelogStoragesManager = mock(TaskExecutorStateChangelogStoragesManager.class);
+        taskChannelStateExecutorFactoryManager =
+                new TaskExecutorChannelStateExecutorFactoryManager();
         libraryCacheManager = TestingLibraryCacheManager.newBuilder().build();
         managedMemorySize = MemoryManager.MIN_PAGE_SIZE;
         this.slotAllocationSnapshotPersistenceService =
                 NoOpSlotAllocationSnapshotPersistenceService.INSTANCE;
+        sharedResources = new SharedResources();
     }
 
     public TaskManagerServicesBuilder setUnresolvedTaskManagerLocation(
@@ -135,9 +146,21 @@ public class TaskManagerServicesBuilder {
         return this;
     }
 
+    public TaskManagerServicesBuilder setTaskFileMergingManager(
+            TaskExecutorFileMergingManager taskFileMergingManager) {
+        this.taskFileMergingManager = taskFileMergingManager;
+        return this;
+    }
+
     public TaskManagerServicesBuilder setTaskChangelogStoragesManager(
             TaskExecutorStateChangelogStoragesManager taskChangelogStoragesManager) {
         this.taskChangelogStoragesManager = taskChangelogStoragesManager;
+        return this;
+    }
+
+    public TaskManagerServicesBuilder setTaskChannelStateExecutorFactoryManager(
+            TaskExecutorChannelStateExecutorFactoryManager taskChannelStateExecutorFactoryManager) {
+        this.taskChannelStateExecutorFactoryManager = taskChannelStateExecutorFactoryManager;
         return this;
     }
 
@@ -170,10 +193,16 @@ public class TaskManagerServicesBuilder {
                 jobTable,
                 jobLeaderService,
                 taskStateManager,
+                taskFileMergingManager,
                 taskChangelogStoragesManager,
+                taskChannelStateExecutorFactoryManager,
                 taskEventDispatcher,
                 Executors.newSingleThreadScheduledExecutor(),
                 libraryCacheManager,
-                slotAllocationSnapshotPersistenceService);
+                slotAllocationSnapshotPersistenceService,
+                sharedResources,
+                new NoOpGroupCache<>(),
+                new NoOpGroupCache<>(),
+                new NoOpGroupCache<>());
     }
 }

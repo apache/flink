@@ -21,11 +21,17 @@ package org.apache.flink.runtime.rest.messages.job;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 /** Tests (un)marshalling of the {@link SubtaskExecutionAttemptDetailsInfo}. */
-public class SubtaskExecutionAttemptDetailsInfoTest
+@ExtendWith(NoOpTestExtension.class)
+class SubtaskExecutionAttemptDetailsInfoTest
         extends RestResponseMarshallingTestBase<SubtaskExecutionAttemptDetailsInfo> {
 
     @Override
@@ -46,7 +52,17 @@ public class SubtaskExecutionAttemptDetailsInfoTest
                         Math.abs(random.nextLong()),
                         random.nextBoolean(),
                         Math.abs(random.nextLong()),
-                        random.nextBoolean());
+                        random.nextBoolean(),
+                        Math.abs(random.nextLong()),
+                        Math.abs(random.nextLong()),
+                        Math.abs(random.nextDouble()));
+
+        final Map<ExecutionState, Long> statusDuration = new HashMap<>();
+        statusDuration.put(ExecutionState.CREATED, 10L);
+        statusDuration.put(ExecutionState.SCHEDULED, 20L);
+        statusDuration.put(ExecutionState.DEPLOYING, 30L);
+        statusDuration.put(ExecutionState.INITIALIZING, 40L);
+        statusDuration.put(ExecutionState.RUNNING, 50L);
 
         return new SubtaskExecutionAttemptDetailsInfo(
                 Math.abs(random.nextInt()),
@@ -57,6 +73,8 @@ public class SubtaskExecutionAttemptDetailsInfoTest
                 Math.abs(random.nextLong()),
                 Math.abs(random.nextLong()),
                 ioMetricsInfo,
-                "taskmanagerId");
+                "taskmanagerId",
+                statusDuration,
+                null);
     }
 }

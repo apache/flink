@@ -26,6 +26,7 @@ import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.operators.IterationOperator;
 import org.apache.flink.api.common.operators.Operator;
@@ -35,7 +36,6 @@ import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
@@ -74,7 +74,9 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
         this(operatorInfo, DEFAULT_NAME);
     }
 
-    /** @param name */
+    /**
+     * @param name
+     */
     public BulkIterationBase(UnaryOperatorInformation<T, T> operatorInfo, String name) {
         super(
                 new UserCodeClassWrapper<AbstractRichFunction>(AbstractRichFunction.class),
@@ -85,12 +87,16 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
 
     // --------------------------------------------------------------------------------------------
 
-    /** @return The operator representing the partial solution. */
+    /**
+     * @return The operator representing the partial solution.
+     */
     public Operator<T> getPartialSolution() {
         return this.inputPlaceHolder;
     }
 
-    /** @param result */
+    /**
+     * @param result
+     */
     public void setNextPartialSolution(Operator<T> result) {
         if (result == null) {
             throw new NullPointerException(
@@ -99,17 +105,23 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
         this.iterationResult = result;
     }
 
-    /** @return The operator representing the next partial solution. */
+    /**
+     * @return The operator representing the next partial solution.
+     */
     public Operator<T> getNextPartialSolution() {
         return this.iterationResult;
     }
 
-    /** @return The operator representing the termination criterion. */
+    /**
+     * @return The operator representing the termination criterion.
+     */
     public Operator<?> getTerminationCriterion() {
         return this.terminationCriterion;
     }
 
-    /** @param criterion */
+    /**
+     * @param criterion
+     */
     public <X> void setTerminationCriterion(Operator<X> criterion) {
 
         TypeInformation<X> type = criterion.getOperatorInfo().getOutputType();
@@ -129,7 +141,9 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
                         new TerminationCriterionAggregationConvergence());
     }
 
-    /** @param num */
+    /**
+     * @param num
+     */
     public void setMaximumNumberOfIterations(int num) {
         if (num < 1) {
             throw new IllegalArgumentException("The number of iterations must be at least one.");
@@ -146,7 +160,9 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
         return this.aggregators;
     }
 
-    /** @throws InvalidProgramException */
+    /**
+     * @throws InvalidProgramException
+     */
     public void validate() throws InvalidProgramException {
         if (this.input == null) {
             throw new RuntimeException("Operator for initial partial solution is not set.");
@@ -238,7 +254,7 @@ public class BulkIterationBase<T> extends SingleInputOperator<T, T, AbstractRich
         private TerminationCriterionAggregator aggregator;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             aggregator =
                     getIterationRuntimeContext()
                             .getIterationAggregator(TERMINATION_CRITERION_AGGREGATOR_NAME);

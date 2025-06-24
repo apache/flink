@@ -19,37 +19,51 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.testutils.TestingUtils;
 
+import java.time.Duration;
+
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
+
 /** Builder for {@link SlotManagerConfiguration}. */
 public class SlotManagerConfigurationBuilder {
-    private Time taskManagerRequestTimeout;
-    private Time slotRequestTimeout;
-    private Time taskManagerTimeout;
+    private Duration taskManagerRequestTimeout;
+    private Duration taskManagerTimeout;
+    private Duration requirementCheckDelay;
+    private Duration declareNeededResourceDelay;
     private boolean waitResultConsumedBeforeRelease;
     private WorkerResourceSpec defaultWorkerResourceSpec;
     private int numSlotsPerWorker;
+    private int minSlotNum;
     private int maxSlotNum;
+    private CPUResource minTotalCpu;
     private CPUResource maxTotalCpu;
+    private MemorySize minTotalMem;
     private MemorySize maxTotalMem;
     private int redundantTaskManagerNum;
+    private TaskManagerLoadBalanceMode taskManagerLoadBalanceMode;
 
     private SlotManagerConfigurationBuilder() {
         this.taskManagerRequestTimeout = TestingUtils.infiniteTime();
-        this.slotRequestTimeout = TestingUtils.infiniteTime();
         this.taskManagerTimeout = TestingUtils.infiniteTime();
+        this.requirementCheckDelay = ResourceManagerOptions.REQUIREMENTS_CHECK_DELAY.defaultValue();
+        this.declareNeededResourceDelay =
+                ResourceManagerOptions.DECLARE_NEEDED_RESOURCE_DELAY.defaultValue();
         this.waitResultConsumedBeforeRelease = true;
         this.defaultWorkerResourceSpec = WorkerResourceSpec.ZERO;
         this.numSlotsPerWorker = 1;
+        this.minSlotNum = ResourceManagerOptions.MIN_SLOT_NUM.defaultValue();
         this.maxSlotNum = ResourceManagerOptions.MAX_SLOT_NUM.defaultValue();
+        this.minTotalCpu = new CPUResource(Double.MIN_VALUE);
         this.maxTotalCpu = new CPUResource(Double.MAX_VALUE);
+        this.minTotalMem = MemorySize.ZERO;
         this.maxTotalMem = MemorySize.MAX_VALUE;
         this.redundantTaskManagerNum =
                 ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue();
+        this.taskManagerLoadBalanceMode = TaskManagerLoadBalanceMode.NONE;
     }
 
     public static SlotManagerConfigurationBuilder newBuilder() {
@@ -57,18 +71,25 @@ public class SlotManagerConfigurationBuilder {
     }
 
     public SlotManagerConfigurationBuilder setTaskManagerRequestTimeout(
-            Time taskManagerRequestTimeout) {
+            Duration taskManagerRequestTimeout) {
         this.taskManagerRequestTimeout = taskManagerRequestTimeout;
         return this;
     }
 
-    public SlotManagerConfigurationBuilder setSlotRequestTimeout(Time slotRequestTimeout) {
-        this.slotRequestTimeout = slotRequestTimeout;
+    public SlotManagerConfigurationBuilder setTaskManagerTimeout(Duration taskManagerTimeout) {
+        this.taskManagerTimeout = taskManagerTimeout;
         return this;
     }
 
-    public SlotManagerConfigurationBuilder setTaskManagerTimeout(Time taskManagerTimeout) {
-        this.taskManagerTimeout = taskManagerTimeout;
+    public SlotManagerConfigurationBuilder setRequirementCheckDelay(
+            Duration requirementCheckDelay) {
+        this.requirementCheckDelay = requirementCheckDelay;
+        return this;
+    }
+
+    public SlotManagerConfigurationBuilder setDeclareNeededResourceDelay(
+            Duration declareNeededResourceDelay) {
+        this.declareNeededResourceDelay = declareNeededResourceDelay;
         return this;
     }
 
@@ -89,14 +110,26 @@ public class SlotManagerConfigurationBuilder {
         return this;
     }
 
+    public void setMinSlotNum(int minSlotNum) {
+        this.minSlotNum = minSlotNum;
+    }
+
     public SlotManagerConfigurationBuilder setMaxSlotNum(int maxSlotNum) {
         this.maxSlotNum = maxSlotNum;
         return this;
     }
 
+    public void setMinTotalCpu(CPUResource minTotalCpu) {
+        this.minTotalCpu = minTotalCpu;
+    }
+
     public SlotManagerConfigurationBuilder setMaxTotalCpu(CPUResource maxTotalCpu) {
         this.maxTotalCpu = maxTotalCpu;
         return this;
+    }
+
+    public void setMinTotalMem(MemorySize minTotalMem) {
+        this.minTotalMem = minTotalMem;
     }
 
     public SlotManagerConfigurationBuilder setMaxTotalMem(MemorySize maxTotalMem) {
@@ -109,17 +142,26 @@ public class SlotManagerConfigurationBuilder {
         return this;
     }
 
+    public SlotManagerConfigurationBuilder setTaskManagerLoadBalanceMode(
+            TaskManagerLoadBalanceMode taskManagerLoadBalanceMode) {
+        this.taskManagerLoadBalanceMode = taskManagerLoadBalanceMode;
+        return this;
+    }
+
     public SlotManagerConfiguration build() {
         return new SlotManagerConfiguration(
                 taskManagerRequestTimeout,
-                slotRequestTimeout,
                 taskManagerTimeout,
-                waitResultConsumedBeforeRelease,
-                AnyMatchingSlotMatchingStrategy.INSTANCE,
+                requirementCheckDelay,
+                declareNeededResourceDelay,
+                taskManagerLoadBalanceMode,
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,
+                minSlotNum,
                 maxSlotNum,
+                minTotalCpu,
                 maxTotalCpu,
+                minTotalMem,
                 maxTotalMem,
                 redundantTaskManagerNum);
     }

@@ -1,0 +1,24 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>external-resource.&lt;resource_name&gt;.param.discovery-script.args</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The arguments passed to the discovery script. For the default discovery script, see <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/advanced/external_resources/#default-script">Default Script</a> for the available parameters.</td>
+        </tr>
+        <tr>
+            <td><h5>external-resource.&lt;resource_name&gt;.param.discovery-script.path</h5></td>
+            <td style="word-wrap: break-word;">"plugins/external-resource-gpu/nvidia-gpu-discovery.sh"</td>
+            <td>String</td>
+            <td>The path of the <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/deployment/advanced/external_resources/#discovery-script">discovery script</a>.It can either be an absolute path, or a relative path to FLINK_HOME when defined or the current directory otherwise. If not explicitly configured, the default script will be used.</td>
+        </tr>
+    </tbody>
+</table>

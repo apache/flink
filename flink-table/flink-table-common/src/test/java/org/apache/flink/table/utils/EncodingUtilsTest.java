@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.utils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.Objects;
@@ -26,17 +26,17 @@ import java.util.Objects;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link org.apache.flink.table.utils.EncodingUtils}. */
-public class EncodingUtilsTest {
+class EncodingUtilsTest {
 
     @Test
-    public void testObjectStringEncoding() {
+    void testObjectStringEncoding() {
         final MyPojo pojo = new MyPojo(33, "Hello");
         final String base64 = EncodingUtils.encodeObjectToString(pojo);
         assertThat(EncodingUtils.decodeStringToObject(base64, Serializable.class)).isEqualTo(pojo);
     }
 
     @Test
-    public void testStringBase64Encoding() {
+    void testStringBase64Encoding() {
         final String string = "Hello, this is apache flink.";
         final String base64 = EncodingUtils.encodeStringToBase64(string);
         assertThat(base64).isEqualTo("SGVsbG8sIHRoaXMgaXMgYXBhY2hlIGZsaW5rLg==");
@@ -44,21 +44,37 @@ public class EncodingUtilsTest {
     }
 
     @Test
-    public void testMd5Hex() {
+    void testMd5Hex() {
         final String string = "Hello, world! How are you? 高精确";
         assertThat(EncodingUtils.hex(EncodingUtils.md5(string)))
                 .isEqualTo("983abac84e994b4ba73be177e5cc298b");
     }
 
     @Test
-    public void testJavaEscaping() {
+    void testJavaEscaping() {
         assertThat(EncodingUtils.escapeJava("\\hello\"world'space/"))
                 .isEqualTo("\\\\hello\\\"world'space/");
     }
 
     @Test
-    public void testRepetition() {
+    void testRepetition() {
         assertThat(EncodingUtils.repeat("we", 3)).isEqualTo("wewewe");
+    }
+
+    @Test
+    void testUnhex() {
+        assertThat(EncodingUtils.unhex("".getBytes())).isEqualTo(new byte[0]);
+        assertThat(EncodingUtils.unhex("1".getBytes())).isEqualTo(new byte[] {0});
+        assertThat(EncodingUtils.unhex("146".getBytes())).isEqualTo(new byte[] {0, 0x46});
+        assertThat(EncodingUtils.unhex("z".getBytes())).isEqualTo(null);
+        assertThat(EncodingUtils.unhex("1-".getBytes())).isEqualTo(null);
+        assertThat(EncodingUtils.unhex("466C696E6B".getBytes()))
+                .isEqualTo(new byte[] {0x46, 0x6c, 0x69, 0x6E, 0x6B});
+        assertThat(EncodingUtils.unhex("4D7953514C".getBytes()))
+                .isEqualTo(new byte[] {0x4D, 0x79, 0x53, 0x51, 0x4C});
+        assertThat(EncodingUtils.unhex("\uD83D\uDE00".getBytes())).isEqualTo(null);
+        assertThat(EncodingUtils.unhex(EncodingUtils.hex("\uD83D\uDE00").getBytes()))
+                .isEqualTo("\uD83D\uDE00".getBytes());
     }
 
     // --------------------------------------------------------------------------------------------

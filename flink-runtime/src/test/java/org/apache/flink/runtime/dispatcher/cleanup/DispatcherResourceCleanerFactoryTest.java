@@ -27,11 +27,11 @@ import org.apache.flink.runtime.dispatcher.JobManagerRunnerRegistry;
 import org.apache.flink.runtime.dispatcher.TestingJobManagerRunnerRegistry;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.jobmanager.JobGraphWriter;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
-import org.apache.flink.runtime.testutils.TestingJobGraphStore;
+import org.apache.flink.runtime.testutils.TestingExecutionPlanStore;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -61,8 +61,8 @@ public class DispatcherResourceCleanerFactoryTest {
     private CompletableFuture<JobID> jobManagerRunnerRegistryLocalCleanupFuture;
     private CompletableFuture<Void> jobManagerRunnerRegistryLocalCleanupResultFuture;
 
-    private CompletableFuture<JobID> jobGraphWriterLocalCleanupFuture;
-    private CompletableFuture<JobID> jobGraphWriterGlobalCleanupFuture;
+    private CompletableFuture<JobID> executionPlanWriterLocalCleanupFuture;
+    private CompletableFuture<JobID> executionPlanWriterGlobalCleanupFuture;
 
     private CompletableFuture<JobID> highAvailabilityServicesGlobalCleanupFuture;
     private JobManagerMetricGroup jobManagerMetricGroup;
@@ -84,7 +84,7 @@ public class DispatcherResourceCleanerFactoryTest {
                         Executors.directExecutor(),
                         TestingRetryStrategies.NO_RETRY_STRATEGY,
                         createJobManagerRunnerRegistry(),
-                        createJobGraphWriter(),
+                        createExecutionPlanWriter(),
                         blobServer,
                         createHighAvailabilityServices(),
                         jobManagerMetricGroup);
@@ -103,25 +103,25 @@ public class DispatcherResourceCleanerFactoryTest {
                 .build();
     }
 
-    private JobGraphWriter createJobGraphWriter() throws Exception {
-        jobGraphWriterLocalCleanupFuture = new CompletableFuture<>();
-        jobGraphWriterGlobalCleanupFuture = new CompletableFuture<>();
-        final TestingJobGraphStore jobGraphStore =
-                TestingJobGraphStore.newBuilder()
+    private ExecutionPlanWriter createExecutionPlanWriter() throws Exception {
+        executionPlanWriterLocalCleanupFuture = new CompletableFuture<>();
+        executionPlanWriterGlobalCleanupFuture = new CompletableFuture<>();
+        final TestingExecutionPlanStore executionPlanStore =
+                TestingExecutionPlanStore.newBuilder()
                         .setGlobalCleanupFunction(
                                 (jobId, executor) -> {
-                                    jobGraphWriterGlobalCleanupFuture.complete(jobId);
+                                    executionPlanWriterGlobalCleanupFuture.complete(jobId);
                                     return FutureUtils.completedVoidFuture();
                                 })
                         .setLocalCleanupFunction(
                                 (jobId, ignoredExecutor) -> {
-                                    jobGraphWriterLocalCleanupFuture.complete(jobId);
+                                    executionPlanWriterLocalCleanupFuture.complete(jobId);
                                     return FutureUtils.completedVoidFuture();
                                 })
                         .build();
-        jobGraphStore.start(null);
+        executionPlanStore.start(null);
 
-        return jobGraphStore;
+        return executionPlanStore;
     }
 
     private HighAvailabilityServices createHighAvailabilityServices() {
@@ -150,8 +150,8 @@ public class DispatcherResourceCleanerFactoryTest {
 
         assertThat(jobManagerRunnerRegistryLocalCleanupFuture).isCompleted();
 
-        assertThat(jobGraphWriterLocalCleanupFuture).isCompleted();
-        assertThat(jobGraphWriterGlobalCleanupFuture).isNotDone();
+        assertThat(executionPlanWriterLocalCleanupFuture).isCompleted();
+        assertThat(executionPlanWriterGlobalCleanupFuture).isNotDone();
 
         assertThat(blobServer.getLocalCleanupFuture()).isCompleted();
         assertThat(blobServer.getGlobalCleanupFuture()).isNotDone();
@@ -183,8 +183,8 @@ public class DispatcherResourceCleanerFactoryTest {
 
         assertThat(jobManagerRunnerRegistryLocalCleanupFuture).isCompleted();
 
-        assertThat(jobGraphWriterLocalCleanupFuture).isNotDone();
-        assertThat(jobGraphWriterGlobalCleanupFuture).isCompleted();
+        assertThat(executionPlanWriterLocalCleanupFuture).isNotDone();
+        assertThat(executionPlanWriterGlobalCleanupFuture).isCompleted();
 
         assertThat(blobServer.getLocalCleanupFuture()).isNotDone();
         assertThat(blobServer.getGlobalCleanupFuture()).isCompleted();
@@ -209,8 +209,8 @@ public class DispatcherResourceCleanerFactoryTest {
     }
 
     private void assertNoRegularCleanupsTriggered() {
-        assertThat(jobGraphWriterLocalCleanupFuture).isNotDone();
-        assertThat(jobGraphWriterGlobalCleanupFuture).isNotDone();
+        assertThat(executionPlanWriterLocalCleanupFuture).isNotDone();
+        assertThat(executionPlanWriterGlobalCleanupFuture).isNotDone();
 
         assertThat(blobServer.getLocalCleanupFuture()).isNotDone();
         assertThat(blobServer.getGlobalCleanupFuture()).isNotDone();

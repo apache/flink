@@ -175,7 +175,7 @@ function, and _Evictors_, which can remove elements collected in a window.
 In its basic form, you apply windowing to a keyed stream like this:
 
 ```java
-stream.
+stream
     .keyBy(<key selector>)
     .window(<window assigner>)
     .reduce|aggregate|process(<window function>);
@@ -185,7 +185,7 @@ You can also use windowing with non-keyed streams, but keep in mind that in this
 processing will _not_ be done in parallel:
 
 ```java
-stream.
+stream
     .windowAll(<window assigner>)
     .reduce|aggregate|process(<window function>);
 ```
@@ -200,15 +200,15 @@ Some examples of what these window assigners might be used for, and how to speci
 
 * Tumbling time windows
   * _page views per minute_
-  * `TumblingEventTimeWindows.of(Time.minutes(1))`
+  * `TumblingEventTimeWindows.of(Duration.ofMinutes(1))`
 * Sliding time windows
   * _page views per minute computed every 10 seconds_
-  * `SlidingEventTimeWindows.of(Time.minutes(1), Time.seconds(10))`
+  * `SlidingEventTimeWindows.of(Duration.ofMinutes(1), Duration.ofSeconds(10))`
 * Session windows 
   * _page views per session, where sessions are defined by a gap of at least 30 minutes between sessions_
-  * `EventTimeSessionWindows.withGap(Time.minutes(30))`
+  * `EventTimeSessionWindows.withGap(Duration.ofMinutes(30))`
 
-Durations can be specified using one of `Time.milliseconds(n)`, `Time.seconds(n)`, `Time.minutes(n)`, `Time.hours(n)`, and `Time.days(n)`.
+Durations can be specified using one of `Duration.ofMillis(n)`, `Duration.ofSeconds(n)`, `Duration.ofMinutes(n)`, `Duration.ofHours(n)`, and `Duration.ofDays(n)`.
 
 The time-based window assigners (including session windows) come in both event time and processing
 time flavors. There are significant tradeoffs between these two types of time windows. With
@@ -248,7 +248,7 @@ DataStream<SensorReading> input = ...;
 
 input
     .keyBy(x -> x.key)
-    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
     .process(new MyWastefulMax());
 
 public static class MyWastefulMax extends ProcessWindowFunction<
@@ -287,6 +287,8 @@ public abstract class Context implements java.io.Serializable {
 
     public abstract KeyedStateStore windowState();
     public abstract KeyedStateStore globalState();
+
+    public abstract <X> void output(OutputTag<X> outputTag, X value);
 }
 ```
 
@@ -300,7 +302,7 @@ DataStream<SensorReading> input = ...;
 
 input
     .keyBy(x -> x.key)
-    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
     .reduce(new MyReducingMax(), new MyWindowFunction());
 
 private static class MyReducingMax implements ReduceFunction<SensorReading> {
@@ -339,7 +341,7 @@ Here is an example of what that might look like:
 ```java
 OutputTag<Event> lateTag = new OutputTag<Event>("late"){};
 
-SingleOutputStreamOperator<Event> result = stream.
+SingleOutputStreamOperator<Event> result = stream
     .keyBy(...)
     .window(...)
     .sideOutputLateData(lateTag)
@@ -357,10 +359,10 @@ By default the allowed lateness is 0. In other words, elements behind the waterm
 For example:
 
 ```java
-stream.
+stream
     .keyBy(...)
     .window(...)
-    .allowedLateness(Time.seconds(10))
+    .allowedLateness(Duration.ofSeconds(10))
     .process(...);
 ```
 

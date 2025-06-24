@@ -151,12 +151,8 @@ public class SingleThreadAccessCheckingTypeSerializer<T> extends TypeSerializer<
             extends CompositeTypeSerializerSnapshot<
                     T, SingleThreadAccessCheckingTypeSerializer<T>> {
 
-        @SuppressWarnings({"unchecked", "unused"})
-        public SingleThreadAccessCheckingTypeSerializerSnapshot() {
-            super(
-                    (Class<SingleThreadAccessCheckingTypeSerializer<T>>)
-                            (Class<?>) SingleThreadAccessCheckingTypeSerializer.class);
-        }
+        @SuppressWarnings("unused")
+        public SingleThreadAccessCheckingTypeSerializerSnapshot() {}
 
         SingleThreadAccessCheckingTypeSerializerSnapshot(
                 SingleThreadAccessCheckingTypeSerializer<T> serializerInstance) {

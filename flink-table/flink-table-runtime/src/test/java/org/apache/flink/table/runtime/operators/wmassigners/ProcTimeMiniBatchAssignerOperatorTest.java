@@ -25,17 +25,17 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests of {@link ProcTimeMiniBatchAssignerOperator}. */
-public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOperatorTestBase {
+class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOperatorTestBase {
 
     @Test
-    public void testMiniBatchAssignerOperator() throws Exception {
+    void testMiniBatchAssignerOperator() throws Exception {
         final ProcTimeMiniBatchAssignerOperator operator =
                 new ProcTimeMiniBatchAssignerOperator(100);
 

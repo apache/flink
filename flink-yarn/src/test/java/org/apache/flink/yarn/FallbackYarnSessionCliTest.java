@@ -27,28 +27,36 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link FallbackYarnSessionCliTest}. */
-public class FallbackYarnSessionCliTest {
+class FallbackYarnSessionCliTest {
 
-    @Test(expected = IllegalStateException.class)
-    public void testExceptionWhenActiveWithYarnApplicationId() throws ParseException {
-        checkIfYarnFallbackCLIisActiveWithCLIArgs(
-                "run", "-yid", ApplicationId.newInstance(0L, 0).toString());
-    }
-
-    @Test(expected = IllegalStateException.class)
-    public void testExceptionWhenActiveWithExplicitClusterType() throws ParseException {
-        checkIfYarnFallbackCLIisActiveWithCLIArgs("run", "-m", FallbackYarnSessionCli.ID);
+    @Test
+    void testExceptionWhenActiveWithYarnApplicationId() {
+        assertThatThrownBy(
+                        () ->
+                                checkIfYarnFallbackCLIisActiveWithCLIArgs(
+                                        "run", "-yid", ApplicationId.newInstance(0L, 0).toString()))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testFalseWhenNotActive() throws ParseException {
+    void testExceptionWhenActiveWithExplicitClusterType() {
+        assertThatThrownBy(
+                        () ->
+                                checkIfYarnFallbackCLIisActiveWithCLIArgs(
+                                        "run", "-m", FallbackYarnSessionCli.ID))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testFalseWhenNotActive() throws ParseException {
         final boolean isActive = checkIfYarnFallbackCLIisActiveWithCLIArgs("run");
-        assertFalse(isActive);
+        assertThat(isActive).isFalse();
     }
 
     private boolean checkIfYarnFallbackCLIisActiveWithCLIArgs(final String... args)

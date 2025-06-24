@@ -19,8 +19,7 @@
 package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -29,11 +28,14 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AssumptionViolatedException;
@@ -68,14 +70,14 @@ public class IPv6HostnamesITCase extends TestLogger {
         final Inet6Address ipv6address = getLocalIPv6Address();
         if (ipv6address == null) {
             throw new AssumptionViolatedException(
-                    "--- Cannot find a non-loopback local IPv6 address that Akka/Netty can bind to; skipping IPv6HostnamesITCase");
+                    "--- Cannot find a non-loopback local IPv6 address that Pekko/Netty can bind to; skipping IPv6HostnamesITCase");
         }
         final String addressString = ipv6address.getHostAddress();
         log.info("Test will use IPv6 address " + addressString + " for connection tests");
 
         Configuration config = new Configuration();
-        config.setString(JobManagerOptions.ADDRESS, addressString);
-        config.setString(TaskManagerOptions.HOST, addressString);
+        config.set(JobManagerOptions.ADDRESS, addressString);
+        config.set(TaskManagerOptions.HOST, addressString);
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
         return config;
     }
@@ -84,13 +86,13 @@ public class IPv6HostnamesITCase extends TestLogger {
     public void testClusterWithIPv6host() {
         try {
 
-            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(4);
 
             // get input data
-            DataSet<String> text = env.fromElements(WordCountData.TEXT.split("\n"));
+            DataStream<String> text = env.fromData(WordCountData.TEXT.split("\n"));
 
-            DataSet<Tuple2<String, Integer>> counts =
+            DataStream<Tuple2<String, Integer>> counts =
                     text.flatMap(
                                     new FlatMapFunction<String, Tuple2<String, Integer>>() {
                                         @Override
@@ -106,10 +108,21 @@ public class IPv6HostnamesITCase extends TestLogger {
                                             }
                                         }
                                     })
-                            .groupBy(0)
-                            .sum(1);
+                            .keyBy(x -> x.f0)
+                            .window(GlobalWindows.createWithEndOfStreamTrigger())
+                            .reduce(
+                                    new ReduceFunction<Tuple2<String, Integer>>() {
+                                        @Override
+                                        public Tuple2<String, Integer> reduce(
+                                                Tuple2<String, Integer> value1,
+                                                Tuple2<String, Integer> value2)
+                                                throws Exception {
+                                            return Tuple2.of(value1.f0, value1.f1 + value2.f1);
+                                        }
+                                    });
 
-            List<Tuple2<String, Integer>> result = counts.collect();
+            List<Tuple2<String, Integer>> result =
+                    CollectionUtil.iteratorToList(counts.executeAndCollect());
 
             TestBaseUtils.compareResultAsText(result, WordCountData.COUNTS_AS_TUPLES);
         } catch (Exception e) {
@@ -144,17 +157,17 @@ public class IPv6HostnamesITCase extends TestLogger {
                             sock.bind(socketAddress);
                             sock.close();
 
-                            // test whether Akka's netty can bind to the address
-                            log.info("Testing whether Akka can use " + addr);
-                            try (NetUtils.Port port = NetUtils.getAvailablePort()) {
-                                final RpcService rpcService =
-                                        RpcSystem.load()
-                                                .localServiceBuilder(new Configuration())
-                                                .withBindAddress(addr.getHostAddress())
-                                                .withBindPort(port.getPort())
-                                                .createAndStart();
-                                rpcService.stopService().get();
-                            }
+                            // test whether Pekko's netty can bind to the address
+                            log.info("Testing whether Pekko can use " + addr);
+                            final RpcService rpcService =
+                                    RpcSystem.load()
+                                            // this port is only used for advertising (==no port
+                                            // conflicts) since we explicitly provide a bind port
+                                            .remoteServiceBuilder(new Configuration(), null, "8081")
+                                            .withBindAddress(addr.getHostAddress())
+                                            .withBindPort(0)
+                                            .createAndStart();
+                            rpcService.closeAsync().get();
 
                             log.info("Using address " + addr);
                             return (Inet6Address) addr;

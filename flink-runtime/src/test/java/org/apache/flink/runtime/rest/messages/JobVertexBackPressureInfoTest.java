@@ -18,11 +18,16 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /** Tests that the {@link JobVertexBackPressureInfo} can be marshalled and unmarshalled. */
-public class JobVertexBackPressureInfoTest
+@ExtendWith(NoOpTestExtension.class)
+class JobVertexBackPressureInfoTest
         extends RestResponseMarshallingTestBase<JobVertexBackPressureInfo> {
     @Override
     protected Class<JobVertexBackPressureInfo> getTestResponseClass() {
@@ -34,13 +39,31 @@ public class JobVertexBackPressureInfoTest
         List<JobVertexBackPressureInfo.SubtaskBackPressureInfo> subtaskList = new ArrayList<>();
         subtaskList.add(
                 new JobVertexBackPressureInfo.SubtaskBackPressureInfo(
-                        0, JobVertexBackPressureInfo.VertexBackPressureLevel.LOW, 0.1, 0.5, 0.4));
+                        0,
+                        0,
+                        JobVertexBackPressureInfo.VertexBackPressureLevel.LOW,
+                        0.1,
+                        0.5,
+                        0.4,
+                        null));
         subtaskList.add(
                 new JobVertexBackPressureInfo.SubtaskBackPressureInfo(
-                        1, JobVertexBackPressureInfo.VertexBackPressureLevel.OK, 0.4, 0.3, 0.3));
+                        1,
+                        0,
+                        JobVertexBackPressureInfo.VertexBackPressureLevel.OK,
+                        0.4,
+                        0.3,
+                        0.3,
+                        null));
         subtaskList.add(
                 new JobVertexBackPressureInfo.SubtaskBackPressureInfo(
-                        2, JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH, 0.9, 0.0, 0.1));
+                        2,
+                        0,
+                        JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH,
+                        0.9,
+                        0.0,
+                        0.1,
+                        null));
         return new JobVertexBackPressureInfo(
                 JobVertexBackPressureInfo.VertexBackPressureStatus.OK,
                 JobVertexBackPressureInfo.VertexBackPressureLevel.LOW,

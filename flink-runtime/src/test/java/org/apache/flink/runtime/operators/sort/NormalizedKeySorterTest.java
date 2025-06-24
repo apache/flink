@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.sort;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
@@ -29,15 +30,16 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyM
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Random;
 
-public class NormalizedKeySorterTest {
+import static org.assertj.core.api.Assertions.assertThat;
+
+class NormalizedKeySorterTest {
 
     private static final long SEED = 649180756312423613L;
 
@@ -53,8 +55,8 @@ public class NormalizedKeySorterTest {
 
     private MemoryManager memoryManager;
 
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         this.memoryManager =
                 MemoryManagerBuilder.newBuilder()
                         .setMemorySize(MEMORY_SIZE)
@@ -62,11 +64,12 @@ public class NormalizedKeySorterTest {
                         .build();
     }
 
-    @After
-    public void afterTest() {
-        if (!this.memoryManager.verifyEmpty()) {
-            Assert.fail("Memory Leak: Some memory has not been returned to the memory manager.");
-        }
+    @AfterEach
+    void afterTest() {
+        assertThat(this.memoryManager.verifyEmpty())
+                .withFailMessage(
+                        "Memory Leak: Some memory has not been returned to the memory manager.")
+                .isTrue();
 
         if (this.memoryManager != null) {
             this.memoryManager.shutdown();
@@ -83,7 +86,7 @@ public class NormalizedKeySorterTest {
     }
 
     @Test
-    public void testWriteAndRead() throws Exception {
+    void testWriteAndRead() throws Exception {
         final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
         final List<MemorySegment> memory =
                 this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
@@ -116,8 +119,8 @@ public class NormalizedKeySorterTest {
             String rv = readTarget.f1;
             String gv = record.f1;
 
-            Assert.assertEquals("The re-read key is wrong", gk, rk);
-            Assert.assertEquals("The re-read value is wrong", gv, rv);
+            assertThat(rk).withFailMessage("The re-read key is wrong").isEqualTo(gk);
+            assertThat(rv).withFailMessage("The re-read value is wrong").isEqualTo(gv);
         }
 
         // release the memory occupied by the buffers
@@ -126,7 +129,7 @@ public class NormalizedKeySorterTest {
     }
 
     @Test
-    public void testWriteAndIterator() throws Exception {
+    void testWriteAndIterator() throws Exception {
         final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
         final List<MemorySegment> memory =
                 this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
@@ -156,8 +159,8 @@ public class NormalizedKeySorterTest {
             String rv = readTarget.f1;
             String gv = record.f1;
 
-            Assert.assertEquals("The re-read key is wrong", gk, rk);
-            Assert.assertEquals("The re-read value is wrong", gv, rv);
+            assertThat(rk).withFailMessage("The re-read key is wrong").isEqualTo(gk);
+            assertThat(rv).withFailMessage("The re-read value is wrong").isEqualTo(gv);
         }
 
         // release the memory occupied by the buffers
@@ -166,7 +169,7 @@ public class NormalizedKeySorterTest {
     }
 
     @Test
-    public void testReset() throws Exception {
+    void testReset() throws Exception {
         final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
         final List<MemorySegment> memory =
                 this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
@@ -199,10 +202,10 @@ public class NormalizedKeySorterTest {
             num2++;
         } while (sorter.write(record));
 
-        Assert.assertEquals(
-                "The number of records written after the reset was not the same as before.",
-                num,
-                num2);
+        assertThat(num2)
+                .withFailMessage(
+                        "The number of records written after the reset was not the same as before.")
+                .isEqualTo(num);
 
         // re-read the records
         generator.reset();
@@ -219,8 +222,8 @@ public class NormalizedKeySorterTest {
             String rv = readTarget.f1;
             String gv = record.f1;
 
-            Assert.assertEquals("The re-read key is wrong", gk, rk);
-            Assert.assertEquals("The re-read value is wrong", gv, rv);
+            assertThat(rk).withFailMessage("The re-read key is wrong").isEqualTo(gk);
+            assertThat(rv).withFailMessage("The re-read value is wrong").isEqualTo(gv);
         }
 
         // release the memory occupied by the buffers
@@ -233,7 +236,7 @@ public class NormalizedKeySorterTest {
      * then resets the generator, goes backwards through the buffer and compares for equality.
      */
     @Test
-    public void testSwap() throws Exception {
+    void testSwap() throws Exception {
         final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
         final List<MemorySegment> memory =
                 this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
@@ -272,8 +275,8 @@ public class NormalizedKeySorterTest {
             String rv = readTarget.f1;
             String gv = record.f1;
 
-            Assert.assertEquals("The re-read key is wrong", gk, rk);
-            Assert.assertEquals("The re-read value is wrong", gv, rv);
+            assertThat(rk).withFailMessage("The re-read key is wrong").isEqualTo(gk);
+            assertThat(rv).withFailMessage("The re-read value is wrong").isEqualTo(gv);
         }
 
         // release the memory occupied by the buffers
@@ -286,7 +289,7 @@ public class NormalizedKeySorterTest {
      * elements. It expects that earlier elements are lower than later ones.
      */
     @Test
-    public void testCompare() throws Exception {
+    void testCompare() throws Exception {
         final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
         final List<MemorySegment> memory =
                 this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
@@ -313,9 +316,9 @@ public class NormalizedKeySorterTest {
             int cmp = sorter.compare(pos1, pos2);
 
             if (pos1 < pos2) {
-                Assert.assertTrue(cmp <= 0);
+                assertThat(cmp).isLessThanOrEqualTo(0);
             } else {
-                Assert.assertTrue(cmp >= 0);
+                assertThat(cmp).isGreaterThanOrEqualTo(0);
             }
         }
 
@@ -325,7 +328,7 @@ public class NormalizedKeySorterTest {
     }
 
     @Test
-    public void testSort() throws Exception {
+    void testSort() throws Exception {
         final int NUM_RECORDS = 559273;
 
         final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
@@ -358,9 +361,9 @@ public class NormalizedKeySorterTest {
             int current = readTarget.f0;
 
             final int cmp = last - current;
-            if (cmp > 0) {
-                Assert.fail("Next key is not larger or equal to previous key.");
-            }
+            assertThat(cmp)
+                    .withFailMessage("Next key is not larger or equal to previous key.")
+                    .isLessThanOrEqualTo(0);
 
             last = current;
         }
@@ -371,7 +374,7 @@ public class NormalizedKeySorterTest {
     }
 
     @Test
-    public void testSortShortStringKeys() throws Exception {
+    void testSortShortStringKeys() throws Exception {
         final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
         final List<MemorySegment> memory =
                 this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
@@ -379,7 +382,8 @@ public class NormalizedKeySorterTest {
         @SuppressWarnings("unchecked")
         TypeComparator<Tuple2<Integer, String>> accessors =
                 TestData.getIntStringTupleTypeInfo()
-                        .createComparator(new int[] {1}, new boolean[] {true}, 0, null);
+                        .createComparator(
+                                new int[] {1}, new boolean[] {true}, 0, new ExecutionConfig());
         NormalizedKeySorter<Tuple2<Integer, String>> sorter =
                 new NormalizedKeySorter<>(
                         TestData.getIntStringTupleSerializer(), accessors, memory);
@@ -406,9 +410,9 @@ public class NormalizedKeySorterTest {
             String current = readTarget.f1;
 
             final int cmp = last.compareTo(current);
-            if (cmp > 0) {
-                Assert.fail("Next value is not larger or equal to previous value.");
-            }
+            assertThat(cmp)
+                    .withFailMessage("Next value is not larger or equal to previous value.")
+                    .isLessThanOrEqualTo(0);
 
             last = current;
         }
@@ -419,7 +423,7 @@ public class NormalizedKeySorterTest {
     }
 
     @Test
-    public void testSortLongStringKeys() throws Exception {
+    void testSortLongStringKeys() throws Exception {
         final int numSegments = MEMORY_SIZE / MEMORY_PAGE_SIZE;
         final List<MemorySegment> memory =
                 this.memoryManager.allocatePages(new DummyInvokable(), numSegments);
@@ -427,7 +431,8 @@ public class NormalizedKeySorterTest {
         @SuppressWarnings("unchecked")
         TypeComparator<Tuple2<Integer, String>> accessors =
                 TestData.getIntStringTupleTypeInfo()
-                        .createComparator(new int[] {1}, new boolean[] {true}, 0, null);
+                        .createComparator(
+                                new int[] {1}, new boolean[] {true}, 0, new ExecutionConfig());
         NormalizedKeySorter<Tuple2<Integer, String>> sorter =
                 new NormalizedKeySorter<>(
                         TestData.getIntStringTupleSerializer(), accessors, memory);
@@ -455,9 +460,9 @@ public class NormalizedKeySorterTest {
             String current = readTarget.f1;
 
             final int cmp = last.compareTo(current);
-            if (cmp > 0) {
-                Assert.fail("Next value is not larger or equal to previous value.");
-            }
+            assertThat(cmp)
+                    .withFailMessage("Next value is not larger or equal to previous value.")
+                    .isLessThanOrEqualTo(0);
 
             last = current;
         }

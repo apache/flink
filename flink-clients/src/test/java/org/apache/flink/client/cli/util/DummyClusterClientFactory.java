@@ -46,7 +46,7 @@ public class DummyClusterClientFactory<ClusterID> implements ClusterClientFactor
 
     @Override
     public boolean isCompatibleWith(Configuration configuration) {
-        return ID.equals(configuration.getString(DeploymentOptions.TARGET));
+        return ID.equals(configuration.get(DeploymentOptions.TARGET));
     }
 
     @Override

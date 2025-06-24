@@ -20,7 +20,7 @@ package org.apache.flink.state.api.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.util.Collector;
 
 import java.util.Set;
@@ -31,7 +31,7 @@ import java.util.Set;
  * <p>For every key {@link #readKey(Object, Context, Collector)} is invoked. This can produce zero
  * or more elements as output.
  *
- * <p><b>NOTE:</b> State descriptors must be eagerly registered in {@code open(Configuration)}. Any
+ * <p><b>NOTE:</b> State descriptors must be eagerly registered in {@code open(OpenContext)}. Any
  * attempt to dynamically register states inside of {@code readKey} will result in a {@code
  * RuntimeException}.
  *
@@ -39,7 +39,7 @@ import java.util.Set;
  * org.apache.flink.api.common.functions.RichFunction}. Therefore, access to the {@link
  * org.apache.flink.api.common.functions.RuntimeContext} is always available and setup and teardown
  * methods can be implemented. See {@link
- * org.apache.flink.api.common.functions.RichFunction#open(Configuration)} and {@link
+ * org.apache.flink.api.common.functions.RichFunction#open(OpenContext)} and {@link
  * org.apache.flink.api.common.functions.RichFunction#close()}.
  *
  * @param <K> Type of the keys
@@ -49,15 +49,6 @@ import java.util.Set;
 public abstract class KeyedStateReaderFunction<K, OUT> extends AbstractRichFunction {
 
     private static final long serialVersionUID = 3873843034140417407L;
-
-    /**
-     * Initialization method for the function. It is called before {@link #readKey(Object, Context,
-     * Collector)} and thus suitable for one time setup work.
-     *
-     * <p>This is the only method that my register state descriptors within a {@code
-     * KeyedStateReaderFunction}.
-     */
-    public abstract void open(Configuration parameters) throws Exception;
 
     /**
      * Process one key from the restored state backend.
@@ -82,10 +73,14 @@ public abstract class KeyedStateReaderFunction<K, OUT> extends AbstractRichFunct
      */
     public interface Context {
 
-        /** @return All registered event time timers for the current key. */
+        /**
+         * @return All registered event time timers for the current key.
+         */
         Set<Long> registeredEventTimeTimers() throws Exception;
 
-        /** @return All registered processing time timers for the current key. */
+        /**
+         * @return All registered processing time timers for the current key.
+         */
         Set<Long> registeredProcessingTimeTimers() throws Exception;
     }
 }

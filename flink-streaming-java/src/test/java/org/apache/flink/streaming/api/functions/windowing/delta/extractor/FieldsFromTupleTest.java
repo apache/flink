@@ -44,18 +44,18 @@ import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.tuple.Tuple9;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FieldsFromTuple}. */
-public class FieldsFromTupleTest {
+class FieldsFromTupleTest {
 
     private double[] testDouble;
 
-    @Before
-    public void init() {
+    @BeforeEach
+    void init() {
         testDouble = new double[Tuple.MAX_ARITY];
         for (int i = 0; i < Tuple.MAX_ARITY; i++) {
             testDouble[i] = i;
@@ -63,7 +63,7 @@ public class FieldsFromTupleTest {
     }
 
     @Test
-    public void testUserSpecifiedOrder() throws InstantiationException, IllegalAccessException {
+    void testUserSpecifiedOrder() throws InstantiationException, IllegalAccessException {
         Tuple currentTuple = (Tuple) CLASSES[Tuple.MAX_ARITY - 1].newInstance();
         for (int i = 0; i < Tuple.MAX_ARITY; i++) {
             currentTuple.setField(testDouble[i], i);
@@ -117,10 +117,7 @@ public class FieldsFromTupleTest {
     }
 
     private void arrayEqualityCheck(double[] array1, double[] array2) {
-        assertEquals("The result arrays must have the same length", array1.length, array2.length);
-        for (int i = 0; i < array1.length; i++) {
-            assertEquals("Unequal fields at position " + i, array1[i], array2[i], 0d);
-        }
+        assertThat(array1).isEqualTo(array2);
     }
 
     private static final Class<?>[] CLASSES =

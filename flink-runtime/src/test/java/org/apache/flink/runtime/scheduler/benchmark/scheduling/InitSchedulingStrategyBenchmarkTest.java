@@ -20,17 +20,16 @@ package org.apache.flink.runtime.scheduler.benchmark.scheduling;
 
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * The benchmark of initializing {@link PipelinedRegionSchedulingStrategy} in a STREAMING/BATCH job.
  */
-public class InitSchedulingStrategyBenchmarkTest extends TestLogger {
+class InitSchedulingStrategyBenchmarkTest {
 
     @Test
-    public void initSchedulingStrategyBenchmarkInStreamingJob() throws Exception {
+    void initSchedulingStrategyBenchmarkInStreamingJob() throws Exception {
         InitSchedulingStrategyBenchmark benchmark = new InitSchedulingStrategyBenchmark();
         benchmark.setup(JobConfiguration.STREAMING_TEST);
         benchmark.initSchedulingStrategy();
@@ -38,7 +37,7 @@ public class InitSchedulingStrategyBenchmarkTest extends TestLogger {
     }
 
     @Test
-    public void initSchedulingStrategyBenchmarkInBatchJob() throws Exception {
+    void initSchedulingStrategyBenchmarkInBatchJob() throws Exception {
         InitSchedulingStrategyBenchmark benchmark = new InitSchedulingStrategyBenchmark();
         benchmark.setup(JobConfiguration.BATCH_TEST);
         benchmark.initSchedulingStrategy();

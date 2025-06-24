@@ -21,11 +21,8 @@ package org.apache.flink.api.common.typeutils.base.array;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/**
- * A test for the {@link
- * org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer}.
- */
-public class BooleanPrimitiveArraySerializerTest extends SerializerTestBase<boolean[]> {
+/** A test for the {@link BooleanPrimitiveArraySerializer}. */
+class BooleanPrimitiveArraySerializerTest extends SerializerTestBase<boolean[]> {
 
     @Override
     protected TypeSerializer<boolean[]> createSerializer() {

@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.{FlinkConventions, FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec.WindowBounds
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel}
 import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapClassLoader, unwrapTableConfig}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -51,7 +51,8 @@ abstract class StreamPhysicalJoinRuleBase(description: String)
       join.getLeft.getRowType.getFieldCount,
       join.getRowType,
       join.getCluster.getRexBuilder,
-      tableConfig)
+      tableConfig,
+      unwrapClassLoader(join))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {

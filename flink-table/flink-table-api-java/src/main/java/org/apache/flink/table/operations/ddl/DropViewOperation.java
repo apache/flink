@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
@@ -27,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Operation to describe a DROP VIEW statement. */
+@Internal
 public class DropViewOperation implements DropOperation {
 
     private final ObjectIdentifier viewIdentifier;
@@ -61,5 +65,15 @@ public class DropViewOperation implements DropOperation {
 
         return OperationUtils.formatWithChildren(
                 "DROP VIEW", params, Collections.emptyList(), Operation::asSummaryString);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        if (isTemporary()) {
+            ctx.getCatalogManager().dropTemporaryView(getViewIdentifier(), isIfExists());
+        } else {
+            ctx.getCatalogManager().dropView(getViewIdentifier(), isIfExists());
+        }
+        return TableResultImpl.TABLE_RESULT_OK;
     }
 }

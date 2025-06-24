@@ -28,6 +28,7 @@ import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankTyp
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 import scala.collection.JavaConversions._
 
@@ -41,12 +42,7 @@ import scala.collection.JavaConversions._
  *       +- input of rank
  * }}}
  */
-class BatchPhysicalRankRule
-  extends ConverterRule(
-    classOf[FlinkLogicalRank],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchPhysicalRankRule") {
+class BatchPhysicalRankRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val rank: FlinkLogicalRank = call.rel(0)
@@ -115,5 +111,10 @@ class BatchPhysicalRankRule
 }
 
 object BatchPhysicalRankRule {
-  val INSTANCE: RelOptRule = new BatchPhysicalRankRule
+  val INSTANCE: RelOptRule = new BatchPhysicalRankRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalRank],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchPhysicalRankRule"))
 }

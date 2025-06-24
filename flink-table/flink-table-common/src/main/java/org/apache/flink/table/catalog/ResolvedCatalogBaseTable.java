@@ -18,13 +18,16 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
+import org.apache.flink.table.legacy.api.TableSchema;
 
 /**
  * A common parent that describes the <i>resolved</i> metadata of a table or view in a catalog.
  *
  * @param <T> {@link CatalogTable} or {@link CatalogView}
  */
+@PublicEvolving
 public interface ResolvedCatalogBaseTable<T extends CatalogBaseTable> extends CatalogBaseTable {
 
     /**
@@ -51,6 +54,6 @@ public interface ResolvedCatalogBaseTable<T extends CatalogBaseTable> extends Ca
      */
     @Deprecated
     default TableSchema getSchema() {
-        return TableSchema.fromResolvedSchema(getResolvedSchema());
+        return TableSchema.fromResolvedSchema(getResolvedSchema(), DefaultSqlFactory.INSTANCE);
     }
 }

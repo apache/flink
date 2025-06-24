@@ -25,36 +25,45 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.InternalTimer;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.Closeable;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskTest.createTask;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the StreamTask cancellation. */
-public class StreamTaskCancellationTest extends TestLogger {
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+class StreamTaskCancellationTest {
+
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     @Test
-    public void testDoNotInterruptWhileClosing() throws Exception {
+    void testDoNotInterruptWhileClosing() throws Exception {
         TestInterruptInCloseOperator testOperator = new TestInterruptInCloseOperator();
         try (StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
@@ -78,7 +87,7 @@ public class StreamTaskCancellationTest extends TestLogger {
             thread.start();
             try {
                 getContainingTask().maybeInterruptOnCancel(thread, null, null);
-                assertFalse(thread.isInterrupted());
+                assertThat(thread.isInterrupted()).isFalse();
             } finally {
                 running.set(false);
             }
@@ -89,7 +98,7 @@ public class StreamTaskCancellationTest extends TestLogger {
     }
 
     @Test
-    public void testCanceleablesCanceledOnCancelTaskError() throws Exception {
+    void testCanceleablesCanceledOnCancelTaskError() throws Exception {
         CancelFailingTask.syncLatch = new OneShotLatch();
 
         StreamConfig cfg = new StreamConfig(new Configuration());
@@ -115,7 +124,7 @@ public class StreamTaskCancellationTest extends TestLogger {
             task.cancelExecution();
             task.getExecutingThread().join();
 
-            assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+            assertThat(task.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
         }
     }
 
@@ -221,7 +230,7 @@ public class StreamTaskCancellationTest extends TestLogger {
      * should be able to correctly handle such situation.
      */
     @Test
-    public void testCancelTaskExceptionHandling() throws Exception {
+    void testCancelTaskExceptionHandling() throws Exception {
         StreamConfig cfg = new StreamConfig(new Configuration());
 
         try (NettyShuffleEnvironment shuffleEnvironment =
@@ -237,7 +246,7 @@ public class StreamTaskCancellationTest extends TestLogger {
             task.startTaskThread();
             task.getExecutingThread().join();
 
-            assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+            assertThat(task.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
         }
     }
 
@@ -255,6 +264,101 @@ public class StreamTaskCancellationTest extends TestLogger {
         @Override
         protected void processInput(MailboxDefaultAction.Controller controller) {
             throw new CancelTaskException();
+        }
+    }
+
+    @Test
+    void testCancelTaskShouldPreventAdditionalEventTimeTimersFromBeingFired() throws Exception {
+        testCancelTaskShouldPreventAdditionalTimersFromBeingFired(false);
+    }
+
+    @Test
+    void testCancelTaskShouldPreventAdditionalProcessingTimeTimersFromBeingFired()
+            throws Exception {
+        testCancelTaskShouldPreventAdditionalTimersFromBeingFired(true);
+    }
+
+    private void testCancelTaskShouldPreventAdditionalTimersFromBeingFired(boolean processingTime)
+            throws Exception {
+        final int numKeyedTimersToRegister = 100;
+        final int numKeyedTimersToFire = 10;
+        final AtomicInteger numKeyedTimersFired = new AtomicInteger(0);
+        try (StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
+                        .addInput(STRING_TYPE_INFO)
+                        .setKeyType(STRING_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new TaskWithPreRegisteredTimers(
+                                        numKeyedTimersToRegister, processingTime))
+                        .build()) {
+            TaskWithPreRegisteredTimers.setOnTimerListener(
+                    key -> {
+                        if (numKeyedTimersFired.incrementAndGet() >= numKeyedTimersToFire) {
+                            harness.cancel();
+                        }
+                    });
+            harness.processElement(new Watermark(Long.MAX_VALUE));
+
+            // We need to wait for the first timer being fired, otherwise this is prone to race
+            // condition because processing time timers are put into mailbox from a different
+            // thread.
+            while (processingTime && numKeyedTimersFired.get() == 0) {
+                harness.processAll();
+            }
+        }
+        assertThat(numKeyedTimersFired).hasValue(numKeyedTimersToFire);
+    }
+
+    private static class TaskWithPreRegisteredTimers extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<String, String>, Triggerable<String, VoidNamespace> {
+
+        private static ThrowingConsumer<String, Exception> onTimerListener;
+
+        private final int numTimersToRegister;
+        private final boolean processingTime;
+
+        private TaskWithPreRegisteredTimers(int numTimersToRegister, boolean processingTime) {
+            this.numTimersToRegister = numTimersToRegister;
+            this.processingTime = processingTime;
+        }
+
+        @Override
+        public void open() throws Exception {
+            final InternalTimerService<VoidNamespace> timerService =
+                    getInternalTimerService("test-timers", VoidNamespaceSerializer.INSTANCE, this);
+            final KeyedStateBackend<String> keyedStateBackend = getKeyedStateBackend();
+            for (int keyIdx = 0; keyIdx < numTimersToRegister; keyIdx++) {
+                final String key = "key-" + keyIdx;
+                keyedStateBackend.setCurrentKey(key);
+                if (processingTime) {
+                    timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, 0);
+                } else {
+                    timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 0);
+                }
+            }
+        }
+
+        @Override
+        public void processElement(StreamRecord<String> element) throws Exception {
+            // No-op.
+        }
+
+        @Override
+        public void onEventTime(InternalTimer<String, VoidNamespace> timer) throws Exception {
+            Preconditions.checkState(!processingTime);
+            Preconditions.checkNotNull(onTimerListener).accept(timer.getKey());
+        }
+
+        @Override
+        public void onProcessingTime(InternalTimer<String, VoidNamespace> timer) throws Exception {
+            Preconditions.checkState(processingTime);
+            Preconditions.checkNotNull(onTimerListener).accept(timer.getKey());
+        }
+
+        private static void setOnTimerListener(
+                ThrowingConsumer<String, Exception> onTimerListener) {
+            TaskWithPreRegisteredTimers.onTimerListener =
+                    Preconditions.checkNotNull(onTimerListener);
         }
     }
 }

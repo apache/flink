@@ -21,36 +21,24 @@ package org.apache.flink.runtime.metrics;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.core.plugin.TestingPluginManager;
 import org.apache.flink.metrics.MetricConfig;
-import org.apache.flink.metrics.reporter.InstantiateViaFactory;
-import org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
+import org.apache.flink.runtime.metrics.filter.DefaultReporterFilters;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.testutils.junit.extensions.ContextClassLoaderExtension;
-import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.collection.IsMapContaining.hasEntry;
-import static org.hamcrest.core.IsCollectionContaining.hasItems;
-import static org.hamcrest.core.IsInstanceOf.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ReporterSetup}. */
-@ExtendWith(TestLoggerExtension.class)
 class ReporterSetupTest {
 
     @RegisterExtension
@@ -65,7 +53,6 @@ class ReporterSetupTest {
                             TestReporter13.class.getName(),
                             TestReporterFactory.class.getName(),
                             FailingFactory.class.getName(),
-                            InstantiationTypeTrackingTestReporterFactory.class.getName(),
                             ConfigExposingReporterFactory.class.getName())
                     .build();
 
@@ -82,9 +69,11 @@ class ReporterSetupTest {
 
         configureReporter1(config);
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
-        Assert.assertEquals(1, reporterSetups.size());
+        assertThat(reporterSetups).hasSize(1);
 
         final ReporterSetup reporterSetup = reporterSetups.get(0);
         assertReporter1Configured(reporterSetup);
@@ -100,20 +89,22 @@ class ReporterSetupTest {
         configureReporter1(config);
         configureReporter2(config);
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
-        Assert.assertEquals(2, reporterSetups.size());
+        assertThat(reporterSetups).hasSize(2);
 
         final Optional<ReporterSetup> reporter1Config =
                 reporterSetups.stream().filter(c -> "reporter1".equals(c.getName())).findFirst();
 
-        Assert.assertTrue(reporter1Config.isPresent());
+        assertThat(reporter1Config).isPresent();
         assertReporter1Configured(reporter1Config.get());
 
         final Optional<ReporterSetup> reporter2Config =
                 reporterSetups.stream().filter(c -> "reporter2".equals(c.getName())).findFirst();
 
-        Assert.assertTrue(reporter2Config.isPresent());
+        assertThat(reporter2Config).isPresent();
         assertReporter2Configured(reporter2Config.get());
     }
 
@@ -128,11 +119,13 @@ class ReporterSetupTest {
         configureReporter1(config);
         configureReporter2(config);
 
-        config.setString(MetricOptions.REPORTERS_LIST, "reporter2");
+        config.set(MetricOptions.REPORTERS_LIST, "reporter2");
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
-        Assert.assertEquals(1, reporterSetups.size());
+        assertThat(reporterSetups).hasSize(1);
 
         final ReporterSetup setup = reporterSetups.get(0);
         assertReporter2Configured(setup);
@@ -142,19 +135,18 @@ class ReporterSetupTest {
     void testReporterSetupSupplier() throws Exception {
         final Configuration config = new Configuration();
 
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "reporter1."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporter1.class.getName());
+        MetricOptions.forReporter(config, "reporter1")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter1.class.getName());
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
-        Assert.assertEquals(1, reporterSetups.size());
+        assertThat(reporterSetups).hasSize(1);
 
         final ReporterSetup reporterSetup = reporterSetups.get(0);
         final MetricReporter metricReporter = reporterSetup.getReporter();
-        Assert.assertThat(metricReporter, instanceOf(TestReporter1.class));
+        assertThat(metricReporter).isInstanceOf(TestReporter1.class);
     }
 
     /** Verifies that multiple reporters are instantiated correctly. */
@@ -162,29 +154,22 @@ class ReporterSetupTest {
     void testMultipleReporterInstantiation() throws Exception {
         Configuration config = new Configuration();
 
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test1."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporter11.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test2."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporter12.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test3."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporter13.class.getName());
+        MetricOptions.forReporter(config, "test1")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter11.class.getName());
+        MetricOptions.forReporter(config, "test2")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter12.class.getName());
+        MetricOptions.forReporter(config, "test3")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter13.class.getName());
 
-        List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
-        assertEquals(3, reporterSetups.size());
+        assertThat(reporterSetups).hasSize(3);
 
-        Assert.assertTrue(TestReporter11.wasOpened);
-        Assert.assertTrue(TestReporter12.wasOpened);
-        Assert.assertTrue(TestReporter13.wasOpened);
+        assertThat(TestReporter11.wasOpened).isTrue();
+        assertThat(TestReporter12.wasOpened).isTrue();
+        assertThat(TestReporter13.wasOpened).isTrue();
     }
 
     /** Reporter that exposes whether open() was called. */
@@ -218,43 +203,39 @@ class ReporterSetupTest {
     }
 
     private static void configureReporter1(Configuration config) {
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "reporter1."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporter1.class.getName());
-        config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg1", "value1");
-        config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg2", "value2");
+        Configuration reporterConfig =
+                MetricOptions.forReporter(config, "reporter1")
+                        .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter1.class.getName());
+        reporterConfig.setString("arg1", "value1");
+        reporterConfig.setString("arg2", "value2");
     }
 
     private static void assertReporter1Configured(ReporterSetup setup) {
-        Assert.assertEquals("reporter1", setup.getName());
-        Assert.assertEquals("value1", setup.getConfiguration().getString("arg1", ""));
-        Assert.assertEquals("value2", setup.getConfiguration().getString("arg2", ""));
-        Assert.assertEquals(
-                ReporterSetupTest.TestReporter1.class.getName(),
-                setup.getConfiguration()
-                        .getString(MetricOptions.REPORTER_FACTORY_CLASS.key(), null));
+        assertThat(setup.getName()).isEqualTo("reporter1");
+        assertThat(setup.getConfiguration().getString("arg1", "")).isEqualTo("value1");
+        assertThat(setup.getConfiguration().getString("arg2", "")).isEqualTo("value2");
+        assertThat(
+                        setup.getConfiguration()
+                                .getString(MetricOptions.REPORTER_FACTORY_CLASS.key(), null))
+                .isEqualTo(ReporterSetupTest.TestReporter1.class.getName());
     }
 
     private static void configureReporter2(Configuration config) {
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "reporter2."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporter2.class.getName());
-        config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg1", "value1");
-        config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg3", "value3");
+        Configuration reporterConfig =
+                MetricOptions.forReporter(config, "reporter2")
+                        .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporter2.class.getName());
+        reporterConfig.setString("arg1", "value1");
+        reporterConfig.setString("arg3", "value3");
     }
 
     private static void assertReporter2Configured(ReporterSetup setup) {
-        Assert.assertEquals("reporter2", setup.getName());
-        Assert.assertEquals("value1", setup.getConfiguration().getString("arg1", null));
-        Assert.assertEquals("value3", setup.getConfiguration().getString("arg3", null));
-        Assert.assertEquals(
-                TestReporter2.class.getName(),
-                setup.getConfiguration()
-                        .getString(MetricOptions.REPORTER_FACTORY_CLASS.key(), null));
+        assertThat(setup.getName()).isEqualTo("reporter2");
+        assertThat(setup.getConfiguration().getString("arg1", null)).isEqualTo("value1");
+        assertThat(setup.getConfiguration().getString("arg3", null)).isEqualTo("value3");
+        assertThat(
+                        setup.getConfiguration()
+                                .getString(MetricOptions.REPORTER_FACTORY_CLASS.key(), null))
+                .isEqualTo(TestReporter2.class.getName());
     }
 
     @Test
@@ -262,77 +243,42 @@ class ReporterSetupTest {
         final String excludedVariable1 = "foo";
         final String excludedVariable2 = "foo";
         final Configuration config = new Configuration();
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporterFactory.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_EXCLUDED_VARIABLES.key(),
-                excludedVariable1 + ";" + excludedVariable2);
+        MetricOptions.forReporter(config, "test")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporterFactory.class.getName())
+                .set(
+                        MetricOptions.REPORTER_EXCLUDED_VARIABLES,
+                        excludedVariable1 + ";" + excludedVariable2);
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
-        assertEquals(1, reporterSetups.size());
+        assertThat(reporterSetups).hasSize(1);
 
         final ReporterSetup reporterSetup = reporterSetups.get(0);
 
-        assertThat(
-                reporterSetup.getExcludedVariables(),
-                hasItems(
+        assertThat(reporterSetup.getExcludedVariables())
+                .containsAnyOf(
                         ScopeFormat.asVariable(excludedVariable1),
-                        ScopeFormat.asVariable(excludedVariable2)));
+                        ScopeFormat.asVariable(excludedVariable2));
     }
 
     /** Verifies that a factory configuration is correctly parsed. */
     @Test
     void testFactoryParsing() throws Exception {
         final Configuration config = new Configuration();
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporterFactory.class.getName());
+        MetricOptions.forReporter(config, "test")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporterFactory.class.getName());
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
-        assertEquals(1, reporterSetups.size());
-
-        final ReporterSetup reporterSetup = reporterSetups.get(0);
-
-        assertEquals(TestReporterFactory.REPORTER, reporterSetup.getReporter());
-    }
-
-    /**
-     * Verifies that the factory approach is prioritized if both the factory and reflection approach
-     * are configured.
-     */
-    @Test
-    @SuppressWarnings("deprecation")
-    public void testFactoryPrioritization() throws Exception {
-        final Configuration config = new Configuration();
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                InstantiationTypeTrackingTestReporterFactory.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_CLASS.key(),
-                InstantiationTypeTrackingTestReporter.class.getName());
-
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
-
-        assertEquals(1, reporterSetups.size());
+        assertThat(reporterSetups).hasSize(1);
 
         final ReporterSetup reporterSetup = reporterSetups.get(0);
-        final InstantiationTypeTrackingTestReporter metricReporter =
-                (InstantiationTypeTrackingTestReporter) reporterSetup.getReporter();
 
-        assertTrue(metricReporter.createdByFactory);
+        assertThat(reporterSetup.getReporter()).isEqualTo(TestReporterFactory.REPORTER);
     }
 
     /** Verifies that an error thrown by a factory does not affect the setup of other reporters. */
@@ -350,40 +296,11 @@ class ReporterSetupTest {
                         + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 FailingFactory.class.getName());
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
 
-        assertEquals(1, reporterSetups.size());
-    }
-
-    /** Verifies that factory/reflection approaches can be mixed freely. */
-    @Test
-    @SuppressWarnings("deprecation")
-    public void testMixedSetupsFactoryParsing() throws Exception {
-        final Configuration config = new Configuration();
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test1."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                InstantiationTypeTrackingTestReporterFactory.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test2."
-                        + MetricOptions.REPORTER_CLASS.key(),
-                InstantiationTypeTrackingTestReporter.class.getName());
-
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
-
-        assertEquals(2, reporterSetups.size());
-
-        final ReporterSetup reporterSetup1 = reporterSetups.get(0);
-        final ReporterSetup reporterSetup2 = reporterSetups.get(1);
-
-        final InstantiationTypeTrackingTestReporter metricReporter1 =
-                (InstantiationTypeTrackingTestReporter) reporterSetup1.getReporter();
-        final InstantiationTypeTrackingTestReporter metricReporter2 =
-                (InstantiationTypeTrackingTestReporter) reporterSetup2.getReporter();
-
-        assertTrue(metricReporter1.createdByFactory ^ metricReporter2.createdByFactory);
+        assertThat(reporterSetups).hasSize(1);
     }
 
     @Test
@@ -396,68 +313,11 @@ class ReporterSetupTest {
                 ConfigExposingReporterFactory.class.getName());
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg", "hello");
 
-        ReporterSetup.fromConfiguration(config, null);
+        ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                config, DefaultReporterFilters::metricsFromConfiguration, null);
 
         Properties passedConfig = ConfigExposingReporterFactory.lastConfig;
-        assertEquals("hello", passedConfig.getProperty("arg"));
-    }
-
-    /**
-     * Verifies that the factory approach is used if the factory is annotated with {@link
-     * InstantiateViaFactory}.
-     */
-    @Test
-    @SuppressWarnings("deprecation")
-    public void testFactoryAnnotation() {
-        final Configuration config = new Configuration();
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_CLASS.key(),
-                InstantiationTypeTrackingTestReporter2.class.getName());
-
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
-
-        assertEquals(1, reporterSetups.size());
-
-        final ReporterSetup reporterSetup = reporterSetups.get(0);
-        final InstantiationTypeTrackingTestReporter metricReporter =
-                (InstantiationTypeTrackingTestReporter) reporterSetup.getReporter();
-
-        assertTrue(metricReporter.createdByFactory);
-    }
-
-    /**
-     * Verifies that the factory approach is used if the factory is annotated with {@link
-     * org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection}.
-     */
-    @Test
-    @SuppressWarnings("deprecation")
-    public void testReflectionInterception() {
-        final Configuration config = new Configuration();
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_CLASS.key(),
-                InstantiationTypeTrackingTestReporter.class.getName());
-
-        final List<ReporterSetup> reporterSetups =
-                ReporterSetup.fromConfiguration(
-                        config,
-                        new TestingPluginManager(
-                                Collections.singletonMap(
-                                        MetricReporterFactory.class,
-                                        Collections.singletonList(
-                                                        new InterceptingInstantiationTypeTrackingTestReporterFactory())
-                                                .iterator())));
-
-        assertEquals(1, reporterSetups.size());
-
-        final ReporterSetup reporterSetup = reporterSetups.get(0);
-        final InstantiationTypeTrackingTestReporter metricReporter =
-                (InstantiationTypeTrackingTestReporter) reporterSetup.getReporter();
-
-        assertTrue(metricReporter.createdByFactory);
+        assertThat(passedConfig.getProperty("arg")).isEqualTo("hello");
     }
 
     @Test
@@ -467,30 +327,26 @@ class ReporterSetupTest {
         final String tag2 = "fizz";
         final String tagValue2 = "buzz";
         final Configuration config = new Configuration();
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                TestReporterFactory.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test."
-                        + MetricOptions.REPORTER_ADDITIONAL_VARIABLES.key(),
-                String.join(",", tag1 + ":" + tagValue1, tag2 + ":" + tagValue2));
 
-        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+        MetricOptions.forReporter(config, "test")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporterFactory.class.getName())
+                .setString(
+                        MetricOptions.REPORTER_ADDITIONAL_VARIABLES.key(),
+                        String.join(",", tag1 + ":" + tagValue1, tag2 + ":" + tagValue2));
 
-        assertEquals(1, reporterSetups.size());
+        final List<ReporterSetup> reporterSetups =
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config, DefaultReporterFilters::metricsFromConfiguration, null);
+
+        assertThat(reporterSetups).hasSize(1);
 
         final ReporterSetup reporterSetup = reporterSetups.get(0);
 
-        assertThat(
-                reporterSetup.getAdditionalVariables(),
-                hasEntry(ScopeFormat.asVariable(tag1), tagValue1));
+        assertThat(reporterSetup.getAdditionalVariables())
+                .containsEntry(ScopeFormat.asVariable(tag1), tagValue1);
 
-        assertThat(
-                reporterSetup.getAdditionalVariables(),
-                hasEntry(ScopeFormat.asVariable(tag2), tagValue2));
+        assertThat(reporterSetup.getAdditionalVariables())
+                .containsEntry(ScopeFormat.asVariable(tag2), tagValue2);
     }
 
     /** Factory that exposed the last provided metric config. */
@@ -524,57 +380,4 @@ class ReporterSetupTest {
             throw new RuntimeException();
         }
     }
-
-    /** Factory for {@link InstantiationTypeTrackingTestReporter}. */
-    public static class InstantiationTypeTrackingTestReporterFactory
-            implements MetricReporterFactory {
-
-        @Override
-        public MetricReporter createMetricReporter(Properties config) {
-            return new InstantiationTypeTrackingTestReporter(true);
-        }
-    }
-
-    /**
-     * Factory for {@link InstantiationTypeTrackingTestReporter} that intercepts reflection-based
-     * instantiation attempts.
-     */
-    @InterceptInstantiationViaReflection(
-            reporterClassName =
-                    "org.apache.flink.runtime.metrics.ReporterSetupTest$InstantiationTypeTrackingTestReporter")
-    @SuppressWarnings("deprecation")
-    public static class InterceptingInstantiationTypeTrackingTestReporterFactory
-            implements MetricReporterFactory {
-
-        @Override
-        public MetricReporter createMetricReporter(Properties config) {
-            return new InstantiationTypeTrackingTestReporter(true);
-        }
-    }
-
-    /** Reporter that exposes which constructor was called. */
-    protected static class InstantiationTypeTrackingTestReporter extends TestReporter {
-
-        private final boolean createdByFactory;
-
-        public InstantiationTypeTrackingTestReporter() {
-            this(false);
-        }
-
-        InstantiationTypeTrackingTestReporter(boolean createdByFactory) {
-            this.createdByFactory = createdByFactory;
-        }
-
-        public boolean isCreatedByFactory() {
-            return createdByFactory;
-        }
-    }
-
-    /** Annotated reporter that exposes which constructor was called. */
-    @InstantiateViaFactory(
-            factoryClassName =
-                    "org.apache.flink.runtime.metrics.ReporterSetupTest$InstantiationTypeTrackingTestReporterFactory")
-    @SuppressWarnings("deprecation")
-    protected static class InstantiationTypeTrackingTestReporter2
-            extends InstantiationTypeTrackingTestReporter {}
 }

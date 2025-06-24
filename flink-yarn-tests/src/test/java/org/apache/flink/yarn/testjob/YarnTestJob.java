@@ -20,8 +20,8 @@ package org.apache.flink.yarn.testjob;
 
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -43,7 +43,7 @@ public class YarnTestJob {
         env.addSource(new InfiniteSourceFunction(stopJobSignal))
                 .setParallelism(2)
                 .shuffle()
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 .setParallelism(2);
 
         return env.getStreamGraph().getJobGraph();

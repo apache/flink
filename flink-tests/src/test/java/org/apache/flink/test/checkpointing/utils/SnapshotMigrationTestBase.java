@@ -25,7 +25,6 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -162,7 +161,7 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
          * @param snapshotType Specifies the snapshot type.
          * @param flinkVersions A collection of {@link FlinkVersion}.
          * @return A collection of {@link SnapshotSpec} that differ only by means of {@link
-         *     FlinkVersion} FlinkVersion}.
+         *     FlinkVersion}.
          */
         public static Collection<SnapshotSpec> withVersions(
                 String stateBackendType,
@@ -182,9 +181,6 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
             switch (stateBackendType) {
                 case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME:
                     str.append("-rocksdb");
-                    break;
-                case StateBackendLoader.MEMORY_STATE_BACKEND_NAME:
-                    // This is implicit due to backwards compatibility with legacy artifact names.
                     break;
                 case StateBackendLoader.HASHMAP_STATE_BACKEND_NAME:
                     str.append("-hashmap");
@@ -233,8 +229,8 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
         // Flink configuration
         final Configuration config = new Configuration();
 
-        config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, DEFAULT_PARALLELISM);
+        config.set(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS, 1);
+        config.set(TaskManagerOptions.NUM_TASK_SLOTS, DEFAULT_PARALLELISM);
 
         UUID id = UUID.randomUUID();
         final File checkpointDir = TEMP_FOLDER.newFolder("checkpoints_" + id).getAbsoluteFile();
@@ -247,12 +243,11 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
         LOG.info("Created temporary checkpoint directory: " + checkpointDir + ".");
         LOG.info("Created savepoint directory: " + savepointDir + ".");
 
-        config.setString(StateBackendOptions.STATE_BACKEND, "memory");
-        config.setString(
-                CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+        config.set(StateBackendOptions.STATE_BACKEND, "memory");
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
         config.set(CheckpointingOptions.FS_SMALL_FILE_THRESHOLD, MemorySize.ZERO);
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-        config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 300L);
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
+        config.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, Duration.ofMillis(300L));
 
         return config;
     }

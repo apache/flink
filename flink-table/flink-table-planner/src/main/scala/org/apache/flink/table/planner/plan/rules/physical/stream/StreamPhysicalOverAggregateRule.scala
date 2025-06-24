@@ -22,11 +22,13 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalOverAggregate
+import org.apache.flink.table.planner.plan.utils.OverAggregateUtil
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 import scala.collection.JavaConverters._
 
@@ -35,12 +37,7 @@ import scala.collection.JavaConverters._
  * StreamExecOverAggregate only supports one [[org.apache.calcite.rel.core.Window.Group]], else
  * throw exception now
  */
-class StreamPhysicalOverAggregateRule
-  extends ConverterRule(
-    classOf[FlinkLogicalOverAggregate],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalOverAggregateRule") {
+class StreamPhysicalOverAggregateRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val logicWindow: FlinkLogicalOverAggregate =
@@ -70,17 +67,29 @@ class StreamPhysicalOverAggregateRule
       .replace(FlinkConventions.STREAM_PHYSICAL)
       .replace(requiredDistribution)
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val newInput = RelOptRule.convert(logicWindow.getInput, requiredTraitSet)
+    val input = logicWindow.getInput
+    val newInput = RelOptRule.convert(input, requiredTraitSet)
+
+    val outputRowType = OverAggregateUtil.inferOutputRowType(
+      logicWindow.getCluster,
+      input.getRowType,
+      // only supports one group now
+      logicWindow.groups.get(0).getAggregateCalls(logicWindow).asScala)
 
     new StreamPhysicalOverAggregate(
       rel.getCluster,
       providedTraitSet,
       newInput,
-      rel.getRowType,
+      outputRowType,
       logicWindow)
   }
 }
 
 object StreamPhysicalOverAggregateRule {
-  val INSTANCE: RelOptRule = new StreamPhysicalOverAggregateRule
+  val INSTANCE: RelOptRule = new StreamPhysicalOverAggregateRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalOverAggregate],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalOverAggregateRule"))
 }

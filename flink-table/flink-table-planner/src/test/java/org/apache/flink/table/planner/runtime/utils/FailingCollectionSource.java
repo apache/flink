@@ -29,13 +29,14 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -230,8 +231,7 @@ public class FailingCollectionSource<T>
                 this.checkpointedState != null,
                 "The " + getClass().getSimpleName() + " has not been properly initialized.");
 
-        this.checkpointedState.clear();
-        this.checkpointedState.add(this.numElementsEmitted);
+        this.checkpointedState.update(Collections.singletonList(this.numElementsEmitted));
         long checkpointId = context.getCheckpointId();
         checkpointedEmittedNums.put(checkpointId, numElementsEmitted);
     }

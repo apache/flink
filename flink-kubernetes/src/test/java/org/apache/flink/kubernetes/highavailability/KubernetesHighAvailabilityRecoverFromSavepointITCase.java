@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -35,16 +36,17 @@ import org.apache.flink.kubernetes.KubernetesExtension;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.TestingUtils;
@@ -59,6 +61,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -109,7 +112,7 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
         final JobGraph jobGraph = createJobGraph(stateBackend1.toFile());
         clusterClient
                 .submitJob(jobGraph)
-                .get(TestingUtils.infiniteTime().toMilliseconds(), TimeUnit.MILLISECONDS);
+                .get(TestingUtils.infiniteTime().toMillis(), TimeUnit.MILLISECONDS);
 
         // Wait until all tasks running and getting a successful savepoint
         CommonTestUtils.waitUntilCondition(
@@ -140,9 +143,7 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
     private static Configuration getConfiguration() {
         Configuration configuration = new Configuration();
         configuration.set(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
-        configuration.set(
-                HighAvailabilityOptions.HA_MODE,
-                KubernetesHaServicesFactory.class.getCanonicalName());
+        configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.KUBERNETES.name());
         try {
             temporaryPath = Files.createTempDirectory("haStorage");
         } catch (IOException e) {
@@ -168,8 +169,9 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
     private JobGraph createJobGraph(File stateBackendFolder) throws Exception {
         final StreamExecutionEnvironment sEnv =
                 StreamExecutionEnvironment.getExecutionEnvironment();
-        final StateBackend stateBackend = new FsStateBackend(stateBackendFolder.toURI(), 1);
-        sEnv.setStateBackend(stateBackend);
+        StateBackendUtils.configureHashMapStateBackend(sEnv);
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                sEnv, stateBackendFolder.toURI().toString(), 1);
 
         sEnv.addSource(new InfiniteSourceFunction())
                 .keyBy(e -> e)
@@ -179,8 +181,8 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
                             ValueState<Integer> state;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
-                                super.open(parameters);
+                            public void open(OpenContext openContext) throws Exception {
+                                super.open(openContext);
 
                                 ValueStateDescriptor<Integer> descriptor =
                                         new ValueStateDescriptor<>("total", Types.INT);
@@ -200,7 +202,7 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
                             }
                         })
                 .uid(FLAT_MAP_UID)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         return sEnv.getStreamGraph().getJobGraph();
     }
@@ -246,9 +248,10 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
                 running = false;
             }
 
-            stateFromSavepoint.clear();
             // mark this subtask as executed before
-            stateFromSavepoint.add(getRuntimeContext().getIndexOfThisSubtask());
+            stateFromSavepoint.update(
+                    Collections.singletonList(
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()));
         }
     }
 }

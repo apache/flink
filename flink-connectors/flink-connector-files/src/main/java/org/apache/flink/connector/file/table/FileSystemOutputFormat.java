@@ -19,6 +19,8 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.io.FinalizeOnMaster;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.configuration.Configuration;
@@ -26,33 +28,46 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * File system {@link OutputFormat} for batch job. It commit in {@link #finalizeGlobal(int)}.
+ * File system {@link OutputFormat} for batch job. It commits in {@link
+ * #finalizeGlobal(FinalizationContext)}.
  *
  * @param <T> The type of the consumed records.
  */
 @Internal
-public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMaster, Serializable {
+public class FileSystemOutputFormat<T>
+        implements OutputFormat<T>,
+                FinalizeOnMaster,
+                Serializable,
+                SupportsConcurrentExecutionAttempts {
 
     private static final long serialVersionUID = 1L;
 
     private final FileSystemFactory fsFactory;
     private final TableMetaStoreFactory msFactory;
     private final boolean overwrite;
-    private final Path tmpPath;
+    private final boolean isToLocal;
+    private final Path stagingPath;
     private final String[] partitionColumns;
     private final boolean dynamicGrouped;
     private final LinkedHashMap<String, String> staticPartitions;
     private final PartitionComputer<T> computer;
     private final OutputFormatFactory<T> formatFactory;
     private final OutputFileConfig outputFileConfig;
+    private final ObjectIdentifier identifier;
+    private final PartitionCommitPolicyFactory partitionCommitPolicyFactory;
 
     private transient PartitionWriter<T> writer;
     private transient Configuration parameters;
@@ -61,37 +76,91 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
             FileSystemFactory fsFactory,
             TableMetaStoreFactory msFactory,
             boolean overwrite,
-            Path tmpPath,
+            boolean isToLocal,
+            Path stagingPath,
             String[] partitionColumns,
             boolean dynamicGrouped,
             LinkedHashMap<String, String> staticPartitions,
             OutputFormatFactory<T> formatFactory,
             PartitionComputer<T> computer,
-            OutputFileConfig outputFileConfig) {
+            OutputFileConfig outputFileConfig,
+            ObjectIdentifier identifier,
+            PartitionCommitPolicyFactory partitionCommitPolicyFactory) {
         this.fsFactory = fsFactory;
         this.msFactory = msFactory;
         this.overwrite = overwrite;
-        this.tmpPath = tmpPath;
+        this.isToLocal = isToLocal;
+        this.stagingPath = stagingPath;
         this.partitionColumns = partitionColumns;
         this.dynamicGrouped = dynamicGrouped;
         this.staticPartitions = staticPartitions;
         this.formatFactory = formatFactory;
         this.computer = computer;
         this.outputFileConfig = outputFileConfig;
+        this.identifier = identifier;
+        this.partitionCommitPolicyFactory = partitionCommitPolicyFactory;
+
+        createStagingDirectory(this.stagingPath);
+    }
+
+    private static void createStagingDirectory(Path stagingPath) {
+        try {
+            final FileSystem stagingFileSystem = stagingPath.getFileSystem();
+            Preconditions.checkState(
+                    !stagingFileSystem.exists(stagingPath),
+                    "Staging dir %s already exists",
+                    stagingPath);
+            stagingFileSystem.mkdirs(stagingPath);
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "An IO error occurred while accessing the staging FileSystem.", e);
+        }
     }
 
     @Override
-    public void finalizeGlobal(int parallelism) {
+    public void finalizeGlobal(FinalizationContext context) {
         try {
+            List<PartitionCommitPolicy> policies = Collections.emptyList();
+            if (partitionCommitPolicyFactory != null) {
+                policies =
+                        partitionCommitPolicyFactory.createPolicyChain(
+                                Thread.currentThread().getContextClassLoader(),
+                                () -> {
+                                    try {
+                                        return fsFactory.create(stagingPath.toUri());
+                                    } catch (IOException e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                });
+            }
+
             FileSystemCommitter committer =
                     new FileSystemCommitter(
-                            fsFactory, msFactory, overwrite, tmpPath, partitionColumns.length);
-            committer.commitPartitions();
+                            fsFactory,
+                            msFactory,
+                            overwrite,
+                            stagingPath,
+                            partitionColumns.length,
+                            isToLocal,
+                            identifier,
+                            staticPartitions,
+                            policies);
+            committer.commitPartitions(
+                    (subtaskIndex, attemptNumber) -> {
+                        try {
+                            if (context.getFinishedAttempt(subtaskIndex) == attemptNumber) {
+                                return true;
+                            }
+                        } catch (IllegalArgumentException ignored) {
+                            // maybe met a dir or file which does not belong to this job
+                        }
+                        return false;
+                    });
         } catch (Exception e) {
             throw new TableException("Exception in finalizeGlobal", e);
         } finally {
             try {
-                fsFactory.create(tmpPath.toUri()).delete(tmpPath, true);
+                fsFactory.create(stagingPath.toUri()).delete(stagingPath, true);
             } catch (IOException ignore) {
             }
         }
@@ -103,18 +172,27 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
     }
 
     @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
+    public void open(InitializationContext context) throws IOException {
         try {
             PartitionTempFileManager fileManager =
-                    new PartitionTempFileManager(fsFactory, tmpPath, taskNumber, outputFileConfig);
-            PartitionWriter.Context<T> context =
+                    new PartitionTempFileManager(
+                            fsFactory,
+                            stagingPath,
+                            context.getTaskNumber(),
+                            context.getAttemptNumber(),
+                            outputFileConfig);
+            PartitionWriter.Context<T> writerContext =
                     new PartitionWriter.Context<>(parameters, formatFactory);
             writer =
                     PartitionWriterFactory.<T>get(
                                     partitionColumns.length - staticPartitions.size() > 0,
                                     dynamicGrouped,
                                     staticPartitions)
-                            .create(context, fileManager, computer);
+                            .create(
+                                    writerContext,
+                                    fileManager,
+                                    computer,
+                                    new PartitionWriter.DefaultPartitionWriterListener());
         } catch (Exception e) {
             throw new TableException("Exception in open", e);
         }
@@ -144,16 +222,20 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
         private String[] partitionColumns;
         private OutputFormatFactory<T> formatFactory;
         private TableMetaStoreFactory metaStoreFactory;
-        private Path tmpPath;
+        private Path stagingPath;
 
         private LinkedHashMap<String, String> staticPartitions = new LinkedHashMap<>();
         private boolean dynamicGrouped = false;
         private boolean overwrite = false;
+        private boolean isToLocal = false;
         private FileSystemFactory fileSystemFactory = FileSystem::get;
 
         private PartitionComputer<T> computer;
 
         private OutputFileConfig outputFileConfig = new OutputFileConfig("", "");
+
+        private ObjectIdentifier identifier;
+        private PartitionCommitPolicyFactory partitionCommitPolicyFactory;
 
         public Builder<T> setPartitionColumns(String[] partitionColumns) {
             this.partitionColumns = partitionColumns;
@@ -190,9 +272,26 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
             return this;
         }
 
-        public Builder<T> setTempPath(Path tmpPath) {
-            this.tmpPath = tmpPath;
+        public Builder<T> setIsToLocal(boolean isToLocal) {
+            this.isToLocal = isToLocal;
             return this;
+        }
+
+        public Builder<T> setPath(Path parentPath) {
+            this.stagingPath = toStagingPath(parentPath);
+            return this;
+        }
+
+        @VisibleForTesting
+        Builder<T> setStagingPath(Path stagingPath) {
+            this.stagingPath = stagingPath;
+            return this;
+        }
+
+        private Path toStagingPath(Path parentPath) {
+            return new Path(
+                    parentPath,
+                    String.format(".staging_%d_%s", System.currentTimeMillis(), UUID.randomUUID()));
         }
 
         public Builder<T> setPartitionComputer(PartitionComputer<T> computer) {
@@ -205,24 +304,38 @@ public class FileSystemOutputFormat<T> implements OutputFormat<T>, FinalizeOnMas
             return this;
         }
 
+        public Builder<T> setIdentifier(ObjectIdentifier identifier) {
+            this.identifier = identifier;
+            return this;
+        }
+
+        public Builder<T> setPartitionCommitPolicyFactory(
+                PartitionCommitPolicyFactory partitionCommitPolicyFactory) {
+            this.partitionCommitPolicyFactory = partitionCommitPolicyFactory;
+            return this;
+        }
+
         public FileSystemOutputFormat<T> build() {
             checkNotNull(partitionColumns, "partitionColumns should not be null");
             checkNotNull(formatFactory, "formatFactory should not be null");
             checkNotNull(metaStoreFactory, "metaStoreFactory should not be null");
-            checkNotNull(tmpPath, "tmpPath should not be null");
+            checkNotNull(stagingPath, "stagingPath should not be null");
             checkNotNull(computer, "partitionComputer should not be null");
 
             return new FileSystemOutputFormat<>(
                     fileSystemFactory,
                     metaStoreFactory,
                     overwrite,
-                    tmpPath,
+                    isToLocal,
+                    stagingPath,
                     partitionColumns,
                     dynamicGrouped,
                     staticPartitions,
                     formatFactory,
                     computer,
-                    outputFileConfig);
+                    outputFileConfig,
+                    identifier,
+                    partitionCommitPolicyFactory);
         }
     }
 }

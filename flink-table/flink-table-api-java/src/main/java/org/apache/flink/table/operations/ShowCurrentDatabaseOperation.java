@@ -18,10 +18,23 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.internal.TableResultInternal;
+
+import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
+
 /** Operation to describe SHOW CURRENT DATABASE operation. */
+@Internal
 public class ShowCurrentDatabaseOperation implements ShowOperation {
     @Override
     public String asSummaryString() {
         return "SHOW CURRENT DATABASE";
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        return buildStringArrayResult(
+                "current database name",
+                new String[] {ctx.getCatalogManager().getCurrentDatabase()});
     }
 }

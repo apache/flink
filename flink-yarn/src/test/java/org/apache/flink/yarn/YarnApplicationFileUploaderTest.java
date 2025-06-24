@@ -20,42 +20,42 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableMap;
+
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.hamcrest.Matchers;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.yarn.YarnTestUtils.generateFilesInDirectory;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link YarnApplicationFileUploader}. */
-public class YarnApplicationFileUploaderTest extends TestLogger {
-
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+class YarnApplicationFileUploaderTest {
 
     @Test
-    public void testRegisterProvidedLocalResources() throws IOException {
-        final File flinkLibDir = temporaryFolder.newFolder();
+    void testRegisterProvidedLocalResources(@TempDir File flinkLibDir) throws IOException {
         final Map<String, String> libJars = getLibJars();
 
         generateFilesInDirectory(flinkLibDir, libJars);
@@ -63,7 +63,7 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
         try (final YarnApplicationFileUploader yarnApplicationFileUploader =
                 YarnApplicationFileUploader.from(
                         FileSystem.get(new YarnConfiguration()),
-                        new Path(temporaryFolder.getRoot().toURI()),
+                        new Path(flinkLibDir.toURI()),
                         Collections.singletonList(new Path(flinkLibDir.toURI())),
                         ApplicationId.newInstance(0, 0),
                         DFSConfigKeys.DFS_REPLICATION_DEFAULT)) {
@@ -73,15 +73,41 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
             final Set<String> registeredResources =
                     yarnApplicationFileUploader.getRegisteredLocalResources().keySet();
 
-            assertThat(
-                    registeredResources, Matchers.containsInAnyOrder(libJars.keySet().toArray()));
+            assertThat(registeredResources).containsExactlyInAnyOrderElementsOf(libJars.keySet());
         }
     }
 
     @Test
-    public void testRegisterProvidedLocalResourcesWithDuplication() throws IOException {
-        final File flinkLibDir1 = temporaryFolder.newFolder();
-        final File flinkLibDir2 = temporaryFolder.newFolder();
+    void testRegisterProvidedLocalResourcesWithParentDir(@TempDir File flinkLibDir)
+            throws IOException {
+        final String xmlContent = "XML Content";
+        final Map<String, String> xmlResources =
+                ImmutableMap.of(
+                        "conf/hive-site.xml", xmlContent, "conf/ivysettings.xml", xmlContent);
+        generateFilesInDirectory(flinkLibDir, xmlResources);
+
+        try (final YarnApplicationFileUploader yarnApplicationFileUploader =
+                YarnApplicationFileUploader.from(
+                        FileSystem.get(new YarnConfiguration()),
+                        new Path(flinkLibDir.toURI()),
+                        Collections.singletonList(new Path(flinkLibDir.toURI())),
+                        ApplicationId.newInstance(0, 0),
+                        DFSConfigKeys.DFS_REPLICATION_DEFAULT)) {
+
+            List<String> classPath = yarnApplicationFileUploader.registerProvidedLocalResources();
+            List<String> expectedClassPathEntries = Arrays.asList("conf");
+
+            assertThat(classPath).containsExactlyInAnyOrderElementsOf(expectedClassPathEntries);
+        }
+    }
+
+    @Test
+    void testRegisterProvidedLocalResourcesWithDuplication(@TempDir java.nio.file.Path tempDir)
+            throws IOException {
+        final File flinkLibDir1 =
+                Files.createTempDirectory(tempDir, UUID.randomUUID().toString()).toFile();
+        final File flinkLibDir2 =
+                Files.createTempDirectory(tempDir, UUID.randomUUID().toString()).toFile();
 
         generateFilesInDirectory(flinkLibDir1, getLibJars());
         generateFilesInDirectory(flinkLibDir2, getLibJars());
@@ -94,7 +120,7 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
                     () ->
                             YarnApplicationFileUploader.from(
                                     fileSystem,
-                                    new Path(temporaryFolder.getRoot().toURI()),
+                                    new Path(tempDir.toFile().toURI()),
                                     Arrays.asList(
                                             new Path(flinkLibDir1.toURI()),
                                             new Path(flinkLibDir2.toURI())),
@@ -106,8 +132,8 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
     }
 
     @Test
-    public void testRegisterProvidedLocalResourcesWithNotAllowedUsrLib() throws IOException {
-        final File flinkHomeDir = temporaryFolder.newFolder();
+    void testRegisterProvidedLocalResourcesWithNotAllowedUsrLib(@TempDir File flinkHomeDir)
+            throws IOException {
         final File flinkLibDir = new File(flinkHomeDir, "lib");
         final File flinkUsrLibDir = new File(flinkHomeDir, "usrlib");
         final Map<String, String> libJars = getLibJars();
@@ -134,6 +160,27 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
                         ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR);
     }
 
+    @Test
+    void testUploadLocalFileWithoutScheme(@TempDir File flinkHomeDir) throws IOException {
+        final MockLocalFileSystem fileSystem = new MockLocalFileSystem();
+        final File tempFile = File.createTempFile(UUID.randomUUID().toString(), "", flinkHomeDir);
+        final Path pathWithoutScheme = new Path(tempFile.getAbsolutePath());
+
+        try (final YarnApplicationFileUploader yarnApplicationFileUploader =
+                YarnApplicationFileUploader.from(
+                        fileSystem,
+                        new Path(flinkHomeDir.getPath()),
+                        Collections.emptyList(),
+                        ApplicationId.newInstance(0, 0),
+                        DFSConfigKeys.DFS_REPLICATION_DEFAULT)) {
+
+            yarnApplicationFileUploader.uploadLocalFileToRemote(pathWithoutScheme, "");
+            assertThat(fileSystem.getCopiedPaths())
+                    .hasSize(1)
+                    .allMatch(path -> "file".equals(path.toUri().getScheme()));
+        }
+    }
+
     private static Map<String, String> getLibJars() {
         final HashMap<String, String> libJars = new HashMap<>(4);
         final String jarContent = "JAR Content";
@@ -152,5 +199,34 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
         usrLibJars.put("udf.jar", jarContent);
 
         return usrLibJars;
+    }
+
+    private static class MockLocalFileSystem extends LocalFileSystem {
+
+        private final List<Path> copiedPaths = new LinkedList<>();
+
+        @Override
+        public void copyFromLocalFile(Path src, Path dst) {
+            copyFromLocalFile(false, src, dst);
+        }
+
+        @Override
+        public void copyFromLocalFile(boolean delSrc, Path src, Path dst) {
+            copyFromLocalFile(delSrc, true, src, dst);
+        }
+
+        @Override
+        public void copyFromLocalFile(boolean delSrc, boolean overwrite, Path src, Path dst) {
+            copyFromLocalFile(delSrc, overwrite, new Path[] {src}, dst);
+        }
+
+        @Override
+        public void copyFromLocalFile(boolean delSrc, boolean overwrite, Path[] srcs, Path dst) {
+            Collections.addAll(copiedPaths, srcs[srcs.length - 1]);
+        }
+
+        public List<Path> getCopiedPaths() {
+            return copiedPaths;
+        }
     }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.sort;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -61,7 +62,7 @@ final class CombiningSpillingBehaviour<R> implements SpillingThread.SpillingBeha
     @Override
     public void open() {
         try {
-            FunctionUtils.openFunction(combineFunction, udfConfig);
+            FunctionUtils.openFunction(combineFunction, DefaultOpenContext.INSTANCE);
         } catch (Throwable t) {
             throw new FlinkRuntimeException(
                     "The user-defined combiner failed in its 'open()' method.", t);

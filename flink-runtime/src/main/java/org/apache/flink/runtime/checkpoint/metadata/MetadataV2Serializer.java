@@ -66,6 +66,13 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
         return deserializeMetadata(dis, externalPointer);
     }
 
+    @Override
+    public void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
+            throws IOException {
+        throw new UnsupportedOperationException(
+                "Serialization in v" + getVersion() + " is no longer supported");
+    }
+
     // ------------------------------------------------------------------------
     //  version-specific serialization
     // ------------------------------------------------------------------------
@@ -111,7 +118,8 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
         dis.readInt();
 
         // Add task state
-        final OperatorState taskState = new OperatorState(jobVertexId, parallelism, maxParallelism);
+        final OperatorState taskState =
+                new OperatorState(null, null, jobVertexId, parallelism, maxParallelism);
 
         // Sub task states
         final int numSubTaskStates = dis.readInt();

@@ -48,10 +48,9 @@ import java.io.Serializable;
  *       or intended to have a different class name), retain the old serializer snapshot class
  *       (extending {@code TypeSerializerConfigSnapshot}) under the same name and give the updated
  *       serializer snapshot class (the one extending {@code TypeSerializerSnapshot}) a new name.
- *   <li>Override the {@code
- *       TypeSerializerConfigSnapshot#resolveSchemaCompatibility(TypeSerializer)} method to perform
- *       the compatibility check based on configuration written by the old serializer snapshot
- *       class.
+ *   <li>Implement the {@link
+ *       TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializerSnapshot)} method to
+ *       perform the compatibility check.
  * </ul>
  *
  * @param <T> The data type that the serializer serializes.
@@ -191,7 +190,7 @@ public abstract class TypeSerializer<T> implements Serializable {
      * evolution and be future-proof. See the class-level comments, section "Upgrading
      * TypeSerializers to the new TypeSerializerSnapshot model" for details.
      *
-     * @see TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer)
+     * @see TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializerSnapshot)
      * @return snapshot of the serializer's current configuration (cannot be {@code null}).
      */
     public abstract TypeSerializerSnapshot<T> snapshotConfiguration();

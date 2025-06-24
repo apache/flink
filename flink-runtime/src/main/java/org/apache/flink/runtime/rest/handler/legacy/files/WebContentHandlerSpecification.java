@@ -20,6 +20,10 @@ package org.apache.flink.runtime.rest.handler.legacy.files;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /** Rest handler specification for the web content handler. */
 public final class WebContentHandlerSpecification implements RestHandlerSpecification {
@@ -41,5 +45,10 @@ public final class WebContentHandlerSpecification implements RestHandlerSpecific
 
     public static WebContentHandlerSpecification getInstance() {
         return INSTANCE;
+    }
+
+    @Override
+    public Collection<RuntimeRestAPIVersion> getSupportedAPIVersions() {
+        return Collections.singleton(RuntimeRestAPIVersion.V1);
     }
 }

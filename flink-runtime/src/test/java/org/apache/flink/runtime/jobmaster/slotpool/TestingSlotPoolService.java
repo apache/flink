@@ -21,14 +21,12 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
 
 import javax.annotation.Nullable;
@@ -44,9 +42,7 @@ public class TestingSlotPoolService implements SlotPoolService {
 
     private final JobID jobId;
 
-    private final TriConsumer<
-                    ? super JobMasterId, ? super String, ? super ComponentMainThreadExecutor>
-            startConsumer;
+    private final BiFunction<? super JobMasterId, ? super String, Void> startConsumer;
 
     private final Runnable closeRunnable;
 
@@ -78,8 +74,7 @@ public class TestingSlotPoolService implements SlotPoolService {
 
     public TestingSlotPoolService(
             JobID jobId,
-            TriConsumer<? super JobMasterId, ? super String, ? super ComponentMainThreadExecutor>
-                    startConsumer,
+            BiFunction<? super JobMasterId, ? super String, Void> startConsumer,
             Runnable closeRunnable,
             TriFunction<
                             ? super TaskManagerLocation,
@@ -112,10 +107,8 @@ public class TestingSlotPoolService implements SlotPoolService {
     }
 
     @Override
-    public void start(
-            JobMasterId jobMasterId, String address, ComponentMainThreadExecutor mainThreadExecutor)
-            throws Exception {
-        startConsumer.accept(jobMasterId, address, mainThreadExecutor);
+    public void start(JobMasterId jobMasterId, String address) throws Exception {
+        startConsumer.apply(jobMasterId, address);
     }
 
     @Override
@@ -145,6 +138,12 @@ public class TestingSlotPoolService implements SlotPoolService {
     @Override
     public boolean releaseTaskManager(ResourceID taskManagerId, Exception cause) {
         return releaseTaskManagerFunction.apply(taskManagerId, cause);
+    }
+
+    @Override
+    public void releaseFreeSlotsOnTaskManager(ResourceID taskManagerId, Exception cause) {
+        throw new UnsupportedOperationException(
+                "TestingSlotPoolService does not support this operation.");
     }
 
     @Override

@@ -25,6 +25,6 @@ public class LocalUnresolvedTaskManagerLocation extends UnresolvedTaskManagerLoc
     private static final long serialVersionUID = 1L;
 
     public LocalUnresolvedTaskManagerLocation() {
-        super(ResourceID.generate(), "localhost", 42);
+        super(ResourceID.generate(), "localhost", 42, "localhost");
     }
 }

@@ -18,14 +18,15 @@
 
 package org.apache.flink.runtime.minicluster;
 
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -50,6 +51,8 @@ public class MiniClusterConfiguration {
 
     private final MiniCluster.HaServices haServices;
 
+    @Nullable private final PluginManager pluginManager;
+
     // ------------------------------------------------------------------------
     //  Construction
     // ------------------------------------------------------------------------
@@ -59,12 +62,14 @@ public class MiniClusterConfiguration {
             int numTaskManagers,
             RpcServiceSharing rpcServiceSharing,
             @Nullable String commonBindAddress,
-            MiniCluster.HaServices haServices) {
+            MiniCluster.HaServices haServices,
+            @Nullable PluginManager pluginManager) {
         this.numTaskManagers = numTaskManagers;
         this.configuration = generateConfiguration(Preconditions.checkNotNull(configuration));
         this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
         this.commonBindAddress = commonBindAddress;
         this.haServices = haServices;
+        this.pluginManager = pluginManager;
     }
 
     private UnmodifiableConfiguration generateConfiguration(final Configuration configuration) {
@@ -84,9 +89,9 @@ public class MiniClusterConfiguration {
             modifiedConfig.set(ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE, DEFAULT_IO_POOL_SIZE);
         }
 
-        // increase the akka.ask.timeout if not set in order to harden tests on slow CI
-        if (!modifiedConfig.contains(AkkaOptions.ASK_TIMEOUT_DURATION)) {
-            modifiedConfig.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(5L));
+        // increase the ask.timeout if not set in order to harden tests on slow CI
+        if (!modifiedConfig.contains(RpcOptions.ASK_TIMEOUT_DURATION)) {
+            modifiedConfig.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(5L));
         }
 
         return new UnmodifiableConfiguration(modifiedConfig);
@@ -100,6 +105,11 @@ public class MiniClusterConfiguration {
         return rpcServiceSharing;
     }
 
+    @Nullable
+    public PluginManager getPluginManager() {
+        return pluginManager;
+    }
+
     public int getNumTaskManagers() {
         return numTaskManagers;
     }
@@ -107,33 +117,33 @@ public class MiniClusterConfiguration {
     public String getJobManagerExternalAddress() {
         return commonBindAddress != null
                 ? commonBindAddress
-                : configuration.getString(JobManagerOptions.ADDRESS, "localhost");
+                : configuration.get(JobManagerOptions.ADDRESS, "localhost");
     }
 
     public String getTaskManagerExternalAddress() {
         return commonBindAddress != null
                 ? commonBindAddress
-                : configuration.getString(TaskManagerOptions.HOST, "localhost");
+                : configuration.get(TaskManagerOptions.HOST, "localhost");
     }
 
     public String getJobManagerExternalPortRange() {
-        return String.valueOf(configuration.getInteger(JobManagerOptions.PORT, 0));
+        return String.valueOf(configuration.get(JobManagerOptions.PORT, 0));
     }
 
     public String getTaskManagerExternalPortRange() {
-        return configuration.getString(TaskManagerOptions.RPC_PORT);
+        return configuration.get(TaskManagerOptions.RPC_PORT);
     }
 
     public String getJobManagerBindAddress() {
         return commonBindAddress != null
                 ? commonBindAddress
-                : configuration.getString(JobManagerOptions.BIND_HOST, "localhost");
+                : configuration.get(JobManagerOptions.BIND_HOST, "localhost");
     }
 
     public String getTaskManagerBindAddress() {
         return commonBindAddress != null
                 ? commonBindAddress
-                : configuration.getString(TaskManagerOptions.BIND_HOST, "localhost");
+                : configuration.get(TaskManagerOptions.BIND_HOST, "localhost");
     }
 
     public UnmodifiableConfiguration getConfiguration() {
@@ -176,6 +186,7 @@ public class MiniClusterConfiguration {
         @Nullable private String commonBindAddress = null;
         private MiniCluster.HaServices haServices = MiniCluster.HaServices.CONFIGURED;
         private boolean useRandomPorts = false;
+        @Nullable private PluginManager pluginManager;
 
         public Builder setConfiguration(Configuration configuration1) {
             this.configuration = Preconditions.checkNotNull(configuration1);
@@ -212,20 +223,24 @@ public class MiniClusterConfiguration {
             return this;
         }
 
+        public Builder setPluginManager(PluginManager pluginManager) {
+            this.pluginManager = Preconditions.checkNotNull(pluginManager);
+            return this;
+        }
+
         public MiniClusterConfiguration build() {
             final Configuration modifiedConfiguration = new Configuration(configuration);
-            modifiedConfiguration.setInteger(
-                    TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTaskManager);
-            modifiedConfiguration.setString(
+            modifiedConfiguration.set(TaskManagerOptions.NUM_TASK_SLOTS, numSlotsPerTaskManager);
+            modifiedConfiguration.set(
                     RestOptions.ADDRESS,
-                    modifiedConfiguration.getString(RestOptions.ADDRESS, "localhost"));
+                    modifiedConfiguration.get(RestOptions.ADDRESS, "localhost"));
 
             if (useRandomPorts) {
                 if (!configuration.contains(JobManagerOptions.PORT)) {
                     modifiedConfiguration.set(JobManagerOptions.PORT, 0);
                 }
                 if (!configuration.contains(RestOptions.BIND_PORT)) {
-                    modifiedConfiguration.setString(RestOptions.BIND_PORT, "0");
+                    modifiedConfiguration.set(RestOptions.BIND_PORT, "0");
                 }
             }
 
@@ -234,7 +249,8 @@ public class MiniClusterConfiguration {
                     numTaskManagers,
                     rpcServiceSharing,
                     commonBindAddress,
-                    haServices);
+                    haServices,
+                    pluginManager);
         }
     }
 }

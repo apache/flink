@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
@@ -27,6 +27,7 @@ import org.apache.flink.runtime.rest.handler.async.OperationResult;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -39,15 +40,22 @@ public class DispatcherCachedOperationsHandler {
     private final CompletedOperationCache<AsynchronousJobOperationKey, String>
             savepointTriggerCache;
 
+    private final CompletedOperationCache<AsynchronousJobOperationKey, Long> checkpointTriggerCache;
+
+    private final TriggerCheckpointFunction triggerCheckpointFunction;
+
     private final TriggerSavepointFunction triggerSavepointFunction;
 
     private final TriggerSavepointFunction stopWithSavepointFunction;
 
     DispatcherCachedOperationsHandler(
             DispatcherOperationCaches operationCaches,
+            TriggerCheckpointFunction triggerCheckpointFunction,
             TriggerSavepointFunction triggerSavepointFunction,
             TriggerSavepointFunction stopWithSavepointFunction) {
         this(
+                triggerCheckpointFunction,
+                operationCaches.getCheckpointTriggerCache(),
                 triggerSavepointFunction,
                 stopWithSavepointFunction,
                 operationCaches.getSavepointTriggerCache());
@@ -55,12 +63,41 @@ public class DispatcherCachedOperationsHandler {
 
     @VisibleForTesting
     DispatcherCachedOperationsHandler(
+            TriggerCheckpointFunction triggerCheckpointFunction,
+            CompletedOperationCache<AsynchronousJobOperationKey, Long> checkpointTriggerCache,
             TriggerSavepointFunction triggerSavepointFunction,
             TriggerSavepointFunction stopWithSavepointFunction,
             CompletedOperationCache<AsynchronousJobOperationKey, String> savepointTriggerCache) {
+        this.triggerCheckpointFunction = triggerCheckpointFunction;
+        this.checkpointTriggerCache = checkpointTriggerCache;
         this.triggerSavepointFunction = triggerSavepointFunction;
         this.stopWithSavepointFunction = stopWithSavepointFunction;
         this.savepointTriggerCache = savepointTriggerCache;
+    }
+
+    public CompletableFuture<Acknowledge> triggerCheckpoint(
+            AsynchronousJobOperationKey operationKey,
+            CheckpointType checkpointType,
+            Duration timeout) {
+
+        if (!checkpointTriggerCache.containsOperation(operationKey)) {
+            checkpointTriggerCache.registerOngoingOperation(
+                    operationKey,
+                    triggerCheckpointFunction.apply(
+                            operationKey.getJobId(), checkpointType, timeout));
+        }
+
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    public CompletableFuture<OperationResult<Long>> getCheckpointStatus(
+            AsynchronousJobOperationKey operationKey) {
+        return checkpointTriggerCache
+                .get(operationKey)
+                .map(CompletableFuture::completedFuture)
+                .orElse(
+                        FutureUtils.completedExceptionally(
+                                new UnknownOperationKeyException(operationKey)));
     }
 
     public CompletableFuture<Acknowledge> triggerSavepoint(
@@ -68,7 +105,7 @@ public class DispatcherCachedOperationsHandler {
             String targetDirectory,
             SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
-            Time timeout) {
+            Duration timeout) {
         return registerOperationIdempotently(
                 operationKey,
                 () ->
@@ -85,7 +122,7 @@ public class DispatcherCachedOperationsHandler {
             String targetDirectory,
             SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
-            Time timeout) {
+            Duration timeout) {
         return registerOperationIdempotently(
                 operationKey,
                 () ->

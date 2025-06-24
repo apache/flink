@@ -17,14 +17,19 @@
 ################################################################################
 from typing import Union
 
+from pyflink.java_gateway import get_gateway
 from pyflink.table import ExplainDetail
+from pyflink.table.compiled_plan import CompiledPlan
 from pyflink.table.table_descriptor import TableDescriptor
+from pyflink.table.table_pipeline import TablePipeline
 from pyflink.table.table_result import TableResult
+from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_j_explain_detail_arr
 
 __all__ = ['StatementSet']
 
 
+@PublicEvolving()
 class StatementSet(object):
     """
     A :class:`~StatementSet` accepts pipelines defined by DML statements or :class:`~Table` objects.
@@ -39,6 +44,18 @@ class StatementSet(object):
         self._j_statement_set = _j_statement_set
         self._t_env = t_env
 
+    def add(self, table_pipeline: TablePipeline) -> 'StatementSet':
+        """
+        Adds a :class:`~pyflink.table.TablePipeline`.
+
+        :param table_pipeline: The TablePipeline to be added.
+        :return: current StatementSet instance.
+
+        .. versionadded:: 2.1.0
+        """
+        self._j_statement_set.add(table_pipeline._j_table_pipeline)
+        return self
+
     def add_insert_sql(self, stmt: str) -> 'StatementSet':
         """
         add insert statement to the set.
@@ -50,6 +67,19 @@ class StatementSet(object):
         """
         self._j_statement_set.addInsertSql(stmt)
         return self
+
+    def attach_as_datastream(self):
+        """
+        Optimizes all statements as one entity and adds them as transformations to the underlying
+        StreamExecutionEnvironment.
+
+        Use :func:`~pyflink.datastream.StreamExecutionEnvironment.execute` to execute them.
+
+        The added statements will be cleared after calling this method.
+
+        .. versionadded:: 1.16.0
+        """
+        self._j_statement_set.attachAsDataStream()
 
     def add_insert(self,
                    target_path_or_descriptor: Union[str, TableDescriptor],
@@ -125,8 +155,18 @@ class StatementSet(object):
 
         .. versionadded:: 1.11.0
         """
+        TEXT = get_gateway().jvm.org.apache.flink.table.api.ExplainFormat.TEXT
         j_extra_details = to_j_explain_detail_arr(extra_details)
-        return self._j_statement_set.explain(j_extra_details)
+        return self._j_statement_set.explain(TEXT, j_extra_details)
+
+    def print_explain(self, *extra_details: ExplainDetail):
+        """
+        Like :func:`~pyflink.table.StatementSet.explain`, but prints the result to the client
+        console.
+
+        .. versionadded:: 2.1.0
+        """
+        print(self.explain(*extra_details))
 
     def execute(self) -> TableResult:
         """
@@ -141,3 +181,23 @@ class StatementSet(object):
         """
         self._t_env._before_execute()
         return TableResult(self._j_statement_set.execute())
+
+    def compile_plan(self) -> CompiledPlan:
+        """
+        Compiles all statements into a :class:`~pyflink.table.CompiledPlan` that can be executed
+        as one job.
+
+        :class:`~pyflink.table.CompiledPlan`s can be persisted and reloaded across Flink versions.
+        They describe static pipelines to ensure backwards compatibility and enable stateful
+        streaming job upgrades. See :class:`~pyflink.table.CompiledPlan` and the website
+        documentation for more information.
+
+        .. note::
+            The compiled plan feature is experimental in batch mode.
+
+        :raises TableException: if any of the statements is invalid or if the plan cannot be
+            persisted.
+
+        .. versionadded:: 2.1.0
+        """
+        return CompiledPlan(j_compiled_plan=self._j_statement_set.compilePlan(), t_env=self._t_env)

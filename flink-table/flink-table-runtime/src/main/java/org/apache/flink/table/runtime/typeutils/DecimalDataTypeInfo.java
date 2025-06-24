@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.DataTypes;
@@ -84,7 +84,7 @@ public class DecimalDataTypeInfo extends TypeInformation<DecimalData> implements
     }
 
     @Override
-    public TypeSerializer<DecimalData> createSerializer(ExecutionConfig config) {
+    public TypeSerializer<DecimalData> createSerializer(SerializerConfig config) {
         return new DecimalDataSerializer(precision, scale);
     }
 

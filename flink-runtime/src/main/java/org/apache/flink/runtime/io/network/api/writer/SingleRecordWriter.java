@@ -51,6 +51,11 @@ public class SingleRecordWriter<T extends IOReadableWritable> implements RecordW
     }
 
     @Override
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {
+        recordWriter.setMaxOverdraftBuffersPerGate(maxOverdraftBuffersPerGate);
+    }
+
+    @Override
     public CompletableFuture<?> getAvailableFuture() {
         return recordWriter.getAvailableFuture();
     }

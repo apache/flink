@@ -19,12 +19,17 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TemporalTableFunction;
+import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
 
@@ -98,7 +103,7 @@ public interface Table extends Explainable<Table>, Executable {
      */
     @Deprecated
     default TableSchema getSchema() {
-        return TableSchema.fromResolvedSchema(getResolvedSchema());
+        return TableSchema.fromResolvedSchema(getResolvedSchema(), DefaultSqlFactory.INSTANCE);
     }
 
     /** Returns the resolved schema of this table. */
@@ -114,7 +119,7 @@ public interface Table extends Explainable<Table>, Executable {
      * Performs a selection operation. Similar to a SQL SELECT statement. The field expressions can
      * contain complex expressions and aggregations.
      *
-     * <p>Scala Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.select($("key"), $("value").avg().plus(" The average").as("average"));
@@ -164,7 +169,7 @@ public interface Table extends Explainable<Table>, Executable {
      * Renames the fields of the expression result. Use this to disambiguate fields before joining
      * to operations.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.as($("a"), $("b"))
@@ -184,7 +189,7 @@ public interface Table extends Explainable<Table>, Executable {
     /**
      * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE clause.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.filter($("name").isEqual("Fred"));
@@ -201,7 +206,7 @@ public interface Table extends Explainable<Table>, Executable {
     /**
      * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE clause.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.where($("name").isEqual("Fred"));
@@ -219,7 +224,7 @@ public interface Table extends Explainable<Table>, Executable {
      * Groups the elements on some grouping keys. Use this before a selection with aggregations to
      * perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
      *
-     * <p>Scala Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.groupBy($("key")).select($("key"), $("value").avg());
@@ -267,7 +272,7 @@ public interface Table extends Explainable<Table>, Executable {
      *
      * <p>Note: Both tables must be bound to the same {@code TableEnvironment} .
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * left.join(right, $("a").isEqual($("b")))
@@ -306,7 +311,7 @@ public interface Table extends Explainable<Table>, Executable {
      * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its {@code
      * TableConfig} must have null check enabled (default).
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * left.leftOuterJoin(right, $("a").isEqual($("b")))
@@ -329,7 +334,7 @@ public interface Table extends Explainable<Table>, Executable {
      * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its {@code
      * TableConfig} must have null check enabled (default).
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * left.rightOuterJoin(right, $("a").isEqual($("b")))
@@ -352,7 +357,7 @@ public interface Table extends Explainable<Table>, Executable {
      * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its {@code
      * TableConfig} must have null check enabled (default).
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * left.fullOuterJoin(right, $("a").isEqual($("b")))
@@ -373,7 +378,7 @@ public interface Table extends Explainable<Table>, Executable {
      * a SQL inner join with ON TRUE predicate but works with a table function. Each row of the
      * table is joined with all rows produced by the table function.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * class MySplitUDTF extends TableFunction<String> {
@@ -407,7 +412,7 @@ public interface Table extends Explainable<Table>, Executable {
      * a SQL inner join but works with a table function. Each row of the table is joined with all
      * rows produced by the table function.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * class MySplitUDTF extends TableFunction<String> {
@@ -442,7 +447,7 @@ public interface Table extends Explainable<Table>, Executable {
      * table is joined with all rows produced by the table function. If the table function does not
      * produce any row, the outer row is padded with nulls.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * class MySplitUDTF extends TableFunction<String> {
@@ -477,7 +482,7 @@ public interface Table extends Explainable<Table>, Executable {
      * table is joined with all rows produced by the table function. If the table function does not
      * produce any row, the outer row is padded with nulls.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * class MySplitUDTF extends TableFunction<String> {
@@ -702,7 +707,7 @@ public interface Table extends Explainable<Table>, Executable {
      * <p>An over-window defines for each record an interval of records over which aggregation
      * functions can be computed.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * table
@@ -735,7 +740,7 @@ public interface Table extends Explainable<Table>, Executable {
      * complex expressions, but can not contain aggregations. It will throw an exception if the
      * added fields already exist.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.addColumns(
@@ -760,7 +765,7 @@ public interface Table extends Explainable<Table>, Executable {
      * complex expressions, but can not contain aggregations. Existing fields will be replaced. If
      * the added fields have duplicate field name, then the last one is used.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.addOrReplaceColumns(
@@ -784,7 +789,7 @@ public interface Table extends Explainable<Table>, Executable {
      * Renames existing columns. Similar to a field alias statement. The field expressions should be
      * alias expressions, and only the existing fields can be renamed.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.renameColumns(
@@ -807,7 +812,7 @@ public interface Table extends Explainable<Table>, Executable {
     /**
      * Drops existing columns. The field expressions should be field reference expressions.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.dropColumns($("a"), $("b"));
@@ -825,7 +830,7 @@ public interface Table extends Explainable<Table>, Executable {
      * Performs a map operation with an user-defined scalar function or built-in scalar function.
      * The output will be flattened if the output type is a composite type.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.map(call(MyMapFunction.class, $("c")))
@@ -844,7 +849,7 @@ public interface Table extends Explainable<Table>, Executable {
      * Performs a flatMap operation with an user-defined table function or built-in table function.
      * The output will be flattened if the output type is a composite type.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.flatMap(call(MyFlatMapFunction.class, $("c")))
@@ -864,7 +869,7 @@ public interface Table extends Explainable<Table>, Executable {
      * {@link #aggregate(Expression)} with a select statement. The output will be flattened if the
      * output type is a composite type.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.aggregate(call(MyAggregateFunction.class, $("a"), $("b")).as("f0", "f1", "f2"))
@@ -885,7 +890,7 @@ public interface Table extends Explainable<Table>, Executable {
      * Perform a global flatAggregate without groupBy. FlatAggregate takes a TableAggregateFunction
      * which returns multiple rows. Use a selection after the flatAggregate.
      *
-     * <p>Example:
+     * <p>Java Example:
      *
      * <pre>{@code
      * tab.flatAggregate(call(MyTableAggregateFunction.class, $("a"), $("b")).as("x", "y", "z"))
@@ -1093,4 +1098,121 @@ public interface Table extends Explainable<Table>, Executable {
     default TableResult executeInsert(TableDescriptor descriptor, boolean overwrite) {
         return insertInto(descriptor, overwrite).execute();
     }
+
+    /**
+     * Partitions the table by a set of partition keys.
+     *
+     * <p>Currently, partitioned table objects are intended for table arguments of process table
+     * functions (PTFs) that take table arguments with set semantics (see {@link
+     * ArgumentTrait#TABLE_AS_SET}).
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * table.partitionBy($("key")).process(...).execute();
+     * }</pre>
+     *
+     * @see ProcessTableFunction
+     */
+    PartitionedTable partitionBy(Expression... fields);
+
+    /**
+     * Converts this table object into a named argument.
+     *
+     * <p>This method is intended for calls to process table functions (PTFs) that take table
+     * arguments.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * env.fromCall(
+     *   "MyPTF",
+     *   table.asArgument("input_table")
+     * )
+     * }</pre>
+     *
+     * @see ProcessTableFunction
+     * @return an expression that can be passed into {@link TableEnvironment#fromCall}.
+     */
+    ApiExpression asArgument(String name);
+
+    /**
+     * Transforms the given table by passing it into a process table function (PTF) with row
+     * semantics.
+     *
+     * <p>A PTF maps zero, one, or multiple tables to a new table. PTFs are the most powerful
+     * function kind for Flink SQL and Table API. They enable implementing user-defined operators
+     * that can be as feature-rich as built-in operations. PTFs have access to Flink's managed
+     * state, event-time and timer services, and underlying table changelogs.
+     *
+     * <p>This method assumes a call to a previously registered function that takes exactly one
+     * table argument with row semantics as the first argument. Additional scalar arguments can be
+     * passed if necessary. Thus, this method is a shortcut for:
+     *
+     * <pre>{@code
+     * env.fromCall(
+     *   "MyPTF",
+     *   THIS_TABLE,
+     *   SOME_SCALAR_ARGUMENTS...
+     * );
+     * }</pre>
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * env.createFunction("MyPTF", MyPTF.class);
+     *
+     * Table table = table.process(
+     *   "MyPTF"
+     *   lit("Bob").asArgument("defaultName"),
+     *   lit(42).asArgument("defaultThreshold")
+     * );
+     * }</pre>
+     *
+     * @param path The path of a function
+     * @param arguments Table and scalar argument {@link Expressions}.
+     * @return The {@link Table} object describing the pipeline for further transformations.
+     * @see Expressions#call(String, Object...)
+     * @see ProcessTableFunction
+     */
+    Table process(String path, Object... arguments);
+
+    /**
+     * Transforms the given table by passing it into a process table function (PTF) with row
+     * semantics.
+     *
+     * <p>A PTF maps zero, one, or multiple tables to a new table. PTFs are the most powerful
+     * function kind for Flink SQL and Table API. They enable implementing user-defined operators
+     * that can be as feature-rich as built-in operations. PTFs have access to Flink's managed
+     * state, event-time and timer services, and underlying table changelogs.
+     *
+     * <p>This method assumes a call to an unregistered, inline function that takes exactly one
+     * table argument with row semantics as the first argument. Additional scalar arguments can be
+     * passed if necessary. Thus, this method is a shortcut for:
+     *
+     * <pre>{@code
+     * env.fromCall(
+     *   MyPTF.class,
+     *   THIS_TABLE,
+     *   SOME_SCALAR_ARGUMENTS...
+     * );
+     * }</pre>
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * Table table = table.process(
+     *   MyPTF.class,
+     *   lit("Bob").asArgument("defaultName"),
+     *   lit(42).asArgument("defaultThreshold")
+     * );
+     * }</pre>
+     *
+     * @param function The class containing the function's logic.
+     * @param arguments Table and scalar argument {@link Expressions}.
+     * @return The {@link Table} object describing the pipeline for further transformations.
+     * @see Expressions#call(String, Object...)
+     * @see ProcessTableFunction
+     */
+    Table process(Class<? extends UserDefinedFunction> function, Object... arguments);
 }

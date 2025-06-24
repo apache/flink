@@ -33,9 +33,7 @@ import org.apache.calcite.rel.hint.RelHint
 
 import java.util
 
-/**
- * Batch physical RelNode to to write data into an external sink defined by a [[DynamicTableSink]].
- */
+/** Batch physical RelNode to write data into an external sink defined by a [[DynamicTableSink]]. */
 class BatchPhysicalSink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -43,8 +41,9 @@ class BatchPhysicalSink(
     hints: util.List[RelHint],
     contextResolvedTable: ContextResolvedTable,
     tableSink: DynamicTableSink,
-    abilitySpecs: Array[SinkAbilitySpec])
-  extends Sink(cluster, traitSet, inputRel, hints, contextResolvedTable, tableSink)
+    targetColumns: Array[Array[Int]],
+    val abilitySpecs: Array[SinkAbilitySpec])
+  extends Sink(cluster, traitSet, inputRel, hints, targetColumns, contextResolvedTable, tableSink)
   with BatchPhysicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
@@ -55,12 +54,16 @@ class BatchPhysicalSink(
       hints,
       contextResolvedTable,
       tableSink,
+      targetColumns,
       abilitySpecs)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
     val tableSinkSpec =
-      new DynamicTableSinkSpec(contextResolvedTable, util.Arrays.asList(abilitySpecs: _*))
+      new DynamicTableSinkSpec(
+        contextResolvedTable,
+        util.Arrays.asList(abilitySpecs: _*),
+        targetColumns)
     tableSinkSpec.setTableSink(tableSink)
 
     new BatchExecSink(

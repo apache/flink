@@ -41,7 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ChangelogKeyGroupedPriorityQueue<T>
         implements KeyGroupedInternalPriorityQueue<T>, ChangelogState {
-    private final KeyGroupedInternalPriorityQueue<T> delegatedPriorityQueue;
+    private KeyGroupedInternalPriorityQueue<T> delegatedPriorityQueue;
     private final StateChangeLogger<T, Void> logger;
     private final TypeSerializer<T> serializer;
 
@@ -131,6 +131,16 @@ public class ChangelogKeyGroupedPriorityQueue<T>
     @Override
     public StateChangeApplier getChangeApplier(ChangelogApplierFactory factory) {
         return factory.forPriorityQueue(delegatedPriorityQueue, serializer);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <IS> void setDelegatedState(IS state) {
+        this.delegatedPriorityQueue = (KeyGroupedInternalPriorityQueue<T>) checkNotNull(state);
+    }
+
+    public StateChangeLogger<T, Void> getStateChangeLogger() {
+        return logger;
     }
 
     @Override

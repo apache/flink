@@ -32,7 +32,10 @@ public class TestingSchedulingPipelinedRegion implements SchedulingPipelinedRegi
     private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> regionVertices =
             new HashMap<>();
 
-    private final Set<ConsumedPartitionGroup> consumedPartitionGroups =
+    private final Set<ConsumedPartitionGroup> blockingConsumedPartitionGroups =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
+    private final Set<ConsumedPartitionGroup> releaseBySchedulerConsumedPartitionGroups =
             Collections.newSetFromMap(new IdentityHashMap<>());
 
     public TestingSchedulingPipelinedRegion(final Set<TestingSchedulingExecutionVertex> vertices) {
@@ -48,8 +51,14 @@ public class TestingSchedulingPipelinedRegion implements SchedulingPipelinedRegi
 
             for (ConsumedPartitionGroup consumedGroup : vertex.getConsumedPartitionGroups()) {
                 for (IntermediateResultPartitionID consumerId : consumedGroup) {
-                    if (!vertices.contains(resultPartitionsById.get(consumerId).getProducer())) {
-                        consumedPartitionGroups.add(consumedGroup);
+                    TestingSchedulingResultPartition rp = resultPartitionsById.get(consumerId);
+                    if (!vertices.contains(rp.getProducer())) {
+                        if (!rp.getResultType().canBePipelinedConsumed()) {
+                            blockingConsumedPartitionGroups.add(consumedGroup);
+                        }
+                        if (rp.getResultType().isReleaseByScheduler()) {
+                            releaseBySchedulerConsumedPartitionGroups.add(consumedGroup);
+                        }
                     }
                     break;
                 }
@@ -73,8 +82,13 @@ public class TestingSchedulingPipelinedRegion implements SchedulingPipelinedRegi
     }
 
     @Override
-    public Iterable<ConsumedPartitionGroup> getAllBlockingConsumedPartitionGroups() {
-        return Collections.unmodifiableSet(consumedPartitionGroups);
+    public Iterable<ConsumedPartitionGroup> getAllNonPipelinedConsumedPartitionGroups() {
+        return Collections.unmodifiableSet(blockingConsumedPartitionGroups);
+    }
+
+    @Override
+    public Iterable<ConsumedPartitionGroup> getAllReleaseBySchedulerConsumedPartitionGroups() {
+        return Collections.unmodifiableSet(releaseBySchedulerConsumedPartitionGroups);
     }
 
     @Override

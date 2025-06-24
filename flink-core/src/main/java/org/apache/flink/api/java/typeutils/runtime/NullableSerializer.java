@@ -18,12 +18,8 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -264,43 +260,6 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
     }
 
     /**
-     * Configuration snapshot for serializers of nullable types, containing the configuration
-     * snapshot of its original serializer.
-     *
-     * @deprecated this snapshot class is no longer in use, and is maintained only for backwards
-     *     compatibility purposes. It is fully replaced by {@link NullableSerializerSnapshot}.
-     */
-    @Deprecated
-    @Internal
-    public static class NullableSerializerConfigSnapshot<T>
-            extends CompositeTypeSerializerConfigSnapshot<T> {
-        private static final int VERSION = 1;
-
-        /** This empty nullary constructor is required for deserializing the configuration. */
-        public NullableSerializerConfigSnapshot() {}
-
-        NullableSerializerConfigSnapshot(TypeSerializer<T> originalSerializer) {
-            super(originalSerializer);
-        }
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-
-        @Override
-        public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-                TypeSerializer<T> newSerializer) {
-            NullableSerializer<T> previousSerializer = (NullableSerializer<T>) restoreSerializer();
-            NullableSerializerSnapshot<T> newCompositeSnapshot =
-                    new NullableSerializerSnapshot<>(previousSerializer.nullPaddingLength());
-
-            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                    newSerializer, newCompositeSnapshot, getSingleNestedSerializerAndConfig().f1);
-        }
-    }
-
-    /**
      * Snapshot for serializers of nullable types, containing the snapshot of its original
      * serializer.
      */
@@ -312,9 +271,7 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
         private int nullPaddingLength;
 
         @SuppressWarnings("unused")
-        public NullableSerializerSnapshot() {
-            super(NullableSerializer.class);
-        }
+        public NullableSerializerSnapshot() {}
 
         public NullableSerializerSnapshot(NullableSerializer<T> serializerInstance) {
             super(serializerInstance);
@@ -322,7 +279,6 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
         }
 
         private NullableSerializerSnapshot(int nullPaddingLength) {
-            super(NullableSerializer.class);
             checkArgument(
                     nullPaddingLength >= 0,
                     "Computed NULL padding can not be negative. %s",
@@ -369,8 +325,13 @@ public class NullableSerializer<T> extends TypeSerializer<T> {
 
         @Override
         protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(
-                NullableSerializer<T> newSerializer) {
-            return (nullPaddingLength == newSerializer.nullPaddingLength())
+                TypeSerializerSnapshot<T> oldSerializerSnapshot) {
+            if (!(oldSerializerSnapshot instanceof NullableSerializerSnapshot)) {
+                return OuterSchemaCompatibility.INCOMPATIBLE;
+            }
+            NullableSerializerSnapshot<T> oldNullableSerializerSnapshot =
+                    (NullableSerializerSnapshot<T>) oldSerializerSnapshot;
+            return (nullPaddingLength == oldNullableSerializerSnapshot.nullPaddingLength)
                     ? OuterSchemaCompatibility.COMPATIBLE_AS_IS
                     : OuterSchemaCompatibility.INCOMPATIBLE;
         }

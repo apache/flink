@@ -21,35 +21,36 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-/**
- * {@link SimpleSlotContext} subclass implementing the {@link PhysicalSlot} interface for testing
- * purposes.
- */
-public class TestingPhysicalSlot extends SimpleSlotContext implements PhysicalSlot {
+/** An implementing for the {@link PhysicalSlot} interface for testing purposes. */
+public class TestingPhysicalSlot implements PhysicalSlot {
+
+    private final AllocationID allocationId;
+
+    private final TaskManagerLocation taskManagerLocation;
+
+    private final int physicalSlotNumber;
+
+    private final TaskManagerGateway taskManagerGateway;
+
+    private final ResourceProfile resourceProfile;
+
     @Nullable private Payload payload;
 
     TestingPhysicalSlot(ResourceProfile resourceProfile, AllocationID allocationId) {
         this(
                 allocationId,
                 new LocalTaskManagerLocation(),
+                0,
                 new SimpleAckingTaskManagerGateway(),
                 resourceProfile);
-    }
-
-    TestingPhysicalSlot(
-            AllocationID allocationID,
-            TaskManagerLocation taskManagerLocation,
-            TaskManagerGateway taskManagerGateway,
-            ResourceProfile resourceProfile) {
-        this(allocationID, taskManagerLocation, 0, taskManagerGateway, resourceProfile);
     }
 
     TestingPhysicalSlot(
@@ -58,12 +59,41 @@ public class TestingPhysicalSlot extends SimpleSlotContext implements PhysicalSl
             int physicalSlotNumber,
             TaskManagerGateway taskManagerGateway,
             ResourceProfile resourceProfile) {
-        super(
-                allocationId,
-                taskManagerLocation,
-                physicalSlotNumber,
-                taskManagerGateway,
-                resourceProfile);
+        this.allocationId = Preconditions.checkNotNull(allocationId);
+        this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
+        this.physicalSlotNumber = physicalSlotNumber;
+        this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
+        this.resourceProfile = resourceProfile;
+    }
+
+    @Override
+    public AllocationID getAllocationId() {
+        return allocationId;
+    }
+
+    @Override
+    public TaskManagerLocation getTaskManagerLocation() {
+        return taskManagerLocation;
+    }
+
+    @Override
+    public int getPhysicalSlotNumber() {
+        return physicalSlotNumber;
+    }
+
+    @Override
+    public TaskManagerGateway getTaskManagerGateway() {
+        return taskManagerGateway;
+    }
+
+    @Override
+    public ResourceProfile getResourceProfile() {
+        return resourceProfile;
+    }
+
+    @Override
+    public boolean willBeOccupiedIndefinitely() {
+        return true;
     }
 
     @Override

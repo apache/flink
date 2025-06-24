@@ -21,7 +21,7 @@ package org.apache.flink.table.types.logical.utils;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
@@ -35,10 +35,10 @@ import static org.apache.flink.table.test.TableAssertions.assertThat;
  * <p>For {@link LogicalTypeMerging#findCommonType(List)} tests please check {@link
  * org.apache.flink.table.types.LogicalCommonTypeTest}
  */
-public class LogicalTypeMergingTest {
+class LogicalTypeMergingTest {
 
     @Test
-    public void testFindDivisionDecimalType() {
+    void testFindDivisionDecimalType() {
         assertThat(LogicalTypeMerging.findDivisionDecimalType(32, 8, 38, 8))
                 .hasPrecisionAndScale(38, 6);
         assertThat(LogicalTypeMerging.findDivisionDecimalType(30, 20, 30, 20))
@@ -46,7 +46,7 @@ public class LogicalTypeMergingTest {
     }
 
     @Test
-    public void testFindMultiplicationDecimalType() {
+    void testFindMultiplicationDecimalType() {
         assertThat(LogicalTypeMerging.findMultiplicationDecimalType(30, 10, 30, 10))
                 .hasPrecisionAndScale(38, 6);
         assertThat(LogicalTypeMerging.findMultiplicationDecimalType(30, 20, 30, 20))
@@ -56,7 +56,7 @@ public class LogicalTypeMergingTest {
     }
 
     @Test
-    public void testFindModuloDecimalType() {
+    void testFindModuloDecimalType() {
         assertThat(LogicalTypeMerging.findModuloDecimalType(30, 10, 30, 10))
                 .hasPrecisionAndScale(30, 10);
         assertThat(LogicalTypeMerging.findModuloDecimalType(30, 20, 25, 20))
@@ -66,7 +66,7 @@ public class LogicalTypeMergingTest {
     }
 
     @Test
-    public void testFindAdditionDecimalType() {
+    void testFindAdditionDecimalType() {
         assertThat(LogicalTypeMerging.findAdditionDecimalType(38, 8, 32, 8))
                 .hasPrecisionAndScale(38, 7);
         assertThat(LogicalTypeMerging.findAdditionDecimalType(32, 8, 38, 8))
@@ -80,7 +80,7 @@ public class LogicalTypeMergingTest {
     }
 
     @Test
-    public void testFindRoundingDecimalType() {
+    void testFindRoundingDecimalType() {
         assertThat(LogicalTypeMerging.findRoundDecimalType(32, 8, 5)).hasPrecisionAndScale(30, 5);
         assertThat(LogicalTypeMerging.findRoundDecimalType(32, 8, 10)).hasPrecisionAndScale(32, 8);
         assertThat(LogicalTypeMerging.findRoundDecimalType(30, 20, 18))
@@ -89,7 +89,7 @@ public class LogicalTypeMergingTest {
     }
 
     @Test
-    public void testFindAvgAggType() {
+    void testFindAvgAggType() {
         assertThat(LogicalTypeMerging.findAvgAggType(decimal(38, 20)))
                 .isDecimalType()
                 .hasPrecisionAndScale(38, 20);

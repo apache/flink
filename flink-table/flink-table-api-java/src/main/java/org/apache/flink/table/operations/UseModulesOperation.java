@@ -18,23 +18,41 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
+
 import java.util.Collections;
 import java.util.List;
 
 /** Operation to describe a USE MODULES statement. */
+@Internal
 public class UseModulesOperation implements UseOperation {
     private final List<String> moduleNames;
 
     public UseModulesOperation(List<String> moduleNames) {
-        this.moduleNames = moduleNames;
+        this.moduleNames = Collections.unmodifiableList(moduleNames);
     }
 
     public List<String> getModuleNames() {
-        return Collections.unmodifiableList(moduleNames);
+        return moduleNames;
     }
 
     @Override
     public String asSummaryString() {
         return String.format("USE MODULES: %s", moduleNames);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        try {
+            ctx.getModuleManager().useModules(moduleNames.toArray(new String[0]));
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (ValidationException e) {
+            throw new ValidationException(
+                    String.format("Could not execute %s. %s", asSummaryString(), e.getMessage()),
+                    e);
+        }
     }
 }

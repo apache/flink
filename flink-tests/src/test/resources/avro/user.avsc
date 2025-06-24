@@ -1,0 +1,9 @@
+{
+  "namespace": "org.apache.flink.connector.datagen.source.generated",
+  "type": "record",
+  "name": "User",
+  "fields": [
+    {"name": "name", "type": "string"},
+    {"name": "age", "type": "int"}
+  ]
+}

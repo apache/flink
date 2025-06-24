@@ -22,7 +22,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.dataview.DataView;
 import org.apache.flink.table.api.dataview.ListView;
@@ -47,9 +46,9 @@ import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
+import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.planner.plan.utils.AggregateInfo;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
-import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment;
 import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.dataview.ListViewSpec;
 import org.apache.flink.table.runtime.dataview.MapViewSpec;
@@ -70,13 +69,14 @@ import org.apache.flink.table.types.logical.StructuredType;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.fun.SqlCastFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
@@ -98,9 +98,9 @@ public class CommonPythonUtil {
 
     private CommonPythonUtil() {}
 
-    public static Class<?> loadClass(String className) {
+    public static Class<?> loadClass(String className, ClassLoader classLoader) {
         try {
-            return Class.forName(className, false, Thread.currentThread().getContextClassLoader());
+            return Class.forName(className, false, classLoader);
         } catch (ClassNotFoundException e) {
             throw new TableException(
                     "The dependency of 'flink-python' is not present on the classpath.", e);
@@ -108,37 +108,39 @@ public class CommonPythonUtil {
     }
 
     public static Configuration extractPythonConfiguration(
-            StreamExecutionEnvironment env, ReadableConfig tableConfig) {
-        Class<?> clazz = loadClass(PYTHON_CONFIG_UTILS_CLASS);
+            ReadableConfig tableConfig, ClassLoader classLoader) {
+        Class<?> clazz = loadClass(PYTHON_CONFIG_UTILS_CLASS, classLoader);
         try {
-            StreamExecutionEnvironment realEnv = getRealEnvironment(env);
             Method method =
-                    clazz.getDeclaredMethod(
-                            "extractPythonConfiguration", List.class, ReadableConfig.class);
-            return (Configuration) method.invoke(null, realEnv.getCachedFiles(), tableConfig);
-        } catch (NoSuchFieldException
-                | IllegalAccessException
-                | NoSuchMethodException
-                | InvocationTargetException e) {
+                    clazz.getDeclaredMethod("extractPythonConfiguration", ReadableConfig.class);
+            return (Configuration) method.invoke(null, tableConfig);
+        } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new TableException("Method extractPythonConfiguration accessed failed.", e);
         }
     }
 
     public static PythonFunctionInfo createPythonFunctionInfo(
-            RexCall pythonRexCall, Map<RexNode, Integer> inputNodes) {
+            RexCall pythonRexCall, Map<RexNode, Integer> inputNodes, ClassLoader classLoader) {
         SqlOperator operator = pythonRexCall.getOperator();
         try {
             if (operator instanceof ScalarSqlFunction) {
                 return createPythonFunctionInfo(
-                        pythonRexCall, inputNodes, ((ScalarSqlFunction) operator).scalarFunction());
+                        pythonRexCall,
+                        inputNodes,
+                        ((ScalarSqlFunction) operator).scalarFunction(),
+                        classLoader);
             } else if (operator instanceof TableSqlFunction) {
                 return createPythonFunctionInfo(
-                        pythonRexCall, inputNodes, ((TableSqlFunction) operator).udtf());
+                        pythonRexCall,
+                        inputNodes,
+                        ((TableSqlFunction) operator).udtf(),
+                        classLoader);
             } else if (operator instanceof BridgingSqlFunction) {
                 return createPythonFunctionInfo(
                         pythonRexCall,
                         inputNodes,
-                        ((BridgingSqlFunction) operator).getDefinition());
+                        ((BridgingSqlFunction) operator).getDefinition(),
+                        classLoader);
             }
         } catch (InvocationTargetException | IllegalAccessException e) {
             throw new TableException("Method pickleValue accessed failed. ", e);
@@ -147,10 +149,11 @@ public class CommonPythonUtil {
     }
 
     @SuppressWarnings("unchecked")
-    public static boolean isPythonWorkerUsingManagedMemory(Configuration config) {
-        Class<?> clazz = loadClass(PYTHON_OPTIONS_CLASS);
+    public static boolean isPythonWorkerUsingManagedMemory(
+            Configuration config, ClassLoader classLoader) {
+        Class<?> clazz = loadClass(PYTHON_OPTIONS_CLASS, classLoader);
         try {
-            return config.getBoolean(
+            return config.get(
                     (ConfigOption<Boolean>) (clazz.getField("USE_MANAGED_MEMORY").get(null)));
         } catch (IllegalAccessException | NoSuchFieldException e) {
             throw new TableException("Field USE_MANAGED_MEMORY accessed failed.", e);
@@ -158,10 +161,11 @@ public class CommonPythonUtil {
     }
 
     @SuppressWarnings("unchecked")
-    public static boolean isPythonWorkerInProcessMode(Configuration config) {
-        Class<?> clazz = loadClass(PYTHON_OPTIONS_CLASS);
+    public static boolean isPythonWorkerInProcessMode(
+            Configuration config, ClassLoader classLoader) {
+        Class<?> clazz = loadClass(PYTHON_OPTIONS_CLASS, classLoader);
         try {
-            return config.getString(
+            return config.get(
                             (ConfigOption<String>)
                                     (clazz.getField("PYTHON_EXECUTION_MODE").get(null)))
                     .equalsIgnoreCase("process");
@@ -337,7 +341,8 @@ public class CommonPythonUtil {
                         });
     }
 
-    private static byte[] convertLiteralToPython(RexLiteral o, SqlTypeName typeName)
+    private static byte[] convertLiteralToPython(
+            RexLiteral o, SqlTypeName typeName, ClassLoader classLoader)
             throws InvocationTargetException, IllegalAccessException {
         byte type;
         Object value;
@@ -396,16 +401,18 @@ public class CommonPythonUtil {
                     throw new RuntimeException("Unsupported type " + typeName);
             }
         }
-        loadPickleValue();
+        loadPickleValue(classLoader);
         return (byte[]) pickleValue.invoke(null, value, type);
     }
 
-    private static void loadPickleValue() {
+    private static void loadPickleValue(ClassLoader classLoader) {
         if (pickleValue == null) {
             synchronized (CommonPythonUtil.class) {
                 if (pickleValue == null) {
                     Class<?> clazz =
-                            loadClass("org.apache.flink.api.common.python.PythonBridgeUtils");
+                            loadClass(
+                                    "org.apache.flink.api.common.python.PythonBridgeUtils",
+                                    classLoader);
                     try {
                         pickleValue = clazz.getMethod("pickleValue", Object.class, byte.class);
                     } catch (NoSuchMethodException e) {
@@ -419,40 +426,42 @@ public class CommonPythonUtil {
     private static PythonFunctionInfo createPythonFunctionInfo(
             RexCall pythonRexCall,
             Map<RexNode, Integer> inputNodes,
-            FunctionDefinition functionDefinition)
+            FunctionDefinition functionDefinition,
+            ClassLoader classLoader)
             throws InvocationTargetException, IllegalAccessException {
         ArrayList<Object> inputs = new ArrayList<>();
         for (RexNode operand : pythonRexCall.getOperands()) {
             if (operand instanceof RexCall) {
                 RexCall childPythonRexCall = (RexCall) operand;
-                PythonFunctionInfo argPythonInfo =
-                        createPythonFunctionInfo(childPythonRexCall, inputNodes);
-                inputs.add(argPythonInfo);
+                if (childPythonRexCall.getOperator() instanceof SqlCastFunction
+                        && childPythonRexCall.getOperands().get(0) instanceof RexInputRef
+                        && childPythonRexCall.getOperands().get(0).getType()
+                                instanceof TimeIndicatorRelDataType) {
+                    operand = childPythonRexCall.getOperands().get(0);
+                } else {
+                    PythonFunctionInfo argPythonInfo =
+                            createPythonFunctionInfo(childPythonRexCall, inputNodes, classLoader);
+                    inputs.add(argPythonInfo);
+                    continue;
+                }
             } else if (operand instanceof RexLiteral) {
                 RexLiteral literal = (RexLiteral) operand;
-                inputs.add(convertLiteralToPython(literal, literal.getType().getSqlTypeName()));
+                inputs.add(
+                        convertLiteralToPython(
+                                literal, literal.getType().getSqlTypeName(), classLoader));
+                continue;
+            }
+
+            assert operand instanceof RexInputRef;
+            if (inputNodes.containsKey(operand)) {
+                inputs.add(inputNodes.get(operand));
             } else {
-                if (inputNodes.containsKey(operand)) {
-                    inputs.add(inputNodes.get(operand));
-                } else {
-                    Integer inputOffset = inputNodes.size();
-                    inputs.add(inputOffset);
-                    inputNodes.put(operand, inputOffset);
-                }
+                Integer inputOffset = inputNodes.size();
+                inputs.add(inputOffset);
+                inputNodes.put(operand, inputOffset);
             }
         }
         return new PythonFunctionInfo((PythonFunction) functionDefinition, inputs.toArray());
-    }
-
-    private static StreamExecutionEnvironment getRealEnvironment(StreamExecutionEnvironment env)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field realExecEnvField =
-                DummyStreamExecutionEnvironment.class.getDeclaredField("realExecEnv");
-        realExecEnvField.setAccessible(true);
-        while (env instanceof DummyStreamExecutionEnvironment) {
-            env = (StreamExecutionEnvironment) realExecEnvField.get(env);
-        }
-        return env;
     }
 
     private static BuiltInPythonAggregateFunction getBuiltInPythonAggregateFunction(

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -32,21 +33,27 @@ import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.MockSnapshotSupplier;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackendBuilder;
 import org.apache.flink.state.changelog.ChangelogStateBackendTestUtils.DummyCheckpointingStorageAccess;
+import org.apache.flink.state.common.PeriodicMaterializationManager.MaterializationRunnable;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 
+import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.RunnableFuture;
 
 import static java.util.Collections.emptyList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** {@link ChangelogKeyedStateBackend} test. */
 @RunWith(Parameterized.class)
@@ -71,7 +78,7 @@ public class ChangelogKeyedStateBackendTest {
         MockKeyedStateBackend<Integer> mock = createMock();
         ChangelogKeyedStateBackend<Integer> changelog = createChangelog(mock);
         try {
-            changelog.updateChangelogSnapshotState(
+            changelog.handleMaterializationResult(
                     SnapshotResult.empty(), materializationId, SequenceNumber.of(Long.MAX_VALUE));
             checkpoint(changelog, checkpointId).get().discardState();
 
@@ -84,16 +91,68 @@ public class ChangelogKeyedStateBackendTest {
         }
     }
 
+    @Test
+    public void testInitMaterialization() throws Exception {
+        MockKeyedStateBackend<Integer> delegatedBackend = createMock();
+        ChangelogKeyedStateBackend<Integer> backend = createChangelog(delegatedBackend);
+
+        try {
+            Optional<MaterializationRunnable> runnable;
+
+            appendMockStateChange(backend); // ensure there is non-materialized changelog
+
+            runnable = backend.initMaterialization();
+            // 1. should trigger first materialization
+            assertTrue("first materialization should be trigger.", runnable.isPresent());
+
+            appendMockStateChange(backend); // ensure there is non-materialized changelog
+
+            // 2. should not trigger new one until the previous one has been confirmed or failed
+            assertFalse(backend.initMaterialization().isPresent());
+
+            backend.handleMaterializationFailureOrCancellation(
+                    runnable.get().getMaterializationID(),
+                    runnable.get().getMaterializedTo(),
+                    null);
+            runnable = backend.initMaterialization();
+            // 3. should trigger new one after previous one failed
+            assertTrue(runnable.isPresent());
+
+            appendMockStateChange(backend); // ensure there is non-materialized changelog
+
+            // 4. should not trigger new one until the previous one has been confirmed or failed
+            assertFalse(backend.initMaterialization().isPresent());
+
+            backend.handleMaterializationResult(
+                    SnapshotResult.empty(),
+                    runnable.get().getMaterializationID(),
+                    runnable.get().getMaterializedTo());
+            checkpoint(backend, checkpointId).get().discardState();
+            backend.notifyCheckpointComplete(checkpointId);
+            // 5. should trigger new one after previous one has been confirmed
+            assertTrue(backend.initMaterialization().isPresent());
+        } finally {
+            backend.close();
+            backend.dispose();
+        }
+    }
+
+    private void appendMockStateChange(ChangelogKeyedStateBackend changelogKeyedBackend)
+            throws IOException {
+        changelogKeyedBackend.getChangelogWriter().append(0, new byte[] {'s'});
+    }
+
     private MockKeyedStateBackend<Integer> createMock() {
         return new MockKeyedStateBackendBuilder<>(
                         new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
                         IntSerializer.INSTANCE,
                         getClass().getClassLoader(),
                         1,
-                        KeyGroupRange.EMPTY_KEY_GROUP_RANGE,
+                        KeyGroupRange.of(0, 0),
                         new ExecutionConfig(),
                         TtlTimeProvider.DEFAULT,
                         LatencyTrackingStateConfig.disabled(),
+                        SizeTrackingStateConfig.disabled(),
                         emptyList(),
                         UncompressedStreamCompressionDecorator.INSTANCE,
                         new CloseableRegistry(),
@@ -108,6 +167,7 @@ public class ChangelogKeyedStateBackendTest {
                 "test",
                 new ExecutionConfig(),
                 TtlTimeProvider.DEFAULT,
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup(),
                 new InMemoryStateChangelogStorage()
                         .createWriter("test", KeyGroupRange.EMPTY_KEY_GROUP_RANGE, null),
                 emptyList(),

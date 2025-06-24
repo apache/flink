@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.hash;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -639,110 +640,6 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
         }
     }
 
-    /**
-     * IMPORTANT!!! We pass only the partition number, because we must make sure we get a fresh
-     * partition reference. The partition reference used during search for the key may have become
-     * invalid during the compaction.
-     */
-    private void insertBucketEntryFromSearch(
-            MemorySegment originalBucket,
-            MemorySegment currentBucket,
-            int originalBucketOffset,
-            int currentBucketOffset,
-            int countInCurrentBucket,
-            long originalForwardPointer,
-            int hashCode,
-            long pointer,
-            int partitionNumber)
-            throws IOException {
-        boolean checkForResize = false;
-        if (countInCurrentBucket < NUM_ENTRIES_PER_BUCKET) {
-            // we are good in our current bucket, put the values
-            currentBucket.putInt(
-                    currentBucketOffset
-                            + BUCKET_HEADER_LENGTH
-                            + (countInCurrentBucket * HASH_CODE_LEN),
-                    hashCode); // hash code
-            currentBucket.putLong(
-                    currentBucketOffset
-                            + BUCKET_POINTER_START_OFFSET
-                            + (countInCurrentBucket * POINTER_LEN),
-                    pointer); // pointer
-            currentBucket.putInt(
-                    currentBucketOffset + HEADER_COUNT_OFFSET,
-                    countInCurrentBucket + 1); // update count
-        } else {
-            // we go to a new overflow bucket
-            final InMemoryPartition<T> partition = this.partitions.get(partitionNumber);
-            MemorySegment overflowSeg;
-            final int overflowSegmentNum;
-            final int overflowBucketOffset;
-
-            // first, see if there is space for an overflow bucket remaining in the last overflow
-            // segment
-            if (partition.nextOverflowBucket == 0) {
-                // no space left in last bucket, or no bucket yet, so create an overflow segment
-                overflowSeg = getNextBuffer();
-                overflowBucketOffset = 0;
-                overflowSegmentNum = partition.numOverflowSegments;
-
-                // add the new overflow segment
-                if (partition.overflowSegments.length <= partition.numOverflowSegments) {
-                    MemorySegment[] newSegsArray =
-                            new MemorySegment[partition.overflowSegments.length * 2];
-                    System.arraycopy(
-                            partition.overflowSegments,
-                            0,
-                            newSegsArray,
-                            0,
-                            partition.overflowSegments.length);
-                    partition.overflowSegments = newSegsArray;
-                }
-                partition.overflowSegments[partition.numOverflowSegments] = overflowSeg;
-                partition.numOverflowSegments++;
-                checkForResize = true;
-            } else {
-                // there is space in the last overflow segment
-                overflowSegmentNum = partition.numOverflowSegments - 1;
-                overflowSeg = partition.overflowSegments[overflowSegmentNum];
-                overflowBucketOffset = partition.nextOverflowBucket << NUM_INTRA_BUCKET_BITS;
-            }
-
-            // next overflow bucket is one ahead. if the segment is full, the next will be at the
-            // beginning
-            // of a new segment
-            partition.nextOverflowBucket =
-                    (partition.nextOverflowBucket == this.bucketsPerSegmentMask
-                            ? 0
-                            : partition.nextOverflowBucket + 1);
-
-            // insert the new overflow bucket in the chain of buckets
-
-            // 1) set the old forward pointer
-            // 2) let the bucket in the main table point to this one
-            overflowSeg.putLong(
-                    overflowBucketOffset + HEADER_FORWARD_OFFSET, originalForwardPointer);
-            final long pointerToNewBucket =
-                    (((long) overflowSegmentNum) << 32) | ((long) overflowBucketOffset);
-            originalBucket.putLong(
-                    originalBucketOffset + HEADER_FORWARD_OFFSET, pointerToNewBucket);
-
-            // finally, insert the values into the overflow buckets
-            overflowSeg.putInt(overflowBucketOffset + BUCKET_HEADER_LENGTH, hashCode); // hash code
-            overflowSeg.putLong(
-                    overflowBucketOffset + BUCKET_POINTER_START_OFFSET, pointer); // pointer
-
-            // set the count to one
-            overflowSeg.putInt(overflowBucketOffset + HEADER_COUNT_OFFSET, 1);
-            if (checkForResize && !this.isResizing) {
-                // check if we should resize buckets
-                if (this.buckets.length <= getOverflowSegmentCount()) {
-                    resizeHashTable();
-                }
-            }
-        }
-    }
-
     // --------------------------------------------------------------------------------------------
     //  Access to the entries
     // --------------------------------------------------------------------------------------------
@@ -861,7 +758,9 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
         return Math.max(10, Math.min(numBuffers / 10, MAX_NUM_PARTITIONS));
     }
 
-    /** @return String containing a summary of the memory consumption for error messages */
+    /**
+     * @return String containing a summary of the memory consumption for error messages
+     */
     private String getMemoryConsumptionString() {
         return "numPartitions: "
                 + this.partitions.size()
@@ -910,7 +809,9 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
         return numSegments * this.segmentSize;
     }
 
-    /** @return number of memory segments in the largest partition */
+    /**
+     * @return number of memory segments in the largest partition
+     */
     private int getMaxPartition() {
         int maxPartition = 0;
         for (InMemoryPartition<T> p1 : this.partitions) {
@@ -921,7 +822,9 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
         return maxPartition;
     }
 
-    /** @return number of memory segments in the smallest partition */
+    /**
+     * @return number of memory segments in the smallest partition
+     */
     private int getMinPartition() {
         int minPartition = Integer.MAX_VALUE;
         for (InMemoryPartition<T> p1 : this.partitions) {
@@ -932,7 +835,9 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
         return minPartition;
     }
 
-    /** @return number of memory segments used in overflow buckets */
+    /**
+     * @return number of memory segments used in overflow buckets
+     */
     private int getOverflowSegmentCount() {
         int result = 0;
         for (InMemoryPartition<T> p : this.partitions) {
@@ -974,7 +879,8 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
      * @return true on success
      * @throws IOException
      */
-    private boolean resizeHashTable() throws IOException {
+    @VisibleForTesting
+    boolean resizeHashTable() throws IOException {
         final int newNumBuckets = 2 * this.numBuckets;
         final int bucketsPerSegment = this.bucketsPerSegmentMask + 1;
         final int newNumSegments = (newNumBuckets + (bucketsPerSegment - 1)) / bucketsPerSegment;
@@ -1207,6 +1113,13 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
             }
             this.isResizing = false;
             return true;
+        }
+    }
+
+    @VisibleForTesting
+    void compactPartitions() throws IOException {
+        for (int x = 0; x < partitions.size(); x++) {
+            compactPartition(x);
         }
     }
 

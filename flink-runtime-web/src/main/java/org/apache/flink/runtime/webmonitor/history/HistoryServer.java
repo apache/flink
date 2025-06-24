@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.webmonitor.history;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HistoryServerOptions;
@@ -30,21 +29,27 @@ import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.runtime.rest.handler.job.GeneratedLogUrlHandler;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
+import org.apache.flink.runtime.rest.messages.JobManagerLogUrlHeaders;
+import org.apache.flink.runtime.rest.messages.TaskManagerLogUrlHeaders;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.Runnables;
+import org.apache.flink.runtime.webmonitor.utils.LogUrlUtil;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.ParameterTool;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -63,6 +68,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -95,7 +101,7 @@ import java.util.function.Consumer;
 public class HistoryServer {
 
     private static final Logger LOG = LoggerFactory.getLogger(HistoryServer.class);
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
     private final Configuration config;
 
@@ -186,12 +192,12 @@ public class HistoryServer {
             this.serverSSLFactory = null;
         }
 
-        webAddress = config.getString(HistoryServerOptions.HISTORY_SERVER_WEB_ADDRESS);
-        webPort = config.getInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT);
+        webAddress = config.get(HistoryServerOptions.HISTORY_SERVER_WEB_ADDRESS);
+        webPort = config.get(HistoryServerOptions.HISTORY_SERVER_WEB_PORT);
         webRefreshIntervalMillis =
-                config.getLong(HistoryServerOptions.HISTORY_SERVER_WEB_REFRESH_INTERVAL);
+                config.get(HistoryServerOptions.HISTORY_SERVER_WEB_REFRESH_INTERVAL).toMillis();
 
-        String webDirectory = config.getString(HistoryServerOptions.HISTORY_SERVER_WEB_DIR);
+        String webDirectory = config.get(HistoryServerOptions.HISTORY_SERVER_WEB_DIR);
         if (webDirectory == null) {
             webDirectory =
                     System.getProperty("java.io.tmpdir")
@@ -202,10 +208,9 @@ public class HistoryServer {
         webDir = new File(webDirectory);
 
         boolean cleanupExpiredArchives =
-                config.getBoolean(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS);
+                config.get(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS);
 
-        String refreshDirectories =
-                config.getString(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS);
+        String refreshDirectories = config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS);
         if (refreshDirectories == null) {
             throw new FlinkException(
                     HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS + " was not configured.");
@@ -232,8 +237,8 @@ public class HistoryServer {
         }
 
         refreshIntervalMillis =
-                config.getLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
-        int maxHistorySize = config.getInteger(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS);
+                config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL).toMillis();
+        int maxHistorySize = config.get(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS);
         if (maxHistorySize == 0 || maxHistorySize < -1) {
             throw new IllegalConfigurationException(
                     "Cannot set %s to 0 or less than -1",
@@ -285,6 +290,26 @@ public class HistoryServer {
             LOG.info("Using directory {} as local cache.", webDir);
 
             Router router = new Router();
+
+            LogUrlUtil.getValidLogUrlPattern(
+                            config, HistoryServerOptions.HISTORY_SERVER_JOBMANAGER_LOG_URL_PATTERN)
+                    .ifPresent(
+                            pattern ->
+                                    router.addGet(
+                                            JobManagerLogUrlHeaders.getInstance()
+                                                    .getTargetRestEndpointURL(),
+                                            new GeneratedLogUrlHandler(
+                                                    CompletableFuture.completedFuture(pattern))));
+            LogUrlUtil.getValidLogUrlPattern(
+                            config, HistoryServerOptions.HISTORY_SERVER_TASKMANAGER_LOG_URL_PATTERN)
+                    .ifPresent(
+                            pattern ->
+                                    router.addGet(
+                                            TaskManagerLogUrlHeaders.getInstance()
+                                                    .getTargetRestEndpointURL(),
+                                            new GeneratedLogUrlHandler(
+                                                    CompletableFuture.completedFuture(pattern))));
+
             router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
 
             createDashboardConfigFile();
@@ -349,7 +374,12 @@ public class HistoryServer {
             fw.write(
                     createConfigJson(
                             DashboardConfiguration.from(
-                                    webRefreshIntervalMillis, ZonedDateTime.now(), false, false)));
+                                    webRefreshIntervalMillis,
+                                    ZonedDateTime.now(),
+                                    false,
+                                    false,
+                                    false,
+                                    true)));
             fw.flush();
         } catch (IOException ioe) {
             LOG.error("Failed to write config file.");

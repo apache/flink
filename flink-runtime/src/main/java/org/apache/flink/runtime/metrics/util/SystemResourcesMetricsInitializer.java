@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.metrics.util;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 
@@ -28,12 +27,14 @@ import oshi.SystemInfo;
 import oshi.hardware.GlobalMemory;
 import oshi.hardware.HardwareAbstractionLayer;
 
+import java.time.Duration;
+
 /** Utility class to initialize system resource metrics. */
 public class SystemResourcesMetricsInitializer {
     private static final Logger LOG =
             LoggerFactory.getLogger(SystemResourcesMetricsInitializer.class);
 
-    public static void instantiateSystemMetrics(MetricGroup metricGroup, Time probeInterval) {
+    public static void instantiateSystemMetrics(MetricGroup metricGroup, Duration probeInterval) {
         try {
             MetricGroup system = metricGroup.addGroup("System");
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.types.parser;
 
-public class ShortParserTest extends ParserTestBase<Short> {
+class ShortParserTest extends ParserTestBase<Short> {
 
     @Override
     public String[] getValidTestValues() {

@@ -28,8 +28,6 @@ import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
-
 /**
  * Heap-backed partitioned {@link AggregatingState} that is snapshotted into files.
  *
@@ -41,7 +39,7 @@ import java.io.IOException;
  */
 class HeapAggregatingState<K, N, IN, ACC, OUT> extends AbstractHeapMergingState<K, N, IN, ACC, OUT>
         implements InternalAggregatingState<K, N, IN, ACC, OUT> {
-    private final AggregateTransformation<IN, ACC, OUT> aggregateTransformation;
+    private AggregateTransformation<IN, ACC, OUT> aggregateTransformation;
 
     /**
      * Creates a new key/value state for the given hash map of key/value pairs.
@@ -93,20 +91,14 @@ class HeapAggregatingState<K, N, IN, ACC, OUT> extends AbstractHeapMergingState<
     }
 
     @Override
-    public void add(IN value) throws IOException {
+    public void add(IN value) throws Exception {
         final N namespace = currentNamespace;
 
         if (value == null) {
             clear();
             return;
         }
-
-        try {
-            stateTable.transform(namespace, value, aggregateTransformation);
-        } catch (Exception e) {
-            throw new IOException(
-                    "Exception while applying AggregateFunction in aggregating state", e);
-        }
+        stateTable.transform(namespace, value, aggregateTransformation);
     }
 
     // ------------------------------------------------------------------------
@@ -116,6 +108,12 @@ class HeapAggregatingState<K, N, IN, ACC, OUT> extends AbstractHeapMergingState<
     @Override
     protected ACC mergeState(ACC a, ACC b) {
         return aggregateTransformation.aggFunction.merge(a, b);
+    }
+
+    HeapAggregatingState<K, N, IN, ACC, OUT> setAggregateFunction(
+            AggregateFunction<IN, ACC, OUT> aggregateFunction) {
+        this.aggregateTransformation = new AggregateTransformation<>(aggregateFunction);
+        return this;
     }
 
     static final class AggregateTransformation<IN, ACC, OUT>
@@ -149,5 +147,17 @@ class HeapAggregatingState<K, N, IN, ACC, OUT> extends AbstractHeapMergingState<
                         stateTable.getNamespaceSerializer(),
                         stateDesc.getDefaultValue(),
                         ((AggregatingStateDescriptor<T, SV, ?>) stateDesc).getAggregateFunction());
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    static <T, K, N, SV, S extends State, IS extends S> IS update(
+            StateDescriptor<S, SV> stateDesc, StateTable<K, N, SV> stateTable, IS existingState) {
+        return (IS)
+                ((HeapAggregatingState<K, N, T, SV, ?>) existingState)
+                        .setAggregateFunction(
+                                ((AggregatingStateDescriptor) stateDesc).getAggregateFunction())
+                        .setNamespaceSerializer(stateTable.getNamespaceSerializer())
+                        .setValueSerializer(stateTable.getStateSerializer())
+                        .setDefaultValue(stateDesc.getDefaultValue());
     }
 }

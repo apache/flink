@@ -52,8 +52,10 @@ public class InternalOperatorIOMetricGroup extends ProxyMetricGroup<InternalOper
         numRecordsOutRate =
                 parentMetricGroup.meter(
                         MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut));
-        numBytesIn = parentMetricGroup.getTaskIOMetricGroup().getNumBytesInCounter();
-        numBytesOut = parentMetricGroup.getTaskIOMetricGroup().getNumBytesOutCounter();
+        numBytesIn = parentMetricGroup.counter(MetricNames.IO_NUM_BYTES_IN);
+        numBytesOut = parentMetricGroup.counter(MetricNames.IO_NUM_BYTES_OUT);
+        parentMetricGroup.meter(MetricNames.IO_NUM_BYTES_IN_RATE, new MeterView(numBytesIn));
+        parentMetricGroup.meter(MetricNames.IO_NUM_BYTES_OUT_RATE, new MeterView(numBytesOut));
     }
 
     @Override
@@ -94,5 +96,17 @@ public class InternalOperatorIOMetricGroup extends ProxyMetricGroup<InternalOper
     public void reuseOutputMetricsForTask() {
         TaskIOMetricGroup taskIO = parentMetricGroup.getTaskIOMetricGroup();
         taskIO.reuseRecordsOutputCounter(this.numRecordsOut);
+    }
+
+    /** Causes the containing task to use this operators input bytes counter. */
+    public void reuseBytesInputMetricsForTask() {
+        TaskIOMetricGroup taskIO = parentMetricGroup.getTaskIOMetricGroup();
+        taskIO.reuseBytesInputCounter(this.numBytesIn);
+    }
+
+    /** Causes the containing task to use this operators output bytes counter. */
+    public void reuseBytesOutputMetricsForTask() {
+        TaskIOMetricGroup taskIO = parentMetricGroup.getTaskIOMetricGroup();
+        taskIO.reuseBytesOutputCounter(this.numBytesOut);
     }
 }

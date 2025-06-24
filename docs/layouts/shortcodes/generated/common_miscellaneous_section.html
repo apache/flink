@@ -26,5 +26,11 @@
             <td>String</td>
             <td>Directories for temporary files, separated by",", "|", or the system's java.io.File.pathSeparator.</td>
         </tr>
+        <tr>
+            <td><h5>sink.committer.retries</h5></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>Integer</td>
+            <td>The number of retries a Flink application attempts for committable operations (such as transactions) on retriable errors, as specified by the sink connector, before Flink fails and potentially restarts.</td>
+        </tr>
     </tbody>
 </table>

@@ -20,6 +20,7 @@ package org.apache.flink.state.api.output;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.state.api.runtime.NeverFireProcessingTimeService;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
@@ -27,12 +28,15 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
+import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.SystemClock;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
@@ -52,6 +56,8 @@ class BootstrapStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & 
     private final BlockingQueue<StreamElement> input;
 
     private final Output<StreamRecord<OUT>> output;
+
+    private ThrowingConsumer<StreamRecord<IN>, Exception> recordProcessor;
 
     BootstrapStreamTask(
             Environment environment,
@@ -80,18 +86,19 @@ class BootstrapStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & 
                         output,
                         operatorChain.getOperatorEventDispatcher());
         mainOperator = mainOperatorAndTimeService.f0;
-        mainOperator.initializeState(createStreamTaskStateInitializer());
+        mainOperator.initializeState(
+                createStreamTaskStateInitializer(
+                        new SubTaskInitializationMetricsBuilder(
+                                SystemClock.getInstance().absoluteTimeMillis())));
         mainOperator.open();
+        recordProcessor = RecordProcessorUtils.getRecordProcessor(mainOperator);
     }
 
     @Override
     protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
         StreamElement element = input.take();
         if (element.isRecord()) {
-            StreamRecord<IN> streamRecord = element.asRecord();
-
-            mainOperator.setKeyContextElement1(streamRecord);
-            mainOperator.processElement(streamRecord);
+            recordProcessor.accept(element.asRecord());
         } else {
             mainOperator.endInput();
             mainOperator.finish();

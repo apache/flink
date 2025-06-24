@@ -19,8 +19,10 @@ package org.apache.flink.table.planner.expressions.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.annotation.DataTypeHint
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
+import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction, TableFunction}
+import org.apache.flink.table.legacy.api.Types
+import org.apache.flink.table.planner.JInt
+import org.apache.flink.table.planner.utils.CountAccumulator
 import org.apache.flink.types.Row
 
 import org.apache.commons.lang3.StringUtils
@@ -52,6 +54,15 @@ object Func1 extends ScalarFunction {
   def eval(s: Short): Short = (s + 1).toShort
 
   def eval(f: Float): Float = f + 1
+}
+
+@SerialVersionUID(1L)
+object FuncNotReducible extends ScalarFunction {
+  def eval(index: Integer): Integer = {
+    index + 1
+  }
+
+  override def supportsConstantFolding: Boolean = false
 }
 
 @SerialVersionUID(1L)
@@ -94,7 +105,7 @@ class RichFunc1 extends ScalarFunction {
     }
   }
 
-  def eval(index: Int): Int = {
+  def eval(index: JInt): JInt = {
     index + added
   }
 
@@ -231,4 +242,54 @@ class SplitUDF(deterministic: Boolean) extends ScalarFunction {
   }
   override def isDeterministic: Boolean = deterministic
 
+}
+
+@SerialVersionUID(1L)
+class TestNonDeterministicUdf extends ScalarFunction {
+  val random = new Random()
+
+  def eval(id: JLong): JLong = {
+    id + random.nextInt()
+  }
+
+  def eval(id: Int): Int = {
+    id + random.nextInt()
+  }
+
+  def eval(id: String): String = {
+    s"$id-${random.nextInt()}"
+  }
+
+  override def isDeterministic: Boolean = false
+}
+
+@SerialVersionUID(1L)
+class TestNonDeterministicUdtf extends TableFunction[String] {
+
+  val random = new Random()
+
+  def eval(id: Int): Unit = {
+    collect(s"${id + random.nextInt()}")
+  }
+
+  def eval(id: String): Unit = {
+    id.split(",").foreach(str => collect(s"$str#${random.nextInt()}"))
+  }
+
+  override def isDeterministic: Boolean = false
+}
+
+class TestNonDeterministicUdaf extends AggregateFunction[JLong, CountAccumulator] {
+
+  val random = new Random()
+
+  def accumulate(acc: CountAccumulator, in: JLong): Unit = {
+    acc.f0 += (in + random.nextInt())
+  }
+
+  override def getValue(acc: CountAccumulator): JLong = acc.f0
+
+  override def createAccumulator(): CountAccumulator = new CountAccumulator
+
+  override def isDeterministic: Boolean = false
 }

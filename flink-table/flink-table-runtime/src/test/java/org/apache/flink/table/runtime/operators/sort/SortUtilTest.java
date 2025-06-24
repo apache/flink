@@ -24,7 +24,7 @@ import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -33,10 +33,10 @@ import java.util.Random;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link SortUtil}. */
-public class SortUtilTest {
+class SortUtilTest {
 
     @Test
-    public void testNormalizedKey() {
+    void testNormalizedKey() {
         int len = 10;
         Random random = new Random();
         MemorySegment[] segments = new MemorySegment[len];

@@ -20,13 +20,13 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.api.ExplainDetail
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Tests for [[WatermarkAssignerChangelogNormalizeTransposeRule]] */
 class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase {
   private val util: StreamTableTestUtil = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addTable(s"""
                      |CREATE TABLE simple_src (
@@ -163,6 +163,44 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
         |  TUMBLE_END(currency_time, INTERVAL '5' SECOND) as w_end
         |FROM src_with_computed_column2
         |GROUP BY currency2, TUMBLE(currency_time, INTERVAL '5' SECOND)
+        |""".stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testPushdownCalcNotAffectChangelogNormalizeKey(): Unit = {
+    util.addTable("""
+                    |CREATE TABLE t1 (
+                    |  ingestion_time TIMESTAMP(3) METADATA FROM 'ts',
+                    |  a VARCHAR NOT NULL,
+                    |  b VARCHAR NOT NULL,
+                    |  WATERMARK FOR ingestion_time AS ingestion_time
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'readable-metadata' = 'ts:TIMESTAMP(3)'
+                    |)
+      """.stripMargin)
+    util.addTable("""
+                    |CREATE TABLE t2 (
+                    |  k VARBINARY,
+                    |  ingestion_time TIMESTAMP(3) METADATA FROM 'ts',
+                    |  a VARCHAR NOT NULL,
+                    |  f BOOLEAN NOT NULL,
+                    |  WATERMARK FOR `ingestion_time` AS `ingestion_time`,
+                    |  PRIMARY KEY (`a`) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'readable-metadata' = 'ts:TIMESTAMP(3)',
+                    | 'changelog-mode' = 'I,UA,D'
+                    |)
+      """.stripMargin)
+    // After FLINK-28988 applied, the filter will not be pushed down into left input of join and get
+    // a more optimal plan (upsert mode without ChangelogNormalize).
+    val sql =
+      """
+        |SELECT t1.a, t1.b, t2.f
+        |FROM t1 INNER JOIN t2 FOR SYSTEM_TIME AS OF t1.ingestion_time
+        | ON t1.a = t2.a WHERE t2.f = true
         |""".stripMargin
     util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }

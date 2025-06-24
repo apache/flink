@@ -41,7 +41,10 @@ public class StateMetaInfoSnapshot {
         KEY_VALUE(0),
         OPERATOR(1),
         BROADCAST(2),
-        PRIORITY_QUEUE(3);
+        PRIORITY_QUEUE(3),
+
+        KEY_VALUE_V2(10),
+        ;
         private final byte code;
 
         BackendStateType(int code) {
@@ -77,7 +80,8 @@ public class StateMetaInfoSnapshot {
     public enum CommonSerializerKeys {
         KEY_SERIALIZER,
         NAMESPACE_SERIALIZER,
-        VALUE_SERIALIZER
+        VALUE_SERIALIZER,
+        USER_KEY_SERIALIZER
     }
 
     /** The name of the state. */

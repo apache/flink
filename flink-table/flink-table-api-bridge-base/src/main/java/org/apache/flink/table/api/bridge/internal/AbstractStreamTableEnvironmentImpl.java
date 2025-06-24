@@ -24,14 +24,12 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -50,6 +48,7 @@ import org.apache.flink.table.delegation.StreamExecutorFactory;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.legacy.api.Types;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.DataStreamQueryOperation;
 import org.apache.flink.table.operations.ExternalModifyOperation;
@@ -57,6 +56,7 @@ import org.apache.flink.table.operations.ExternalQueryOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
+import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
@@ -78,22 +78,22 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
     public AbstractStreamTableEnvironmentImpl(
             CatalogManager catalogManager,
             ModuleManager moduleManager,
+            ResourceManager resourceManager,
             TableConfig tableConfig,
             Executor executor,
             FunctionCatalog functionCatalog,
             Planner planner,
             boolean isStreamingMode,
-            ClassLoader userClassLoader,
             StreamExecutionEnvironment executionEnvironment) {
         super(
                 catalogManager,
                 moduleManager,
+                resourceManager,
                 tableConfig,
                 executor,
                 functionCatalog,
                 planner,
-                isStreamingMode,
-                userClassLoader);
+                isStreamingMode);
         this.executionEnvironment = executionEnvironment;
     }
 
@@ -225,6 +225,8 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
         final Transformation<T> transformation = getTransformation(table, transformations);
         executionEnvironment.addOperator(transformation);
 
+        resourceManager.addJarConfiguration(tableConfig);
+
         // Reconfigure whenever planner transformations are added
         // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         executionEnvironment.configure(tableConfig.getConfiguration());
@@ -295,13 +297,11 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
     }
 
     protected void validateTimeCharacteristic(boolean isRowtimeDefined) {
-        if (isRowtimeDefined
-                && executionEnvironment.getStreamTimeCharacteristic()
-                        != TimeCharacteristic.EventTime) {
+        if (isRowtimeDefined && executionEnvironment.getConfig().getAutoWatermarkInterval() <= 0) {
             throw new ValidationException(
                     String.format(
-                            "A rowtime attribute requires an EventTime time characteristic in stream environment. But is: %s",
-                            executionEnvironment.getStreamTimeCharacteristic()));
+                            "A rowtime attribute requires a positive watermark interval in stream environment. But is: %s",
+                            executionEnvironment.getConfig().getAutoWatermarkInterval()));
         }
     }
 

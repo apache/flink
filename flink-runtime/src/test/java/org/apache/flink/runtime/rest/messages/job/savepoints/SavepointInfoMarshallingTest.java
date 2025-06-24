@@ -19,23 +19,22 @@
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.SerializedThrowable;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Marshalling tests for the {@link SavepointInfo}. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class SavepointInfoMarshallingTest extends RestResponseMarshallingTestBase<SavepointInfo> {
 
-    @Parameterized.Parameters
+    @Parameters
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
@@ -66,17 +65,17 @@ public class SavepointInfoMarshallingTest extends RestResponseMarshallingTestBas
     @Override
     protected void assertOriginalEqualsToUnmarshalled(
             SavepointInfo expected, SavepointInfo actual) {
-        assertThat(actual.getLocation(), is(expected.getLocation()));
+        assertThat(actual.getLocation()).isEqualTo(expected.getLocation());
         if (expected.getFailureCause() != null) {
-            assertThat(actual.getFailureCause(), notNullValue());
+            assertThat(actual.getFailureCause()).isNotNull();
             assertThat(
-                    actual.getFailureCause()
-                            .deserializeError(ClassLoader.getSystemClassLoader())
-                            .getMessage(),
-                    is(
+                            actual.getFailureCause()
+                                    .deserializeError(ClassLoader.getSystemClassLoader())
+                                    .getMessage())
+                    .isEqualTo(
                             expected.getFailureCause()
                                     .deserializeError(ClassLoader.getSystemClassLoader())
-                                    .getMessage()));
+                                    .getMessage());
         }
     }
 }

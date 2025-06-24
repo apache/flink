@@ -81,7 +81,8 @@ class StreamPhysicalJoinRule extends StreamPhysicalJoinRuleBase("StreamPhysicalJ
       leftConversion(leftInput),
       rightConversion(rightInput),
       join.getCondition,
-      join.getJoinType)
+      join.getJoinType,
+      join.getHints)
   }
 }
 

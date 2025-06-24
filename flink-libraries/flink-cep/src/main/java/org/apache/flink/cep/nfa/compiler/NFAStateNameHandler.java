@@ -30,7 +30,7 @@ import java.util.Set;
  */
 public class NFAStateNameHandler {
 
-    private static final String STATE_NAME_DELIM = ":";
+    public static final String STATE_NAME_DELIM = ":";
 
     private final Set<String> usedNames = new HashSet<>();
 

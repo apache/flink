@@ -23,7 +23,10 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.List;
@@ -58,7 +61,7 @@ public interface StateTransitions {
     interface ToCreatingExecutionGraph extends StateTransitions {
 
         /** Transitions into the {@link CreatingExecutionGraph} state. */
-        void goToCreatingExecutionGraph();
+        void goToCreatingExecutionGraph(@Nullable ExecutionGraph previousExecutionGraph);
     }
 
     /** Interface covering transition to the {@link Executing} state. */
@@ -126,6 +129,11 @@ public interface StateTransitions {
          *     Restarting} state
          * @param backoffTime backoffTime to wait before transitioning to the {@link Restarting}
          *     state
+         * @param restartWithParallelism the {@link VertexParallelism} that triggered the
+         *     restarting. The {@code AdaptiveScheduler} should transition directly to {@link
+         *     CreatingExecutionGraph} if the available parallelism hasn't changed while cancelling
+         *     the job. If {@code null} is passed or the parallelism changed, {@link
+         *     WaitingForResources} state should be the subsequent state.
          * @param failureCollection collection of failures that are propagated
          */
         void goToRestarting(
@@ -133,6 +141,7 @@ public interface StateTransitions {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Duration backoffTime,
+                @Nullable VertexParallelism restartWithParallelism,
                 List<ExceptionHistoryEntry> failureCollection);
     }
 
@@ -164,6 +173,6 @@ public interface StateTransitions {
     interface ToWaitingForResources extends StateTransitions {
 
         /** Transitions into the {@link WaitingForResources} state. */
-        void goToWaitingForResources();
+        void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph);
     }
 }

@@ -20,18 +20,19 @@ package org.apache.flink.test.state.operator.restore.unkeyed;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
+import org.apache.flink.util.ParameterTool;
 
 import org.junit.Assert;
 
@@ -54,14 +55,15 @@ public class NonKeyedJob {
         String savepointsPath = pt.getRequired("savepoint-path");
 
         Configuration config = new Configuration();
-        config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointsPath);
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointsPath);
 
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
         env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
 
-        env.setStateBackend(new MemoryStateBackend());
+        StateBackendUtils.configureHashMapStateBackend(env);
+        CheckpointStorageUtils.configureJobManagerCheckpointStorage(env);
 
         /** Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3) */
         DataStream<Integer> source = createSource(env, ExecutionMode.GENERATE);
@@ -135,7 +137,8 @@ public class NonKeyedJob {
 
         @Override
         public List<String> snapshotState(long checkpointId, long timestamp) throws Exception {
-            return Arrays.asList(valueToStore + getRuntimeContext().getIndexOfThisSubtask());
+            return Arrays.asList(
+                    valueToStore + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
         }
 
         @Override
@@ -148,12 +151,14 @@ public class NonKeyedJob {
                     Assert.assertEquals(
                             "Failed for "
                                     + valueToStore
-                                    + getRuntimeContext().getIndexOfThisSubtask(),
+                                    + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                             1,
                             state.size());
                     String value = state.get(0);
                     Assert.assertEquals(
-                            valueToStore + getRuntimeContext().getIndexOfThisSubtask(), value);
+                            valueToStore
+                                    + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                            value);
             }
         }
     }

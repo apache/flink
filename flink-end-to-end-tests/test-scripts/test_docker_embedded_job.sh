@@ -24,7 +24,7 @@ DOCKER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
 DOCKER_IMAGE_BUILD_RETRIES=3
 BUILD_BACKOFF_TIME=5
 
-export FLINK_JOB=org.apache.flink.examples.java.wordcount.WordCount
+export FLINK_JOB=org.apache.flink.streaming.examples.wordcount.WordCount
 export FLINK_DOCKER_IMAGE_NAME=test_docker_embedded_job
 export INPUT_VOLUME=${END_TO_END_DIR}/test-scripts/test-data
 export OUTPUT_VOLUME=${TEST_DATA_DIR}/out
@@ -32,7 +32,7 @@ export INPUT_PATH=/data/test/input
 export OUTPUT_PATH=/data/test/output
 
 INPUT_TYPE=${1:-file}
-RESULT_HASH="72a690412be8928ba239c2da967328a5"
+RESULT_HASH="5a9945c9ab08890b2a0f6b31a4437d57"
 case $INPUT_TYPE in
     (file)
         INPUT_ARGS="--input ${INPUT_PATH}/words"
@@ -41,7 +41,7 @@ case $INPUT_TYPE in
         source "$(dirname "$0")"/common_dummy_fs.sh
         dummy_fs_setup
         INPUT_ARGS="--input dummy://localhost/words --input anotherDummy://localhost/words"
-        RESULT_HASH="0e5bd0a3dd7d5a7110aa85ff70adb54b"
+        RESULT_HASH="41d097718a0b00f67fe13d21048d1757"
     ;;
     (*)
         echo "Unknown input type $INPUT_TYPE"
@@ -49,7 +49,7 @@ case $INPUT_TYPE in
     ;;
 esac
 
-export FLINK_JOB_ARGUMENTS="${INPUT_ARGS} --output ${OUTPUT_PATH}/docker_wc_out"
+export FLINK_JOB_ARGUMENTS="${INPUT_ARGS} --output ${OUTPUT_PATH}/docker_wc_out --execution-mode BATCH"
 
 # user inside the container must be able to create files, this is a workaround in-container permissions
 mkdir -p $OUTPUT_VOLUME
@@ -60,10 +60,11 @@ if ! retry_times $DOCKER_IMAGE_BUILD_RETRIES ${BUILD_BACKOFF_TIME} "build_image 
     exit 1
 fi
 
-export USER_LIB=${FLINK_DIR}/examples/batch
-docker-compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml up --force-recreate --abort-on-container-exit --exit-code-from job-cluster &> /dev/null
-docker-compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml logs job-cluster > $FLINK_LOG_DIR/jobmanager.log
-docker-compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml logs taskmanager > $FLINK_LOG_DIR/taskmanager.log
-docker-compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml rm -f
+export USER_LIB=${FLINK_DIR}/examples/streaming
+docker compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml up --force-recreate --abort-on-container-exit --exit-code-from job-cluster &> /dev/null
+docker compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml logs job-cluster > $FLINK_LOG_DIR/jobmanager.log
+docker compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml logs taskmanager > $FLINK_LOG_DIR/taskmanager.log
+docker compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml rm -f
 
-check_result_hash "WordCount" $OUTPUT_VOLUME/docker_wc_out "${RESULT_HASH}"
+OUTPUT_FILES=$(find "$OUTPUT_VOLUME/docker_wc_out" -type f)
+check_result_hash "WordCount" "${OUTPUT_FILES}" "${RESULT_HASH}"

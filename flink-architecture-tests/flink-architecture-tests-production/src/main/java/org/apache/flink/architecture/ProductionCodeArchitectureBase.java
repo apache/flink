@@ -19,6 +19,7 @@
 package org.apache.flink.architecture;
 
 import org.apache.flink.architecture.rules.ApiAnnotationRules;
+import org.apache.flink.architecture.rules.ConnectorRules;
 import org.apache.flink.architecture.rules.TableApiRules;
 
 import com.tngtech.archunit.junit.ArchTest;
@@ -35,4 +36,6 @@ public class ProductionCodeArchitectureBase {
     public static final ArchTests API_ANNOTATIONS = ArchTests.in(ApiAnnotationRules.class);
 
     @ArchTest public static final ArchTests TABLE_API = ArchTests.in(TableApiRules.class);
+
+    @ArchTest public static final ArchTests CONNECTORS = ArchTests.in(ConnectorRules.class);
 }

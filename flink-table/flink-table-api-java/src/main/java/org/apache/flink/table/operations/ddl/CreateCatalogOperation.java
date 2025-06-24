@@ -18,8 +18,17 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.CatalogDescriptor;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
+
+import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -28,13 +37,22 @@ import java.util.Map;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Operation to describe a CREATE CATALOG statement. */
+@Internal
 public class CreateCatalogOperation implements CreateOperation {
     private final String catalogName;
     private final Map<String, String> properties;
+    @Nullable private final String comment;
+    private final boolean ignoreIfExists;
 
-    public CreateCatalogOperation(String catalogName, Map<String, String> properties) {
+    public CreateCatalogOperation(
+            String catalogName,
+            Map<String, String> properties,
+            @Nullable String comment,
+            boolean ignoreIfExists) {
         this.catalogName = checkNotNull(catalogName);
-        this.properties = checkNotNull(properties);
+        this.properties = Collections.unmodifiableMap(checkNotNull(properties));
+        this.comment = comment;
+        this.ignoreIfExists = ignoreIfExists;
     }
 
     public String getCatalogName() {
@@ -42,7 +60,11 @@ public class CreateCatalogOperation implements CreateOperation {
     }
 
     public Map<String, String> getProperties() {
-        return Collections.unmodifiableMap(properties);
+        return properties;
+    }
+
+    public boolean isIgnoreIfExists() {
+        return ignoreIfExists;
     }
 
     @Override
@@ -50,8 +72,29 @@ public class CreateCatalogOperation implements CreateOperation {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("catalogName", catalogName);
         params.put("properties", properties);
+        if (comment != null) {
+            params.put("comment", comment);
+        }
+        params.put("ignoreIfExists", ignoreIfExists);
 
         return OperationUtils.formatWithChildren(
                 "CREATE CATALOG", params, Collections.emptyList(), Operation::asSummaryString);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        try {
+            ctx.getCatalogManager()
+                    .createCatalog(
+                            catalogName,
+                            CatalogDescriptor.of(
+                                    catalogName, Configuration.fromMap(properties), comment),
+                            ignoreIfExists);
+
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (CatalogException e) {
+            throw new ValidationException(
+                    String.format("Could not execute %s", asSummaryString()), e);
+        }
     }
 }

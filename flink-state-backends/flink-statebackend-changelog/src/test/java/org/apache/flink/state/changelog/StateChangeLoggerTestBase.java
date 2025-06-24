@@ -18,10 +18,10 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.state.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
-import org.apache.flink.runtime.state.heap.InternalKeyContextImpl;
 
 import org.junit.Test;
 
@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.COMMON_KEY_GROUP;
+import static org.apache.flink.runtime.state.changelog.StateChange.META_KEY_GROUP;
 import static org.apache.flink.state.changelog.StateChangeOperation.METADATA;
 import static org.junit.Assert.assertEquals;
 
@@ -45,7 +45,7 @@ abstract class StateChangeLoggerTestBase<Namespace> {
 
         try (StateChangeLogger<String, Namespace> logger = getLogger(writer, keyContext)) {
             List<Tuple2<Integer, StateChangeOperation>> expectedAppends = new ArrayList<>();
-            expectedAppends.add(Tuple2.of(COMMON_KEY_GROUP, METADATA));
+            expectedAppends.add(Tuple2.of(META_KEY_GROUP, METADATA));
 
             // log every applicable operations, several times each
             int numOpTypes = StateChangeOperation.values().length;
@@ -105,6 +105,11 @@ abstract class StateChangeLoggerTestBase<Namespace> {
         private final List<Tuple2<Integer, StateChangeOperation>> appends = new ArrayList<>();
 
         @Override
+        public void appendMeta(byte[] value) {
+            appends.add(Tuple2.of(META_KEY_GROUP, StateChangeOperation.byCode(value[0])));
+        }
+
+        @Override
         public void append(int keyGroup, byte[] value) {
             appends.add(Tuple2.of(keyGroup, StateChangeOperation.byCode(value[0])));
         }
@@ -120,7 +125,8 @@ abstract class StateChangeLoggerTestBase<Namespace> {
         }
 
         @Override
-        public CompletableFuture<?> persist(SequenceNumber from) throws IOException {
+        public CompletableFuture<?> persist(SequenceNumber from, long checkpointId)
+                throws IOException {
             throw new UnsupportedOperationException();
         }
 
@@ -128,10 +134,10 @@ abstract class StateChangeLoggerTestBase<Namespace> {
         public void truncate(SequenceNumber to) {}
 
         @Override
-        public void confirm(SequenceNumber from, SequenceNumber to) {}
+        public void confirm(SequenceNumber from, SequenceNumber to, long checkpointId) {}
 
         @Override
-        public void reset(SequenceNumber from, SequenceNumber to) {}
+        public void reset(SequenceNumber from, SequenceNumber to, long checkpointId) {}
 
         @Override
         public void truncateAndClose(SequenceNumber from) {}

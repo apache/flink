@@ -19,21 +19,20 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
@@ -44,6 +43,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Map;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
@@ -52,7 +52,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * This test uses a custom non-serializable data type to to ensure that state serializability is
+ * This test uses a custom non-serializable data type to ensure that state serializability is
  * handled correctly.
  */
 @SuppressWarnings("serial")
@@ -86,35 +86,37 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
             env.setParallelism(PARALLELISM);
             env.getConfig().setAutoWatermarkInterval(10);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
             SinkValidatorUpdaterAndChecker updaterAndChecker =
                     new SinkValidatorUpdaterAndChecker(numElements, 1);
 
             env.addSource(new FailingSource(new Generator(), numElements, true))
                     .rebalance()
-                    .keyBy(0)
-                    .window(TumblingProcessingTimeWindows.of(Time.milliseconds(100)))
+                    .keyBy(x -> x.f0)
+                    .window(TumblingProcessingTimeWindows.of(Duration.ofMillis(100)))
                     .apply(
                             new RichWindowFunction<
                                     Tuple2<Long, IntType>,
                                     Tuple2<Long, IntType>,
-                                    Tuple,
+                                    Long,
                                     TimeWindow>() {
 
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
-                                            getRuntimeContext().getNumberOfParallelSubtasks());
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 
                                 @Override
                                 public void apply(
-                                        Tuple tuple,
+                                        Long l,
                                         TimeWindow window,
                                         Iterable<Tuple2<Long, IntType>> values,
                                         Collector<Tuple2<Long, IntType>> out) {
@@ -147,35 +149,37 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
             env.setParallelism(PARALLELISM);
             env.getConfig().setAutoWatermarkInterval(10);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
             SinkValidatorUpdaterAndChecker updaterAndChecker =
                     new SinkValidatorUpdaterAndChecker(numElements, 3);
             env.addSource(new FailingSource(new Generator(), numElements, true))
                     .rebalance()
-                    .keyBy(0)
+                    .keyBy(x -> x.f0)
                     .window(
                             SlidingProcessingTimeWindows.of(
-                                    Time.milliseconds(150), Time.milliseconds(50)))
+                                    Duration.ofMillis(150), Duration.ofMillis(50)))
                     .apply(
                             new RichWindowFunction<
                                     Tuple2<Long, IntType>,
                                     Tuple2<Long, IntType>,
-                                    Tuple,
+                                    Long,
                                     TimeWindow>() {
 
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
-                                            getRuntimeContext().getNumberOfParallelSubtasks());
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 
                                 @Override
                                 public void apply(
-                                        Tuple tuple,
+                                        Long l,
                                         TimeWindow window,
                                         Iterable<Tuple2<Long, IntType>> values,
                                         Collector<Tuple2<Long, IntType>> out) {
@@ -208,7 +212,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
             env.setParallelism(PARALLELISM);
             env.getConfig().setAutoWatermarkInterval(10);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
             SinkValidatorUpdaterAndChecker updaterAndChecker =
                     new SinkValidatorUpdaterAndChecker(numElements, 1);
             env.addSource(new FailingSource(new Generator(), numElements, true))
@@ -221,8 +225,8 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                                 }
                             })
                     .rebalance()
-                    .keyBy(0)
-                    .window(TumblingProcessingTimeWindows.of(Time.milliseconds(100)))
+                    .keyBy(x -> x.f0)
+                    .window(TumblingProcessingTimeWindows.of(Duration.ofMillis(100)))
                     .reduce(
                             new ReduceFunction<Tuple2<Long, IntType>>() {
 
@@ -251,7 +255,7 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
             env.setParallelism(PARALLELISM);
             env.getConfig().setAutoWatermarkInterval(10);
             env.enableCheckpointing(100);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
             SinkValidatorUpdaterAndChecker updaterAndChecker =
                     new SinkValidatorUpdaterAndChecker(numElements, 3);
             env.addSource(new FailingSource(new Generator(), numElements, true))
@@ -264,10 +268,10 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
                                 }
                             })
                     .rebalance()
-                    .keyBy(0)
+                    .keyBy(x -> x.f0)
                     .window(
                             SlidingProcessingTimeWindows.of(
-                                    Time.milliseconds(150), Time.milliseconds(50)))
+                                    Duration.ofMillis(150), Duration.ofMillis(50)))
                     .reduce(
                             new ReduceFunction<Tuple2<Long, IntType>>() {
                                 @Override

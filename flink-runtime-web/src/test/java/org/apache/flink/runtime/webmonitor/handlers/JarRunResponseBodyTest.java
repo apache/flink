@@ -20,11 +20,15 @@ package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JarRunResponseBody}. */
-public class JarRunResponseBodyTest extends RestResponseMarshallingTestBase<JarRunResponseBody> {
+@ExtendWith(NoOpTestExtension.class)
+class JarRunResponseBodyTest extends RestResponseMarshallingTestBase<JarRunResponseBody> {
 
     @Override
     protected Class<JarRunResponseBody> getTestResponseClass() {

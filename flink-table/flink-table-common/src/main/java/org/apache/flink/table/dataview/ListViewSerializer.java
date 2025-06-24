@@ -19,12 +19,9 @@
 package org.apache.flink.table.dataview;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.LegacySerializerSnapshotTransformer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.base.ListSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.table.api.dataview.ListView;
@@ -141,25 +138,6 @@ public class ListViewSerializer<T> extends TypeSerializer<ListView<T>>
             TypeSerializerSnapshot<U> legacySnapshot) {
         if (legacySnapshot instanceof ListViewSerializerSnapshot) {
             return (TypeSerializerSnapshot<ListView<T>>) legacySnapshot;
-        } else if (legacySnapshot instanceof CollectionSerializerConfigSnapshot) {
-            // first, transform the incorrect list serializer's snapshot
-            // into a proper ListSerializerSnapshot
-            ListSerializerSnapshot<T> transformedNestedListSerializerSnapshot =
-                    new ListSerializerSnapshot<>();
-            CollectionSerializerConfigSnapshot<List<T>, T> snapshot =
-                    (CollectionSerializerConfigSnapshot<List<T>, T>) legacySnapshot;
-            CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
-                    transformedNestedListSerializerSnapshot,
-                    (TypeSerializerSnapshot<?>) (snapshot.getSingleNestedSerializerAndConfig().f1));
-
-            // then, wrap the transformed ListSerializerSnapshot
-            // as a nested snapshot in the final resulting ListViewSerializerSnapshot
-            ListViewSerializerSnapshot<T> transformedListViewSerializerSnapshot =
-                    new ListViewSerializerSnapshot<>();
-            CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
-                    transformedListViewSerializerSnapshot, transformedNestedListSerializerSnapshot);
-
-            return transformedListViewSerializerSnapshot;
         } else {
             throw new UnsupportedOperationException(
                     legacySnapshot.getClass().getCanonicalName() + " is not supported.");

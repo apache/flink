@@ -24,10 +24,9 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
@@ -36,32 +35,40 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.test.TableAssertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Base class for tests of {@link TypeStrategies}. */
-@RunWith(Parameterized.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class TypeStrategiesTestBase {
 
-    @Parameter public TestSpec testSpec;
-
-    @Test
-    public void testTypeStrategy() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testTypeStrategy(TestSpec testSpec) {
         if (testSpec.expectedErrorMessage != null) {
-            assertThatThrownBy(this::runTypeInference)
+            assertThatThrownBy(() -> runTypeInference(testSpec))
                     .satisfies(
                             anyCauseMatches(
                                     ValidationException.class, testSpec.expectedErrorMessage));
         } else if (testSpec.expectedDataType != null) {
-            assertThat(runTypeInference().getOutputDataType()).isEqualTo(testSpec.expectedDataType);
+            if (testSpec.compareConversionClass) {
+                assertThat(runTypeInference(testSpec).getOutputDataType())
+                        .isEqualTo(testSpec.expectedDataType);
+            } else {
+                assertThat(runTypeInference(testSpec).getOutputDataType().getLogicalType())
+                        .isEqualTo(testSpec.expectedDataType.getLogicalType());
+            }
         }
     }
 
+    protected abstract Stream<TestSpec> testData();
+
     // --------------------------------------------------------------------------------------------
 
-    private TypeInferenceUtil.Result runTypeInference() {
+    private TypeInferenceUtil.Result runTypeInference(TestSpec testSpec) {
         final FunctionDefinitionMock functionDefinitionMock = new FunctionDefinitionMock();
         functionDefinitionMock.functionKind = FunctionKind.SCALAR;
         final CallContextMock callContextMock = new CallContextMock();
@@ -112,6 +119,7 @@ public abstract class TypeStrategiesTestBase {
         private @Nullable Object literalValue;
 
         private boolean isGroupedAggregation;
+        private boolean compareConversionClass = false;
 
         private TestSpec(@Nullable String description, TypeStrategy strategy) {
             this.description = description;
@@ -149,6 +157,11 @@ public abstract class TypeStrategiesTestBase {
 
         public TestSpec expectErrorMessage(String expectedErrorMessage) {
             this.expectedErrorMessage = expectedErrorMessage;
+            return this;
+        }
+
+        public TestSpec compareConversionClass() {
+            this.compareConversionClass = true;
             return this;
         }
 

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.codegen.sort
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.data.{DecimalData, TimestampData}
 import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, ROW_DATA, SEGMENT}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
@@ -40,8 +41,23 @@ import scala.collection.mutable
  *   input type.
  * @param sortSpec
  *   sort specification.
+ * @param parentCtx
+ *   parent CodeGeneratorContext to avoid name conflicts. If the generated [[NormalizedKeyComputer]]
+ *   and [[RecordComparator]] will be used as inner classes, a non-null value must be set.
  */
-class SortCodeGenerator(tableConfig: ReadableConfig, val input: RowType, val sortSpec: SortSpec) {
+class SortCodeGenerator(
+    tableConfig: ReadableConfig,
+    classLoader: ClassLoader,
+    val input: RowType,
+    val sortSpec: SortSpec,
+    parentCtx: CodeGeneratorContext) {
+
+  def this(
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
+      input: RowType,
+      sortSpec: SortSpec) =
+    this(tableConfig, classLoader, input, sortSpec, null)
 
   private val MAX_NORMALIZED_KEY_LEN = 16
 
@@ -125,8 +141,8 @@ class SortCodeGenerator(tableConfig: ReadableConfig, val input: RowType, val sor
    *   A GeneratedNormalizedKeyComputer
    */
   def generateNormalizedKeyComputer(name: String): GeneratedNormalizedKeyComputer = {
-
-    val className = newName(name)
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader, parentCtx)
+    val className = newName(ctx, name)
 
     val (keyFullyDetermines, numKeyBytes) = getKeyFullyDeterminesAndBytes
 
@@ -381,7 +397,7 @@ class SortCodeGenerator(tableConfig: ReadableConfig, val input: RowType, val sor
    *   A GeneratedRecordComparator
    */
   def generateRecordComparator(name: String): GeneratedRecordComparator = {
-    ComparatorCodeGenerator.gen(tableConfig, name, input, sortSpec)
+    ComparatorCodeGenerator.gen(tableConfig, classLoader, name, input, sortSpec, parentCtx)
   }
 
   def getter(t: LogicalType, index: Int): String = {

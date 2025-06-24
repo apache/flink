@@ -31,10 +31,7 @@ trait FlinkContext extends Context {
   def isBatchMode: Boolean
 
   /** Returns the [[ClassLoader]]. */
-  def getClassLoader: ClassLoader = {
-    // temporary solution until FLINK-15635 is fixed
-    Thread.currentThread().getContextClassLoader
-  }
+  def getClassLoader: ClassLoader
 
   /** Returns the [[TableConfig]] defined in [[org.apache.flink.table.api.TableEnvironment]]. */
   def getTableConfig: TableConfig

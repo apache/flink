@@ -67,17 +67,27 @@ if [[ ! "$CC_CLASSPATH" =~ .*flink-python.*.jar ]]; then
     fi
 fi
 
+# add flink-sql-gateway jar to the classpath
+if [[ ! "$CC_CLASSPATH" =~ .*flink-sql-gateway.*.jar ]]; then
+    FLINK_SQL_GATEWAY_JAR=$(find "$FLINK_OPT_DIR" -regex ".*flink-sql-gateway.*.jar")
+    if [ -n "$FLINK_SQL_GATEWAY_JAR" ]; then
+        CC_CLASSPATH="$CC_CLASSPATH:$FLINK_SQL_GATEWAY_JAR"
+    fi
+fi
+
+FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_CLI}"
+
 # check if SQL client is already in classpath and must not be shipped manually
 if [[ "$CC_CLASSPATH" =~ .*flink-sql-client.*.jar ]]; then
 
     # start client without jar
-    exec "$JAVA_RUN" $JVM_ARGS "${log_setting[@]}" -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.table.client.SqlClient "$@"
+    exec "$JAVA_RUN" $FLINK_ENV_JAVA_OPTS $JVM_ARGS "${log_setting[@]}" -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.table.client.SqlClient "$@"
 
 # check if SQL client jar is in /opt
 elif [ -n "$FLINK_SQL_CLIENT_JAR" ]; then
 
     # start client with jar
-    exec "$JAVA_RUN" $JVM_ARGS "${log_setting[@]}" -classpath "`manglePathList "$CC_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS:$FLINK_SQL_CLIENT_JAR"`" org.apache.flink.table.client.SqlClient "$@" --jar "`manglePath $FLINK_SQL_CLIENT_JAR`"
+    exec "$JAVA_RUN" $FLINK_ENV_JAVA_OPTS $JVM_ARGS "${log_setting[@]}" -classpath "`manglePathList "$CC_CLASSPATH:$FLINK_SQL_CLIENT_JAR:$INTERNAL_HADOOP_CLASSPATHS"`" org.apache.flink.table.client.SqlClient "$@"
 
 # write error message to stderr
 else

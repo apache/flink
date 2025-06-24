@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>2.1-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-kubernetes</artifactId>
@@ -31,7 +31,11 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<kubernetes.client.version>5.5.0</kubernetes.client.version>
+		<kubernetes.client.version>6.13.4</kubernetes.client.version>
+		<surefire.module.config><!--
+			CommonTestUtils#setEnv
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>
@@ -62,6 +66,7 @@ under the License.
 			<groupId>io.fabric8</groupId>
 			<artifactId>kubernetes-client</artifactId>
 			<version>${kubernetes.client.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -75,14 +80,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -112,9 +109,7 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes combine.children="append">
-									<include>io.fabric8:kubernetes-client</include>
-									<include>io.fabric8:kubernetes-model-*</include>
-									<include>io.fabric8:zjsonpatch</include>
+									<include>io.fabric8:*</include>
 
 									<!-- Shade all the dependencies of kubernetes client  -->
 									<include>com.fasterxml.jackson.core:jackson-core</include>
@@ -124,8 +119,8 @@ under the License.
 									<include>com.fasterxml.jackson.datatype:jackson-datatype-jsr310</include>
 									<include>com.squareup.okhttp3:*</include>
 									<include>com.squareup.okio:okio</include>
+									<include>org.snakeyaml:*</include>
 									<include>org.yaml:*</include>
-									<include>dk.brics.automaton:*</include>
 
 									<include>META-INF/services/org.apache.flink.*</include>
 								</includes>
@@ -146,8 +141,30 @@ under the License.
 										<exclude>license.header</exclude>
 									</excludes>
 								</filter>
+								<filter>
+									<artifact>com.fasterxml.jackson*:*</artifact>
+									<excludes>
+										<exclude>META-INF/**/module-info.class</exclude>
+										<exclude>META-INF/*LICENSE</exclude>
+										<exclude>META-INF/*NOTICE</exclude>
+									</excludes>
+								</filter>
 							</filters>
 							<relocations>
+								<!-- When "io.fabric8:kubernetes-client" is bumped, make sure to check JDK-specific Jackson classes,
+								 	 and introduce new versions when necessary. -->
+								<relocation>
+									<pattern>META-INF/versions/11/com/fasterxml/jackson</pattern>
+									<shadedPattern>META-INF/versions/11/org/apache/flink/kubernetes/shaded/com/fasterxml/jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/17/com/fasterxml/jackson</pattern>
+									<shadedPattern>META-INF/versions/17/org/apache/flink/kubernetes/shaded/com/fasterxml/jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>META-INF/versions/19/com/fasterxml/jackson</pattern>
+									<shadedPattern>META-INF/versions/19/org/apache/flink/kubernetes/shaded/com/fasterxml/jackson</shadedPattern>
+								</relocation>
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
 									<shadedPattern>org.apache.flink.kubernetes.shaded.com.fasterxml.jackson</shadedPattern>
@@ -168,12 +185,16 @@ under the License.
 									<shadedPattern>org.apache.flink.kubernetes.shaded.okio</shadedPattern>
 								</relocation>
 								<relocation>
+									<pattern>org.snakeyaml</pattern>
+									<shadedPattern>org.apache.flink.kubernetes.shaded.org.snakeyaml</shadedPattern>
+								</relocation>
+								<relocation>
 									<pattern>org.yaml</pattern>
 									<shadedPattern>org.apache.flink.kubernetes.shaded.org.yaml</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>dk.brics.automaton</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shaded.dk.brics.automaton</shadedPattern>
+								    <pattern>io.fabric8</pattern>
+								    <shadedPattern>org.apache.flink.kubernetes.shaded.io.fabric8</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

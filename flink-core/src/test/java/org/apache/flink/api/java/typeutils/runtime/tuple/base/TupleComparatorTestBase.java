@@ -23,14 +23,14 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class TupleComparatorTestBase<T extends Tuple> extends ComparatorTestBase<T> {
 
     @Override
     protected void deepEquals(String message, T should, T is) {
         for (int x = 0; x < should.getArity(); x++) {
-            assertEquals((Object) should.getField(x), is.getField(x));
+            assertThat((Object) is.getField(x)).isEqualTo(should.getField(x));
         }
     }
 

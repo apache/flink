@@ -143,7 +143,7 @@ CREATE TABLE orders (
     price       DECIMAL(32,2),
     currency    STRING,
     order_time  TIMESTAMP(3),
-    WATERMARK FOR order_time AS order_time
+    WATERMARK FOR order_time AS order_time - INTERVAL '15' SECOND
 ) WITH (/* ... */);
 
 -- Define a versioned table of currency rates. 
@@ -154,7 +154,7 @@ CREATE TABLE currency_rates (
     currency STRING,
     conversion_rate DECIMAL(32, 2),
     update_time TIMESTAMP(3) METADATA FROM `values.source.timestamp` VIRTUAL,
-    WATERMARK FOR update_time AS update_time,
+    WATERMARK FOR update_time AS update_time - INTERVAL '15' SECOND,
     PRIMARY KEY(currency) NOT ENFORCED
 ) WITH (
    'connector' = 'kafka',
@@ -165,7 +165,7 @@ CREATE TABLE currency_rates (
 SELECT 
      order_id,
      price,
-     currency,
+     orders.currency,
      conversion_rate,
      order_time
 FROM orders
@@ -179,7 +179,9 @@ o_002     12.51  EUR       1.10             12:06:00
 
 ```
 
-**Note:** The event-time temporal join is triggered by a watermark from the left and right sides; please ensure both sides of the join have set watermark correctly.
+**Note:** The event-time temporal join is triggered by a watermark from the left and right sides. 
+The `INTERVAL` time subtraction is used to wait for late events in order to make sure the join will meet the expectation. 
+Please ensure both sides of the join have set watermark correctly.
 
 **Note:** The event-time temporal join requires the primary key contained in the equivalence condition of the temporal join condition, e.g., The primary key `currency_rates.currency` of table `currency_rates` to be constrained in the condition `orders.currency = currency_rates.currency`.
 
@@ -324,14 +326,96 @@ FROM Orders AS o
 
 In the example above, the Orders table is enriched with data from the Customers table which resides in a MySQL database. The `FOR SYSTEM_TIME AS OF` clause with the subsequent processing time attribute ensures that each row of the `Orders` table is joined with those Customers rows that match the join predicate at the point in time when the `Orders` row is processed by the join operator. It also prevents that the join result is updated when a joined `Customer` row is updated in the future. The lookup join also requires a mandatory equality join predicate, in the example above `o.customer_id = c.id`.
 
-Array Expansion
+Array, Multiset and Map Expansion
 --------------
 
-Returns a new row for each element in the given array. Unnesting `WITH ORDINALITY` is not yet supported.
+Unnest returns a new row for each element in the given array, multiset or map. Supports both `CROSS JOIN` and `LEFT JOIN`.
+```sql
+-- Returns a new row for each element in a constant array
+SELECT * FROM (VALUES('order_1')), UNNEST(ARRAY['shirt', 'pants', 'hat'])
+
+id       product_name
+=======  ============
+order_1  shirt
+order_1  pants
+order_1  hat
+
+-- Returns a new row for each element in the array
+-- assuming a Orders table with an array column `product_names`
+SELECT order_id, product_name
+FROM Orders 
+    CROSS JOIN UNNEST(product_names) AS t(product_name)
+```
+
+Unnesting `WITH ORDINALITY` is also supported. Currently, `WITH ORDINALITY` only supports `CROSS JOIN` but not `LEFT JOIN`.
+
 
 ```sql
-SELECT order_id, tag
-FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
+-- Returns a new row for each element in a constant array and its position in the array
+SELECT * 
+FROM (VALUES ('order_1'), ('order_2'))
+    CROSS JOIN UNNEST(ARRAY['shirt', 'pants', 'hat']) 
+        WITH ORDINALITY AS t(product_name, index)
+
+id       product_name  index
+=======  ============  =====
+order_1  shirt             1
+order_1  pants             2
+order_1  hat               3
+order_2  shirt             1
+order_2  pants             2
+order_2  hat               3
+
+-- Returns a new row for each element and its position in the array
+-- assuming a Orders table with an array column `product_names`
+SELECT order_id, product_name, product_index
+FROM Orders 
+    CROSS JOIN UNNEST(product_names) 
+        WITH ORDINALITY AS t(product_name, product_index)
+```
+
+An unnest with ordinality will return each element and the position of the element in the data structure, 1-indexed. 
+The order of the elements for arrays is guaranteed. Since maps and multisets are unordered, the order of the elements is not guaranteed.
+
+```sql
+-- Returns a new row each key/value pair in the map.
+SELECT *
+FROM 
+    (VALUES('order_1'))
+        CROSS JOIN UNNEST(MAP['shirt', 2, 'pants', 1, 'hat', 1]) WITH ORDINALITY
+
+id       product_name  amount index
+=======  ============  =====  =====
+order_1  shirt             2      1
+order_1  pants             1      2
+order_1  hat               1      3
+
+-- Returns a new row for each instance of a element in a multiset
+-- If an element has been seen twice (multiplicity is 2), it will be returned twice
+WITH ProductMultiset AS
+    (SELECT COLLECT(product_name) AS product_multiset
+    FROM (
+            VALUES ('shirt'), ('pants'), ('hat'), ('shirt'), ('hat')
+          ) AS t(product_name)) -- produces { 'shirt': 2, 'pants': 1, 'hat': 2 } 
+SELECT id, product_name, ordinality
+FROM 
+    (VALUES ('order_1'), ('order_2')) AS t(id),
+    ProductMultiset
+         CROSS JOIN UNNEST(product_multiset) WITH
+         ORDINALITY AS u(product_name, ordinality);
+
+id       product_name  index
+=======  ============  =====
+order_1  shirt             1
+order_1  shirt             2
+order_1  pants             3
+order_1  hat               4
+order_1  hat               5
+order_2  shirt             1
+order_2  shirt             2
+order_2  pants             3
+order_2  hat               4
+order_1  hat               5
 ```
 
 Table Function

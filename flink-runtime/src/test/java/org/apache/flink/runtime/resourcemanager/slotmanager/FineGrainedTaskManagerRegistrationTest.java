@@ -23,27 +23,23 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link FineGrainedTaskManagerRegistration}. */
-public class FineGrainedTaskManagerRegistrationTest extends TestLogger {
+class FineGrainedTaskManagerRegistrationTest {
     private static final TaskExecutorConnection TASK_EXECUTOR_CONNECTION =
             new TaskExecutorConnection(
                     ResourceID.generate(),
                     new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway());
 
     @Test
-    public void testFreeSlot() {
+    void testFreeSlot() {
         final ResourceProfile totalResource = ResourceProfile.fromResources(10, 1000);
         final FineGrainedTaskManagerRegistration taskManager =
                 new FineGrainedTaskManagerRegistration(
@@ -60,13 +56,13 @@ public class FineGrainedTaskManagerRegistrationTest extends TestLogger {
         taskManager.notifyAllocation(allocationId, slot);
 
         taskManager.freeSlot(allocationId);
-        assertThat(taskManager.getAvailableResource(), is(totalResource));
-        assertThat(taskManager.getIdleSince(), not(Long.MAX_VALUE));
-        assertTrue(taskManager.getAllocatedSlots().isEmpty());
+        assertThat(taskManager.getAvailableResource()).isEqualTo(totalResource);
+        assertThat(taskManager.getIdleSince()).isNotEqualTo(Long.MAX_VALUE);
+        assertThat(taskManager.getAllocatedSlots()).isEmpty();
     }
 
     @Test
-    public void testNotifyAllocation() {
+    void testNotifyAllocation() {
         final ResourceProfile totalResource = ResourceProfile.fromResources(10, 1000);
         final FineGrainedTaskManagerRegistration taskManager =
                 new FineGrainedTaskManagerRegistration(
@@ -82,13 +78,14 @@ public class FineGrainedTaskManagerRegistrationTest extends TestLogger {
                         SlotState.ALLOCATED);
 
         taskManager.notifyAllocation(allocationId, slot);
-        assertThat(taskManager.getAvailableResource(), is(ResourceProfile.fromResources(8, 900)));
-        assertThat(taskManager.getIdleSince(), is(Long.MAX_VALUE));
-        assertTrue(taskManager.getAllocatedSlots().containsKey(allocationId));
+        assertThat(taskManager.getAvailableResource())
+                .isEqualTo(ResourceProfile.fromResources(8, 900));
+        assertThat(taskManager.getIdleSince()).isEqualTo(Long.MAX_VALUE);
+        assertThat(taskManager.getAllocatedSlots()).containsKey(allocationId);
     }
 
     @Test
-    public void testNotifyAllocationComplete() {
+    void testNotifyAllocationComplete() {
         final ResourceProfile totalResource = ResourceProfile.fromResources(10, 1000);
         final FineGrainedTaskManagerRegistration taskManager =
                 new FineGrainedTaskManagerRegistration(
@@ -104,21 +101,22 @@ public class FineGrainedTaskManagerRegistrationTest extends TestLogger {
                         SlotState.PENDING);
 
         taskManager.notifyAllocation(allocationId, slot);
-        assertThat(taskManager.getAvailableResource(), is(ResourceProfile.fromResources(8, 900)));
-        assertThat(taskManager.getIdleSince(), is(Long.MAX_VALUE));
-        assertTrue(taskManager.getAllocatedSlots().containsKey(allocationId));
+        assertThat(taskManager.getAvailableResource())
+                .isEqualTo(ResourceProfile.fromResources(8, 900));
+        assertThat(taskManager.getIdleSince()).isEqualTo(Long.MAX_VALUE);
+        assertThat(taskManager.getAllocatedSlots()).containsKey(allocationId);
 
         taskManager.notifyAllocationComplete(allocationId);
-        assertThat(taskManager.getAvailableResource(), is(ResourceProfile.fromResources(8, 900)));
-        assertThat(taskManager.getIdleSince(), is(Long.MAX_VALUE));
-        assertTrue(taskManager.getAllocatedSlots().containsKey(allocationId));
-        assertThat(
-                taskManager.getAllocatedSlots().get(allocationId).getState(),
-                is(SlotState.ALLOCATED));
+        assertThat(taskManager.getAvailableResource())
+                .isEqualTo(ResourceProfile.fromResources(8, 900));
+        assertThat(taskManager.getIdleSince()).isEqualTo(Long.MAX_VALUE);
+        assertThat(taskManager.getAllocatedSlots()).containsKey(allocationId);
+        assertThat(taskManager.getAllocatedSlots().get(allocationId).getState())
+                .isEqualTo(SlotState.ALLOCATED);
     }
 
     @Test
-    public void testNotifyAllocationWithoutEnoughResource() {
+    void testNotifyAllocationWithoutEnoughResource() {
         final ResourceProfile totalResource = ResourceProfile.fromResources(1, 100);
         final FineGrainedTaskManagerRegistration taskManager =
                 new FineGrainedTaskManagerRegistration(
@@ -151,6 +149,6 @@ public class FineGrainedTaskManagerRegistrationTest extends TestLogger {
         } catch (IllegalArgumentException e) {
             exceptions.add(e);
         }
-        assertThat(exceptions.size(), is(2));
+        assertThat(exceptions).hasSize(2);
     }
 }

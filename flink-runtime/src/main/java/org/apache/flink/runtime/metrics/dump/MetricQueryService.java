@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.metrics.dump;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
@@ -31,11 +30,11 @@ import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
-import org.apache.flink.util.TimeUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -48,7 +47,7 @@ import static org.apache.flink.runtime.metrics.dump.MetricDumpSerialization.Metr
  *
  * <p>It is realized as an actor and can be notified of - an added metric by calling {@link
  * #addMetric(String, Metric, AbstractMetricGroup)} - a removed metric by calling {@link
- * #removeMetric(Metric)} - a metric dump request by calling {@link #queryMetrics(Time)}
+ * #removeMetric(Metric)} - a metric dump request by calling {@link #queryMetrics(Duration)}
  */
 public class MetricQueryService extends RpcEndpoint implements MetricQueryServiceGateway {
     private static final Logger LOG = LoggerFactory.getLogger(MetricQueryService.class);
@@ -127,10 +126,10 @@ public class MetricQueryService extends RpcEndpoint implements MetricQueryServic
 
     @Override
     public CompletableFuture<MetricDumpSerialization.MetricSerializationResult> queryMetrics(
-            Time timeout) {
+            Duration timeout) {
         return callAsync(
                 () -> enforceSizeLimit(serializer.serialize(counters, gauges, histograms, meters)),
-                TimeUtils.toDuration(timeout));
+                timeout);
     }
 
     private MetricDumpSerialization.MetricSerializationResult enforceSizeLimit(

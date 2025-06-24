@@ -19,14 +19,13 @@
 package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.utils.CastExecutor;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
 
@@ -43,19 +42,16 @@ public final class RowDataToStringConverterImpl implements RowDataToStringConver
 
     private Function<RowData, String>[] columnConverters;
 
-    @VisibleForTesting
-    public RowDataToStringConverterImpl(DataType dataType) {
-        this(
-                dataType,
-                DateTimeUtils.UTC_ZONE.toZoneId(),
-                Thread.currentThread().getContextClassLoader(),
-                false);
-    }
-
     public RowDataToStringConverterImpl(
-            DataType dataType, ZoneId zoneId, ClassLoader classLoader, boolean legacyBehaviour) {
+            DataType dataType,
+            ZoneId zoneId,
+            ClassLoader classLoader,
+            boolean legacyBehaviour,
+            CodeGeneratorContext codeGeneratorContext) {
         this.dataType = dataType;
-        this.castRuleContext = CastRule.Context.create(true, legacyBehaviour, zoneId, classLoader);
+        this.castRuleContext =
+                CastRule.Context.create(
+                        true, legacyBehaviour, zoneId, classLoader, codeGeneratorContext);
     }
 
     @SuppressWarnings("unchecked")

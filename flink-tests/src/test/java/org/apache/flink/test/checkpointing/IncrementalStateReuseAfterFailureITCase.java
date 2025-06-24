@@ -17,7 +17,6 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
@@ -35,7 +34,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 
@@ -44,6 +44,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
+import java.time.Duration;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
@@ -99,7 +101,7 @@ public class IncrementalStateReuseAfterFailureITCase {
 
         // reliably fails Changelog with FLINK-25395, but might affect any incremental backend
         env.enableChangelogStateBackend(true);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 1L);
         env.setMaxParallelism(1); // simplify debugging
         env.setParallelism(1); // simplify debugging
 
@@ -126,7 +128,7 @@ public class IncrementalStateReuseAfterFailureITCase {
                                 new OneInputTestStreamOperatorFactory(UID_OP2, evQueue, cmdQueue))
                         .setUidHash(UID_OP2);
 
-        transform2.addSink(new DiscardingSink<>());
+        transform2.sinkTo(new DiscardingSink<>());
 
         return new TestJobWithDescription(
                 env.getStreamGraph().getJobGraph(),
@@ -150,7 +152,8 @@ public class IncrementalStateReuseAfterFailureITCase {
     @Before
     public void before() throws Exception {
         Configuration configuration = new Configuration();
-        FsStateChangelogStorageFactory.configure(configuration, temporaryFolder.newFolder());
+        FsStateChangelogStorageFactory.configure(
+                configuration, temporaryFolder.newFolder(), Duration.ofMinutes(1), 10);
         miniClusterResource =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()

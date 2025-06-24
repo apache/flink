@@ -24,7 +24,8 @@ import org.apache.flink.configuration.Configuration;
 public class ShuffleTestUtils {
 
     public static final ShuffleMaster<?> DEFAULT_SHUFFLE_MASTER =
-            new NettyShuffleMaster(new Configuration());
+            new NettyShuffleMaster(
+                    new ShuffleMasterContextImpl(new Configuration(), throwable -> {}));
 
     /** Private default constructor to avoid being instantiated. */
     private ShuffleTestUtils() {}

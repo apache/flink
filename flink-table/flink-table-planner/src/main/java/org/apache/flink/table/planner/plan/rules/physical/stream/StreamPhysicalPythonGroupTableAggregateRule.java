@@ -42,14 +42,18 @@ import java.util.List;
  */
 public class StreamPhysicalPythonGroupTableAggregateRule extends ConverterRule {
 
-    public static final RelOptRule INSTANCE = new StreamPhysicalPythonGroupTableAggregateRule();
+    public static final RelOptRule INSTANCE =
+            new StreamPhysicalPythonGroupTableAggregateRule(
+                    Config.INSTANCE
+                            .withConversion(
+                                    FlinkLogicalTableAggregate.class,
+                                    FlinkConventions.LOGICAL(),
+                                    FlinkConventions.STREAM_PHYSICAL(),
+                                    "StreamPhysicalPythonGroupTableAggregateRule")
+                            .withRuleFactory(StreamPhysicalPythonGroupTableAggregateRule::new));
 
-    public StreamPhysicalPythonGroupTableAggregateRule() {
-        super(
-                FlinkLogicalTableAggregate.class,
-                FlinkConventions.LOGICAL(),
-                FlinkConventions.STREAM_PHYSICAL(),
-                "StreamPhysicalPythonGroupTableAggregateRule");
+    public StreamPhysicalPythonGroupTableAggregateRule(Config config) {
+        super(config);
     }
 
     @Override

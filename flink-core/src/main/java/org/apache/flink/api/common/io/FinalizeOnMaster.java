@@ -33,8 +33,29 @@ public interface FinalizeOnMaster {
      * The method is invoked on the master (JobManager) after all (parallel) instances of an
      * OutputFormat finished.
      *
-     * @param parallelism The parallelism with which the format or functions was run.
+     * @param context The context to get finalization infos.
      * @throws IOException The finalization may throw exceptions, which may cause the job to abort.
      */
-    void finalizeGlobal(int parallelism) throws IOException;
+    void finalizeGlobal(FinalizationContext context) throws IOException;
+
+    /** A context that provides parallelism and finished attempts infos. */
+    @Public
+    interface FinalizationContext {
+
+        /**
+         * Get the parallelism with which the format or functions was run.
+         *
+         * @return the parallelism.
+         */
+        int getParallelism();
+
+        /**
+         * Get the finished attempt number of subtask.
+         *
+         * @param subtaskIndex the subtask index.
+         * @return the finished attempt.
+         * @throws IllegalArgumentException Thrown, if subtaskIndex is invalid.
+         */
+        int getFinishedAttempt(int subtaskIndex);
+    }
 }

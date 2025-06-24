@@ -24,7 +24,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,10 +33,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests of {@link RowTimeMiniBatchAssginerOperator}. */
-public class RowTimeMiniBatchAssginerOperatorTest extends WatermarkAssignerOperatorTestBase {
+class RowTimeMiniBatchAssginerOperatorTest extends WatermarkAssignerOperatorTestBase {
 
     @Test
-    public void testRowTimeWatermarkAssigner() throws Exception {
+    void testRowTimeWatermarkAssigner() throws Exception {
         final RowTimeMiniBatchAssginerOperator operator = new RowTimeMiniBatchAssginerOperator(5);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 new OneInputStreamOperatorTestHarness<>(operator);
@@ -85,7 +85,7 @@ public class RowTimeMiniBatchAssginerOperatorTest extends WatermarkAssignerOpera
     }
 
     @Test
-    public void testEndWatermarkIsForwarded() throws Exception {
+    void testEndWatermarkIsForwarded() throws Exception {
         final RowTimeMiniBatchAssginerOperator operator = new RowTimeMiniBatchAssginerOperator(50);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 new OneInputStreamOperatorTestHarness<>(operator);

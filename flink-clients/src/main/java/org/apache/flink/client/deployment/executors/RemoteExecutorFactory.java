@@ -40,6 +40,6 @@ public class RemoteExecutorFactory implements PipelineExecutorFactory {
 
     @Override
     public PipelineExecutor getExecutor(final Configuration configuration) {
-        return new RemoteExecutor();
+        return new RemoteExecutor(configuration);
     }
 }

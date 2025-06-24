@@ -36,10 +36,10 @@ class JsonArrayCallGen(call: RexCall) extends CallGenerator {
       operands: Seq[GeneratedExpression],
       returnType: LogicalType): GeneratedExpression = {
 
-    val nodeTerm = newName("node")
+    val nodeTerm = newName(ctx, "node")
     ctx.addReusableMember(s"${className[ArrayNode]} $nodeTerm = $jsonUtils.createArrayNode();")
 
-    val nullNodeTerm = newName("nullNode")
+    val nullNodeTerm = newName(ctx, "nullNode")
     ctx.addReusableMember(s"${className[NullNode]} $nullNodeTerm = $nodeTerm.nullNode();")
 
     val onNull = getOnNullBehavior(operands.head)
@@ -68,7 +68,7 @@ class JsonArrayCallGen(call: RexCall) extends CallGenerator {
       }
       .mkString
 
-    val resultTerm = newName("result")
+    val resultTerm = newName(ctx, "result")
     val resultTermType = primitiveTypeTermForType(returnType)
     val resultCode =
       s"""

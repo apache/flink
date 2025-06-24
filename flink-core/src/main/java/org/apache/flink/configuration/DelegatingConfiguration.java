@@ -22,6 +22,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,14 +46,13 @@ public final class DelegatingConfiguration extends Configuration {
 
     private final Configuration backingConfig; // the configuration actually storing the data
 
-    private String prefix; // the prefix key by which keys for this config are marked
+    @Nonnull private String prefix; // the prefix key by which keys for this config are marked
 
     // --------------------------------------------------------------------------------------------
 
     /** Default constructor for serialization. Creates an empty delegating configuration. */
     public DelegatingConfiguration() {
-        this.backingConfig = new Configuration();
-        this.prefix = "";
+        this(new Configuration(), "");
     }
 
     /**
@@ -63,7 +64,7 @@ public final class DelegatingConfiguration extends Configuration {
      */
     public DelegatingConfiguration(Configuration backingConfig, String prefix) {
         this.backingConfig = Preconditions.checkNotNull(backingConfig);
-        this.prefix = prefix;
+        this.prefix = Preconditions.checkNotNull(prefix, "The 'prefix' attribute mustn't be null.");
     }
 
     // --------------------------------------------------------------------------------------------
@@ -74,160 +75,8 @@ public final class DelegatingConfiguration extends Configuration {
     }
 
     @Override
-    public String getString(ConfigOption<String> configOption) {
-        return this.backingConfig.getString(prefixOption(configOption, prefix));
-    }
-
-    @Override
-    public String getString(ConfigOption<String> configOption, String overrideDefault) {
-        return this.backingConfig.getString(prefixOption(configOption, prefix), overrideDefault);
-    }
-
-    @Override
     public void setString(String key, String value) {
         this.backingConfig.setString(this.prefix + key, value);
-    }
-
-    @Override
-    public void setString(ConfigOption<String> key, String value) {
-        this.backingConfig.setString(prefix + key.key(), value);
-    }
-
-    @Override
-    public <T> Class<T> getClass(
-            String key, Class<? extends T> defaultValue, ClassLoader classLoader)
-            throws ClassNotFoundException {
-        return this.backingConfig.getClass(this.prefix + key, defaultValue, classLoader);
-    }
-
-    @Override
-    public void setClass(String key, Class<?> klazz) {
-        this.backingConfig.setClass(this.prefix + key, klazz);
-    }
-
-    @Override
-    public int getInteger(String key, int defaultValue) {
-        return this.backingConfig.getInteger(this.prefix + key, defaultValue);
-    }
-
-    @Override
-    public int getInteger(ConfigOption<Integer> configOption) {
-        return this.backingConfig.getInteger(prefixOption(configOption, prefix));
-    }
-
-    @Override
-    public int getInteger(ConfigOption<Integer> configOption, int overrideDefault) {
-        return this.backingConfig.getInteger(configOption, overrideDefault);
-    }
-
-    @Override
-    public void setInteger(String key, int value) {
-        this.backingConfig.setInteger(this.prefix + key, value);
-    }
-
-    @Override
-    public void setInteger(ConfigOption<Integer> key, int value) {
-        this.backingConfig.setInteger(prefix + key.key(), value);
-    }
-
-    @Override
-    public long getLong(String key, long defaultValue) {
-        return this.backingConfig.getLong(this.prefix + key, defaultValue);
-    }
-
-    @Override
-    public long getLong(ConfigOption<Long> configOption) {
-        return this.backingConfig.getLong(prefixOption(configOption, prefix));
-    }
-
-    @Override
-    public long getLong(ConfigOption<Long> configOption, long overrideDefault) {
-        return this.backingConfig.getLong(configOption, overrideDefault);
-    }
-
-    @Override
-    public void setLong(String key, long value) {
-        this.backingConfig.setLong(this.prefix + key, value);
-    }
-
-    @Override
-    public void setLong(ConfigOption<Long> key, long value) {
-        this.backingConfig.setLong(prefix + key.key(), value);
-    }
-
-    @Override
-    public boolean getBoolean(String key, boolean defaultValue) {
-        return this.backingConfig.getBoolean(this.prefix + key, defaultValue);
-    }
-
-    @Override
-    public boolean getBoolean(ConfigOption<Boolean> configOption) {
-        return this.backingConfig.getBoolean(prefixOption(configOption, prefix));
-    }
-
-    @Override
-    public void setBoolean(String key, boolean value) {
-        this.backingConfig.setBoolean(this.prefix + key, value);
-    }
-
-    @Override
-    public void setBoolean(ConfigOption<Boolean> key, boolean value) {
-        this.backingConfig.setBoolean(prefix + key.key(), value);
-    }
-
-    @Override
-    public boolean getBoolean(ConfigOption<Boolean> configOption, boolean overrideDefault) {
-        return this.backingConfig.getBoolean(configOption, overrideDefault);
-    }
-
-    @Override
-    public float getFloat(String key, float defaultValue) {
-        return this.backingConfig.getFloat(this.prefix + key, defaultValue);
-    }
-
-    @Override
-    public float getFloat(ConfigOption<Float> configOption) {
-        return this.backingConfig.getFloat(prefixOption(configOption, prefix));
-    }
-
-    @Override
-    public float getFloat(ConfigOption<Float> configOption, float overrideDefault) {
-        return this.backingConfig.getFloat(configOption, overrideDefault);
-    }
-
-    @Override
-    public void setFloat(String key, float value) {
-        this.backingConfig.setFloat(this.prefix + key, value);
-    }
-
-    @Override
-    public void setFloat(ConfigOption<Float> key, float value) {
-        this.backingConfig.setFloat(prefix + key.key(), value);
-    }
-
-    @Override
-    public double getDouble(String key, double defaultValue) {
-        return this.backingConfig.getDouble(this.prefix + key, defaultValue);
-    }
-
-    @Override
-    public double getDouble(ConfigOption<Double> configOption) {
-        return this.backingConfig.getDouble(prefixOption(configOption, prefix));
-    }
-
-    @Override
-    public double getDouble(ConfigOption<Double> configOption, double overrideDefault) {
-        return this.backingConfig.getDouble(configOption, overrideDefault);
-    }
-
-    @Override
-    public void setDouble(String key, double value) {
-        this.backingConfig.setDouble(this.prefix + key, value);
-    }
-
-    @Override
-    public void setDouble(ConfigOption<Double> key, double value) {
-        this.backingConfig.setDouble(prefix + key.key(), value);
     }
 
     @Override
@@ -285,7 +134,7 @@ public final class DelegatingConfiguration extends Configuration {
 
     @Override
     public Set<String> keySet() {
-        if (this.prefix == null) {
+        if (this.prefix.isEmpty()) {
             return this.backingConfig.keySet();
         }
 
@@ -320,8 +169,26 @@ public final class DelegatingConfiguration extends Configuration {
     }
 
     @Override
+    public Map<String, String> toFileWritableMap() {
+        Map<String, String> map = backingConfig.toFileWritableMap();
+        Map<String, String> prefixed = new HashMap<>();
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            if (entry.getKey().startsWith(prefix)) {
+                String keyWithoutPrefix = entry.getKey().substring(prefix.length());
+                prefixed.put(keyWithoutPrefix, YamlParserUtils.toYAMLString(entry.getValue()));
+            }
+        }
+        return prefixed;
+    }
+
+    @Override
     public <T> boolean removeConfig(ConfigOption<T> configOption) {
-        return backingConfig.removeConfig(configOption);
+        return backingConfig.removeConfig(prefixOption(configOption, prefix));
+    }
+
+    @Override
+    public boolean removeKey(String key) {
+        return backingConfig.removeKey(prefix + key);
     }
 
     @Override
@@ -340,20 +207,26 @@ public final class DelegatingConfiguration extends Configuration {
     }
 
     @Override
+    public <T> T get(ConfigOption<T> configOption, T overrideDefault) {
+        return backingConfig.get(prefixOption(configOption, prefix), overrideDefault);
+    }
+
+    @Override
     public <T> Optional<T> getOptional(ConfigOption<T> option) {
         return backingConfig.getOptional(prefixOption(option, prefix));
     }
 
     @Override
     public <T> Configuration set(ConfigOption<T> option, T value) {
-        return backingConfig.set(prefixOption(option, prefix), value);
+        backingConfig.set(prefixOption(option, prefix), value);
+        return this;
     }
 
     // --------------------------------------------------------------------------------------------
 
     @Override
     public void read(DataInputView in) throws IOException {
-        this.prefix = in.readUTF();
+        this.prefix = Preconditions.checkNotNull(in.readUTF());
         this.backingConfig.read(in);
     }
 

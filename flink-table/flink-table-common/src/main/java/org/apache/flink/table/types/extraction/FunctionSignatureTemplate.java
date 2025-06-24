@@ -19,13 +19,18 @@
 package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
+import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
 
 import javax.annotation.Nullable;
 
 import java.lang.reflect.Array;
+import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -41,27 +46,128 @@ final class FunctionSignatureTemplate {
 
     final boolean isVarArgs;
 
-    final @Nullable String[] argumentNames;
+    final EnumSet<StaticArgumentTrait>[] argumentTraits;
+
+    final String[] argumentNames;
+
+    final boolean[] argumentOptionals;
 
     private FunctionSignatureTemplate(
             List<FunctionArgumentTemplate> argumentTemplates,
             boolean isVarArgs,
-            @Nullable String[] argumentNames) {
+            EnumSet<StaticArgumentTrait>[] argumentTraits,
+            @Nullable String[] argumentNames,
+            boolean[] argumentOptionals) {
         this.argumentTemplates = argumentTemplates;
         this.isVarArgs = isVarArgs;
-        this.argumentNames = argumentNames;
+        this.argumentTraits = argumentTraits;
+        this.argumentNames =
+                argumentNames == null
+                        ? IntStream.range(0, argumentTemplates.size())
+                                .mapToObj(pos -> "arg" + pos)
+                                .toArray(String[]::new)
+                        : argumentNames;
+        this.argumentOptionals = argumentOptionals;
     }
 
     static FunctionSignatureTemplate of(
             List<FunctionArgumentTemplate> argumentTemplates,
             boolean isVarArgs,
-            @Nullable String[] argumentNames) {
+            EnumSet<StaticArgumentTrait>[] argumentTraits,
+            @Nullable String[] argumentNames,
+            boolean[] argumentOptionals) {
         if (argumentNames != null && argumentNames.length != argumentTemplates.size()) {
             throw extractionError(
                     "Mismatch between number of argument names '%s' and argument types '%s'.",
                     argumentNames.length, argumentTemplates.size());
         }
-        return new FunctionSignatureTemplate(argumentTemplates, isVarArgs, argumentNames);
+        if (argumentNames != null
+                && argumentNames.length != Arrays.stream(argumentNames).distinct().count()) {
+            throw extractionError(
+                    "Argument name conflict, there are at least two argument names that are the same.");
+        }
+        if (argumentOptionals != null && argumentOptionals.length != argumentTemplates.size()) {
+            throw extractionError(
+                    "Mismatch between number of argument optionals '%s' and argument types '%s'.",
+                    argumentOptionals.length, argumentTemplates.size());
+        }
+        if (argumentOptionals != null) {
+            for (int i = 0; i < argumentTemplates.size(); i++) {
+                DataType dataType = argumentTemplates.get(i).toDataType();
+                if (dataType != null
+                        && !dataType.getLogicalType().isNullable()
+                        && argumentOptionals[i]) {
+                    throw extractionError(
+                            "Argument at position %s is optional but its type doesn't accept null value.",
+                            i);
+                }
+            }
+        }
+        return new FunctionSignatureTemplate(
+                argumentTemplates, isVarArgs, argumentTraits, argumentNames, argumentOptionals);
+    }
+
+    /**
+     * Converts the given signature into a list of static arguments if the signature allows it. E.g.
+     * no var-args and all arguments are named.
+     */
+    @Nullable
+    List<StaticArgument> toStaticArguments() {
+        if (isVarArgs || argumentNames == null) {
+            return null;
+        }
+        final List<StaticArgument> arguments =
+                IntStream.range(0, argumentTemplates.size())
+                        .mapToObj(
+                                pos -> {
+                                    final String name = argumentNames[pos];
+                                    final boolean isOptional = argumentOptionals[pos];
+                                    final FunctionArgumentTemplate template =
+                                            argumentTemplates.get(pos);
+                                    final EnumSet<StaticArgumentTrait> traits = argumentTraits[pos];
+                                    if (traits.contains(StaticArgumentTrait.TABLE_AS_ROW)
+                                            || traits.contains(StaticArgumentTrait.TABLE_AS_SET)) {
+                                        return createTableArgument(
+                                                name,
+                                                isOptional,
+                                                traits,
+                                                template.toDataType(),
+                                                template.toConversionClass());
+                                    } else if (traits.contains(StaticArgumentTrait.SCALAR)) {
+                                        return createScalarArgument(
+                                                name, isOptional, template.toDataType());
+                                    } else {
+                                        return null;
+                                    }
+                                })
+                        .collect(Collectors.toList());
+        if (arguments.contains(null)) {
+            return null;
+        }
+        return arguments;
+    }
+
+    private static @Nullable StaticArgument createTableArgument(
+            String name,
+            boolean isOptional,
+            EnumSet<StaticArgumentTrait> traits,
+            @Nullable DataType dataType,
+            @Nullable Class<?> conversionClass) {
+        if (dataType != null) {
+            return StaticArgument.table(name, dataType, isOptional, traits);
+        }
+        if (conversionClass != null) {
+            return StaticArgument.table(name, conversionClass, isOptional, traits);
+        }
+        return null;
+    }
+
+    private static @Nullable StaticArgument createScalarArgument(
+            String name, boolean isOptional, @Nullable DataType dataType) {
+        if (dataType != null) {
+            return StaticArgument.scalar(name, dataType, isOptional);
+        }
+        return null;
     }
 
     InputTypeStrategy toInputTypeStrategy() {
@@ -87,7 +193,7 @@ final class FunctionSignatureTemplate {
         return strategy;
     }
 
-    List<Class<?>> toClass() {
+    List<Class<?>> toClassList() {
         return IntStream.range(0, argumentTemplates.size())
                 .mapToObj(
                         i -> {

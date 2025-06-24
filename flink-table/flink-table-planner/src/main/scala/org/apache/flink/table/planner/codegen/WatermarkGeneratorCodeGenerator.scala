@@ -18,13 +18,13 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier
+import org.apache.flink.api.common.functions.OpenContext
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
-import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, ROW_DATA}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
-import org.apache.flink.table.runtime.generated.{GeneratedWatermarkGenerator, WatermarkGenerator}
+import org.apache.flink.table.runtime.generated.{GeneratedWatermarkGenerator, WatermarkGenerator, WatermarkGeneratorCodeGeneratorFunctionContextWrapper}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalTypeRoot, RowType}
 
@@ -35,6 +35,7 @@ object WatermarkGeneratorCodeGenerator {
 
   def generateWatermarkGenerator(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       inputType: RowType,
       watermarkExpr: RexNode,
       contextTerm: Option[String] = None): GeneratedWatermarkGenerator = {
@@ -48,12 +49,12 @@ object WatermarkGeneratorCodeGenerator {
         "WatermarkGenerator only accepts output data type of TIMESTAMP or TIMESTAMP_LTZ," +
           " but is " + watermarkOutputType)
     }
-    val funcName = newName("WatermarkGenerator")
     val ctx = if (contextTerm.isDefined) {
-      new WatermarkGeneratorFunctionContext(tableConfig, contextTerm.get)
+      new WatermarkGeneratorFunctionContext(tableConfig, classLoader, contextTerm.get)
     } else {
-      CodeGeneratorContext(tableConfig)
+      new CodeGeneratorContext(tableConfig, classLoader)
     }
+    val funcName = newName(ctx, "WatermarkGenerator")
     val generator = new ExprCodeGenerator(ctx, false)
       .bindInput(inputType, inputTerm = "row")
       .bindConstructorTerm(contextTerm.orNull)
@@ -87,7 +88,7 @@ object WatermarkGeneratorCodeGenerator {
         }
 
         @Override
-        public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
+        public void open(${classOf[OpenContext].getCanonicalName} openContext) throws Exception {
           ${ctx.reuseOpenCode()}
         }
 
@@ -115,8 +116,11 @@ object WatermarkGeneratorCodeGenerator {
   }
 }
 
-class WatermarkGeneratorFunctionContext(tableConfig: ReadableConfig, contextTerm: String)
-  extends CodeGeneratorContext(tableConfig) {
+class WatermarkGeneratorFunctionContext(
+    tableConfig: ReadableConfig,
+    classLoader: ClassLoader,
+    contextTerm: String)
+  extends CodeGeneratorContext(tableConfig, classLoader) {
 
   override def addReusableFunction(
       function: UserDefinedFunction,
@@ -131,11 +135,4 @@ class WatermarkGeneratorFunctionContext(tableConfig: ReadableConfig, contextTerm
   override def addReusableConverter(dataType: DataType, classLoaderTerm: String = null): String = {
     super.addReusableConverter(dataType, "this.getClass().getClassLoader()")
   }
-}
-
-class WatermarkGeneratorCodeGeneratorFunctionContextWrapper(
-    context: WatermarkGeneratorSupplier.Context)
-  extends FunctionContext(null, null, null) {
-
-  override def getMetricGroup: MetricGroup = context.getMetricGroup
 }

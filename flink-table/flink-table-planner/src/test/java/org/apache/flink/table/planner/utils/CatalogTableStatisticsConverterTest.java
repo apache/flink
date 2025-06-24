@@ -22,7 +22,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.plan.stats.ColumnStats;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,10 +30,10 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link CatalogTableStatisticsConverter}. */
-public class CatalogTableStatisticsConverterTest {
+class CatalogTableStatisticsConverterTest {
 
     @Test
-    public void testConvertToColumnStatsMapWithNullColumnStatisticsData() {
+    void testConvertToColumnStatsMapWithNullColumnStatisticsData() {
         Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
         columnStatisticsDataBaseMap.put(
                 "first", new CatalogColumnStatisticsDataString(10L, 5.2, 3L, 100L));

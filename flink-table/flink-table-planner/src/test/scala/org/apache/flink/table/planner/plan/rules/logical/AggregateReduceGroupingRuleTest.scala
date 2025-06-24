@@ -21,12 +21,12 @@ import org.apache.flink.table.planner.plan.common.AggregateReduceGroupingTestBas
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 
 import org.apache.calcite.tools.RuleSets
-import org.junit.Before
+import org.junit.jupiter.api.BeforeEach
 
 /** Test for [[AggregateReduceGroupingRule]]. */
 class AggregateReduceGroupingRuleTest extends AggregateReduceGroupingTestBase(false) {
 
-  @Before
+  @BeforeEach
   override def setup(): Unit = {
     util.buildBatchProgram(FlinkBatchProgram.LOGICAL_REWRITE)
 

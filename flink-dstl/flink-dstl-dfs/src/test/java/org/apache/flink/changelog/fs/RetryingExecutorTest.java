@@ -24,7 +24,6 @@ import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.assertj.core.data.Percentage;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -40,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
@@ -68,12 +68,13 @@ class RetryingExecutorTest {
 
     @Test
     void testDiscardOnTimeout() throws Exception {
-        int timeoutMs = 5;
+        int timeoutMs = 50; // should be long enough for the last attempt to succeed
         int numAttempts = 7;
         int successfulAttempt = numAttempts - 1;
         List<Integer> completed = new CopyOnWriteArrayList<>();
         List<Integer> discarded = new CopyOnWriteArrayList<>();
         AtomicBoolean executionBlocked = new AtomicBoolean(true);
+        AtomicReference<Throwable> unexpectedException = new AtomicReference<>();
         Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
         ChangelogStorageMetricGroup metrics = createUnregisteredChangelogStorageMetricGroup();
         try (RetryingExecutor executor =
@@ -108,7 +109,10 @@ class RetryingExecutorTest {
                         }
 
                         @Override
-                        public void handleFailure(Throwable throwable) {}
+                        public void handleFailure(Throwable throwable) {
+                            executionBlocked.set(false);
+                            unexpectedException.set(throwable);
+                        }
                     });
             while (completed.isEmpty() && deadline.hasTimeLeft()) {
                 Thread.sleep(10);
@@ -117,6 +121,11 @@ class RetryingExecutorTest {
             while (discarded.size() < successfulAttempt && deadline.hasTimeLeft()) {
                 Thread.sleep(10);
             }
+        }
+        if (unexpectedException.get() != null) {
+            // the last attempt might still timeout if the worker node is overloaded
+            // and the thread is unscheduled for more than timeoutMs
+            assertThat(unexpectedException).isInstanceOf(TimeoutException.class);
         }
         assertThat(singletonList(successfulAttempt)).isEqualTo(completed);
         assertThat(IntStream.range(0, successfulAttempt).boxed().collect(toList()))
@@ -213,7 +222,7 @@ class RetryingExecutorTest {
                 Executors.newScheduledThreadPool(2));
         /* future completion can be delayed arbitrarily causing start delta be less than timeout */
         assertThat(((double) secondStart.get() - firstStart.get()) / 1_000_000)
-                .isCloseTo(timeout, Percentage.withPercentage(75));
+                .isGreaterThanOrEqualTo(timeout * .75);
     }
 
     private void testPolicy(

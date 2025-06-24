@@ -18,16 +18,19 @@
 
 package org.apache.flink.table.runtime.operators.multipleinput.input;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncKeyOrderedProcessing;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 /** {@link Input} for the second input of {@link TwoInputStreamOperator}. */
-public class SecondInputOfTwoInput extends InputBase {
+public class SecondInputOfTwoInput extends InputBase implements AsyncKeyOrderedProcessing {
 
     private final TwoInputStreamOperator<RowData, RowData, RowData> operator;
 
@@ -53,5 +56,18 @@ public class SecondInputOfTwoInput extends InputBase {
     @Override
     public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
         operator.processWatermarkStatus2(watermarkStatus);
+    }
+
+    @Internal
+    @Override
+    public final boolean isAsyncKeyOrderedProcessingEnabled() {
+        return (operator instanceof AsyncKeyOrderedProcessing)
+                && ((AsyncKeyOrderedProcessing) operator).isAsyncKeyOrderedProcessingEnabled();
+    }
+
+    @Internal
+    @Override
+    public final <T> ThrowingConsumer<StreamRecord<T>, Exception> getRecordProcessor(int inputId) {
+        return ((AsyncKeyOrderedProcessing) operator).getRecordProcessor(2);
     }
 }

@@ -28,9 +28,16 @@ import java.util.function.Function;
 
 /** A {@link VertexParallelismInformation} implementation that provides common validation. */
 public class DefaultVertexParallelismInfo implements VertexParallelismInformation {
+    private final int minParallelism;
     private int parallelism;
     private int maxParallelism;
     private final Function<Integer, Optional<String>> rescaleMaxValidator;
+
+    /**
+     * The constant to use for the parallelism, if the system should use the number of currently
+     * available slots.
+     */
+    public static final int PARALLELISM_AUTO_MAX = Integer.MAX_VALUE;
 
     /**
      * Create {@link VertexParallelismInformation} with max parallelism rescaling validation for a
@@ -45,13 +52,22 @@ public class DefaultVertexParallelismInfo implements VertexParallelismInformatio
             int parallelism,
             int maxParallelism,
             Function<Integer, Optional<String>> rescaleMaxValidator) {
+        this(1, parallelism, maxParallelism, rescaleMaxValidator);
+    }
+
+    public DefaultVertexParallelismInfo(
+            int minParallelism,
+            int parallelism,
+            int maxParallelism,
+            Function<Integer, Optional<String>> rescaleMaxValidator) {
+        this.minParallelism = minParallelism;
         this.parallelism = checkInitialParallelism(parallelism);
         this.maxParallelism = normalizeAndCheckMaxParallelism(maxParallelism);
         this.rescaleMaxValidator = Preconditions.checkNotNull(rescaleMaxValidator);
     }
 
     private static int normalizeAndCheckMaxParallelism(int maxParallelism) {
-        if (maxParallelism == ExecutionConfig.PARALLELISM_AUTO_MAX) {
+        if (maxParallelism == PARALLELISM_AUTO_MAX) {
             maxParallelism = KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
         }
 
@@ -77,6 +93,11 @@ public class DefaultVertexParallelismInfo implements VertexParallelismInformatio
                 KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
                 parallelism);
         return parallelism;
+    }
+
+    @Override
+    public int getMinParallelism() {
+        return minParallelism;
     }
 
     @Override

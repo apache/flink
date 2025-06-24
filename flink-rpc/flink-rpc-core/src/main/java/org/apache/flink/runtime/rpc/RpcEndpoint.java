@@ -18,10 +18,13 @@
 
 package org.apache.flink.runtime.rpc;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledFutureAdapter;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
@@ -33,9 +36,12 @@ import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
@@ -133,16 +139,27 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
      * @param rpcService The RPC server that dispatches calls to this RPC endpoint.
      * @param endpointId Unique identifier for this endpoint
      */
-    protected RpcEndpoint(final RpcService rpcService, final String endpointId) {
+    protected RpcEndpoint(
+            RpcService rpcService, String endpointId, Map<String, String> loggingContext) {
         this.rpcService = checkNotNull(rpcService, "rpcService");
         this.endpointId = checkNotNull(endpointId, "endpointId");
 
-        this.rpcServer = rpcService.startServer(this);
+        this.rpcServer = rpcService.startServer(this, loggingContext);
         this.resourceRegistry = new CloseableRegistry();
 
         this.mainThreadExecutor =
                 new MainThreadExecutor(rpcServer, this::validateRunsInMainThread, endpointId);
         registerResource(this.mainThreadExecutor);
+    }
+
+    /**
+     * Initializes the RPC endpoint.
+     *
+     * @param rpcService The RPC server that dispatches calls to this RPC endpoint.
+     * @param endpointId Unique identifier for this endpoint
+     */
+    protected RpcEndpoint(final RpcService rpcService, final String endpointId) {
+        this(rpcService, endpointId, Collections.emptyMap());
     }
 
     /**
@@ -307,17 +324,7 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
      * @return Self gateway of the specified type which can be used to issue asynchronous rpcs
      */
     public <C extends RpcGateway> C getSelfGateway(Class<C> selfGatewayType) {
-        if (selfGatewayType.isInstance(rpcServer)) {
-            @SuppressWarnings("unchecked")
-            C selfGateway = ((C) rpcServer);
-
-            return selfGateway;
-        } else {
-            throw new RuntimeException(
-                    "RpcEndpoint does not implement the RpcGateway interface of type "
-                            + selfGatewayType
-                            + '.');
-        }
+        return rpcService.getSelfGateway(selfGatewayType, rpcServer);
     }
 
     /**
@@ -349,6 +356,19 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
      */
     protected MainThreadExecutor getMainThreadExecutor() {
         return mainThreadExecutor;
+    }
+
+    /**
+     * Gets the main thread execution context. The main thread execution context can be used to
+     * execute tasks in the main thread of the underlying RPC endpoint.
+     *
+     * @param jobID the {@link JobID} to scope the returned {@link ComponentMainThreadExecutor} to,
+     *     i.e. add/remove before/after the invocations using the returned executor
+     * @return Main thread execution context
+     */
+    protected Executor getMainThreadExecutor(JobID jobID) {
+        // todo: consider caching
+        return MdcUtils.scopeToJob(jobID, getMainThreadExecutor());
     }
 
     /**
@@ -462,6 +482,7 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
         private final MainThreadExecutable gateway;
         private final Runnable mainThreadCheck;
+
         /**
          * The main scheduled executor manages the scheduled tasks and send them to gateway when
          * they should be executed.
@@ -470,11 +491,21 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
         MainThreadExecutor(
                 MainThreadExecutable gateway, Runnable mainThreadCheck, String endpointId) {
+            this(
+                    gateway,
+                    mainThreadCheck,
+                    Executors.newSingleThreadScheduledExecutor(
+                            new ExecutorThreadFactory(endpointId + "-main-scheduler")));
+        }
+
+        @VisibleForTesting
+        MainThreadExecutor(
+                MainThreadExecutable gateway,
+                Runnable mainThreadCheck,
+                ScheduledExecutorService mainScheduledExecutor) {
             this.gateway = Preconditions.checkNotNull(gateway);
             this.mainThreadCheck = Preconditions.checkNotNull(mainThreadCheck);
-            this.mainScheduledExecutor =
-                    Executors.newSingleThreadScheduledExecutor(
-                            new ExecutorThreadFactory(endpointId + "-main-scheduler"));
+            this.mainScheduledExecutor = mainScheduledExecutor;
         }
 
         @Override

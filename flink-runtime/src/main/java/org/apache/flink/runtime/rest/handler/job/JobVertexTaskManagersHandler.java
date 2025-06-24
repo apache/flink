@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
@@ -32,6 +32,7 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.util.MutableIOMetrics;
+import org.apache.flink.runtime.rest.messages.AggregatedTaskDetailsInfo;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
@@ -39,23 +40,29 @@ import org.apache.flink.runtime.rest.messages.JobVertexMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobVertexTaskManagersInfo;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.job.StatusDurationUtils;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 /**
  * A request handler that provides the details of a job vertex, including id, name, and the runtime
@@ -69,7 +76,7 @@ public class JobVertexTaskManagersHandler
 
     public JobVertexTaskManagersHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, JobVertexTaskManagersInfo, JobVertexMessageParameters>
                     messageHeaders,
@@ -124,33 +131,48 @@ public class JobVertexTaskManagersHandler
             AccessExecutionJobVertex jobVertex,
             JobID jobID,
             @Nullable MetricFetcher metricFetcher) {
-        // Build a map that groups tasks by TaskManager
-        Map<String, String> taskManagerId2Host = new HashMap<>();
-        Map<String, List<AccessExecutionVertex>> taskManagerVertices = new HashMap<>();
+        // Build a map that groups task executions by TaskManager
+        Map<TaskManagerLocation, List<AccessExecution>> taskManagerExecutions = new HashMap<>();
+        Set<AccessExecution> representativeExecutions = new HashSet<>();
         for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
-            TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
-            String taskManagerHost =
-                    location == null
-                            ? "(unassigned)"
-                            : location.getHostname() + ':' + location.dataPort();
-            String taskmanagerId =
-                    location == null ? "(unassigned)" : location.getResourceID().toString();
-            taskManagerId2Host.put(taskmanagerId, taskManagerHost);
-            List<AccessExecutionVertex> vertices =
-                    taskManagerVertices.computeIfAbsent(
-                            taskmanagerId, ignored -> new ArrayList<>(4));
-            vertices.add(vertex);
+            AccessExecution representativeAttempt = vertex.getCurrentExecutionAttempt();
+            representativeExecutions.add(representativeAttempt);
+
+            for (AccessExecution execution : vertex.getCurrentExecutions()) {
+                TaskManagerLocation location = execution.getAssignedResourceLocation();
+                List<AccessExecution> executions =
+                        taskManagerExecutions.computeIfAbsent(
+                                location, ignored -> new ArrayList<>());
+                executions.add(execution);
+            }
         }
 
         final long now = System.currentTimeMillis();
 
         List<JobVertexTaskManagersInfo.TaskManagersInfo> taskManagersInfoList = new ArrayList<>(4);
-        for (Map.Entry<String, List<AccessExecutionVertex>> entry :
-                taskManagerVertices.entrySet()) {
-            String taskmanagerId = entry.getKey();
-            String host = taskManagerId2Host.get(taskmanagerId);
-            List<AccessExecutionVertex> taskVertices = entry.getValue();
+        for (Map.Entry<TaskManagerLocation, List<AccessExecution>> entry :
+                taskManagerExecutions.entrySet()) {
+            TaskManagerLocation location = entry.getKey();
+            // Port information is included in the host field for backward-compatibility
+            String host =
+                    location == null
+                            ? "(unassigned)"
+                            : location.getHostname() + ':' + location.dataPort();
+            String endpoint = location == null ? "(unassigned)" : location.getEndpoint();
+            String taskmanagerId =
+                    location == null ? "(unassigned)" : location.getResourceID().toString();
+            List<AccessExecution> executions = entry.getValue();
 
+            List<IOMetricsInfo> ioMetricsInfos = new ArrayList<>();
+            List<Map<ExecutionState, Long>> status =
+                    executions.stream()
+                            .map(StatusDurationUtils::getExecutionStateDuration)
+                            .collect(Collectors.toList());
+
+            // executionsPerState counts attempts of a subtask separately
+            int[] executionsPerState = new int[ExecutionState.values().length];
+            // tasksPerState counts only the representative attempts, and is used to aggregate the
+            // task manager state
             int[] tasksPerState = new int[ExecutionState.values().length];
 
             long startTime = Long.MAX_VALUE;
@@ -159,24 +181,48 @@ public class JobVertexTaskManagersHandler
 
             MutableIOMetrics counts = new MutableIOMetrics();
 
-            for (AccessExecutionVertex vertex : taskVertices) {
-                final ExecutionState state = vertex.getExecutionState();
-                tasksPerState[state.ordinal()]++;
+            int representativeAttemptsCount = 0;
+            for (AccessExecution execution : executions) {
+                final ExecutionState state = execution.getState();
+                executionsPerState[state.ordinal()]++;
+                if (representativeExecutions.contains(execution)) {
+                    tasksPerState[state.ordinal()]++;
+                    representativeAttemptsCount++;
+                }
 
                 // take the earliest start time
-                long started = vertex.getStateTimestamp(ExecutionState.DEPLOYING);
+                long started = execution.getStateTimestamp(ExecutionState.DEPLOYING);
                 if (started > 0) {
                     startTime = Math.min(startTime, started);
                 }
 
                 allFinished &= state.isTerminal();
-                endTime = Math.max(endTime, vertex.getStateTimestamp(state));
+                endTime = Math.max(endTime, execution.getStateTimestamp(state));
 
                 counts.addIOMetrics(
-                        vertex.getCurrentExecutionAttempt(),
+                        execution,
                         metricFetcher,
                         jobID.toString(),
                         jobVertex.getJobVertexId().toString());
+                MutableIOMetrics current = new MutableIOMetrics();
+                current.addIOMetrics(
+                        execution,
+                        metricFetcher,
+                        jobID.toString(),
+                        jobVertex.getJobVertexId().toString());
+                ioMetricsInfos.add(
+                        new IOMetricsInfo(
+                                current.getNumBytesIn(),
+                                current.isNumBytesInComplete(),
+                                current.getNumBytesOut(),
+                                current.isNumBytesOutComplete(),
+                                current.getNumRecordsIn(),
+                                current.isNumRecordsInComplete(),
+                                current.getNumRecordsOut(),
+                                current.isNumRecordsOutComplete(),
+                                current.getAccumulateBackPressuredTime(),
+                                current.getAccumulateIdleTime(),
+                                current.getAccumulateBusyTime()));
             }
 
             long duration;
@@ -193,9 +239,10 @@ public class JobVertexTaskManagersHandler
                 duration = -1L;
             }
 
+            // Safe when tasksPerState are all zero and representativeAttemptsCount is zero
             ExecutionState jobVertexState =
                     ExecutionJobVertex.getAggregateJobVertexState(
-                            tasksPerState, taskVertices.size());
+                            tasksPerState, representativeAttemptsCount);
 
             final IOMetricsInfo jobVertexMetrics =
                     new IOMetricsInfo(
@@ -206,23 +253,27 @@ public class JobVertexTaskManagersHandler
                             counts.getNumRecordsIn(),
                             counts.isNumRecordsInComplete(),
                             counts.getNumRecordsOut(),
-                            counts.isNumRecordsOutComplete());
+                            counts.isNumRecordsOutComplete(),
+                            counts.getAccumulateBackPressuredTime(),
+                            counts.getAccumulateIdleTime(),
+                            counts.getAccumulateBusyTime());
 
             Map<ExecutionState, Integer> statusCounts =
-                    new HashMap<>(ExecutionState.values().length);
+                    CollectionUtil.newHashMapWithExpectedSize(ExecutionState.values().length);
             for (ExecutionState state : ExecutionState.values()) {
-                statusCounts.put(state, tasksPerState[state.ordinal()]);
+                statusCounts.put(state, executionsPerState[state.ordinal()]);
             }
             taskManagersInfoList.add(
                     new JobVertexTaskManagersInfo.TaskManagersInfo(
-                            host,
+                            endpoint,
                             jobVertexState,
                             startTime,
                             endTime,
                             duration,
                             jobVertexMetrics,
                             statusCounts,
-                            taskmanagerId));
+                            taskmanagerId,
+                            AggregatedTaskDetailsInfo.create(ioMetricsInfos, status)));
         }
 
         return new JobVertexTaskManagersInfo(

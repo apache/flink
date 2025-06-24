@@ -18,10 +18,14 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
-import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.inference.InputTypeStrategies;
 
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.explicit;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.sequence;
+import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 
 /** Dictionary of function definitions for all internal used functions. */
 public class InternalFunctionDefinitions {
@@ -30,6 +34,9 @@ public class InternalFunctionDefinitions {
             new BuiltInFunctionDefinition.Builder()
                     .name("throwException")
                     .kind(SCALAR)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(
+                            sequence(
+                                    explicit(DataTypes.STRING()), InputTypeStrategies.TYPE_LITERAL))
+                    .outputTypeStrategy(argument(1))
                     .build();
 }

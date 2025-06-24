@@ -32,11 +32,10 @@ For Python DataStream API program, the config options could be set as following:
 ```python
 from pyflink.common import Configuration
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.util.java_utils import get_j_env_configuration
 
-env = StreamExecutionEnvironment.get_execution_environment()
-config = Configuration(j_configuration=get_j_env_configuration(env._j_stream_execution_environment))
+config = Configuration()
 config.set_integer("python.fn-execution.bundle.size", 1000)
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 
 For Python Table API program, all the config options available for Java/Scala Table API
@@ -66,6 +65,9 @@ env_settings = EnvironmentSettings \
     .with_configuration(config) \
     .build()
 table_env = TableEnvironment.create(env_settings)
+
+# or directly pass config into create method
+table_env = TableEnvironment.create(config)
 ```
 
 ## Python Options

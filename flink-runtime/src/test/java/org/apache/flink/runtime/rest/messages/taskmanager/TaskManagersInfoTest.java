@@ -19,13 +19,17 @@
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 
 import static org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfoTest.createRandomTaskManagerInfo;
 
 /** Test for (un)marshalling of {@link TaskManagersInfo}. */
-public class TaskManagersInfoTest extends RestResponseMarshallingTestBase<TaskManagersInfo> {
+@ExtendWith(NoOpTestExtension.class)
+class TaskManagersInfoTest extends RestResponseMarshallingTestBase<TaskManagersInfo> {
 
     @Override
     protected Class<TaskManagersInfo> getTestResponseClass() {

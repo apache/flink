@@ -139,7 +139,8 @@ INSERT INTO department_counts
  SELECT 
 	dept_id,
 	COUNT(*) as emp_count 
-FROM employee_information;
+FROM employee_information
+GROUP BY dept_id;
  ``` 
  
 提交后，它将运行并将结果直接存储到 sink 表中，而不是将结果加载到系统内存中。

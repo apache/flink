@@ -17,27 +17,48 @@
  */
 package org.apache.flink.table.planner.plan.batch.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
+import org.junit.jupiter.api.Test
 
 class RankTest extends TableTestBase {
 
   private val util = batchTestUtil()
   util.addTableSource[(Int, String, Long)]("MyTable", 'a, 'b, 'c)
 
-  @Test(expected = classOf[RuntimeException])
   def testRowNumberWithoutOrderBy(): Unit = {
     val sqlQuery =
       """
         |SELECT ROW_NUMBER() over (partition by a) FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    assertThatThrownBy(() => util.tableEnv.executeSql(sqlQuery))
+      .hasRootCauseMessage(
+        "Over Agg: The window rank function requires order by clause with non-constant fields. " +
+          "please re-check the over window statement.")
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
+  def testRowNumberWithOrderByConstant(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT a, b,
+        |  ROW_NUMBER() OVER (PARTITION BY b ORDER BY '2023-03-29') AS row_num
+        |  FROM MyTable
+        |)
+        |WHERE row_num <= 10
+      """.stripMargin
+
+    assertThatThrownBy(() => util.tableEnv.executeSql(sqlQuery))
+      .hasRootCauseMessage(
+        "Over Agg: The window rank function requires order by clause with non-constant fields. " +
+          "please re-check the over window statement.")
+  }
+
+  @Test
   def testRowNumberWithMultiGroups(): Unit = {
     val sqlQuery =
       """
@@ -45,19 +66,22 @@ class RankTest extends TableTestBase {
         |       ROW_NUMBER() over (partition by b) as b
         |       FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+
+    assertThatExceptionOfType(classOf[RuntimeException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRankWithoutOrderBy(): Unit = {
     val sqlQuery =
       """
         |SELECT RANK() over (partition by a) FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRankWithMultiGroups(): Unit = {
     val sqlQuery =
       """
@@ -65,19 +89,21 @@ class RankTest extends TableTestBase {
         |       RANK() over (partition by b) as b
         |       FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDenseRankWithoutOrderBy(): Unit = {
     val sqlQuery =
       """
         |SELECT dense_rank() over (partition by a) FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDenseRankWithMultiGroups(): Unit = {
     val sqlQuery =
       """
@@ -85,7 +111,8 @@ class RankTest extends TableTestBase {
         |       DENSE_RANK() over (partition by b) as b
         |       FROM MyTable
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
   @Test

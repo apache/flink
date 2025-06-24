@@ -44,10 +44,7 @@ public class JobEdge implements java.io.Serializable {
     private SubtaskStateMapper upstreamSubtaskStateMapper = SubtaskStateMapper.ROUND_ROBIN;
 
     /** The data set at the source of the edge, may be null if the edge is not yet connected. */
-    private IntermediateDataSet source;
-
-    /** The id of the source intermediate data set. */
-    private IntermediateDataSetID sourceId;
+    private final IntermediateDataSet source;
 
     /**
      * Optional name for the data shipping strategy (forward, partition hash, rebalance, ...), to be
@@ -55,9 +52,9 @@ public class JobEdge implements java.io.Serializable {
      */
     private String shipStrategyName;
 
-    private boolean isBroadcast;
+    private final boolean isBroadcast;
 
-    private boolean isForward;
+    private final boolean isForward;
 
     /**
      * Optional name for the pre-processing operation (sort, combining sort, ...), to be displayed
@@ -68,42 +65,50 @@ public class JobEdge implements java.io.Serializable {
     /** Optional description of the caching inside an operator, to be displayed in the JSON plan. */
     private String operatorLevelCachingDescription;
 
+    private final int typeNumber;
+
+    /**
+     * There are relationships between multiple inputs, if the records corresponding to the same key
+     * from one input is split, the corresponding key records from the other inputs must be
+     * duplicated (meaning that it must be sent to the downstream nodes where the split data is
+     * sent).
+     */
+    private final boolean interInputsKeysCorrelated;
+
+    /**
+     * Whether records with the same key are correlated and must be sent to the same downstream task
+     * to be processed together.
+     */
+    private final boolean intraInputKeyCorrelated;
+
     /**
      * Constructs a new job edge, that connects an intermediate result to a consumer task.
      *
      * @param source The data set that is at the source of this edge.
      * @param target The operation that is at the target of this edge.
      * @param distributionPattern The pattern that defines how the connection behaves in parallel.
+     * @param isBroadcast Whether the source broadcasts data to the target.
      */
     public JobEdge(
-            IntermediateDataSet source, JobVertex target, DistributionPattern distributionPattern) {
+            IntermediateDataSet source,
+            JobVertex target,
+            DistributionPattern distributionPattern,
+            boolean isBroadcast,
+            boolean isForward,
+            int typeNumber,
+            boolean interInputsKeysCorrelated,
+            boolean intraInputKeyCorrelated) {
         if (source == null || target == null || distributionPattern == null) {
             throw new NullPointerException();
         }
         this.target = target;
         this.distributionPattern = distributionPattern;
         this.source = source;
-        this.sourceId = source.getId();
-    }
-
-    /**
-     * Constructs a new job edge that refers to an intermediate result via the Id, rather than
-     * directly through the intermediate data set structure.
-     *
-     * @param sourceId The id of the data set that is at the source of this edge.
-     * @param target The operation that is at the target of this edge.
-     * @param distributionPattern The pattern that defines how the connection behaves in parallel.
-     */
-    public JobEdge(
-            IntermediateDataSetID sourceId,
-            JobVertex target,
-            DistributionPattern distributionPattern) {
-        if (sourceId == null || target == null || distributionPattern == null) {
-            throw new NullPointerException();
-        }
-        this.target = target;
-        this.distributionPattern = distributionPattern;
-        this.sourceId = sourceId;
+        this.isBroadcast = isBroadcast;
+        this.isForward = isForward;
+        this.typeNumber = typeNumber;
+        this.interInputsKeysCorrelated = interInputsKeysCorrelated;
+        this.intraInputKeyCorrelated = intraInputKeyCorrelated;
     }
 
     /**
@@ -140,11 +145,7 @@ public class JobEdge implements java.io.Serializable {
      * @return The ID of the consumed data set.
      */
     public IntermediateDataSetID getSourceId() {
-        return sourceId;
-    }
-
-    public boolean isIdReference() {
-        return this.source == null;
+        return source.getId();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -173,19 +174,9 @@ public class JobEdge implements java.io.Serializable {
         return isBroadcast;
     }
 
-    /** Sets whether the edge is broadcast edge. */
-    public void setBroadcast(boolean broadcast) {
-        isBroadcast = broadcast;
-    }
-
     /** Gets whether the edge is forward edge. */
     public boolean isForward() {
         return isForward;
-    }
-
-    /** Sets whether the edge is forward edge. */
-    public void setForward(boolean forward) {
-        isForward = forward;
     }
 
     /**
@@ -264,10 +255,25 @@ public class JobEdge implements java.io.Serializable {
         this.operatorLevelCachingDescription = operatorLevelCachingDescription;
     }
 
+    /** Gets typeNumber of the edge. */
+    public int getTypeNumber() {
+        return typeNumber;
+    }
+
+    /** Gets whether the records with same key of this edge are correlated with other inputs. */
+    public boolean areInterInputsKeysCorrelated() {
+        return interInputsKeysCorrelated;
+    }
+
+    /** Gets whether the records with same key of this edge are correlated. */
+    public boolean isIntraInputKeyCorrelated() {
+        return intraInputKeyCorrelated;
+    }
+
     // --------------------------------------------------------------------------------------------
 
     @Override
     public String toString() {
-        return String.format("%s --> %s [%s]", sourceId, target, distributionPattern.name());
+        return String.format("%s --> %s [%s]", source.getId(), target, distributionPattern.name());
     }
 }

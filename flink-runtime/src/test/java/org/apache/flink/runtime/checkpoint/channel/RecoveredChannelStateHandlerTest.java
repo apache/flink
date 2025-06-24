@@ -18,17 +18,17 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Base class which contains all tests which should be implemented for every implementation of
  * {@link InputChannelRecoveredStateHandler}.
  */
-public abstract class RecoveredChannelStateHandlerTest {
+abstract class RecoveredChannelStateHandlerTest {
 
     @Test
-    public abstract void testRecycleBufferBeforeRecoverWasCalled() throws Exception;
+    abstract void testRecycleBufferBeforeRecoverWasCalled() throws Exception;
 
     @Test
-    public abstract void testRecycleBufferAfterRecoverWasCalled() throws Exception;
+    abstract void testRecycleBufferAfterRecoverWasCalled() throws Exception;
 }

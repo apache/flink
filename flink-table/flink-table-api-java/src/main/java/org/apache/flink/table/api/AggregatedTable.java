@@ -32,8 +32,7 @@ public interface AggregatedTable {
      * <p>Example:
      *
      * <pre>{@code
-     * AggregateFunction aggFunc = new MyAggregateFunction();
-     * tableEnv.registerFunction("aggFunc", aggFunc);
+     * tableEnv.createTemporarySystemFunction("aggFunc", MyAggregateFunction.class);
      * table.groupBy($("key"))
      *   .aggregate(call("aggFunc", $("a"), $("b")).as("f0", "f1", "f2"))
      *   .select($("key"), $("f0"), $("f1"));

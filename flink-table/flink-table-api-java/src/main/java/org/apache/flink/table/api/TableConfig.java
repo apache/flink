@@ -18,10 +18,8 @@
 
 package org.apache.flink.table.api;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
@@ -31,15 +29,17 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.delegation.Executor;
+import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.util.Preconditions;
 
 import java.time.Duration;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static java.time.ZoneId.SHORT_IDS;
+import static org.apache.flink.table.api.internal.TableConfigValidation.validateTimeZone;
 
 /**
  * Configuration for the current {@link TableEnvironment} session to adjust Table & SQL API
@@ -49,7 +49,7 @@ import static java.time.ZoneId.SHORT_IDS;
  * configuration can be set in any of the following layers (in the given order):
  *
  * <ol>
- *   <li>{@code flink-conf.yaml},
+ *   <li>{@code config.yaml},
  *   <li>CLI parameters,
  *   <li>{@code StreamExecutionEnvironment} when bridging to DataStream API,
  *   <li>{@link EnvironmentSettings.Builder#withConfiguration(Configuration)} / {@link
@@ -82,7 +82,7 @@ import static java.time.ZoneId.SHORT_IDS;
  *          new Configuration()
  *              .set(CoreOptions.DEFAULT_PARALLELISM, 128)
  *              .set(PipelineOptions.AUTO_WATERMARK_INTERVAL, Duration.ofMillis(800))
- *              .set(ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(30))
+ *              .set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(30))
  *      );
  * }</pre>
  *
@@ -96,13 +96,12 @@ import static java.time.ZoneId.SHORT_IDS;
 @PublicEvolving
 public final class TableConfig implements WritableConfig, ReadableConfig {
 
-    /** Please use {@link TableConfig#getDefault()} instead. */
-    @Deprecated
-    public TableConfig() {}
+    /** Please use {@link TableConfig#getDefault()} to get the default {@link TableConfig}. */
+    private TableConfig() {}
 
     // Note to implementers:
     // TableConfig is a ReadableConfig which is built once the TableEnvironment is created and
-    // contains both the configuration defined in the execution context (flink-conf.yaml + CLI
+    // contains both the configuration defined in the execution context (config.yaml + CLI
     // params), stored in rootConfiguration, but also any extra configuration defined by the user in
     // the application, which has precedence over the execution configuration.
     //
@@ -197,6 +196,15 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
         return rootConfiguration.getOptional(option);
     }
 
+    @Internal
+    @Override
+    public Map<String, String> toMap() {
+        Map<String, String> rootConfigMap = rootConfiguration.toMap();
+        Map<String, String> configMap = configuration.toMap();
+        rootConfigMap.putAll(configMap);
+        return rootConfigMap;
+    }
+
     /**
      * Gives direct access to the underlying application-specific key-value map for advanced
      * configuration.
@@ -242,11 +250,12 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
      */
     public ZoneId getLocalTimeZone() {
-        String zone = configuration.getString(TableConfigOptions.LOCAL_TIME_ZONE);
+        final String zone = configuration.get(TableConfigOptions.LOCAL_TIME_ZONE);
+        if (TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)) {
+            return ZoneId.systemDefault();
+        }
         validateTimeZone(zone);
-        return TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
-                ? ZoneId.systemDefault()
-                : ZoneId.of(zone);
+        return ZoneId.of(zone);
     }
 
     /**
@@ -259,12 +268,11 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * <p>Example:
      *
      * <pre>{@code
-     * TableEnvironment tEnv = ...
-     * TableConfig tableConfig = tEnv.getConfig
-     * tableConfig.setLocalTimeZone(ZoneOffset.ofHours(2));
-     * tEnv("CREATE TABLE testTable (id BIGINT, tmstmp TIMESTAMP WITH LOCAL TIME ZONE)");
-     * tEnv("INSERT INTO testTable VALUES ((1, '2000-01-01 2:00:00'), (2, TIMESTAMP '2000-01-01 2:00:00'))");
-     * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+2
+     * TableConfig config = tEnv.getConfig();
+     * config.setLocalTimeZone(ZoneOffset.ofHours(2));
+     * tEnv.executeSql("CREATE TABLE testTable (id BIGINT, tmstmp TIMESTAMP WITH LOCAL TIME ZONE)");
+     * tEnv.executeSql("INSERT INTO testTable VALUES ((1, '2000-01-01 2:00:00'), (2, TIMESTAMP '2000-01-01 2:00:00'))");
+     * tEnv.executeSql("SELECT * FROM testTable"); // query with local time zone set to UTC+2
      * }</pre>
      *
      * <p>should produce:
@@ -280,8 +288,8 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * <p>If we change the local time zone and query the same table:
      *
      * <pre>{@code
-     * tableConfig.setLocalTimeZone(ZoneOffset.ofHours(0));
-     * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+0
+     * config.setLocalTimeZone(ZoneOffset.ofHours(0));
+     * tEnv.executeSql("SELECT * FROM testTable"); // query with local time zone set to UTC+0
      * }</pre>
      *
      * <p>we should get:
@@ -297,22 +305,17 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * @see org.apache.flink.table.types.logical.LocalZonedTimestampType
      */
     public void setLocalTimeZone(ZoneId zoneId) {
-        validateTimeZone(zoneId.toString());
-        configuration.setString(TableConfigOptions.LOCAL_TIME_ZONE, zoneId.toString());
-    }
-
-    /** Validates user configured time zone. */
-    private void validateTimeZone(String zone) {
-        final String zoneId = zone.toUpperCase();
-        if (zoneId.startsWith("UTC+")
-                || zoneId.startsWith("UTC-")
-                || SHORT_IDS.containsKey(zoneId)) {
-            throw new IllegalArgumentException(
-                    String.format(
-                            "The supported Zone ID is either a full name such as 'America/Los_Angeles',"
-                                    + " or a custom timezone id such as 'GMT-08:00', but configured Zone ID is '%s'.",
-                            zone));
+        final String zone;
+        if (zoneId instanceof ZoneOffset) {
+            // Give ZoneOffset a timezone for backwards compatibility reasons.
+            // In general, advertising either TZDB ID, GMT+xx:xx, or UTC is the best we can do.
+            zone = ZoneId.ofOffset("GMT", (ZoneOffset) zoneId).toString();
+        } else {
+            zone = zoneId.toString();
         }
+        validateTimeZone(zone);
+
+        configuration.set(TableConfigOptions.LOCAL_TIME_ZONE, zone);
     }
 
     /** Returns the current configuration of Planner for Table API and SQL queries. */
@@ -337,7 +340,7 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * more than 8K byte code.
      */
     public Integer getMaxGeneratedCodeLength() {
-        return this.configuration.getInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE);
+        return this.configuration.get(TableConfigOptions.MAX_LENGTH_GENERATED_CODE);
     }
 
     /**
@@ -348,45 +351,8 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      * more than 8K byte code.
      */
     public void setMaxGeneratedCodeLength(Integer maxGeneratedCodeLength) {
-        this.configuration.setInteger(
+        this.configuration.set(
                 TableConfigOptions.MAX_LENGTH_GENERATED_CODE, maxGeneratedCodeLength);
-    }
-
-    /**
-     * Specifies a minimum and a maximum time interval for how long idle state, i.e., state which
-     * was not updated, will be retained. State will never be cleared until it was idle for less
-     * than the minimum time and will never be kept if it was idle for more than the maximum time.
-     *
-     * <p>When new data arrives for previously cleaned-up state, the new data will be handled as if
-     * it was the first data. This can result in previous results being overwritten.
-     *
-     * <p>Set to 0 (zero) to never clean-up the state.
-     *
-     * <p>NOTE: Cleaning up state requires additional bookkeeping which becomes less expensive for
-     * larger differences of minTime and maxTime. The difference between minTime and maxTime must be
-     * at least 5 minutes.
-     *
-     * <p>NOTE: Currently maxTime will be ignored and it will automatically derived from minTime as
-     * 1.5 x minTime.
-     *
-     * @param minTime The minimum time interval for which idle state is retained. Set to 0 (zero) to
-     *     never clean-up the state.
-     * @param maxTime The maximum time interval for which idle state is retained. Must be at least 5
-     *     minutes greater than minTime. Set to 0 (zero) to never clean-up the state.
-     * @deprecated use {@link #setIdleStateRetention(Duration)} instead.
-     */
-    @Deprecated
-    public void setIdleStateRetentionTime(Time minTime, Time maxTime) {
-        if (maxTime.toMilliseconds() - minTime.toMilliseconds() < 300000
-                && !(maxTime.toMilliseconds() == 0 && minTime.toMilliseconds() == 0)) {
-            throw new IllegalArgumentException(
-                    "Difference between minTime: "
-                            + minTime
-                            + " and maxTime: "
-                            + maxTime
-                            + " should be at least 5 minutes.");
-        }
-        setIdleStateRetention(Duration.ofMillis(minTime.toMilliseconds()));
     }
 
     /**
@@ -408,41 +374,15 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
     }
 
     /**
-     * NOTE: Currently the concept of min/max idle state retention has been deprecated and only idle
-     * state retention time is supported. The min idle state retention is regarded as idle state
-     * retention and the max idle state retention is derived from idle state retention as 1.5 x idle
-     * state retention.
-     *
-     * @return The minimum time until state which was not updated will be retained.
-     * @deprecated use{@link getIdleStateRetention} instead.
+     * @return The duration until state which was not updated will be retained.
      */
-    @Deprecated
-    public long getMinIdleStateRetentionTime() {
-        return configuration.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis();
-    }
-
-    /**
-     * NOTE: Currently the concept of min/max idle state retention has been deprecated and only idle
-     * state retention time is supported. The min idle state retention is regarded as idle state
-     * retention and the max idle state retention is derived from idle state retention as 1.5 x idle
-     * state retention.
-     *
-     * @return The maximum time until state which was not updated will be retained.
-     * @deprecated use{@link getIdleStateRetention} instead.
-     */
-    @Deprecated
-    public long getMaxIdleStateRetentionTime() {
-        return getMinIdleStateRetentionTime() * 3 / 2;
-    }
-
-    /** @return The duration until state which was not updated will be retained. */
     public Duration getIdleStateRetention() {
         return configuration.get(ExecutionConfigOptions.IDLE_STATE_RETENTION);
     }
 
     /**
      * Sets a custom user parameter that can be accessed via {@link
-     * org.apache.flink.table.functions.FunctionContext#getJobParameter(String, String)}.
+     * FunctionContext#getJobParameter(String, String)}.
      *
      * <p>This will add an entry to the current value of {@link
      * PipelineOptions#GLOBAL_JOB_PARAMETERS}.
@@ -452,13 +392,12 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      *
      * <pre>{@code
      * Map<String, String> params = ...
-     * TableConfig tableConfig = tEnv.getConfig;
+     * TableConfig config = tEnv.getConfig();
      * config.set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
      * }</pre>
      */
-    @Experimental
     public void addJobParameter(String key, String value) {
-        Map<String, String> params =
+        final Map<String, String> params =
                 getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
                         .map(HashMap::new)
                         .orElseGet(HashMap::new);

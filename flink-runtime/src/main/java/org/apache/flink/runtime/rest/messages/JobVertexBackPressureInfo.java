@@ -20,10 +20,14 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.handler.job.JobVertexBackPressureHandler;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonAlias;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude.Include;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonValue;
+
+import io.swagger.v3.oas.annotations.Hidden;
 
 import javax.annotation.Nullable;
 
@@ -38,7 +42,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class JobVertexBackPressureInfo implements ResponseBody {
 
     public static final String FIELD_NAME_STATUS = "status";
-    public static final String FIELD_NAME_BACKPRESSURE_LEVEL = "backpressure-level";
+    public static final String DEPRECATED_FIELD_NAME_BACKPRESSURE_LEVEL = "backpressure-level";
+    public static final String FIELD_NAME_BACKPRESSURE_LEVEL = "backpressureLevel";
     public static final String FIELD_NAME_END_TIMESTAMP = "end-timestamp";
     public static final String FIELD_NAME_SUBTASKS = "subtasks";
 
@@ -50,6 +55,7 @@ public class JobVertexBackPressureInfo implements ResponseBody {
     private final VertexBackPressureStatus status;
 
     @JsonProperty(FIELD_NAME_BACKPRESSURE_LEVEL)
+    @JsonAlias(DEPRECATED_FIELD_NAME_BACKPRESSURE_LEVEL)
     private final VertexBackPressureLevel backpressureLevel;
 
     @JsonProperty(FIELD_NAME_END_TIMESTAMP)
@@ -99,6 +105,8 @@ public class JobVertexBackPressureInfo implements ResponseBody {
     }
 
     @Nullable
+    @Hidden
+    @JsonProperty(DEPRECATED_FIELD_NAME_BACKPRESSURE_LEVEL)
     public VertexBackPressureLevel getBackpressureLevel() {
         return backpressureLevel;
     }
@@ -121,15 +129,25 @@ public class JobVertexBackPressureInfo implements ResponseBody {
     public static final class SubtaskBackPressureInfo {
 
         public static final String FIELD_NAME_SUBTASK = "subtask";
-        public static final String FIELD_NAME_BACKPRESSURE_LEVEL = "backpressure-level";
+        public static final String FIELD_NAME_ATTEMPT_NUMBER = "attempt-number";
+        public static final String DEPRECATED_FIELD_NAME_BACKPRESSURE_LEVEL = "backpressure-level";
+        public static final String FIELD_NAME_BACKPRESSURE_LEVEL = "backpressureLevel";
         public static final String FIELD_NAME_BACK_PRESSURED_RATIO = "ratio";
         public static final String FIELD_NAME_IDLE_RATIO = "idleRatio";
         public static final String FIELD_NAME_BUSY_RATIO = "busyRatio";
+        public static final String FIELD_NAME_OTHER_CONCURRENT_ATTEMPTS =
+                "other-concurrent-attempts";
 
         @JsonProperty(FIELD_NAME_SUBTASK)
         private final int subtask;
 
+        @JsonProperty(FIELD_NAME_ATTEMPT_NUMBER)
+        @JsonInclude(Include.NON_NULL)
+        @Nullable
+        private final Integer attemptNumber;
+
         @JsonProperty(FIELD_NAME_BACKPRESSURE_LEVEL)
+        @JsonAlias(DEPRECATED_FIELD_NAME_BACKPRESSURE_LEVEL)
         private final VertexBackPressureLevel backpressureLevel;
 
         @JsonProperty(FIELD_NAME_BACK_PRESSURED_RATIO)
@@ -141,18 +159,30 @@ public class JobVertexBackPressureInfo implements ResponseBody {
         @JsonProperty(FIELD_NAME_BUSY_RATIO)
         private final double busyRatio;
 
+        @JsonProperty(FIELD_NAME_OTHER_CONCURRENT_ATTEMPTS)
+        @JsonInclude(Include.NON_EMPTY)
+        @Nullable
+        private final List<SubtaskBackPressureInfo> otherConcurrentAttempts;
+
+        // otherConcurrentAttempts and attemptNumber are Nullable since Jackson will assign null if
+        // the fields are absent while parsing
         public SubtaskBackPressureInfo(
                 @JsonProperty(FIELD_NAME_SUBTASK) int subtask,
+                @JsonProperty(FIELD_NAME_ATTEMPT_NUMBER) @Nullable Integer attemptNumber,
                 @JsonProperty(FIELD_NAME_BACKPRESSURE_LEVEL)
                         VertexBackPressureLevel backpressureLevel,
                 @JsonProperty(FIELD_NAME_BACK_PRESSURED_RATIO) double backPressuredRatio,
                 @JsonProperty(FIELD_NAME_IDLE_RATIO) double idleRatio,
-                @JsonProperty(FIELD_NAME_BUSY_RATIO) double busyRatio) {
+                @JsonProperty(FIELD_NAME_BUSY_RATIO) double busyRatio,
+                @JsonProperty(FIELD_NAME_OTHER_CONCURRENT_ATTEMPTS) @Nullable
+                        List<SubtaskBackPressureInfo> otherConcurrentAttempts) {
             this.subtask = subtask;
+            this.attemptNumber = attemptNumber;
             this.backpressureLevel = checkNotNull(backpressureLevel);
             this.backPressuredRatio = backPressuredRatio;
             this.idleRatio = idleRatio;
             this.busyRatio = busyRatio;
+            this.otherConcurrentAttempts = otherConcurrentAttempts;
         }
 
         @Override
@@ -165,22 +195,32 @@ public class JobVertexBackPressureInfo implements ResponseBody {
             }
             SubtaskBackPressureInfo that = (SubtaskBackPressureInfo) o;
             return subtask == that.subtask
+                    && Objects.equals(attemptNumber, that.attemptNumber)
                     && backPressuredRatio == that.backPressuredRatio
                     && idleRatio == that.idleRatio
                     && busyRatio == that.busyRatio
-                    && Objects.equals(backpressureLevel, that.backpressureLevel);
+                    && Objects.equals(backpressureLevel, that.backpressureLevel)
+                    && Objects.equals(otherConcurrentAttempts, that.otherConcurrentAttempts);
         }
 
         @Override
         public int hashCode() {
             return Objects.hash(
-                    subtask, backpressureLevel, backPressuredRatio, idleRatio, busyRatio);
+                    subtask,
+                    attemptNumber,
+                    backpressureLevel,
+                    backPressuredRatio,
+                    idleRatio,
+                    busyRatio,
+                    otherConcurrentAttempts);
         }
 
         public int getSubtask() {
             return subtask;
         }
 
+        @Hidden
+        @JsonProperty(DEPRECATED_FIELD_NAME_BACKPRESSURE_LEVEL)
         public VertexBackPressureLevel getBackpressureLevel() {
             return backpressureLevel;
         }
@@ -196,6 +236,16 @@ public class JobVertexBackPressureInfo implements ResponseBody {
         public double getBusyRatio() {
             return busyRatio;
         }
+
+        @Nullable
+        public Integer getAttemptNumber() {
+            return attemptNumber;
+        }
+
+        @Nullable
+        public List<SubtaskBackPressureInfo> getOtherConcurrentAttempts() {
+            return otherConcurrentAttempts;
+        }
     }
 
     /** Status of vertex back-pressure. */
@@ -203,7 +253,7 @@ public class JobVertexBackPressureInfo implements ResponseBody {
         DEPRECATED("deprecated"),
         OK("ok");
 
-        private String status;
+        private final String status;
 
         VertexBackPressureStatus(String status) {
             this.status = status;
@@ -222,7 +272,7 @@ public class JobVertexBackPressureInfo implements ResponseBody {
         LOW("low"),
         HIGH("high");
 
-        private String level;
+        private final String level;
 
         VertexBackPressureLevel(String level) {
             this.level = level;

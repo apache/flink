@@ -432,7 +432,7 @@ public class LargeRecordHandler<T> {
         }
         try {
             TypeInformation<Object> info = TypeExtractor.getForObject(key);
-            return info.createSerializer(executionConfig);
+            return info.createSerializer(executionConfig.getSerializerConfig());
         } catch (Throwable t) {
             throw new RuntimeException("Could not create key serializer for type " + key);
         }

@@ -18,8 +18,8 @@
 
 package org.apache.flink.python.util;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Row;
 
 /**
@@ -31,14 +31,15 @@ public class PartitionCustomTestMapFunction extends RichMapFunction<Row, Row> {
     private int currentTaskIndex;
 
     @Override
-    public void open(Configuration parameters) {
-        this.currentTaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+    public void open(OpenContext openContext) {
+        this.currentTaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
     }
 
     @Override
     public Row map(Row value) throws Exception {
         int expectedPartitionIndex =
-                (Integer) (value.getField(1)) % getRuntimeContext().getNumberOfParallelSubtasks();
+                (Integer) (value.getField(1))
+                        % getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
         if (expectedPartitionIndex != currentTaskIndex) {
             throw new RuntimeException(
                     String.format(

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -30,12 +30,12 @@ import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampM
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link org.apache.flink.table.runtime.util.TimeWindowUtil}. */
-public class TimeWindowUtilTest {
+class TimeWindowUtilTest {
 
     private static final ZoneId UTC_ZONE_ID = TimeZone.getTimeZone("UTC").toZoneId();
 
     @Test
-    public void testShiftedTimeZone() {
+    void testShiftedTimeZone() {
         ZoneId zoneId = ZoneId.of("Asia/Shanghai");
         assertThat(toEpochMillsForTimer(utcMills("1970-01-01T00:00:01"), zoneId))
                 .isEqualTo(-28799000L);
@@ -51,7 +51,7 @@ public class TimeWindowUtilTest {
     }
 
     @Test
-    public void testDaylightSaving() {
+    void testDaylightSaving() {
         ZoneId zoneId = ZoneId.of("America/Los_Angeles");
         /*
          * The DaylightTime in Los_Angele start at time 2021-03-14 02:00:00
@@ -126,7 +126,7 @@ public class TimeWindowUtilTest {
     }
 
     @Test
-    public void testMaxWatermark() {
+    void testMaxWatermark() {
         ZoneId zoneId = ZoneId.of("Asia/Shanghai");
         assertThat(toUtcTimestampMills(Long.MAX_VALUE, zoneId)).isEqualTo(Long.MAX_VALUE);
         assertThat(toEpochMillsForTimer(Long.MAX_VALUE, zoneId)).isEqualTo(Long.MAX_VALUE);

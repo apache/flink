@@ -17,15 +17,15 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
-import org.apache.flink.configuration.{Configuration, ReadableConfig}
+import org.apache.flink.api.common.functions.{FlatMapFunction, Function, OpenContext}
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.streaming.api.functions.async.AsyncFunction
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.connector.source.{LookupTableSource, ScanTableSource}
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.data.utils.JoinedRowData
-import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.{AsyncLookupFunction, AsyncPredictFunction, AsyncTableFunction, LookupFunction, PredictFunction, TableFunction, UserDefinedFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils._
@@ -34,10 +34,11 @@ import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.verifyFunctionAwareImplementation
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.inference.LookupCallContext
-import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.{ConstantLookupKey, FieldRefLookupKey, LookupKey}
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.{Constant, FieldRef, FunctionParam}
 import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
-import org.apache.flink.table.runtime.collector.{TableFunctionCollector, TableFunctionResultFuture}
+import org.apache.flink.table.runtime.collector.{ListenableCollector, TableFunctionResultFuture}
+import org.apache.flink.table.runtime.collector.ListenableCollector.CollectListener
 import org.apache.flink.table.runtime.generated.{GeneratedCollector, GeneratedFunction, GeneratedResultFuture}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.ExtractionUtils.extractSimpleGeneric
@@ -65,12 +66,12 @@ object LookupJoinCodeGenerator {
   /** Generates a lookup function ([[TableFunction]]) */
   def generateSyncLookupFunction(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
       returnType: LogicalType,
-      lookupKeys: util.Map[Integer, LookupKey],
-      lookupKeyOrder: Array[Int],
+      lookupKeys: util.List[FunctionParam],
       syncLookupFunction: TableFunction[_],
       functionName: String,
       fieldCopy: Boolean): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
@@ -86,12 +87,12 @@ object LookupJoinCodeGenerator {
     generateLookupFunction(
       classOf[FlatMapFunction[RowData, RowData]],
       tableConfig,
+      classLoader,
       dataTypeFactory,
       inputType,
       tableSourceType,
       returnType,
       lookupKeys,
-      lookupKeyOrder,
       classOf[TableFunction[_]],
       syncLookupFunction,
       functionName,
@@ -103,24 +104,24 @@ object LookupJoinCodeGenerator {
   /** Generates a async lookup function ([[AsyncTableFunction]]) */
   def generateAsyncLookupFunction(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
       returnType: LogicalType,
-      lookupKeys: util.Map[Integer, LookupKey],
-      lookupKeyOrder: Array[Int],
+      lookupKeys: util.List[FunctionParam],
       asyncLookupFunction: AsyncTableFunction[_],
       functionName: String): GeneratedTableFunctionWithDataType[AsyncFunction[RowData, AnyRef]] = {
 
     generateLookupFunction(
       classOf[AsyncFunction[RowData, AnyRef]],
       tableConfig,
+      classLoader,
       dataTypeFactory,
       inputType,
       tableSourceType,
       returnType,
       lookupKeys,
-      lookupKeyOrder,
       classOf[AsyncTableFunction[_]],
       asyncLookupFunction,
       functionName,
@@ -132,25 +133,20 @@ object LookupJoinCodeGenerator {
   private def generateLookupFunction[F <: Function](
       generatedClass: Class[F],
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
       returnType: LogicalType,
-      lookupKeys: util.Map[Integer, LookupKey],
-      lookupKeyOrder: Array[Int],
+      lookupKeys: util.List[FunctionParam],
       lookupFunctionBase: Class[_],
       lookupFunction: UserDefinedFunction,
       functionName: String,
       fieldCopy: Boolean,
       bodyCode: GeneratedExpression => String): GeneratedTableFunctionWithDataType[F] = {
 
-    val callContext = new LookupCallContext(
-      dataTypeFactory,
-      lookupFunction,
-      inputType,
-      lookupKeys,
-      lookupKeyOrder,
-      tableSourceType)
+    val callContext =
+      new LookupCallContext(dataTypeFactory, lookupFunction, inputType, lookupKeys, tableSourceType)
 
     // create the final UDF for runtime
     val udf = UserDefinedFunctionHelper.createSpecializedFunction(
@@ -165,8 +161,15 @@ object LookupJoinCodeGenerator {
     val inference =
       createLookupTypeInference(dataTypeFactory, callContext, lookupFunctionBase, udf, functionName)
 
-    val ctx = CodeGeneratorContext(tableConfig)
-    val operands = prepareOperands(ctx, inputType, lookupKeys, lookupKeyOrder, fieldCopy)
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
+    val operands = prepareOperands(ctx, inputType, lookupKeys, fieldCopy)
+
+    // TODO: filter all records when there are any nulls on the join key, because
+    //  "IS NOT DISTINCT FROM" is not supported yet.
+    // Note: AsyncPredictFunction or PredictFunction does not use Lookup Syntax.
+    val skipIfArgsNull = !lookupFunction.isInstanceOf[PredictFunction] && !lookupFunction
+      .isInstanceOf[AsyncPredictFunction]
+
     val callWithDataType = BridgingFunctionGenUtil.generateFunctionAwareCallWithDataType(
       ctx,
       operands,
@@ -175,9 +178,7 @@ object LookupJoinCodeGenerator {
       callContext,
       udf,
       functionName,
-      // TODO: filter all records when there is any nulls on the join key, because
-      //  "IS NOT DISTINCT FROM" is not supported yet.
-      skipIfArgsNull = true
+      skipIfArgsNull = skipIfArgsNull
     )
 
     val function = FunctionCodeGenerator.generateFunction(
@@ -194,18 +195,15 @@ object LookupJoinCodeGenerator {
   private def prepareOperands(
       ctx: CodeGeneratorContext,
       inputType: LogicalType,
-      lookupKeys: util.Map[Integer, LookupKey],
-      lookupKeyOrder: Array[Int],
+      lookupKeys: util.List[FunctionParam],
       fieldCopy: Boolean): Seq[GeneratedExpression] = {
 
-    lookupKeyOrder
-      .map(Integer.valueOf)
-      .map(lookupKeys.get)
+    lookupKeys.asScala
       .map {
-        case constantKey: ConstantLookupKey =>
+        case constantKey: Constant =>
           val res = RexLiteralUtil.toFlinkInternalValue(constantKey.literal)
           generateLiteral(ctx, res.f0, res.f1)
-        case fieldKey: FieldRefLookupKey =>
+        case fieldKey: FieldRef =>
           generateInputAccess(
             ctx,
             inputType,
@@ -243,7 +241,15 @@ object LookupJoinCodeGenerator {
         val defaultArgDataTypes = callContext.getArgumentDataTypes.asScala
         val defaultOutputDataType = callContext.getOutputDataType.get()
 
-        val outputClass = toScala(extractSimpleGeneric(baseClass, udf.getClass, 0))
+        val outputClass =
+          if (
+            udf.isInstanceOf[LookupFunction] || udf.isInstanceOf[AsyncLookupFunction] || udf
+              .isInstanceOf[PredictFunction] || udf.isInstanceOf[AsyncPredictFunction]
+          ) {
+            Some(classOf[RowData])
+          } else {
+            toScala(extractSimpleGeneric(baseClass, udf.getClass, 0))
+          }
         val (argDataTypes, outputDataType) = outputClass match {
           case Some(c) if c == classOf[Row] =>
             (defaultArgDataTypes, defaultOutputDataType)
@@ -286,7 +292,7 @@ object LookupJoinCodeGenerator {
       resultRowType: RowType,
       condition: Option[RexNode],
       pojoFieldMapping: Option[Array[Int]],
-      retainHeader: Boolean = true): GeneratedCollector[TableFunctionCollector[RowData]] = {
+      retainHeader: Boolean = true): GeneratedCollector[ListenableCollector[RowData]] = {
 
     val inputTerm = DEFAULT_INPUT1_TERM
     val rightInputTerm = DEFAULT_INPUT2_TERM
@@ -297,7 +303,7 @@ object LookupJoinCodeGenerator {
     val rightResultExpr =
       exprGenerator.generateConverterResultExpression(rightRowType, classOf[GenericRowData])
 
-    val joinedRowTerm = CodeGenUtils.newName("joinedRow")
+    val joinedRowTerm = CodeGenUtils.newName(ctx, "joinedRow")
     ctx.addReusableOutputRecord(resultRowType, classOf[JoinedRowData], joinedRowTerm)
 
     val header = if (retainHeader) {
@@ -353,15 +359,15 @@ object LookupJoinCodeGenerator {
       collectedType: RowType,
       inputTerm: String = DEFAULT_INPUT1_TERM,
       collectedTerm: String = DEFAULT_INPUT2_TERM)
-      : GeneratedCollector[TableFunctionCollector[RowData]] = {
+      : GeneratedCollector[ListenableCollector[RowData]] = {
 
-    val funcName = newName(name)
+    val funcName = newName(ctx, name)
     val input1TypeClass = boxedTypeTermForType(inputType)
     val input2TypeClass = boxedTypeTermForType(collectedType)
 
     val funcCode =
       s"""
-      public class $funcName extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
+      public class $funcName extends ${classOf[ListenableCollector[_]].getCanonicalName} {
 
         ${ctx.reuseMemberCode()}
 
@@ -370,7 +376,7 @@ object LookupJoinCodeGenerator {
         }
 
         @Override
-        public void open(${className[Configuration]} parameters) throws Exception {
+        public void open(${className[OpenContext]} openContext) throws Exception {
           ${ctx.reuseOpenCode()}
         }
 
@@ -378,6 +384,17 @@ object LookupJoinCodeGenerator {
         public void collect(Object record) throws Exception {
           $input1TypeClass $inputTerm = ($input1TypeClass) getInput();
           $input2TypeClass $collectedTerm = ($input2TypeClass) record;
+
+          // callback only when collectListener exists, equivalent to:
+          // getCollectListener().ifPresent(
+          //   listener -> ((CollectListener) listener).onCollect(record));
+          // TODO we should update code splitter's grammar file to accept lambda expressions.
+
+          if (getCollectListener().isPresent()) {
+             ((${classOf[CollectListener[_]].getCanonicalName}) getCollectListener().get())
+             .onCollect(record);
+          }
+
           ${ctx.reuseLocalVariableCode()}
           ${ctx.reuseInputUnboxingCode()}
           ${ctx.reusePerRecordCode()}
@@ -413,19 +430,19 @@ object LookupJoinCodeGenerator {
    */
   def generateTableAsyncCollector(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       name: String,
       leftInputType: RowType,
       collectedType: RowType,
       condition: Option[RexNode]): GeneratedResultFuture[TableFunctionResultFuture[RowData]] = {
 
-    val funcName = newName(name)
+    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
+    val funcName = newName(ctx, name)
     val input1TypeClass = boxedTypeTermForType(leftInputType)
     val input2TypeClass = boxedTypeTermForType(collectedType)
     val input1Term = DEFAULT_INPUT1_TERM
     val input2Term = DEFAULT_INPUT2_TERM
     val outTerm = "resultCollection"
-
-    val ctx = CodeGeneratorContext(tableConfig)
 
     val body = if (condition.isEmpty) {
       "getResultFuture().complete(records);"
@@ -471,7 +488,7 @@ object LookupJoinCodeGenerator {
         }
 
         @Override
-        public void open(${className[Configuration]} parameters) throws Exception {
+        public void open(${className[OpenContext]} openContext) throws Exception {
           ${ctx.reuseOpenCode()}
         }
 
@@ -495,6 +512,7 @@ object LookupJoinCodeGenerator {
    */
   def generateCalcMapFunction(
       tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
       projection: Seq[RexNode],
       condition: RexNode,
       outputType: RelDataType,
@@ -506,7 +524,8 @@ object LookupJoinCodeGenerator {
       classOf[GenericRowData],
       projection,
       Option(condition),
-      tableConfig
+      tableConfig,
+      classLoader
     )
   }
 }

@@ -25,18 +25,18 @@ import org.apache.flink.table.planner.factories.TableFactoryHarness;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.api.DataTypes.STRING;
 
 /** Test rule {@link RemoveUnreachableCoalesceArgumentsRule}. */
-public class RemoveUnreachableCoalesceArgumentsRuleTest extends TableTestBase {
+class RemoveUnreachableCoalesceArgumentsRuleTest extends TableTestBase {
 
     private StreamTableTestUtil util;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         util = streamTestUtil(TableConfig.getDefault());
 
         final TableDescriptor sourceDescriptor =
@@ -54,38 +54,38 @@ public class RemoveUnreachableCoalesceArgumentsRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testOnlyLastNonNull() {
+    void testOnlyLastNonNull() {
         util.verifyRelPlan("SELECT COALESCE(f0, f1) FROM T");
     }
 
     @Test
-    public void testAllNullable() {
+    void testAllNullable() {
         util.verifyRelPlan("SELECT COALESCE(f0, f2) FROM T");
     }
 
     @Test
-    public void testDropLastConstant() {
+    void testDropLastConstant() {
         util.verifyRelPlan("SELECT COALESCE(f0, f1, '-') FROM T");
     }
 
     @Test
-    public void testDropCoalesce() {
+    void testDropCoalesce() {
         util.verifyRelPlan("SELECT COALESCE(f1, '-') FROM T");
     }
 
     @Test
-    public void testFilterCoalesce() {
+    void testFilterCoalesce() {
         util.verifyRelPlan("SELECT * FROM T WHERE COALESCE(f0, f1, '-') = 'abc'");
     }
 
     @Test
-    public void testJoinCoalesce() {
+    void testJoinCoalesce() {
         util.verifyRelPlan(
                 "SELECT * FROM T t1 LEFT JOIN T t2 ON COALESCE(t1.f0, '-', t1.f2) = t2.f0");
     }
 
     @Test
-    public void testMultipleCoalesces() {
+    void testMultipleCoalesces() {
         util.verifyRelPlan(
                 "SELECT COALESCE(1),\n"
                         + "COALESCE(1, 2),\n"

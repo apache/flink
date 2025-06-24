@@ -19,23 +19,25 @@
 package org.apache.flink.connector.file.src;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.connector.source.DynamicParallelismInference;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
 import org.apache.flink.connector.file.src.assigners.LocalityAwareSplitAssigner;
 import org.apache.flink.connector.file.src.enumerate.BlockSplittingRecursiveEnumerator;
 import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
 import org.apache.flink.connector.file.src.enumerate.NonSplittingRecursiveEnumerator;
-import org.apache.flink.connector.file.src.impl.FileRecordFormatAdapter;
 import org.apache.flink.connector.file.src.impl.StreamFormatAdapter;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
-import org.apache.flink.connector.file.src.reader.FileRecordFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.time.Duration;
+import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -93,7 +95,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type of the events/records produced by this source.
  */
 @PublicEvolving
-public final class FileSource<T> extends AbstractFileSource<T, FileSourceSplit> {
+public final class FileSource<T> extends AbstractFileSource<T, FileSourceSplit>
+        implements DynamicParallelismInference {
 
     private static final long serialVersionUID = 1L;
 
@@ -141,6 +144,24 @@ public final class FileSource<T> extends AbstractFileSource<T, FileSourceSplit> 
         return FileSourceSplitSerializer.INSTANCE;
     }
 
+    @Override
+    public int inferParallelism(Context dynamicParallelismContext) {
+        FileEnumerator fileEnumerator = getEnumeratorFactory().create();
+
+        Collection<FileSourceSplit> splits;
+        try {
+            splits =
+                    fileEnumerator.enumerateSplits(
+                            inputPaths,
+                            dynamicParallelismContext.getParallelismInferenceUpperBound());
+        } catch (IOException e) {
+            throw new FlinkRuntimeException("Could not enumerate file splits", e);
+        }
+
+        return Math.min(
+                splits.size(), dynamicParallelismContext.getParallelismInferenceUpperBound());
+    }
+
     // ------------------------------------------------------------------------
     //  Entry-point Factory Methods
     // ------------------------------------------------------------------------
@@ -175,21 +196,6 @@ public final class FileSource<T> extends AbstractFileSource<T, FileSourceSplit> 
         checkArgument(paths.length > 0, "paths must not be empty");
 
         return new FileSourceBuilder<>(paths, bulkFormat);
-    }
-
-    /**
-     * Builds a new {@code FileSource} using a {@link FileRecordFormat} to read record-by-record
-     * from a a file path.
-     *
-     * <p>A {@code FileRecordFormat} is more general than the {@link StreamFormat}, but also
-     * requires often more careful parametrization.
-     *
-     * @deprecated Please use {@link #forRecordStreamFormat(StreamFormat, Path...)} instead.
-     */
-    @Deprecated
-    public static <T> FileSourceBuilder<T> forRecordFileFormat(
-            final FileRecordFormat<T> recordFormat, final Path... paths) {
-        return forBulkFileFormat(new FileRecordFormatAdapter<>(recordFormat), paths);
     }
 
     // ------------------------------------------------------------------------

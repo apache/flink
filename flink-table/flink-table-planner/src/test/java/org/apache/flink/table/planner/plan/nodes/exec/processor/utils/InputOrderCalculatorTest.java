@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,12 +30,13 @@ import java.util.HashSet;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link InputOrderCalculator}. */
-public class InputOrderCalculatorTest {
+class InputOrderCalculatorTest {
 
     @Test
-    public void testCheckPipelinedPath() {
+    void testCheckPipelinedPath() {
         // P = InputProperty.DamBehavior.PIPELINED, E = InputProperty.DamBehavior.END_INPUT B =
         // InputProperty.DamBehavior.BLOCKING
         //
@@ -73,7 +74,7 @@ public class InputOrderCalculatorTest {
     }
 
     @Test
-    public void testCalculateInputOrder() {
+    void testCalculateInputOrder() {
         // P = InputProperty.DamBehavior.PIPELINED, B = InputProperty.DamBehavior.BLOCKING
         // P1 = PIPELINED + priority 1
         //
@@ -126,7 +127,7 @@ public class InputOrderCalculatorTest {
     }
 
     @Test
-    public void testCalculateInputOrderWithRelatedBoundaries() {
+    void testCalculateInputOrderWithRelatedBoundaries() {
         // P = InputProperty.DamBehavior.PIPELINED, B = InputProperty.DamBehavior.BLOCKING
         // P1 = PIPELINED + priority 1
         //
@@ -163,7 +164,7 @@ public class InputOrderCalculatorTest {
     }
 
     @Test
-    public void testCalculateInputOrderWithUnaffectedRelatedBoundaries() {
+    void testCalculateInputOrderWithUnaffectedRelatedBoundaries() {
         // P = InputProperty.DamBehavior.PIPELINED, B = InputProperty.DamBehavior.BLOCKING
         // P1 = PIPELINED + priority 1
         //
@@ -206,8 +207,8 @@ public class InputOrderCalculatorTest {
         assertThat(result.get(nodes[7]).intValue()).isEqualTo(0);
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testCalculateInputOrderWithLoop() {
+    @Test
+    void testCalculateInputOrderWithLoop() {
         TestingBatchExecNode a = new TestingBatchExecNode("TestingBatchExecNode0");
         TestingBatchExecNode b = new TestingBatchExecNode("TestingBatchExecNode1");
         for (int i = 0; i < 2; i++) {
@@ -217,6 +218,7 @@ public class InputOrderCalculatorTest {
         InputOrderCalculator calculator =
                 new InputOrderCalculator(
                         b, Collections.emptySet(), InputProperty.DamBehavior.BLOCKING);
-        calculator.calculate();
+
+        assertThatThrownBy(calculator::calculate).isInstanceOf(IllegalStateException.class);
     }
 }

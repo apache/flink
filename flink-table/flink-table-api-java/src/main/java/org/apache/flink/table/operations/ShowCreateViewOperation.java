@@ -18,9 +18,17 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.ShowCreateUtil;
+import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
+import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
+
 /** Operation to describe a SHOW CREATE VIEW statement. */
+@Internal
 public class ShowCreateViewOperation implements ShowOperation {
 
     private final ObjectIdentifier viewIdentifier;
@@ -36,5 +44,24 @@ public class ShowCreateViewOperation implements ShowOperation {
     @Override
     public String asSummaryString() {
         return String.format("SHOW CREATE VIEW %s", viewIdentifier.asSummaryString());
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        final ContextResolvedTable table =
+                ctx.getCatalogManager()
+                        .getTable(viewIdentifier)
+                        .orElseThrow(
+                                () ->
+                                        new ValidationException(
+                                                String.format(
+                                                        "Could not execute SHOW CREATE VIEW. View with identifier %s does not exist.",
+                                                        viewIdentifier.asSerializableString())));
+
+        String resultRow =
+                ShowCreateUtil.buildShowCreateViewRow(
+                        table.getResolvedTable(), viewIdentifier, table.isTemporary());
+
+        return buildStringArrayResult("result", new String[] {resultRow});
     }
 }

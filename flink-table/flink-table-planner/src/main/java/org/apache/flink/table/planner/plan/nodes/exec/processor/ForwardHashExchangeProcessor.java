@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.processor;
 
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -67,7 +68,13 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
         if (execGraph.getRootNodes().get(0) instanceof StreamExecNode) {
             throw new TableException("StreamExecNode is not supported yet");
         }
-        if (!context.getPlanner().getExecEnv().getConfig().isDynamicGraph()) {
+        JobManagerOptions.SchedulerType schedulerType =
+                context.getPlanner()
+                        .getExecEnv()
+                        .getConfig()
+                        .getSchedulerType()
+                        .orElse(JobManagerOptions.SchedulerType.AdaptiveBatch);
+        if (schedulerType != JobManagerOptions.SchedulerType.AdaptiveBatch) {
             return execGraph;
         }
         ReadableConfig tableConfig = context.getPlanner().getTableConfig();
@@ -272,5 +279,9 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
                         originalEdge.getExchangeMode());
         newEdges.set(edgeIdxInTargetNode, newEdge2);
         targetNode.setInputEdges(newEdges);
+
+        // update the originalEdge in MultipleInput, this is need for multiple operator fusion
+        // codegen
+        multipleInput.getOriginalEdges().set(edgeIdx, newEdge2);
     }
 }

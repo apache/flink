@@ -21,6 +21,7 @@ package org.apache.flink.client;
 
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 /**
@@ -32,12 +33,26 @@ public final class FlinkPipelineTranslationUtil {
 
     /** Transmogrifies the given {@link Pipeline} to a {@link JobGraph}. */
     public static JobGraph getJobGraph(
-            Pipeline pipeline, Configuration optimizerConfiguration, int defaultParallelism) {
+            ClassLoader userClassloader,
+            Pipeline pipeline,
+            Configuration optimizerConfiguration,
+            int defaultParallelism) {
 
-        FlinkPipelineTranslator pipelineTranslator = getPipelineTranslator(pipeline);
+        FlinkPipelineTranslator pipelineTranslator =
+                getPipelineTranslator(userClassloader, pipeline);
 
-        return pipelineTranslator.translateToJobGraph(
-                pipeline, optimizerConfiguration, defaultParallelism);
+        JobGraph jobGraph =
+                pipelineTranslator.translateToJobGraph(
+                        pipeline, optimizerConfiguration, defaultParallelism);
+
+        optimizerConfiguration
+                .getOptional(PipelineOptions.PARALLELISM_OVERRIDES)
+                .ifPresent(
+                        map ->
+                                jobGraph.getJobConfiguration()
+                                        .set(PipelineOptions.PARALLELISM_OVERRIDES, map));
+
+        return jobGraph;
     }
 
     /**
@@ -52,26 +67,24 @@ public final class FlinkPipelineTranslationUtil {
         try {
             Thread.currentThread().setContextClassLoader(userClassloader);
             return FlinkPipelineTranslationUtil.getJobGraph(
-                    pipeline, configuration, defaultParallelism);
+                    userClassloader, pipeline, configuration, defaultParallelism);
         } finally {
             Thread.currentThread().setContextClassLoader(contextClassLoader);
         }
     }
 
     /** Extracts the execution plan (as JSON) from the given {@link Pipeline}. */
-    public static String translateToJSONExecutionPlan(Pipeline pipeline) {
-        FlinkPipelineTranslator pipelineTranslator = getPipelineTranslator(pipeline);
+    public static String translateToJSONExecutionPlan(
+            ClassLoader userClassloader, Pipeline pipeline) {
+        FlinkPipelineTranslator pipelineTranslator =
+                getPipelineTranslator(userClassloader, pipeline);
         return pipelineTranslator.translateToJSONExecutionPlan(pipeline);
     }
 
-    private static FlinkPipelineTranslator getPipelineTranslator(Pipeline pipeline) {
-        PlanTranslator planTranslator = new PlanTranslator();
+    private static FlinkPipelineTranslator getPipelineTranslator(
+            ClassLoader userClassloader, Pipeline pipeline) {
 
-        if (planTranslator.canTranslate(pipeline)) {
-            return planTranslator;
-        }
-
-        StreamGraphTranslator streamGraphTranslator = new StreamGraphTranslator();
+        StreamGraphTranslator streamGraphTranslator = new StreamGraphTranslator(userClassloader);
 
         if (streamGraphTranslator.canTranslate(pipeline)) {
             return streamGraphTranslator;

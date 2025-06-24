@@ -23,12 +23,16 @@ import org.apache.flink.annotation.PublicEvolving;
 /** A catalog-related, runtime exception. */
 @PublicEvolving
 public class CatalogException extends RuntimeException {
-    /** @param message the detail message. */
+    /**
+     * @param message the detail message.
+     */
     public CatalogException(String message) {
         super(message);
     }
 
-    /** @param cause the cause. */
+    /**
+     * @param cause the cause.
+     */
     public CatalogException(Throwable cause) {
         super(cause);
     }

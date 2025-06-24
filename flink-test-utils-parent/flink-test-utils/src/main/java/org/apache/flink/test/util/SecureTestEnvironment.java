@@ -149,11 +149,11 @@ public class SecureTestEnvironment {
             // ctx.setHadoopConfiguration() for the UGI implementation to work properly.
             // See Yarn test case module for reference
             Configuration flinkConfig = GlobalConfiguration.loadConfiguration();
-            flinkConfig.setBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE, false);
-            flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, testKeytab);
-            flinkConfig.setBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE, false);
-            flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, testPrincipal);
-            flinkConfig.setString(
+            flinkConfig.set(SecurityOptions.ZOOKEEPER_SASL_DISABLE, false);
+            flinkConfig.set(SecurityOptions.KERBEROS_LOGIN_KEYTAB, testKeytab);
+            flinkConfig.set(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE, false);
+            flinkConfig.set(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, testPrincipal);
+            flinkConfig.set(
                     SecurityOptions.KERBEROS_LOGIN_CONTEXTS,
                     "Client,KafkaClient," + KerberosUtils.getDefaultKerberosInitAppEntryName());
             SecurityConfiguration ctx = new SecurityConfiguration(flinkConfig);
@@ -224,8 +224,8 @@ public class SecureTestEnvironment {
             conf = flinkConf;
         }
 
-        conf.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, testKeytab);
-        conf.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, testPrincipal);
+        conf.set(SecurityOptions.KERBEROS_LOGIN_KEYTAB, testKeytab);
+        conf.set(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, testPrincipal);
 
         return conf;
     }

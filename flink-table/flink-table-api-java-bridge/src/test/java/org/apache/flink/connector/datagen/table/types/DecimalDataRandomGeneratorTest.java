@@ -20,22 +20,22 @@ package org.apache.flink.connector.datagen.table.types;
 
 import org.apache.flink.table.data.DecimalData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that the data generator is valid for every combination of precision and scale. */
-public class DecimalDataRandomGeneratorTest {
+class DecimalDataRandomGeneratorTest {
 
     @Test
-    public void testGenerateDecimalValues() {
+    void testGenerateDecimalValues() {
         for (int precision = 1; precision <= 38; precision++) {
             for (int scale = 0; scale <= precision; scale++) {
                 DecimalDataRandomGenerator gen =
                         new DecimalDataRandomGenerator(
-                                precision, scale, Double.MIN_VALUE, Double.MAX_VALUE);
+                                precision, scale, Double.MIN_VALUE, Double.MAX_VALUE, 0f);
 
                 DecimalData value = gen.next();
                 assertThat(value)
@@ -50,7 +50,7 @@ public class DecimalDataRandomGeneratorTest {
 
                 if (scale != precision) {
                     // need to account for decimal . and potential leading zeros
-                    assertThat(strRepr.length())
+                    assertThat(strRepr)
                             .as(
                                     "Wrong length for DECIMAL("
                                             + precision
@@ -58,10 +58,10 @@ public class DecimalDataRandomGeneratorTest {
                                             + scale
                                             + ") = "
                                             + strRepr)
-                            .isLessThanOrEqualTo(precision + 1);
+                            .hasSizeLessThanOrEqualTo(precision + 1);
                 } else {
                     // need to account for decimal . and potential leading zeros
-                    assertThat(strRepr.length())
+                    assertThat(strRepr)
                             .as(
                                     "Wrong length for DECIMAL("
                                             + precision
@@ -69,11 +69,11 @@ public class DecimalDataRandomGeneratorTest {
                                             + scale
                                             + ") = "
                                             + strRepr)
-                            .isLessThanOrEqualTo(precision + 2);
+                            .hasSizeLessThanOrEqualTo(precision + 2);
                 }
                 if (scale != 0) {
                     String decimalPart = strRepr.split("\\.")[1];
-                    assertThat(decimalPart.length())
+                    assertThat(decimalPart)
                             .as(
                                     "Wrong length for DECIMAL("
                                             + precision
@@ -81,14 +81,14 @@ public class DecimalDataRandomGeneratorTest {
                                             + scale
                                             + ") = "
                                             + strRepr)
-                            .isEqualTo(scale);
+                            .hasSize(scale);
                 }
             }
         }
     }
 
     @Test
-    public void testMinMax() {
+    void testMinMax() {
         for (int precision = 1; precision <= 38; precision++) {
             for (int scale = 0; scale <= precision; scale++) {
                 BigDecimal min = BigDecimal.valueOf(-10.0);
@@ -96,7 +96,7 @@ public class DecimalDataRandomGeneratorTest {
 
                 DecimalDataRandomGenerator gen =
                         new DecimalDataRandomGenerator(
-                                precision, scale, min.doubleValue(), max.doubleValue());
+                                precision, scale, min.doubleValue(), max.doubleValue(), 0f);
                 DecimalData result = gen.next();
 
                 assertThat(result)
@@ -104,8 +104,7 @@ public class DecimalDataRandomGeneratorTest {
                         .isNotNull();
                 assertThat(result.toBigDecimal())
                         .as("value must be greater than or equal to min")
-                        .isGreaterThanOrEqualTo(min);
-                assertThat(result.toBigDecimal())
+                        .isGreaterThanOrEqualTo(min)
                         .as("value must be less than or equal to max")
                         .isLessThanOrEqualTo(max);
             }

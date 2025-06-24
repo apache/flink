@@ -18,15 +18,20 @@
 
 package org.apache.flink.walkthrough.common.source;
 
-import org.apache.flink.annotation.Public;
-import org.apache.flink.streaming.api.functions.source.FromIteratorFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FromIteratorFunction;
 import org.apache.flink.walkthrough.common.entity.Transaction;
 
 import java.io.Serializable;
 import java.util.Iterator;
 
-/** A stream of transactions. */
-@Public
+/**
+ * A stream of transactions.
+ *
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.legacy.SourceFunction} API, which is due to
+ *     be removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ */
+@Deprecated
 public class TransactionSource extends FromIteratorFunction<Transaction> {
 
     private static final long serialVersionUID = 1L;

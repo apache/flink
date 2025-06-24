@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.table.data.RowData;
 
 import java.util.ArrayList;
@@ -32,7 +33,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base class for watermark assigner operator test. */
-public abstract class WatermarkAssignerOperatorTestBase {
+abstract class WatermarkAssignerOperatorTestBase {
 
     protected Tuple2<Long, Long> validateElement(
             Object element, long nextElementValue, long currentWatermark) {
@@ -58,6 +59,13 @@ public abstract class WatermarkAssignerOperatorTestBase {
             }
         }
         return watermarks;
+    }
+
+    protected List<WatermarkStatus> extractWatermarkStatuses(Collection<Object> collection) {
+        return collection.stream()
+                .filter(obj -> obj instanceof WatermarkStatus)
+                .map(obj -> (WatermarkStatus) obj)
+                .collect(Collectors.toList());
     }
 
     protected List<Object> filterOutRecords(Collection<Object> collection) {

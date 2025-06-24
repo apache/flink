@@ -24,17 +24,21 @@ import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.CheckpointingMode;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.operators.lifecycle.TestJobWithDescription;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher;
 import org.apache.flink.runtime.operators.lifecycle.event.TestEventQueue;
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -45,7 +49,6 @@ import java.util.Map;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singleton;
 import static java.util.Collections.singletonList;
-import static org.apache.flink.api.common.restartstrategy.RestartStrategies.noRestart;
 import static org.apache.flink.configuration.JobManagerOptions.EXECUTION_FAILOVER_STRATEGY;
 
 /** Helper to build {@link TestJobWithDescription}. */
@@ -54,10 +57,20 @@ public class TestJobBuilders {
     /** {@link TestJobWithDescription} builder. */
     @FunctionalInterface
     public interface TestingGraphBuilder {
-        TestJobWithDescription build(
+
+        default TestJobWithDescription build(
                 SharedObjects shared,
                 ThrowingConsumer<Configuration, Exception> modifyConfig,
                 ThrowingConsumer<StreamExecutionEnvironment, Exception> modifyEnvironment)
+                throws Exception {
+            return build(shared, modifyConfig, modifyEnvironment, null);
+        }
+
+        TestJobWithDescription build(
+                SharedObjects shared,
+                ThrowingConsumer<Configuration, Exception> modifyConfig,
+                ThrowingConsumer<StreamExecutionEnvironment, Exception> modifyEnvironment,
+                StateBackend stateBackend)
                 throws Exception;
     }
 
@@ -69,7 +82,8 @@ public class TestJobBuilders {
                 public TestJobWithDescription build(
                         SharedObjects shared,
                         ThrowingConsumer<Configuration, Exception> confConsumer,
-                        ThrowingConsumer<StreamExecutionEnvironment, Exception> envConsumer)
+                        ThrowingConsumer<StreamExecutionEnvironment, Exception> envConsumer,
+                        StateBackend stateBackend)
                         throws Exception {
 
                     TestEventQueue eventQueue = TestEventQueue.createShared(shared);
@@ -95,7 +109,7 @@ public class TestJobBuilders {
                                                     mapForward, eventQueue, commandQueue))
                                     .setUidHash(mapForward);
 
-                    forwardTransform.addSink(new DiscardingSink<>());
+                    forwardTransform.sinkTo(new DiscardingSink<>());
 
                     Map<String, Integer> operatorsNumberOfInputs = new HashMap<>();
                     operatorsNumberOfInputs.put(mapForward, 1);
@@ -122,7 +136,8 @@ public class TestJobBuilders {
                 public TestJobWithDescription build(
                         SharedObjects shared,
                         ThrowingConsumer<Configuration, Exception> confConsumer,
-                        ThrowingConsumer<StreamExecutionEnvironment, Exception> envConsumer)
+                        ThrowingConsumer<StreamExecutionEnvironment, Exception> envConsumer,
+                        StateBackend stateBackend)
                         throws Exception {
 
                     TestEventQueue eventQueue = TestEventQueue.createShared(shared);
@@ -222,7 +237,7 @@ public class TestJobBuilders {
                                             new TwoInputTestStreamOperator(mapTwoInput, eventQueue))
                                     .setUidHash(mapTwoInput);
 
-                    twoInputTransform.addSink(new DiscardingSink<>());
+                    twoInputTransform.sinkTo(new DiscardingSink<>());
 
                     Map<String, Integer> operatorsNumberOfInputs = new HashMap<>();
                     operatorsNumberOfInputs.put(mapForward, 1);
@@ -230,8 +245,14 @@ public class TestJobBuilders {
                     operatorsNumberOfInputs.put(mapTwoInput, 2);
                     operatorsNumberOfInputs.put(multipleInput, 2);
 
+                    JobGraph jobGraph =
+                            stateBackend != null
+                                    ? StateBackendUtils.configureStateBackendAndGetJobGraph(
+                                            env, stateBackend)
+                                    : env.getStreamGraph().getJobGraph();
+
                     return new TestJobWithDescription(
-                            env.getStreamGraph().getJobGraph(),
+                            jobGraph,
                             new HashSet<>(
                                     asList(unitedSourceLeft, unitedSourceRight, connectedSource)),
                             new HashSet<>(asList(mapForward, mapKeyed, mapTwoInput, multipleInput)),
@@ -265,9 +286,9 @@ public class TestJobBuilders {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setParallelism(4);
-        env.setRestartStrategy(noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
         env.enableCheckpointing(200); // shouldn't matter
-        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+        env.getCheckpointConfig().setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
         env.getConfig().setAutoWatermarkInterval(50);
         envConsumer.accept(env);
         return env;

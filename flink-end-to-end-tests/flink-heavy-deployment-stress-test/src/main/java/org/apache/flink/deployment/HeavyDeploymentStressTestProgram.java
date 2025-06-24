@@ -18,19 +18,20 @@
 
 package org.apache.flink.deployment;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.util.ParameterTool;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
@@ -71,13 +72,21 @@ public class HeavyDeploymentStressTestProgram {
 
         env.addSource(new SimpleEndlessSourceWithBloatedState(numStates, numPartitionsPerState))
                 .setParallelism(env.getParallelism())
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 .setParallelism(1);
 
         env.execute("HeavyDeploymentStressTestProgram");
     }
 
-    /** Source with dummy operator state that results in inflated meta data. */
+    /**
+     * Source with dummy operator state that results in inflated meta data.
+     *
+     * @deprecated This class is based on the {@link
+     *     org.apache.flink.streaming.api.functions.source.legacy.SourceFunction} API, which is due
+     *     to be removed. Use the new {@link org.apache.flink.api.connector.source.Source} API
+     *     instead.
+     */
+    @Internal
     static class SimpleEndlessSourceWithBloatedState extends RichParallelSourceFunction<String>
             implements CheckpointedFunction, CheckpointListener {
 
@@ -129,7 +138,7 @@ public class HeavyDeploymentStressTestProgram {
         public void run(SourceContext<String> ctx) throws Exception {
             while (isRunning) {
 
-                if (readyToFail && getRuntimeContext().getIndexOfThisSubtask() == 0) {
+                if (readyToFail && getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                     throw new Exception("Artificial failure.");
                 }
 

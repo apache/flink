@@ -25,8 +25,10 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
+import org.apache.flink.table.functions.SqlCallSyntax;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -146,28 +148,6 @@ public final class CallExpression implements ResolvedExpression {
         return new CallExpression(true, null, functionDefinition, args, dataType);
     }
 
-    /**
-     * @deprecated Use {@link #permanent(FunctionIdentifier, FunctionDefinition, List, DataType)} or
-     *     {@link #temporary(FunctionIdentifier, FunctionDefinition, List, DataType)} instead.
-     */
-    @Deprecated
-    public CallExpression(
-            FunctionIdentifier functionIdentifier,
-            FunctionDefinition functionDefinition,
-            List<ResolvedExpression> args,
-            DataType dataType) {
-        this(false, functionIdentifier, functionDefinition, args, dataType);
-    }
-
-    /** @deprecated Use {@link #anonymous(FunctionDefinition, List, DataType)} instead. */
-    @Deprecated
-    public CallExpression(
-            FunctionDefinition functionDefinition,
-            List<ResolvedExpression> args,
-            DataType dataType) {
-        this(false, null, functionDefinition, args, dataType);
-    }
-
     public boolean isTemporary() {
         return isTemporary;
     }
@@ -214,6 +194,30 @@ public final class CallExpression implements ResolvedExpression {
                         .collect(Collectors.joining(", ", "(", ")"));
 
         return getFunctionName() + argList;
+    }
+
+    @Override
+    public String asSerializableString(SqlFactory sqlFactory) {
+        if (functionDefinition instanceof BuiltInFunctionDefinition) {
+            final BuiltInFunctionDefinition definition =
+                    (BuiltInFunctionDefinition) functionDefinition;
+            return definition.getCallSyntax().unparse(definition.getSqlName(), args, sqlFactory);
+        } else {
+            return SqlCallSyntax.FUNCTION.unparse(
+                    getSerializableFunctionName(sqlFactory), args, sqlFactory);
+        }
+    }
+
+    private String getSerializableFunctionName(SqlFactory sqlFactory) {
+        if (functionIdentifier == null) {
+            return sqlFactory.serializeInlineFunction(functionDefinition);
+        }
+
+        return functionIdentifier
+                .getIdentifier()
+                .map(ObjectIdentifier::asSerializableString)
+                .orElseGet(
+                        () -> EncodingUtils.escapeIdentifier(functionIdentifier.getFunctionName()));
     }
 
     @Override

@@ -21,24 +21,23 @@ package org.apache.flink.runtime.state.memory;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.HashMap;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link MemoryCheckpointOutputStream}. */
-public class MemoryCheckpointOutputStreamTest {
+class MemoryCheckpointOutputStreamTest {
 
     @Test
-    public void testOversizedState() throws Exception {
+    void testOversizedState() throws Exception {
         HashMap<String, Integer> state = new HashMap<>();
         state.put("hey there", 2);
         state.put(
@@ -51,16 +50,11 @@ public class MemoryCheckpointOutputStreamTest {
         oos.writeObject(state);
         oos.flush();
 
-        try {
-            outStream.closeAndGetHandle();
-            fail("this should cause an exception");
-        } catch (IOException e) {
-            // that's what we expect
-        }
+        assertThatThrownBy(outStream::closeAndGetHandle).isInstanceOf(IOException.class);
     }
 
     @Test
-    public void testStateStream() throws Exception {
+    void testStateStream() throws Exception {
         HashMap<String, Integer> state = new HashMap<>();
         state.put("hey there", 2);
         state.put(
@@ -68,17 +62,18 @@ public class MemoryCheckpointOutputStreamTest {
                 77);
 
         CheckpointStateOutputStream outStream =
-                new MemoryCheckpointOutputStream(MemoryStateBackend.DEFAULT_MAX_STATE_SIZE);
+                new MemoryCheckpointOutputStream(
+                        JobManagerCheckpointStorage.DEFAULT_MAX_STATE_SIZE);
         ObjectOutputStream oos = new ObjectOutputStream(outStream);
         oos.writeObject(state);
         oos.flush();
 
         StreamStateHandle handle = outStream.closeAndGetHandle();
-        assertNotNull(handle);
+        assertThat(handle).isNotNull();
 
         try (ObjectInputStream ois = new ObjectInputStream(handle.openInputStream())) {
-            assertEquals(state, ois.readObject());
-            assertTrue(ois.available() <= 0);
+            assertThat(ois.readObject()).isEqualTo(state);
+            assertThat(ois.available()).isLessThanOrEqualTo(0);
         }
     }
 }

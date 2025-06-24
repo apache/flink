@@ -21,29 +21,25 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.BlobKey.BlobType;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link BlobCacheSizeTracker}. */
-public class BlobCacheSizeTrackerTest extends TestLogger {
+class BlobCacheSizeTrackerTest {
 
     private BlobCacheSizeTracker tracker;
     private JobID jobId;
     private BlobKey blobKey;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         tracker = new BlobCacheSizeTracker(5L);
         jobId = new JobID();
         blobKey = BlobKey.createKey(BlobType.PERMANENT_BLOB);
@@ -52,31 +48,32 @@ public class BlobCacheSizeTrackerTest extends TestLogger {
     }
 
     @Test
-    public void testCheckLimit() {
+    void testCheckLimit() {
         List<Tuple2<JobID, BlobKey>> keys = tracker.checkLimit(3L);
 
-        assertEquals(1, keys.size());
-        assertEquals(jobId, keys.get(0).f0);
-        assertEquals(blobKey, keys.get(0).f1);
+        assertThat(keys).hasSize(1);
+        assertThat(keys.get(0).f0).isEqualTo(jobId);
+        assertThat(keys.get(0).f1).isEqualTo(blobKey);
     }
 
     /** If an empty BLOB is intended to be stored, no BLOBs should be removed. */
     @Test
-    public void testCheckLimitForEmptyBlob() {
+    void testCheckLimitForEmptyBlob() {
         List<Tuple2<JobID, BlobKey>> keys = tracker.checkLimit(0L);
 
-        assertEquals(0, keys.size());
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testCheckLimitForBlobWithNegativeSize() {
-        tracker.checkLimit(-1L);
+        assertThat(keys).isEmpty();
     }
 
     @Test
-    public void testTrack() {
-        assertEquals(3L, (long) tracker.getSize(jobId, blobKey));
-        assertTrue(tracker.getBlobKeysByJobId(jobId).contains(blobKey));
+    void testCheckLimitForBlobWithNegativeSize() {
+        assertThatThrownBy(() -> tracker.checkLimit(-1L))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testTrack() {
+        assertThat(tracker.getSize(jobId, blobKey)).isEqualTo(3L);
+        assertThat(tracker.getBlobKeysByJobId(jobId)).contains(blobKey);
     }
 
     /**
@@ -84,40 +81,45 @@ public class BlobCacheSizeTrackerTest extends TestLogger {
      * BlobUtils#moveTempFileToStore} does.
      */
     @Test
-    public void testTrackDuplicatedBlob() {
+    void testTrackDuplicatedBlob() {
         tracker.track(jobId, blobKey, 1L);
-        assertEquals(3L, (long) tracker.getSize(jobId, blobKey));
-        assertEquals(1, tracker.getBlobKeysByJobId(jobId).size());
+        assertThat(tracker.getSize(jobId, blobKey)).isEqualTo(3L);
+        assertThat(tracker.getBlobKeysByJobId(jobId)).hasSize(1);
     }
 
     @Test
-    public void testUntrack() {
-        assertEquals(1, tracker.checkLimit(3L).size());
+    void testUntrack() {
+        assertThat(tracker.checkLimit(3L)).hasSize(1);
         tracker.untrack(Tuple2.of(jobId, blobKey));
 
-        assertNull(tracker.getSize(jobId, blobKey));
-        assertEquals(0, tracker.getBlobKeysByJobId(jobId).size());
-        assertEquals(0, tracker.checkLimit(3L).size());
+        assertThat(tracker.getSize(jobId, blobKey)).isNull();
+        assertThat(tracker.getBlobKeysByJobId(jobId)).isEmpty();
+        assertThat(tracker.checkLimit(3L)).isEmpty();
     }
 
     /** Untracking a non-existing BLOB shouldn't change anything or throw any exceptions. */
     @Test
-    public void testUntrackNonExistingBlob() {
+    void testUntrackNonExistingBlob() {
         tracker.untrack(Tuple2.of(jobId, BlobKey.createKey(BlobType.PERMANENT_BLOB)));
-        assertEquals(1, tracker.getBlobKeysByJobId(jobId).size());
+        assertThat(tracker.getBlobKeysByJobId(jobId)).hasSize(1);
     }
 
     /**
      * Since the BlobCacheSizeLimitTracker only works in {@link PermanentBlobCache}, the JobID
      * shouldn't be null.
      */
-    @Test(expected = NullPointerException.class)
-    public void testUntrackBlobWithNullJobId() {
-        tracker.untrack(Tuple2.of(null, BlobKey.createKey(BlobType.PERMANENT_BLOB)));
+    @Test
+    void testUntrackBlobWithNullJobId() {
+        assertThatThrownBy(
+                        () ->
+                                tracker.untrack(
+                                        Tuple2.of(
+                                                null, BlobKey.createKey(BlobType.PERMANENT_BLOB))))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
-    public void testUpdate() {
+    void testUpdate() {
         BlobCacheSizeTracker tracker = new BlobCacheSizeTracker(5L);
         List<JobID> jobIds = new ArrayList<>();
         List<BlobKey> blobKeys = new ArrayList<>();
@@ -133,11 +135,10 @@ public class BlobCacheSizeTrackerTest extends TestLogger {
 
         List<Tuple2<JobID, BlobKey>> blobsToDelete = tracker.checkLimit(2);
 
-        assertThat(
-                blobsToDelete,
-                containsInAnyOrder(
+        assertThat(blobsToDelete)
+                .contains(
                         Tuple2.of(jobIds.get(0), blobKeys.get(0)),
-                        Tuple2.of(jobIds.get(3), blobKeys.get(3))));
+                        Tuple2.of(jobIds.get(3), blobKeys.get(3)));
     }
 
     /**
@@ -145,26 +146,26 @@ public class BlobCacheSizeTrackerTest extends TestLogger {
      * exceptions.
      */
     @Test
-    public void testUpdateNonExistingBlob() {
+    void testUpdateNonExistingBlob() {
         tracker.track(new JobID(), BlobKey.createKey(BlobType.PERMANENT_BLOB), 2L);
-        assertEquals(1, tracker.checkLimit(3L).size());
+        assertThat(tracker.checkLimit(3L)).hasSize(1);
 
         tracker.update(new JobID(), BlobKey.createKey(BlobType.PERMANENT_BLOB));
-        assertEquals(1, tracker.checkLimit(3L).size());
+        assertThat(tracker.checkLimit(3L)).hasSize(1);
     }
 
     @Test
-    public void testUntrackAll() {
+    void testUntrackAll() {
         tracker.track(jobId, BlobKey.createKey(BlobType.PERMANENT_BLOB), 1L);
 
         JobID anotherJobId = new JobID();
         tracker.track(anotherJobId, BlobKey.createKey(BlobType.PERMANENT_BLOB), 1L);
 
-        assertEquals(2, tracker.getBlobKeysByJobId(jobId).size());
+        assertThat(tracker.getBlobKeysByJobId(jobId)).hasSize(2);
         tracker.untrackAll(jobId);
 
-        assertEquals(0, tracker.getBlobKeysByJobId(jobId).size());
-        assertEquals(1, tracker.getBlobKeysByJobId(anotherJobId).size());
+        assertThat(tracker.getBlobKeysByJobId(jobId)).isEmpty();
+        assertThat(tracker.getBlobKeysByJobId(anotherJobId)).hasSize(1);
     }
 
     /**
@@ -172,12 +173,12 @@ public class BlobCacheSizeTrackerTest extends TestLogger {
      * exceptions.
      */
     @Test
-    public void testUntrackAllWithNonExistingJob() {
+    void testUntrackAllWithNonExistingJob() {
         tracker.track(jobId, BlobKey.createKey(BlobType.PERMANENT_BLOB), 1L);
 
-        assertEquals(2, tracker.getBlobKeysByJobId(jobId).size());
+        assertThat(tracker.getBlobKeysByJobId(jobId)).hasSize(2);
         tracker.untrackAll(new JobID());
 
-        assertEquals(2, tracker.getBlobKeysByJobId(jobId).size());
+        assertThat(tracker.getBlobKeysByJobId(jobId)).hasSize(2);
     }
 }

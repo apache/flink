@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.Executors;
@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** An embedded in-memory checkpoint store, which supports shutdown and suspend. */
@@ -47,6 +48,8 @@ public class EmbeddedCompletedCheckpointStore extends AbstractCompleteCheckpoint
 
     private final int maxRetainedCheckpoints;
 
+    private final Executor ioExecutor = Executors.directExecutor();
+
     @VisibleForTesting
     public EmbeddedCompletedCheckpointStore() {
         this(1);
@@ -57,19 +60,19 @@ public class EmbeddedCompletedCheckpointStore extends AbstractCompleteCheckpoint
         this(
                 maxRetainedCheckpoints,
                 Collections.emptyList(),
-                /* Using the default restore mode in tests to detect any breaking changes early. */
-                RestoreMode.DEFAULT);
+                /* Using the default claim mode in tests to detect any breaking changes early. */
+                RecoveryClaimMode.DEFAULT);
     }
 
     public EmbeddedCompletedCheckpointStore(
             int maxRetainedCheckpoints,
             Collection<CompletedCheckpoint> initialCheckpoints,
-            RestoreMode restoreMode) {
+            RecoveryClaimMode recoveryClaimMode) {
         this(
                 maxRetainedCheckpoints,
                 initialCheckpoints,
                 SharedStateRegistry.DEFAULT_FACTORY.create(
-                        Executors.directExecutor(), initialCheckpoints, restoreMode));
+                        Executors.directExecutor(), initialCheckpoints, recoveryClaimMode));
     }
 
     public EmbeddedCompletedCheckpointStore(
@@ -97,11 +100,20 @@ public class EmbeddedCompletedCheckpointStore extends AbstractCompleteCheckpoint
                 CheckpointSubsumeHelper.subsume(
                                 checkpoints,
                                 maxRetainedCheckpoints,
-                                cc -> cc.markAsDiscardedOnSubsume().discard())
+                                cc -> {
+                                    cc.markAsDiscardedOnSubsume();
+                                    checkpointsCleaner.addSubsumedCheckpoint(cc);
+                                })
                         .orElse(null);
 
-        unregisterUnusedState(checkpoints);
-
+        findLowest(checkpoints)
+                .ifPresent(
+                        id ->
+                                checkpointsCleaner.cleanSubsumedCheckpoints(
+                                        id,
+                                        getSharedStateRegistry().unregisterUnusedState(id),
+                                        postCleanup,
+                                        ioExecutor));
         return completedCheckpoint;
     }
 

@@ -24,28 +24,40 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.ConstantArgumentCount;
+import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeInferenceUtil;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.SqlCallBinding;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.SqlOperandMetadata;
 import org.apache.calcite.sql.type.SqlOperandTypeChecker;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorNamespace;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
+import static org.apache.flink.table.planner.typeutils.LogicalRelDataTypeConverter.toRelDataType;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
-import static org.apache.flink.table.types.inference.TypeInferenceUtil.adaptArguments;
+import static org.apache.flink.table.types.inference.TypeInferenceUtil.castArguments;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.createInvalidCallException;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.createInvalidInputException;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.createUnexpectedException;
@@ -57,7 +69,8 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
  * <p>Note: This class must be kept in sync with {@link TypeInferenceUtil}.
  */
 @Internal
-public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker {
+public final class TypeInferenceOperandChecker
+        implements SqlOperandTypeChecker, SqlOperandMetadata {
 
     private final DataTypeFactory dataTypeFactory;
 
@@ -74,14 +87,18 @@ public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker 
         this.dataTypeFactory = dataTypeFactory;
         this.definition = definition;
         this.typeInference = typeInference;
-        this.countRange =
-                new ArgumentCountRange(typeInference.getInputTypeStrategy().getArgumentCount());
+        this.countRange = new ArgumentCountRange(deriveArgumentCount(typeInference));
     }
 
     @Override
     public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
         final CallContext callContext =
-                new CallBindingCallContext(dataTypeFactory, definition, callBinding, null);
+                new CallBindingCallContext(
+                        dataTypeFactory,
+                        definition,
+                        callBinding,
+                        null,
+                        typeInference.getStaticArguments().orElse(null));
         try {
             return checkOperandTypesOrError(callBinding, callContext);
         } catch (ValidationException e) {
@@ -111,20 +128,89 @@ public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker 
 
     @Override
     public boolean isOptional(int i) {
-        return false;
+        if (typeInference.getStaticArguments().isEmpty()) {
+            return false;
+        }
+        final List<StaticArgument> staticArgs = typeInference.getStaticArguments().get();
+        return staticArgs.get(i).isOptional();
+    }
+
+    @Override
+    public boolean isFixedParameters() {
+        // Calcite's parameter check is very strict.
+        // (e.g. implicit cast from TIMESTAMP to TIMESTAMP_LTZ is not supported)
+        // For now, we only fall back to Calcite's logic if an argument is optional
+        // (i.e. the default for functions like PTFs with optional 'uid' argument).
+        return typeInference
+                .getStaticArguments()
+                .map(args -> args.stream().anyMatch(StaticArgument::isOptional))
+                .orElse(false);
+    }
+
+    @Override
+    public List<RelDataType> paramTypes(RelDataTypeFactory typeFactory) {
+        return typeInference
+                .getStaticArguments()
+                .map(
+                        args ->
+                                args.stream()
+                                        .map(arg -> toParamType(typeFactory, arg))
+                                        .collect(Collectors.toList()))
+                .orElseThrow(
+                        () ->
+                                new ValidationException(
+                                        "Unsupported function signature. "
+                                                + "Function must not be overloaded or use varargs."));
+    }
+
+    @Override
+    public List<String> paramNames() {
+        return typeInference
+                .getStaticArguments()
+                .map(
+                        args ->
+                                args.stream()
+                                        .map(StaticArgument::getName)
+                                        .collect(Collectors.toList()))
+                .orElseThrow(
+                        () ->
+                                new ValidationException(
+                                        "Unsupported function signature. "
+                                                + "Function must not be overloaded or use varargs."));
     }
 
     // --------------------------------------------------------------------------------------------
 
+    private RelDataType toParamType(RelDataTypeFactory typeFactory, StaticArgument arg) {
+        final LogicalType type = arg.getDataType().map(DataType::getLogicalType).orElse(null);
+        if (type == null) {
+            // Untyped table arguments
+            return typeFactory.createSqlType(SqlTypeName.ANY);
+        }
+        if (arg.is(StaticArgumentTrait.TABLE)) {
+            // A table argument must be a row type for Calcite,
+            // although they might enter the UDF as a structured type
+            if (LogicalTypeChecks.isCompositeType(type)) {
+                return typeFactory.createStructType(
+                        StructKind.FULLY_QUALIFIED,
+                        LogicalTypeChecks.getFieldTypes(type).stream()
+                                .map(t -> toRelDataType(t, typeFactory))
+                                .collect(Collectors.toList()),
+                        LogicalTypeChecks.getFieldNames(type));
+            }
+        }
+        return toRelDataType(type, typeFactory);
+    }
+
     private boolean checkOperandTypesOrError(SqlCallBinding callBinding, CallContext callContext) {
-        final CallContext adaptedCallContext;
+        final CallContext castCallContext;
         try {
-            adaptedCallContext = adaptArguments(typeInference, callContext, null);
+            castCallContext = castArguments(typeInference, callContext, null);
         } catch (ValidationException e) {
             throw createInvalidInputException(typeInference, callContext, e);
         }
 
-        insertImplicitCasts(callBinding, adaptedCallContext.getArgumentDataTypes());
+        insertImplicitCasts(callBinding, castCallContext.getArgumentDataTypes());
 
         return true;
     }
@@ -134,7 +220,13 @@ public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker 
         final List<SqlNode> operands = callBinding.operands();
         for (int i = 0; i < operands.size(); i++) {
             final LogicalType expectedType = expectedDataTypes.get(i).getLogicalType();
-            final LogicalType argumentType = toLogicalType(callBinding.getOperandType(i));
+            final SqlNode sqlNode = operands.get(i);
+            // skip default node
+            if (sqlNode.getKind() == SqlKind.DEFAULT) {
+                continue;
+            }
+            final LogicalType argumentType =
+                    toLogicalType(SqlTypeUtil.deriveType(callBinding, operands.get(i)));
 
             if (!supportsAvoidingCast(argumentType, expectedType)) {
                 final RelDataType expectedRelDataType =
@@ -161,5 +253,18 @@ public final class TypeInferenceOperandChecker implements SqlOperandTypeChecker 
         if (namespace != null) {
             namespace.setType(type);
         }
+    }
+
+    private static ArgumentCount deriveArgumentCount(TypeInference typeInference) {
+        final int staticArgs = typeInference.getStaticArguments().map(List::size).orElse(-1);
+        if (staticArgs == -1) {
+            return typeInference.getInputTypeStrategy().getArgumentCount();
+        }
+        final int optionalArgs =
+                typeInference
+                        .getStaticArguments()
+                        .map(args -> (int) args.stream().filter(StaticArgument::isOptional).count())
+                        .orElse(0);
+        return ConstantArgumentCount.between(staticArgs - optionalArgs, staticArgs);
     }
 }

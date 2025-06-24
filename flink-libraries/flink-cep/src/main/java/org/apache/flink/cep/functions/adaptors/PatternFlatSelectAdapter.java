@@ -19,10 +19,10 @@
 package org.apache.flink.cep.functions.adaptors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.cep.PatternFlatSelectFunction;
 import org.apache.flink.cep.functions.PatternProcessFunction;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 import java.util.List;
@@ -41,9 +41,9 @@ public class PatternFlatSelectAdapter<IN, OUT> extends PatternProcessFunction<IN
     }
 
     @Override
-    public void open(final Configuration parameters) throws Exception {
+    public void open(final OpenContext openContext) throws Exception {
         FunctionUtils.setFunctionRuntimeContext(flatSelectFunction, getRuntimeContext());
-        FunctionUtils.openFunction(flatSelectFunction, parameters);
+        FunctionUtils.openFunction(flatSelectFunction, openContext);
     }
 
     @Override

@@ -20,18 +20,18 @@ package org.apache.flink.api.common.functions.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.configuration.Configuration;
 
 /** Utility class that contains helper methods to work with Flink {@link Function} class. */
 @Internal
 public final class FunctionUtils {
 
-    public static void openFunction(Function function, Configuration parameters) throws Exception {
+    public static void openFunction(Function function, OpenContext openContext) throws Exception {
         if (function instanceof RichFunction) {
             RichFunction richFunction = (RichFunction) function;
-            richFunction.open(parameters);
+            richFunction.open(openContext);
         }
     }
 

@@ -21,11 +21,16 @@ package org.apache.flink.table.planner.plan.utils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.AggregateFunction;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 /** Test aggregator functions. */
 public class JavaUserDefinedAggFunctions {
@@ -208,8 +213,8 @@ public class JavaUserDefinedAggFunctions {
 
     /** Accumulator of ConcatDistinctAgg. */
     public static class ConcatAcc {
-        public MapView<String, Boolean> map = new MapView<>(Types.STRING, Types.BOOLEAN);
-        public ListView<String> list = new ListView<>(Types.STRING);
+        public MapView<String, Boolean> map = new MapView<>();
+        public ListView<String> list = new ListView<>();
     }
 
     /** Concat distinct aggregate. */
@@ -284,16 +289,13 @@ public class JavaUserDefinedAggFunctions {
         @Override
         public CountDistinctAccum createAccumulator() {
             CountDistinctAccum accum = new CountDistinctAccum();
-            accum.map =
-                    new MapView<>(
-                            org.apache.flink.table.api.Types.STRING(),
-                            org.apache.flink.table.api.Types.INT());
+            accum.map = new MapView<>();
             accum.count = 0L;
             return accum;
         }
 
         // Overloaded accumulate method
-        public void accumulate(CountDistinctAccum accumulator, String id) {
+        public void accumulate(CountDistinctAccum accumulator, @DataTypeHint("STRING") String id) {
             try {
                 Integer cnt = accumulator.map.get(id);
                 if (cnt != null) {
@@ -309,7 +311,7 @@ public class JavaUserDefinedAggFunctions {
         }
 
         // Overloaded accumulate method
-        public void accumulate(CountDistinctAccum accumulator, long id) {
+        public void accumulate(CountDistinctAccum accumulator, @DataTypeHint("BIGINT") long id) {
             try {
                 Integer cnt = accumulator.map.get(String.valueOf(id));
                 if (cnt != null) {
@@ -419,6 +421,82 @@ public class JavaUserDefinedAggFunctions {
         @Override
         public Tuple1<Long> createAccumulator() {
             return Tuple1.of(0L);
+        }
+    }
+
+    /** User defined pojo object. */
+    public static class TestObject {
+        private final String a;
+
+        public TestObject(String a) {
+            this.a = a;
+        }
+
+        public String getA() {
+            return a;
+        }
+    }
+
+    /** User defined object. */
+    public static class UserDefinedObject {
+        // List with user defined pojo object.
+        public List<TestObject> testObjectList = new ArrayList<>();
+        // Map with user defined pojo object.
+        public Map<String, TestObject> testObjectMap = new HashMap<>();
+    }
+
+    /** User defined UDAF whose value and acc is user defined complex pojo object. */
+    public static class UserDefinedObjectUDAF
+            extends AggregateFunction<UserDefinedObject, UserDefinedObject> {
+        private static final String KEY = "key";
+
+        @Override
+        public UserDefinedObject getValue(UserDefinedObject accumulator) {
+            return accumulator;
+        }
+
+        @Override
+        public UserDefinedObject createAccumulator() {
+            return new UserDefinedObject();
+        }
+
+        public void accumulate(UserDefinedObject acc, String a) {
+            if (a != null) {
+                acc.testObjectList.add(new TestObject(a));
+                acc.testObjectMap.put(KEY, new TestObject(a));
+            }
+        }
+
+        public void retract(UserDefinedObject acc, UserDefinedObject a) {
+            // do nothing.
+        }
+    }
+
+    /** User defined UDAF whose value and acc is user defined complex pojo object. */
+    public static class UserDefinedObjectUDAF2
+            extends AggregateFunction<String, UserDefinedObject> {
+        private static final String KEY = "key";
+
+        @Override
+        public String getValue(UserDefinedObject accumulator) {
+            if (accumulator.testObjectMap.containsKey(KEY)) {
+                return accumulator.testObjectMap.get(KEY).getA();
+            }
+            return null;
+        }
+
+        @Override
+        public UserDefinedObject createAccumulator() {
+            return new UserDefinedObject();
+        }
+
+        public void accumulate(UserDefinedObject acc, UserDefinedObject a) {
+            acc.testObjectList = a.testObjectList;
+            acc.testObjectMap = a.testObjectMap;
+        }
+
+        public void retract(UserDefinedObject acc, UserDefinedObject a) {
+            // do nothing
         }
     }
 }

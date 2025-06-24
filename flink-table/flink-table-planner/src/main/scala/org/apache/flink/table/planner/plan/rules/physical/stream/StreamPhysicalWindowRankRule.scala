@@ -28,14 +28,10 @@ import org.apache.flink.table.planner.plan.utils.{RankUtil, WindowUtil}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 /** Rule to convert a [[FlinkLogicalRank]] into a [[StreamPhysicalWindowRank]]. */
-class StreamPhysicalWindowRankRule
-  extends ConverterRule(
-    classOf[FlinkLogicalRank],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalWindowRankRule") {
+class StreamPhysicalWindowRankRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val rank: FlinkLogicalRank = call.rel(0)
@@ -89,6 +85,11 @@ class StreamPhysicalWindowRankRule
 }
 
 object StreamPhysicalWindowRankRule {
-  val INSTANCE = new StreamPhysicalWindowRankRule
+  val INSTANCE = new StreamPhysicalWindowRankRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalRank],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalWindowRankRule"))
 
 }

@@ -23,11 +23,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.legacy.table.sources.InputFormatTableSource;
+import org.apache.flink.legacy.table.sources.StreamTableSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.sources.DefinedFieldMapping;
+import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
@@ -38,10 +43,6 @@ import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter;
-import org.apache.flink.table.sources.DefinedFieldMapping;
-import org.apache.flink.table.sources.InputFormatTableSource;
-import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -134,7 +135,11 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
                                                 getNameRemapping()));
 
         return createConversionTransformationIfNeeded(
-                planner.getExecEnv(), config, sourceTransform, rowtimeExpression.orElse(null));
+                planner.getExecEnv(),
+                config,
+                planner.getFlinkContext().getClassLoader(),
+                sourceTransform,
+                rowtimeExpression.orElse(null));
     }
 
     protected abstract <IN> Transformation<IN> createInput(
@@ -145,6 +150,7 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
     protected abstract Transformation<RowData> createConversionTransformationIfNeeded(
             StreamExecutionEnvironment streamExecEnv,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             Transformation<?> sourceTransform,
             @Nullable RexNode rowtimeExpression);
 
@@ -157,7 +163,8 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
         RowType outputType = (RowType) getOutputType();
         TableSchema tableSchema =
                 TableSchema.fromResolvedSchema(
-                        DataTypeUtils.expandCompositeTypeToSchema(DataTypes.of(outputType)));
+                        DataTypeUtils.expandCompositeTypeToSchema(DataTypes.of(outputType)),
+                        DefaultSqlFactory.INSTANCE);
         return TypeMappingUtils.computePhysicalIndicesOrTimeAttributeMarkers(
                 tableSource, tableSchema.getTableColumns(), isStreaming, getNameRemapping());
     }

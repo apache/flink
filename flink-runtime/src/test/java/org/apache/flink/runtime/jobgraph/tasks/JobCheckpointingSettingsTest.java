@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
@@ -46,7 +46,7 @@ public class JobCheckpointingSettingsTest {
                                 false,
                                 0,
                                 0),
-                        new SerializedValue<>(new MemoryStateBackend()));
+                        new SerializedValue<>(new HashMapStateBackend()));
 
         JobCheckpointingSettings copy = CommonTestUtils.createCopySerializable(settings);
         assertEquals(
@@ -57,6 +57,6 @@ public class JobCheckpointingSettingsTest {
                 copy.getDefaultStateBackend()
                                 .deserializeValue(this.getClass().getClassLoader())
                                 .getClass()
-                        == MemoryStateBackend.class);
+                        == HashMapStateBackend.class);
     }
 }

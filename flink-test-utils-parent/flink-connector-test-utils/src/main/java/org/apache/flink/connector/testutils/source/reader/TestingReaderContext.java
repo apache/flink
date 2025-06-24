@@ -86,6 +86,11 @@ public class TestingReaderContext implements SourceReaderContext {
         return SimpleUserCodeClassLoader.create(getClass().getClassLoader());
     }
 
+    @Override
+    public int currentParallelism() {
+        return 1;
+    }
+
     // ------------------------------------------------------------------------
 
     public int getNumSplitRequests() {

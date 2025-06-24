@@ -20,13 +20,16 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.AggregatedTable;
+import org.apache.flink.table.api.ApiExpression;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.FlatAggregateTable;
 import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.GroupWindowedTable;
 import org.apache.flink.table.api.GroupedTable;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.OverWindowedTable;
+import org.apache.flink.table.api.PartitionedTable;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
@@ -42,11 +45,14 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.resolver.LookupCallResolver;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.TemporalTableFunction;
 import org.apache.flink.table.functions.TemporalTableFunctionImpl;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
@@ -61,6 +67,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.lit;
 
@@ -223,7 +230,7 @@ public class TableImpl implements Table {
 
     private TableImpl joinInternal(
             Table right, Optional<Expression> joinPredicate, JoinType joinType) {
-        verifyTableCompatible(right);
+        checkCommonTableEnvironment(right);
 
         return createTable(
                 operationTreeBuilder.join(
@@ -232,15 +239,6 @@ public class TableImpl implements Table {
                         joinType,
                         joinPredicate,
                         false));
-    }
-
-    private void verifyTableCompatible(Table right) {
-        // check that the TableEnvironment of right table is not null
-        // and right table belongs to the same TableEnvironment
-        if (((TableImpl) right).getTableEnvironment() != this.tableEnvironment) {
-            throw new ValidationException(
-                    "Only tables from the same TableEnvironment can be joined.");
-        }
     }
 
     @Override
@@ -280,7 +278,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table minus(Table right) {
-        verifyTableCompatible(right);
+        checkCommonTableEnvironment(right);
 
         return createTable(
                 operationTreeBuilder.minus(operationTree, right.getQueryOperation(), false));
@@ -288,7 +286,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table minusAll(Table right) {
-        verifyTableCompatible(right);
+        checkCommonTableEnvironment(right);
 
         return createTable(
                 operationTreeBuilder.minus(operationTree, right.getQueryOperation(), true));
@@ -296,7 +294,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table union(Table right) {
-        verifyTableCompatible(right);
+        checkCommonTableEnvironment(right);
 
         return createTable(
                 operationTreeBuilder.union(operationTree, right.getQueryOperation(), false));
@@ -304,7 +302,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table unionAll(Table right) {
-        verifyTableCompatible(right);
+        checkCommonTableEnvironment(right);
 
         return createTable(
                 operationTreeBuilder.union(operationTree, right.getQueryOperation(), true));
@@ -312,7 +310,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table intersect(Table right) {
-        verifyTableCompatible(right);
+        checkCommonTableEnvironment(right);
 
         return createTable(
                 operationTreeBuilder.intersect(operationTree, right.getQueryOperation(), false));
@@ -320,7 +318,7 @@ public class TableImpl implements Table {
 
     @Override
     public Table intersectAll(Table right) {
-        verifyTableCompatible(right);
+        checkCommonTableEnvironment(right);
 
         return createTable(
                 operationTreeBuilder.intersect(operationTree, right.getQueryOperation(), true));
@@ -459,6 +457,31 @@ public class TableImpl implements Table {
         return insertInto(ContextResolvedTable.anonymous(resolvedCatalogBaseTable), overwrite);
     }
 
+    @Override
+    public PartitionedTable partitionBy(Expression... fields) {
+        if (fields.length == 0) {
+            throw new ValidationException("Partition keys must not be empty.");
+        }
+        return new PartitionedTableImpl(this, Arrays.asList(fields));
+    }
+
+    @Override
+    public ApiExpression asArgument(String name) {
+        return createArgumentExpression(operationTree, tableEnvironment, name);
+    }
+
+    @Override
+    public Table process(String path, Object... arguments) {
+        return tableEnvironment.fromCall(
+                path, unionTableAndArguments(operationTree, tableEnvironment, arguments));
+    }
+
+    @Override
+    public Table process(Class<? extends UserDefinedFunction> function, Object... arguments) {
+        return tableEnvironment.fromCall(
+                function, unionTableAndArguments(operationTree, tableEnvironment, arguments));
+    }
+
     private TablePipeline insertInto(ContextResolvedTable contextResolvedTable, boolean overwrite) {
         return new TablePipelineImpl(
                 tableEnvironment,
@@ -466,6 +489,7 @@ public class TableImpl implements Table {
                         contextResolvedTable,
                         getQueryOperation(),
                         Collections.emptyMap(),
+                        null, // targetColumns
                         overwrite,
                         Collections.emptyMap()));
     }
@@ -476,33 +500,23 @@ public class TableImpl implements Table {
     }
 
     @Override
-    public String explain(ExplainDetail... extraDetails) {
+    public String explain(ExplainFormat format, ExplainDetail... extraDetails) {
         return tableEnvironment.explainInternal(
-                Collections.singletonList(getQueryOperation()), extraDetails);
+                Collections.singletonList(getQueryOperation()), format, extraDetails);
     }
 
     @Override
     public String toString() {
         if (tableName == null) {
             tableName = "UnnamedTable$" + uniqueId.getAndIncrement();
-            tableEnvironment.registerTable(tableName, this);
+            tableEnvironment.createTemporaryView(tableName, this);
         }
         return tableName;
     }
 
-    private TableImpl createTable(QueryOperation operation) {
-        return new TableImpl(tableEnvironment, operation, operationTreeBuilder, lookupResolver);
-    }
-
-    private List<Expression> preprocessExpressions(List<Expression> expressions) {
-        return preprocessExpressions(expressions.toArray(new Expression[0]));
-    }
-
-    private List<Expression> preprocessExpressions(Expression[] expressions) {
-        return Arrays.stream(expressions)
-                .map(f -> f.accept(lookupResolver))
-                .collect(Collectors.toList());
-    }
+    // --------------------------------------------------------------------------------------------
+    // Grouped Table
+    // --------------------------------------------------------------------------------------------
 
     private static final class GroupedTableImpl implements GroupedTable {
 
@@ -544,6 +558,10 @@ public class TableImpl implements Table {
         }
     }
 
+    // --------------------------------------------------------------------------------------------
+    // Aggregated Table
+    // --------------------------------------------------------------------------------------------
+
     private static final class AggregatedTableImpl implements AggregatedTable {
         private final TableImpl table;
         private final List<Expression> groupKeys;
@@ -565,6 +583,10 @@ public class TableImpl implements Table {
                                     groupKeys, aggregateFunction, table.operationTree)));
         }
     }
+
+    // --------------------------------------------------------------------------------------------
+    // Flat Aggregate Table
+    // --------------------------------------------------------------------------------------------
 
     private static final class FlatAggregateTableImpl implements FlatAggregateTable {
 
@@ -591,6 +613,10 @@ public class TableImpl implements Table {
         }
     }
 
+    // --------------------------------------------------------------------------------------------
+    // Group Windowed Table
+    // --------------------------------------------------------------------------------------------
+
     private static final class GroupWindowedTableImpl implements GroupWindowedTable {
         private final TableImpl table;
         private final GroupWindow window;
@@ -613,6 +639,10 @@ public class TableImpl implements Table {
             return new WindowGroupedTableImpl(table, fieldsWithoutWindow, window);
         }
     }
+
+    // --------------------------------------------------------------------------------------------
+    // Window Grouped Table
+    // --------------------------------------------------------------------------------------------
 
     private static final class WindowGroupedTableImpl implements WindowGroupedTable {
 
@@ -658,6 +688,10 @@ public class TableImpl implements Table {
                     table, groupKeys, tableAggregateFunction, window);
         }
     }
+
+    // --------------------------------------------------------------------------------------------
+    // Window Aggregated Table
+    // --------------------------------------------------------------------------------------------
 
     private static final class WindowAggregatedTableImpl implements AggregatedTable {
         private final TableImpl table;
@@ -711,6 +745,10 @@ public class TableImpl implements Table {
                                     table.operationTree)));
         }
     }
+
+    // --------------------------------------------------------------------------------------------
+    // Window Flat Aggregate Table
+    // --------------------------------------------------------------------------------------------
 
     private static final class WindowFlatAggregateTableImpl implements FlatAggregateTable {
 
@@ -768,6 +806,10 @@ public class TableImpl implements Table {
         }
     }
 
+    // --------------------------------------------------------------------------------------------
+    // Over Windowed Table
+    // --------------------------------------------------------------------------------------------
+
     private static final class OverWindowedTableImpl implements OverWindowedTable {
 
         private final TableImpl table;
@@ -783,6 +825,89 @@ public class TableImpl implements Table {
             return table.createTable(
                     table.operationTreeBuilder.project(
                             Arrays.asList(fields), table.operationTree, overWindows));
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Partitioned Table
+    // --------------------------------------------------------------------------------------------
+
+    private static final class PartitionedTableImpl implements PartitionedTable {
+
+        private final TableImpl table;
+        private final List<Expression> partitionKeys;
+
+        private PartitionedTableImpl(TableImpl table, List<Expression> partitionKeys) {
+            this.table = table;
+            this.partitionKeys = partitionKeys;
+        }
+
+        @Override
+        public ApiExpression asArgument(String name) {
+            return createArgumentExpression(
+                    createPartitionQueryOperation(), table.tableEnvironment, name);
+        }
+
+        @Override
+        public Table process(String path, Object... arguments) {
+            return table.tableEnvironment.fromCall(
+                    path,
+                    unionTableAndArguments(
+                            createPartitionQueryOperation(), table.tableEnvironment, arguments));
+        }
+
+        @Override
+        public Table process(Class<? extends UserDefinedFunction> function, Object... arguments) {
+            return table.tableEnvironment.fromCall(
+                    function,
+                    unionTableAndArguments(
+                            createPartitionQueryOperation(), table.tableEnvironment, arguments));
+        }
+
+        private QueryOperation createPartitionQueryOperation() {
+            return table.operationTreeBuilder.partition(partitionKeys, table.operationTree);
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Shared methods
+    // --------------------------------------------------------------------------------------------
+
+    private TableImpl createTable(QueryOperation operation) {
+        return new TableImpl(tableEnvironment, operation, operationTreeBuilder, lookupResolver);
+    }
+
+    private List<Expression> preprocessExpressions(List<Expression> expressions) {
+        return preprocessExpressions(expressions.toArray(new Expression[0]));
+    }
+
+    private List<Expression> preprocessExpressions(Expression[] expressions) {
+        return Arrays.stream(expressions)
+                .map(f -> f.accept(lookupResolver))
+                .collect(Collectors.toList());
+    }
+
+    private static Object[] unionTableAndArguments(
+            QueryOperation queryOperation, TableEnvironment env, Object... arguments) {
+        return Stream.concat(
+                        Stream.of(ApiExpressionUtils.tableRef("ptf_arg", queryOperation, env)),
+                        Stream.of(arguments))
+                .toArray();
+    }
+
+    private static ApiExpression createArgumentExpression(
+            QueryOperation queryOperation, TableEnvironment env, String name) {
+        return new ApiExpression(
+                ApiExpressionUtils.unresolvedCall(
+                        BuiltInFunctionDefinitions.ASSIGNMENT,
+                        lit(name),
+                        ApiExpressionUtils.tableRef(name, queryOperation, env)));
+    }
+
+    private void checkCommonTableEnvironment(Table right) {
+        if (((TableImpl) right).getTableEnvironment() != tableEnvironment) {
+            throw new ValidationException(
+                    "Only tables from the same TableEnvironment can be joined.");
         }
     }
 }

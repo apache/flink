@@ -43,10 +43,12 @@ import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.runtime.util.NoOpGroupCache;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -55,8 +57,8 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests {@link ExecutionGraph} deployment when job and task information are offloaded into the BLOB
@@ -65,17 +67,19 @@ import static org.junit.Assert.assertNotNull;
  * even the size limit of {@link BlobCacheSizeTracker} in {@link PermanentBlobCache} is set to the
  * minimum value.
  */
-public class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
+class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
         extends DefaultExecutionGraphDeploymentWithBlobCacheTest {
 
-    @Before
+    @BeforeEach
     @Override
     public void setupBlobServer() throws IOException {
         Configuration config = new Configuration();
         // Always offload the serialized JobInformation, TaskInformation and cached
         // ShuffleDescriptors
-        config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
-        blobServer = new BlobServer(config, TEMPORARY_FOLDER.newFolder(), new VoidBlobStore());
+        config.set(BlobServerOptions.OFFLOAD_MINSIZE, 0);
+        blobServer =
+                new BlobServer(
+                        config, TempDirUtils.newFolder(temporaryFolder), new VoidBlobStore());
         blobServer.start();
         blobWriter = blobServer;
 
@@ -85,7 +89,7 @@ public class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
         blobCache =
                 new PermanentBlobCache(
                         config,
-                        TEMPORARY_FOLDER.newFolder(),
+                        TempDirUtils.newFolder(temporaryFolder),
                         new VoidBlobStore(),
                         serverAddress,
                         blobCacheSizeTracker);
@@ -103,7 +107,7 @@ public class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
      * larger than 1 and the deletion won't happen so frequently.
      */
     @Test
-    public void testDeployMultipleTasksWithSmallBlobCacheSizeLimit() throws Exception {
+    void testDeployMultipleTasksWithSmallBlobCacheSizeLimit() throws Exception {
 
         final int numberOfVertices = 4;
         final int parallelism = 10;
@@ -117,14 +121,18 @@ public class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
         taskManagerGateway.setSubmitConsumer(
                 FunctionUtils.uncheckedConsumer(
                         taskDeploymentDescriptor -> {
-                            taskDeploymentDescriptor.loadBigData(blobCache);
+                            taskDeploymentDescriptor.loadBigData(
+                                    blobCache,
+                                    new NoOpGroupCache<>(),
+                                    new NoOpGroupCache<>(),
+                                    new NoOpGroupCache<>());
                             tdds.offer(taskDeploymentDescriptor);
                         }));
 
         for (ExecutionJobVertex ejv : eg.getVerticesTopologically()) {
             for (ExecutionVertex ev : ejv.getTaskVertices()) {
 
-                assertEquals(ExecutionState.CREATED, ev.getExecutionState());
+                assertThat(ev.getExecutionState()).isEqualTo(ExecutionState.CREATED);
 
                 LogicalSlot slot =
                         new TestingLogicalSlotBuilder()
@@ -134,13 +142,13 @@ public class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
                 execution.transitionState(ExecutionState.SCHEDULED);
                 execution.registerProducedPartitions(slot.getTaskManagerLocation()).get();
                 ev.deployToSlot(slot);
-                assertEquals(ExecutionState.DEPLOYING, ev.getExecutionState());
+                assertThat(ev.getExecutionState()).isEqualTo(ExecutionState.DEPLOYING);
 
                 TaskDeploymentDescriptor tdd = tdds.take();
-                assertNotNull(tdd);
+                assertThat(tdd).isNotNull();
 
                 List<InputGateDeploymentDescriptor> igdds = tdd.getInputGates();
-                assertEquals(ev.getAllConsumedPartitionGroups().size(), igdds.size());
+                assertThat(igdds).hasSize(ev.getAllConsumedPartitionGroups().size());
 
                 if (igdds.size() > 0) {
                     checkShuffleDescriptors(igdds.get(0), ev.getConsumedPartitionGroup(0));
@@ -162,11 +170,11 @@ public class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
         }
 
         for (int i = 1; i < numberOfVertices; i++) {
-            vertices.get(i)
-                    .connectNewDataSetAsInput(
-                            vertices.get(i - 1),
-                            DistributionPattern.POINTWISE,
-                            ResultPartitionType.BLOCKING);
+            connectNewDataSetAsInput(
+                    vertices.get(i),
+                    vertices.get(i - 1),
+                    DistributionPattern.POINTWISE,
+                    ResultPartitionType.BLOCKING);
         }
 
         final JobGraph jobGraph =
@@ -188,9 +196,8 @@ public class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
             InputGateDeploymentDescriptor igdd, ConsumedPartitionGroup consumedPartitionGroup) {
         int idx = 0;
         for (IntermediateResultPartitionID consumedPartitionId : consumedPartitionGroup) {
-            assertEquals(
-                    consumedPartitionId,
-                    igdd.getShuffleDescriptors()[idx++].getResultPartitionID().getPartitionId());
+            assertThat(igdd.getShuffleDescriptors()[idx++].getResultPartitionID().getPartitionId())
+                    .isEqualTo(consumedPartitionId);
         }
     }
 }

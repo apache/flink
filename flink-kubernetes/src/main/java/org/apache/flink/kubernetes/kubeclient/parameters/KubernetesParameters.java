@@ -78,7 +78,7 @@ public interface KubernetesParameters {
      */
     List<Map<String, String>> getTolerations();
 
-    /** Directory in Pod that stores the flink-conf.yaml, log4j.properties, and the logback.xml. */
+    /** Directory in Pod that stores the config.yaml, log4j.properties, and the logback.xml. */
     String getFlinkConfDirInPod();
 
     /** Directory in Pod that saves the log files. */

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Visitable;
 import org.apache.flink.util.Visitor;
 
@@ -69,6 +70,8 @@ public class Plan implements Visitable<Operator<?>>, Pipeline {
 
     /** The ID of the Job that this dataflow plan belongs to. */
     private JobID jobId;
+
+    private Configuration jobConfiguration = new Configuration();
 
     // ------------------------------------------------------------------------
 
@@ -353,6 +356,14 @@ public class Plan implements Visitable<Operator<?>>, Pipeline {
         MaxDopVisitor visitor = new MaxDopVisitor();
         accept(visitor);
         return Math.max(visitor.maxDop, this.defaultParallelism);
+    }
+
+    public void setJobConfiguration(Configuration jobConfiguration) {
+        this.jobConfiguration = jobConfiguration;
+    }
+
+    public Configuration getJobConfiguration() {
+        return jobConfiguration;
     }
 
     // --------------------------------------------------------------------------------------------

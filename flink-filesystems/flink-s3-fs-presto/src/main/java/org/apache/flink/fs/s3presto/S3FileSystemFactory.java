@@ -20,6 +20,7 @@ package org.apache.flink.fs.s3presto;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory;
+import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -67,6 +68,7 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
     @Override
     protected org.apache.flink.core.fs.FileSystem createFlinkFileSystem(
             FileSystem fs,
+            @Nullable FlinkS3FileSystem.S5CmdConfiguration s5CmdConfiguration,
             String localTmpDirectory,
             String entropyInjectionKey,
             int numEntropyChars,
@@ -75,6 +77,7 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
             int maxConcurrentUploads) {
         return new FlinkS3PrestoFileSystem(
                 fs,
+                s5CmdConfiguration,
                 localTmpDirectory,
                 entropyInjectionKey,
                 numEntropyChars,

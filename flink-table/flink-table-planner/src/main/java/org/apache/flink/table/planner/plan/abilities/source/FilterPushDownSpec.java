@@ -27,10 +27,10 @@ import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.plan.utils.RexNodeToExpressionConverter;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -41,8 +41,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.TimeZone;
 import java.util.stream.Collectors;
+
+import scala.Option;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -57,9 +58,30 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
     @JsonProperty(FIELD_NAME_PREDICATES)
     private final List<RexNode> predicates;
 
+    /**
+     * A flag which indicates all predicates are retained in the outer Filter operator.
+     *
+     * <p>This flog is only used for optimization phase, and should not be serialized.
+     */
+    @JsonIgnore private final boolean allPredicatesRetained;
+
+    public FilterPushDownSpec(List<RexNode> predicates, boolean allPredicatesRetained) {
+        this.predicates = new ArrayList<>(checkNotNull(predicates));
+        this.allPredicatesRetained = allPredicatesRetained;
+    }
+
     @JsonCreator
     public FilterPushDownSpec(@JsonProperty(FIELD_NAME_PREDICATES) List<RexNode> predicates) {
-        this.predicates = new ArrayList<>(checkNotNull(predicates));
+        this(predicates, true);
+    }
+
+    @JsonIgnore
+    public boolean isAllPredicatesRetained() {
+        return allPredicatesRetained;
+    }
+
+    public List<RexNode> getPredicates() {
+        return predicates;
     }
 
     @Override
@@ -81,8 +103,9 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
                             context.getSourceRowType().getFieldNames().toArray(new String[0]),
                             context.getFunctionCatalog(),
                             context.getCatalogManager(),
-                            TimeZone.getTimeZone(
-                                    TableConfigUtils.getLocalTimeZone(context.getTableConfig())));
+                            Option.apply(
+                                    context.getTypeFactory()
+                                            .buildRelNodeRowType(context.getSourceRowType())));
             List<Expression> filters =
                     predicates.stream()
                             .map(
@@ -103,6 +126,7 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
             ExpressionResolver resolver =
                     ExpressionResolver.resolverFor(
                                     context.getTableConfig(),
+                                    context.getClassLoader(),
                                     name -> Optional.empty(),
                                     context.getFunctionCatalog()
                                             .asLookup(
@@ -123,6 +147,11 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
                             "%s does not support SupportsFilterPushDown.",
                             tableSource.getClass().getName()));
         }
+    }
+
+    @Override
+    public boolean needAdjustFieldReferenceAfterProjection() {
+        return true;
     }
 
     @Override

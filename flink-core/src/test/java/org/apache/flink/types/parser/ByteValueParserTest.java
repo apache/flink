@@ -20,7 +20,7 @@ package org.apache.flink.types.parser;
 
 import org.apache.flink.types.ByteValue;
 
-public class ByteValueParserTest extends ParserTestBase<ByteValue> {
+class ByteValueParserTest extends ParserTestBase<ByteValue> {
 
     @Override
     public String[] getValidTestValues() {

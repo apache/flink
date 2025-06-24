@@ -19,12 +19,12 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.util.IntArrayList;
+import org.apache.flink.util.CollectionUtil;
 
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -115,7 +115,8 @@ public class RescaleMappings implements Serializable {
     }
 
     public Set<Integer> getAmbiguousTargets() {
-        final Set<Integer> ambiguousTargets = new HashSet<>(numberOfTargets);
+        final Set<Integer> ambiguousTargets =
+                CollectionUtil.newHashSetWithExpectedSize(numberOfTargets);
         final BitSet usedTargets = new BitSet(numberOfTargets);
 
         for (int[] targets : mappings) {

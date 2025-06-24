@@ -126,7 +126,15 @@ public final class S3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
 
     @Override
     public void sync() throws IOException {
-        fileStream.sync();
+        lock();
+        try {
+            fileStream.flush();
+            uploadCurrentAndOpenNewPart(fileStream.getPos());
+            Committer committer = upload.snapshotAndGetCommitter();
+            committer.commitAfterRecovery();
+        } finally {
+            unlock();
+        }
     }
 
     @Override

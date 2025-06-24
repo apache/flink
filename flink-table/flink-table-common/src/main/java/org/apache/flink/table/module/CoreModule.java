@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.module;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -31,6 +32,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /** Module of default core metadata in Flink. */
+@PublicEvolving
 public class CoreModule implements Module {
 
     public static final CoreModule INSTANCE = new CoreModule();

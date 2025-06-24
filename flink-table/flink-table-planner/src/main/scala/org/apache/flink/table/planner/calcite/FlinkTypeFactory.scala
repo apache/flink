@@ -18,12 +18,17 @@
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NothingTypeInfo, TypeInformation}
-import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, ValidationException}
+import org.apache.flink.table.api.{DataTypes, TableException, ValidationException}
 import org.apache.flink.table.calcite.ExtendedRelTypeFactory
+import org.apache.flink.table.legacy.api.TableSchema
+import org.apache.flink.table.legacy.types.logical.TypeInformationRawType
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
-import org.apache.flink.table.planner.plan.schema.{GenericRelDataType, _}
+import org.apache.flink.table.planner.plan.schema._
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.types.{LogicalTypeDataTypeConverter, PlannerTypeUtils}
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.utils.TableSchemaUtils
 import org.apache.flink.types.Nothing
@@ -50,7 +55,9 @@ import scala.collection.mutable
  * Flink specific type factory that represents the interface between Flink's [[LogicalType]] and
  * Calcite's [[RelDataType]].
  */
-class FlinkTypeFactory(typeSystem: RelDataTypeSystem = FlinkTypeSystem.INSTANCE)
+class FlinkTypeFactory(
+    classLoader: ClassLoader,
+    typeSystem: RelDataTypeSystem = FlinkTypeSystem.INSTANCE)
   extends JavaTypeFactoryImpl(typeSystem)
   with ExtendedRelTypeFactory {
 
@@ -145,6 +152,12 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem = FlinkTypeSystem.INSTANCE)
 
       case LogicalTypeRoot.SYMBOL =>
         createSqlType(SqlTypeName.SYMBOL)
+
+      case LogicalTypeRoot.DESCRIPTOR =>
+        createSqlType(SqlTypeName.COLUMN_LIST)
+
+      case LogicalTypeRoot.VARIANT =>
+        createSqlType(SqlTypeName.VARIANT)
 
       case _ @t =>
         throw new TableException(s"Type is not supported: $t")
@@ -283,6 +296,18 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem = FlinkTypeSystem.INSTANCE)
   }
 
   /**
+   * Creats a struct type with the persisted columns using FlinkTypeFactory
+   *
+   * @param tableSchema
+   *   schema to convert to Calcite's specific one
+   * @return
+   *   a struct type with the input fieldsNames, input fieldTypes.
+   */
+  def buildPersistedRelNodeRowType(tableSchema: TableSchema): RelDataType = {
+    buildRelNodeRowType(TableSchemaUtils.getPersistedSchema(tableSchema))
+  }
+
+  /**
    * Creates a struct type with the input fieldNames and input fieldTypes using FlinkTypeFactory.
    *
    * @param fieldNames
@@ -366,12 +391,32 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem = FlinkTypeSystem.INSTANCE)
   }
 
   override def createRawType(className: String, serializerString: String): RelDataType = {
-    val rawType = RawType.restore(
-      FlinkTypeFactory.getClass.getClassLoader, // temporary solution until FLINK-15635 is fixed
-      className,
-      serializerString)
+    val rawType = RawType.restore(classLoader, className, serializerString)
     val rawRelDataType = createFieldTypeFromLogicalType(rawType)
     canonize(rawRelDataType)
+  }
+
+  override def createStructuredType(
+      className: String,
+      fieldTypes: util.List[RelDataType],
+      fieldNames: util.List[String]): RelDataType = {
+    val resolvedClass = toScala(StructuredType.resolveClass(classLoader, className))
+    val builder = resolvedClass
+      .map(StructuredType.newBuilder)
+      .getOrElse(StructuredType.newBuilder(className))
+
+    val relFields = 0
+      .until(fieldTypes.size())
+      .map(i => new RelDataTypeFieldImpl(fieldNames.get(i), i, fieldTypes.get(i)))
+      .map(_.asInstanceOf[RelDataTypeField])
+      .toList
+
+    val attributes =
+      relFields.map(f => new StructuredAttribute(f.getName, toLogicalType(f.getType)))
+    builder.attributes(attributes.asJava)
+
+    val relDataType = new StructuredRelDataType(builder.build(), relFields.asJava)
+    canonize(relDataType)
   }
 
   override def createSqlType(typeName: SqlTypeName): RelDataType = {
@@ -380,11 +425,6 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem = FlinkTypeSystem.INSTANCE)
       // keep precision/scale in sync with our type system's default value,
       // see DecimalType.USER_DEFAULT.
       createSqlType(typeName, DecimalType.DEFAULT_PRECISION, DecimalType.DEFAULT_SCALE)
-    } else if (typeName == COLUMN_LIST) {
-      // we don't support column lists and translate them into the unknown type,
-      // this makes it possible to ignore them in the validator and fall back to regular row types
-      // see also SqlFunction#deriveType
-      createUnknownType()
     } else {
       super.createSqlType(typeName)
     }
@@ -411,7 +451,11 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem = FlinkTypeSystem.INSTANCE)
         new GenericRelDataType(generic.genericType, isNullable, typeSystem)
 
       case it: TimeIndicatorRelDataType =>
-        new TimeIndicatorRelDataType(it.typeSystem, it.originalType, isNullable, it.isEventTime)
+        new TimeIndicatorRelDataType(
+          it.typeSystemField,
+          it.originalType,
+          isNullable,
+          it.isEventTime)
 
       // for nested rows we keep the nullability property,
       // top-level rows fall back to Calcite's default handling
@@ -610,6 +654,9 @@ object FlinkTypeFactory {
       case SYMBOL =>
         new SymbolType()
 
+      case COLUMN_LIST =>
+        new DescriptorType()
+
       // extract encapsulated Type
       case ANY if relDataType.isInstanceOf[GenericRelDataType] =>
         val genericRelDataType = relDataType.asInstanceOf[GenericRelDataType]
@@ -633,6 +680,8 @@ object FlinkTypeFactory {
 
       // CURSOR for UDTF case, whose type info will never be used, just a placeholder
       case CURSOR => new TypeInformationRawType[Nothing](new NothingTypeInfo)
+
+      case VARIANT => new VariantType()
 
       case OTHER if relDataType.isInstanceOf[RawRelDataType] =>
         relDataType.asInstanceOf[RawRelDataType].getRawType

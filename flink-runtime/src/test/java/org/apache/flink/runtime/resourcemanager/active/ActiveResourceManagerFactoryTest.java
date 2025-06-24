@@ -18,61 +18,36 @@
 
 package org.apache.flink.runtime.resourcemanager.active;
 
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
 import org.apache.flink.util.ConfigurationException;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ActiveResourceManagerFactory}. */
-public class ActiveResourceManagerFactoryTest extends TestLogger {
+class ActiveResourceManagerFactoryTest {
 
     private static final MemorySize TOTAL_FLINK_SIZE = MemorySize.ofMebiBytes(2 * 1024);
     private static final MemorySize TOTAL_PROCESS_SIZE = MemorySize.ofMebiBytes(3 * 1024);
 
     @Test
-    public void testGetEffectiveConfigurationForResourceManagerCoarseGrained() {
+    void testGetEffectiveConfigurationForResourceManagerFineGrained() {
         final Configuration config = new Configuration();
-        config.set(ClusterOptions.ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT, false);
         config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, TOTAL_FLINK_SIZE);
         config.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, TOTAL_PROCESS_SIZE);
 
         final Configuration effectiveConfig =
                 getFactory().getEffectiveConfigurationForResourceManager(config);
 
-        assertTrue(effectiveConfig.contains(TaskManagerOptions.TOTAL_FLINK_MEMORY));
-        assertTrue(effectiveConfig.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY));
-        assertThat(
-                effectiveConfig.get(TaskManagerOptions.TOTAL_FLINK_MEMORY), is(TOTAL_FLINK_SIZE));
-        assertThat(
-                effectiveConfig.get(TaskManagerOptions.TOTAL_PROCESS_MEMORY),
-                is(TOTAL_PROCESS_SIZE));
-    }
-
-    @Test
-    public void testGetEffectiveConfigurationForResourceManagerFineGrained() {
-        final Configuration config = new Configuration();
-        config.set(ClusterOptions.ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT, true);
-        config.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, TOTAL_FLINK_SIZE);
-        config.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, TOTAL_PROCESS_SIZE);
-
-        final Configuration effectiveConfig =
-                getFactory().getEffectiveConfigurationForResourceManager(config);
-
-        assertFalse(effectiveConfig.contains(TaskManagerOptions.TOTAL_FLINK_MEMORY));
-        assertFalse(effectiveConfig.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY));
+        assertThat(effectiveConfig.contains(TaskManagerOptions.TOTAL_FLINK_MEMORY)).isFalse();
+        assertThat(effectiveConfig.contains(TaskManagerOptions.TOTAL_PROCESS_MEMORY)).isFalse();
     }
 
     private static ActiveResourceManagerFactory<ResourceID> getFactory() {

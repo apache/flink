@@ -31,13 +31,14 @@ import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,8 +52,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Sort test for binary row. */
-@RunWith(Parameterized.class)
-public class BinaryExternalSorterTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class BinaryExternalSorterTest {
 
     private static final int MEMORY_SIZE = 1024 * 1024 * 32;
     private static final Logger LOG = LoggerFactory.getLogger(BinaryExternalSorterTest.class);
@@ -65,15 +66,15 @@ public class BinaryExternalSorterTest {
         ioManager = new IOManagerAsync();
         conf = new Configuration();
         if (!spillCompress) {
-            conf.setBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED, false);
+            conf.set(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED, false);
         }
         if (asyncMerge) {
-            conf.setBoolean(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED, true);
+            conf.set(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED, true);
         }
     }
 
-    @Parameterized.Parameters(name = "spillCompress-{0} asyncMerge-{1}")
-    public static Collection<Boolean[]> parameters() {
+    @Parameters(name = "spillCompress-{0} asyncMerge-{1}")
+    private static Collection<Boolean[]> parameters() {
         return Arrays.asList(
                 new Boolean[] {false, false},
                 new Boolean[] {false, true},
@@ -90,15 +91,15 @@ public class BinaryExternalSorterTest {
     }
 
     @SuppressWarnings("unchecked")
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         this.memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
         this.serializer = new BinaryRowDataSerializer(2);
-        this.conf.setInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 128);
+        this.conf.set(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 128);
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         this.ioManager.close();
 
         if (this.memoryManager != null) {
@@ -110,8 +111,8 @@ public class BinaryExternalSorterTest {
         }
     }
 
-    @Test
-    public void testSortTwoBufferInMemory() throws Exception {
+    @TestTemplate
+    void testSortTwoBufferInMemory() throws Exception {
 
         int size = 1_000_000;
 
@@ -134,7 +135,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         1f);
         sorter.startThreads();
         sorter.write(reader);
@@ -153,8 +161,8 @@ public class BinaryExternalSorterTest {
         memoryManager.shutdown();
     }
 
-    @Test
-    public void testSort() throws Exception {
+    @TestTemplate
+    void testSort() throws Exception {
 
         int size = 10_000;
 
@@ -174,7 +182,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(reader);
@@ -191,8 +206,8 @@ public class BinaryExternalSorterTest {
         sorter.close();
     }
 
-    @Test
-    public void testSortIntStringWithRepeat() throws Exception {
+    @TestTemplate
+    void testSortIntStringWithRepeat() throws Exception {
 
         int size = 10_000;
 
@@ -215,7 +230,14 @@ public class BinaryExternalSorterTest {
                             }
                         },
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(new MockBinaryRowReader(size));
@@ -236,8 +258,8 @@ public class BinaryExternalSorterTest {
         sorter.close();
     }
 
-    @Test
-    public void testSpilling() throws Exception {
+    @TestTemplate
+    void testSpilling() throws Exception {
 
         int size = 1000_000;
 
@@ -257,7 +279,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(reader);
@@ -274,8 +303,8 @@ public class BinaryExternalSorterTest {
         sorter.close();
     }
 
-    @Test
-    public void testSpillingDesc() throws Exception {
+    @TestTemplate
+    void testSpillingDesc() throws Exception {
 
         int size = 1000_000;
 
@@ -305,7 +334,14 @@ public class BinaryExternalSorterTest {
                                 return -super.compare(o1, o2);
                             }
                         },
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(reader);
@@ -328,8 +364,8 @@ public class BinaryExternalSorterTest {
         sorter.close();
     }
 
-    @Test
-    public void testMergeManyTimes() throws Exception {
+    @TestTemplate
+    void testMergeManyTimes() throws Exception {
 
         int size = 1000_000;
 
@@ -339,7 +375,7 @@ public class BinaryExternalSorterTest {
 
         long minMemorySize =
                 memoryManager.computeNumberOfPages(0.01) * MemoryManager.DEFAULT_PAGE_SIZE;
-        conf.setInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 8);
+        conf.set(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 8);
 
         BinaryExternalSorter sorter =
                 new BinaryExternalSorter(
@@ -351,7 +387,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
         sorter.write(reader);
@@ -368,8 +411,8 @@ public class BinaryExternalSorterTest {
         sorter.close();
     }
 
-    @Test
-    public void testSpillingRandom() throws Exception {
+    @TestTemplate
+    void testSpillingRandom() throws Exception {
 
         int size = 1000_000;
 
@@ -389,7 +432,14 @@ public class BinaryExternalSorterTest {
                         serializer,
                         IntNormalizedKeyComputer.INSTANCE,
                         IntRecordComparator.INSTANCE,
-                        conf,
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
+                        (int)
+                                conf.get(
+                                                ExecutionConfigOptions
+                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                        .getBytes(),
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED),
                         0.7f);
         sorter.startThreads();
 

@@ -16,11 +16,11 @@
 # limitations under the License.
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Session property has been set.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'table.dml-sync' = 'true';
-[INFO] Session property has been set.
+[INFO] Execute statement succeeded.
 !info
 
 # ==========================================================================
@@ -28,7 +28,7 @@ SET 'table.dml-sync' = 'true';
 # ==========================================================================
 
 SET 'execution.runtime-mode' = 'streaming';
-[INFO] Session property has been set.
+[INFO] Execute statement succeeded.
 !info
 
 create table StreamingTable (
@@ -39,12 +39,10 @@ create table StreamingTable (
   'path' = '$VAR_STREAMING_PATH',
   'format' = 'csv'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
-[INFO] Submitting SQL update statement to the cluster...
-[INFO] Execute statement in sync mode. Please wait for the execution finish...
 [INFO] Complete execution of the SQL update statement.
 !info
 
@@ -68,7 +66,7 @@ Received a total of 7 rows
 # ==========================================================================
 
 SET 'execution.runtime-mode' = 'batch';
-[INFO] Session property has been set.
+[INFO] Execute statement succeeded.
 !info
 
 create table BatchTable (
@@ -79,12 +77,10 @@ create table BatchTable (
   'path' = '$VAR_BATCH_PATH',
   'format' = 'csv'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
-[INFO] Submitting SQL update statement to the cluster...
-[INFO] Execute statement in sync mode. Please wait for the execution finish...
 [INFO] Complete execution of the SQL update statement.
 !info
 

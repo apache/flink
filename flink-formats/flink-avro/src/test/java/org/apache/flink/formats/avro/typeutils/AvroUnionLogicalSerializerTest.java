@@ -26,7 +26,7 @@ import java.time.Instant;
 import java.util.Random;
 
 /** Tests for the {@link AvroSerializer} that test specific avro types. */
-public class AvroUnionLogicalSerializerTest extends SerializerTestBase<UnionLogicalType> {
+class AvroUnionLogicalSerializerTest extends SerializerTestBase<UnionLogicalType> {
 
     @Override
     protected TypeSerializer<UnionLogicalType> createSerializer() {

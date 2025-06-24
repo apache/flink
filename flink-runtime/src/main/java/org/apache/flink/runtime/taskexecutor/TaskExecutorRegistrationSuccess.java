@@ -24,6 +24,8 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 
 /**
@@ -40,20 +42,25 @@ public final class TaskExecutorRegistrationSuccess extends RegistrationResponse.
 
     private final ClusterInformation clusterInformation;
 
+    @Nullable private final byte[] initialTokens;
+
     /**
      * Create a new {@code TaskExecutorRegistrationSuccess} message.
      *
      * @param registrationId The ID that the ResourceManager assigned the registration.
      * @param resourceManagerResourceId The unique ID that identifies the ResourceManager.
      * @param clusterInformation information about the cluster
+     * @param initialTokens initial tokens for the TaskExecutor
      */
     public TaskExecutorRegistrationSuccess(
             InstanceID registrationId,
             ResourceID resourceManagerResourceId,
-            ClusterInformation clusterInformation) {
+            ClusterInformation clusterInformation,
+            @Nullable byte[] initialTokens) {
         this.registrationId = Preconditions.checkNotNull(registrationId);
         this.resourceManagerResourceId = Preconditions.checkNotNull(resourceManagerResourceId);
         this.clusterInformation = Preconditions.checkNotNull(clusterInformation);
+        this.initialTokens = initialTokens;
     }
 
     /** Gets the ID that the ResourceManager assigned the registration. */
@@ -69,6 +76,11 @@ public final class TaskExecutorRegistrationSuccess extends RegistrationResponse.
     /** Gets the cluster information. */
     public ClusterInformation getClusterInformation() {
         return clusterInformation;
+    }
+
+    /** Gets the initial tokens. */
+    public byte[] getInitialTokens() {
+        return initialTokens;
     }
 
     @Override

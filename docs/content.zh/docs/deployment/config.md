@@ -27,15 +27,93 @@ under the License.
 
 # 配置参数
 
-All configuration is done in `conf/flink-conf.yaml`, which is expected to be a flat collection of [YAML key value pairs](http://www.yaml.org/spec/1.2/spec.html) with format `key: value`.
+All configuration can be set in Flink configuration file in the `conf/` directory (see [Flink Configuration File section](#flink-configuration-file)).
 
 The configuration is parsed and evaluated when the Flink processes are started. Changes to the configuration file require restarting the relevant processes.
 
-The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in `conf/flink-conf.yaml` if you want to manually override the Java runtime to use.
+The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in Flink configuration file if you want to manually override the Java runtime to use. Note that the configuration key `env.java.home` must be specified in a flattened format (i.e. one-line key-value format) in the configuration file.
 
 You can specify a different configuration directory location by defining the `FLINK_CONF_DIR` environment variable. For resource providers which provide non-session deployments, you can specify per-job configurations this way. Make a copy of the `conf` directory from the Flink distribution and modify the settings on a per-job basis. Note that this is not supported in Docker or standalone Kubernetes deployments. On Docker-based deployments, you can use the `FLINK_PROPERTIES` environment variable for passing configuration values.
 
 On session clusters, the provided configuration will only be used for configuring [execution](#execution) parameters, e.g. configuration parameters affecting the job, not the underlying cluster.
+
+# Flink 配置文件
+
+自 Flink-2.0 版本起，Flink 仅支持使用支持标准 YAML 1.2 语法的配置文件 `config.yaml`，原有的 `flink-conf.yaml` 配置文件将不再支持。与之前版本中仅支持简单键值对的配置方式相比，这一更新为用户提供了更加灵活和强大的配置能力。
+
+本节将帮助用户理解如何通过 `config.yaml` 配置文件对 Flink 集群和作业进行配置，以及如何将老配置迁移至新的配置文件中。
+
+### 用法
+
+`config.yaml` 的配置方式如下：
+
+#### Config Key
+
+- 用户可以按照 Nested 的格式来组织 Config Key，如：
+
+```config.yaml
+restart-strategy:
+  type: failure-rate
+  failure-rate:
+    delay: 1 s
+    failure-rate-interval: 1 min
+    max-failures-per-interval: 1
+```
+
+- 此外，用户也可以按 Flatten 的格式组织 Config Key，如：
+
+```flink-conf.yaml
+restart-strategy.type: failure-rate
+restart-strategy.failure-rate.delay: 1 s
+restart-strategy.failure-rate.failure-rate-interval: 1 min
+restart-strategy.failure-rate.max-failures-per-interval: 1
+```
+
+#### Config Value
+
+`config.yaml` 配置文件支持用户按 [YAML 1.2 core schema](https://yaml.org/spec/1.2.2/#103-core-schema) 进行 value 的配置。
+
+用户可按如下格式配置 Value 对应的Config Type：
+
+{{< config_file_zh >}}
+
+此外，用户还可以按字符串格式配置所有 Config Type 的 Value，只需将原始值使用单引号或双引号括起来。
+
+### 从 flink-conf.yaml 迁移至 config.yaml
+#### 行为变更
+`config.yaml` 严格遵循 YAML1.2 语法，与 `flink-conf.yaml` 在大部分情况下都完全兼容，除了以下场景发生了行为变更:
+
+- Null value:
+    - `flink-conf.yaml`：仅支持留空。
+    - `config.yaml`：支持留空, null, Null, NULL 和 `~` 。
+
+- 注释:
+    - `flink-conf.yaml`：每一行中首次出现 `#` 以后的都认为是注释。
+    - `config.yaml`：`#` 号和它前面的内容之间至少有一个空格或者 `#` 号位于一行的开头时，后续内容才认为是注释。
+
+- 需要转义的特殊字符：
+    - `flink-conf.yaml`：仅需要对 List 和 Map的元素进行转义
+      - List 中的元素如果含有分号 ";" ，则需要进行转义。
+      - Map 中的元素如果含有逗号 "," 和冒号 ":" ，则需要进行转义。
+    - `config.yaml`：需要对 YAML 1.2 规范中的特殊字符进行转义，特殊字符的定义见[链接](https://yaml.org/spec/1.2.2/#53-indicator-characters)。
+
+- 重复Key：
+    - `flink-conf.yaml`：允许重复Key，取文件中最末端出现的对应Key的 key-value pair。
+    - `config.yaml`：不允许重复Key，加载配置时将报错。
+
+- 对非法配置的处理:
+    - `flink-conf.yaml`：非法的 key-value pair 将被忽略。
+    - `config.yaml`：加载配置时将报错。
+
+#### Migration Tool
+为了方便用户迁移，Flink 提供了一个配置文件迁移脚本，使用这个脚本可以自动化地完成迁移过程。使用方法如下：
+
+- 将旧的配置文件 `flink-conf.yaml` 放置在 `conf/` 目录下
+- 在 `$FLINK_HOME/` 目录执行如下指令
+````migrate-tool.sh
+bin/migrate-config-file.sh
+````
+运行上述指令后，该迁移脚本会自动读取 `conf/` 目录下的旧配置文件 `flink-conf.yaml`，并将迁移后的结果输出到 `conf/` 目录下的新配置文件 `config.yaml` 中。需要注意的是，因为老配置项解析器的限制，`flink-conf.yaml` 中所有的 value 会被识别为 `String` 类型，所以生成的 `config.yaml` 文件中的 value 也都为 `String` 类型，即部分 value 会被引号引起来。不过 Flink 会在后续的配置解析时将其转换为使用 `ConfigOption` 定义的实际类型。
 
 # Basic Setup
 
@@ -61,7 +139,7 @@ The default memory sizes support simple streaming/batch applications, but are to
 
 The total sizes include everything. Flink will subtract some memory for the JVM's own memory requirements (metaspace and others), and divide and configure the rest automatically between its components (JVM Heap, Off-Heap, for Task Managers also network, managed memory etc.).
 
-These value are configured as memory sizes, for example *1536m* or *2g*.
+These values are configured as memory sizes, for example *1536m* or *2g*.
 
 **Parallelism**
 
@@ -76,9 +154,9 @@ These value are configured as memory sizes, for example *1536m* or *2g*.
 
 You can configure checkpointing directly in code within your Flink job or application. Putting these values here in the configuration defines them as defaults in case the application does not configure anything.
 
-  - `state.backend`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `filesystem` or `rocksdb`.
-  - `state.checkpoints.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
-  - `state.savepoints.dir`: The default directory for savepoints. Takes a path URI, similar to `state.checkpoints.dir`.
+  - `state.backend.type`: The state backend to use. This defines the data structure mechanism for taking snapshots. Common values are `hashmap`, `rocksdb` or `forst`.
+  - `execution.checkpointing.dir`: The directory to write checkpoints to. This takes a path URI like *s3://mybucket/flink-app/checkpoints* or *hdfs://namenode:port/flink/checkpoints*.
+  - `execution.checkpointing.savepoint-dir`: The default directory for savepoints. Takes a path URI, similar to `execution.checkpointing.dir`.
   - `execution.checkpointing.interval`: The base interval setting. To enable checkpointing, you need to set this value larger than 0.
 
 **Web UI**
@@ -121,7 +199,7 @@ You do not need to configure any TaskManager hosts and ports, unless the setup r
 ### Fault Tolerance
 
 These configuration options control Flink's restart behaviour in case of failures during the execution. 
-By configuring these options in your `flink-conf.yaml`, you define the cluster's default restart strategy. 
+By configuring these options in your `config.yaml`, you define the cluster's default restart strategy. 
 
 The default restart strategy will only take effect if no job specific restart strategy has been configured via the `ExecutionConfig`.
 
@@ -130,6 +208,10 @@ The default restart strategy will only take effect if no job specific restart st
 **Fixed Delay Restart Strategy**
 
 {{< generated/fixed_delay_restart_strategy_configuration >}}
+
+**Exponential Delay Restart Strategy**
+
+{{< generated/exponential_delay_restart_strategy_configuration >}}
 
 **Failure Rate Restart Strategy**
 
@@ -156,7 +238,13 @@ These options control the basic setup of state backends and checkpointing behavi
 The options are only relevant for jobs/applications executing in a continuous streaming fashion.
 Jobs/applications executing in a batch fashion do not use state backends and checkpoints, but different internal data structures that are optimized for batch processing.
 
+**State Backends**
+
 {{< generated/common_state_backends_section >}}
+
+**Checkpoints**
+
+{{< generated/common_checkpointing_section >}}
 
 ### High Availability
 
@@ -204,8 +292,14 @@ Flink's network connections can be secured via SSL. Please refer to the [SSL Set
 
 {{< generated/security_ssl_section >}}
 
-
 ### Auth with External Systems
+
+**Delegation token**
+
+Flink has a pluggable authentication protocol agnostic delegation token framework.
+Please refer to the [Flink and Delegation Token Docs]({{< ref "docs/deployment/security/security-delegation-token" >}}) for further details.
+
+{{< generated/security_delegation_token_section >}}
 
 **ZooKeeper Authentication / Authorization**
 
@@ -252,6 +346,12 @@ These are the options commonly needed to configure the RocksDB state backend. Se
 
 {{< generated/state_backend_rocksdb_section >}}
 
+### ForSt State Backend
+
+These are the options commonly needed to configure the ForSt state backend. See the [Advanced ForSt Backend Section](#advanced-forst-state-backends-options) for options necessary for advanced low level configurations and trouble-shooting.
+
+{{< generated/state_backend_forst_section >}}
+
 ----
 ----
 
@@ -264,13 +364,34 @@ Please refer to the [metrics system documentation]({{< ref "docs/ops/metrics" >}
 ### RocksDB Native Metrics
 
 Flink can report metrics from RocksDB's native code, for applications using the RocksDB state backend.
-The metrics here are scoped to the operators and then further broken down by column family; values are reported as unsigned longs. 
+The metrics here are scoped to the operators with unsigned longs and have two kinds of types：
+1. RocksDB property-based metrics, which is broken down by column family, e.g. number of currently running compactions of one specific column family.
+2. RocksDB statistics-based metrics, which holds at the database level, e.g. total block cache hit count within the DB.
 
 {{< hint warning >}}
 Enabling RocksDB's native metrics may cause degraded performance and should be set carefully. 
 {{< /hint >}}
 
 {{< generated/rocksdb_native_metric_configuration >}}
+
+### ForSt Native Metrics
+
+ForSt has similar native metric mechanism to RocksDB.
+
+{{< hint warning >}}
+Enabling ForSt's native metrics may cause degraded performance and should be set carefully.
+{{< /hint >}}
+
+{{< generated/forst_native_metric_configuration >}}
+
+----
+----
+
+# Traces
+
+Please refer to the [tracing system documentation]({{< ref "docs/ops/traces" >}}) for background on Flink's tracing infrastructure.
+
+{{< generated/trace_configuration >}}
 
 ----
 ----
@@ -290,16 +411,6 @@ See the [History Server Docs]({{< ref "docs/deployment/advanced/historyserver" >
 
 *Options for experimental features in Flink.*
 
-### Queryable State
-
-*Queryable State* is an experimental features that gives lets you access Flink's internal state like a key/value store.
-See the [Queryable State Docs]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}) for details.
-
-{{< generated/queryable_state_configuration >}}
-
-----
-----
-
 # Client
 
 {{< generated/client_configuration >}}
@@ -307,20 +418,36 @@ See the [Queryable State Docs]({{< ref "docs/dev/datastream/fault-tolerance/quer
 ----
 ----
 
+# User Artifact Management
+
+Flink is capable to upload and fetch local user artifacts in Application Mode. An artifact can be the actual job archive, a UDF that is packaged separately, etc.
+1. Uploading local artifacts to a DFS is a Kubernetes specific feature, see the [Kubernetes](#kubernetes) section and look for `kubernetes.artifacts.*` prefixed options.
+2. Fetching remote artifacts on the deployed application cluster is supported from DFS or an HTTP(S) endpoint.
+{{< hint info >}}
+**Note:** Artifact Fetching is supported in Standalone Application Mode and Native Kubernetes Application Mode.
+{{< /hint >}}
+
+{{< generated/artifact_fetch_configuration >}}
+
+----
+----
+
 # Execution
 
 {{< generated/deployment_configuration >}}
-{{< generated/savepoint_config_configuration >}}
 {{< generated/execution_configuration >}}
 
 ### Pipeline
 
 {{< generated/pipeline_configuration >}}
-{{< generated/stream_pipeline_configuration >}}
 
 ### Checkpointing
 
-{{< generated/execution_checkpointing_configuration >}}
+{{< generated/checkpointing_configuration >}}
+
+### Recovery
+
+{{< generated/state_recovery_configuration >}}
 
 ----
 ----
@@ -343,13 +470,13 @@ Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/de
 
 {{< generated/expert_debugging_and_tuning_section >}}
 
-### Advanced State Backends Options
+### Advanced Checkpointing Options
 
-{{< generated/expert_state_backends_section >}}
+{{< generated/expert_checkpointing_section >}}
 
-### State Backends Latency Tracking Options
+### State Latency Tracking Options
 
-{{< generated/state_backend_latency_tracking_section >}}
+{{< generated/state_latency_tracking_section >}}
 
 ### Advanced RocksDB State Backends Options
 
@@ -357,23 +484,32 @@ Advanced options to tune RocksDB and RocksDB checkpoints.
 
 {{< generated/expert_rocksdb_section >}}
 
+### Advanced ForSt State Backends Options
+
+Advanced options to tune ForSt and ForSt checkpoints.
+
+{{< generated/expert_forst_section >}}
+
 ### State Changelog Options
 
 Please refer to [State Backends]({{< ref "docs/ops/state/state_backends#enabling-changelog" >}}) for information on
-using State Changelog. {{< hint warning >}} The feature is in experimental status. {{< /hint >}} {{<
-generated/state_backend_changelog_section >}}
+using State Changelog. {{< generated/state_changelog_section >}}
 
 #### FileSystem-based Changelog options
 
-These settings take effect when the `state.backend.changelog.storage`  is set to `filesystem` (see [above](#state-backend-changelog-storage)).
+These settings take effect when the `state.changelog.storage`  is set to `filesystem` (see [above](#state-changelog-storage)).
 {{< generated/fs_state_changelog_configuration >}}
 
-**RocksDB Configurable Options**
+### RocksDB Configurable Options
 
 These options give fine-grained control over the behavior and resources of ColumnFamilies.
 With the introduction of `state.backend.rocksdb.memory.managed` and `state.backend.rocksdb.memory.fixed-per-slot` (Apache Flink 1.10), it should be only necessary to use the options here for advanced performance tuning. These options here can also be specified in the application program via `RocksDBStateBackend.setRocksDBOptions(RocksDBOptionsFactory)`.
 
 {{< generated/rocksdb_configurable_configuration >}}
+
+### ForSt State Backend Configurable Options
+
+{{< generated/forst_configurable_configuration >}}
 
 ### Advanced Fault Tolerance Options
 
@@ -449,12 +585,12 @@ These options are for the network stack that handles the streaming and batch dat
 
 {{< generated/all_taskmanager_network_section >}}
 
-### RPC / Akka
+### RPC / Pekko
 
-Flink uses Akka for RPC between components (JobManager/TaskManager/ResourceManager).
-Flink does not use Akka for data transport.
+Flink uses Pekko for RPC between components (JobManager/TaskManager/ResourceManager).
+Flink does not use Pekko for data transport.
 
-{{< generated/akka_configuration >}}
+{{< generated/rpc_configuration >}}
 
 ----
 ----
@@ -469,7 +605,7 @@ You can configure environment variables to be set on the JobManager and TaskMana
 
   - `containerized.master.env.`: Prefix for passing custom environment variables to Flink's JobManager process. 
    For example for passing LD_LIBRARY_PATH as an env variable to the JobManager, set containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
-    in the flink-conf.yaml.
+    in the config.yaml.
 
   - `containerized.taskmanager.env.`: Similar to the above, this configuration prefix allows setting custom environment variables for the workers (TaskManagers).
 
@@ -481,15 +617,15 @@ You can configure environment variables to be set on the JobManager and TaskMana
 These options relate to parts of Flink that are not actively developed any more.
 These options may be removed in a future release.
 
-**DataSet API Optimizer**
+**Optimizer**
 
 {{< generated/optimizer_configuration >}}
 
-**DataSet API Runtime Algorithms**
+**Runtime Algorithms**
 
 {{< generated/algorithm_configuration >}}
 
-**DataSet File Sinks**
+**File Sinks**
 
 {{< generated/deprecated_file_sinks_section >}}
 

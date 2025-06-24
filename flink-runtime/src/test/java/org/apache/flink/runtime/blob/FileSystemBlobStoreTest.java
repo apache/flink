@@ -24,19 +24,16 @@ import org.apache.flink.core.fs.local.LocalDataOutputStream;
 import org.apache.flink.runtime.state.filesystem.TestFs;
 import org.apache.flink.testutils.TestFileSystem;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -51,30 +48,30 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link FileSystemBlobStore}. */
-@ExtendWith(TestLoggerExtension.class)
 class FileSystemBlobStoreTest {
 
     private FileSystemBlobStore testInstance;
     private Path storagePath;
 
     @BeforeEach
-    public void createTestInstance(@TempDir Path storagePath) throws IOException {
+    void createTestInstance(@TempDir Path storagePath) throws IOException {
         this.testInstance = new FileSystemBlobStore(new TestFileSystem(), storagePath.toString());
         this.storagePath = storagePath;
     }
 
     @AfterEach
-    public void finalizeTestInstance() throws IOException {
+    void finalizeTestInstance() throws IOException {
         testInstance.close();
     }
 
     @Test
-    public void testSuccessfulPut() throws IOException {
+    void testSuccessfulPut() throws IOException {
         final Path temporaryFile = createTemporaryFileWithContent("put");
 
         final JobID jobId = new JobID();
         final BlobKey blobKey = createPermanentBlobKeyFromFile(temporaryFile);
-        assertThat(getBlobDirectoryPath()).isEmptyDirectory();
+        // Blob store operations are creating the base directory on-the-fly
+        assertThat(getBlobDirectoryPath()).doesNotExist();
 
         final boolean successfullyWritten =
                 testInstance.put(temporaryFile.toFile(), jobId, blobKey);
@@ -85,7 +82,7 @@ class FileSystemBlobStoreTest {
     }
 
     @Test
-    public void testMissingFilePut() throws IOException {
+    void testMissingFilePut() {
         assertThatThrownBy(
                         () ->
                                 testInstance.put(
@@ -96,7 +93,7 @@ class FileSystemBlobStoreTest {
     }
 
     @Test
-    public void testSuccessfulGet() throws IOException {
+    void testSuccessfulGet() throws IOException {
         final Path temporaryFile = createTemporaryFileWithContent("get");
         final JobID jobId = new JobID();
         final BlobKey blobKey = createPermanentBlobKeyFromFile(temporaryFile);
@@ -112,7 +109,7 @@ class FileSystemBlobStoreTest {
     }
 
     @Test
-    public void testGetWithWrongJobId() throws IOException {
+    void testGetWithWrongJobId() throws IOException {
         final Path temporaryFile = createTemporaryFileWithContent("get");
         final BlobKey blobKey = createPermanentBlobKeyFromFile(temporaryFile);
 
@@ -131,7 +128,7 @@ class FileSystemBlobStoreTest {
     }
 
     @Test
-    public void testGetWithWrongBlobKey() throws IOException {
+    void testGetWithWrongBlobKey() throws IOException {
         final Path temporaryFile = createTemporaryFileWithContent("get");
 
         final JobID jobId = new JobID();
@@ -151,7 +148,7 @@ class FileSystemBlobStoreTest {
     }
 
     @Test
-    public void testSuccessfulDeleteOnlyBlob() throws IOException {
+    void testSuccessfulDeleteOnlyBlob() throws IOException {
         final Path temporaryFile = createTemporaryFileWithContent("delete");
         final JobID jobId = new JobID();
         final BlobKey blobKey = createPermanentBlobKeyFromFile(temporaryFile);
@@ -168,7 +165,7 @@ class FileSystemBlobStoreTest {
     }
 
     @Test
-    public void testSuccessfulDeleteBlob() throws IOException {
+    void testSuccessfulDeleteBlob() throws IOException {
         final Path temporaryFile = createTemporaryFileWithContent("delete");
         final JobID jobId = new JobID();
         final BlobKey blobKey = createPermanentBlobKeyFromFile(temporaryFile);
@@ -189,12 +186,12 @@ class FileSystemBlobStoreTest {
     }
 
     @Test
-    public void testDeleteWithNotExistingJobId() {
+    void testDeleteWithNotExistingJobId() {
         assertThat(testInstance.delete(new JobID(), new PermanentBlobKey())).isTrue();
     }
 
     @Test
-    public void testDeleteWithNotExistingBlobKey() throws IOException {
+    void testDeleteWithNotExistingBlobKey() throws IOException {
         final Path temporaryFile = createTemporaryFileWithContent("delete");
         final JobID jobId = new JobID();
         final BlobKey blobKey = createPermanentBlobKeyFromFile(temporaryFile);
@@ -205,7 +202,7 @@ class FileSystemBlobStoreTest {
     }
 
     @Test
-    public void testDeleteAll() throws IOException {
+    void testDeleteAll() throws IOException {
         final Path temporaryFile = createTemporaryFileWithContent("delete");
         final JobID jobId = new JobID();
 
@@ -222,7 +219,7 @@ class FileSystemBlobStoreTest {
     }
 
     @Test
-    public void testDeleteAllWithNotExistingJobId() {
+    void testDeleteAllWithNotExistingJobId() {
         final JobID jobId = new JobID();
         assertThat(testInstance.deleteAll(jobId)).isTrue();
         assertThat(getPath(jobId)).doesNotExist();
@@ -259,7 +256,7 @@ class FileSystemBlobStoreTest {
         Preconditions.checkArgument(Files.exists(path));
 
         MessageDigest md = BlobUtils.createMessageDigest();
-        try (InputStream is = new FileInputStream(path.toFile())) {
+        try (InputStream is = Files.newInputStream(path.toFile().toPath())) {
             final byte[] buf = new byte[1024];
             int bytesRead = is.read(buf);
             while (bytesRead >= 0) {
@@ -272,8 +269,7 @@ class FileSystemBlobStoreTest {
     }
 
     @Test
-    public void fileSystemBlobStoreCallsSyncOnPut(@TempDir Path storageDirectory)
-            throws IOException {
+    void fileSystemBlobStoreCallsSyncOnPut(@TempDir Path storageDirectory) throws IOException {
         final Path blobStoreDirectory = storageDirectory.resolve("blobStore");
 
         final AtomicReference<TestingLocalDataOutputStream> createdOutputStream =

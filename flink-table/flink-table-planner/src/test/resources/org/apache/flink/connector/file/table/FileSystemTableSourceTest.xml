@@ -42,14 +42,15 @@ Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.MySink], fields=[a, b, filemeta])
-+- LogicalProject(a=[$0], b=[$1], filemeta=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTableWithMeta]])
+LogicalSink(table=[default_catalog.default_database.MySink], targetColumns=[[0],[1],[2]], fields=[a, b, filemeta])
++- LogicalProject(a=[$0], b=[$1], filemeta=[$3])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], filemeta=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTableWithMeta, metadata=[file.path]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.MySink], fields=[a, b, filemeta])
+Sink(table=[default_catalog.default_database.MySink], targetColumns=[[0],[1],[2]], fields=[a, b, filemeta])
 +- Calc(select=[a, b, CAST(filemeta AS VARCHAR(2147483647)) AS filemeta])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTableWithMeta, project=[a, b], metadata=[file.path]]], fields=[a, b, filemeta])
 ]]>

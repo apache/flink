@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -36,10 +37,12 @@ import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -60,6 +63,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.mockito.Mockito.mock;
 
 /** Util that helps building {@link Task} objects for testing. */
@@ -81,7 +85,7 @@ public final class TestTaskBuilder {
     private List<InputGateDeploymentDescriptor> inputGates = Collections.emptyList();
     private JobID jobId = new JobID();
     private AllocationID allocationID = new AllocationID();
-    private ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
+    private ExecutionAttemptID executionAttemptId = createExecutionAttemptId();
     private ExternalResourceInfoProvider externalResourceInfoProvider =
             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
     private TestCheckpointResponder testCheckpointResponder = new TestCheckpointResponder();
@@ -176,7 +180,7 @@ public final class TestTaskBuilder {
     }
 
     public Task build(Executor executor) throws Exception {
-        final JobVertexID jobVertexId = new JobVertexID();
+        final JobVertexID jobVertexId = executionAttemptId.getJobVertexId();
 
         final SerializedValue<ExecutionConfig> serializedExecutionConfig =
                 new SerializedValue<>(executionConfig);
@@ -184,6 +188,7 @@ public final class TestTaskBuilder {
         final JobInformation jobInformation =
                 new JobInformation(
                         jobId,
+                        JobType.STREAMING,
                         "Test Job",
                         serializedExecutionConfig,
                         new Configuration(),
@@ -202,11 +207,10 @@ public final class TestTaskBuilder {
                 taskInformation,
                 executionAttemptId,
                 allocationID,
-                0,
-                0,
                 resultPartitions,
                 inputGates,
                 MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build(),
+                new SharedResources(),
                 mock(IOManager.class),
                 shuffleEnvironment,
                 kvStateService,
@@ -224,7 +228,8 @@ public final class TestTaskBuilder {
                 new TestingTaskManagerRuntimeInfo(taskManagerConfig),
                 taskMetricGroup,
                 partitionProducerStateChecker,
-                executor);
+                executor,
+                new ChannelStateWriteRequestExecutorFactory(jobId));
     }
 
     public static void setTaskState(Task task, ExecutionState state) {

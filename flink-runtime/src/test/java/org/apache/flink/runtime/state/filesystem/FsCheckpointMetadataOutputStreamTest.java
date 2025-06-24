@@ -26,15 +26,16 @@ import org.apache.flink.core.fs.local.LocalDataOutputStream;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.fs.local.LocalRecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.local.LocalRecoverableWriter;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,49 +43,48 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link FsCheckpointMetadataOutputStream}. */
-@RunWith(Parameterized.class)
-public class FsCheckpointMetadataOutputStreamTest extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+public class FsCheckpointMetadataOutputStreamTest {
 
-    @Parameterized.Parameters(name = "{0}")
+    @Parameters(name = "{0}")
     public static Collection<FileSystem> getFileSystems() {
         return Arrays.asList(new FsWithRecoverableWriter(), new FsWithoutRecoverableWriter());
     }
 
-    @Parameterized.Parameter public FileSystem fileSystem;
+    @Parameter public FileSystem fileSystem;
 
-    @Rule public final TemporaryFolder tempDir = new TemporaryFolder();
+    @TempDir private java.nio.file.Path tempDir;
 
-    @Test
-    public void testFileExistence() throws Exception {
+    @TestTemplate
+    void testFileExistence() throws Exception {
         Path metaDataFilePath = baseFolder();
         FsCheckpointMetadataOutputStream stream = createTestStream(metaDataFilePath, fileSystem);
 
         if (fileSystem instanceof FsWithoutRecoverableWriter) {
-            assertTrue(fileSystem.exists(metaDataFilePath));
+            assertThat(fileSystem.exists(metaDataFilePath)).isTrue();
         } else {
-            assertFalse(fileSystem.exists(metaDataFilePath));
+            assertThat(fileSystem.exists(metaDataFilePath)).isFalse();
         }
 
         stream.closeAndFinalizeCheckpoint();
 
-        assertTrue(fileSystem.exists(metaDataFilePath));
+        assertThat(fileSystem.exists(metaDataFilePath)).isTrue();
     }
 
-    @Test
-    public void testCleanupWhenClosed() throws Exception {
+    @TestTemplate
+    void testCleanupWhenClosed() throws Exception {
         Path metaDataFilePath = baseFolder();
         FsCheckpointMetadataOutputStream stream = createTestStream(metaDataFilePath, fileSystem);
         stream.close();
-        assertFalse(fileSystem.exists(metaDataFilePath));
+        assertThat(fileSystem.exists(metaDataFilePath)).isFalse();
     }
 
-    @Test
-    public void testCleanupWhenCommitFailed() throws Exception {
+    @TestTemplate
+    void testCleanupWhenCommitFailed() throws Exception {
         Path metaDataFilePath = baseFolder();
 
         if (fileSystem instanceof FsWithoutRecoverableWriter) {
@@ -103,13 +103,10 @@ public class FsCheckpointMetadataOutputStreamTest extends TestLogger {
         }
 
         FsCheckpointMetadataOutputStream stream = createTestStream(metaDataFilePath, fileSystem);
-        try {
-            stream.closeAndFinalizeCheckpoint();
-            fail("Exception expected when committing the meta file.");
-        } catch (Exception e) {
-            // ignore
-        }
-        assertFalse(fileSystem.exists(metaDataFilePath));
+        assertThatThrownBy(stream::closeAndFinalizeCheckpoint)
+                .withFailMessage("Exception expected when committing the meta file.")
+                .isInstanceOf(IOException.class);
+        assertThat(fileSystem.exists(metaDataFilePath)).isFalse();
 
         if (fileSystem instanceof FsWithoutRecoverableWriter) {
             ((FsWithoutRecoverableWriter) fileSystem).resetStreamFactory();
@@ -131,7 +128,8 @@ public class FsCheckpointMetadataOutputStreamTest extends TestLogger {
     }
 
     private Path baseFolder() throws Exception {
-        return new Path(new File(tempDir.newFolder(), UUID.randomUUID().toString()).toURI());
+        return new Path(
+                new File(TempDirUtils.newFolder(tempDir), UUID.randomUUID().toString()).toURI());
     }
 
     private static class FsWithoutRecoverableWriter extends LocalFileSystem {

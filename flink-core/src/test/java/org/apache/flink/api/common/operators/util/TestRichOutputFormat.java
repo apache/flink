@@ -26,13 +26,13 @@ import java.util.List;
 
 /** Same as the non rich test output format, except it provide access to runtime context. */
 public class TestRichOutputFormat extends RichOutputFormat<String> {
-    public List<String> output = new LinkedList<String>();
+    public final List<String> output = new LinkedList<>();
 
     @Override
     public void configure(Configuration parameters) {}
 
     @Override
-    public void open(int a, int b) {}
+    public void open(InitializationContext context) {}
 
     @Override
     public void close() {}
@@ -41,9 +41,8 @@ public class TestRichOutputFormat extends RichOutputFormat<String> {
     public void writeRecord(String record) {
         output.add(
                 record
-                        + getRuntimeContext().getIndexOfThisSubtask()
-                        + ""
-                        + getRuntimeContext().getNumberOfParallelSubtasks());
+                        + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()
+                        + getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
     }
 
     public void clear() {

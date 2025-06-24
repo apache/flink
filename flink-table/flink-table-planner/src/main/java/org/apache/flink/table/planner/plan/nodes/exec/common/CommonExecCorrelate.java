@@ -99,7 +99,8 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final CodeGeneratorContext ctx =
-                new CodeGeneratorContext(config).setOperatorBaseClass(operatorBaseClass);
+                new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader())
+                        .setOperatorBaseClass(operatorBaseClass);
         return CorrelateCodeGenerator.generateCorrelateTransformation(
                 config,
                 ctx,
@@ -112,6 +113,7 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
                 inputTransform.getParallelism(),
                 retainHeader,
                 getClass().getSimpleName(),
-                createTransformationMeta(CORRELATE_TRANSFORMATION, config));
+                createTransformationMeta(CORRELATE_TRANSFORMATION, config),
+                false);
     }
 }

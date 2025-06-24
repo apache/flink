@@ -60,8 +60,24 @@ public class AvroWriters {
      */
     public static AvroWriterFactory<GenericRecord> forGenericRecord(Schema schema) {
         String schemaString = schema.toString();
+        // Must override the lambda representation because of a bug in shading lambda
+        // serialization, see similar issue FLINK-28043 for more details.
         AvroBuilder<GenericRecord> builder =
-                (out) -> createAvroDataFileWriter(schemaString, GenericDatumWriter::new, out);
+                new AvroBuilder<GenericRecord>() {
+                    @Override
+                    public DataFileWriter<GenericRecord> createWriter(OutputStream outputStream)
+                            throws IOException {
+                        return createAvroDataFileWriter(
+                                schemaString,
+                                new Function<Schema, DatumWriter<GenericRecord>>() {
+                                    @Override
+                                    public DatumWriter<GenericRecord> apply(Schema schema) {
+                                        return new GenericDatumWriter<>(schema);
+                                    }
+                                },
+                                outputStream);
+                    }
+                };
         return new AvroWriterFactory<>(builder);
     }
 

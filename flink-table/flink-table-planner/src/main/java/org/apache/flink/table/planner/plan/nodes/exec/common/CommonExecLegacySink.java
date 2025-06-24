@@ -21,10 +21,15 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.legacy.table.sinks.AppendStreamTableSink;
+import org.apache.flink.legacy.table.sinks.RetractStreamTableSink;
+import org.apache.flink.legacy.table.sinks.StreamTableSink;
+import org.apache.flink.legacy.table.sinks.UpsertStreamTableSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.legacy.sinks.TableSink;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.SinkCodeGenerator;
@@ -41,11 +46,6 @@ import org.apache.flink.table.planner.sinks.DataStreamTableSink;
 import org.apache.flink.table.planner.sinks.TableSinkUtils;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
-import org.apache.flink.table.sinks.AppendStreamTableSink;
-import org.apache.flink.table.sinks.RetractStreamTableSink;
-import org.apache.flink.table.sinks.StreamTableSink;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sinks.UpsertStreamTableSink;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -57,7 +57,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Base {@link ExecNode} to to write data into an external sink defined by a {@link TableSink}.
+ * Base {@link ExecNode} to write data into an external sink defined by a {@link TableSink}.
  *
  * @param <T> The return type of the {@link TableSink}.
  */
@@ -201,7 +201,8 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
 
             final CodeGenOperatorFactory<T> converterOperator =
                     SinkCodeGenerator.generateRowConverterOperator(
-                            new CodeGeneratorContext(config),
+                            new CodeGeneratorContext(
+                                    config, planner.getFlinkContext().getClassLoader()),
                             convertedInputRowType,
                             tableSink,
                             physicalOutputType,
@@ -216,7 +217,8 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
                     createFormattedTransformationDescription(description, config),
                     converterOperator,
                     outputTypeInfo,
-                    inputTransform.getParallelism());
+                    inputTransform.getParallelism(),
+                    false);
         }
     }
 

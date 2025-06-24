@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.HardwareDescription;
@@ -55,6 +56,14 @@ public class TaskExecutorRegistration implements Serializable {
     /** The task executor total resource profile. */
     private final ResourceProfile totalResourceProfile;
 
+    /**
+     * ID of the node where the TaskManager is located on. In Yarn and Native Kubernetes mode, this
+     * value will be set by resource manager when launch this TaskManager(via the config option
+     * {@link TaskManagerOptionsInternal#TASK_MANAGER_NODE_ID}). In other modes, this value will be
+     * the external address of the TaskManager.
+     */
+    private final String nodeId;
+
     public TaskExecutorRegistration(
             final String taskExecutorAddress,
             final ResourceID resourceId,
@@ -63,7 +72,8 @@ public class TaskExecutorRegistration implements Serializable {
             final HardwareDescription hardwareDescription,
             final TaskExecutorMemoryConfiguration memoryConfiguration,
             final ResourceProfile defaultSlotResourceProfile,
-            final ResourceProfile totalResourceProfile) {
+            final ResourceProfile totalResourceProfile,
+            final String nodeId) {
         this.taskExecutorAddress = checkNotNull(taskExecutorAddress);
         this.resourceId = checkNotNull(resourceId);
         this.dataPort = dataPort;
@@ -72,6 +82,7 @@ public class TaskExecutorRegistration implements Serializable {
         this.memoryConfiguration = checkNotNull(memoryConfiguration);
         this.defaultSlotResourceProfile = checkNotNull(defaultSlotResourceProfile);
         this.totalResourceProfile = checkNotNull(totalResourceProfile);
+        this.nodeId = checkNotNull(nodeId);
     }
 
     public String getTaskExecutorAddress() {
@@ -104,5 +115,9 @@ public class TaskExecutorRegistration implements Serializable {
 
     public ResourceProfile getTotalResourceProfile() {
         return totalResourceProfile;
+    }
+
+    public String getNodeId() {
+        return nodeId;
     }
 }

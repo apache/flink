@@ -70,6 +70,6 @@ azure_setup
 echo "Starting Flink cluster.."
 start_cluster
 
-$FLINK_DIR/bin/flink run -p 1 $FLINK_DIR/examples/batch/WordCount.jar --input $AZURE_TEST_DATA_WORDS_URI --output $TEST_DATA_DIR/out/wc_out
-
-check_result_hash "WordCountWithAzureFS" $TEST_DATA_DIR/out/wc_out "72a690412be8928ba239c2da967328a5"
+$FLINK_DIR/bin/flink run -p 1 $FLINK_DIR/examples/streaming/WordCount.jar --input $AZURE_TEST_DATA_WORDS_URI --output $TEST_DATA_DIR/out/wc_out --execution-mode BATCH
+OUTPUT_FILES=$(find "$TEST_DATA_DIR/out/wc_out" -type f)
+check_result_hash "WordCountWithAzureFS" "${OUTPUT_FILES}" "5a9945c9ab08890b2a0f6b31a4437d57"

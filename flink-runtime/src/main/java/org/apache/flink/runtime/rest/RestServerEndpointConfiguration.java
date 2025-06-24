@@ -27,7 +27,7 @@ import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
 
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLEngine;
@@ -79,7 +79,9 @@ public final class RestServerEndpointConfiguration {
         this.responseHeaders = Collections.unmodifiableMap(requireNonNull(responseHeaders));
     }
 
-    /** @see RestOptions#ADDRESS */
+    /**
+     * @see RestOptions#ADDRESS
+     */
     public String getRestAddress() {
         return restAddress;
     }
@@ -146,12 +148,12 @@ public final class RestServerEndpointConfiguration {
 
         final String restAddress =
                 Preconditions.checkNotNull(
-                        config.getString(RestOptions.ADDRESS),
+                        config.get(RestOptions.ADDRESS),
                         "%s must be set",
                         RestOptions.ADDRESS.key());
 
-        final String restBindAddress = config.getString(RestOptions.BIND_ADDRESS);
-        final String portRangeDefinition = config.getString(RestOptions.BIND_PORT);
+        final String restBindAddress = config.get(RestOptions.BIND_ADDRESS);
+        final String portRangeDefinition = config.get(RestOptions.BIND_PORT);
 
         final SSLHandlerFactory sslHandlerFactory;
         if (SecurityOptions.isRestSSLEnabled(config)) {
@@ -167,16 +169,15 @@ public final class RestServerEndpointConfiguration {
 
         final Path uploadDir =
                 Paths.get(
-                        config.getString(
-                                WebOptions.UPLOAD_DIR, config.getString(WebOptions.TMP_DIR)),
+                        config.get(WebOptions.UPLOAD_DIR, config.get(WebOptions.TMP_DIR)),
                         "flink-web-upload");
 
-        final int maxContentLength = config.getInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH);
+        final int maxContentLength = config.get(RestOptions.SERVER_MAX_CONTENT_LENGTH);
 
         final Map<String, String> responseHeaders =
                 Collections.singletonMap(
-                        HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN,
-                        config.getString(WebOptions.ACCESS_CONTROL_ALLOW_ORIGIN));
+                        HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN.toString(),
+                        config.get(WebOptions.ACCESS_CONTROL_ALLOW_ORIGIN));
 
         return new RestServerEndpointConfiguration(
                 restAddress,

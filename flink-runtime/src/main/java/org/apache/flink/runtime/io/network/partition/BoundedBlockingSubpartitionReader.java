@@ -122,7 +122,7 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 
             // next buffer is null indicates the end of partition
             if (nextBuffer != null) {
-                availabilityListener.notifyDataAvailable();
+                availabilityListener.notifyDataAvailable(this);
             }
         }
     }
@@ -161,9 +161,9 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
     }
 
     @Override
-    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(boolean isCreditAvailable) {
         boolean isAvailable;
-        if (numCreditsAvailable > 0) {
+        if (isCreditAvailable) {
             isAvailable = nextBuffer != null;
         } else {
             isAvailable = nextBuffer != null && !nextBuffer.isBuffer();
@@ -190,6 +190,11 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
     @Override
     public void notifyNewBufferSize(int newBufferSize) {
         parent.bufferSize(newBufferSize);
+    }
+
+    @Override
+    public int peekNextBufferSubpartitionId() {
+        throw new UnsupportedOperationException();
     }
 
     @Override

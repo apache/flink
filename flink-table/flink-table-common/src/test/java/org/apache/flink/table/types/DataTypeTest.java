@@ -50,23 +50,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link DataType}. */
-public class DataTypeTest {
+class DataTypeTest {
 
     @Test
-    public void testNullability() {
+    void testNullability() {
         assertThat(BIGINT().nullable()).isNullable();
         assertThat(BIGINT().notNull()).isNotNullable();
         assertThat(BIGINT().notNull().nullable()).isNullable();
     }
 
     @Test
-    public void testAtomicConversion() {
+    void testAtomicConversion() {
         assertThat(TIMESTAMP(0).bridgedTo(java.sql.Timestamp.class))
                 .hasConversionClass(java.sql.Timestamp.class);
     }
 
     @Test
-    public void testTolerantAtomicConversion() {
+    void testTolerantAtomicConversion() {
         // this is logically only supported as input type because of
         // nullability but is tolerated until the planner complains
         // about an output type
@@ -74,19 +74,19 @@ public class DataTypeTest {
     }
 
     @Test
-    public void testInvalidAtomicConversion() {
+    void testInvalidAtomicConversion() {
         assertThatThrownBy(() -> TIMESTAMP(0).bridgedTo(DataTypesTest.class))
                 .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testArrayElementConversion() {
+    void testArrayElementConversion() {
         assertThat(ARRAY(ARRAY(INT().notNull().bridgedTo(int.class))))
                 .hasConversionClass(int[][].class);
     }
 
     @Test
-    public void testTolerantArrayConversion() {
+    void testTolerantArrayConversion() {
         // this is logically only supported as input type because of
         // nullability but is tolerated until the planner complains
         // about an output type
@@ -95,44 +95,44 @@ public class DataTypeTest {
     }
 
     @Test
-    public void testInvalidArrayConversion() {
+    void testInvalidArrayConversion() {
         assertThatThrownBy(() -> ARRAY(ARRAY(INT())).bridgedTo(int[][][].class))
                 .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testTolerantMapConversion() {
+    void testTolerantMapConversion() {
         // this doesn't make much sense logically but is supported until the planner complains
         assertThat(MULTISET(MULTISET(INT().bridgedTo(int.class)))).hasConversionClass(Map.class);
     }
 
     @Test
-    public void testFields() {
+    void testFields() {
         assertThat(ROW(FIELD("field1", CHAR(2)), FIELD("field2", BOOLEAN())))
                 .getChildren()
                 .containsExactly(CHAR(2), BOOLEAN());
     }
 
     @Test
-    public void testInvalidOrderInterval() {
+    void testInvalidOrderInterval() {
         assertThatThrownBy(() -> INTERVAL(MONTH(), YEAR(2)))
                 .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testConversionEquality() {
+    void testConversionEquality() {
         assertThat(DataTypes.VARCHAR(2).bridgedTo(String.class)).isEqualTo(DataTypes.VARCHAR(2));
     }
 
     @Test
-    public void testArrayInternalElementConversion() {
+    void testArrayInternalElementConversion() {
         assertThat(ARRAY(STRING()).bridgedTo(ArrayData.class))
                 .getChildren()
                 .containsExactly(STRING().bridgedTo(StringData.class));
     }
 
     @Test
-    public void testMapInternalElementConversion() {
+    void testMapInternalElementConversion() {
         assertThat(MAP(STRING(), ROW()).bridgedTo(MapData.class))
                 .getChildren()
                 .containsExactly(
@@ -140,7 +140,7 @@ public class DataTypeTest {
     }
 
     @Test
-    public void testGetFieldNames() {
+    void testGetFieldNames() {
         assertThat(
                         DataType.getFieldNames(
                                 ROW(
@@ -160,7 +160,7 @@ public class DataTypeTest {
     }
 
     @Test
-    public void testGetFieldDataTypes() {
+    void testGetFieldDataTypes() {
         assertThat(
                         DataType.getFieldDataTypes(
                                 ROW(
@@ -180,7 +180,7 @@ public class DataTypeTest {
     }
 
     @Test
-    public void testGetFieldCount() {
+    void testGetFieldCount() {
         assertThat(
                         DataType.getFieldCount(
                                 ROW(
@@ -200,7 +200,7 @@ public class DataTypeTest {
     }
 
     @Test
-    public void testGetFields() {
+    void testGetFields() {
         assertThat(
                         DataType.getFields(
                                 ROW(

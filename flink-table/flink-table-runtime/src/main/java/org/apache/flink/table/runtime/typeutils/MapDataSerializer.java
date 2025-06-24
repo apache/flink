@@ -44,6 +44,9 @@ import java.io.IOException;
 @Internal
 public class MapDataSerializer extends TypeSerializer<MapData> {
 
+    // version used since 1.19
+    private static final long serialVersionUID = 4073842523628732956L;
+
     private final LogicalType keyType;
     private final LogicalType valueType;
 
@@ -106,6 +109,7 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
         if (from instanceof BinaryMapData) {
             return ((BinaryMapData) from).copy();
         } else {
+            // the returned value has been copied
             return toBinaryMap(from);
         }
     }
@@ -250,11 +254,11 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
     public static final class MapDataSerializerSnapshot implements TypeSerializerSnapshot<MapData> {
         private static final int CURRENT_VERSION = 3;
 
-        private LogicalType previousKeyType;
-        private LogicalType previousValueType;
+        private LogicalType keyType;
+        private LogicalType valueType;
 
-        private TypeSerializer previousKeySerializer;
-        private TypeSerializer previousValueSerializer;
+        private TypeSerializer keySerializer;
+        private TypeSerializer valueSerializer;
 
         @SuppressWarnings("unused")
         public MapDataSerializerSnapshot() {
@@ -266,11 +270,11 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
                 LogicalType valueT,
                 TypeSerializer keySer,
                 TypeSerializer valueSer) {
-            this.previousKeyType = keyT;
-            this.previousValueType = valueT;
+            this.keyType = keyT;
+            this.valueType = valueT;
 
-            this.previousKeySerializer = keySer;
-            this.previousValueSerializer = valueSer;
+            this.keySerializer = keySer;
+            this.valueSerializer = valueSer;
         }
 
         @Override
@@ -281,10 +285,10 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
         @Override
         public void writeSnapshot(DataOutputView out) throws IOException {
             DataOutputViewStream outStream = new DataOutputViewStream(out);
-            InstantiationUtil.serializeObject(outStream, previousKeyType);
-            InstantiationUtil.serializeObject(outStream, previousValueType);
-            InstantiationUtil.serializeObject(outStream, previousKeySerializer);
-            InstantiationUtil.serializeObject(outStream, previousValueSerializer);
+            InstantiationUtil.serializeObject(outStream, keyType);
+            InstantiationUtil.serializeObject(outStream, valueType);
+            InstantiationUtil.serializeObject(outStream, keySerializer);
+            InstantiationUtil.serializeObject(outStream, valueSerializer);
         }
 
         @Override
@@ -292,14 +296,14 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
                 throws IOException {
             try {
                 DataInputViewStream inStream = new DataInputViewStream(in);
-                this.previousKeyType =
-                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
-                this.previousValueType =
-                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
-                this.previousKeySerializer =
-                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
-                this.previousValueSerializer =
-                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+                this.keyType =
+                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader, true);
+                this.valueType =
+                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader, true);
+                this.keySerializer =
+                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader, true);
+                this.valueSerializer =
+                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader, true);
             } catch (ClassNotFoundException e) {
                 throw new IOException(e);
             }
@@ -307,25 +311,22 @@ public class MapDataSerializer extends TypeSerializer<MapData> {
 
         @Override
         public TypeSerializer<MapData> restoreSerializer() {
-            return new MapDataSerializer(
-                    previousKeyType,
-                    previousValueType,
-                    previousKeySerializer,
-                    previousValueSerializer);
+            return new MapDataSerializer(keyType, valueType, keySerializer, valueSerializer);
         }
 
         @Override
         public TypeSerializerSchemaCompatibility<MapData> resolveSchemaCompatibility(
-                TypeSerializer<MapData> newSerializer) {
-            if (!(newSerializer instanceof MapDataSerializer)) {
+                TypeSerializerSnapshot<MapData> oldSerializerSnapshot) {
+            if (!(oldSerializerSnapshot instanceof MapDataSerializerSnapshot)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 
-            MapDataSerializer newBaseMapSerializer = (MapDataSerializer) newSerializer;
-            if (!previousKeyType.equals(newBaseMapSerializer.keyType)
-                    || !previousValueType.equals(newBaseMapSerializer.valueType)
-                    || !previousKeySerializer.equals(newBaseMapSerializer.keySerializer)
-                    || !previousValueSerializer.equals(newBaseMapSerializer.valueSerializer)) {
+            MapDataSerializerSnapshot previousMapDataSerializerSnapshot =
+                    (MapDataSerializerSnapshot) oldSerializerSnapshot;
+            if (!keyType.equals(previousMapDataSerializerSnapshot.keyType)
+                    || !valueType.equals(previousMapDataSerializerSnapshot.valueType)
+                    || !keySerializer.equals(previousMapDataSerializerSnapshot.keySerializer)
+                    || !valueSerializer.equals(previousMapDataSerializerSnapshot.valueSerializer)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             } else {
                 return TypeSerializerSchemaCompatibility.compatibleAsIs();

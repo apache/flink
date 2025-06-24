@@ -121,14 +121,18 @@ public class JavaUserDefinedScalarFunctions {
 
     /** Non-deterministic scalar function. */
     public static class NonDeterministicUdf extends ScalarFunction {
-        Random random = new Random();
+        Random random = new Random(42); // seed for tests
 
         public int eval() {
             return random.nextInt();
         }
 
-        public int eval(int v) {
+        public int eval(@DataTypeHint("INT") int v) {
             return v + random.nextInt();
+        }
+
+        public String eval(String v) {
+            return v + "-" + random.nextInt();
         }
 
         @Override

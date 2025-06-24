@@ -47,7 +47,7 @@ public class VoidBlobStore implements BlobStoreService {
     }
 
     @Override
-    public void closeAndCleanupAllData() {}
+    public void cleanupAllData() {}
 
     @Override
     public void close() throws IOException {}

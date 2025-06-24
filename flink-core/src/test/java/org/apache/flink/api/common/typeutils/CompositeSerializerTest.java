@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -28,9 +28,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-import org.junit.Assert;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
@@ -42,8 +40,8 @@ import java.util.function.IntFunction;
 import java.util.stream.IntStream;
 
 /** Test suite for {@link CompositeSerializer}. */
-public class CompositeSerializerTest {
-    private static final ExecutionConfig execConf = new ExecutionConfig();
+class CompositeSerializerTest {
+    private static final SerializerConfigImpl serializerConf = new SerializerConfigImpl();
 
     private static final List<Tuple2<TypeSerializer<?>, Object[]>> TEST_FIELD_SERIALIZERS =
             Arrays.asList(
@@ -51,14 +49,14 @@ public class CompositeSerializerTest {
                     Tuple2.of(LongSerializer.INSTANCE, new Object[] {1L, 23L}),
                     Tuple2.of(StringSerializer.INSTANCE, new Object[] {"teststr1", "teststr2"}),
                     Tuple2.of(
-                            TypeInformation.of(Pojo.class).createSerializer(execConf),
+                            TypeInformation.of(Pojo.class).createSerializer(serializerConf),
                             new Object[] {
                                 new Pojo(3, new String[] {"123", "456"}),
                                 new Pojo(6, new String[] {})
                             }));
 
     @Test
-    public void testSingleFieldSerializer() {
+    void testSingleFieldSerializer() {
         TEST_FIELD_SERIALIZERS.forEach(
                 t -> {
                     @SuppressWarnings("unchecked")
@@ -72,7 +70,7 @@ public class CompositeSerializerTest {
     }
 
     @Test
-    public void testPairFieldSerializer() {
+    void testPairFieldSerializer() {
         TEST_FIELD_SERIALIZERS.forEach(
                 t1 ->
                         TEST_FIELD_SERIALIZERS.forEach(
@@ -95,7 +93,7 @@ public class CompositeSerializerTest {
     }
 
     @Test
-    public void testAllFieldSerializer() {
+    void testAllFieldSerializer() {
         @SuppressWarnings("unchecked")
         TypeSerializer<Object>[] fieldSerializers =
                 TEST_FIELD_SERIALIZERS.stream()
@@ -123,24 +121,18 @@ public class CompositeSerializerTest {
     @SuppressWarnings("unchecked")
     private void runTests(
             int length, TypeSerializer<Object>[] fieldSerializers, List<Object>... instances) {
-        try {
-            for (boolean immutability : Arrays.asList(true, false)) {
-                TypeSerializer<List<Object>> serializer =
-                        new TestListCompositeSerializer(immutability, fieldSerializers);
-                CompositeSerializerTestInstance test =
-                        new CompositeSerializerTestInstance(serializer, length, instances);
-                test.testAll();
-            }
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            Assert.fail(e.getMessage());
+        for (boolean immutability : Arrays.asList(true, false)) {
+            TypeSerializer<List<Object>> serializer =
+                    new TestListCompositeSerializer(immutability, fieldSerializers);
+            CompositeSerializerTestInstance test =
+                    new CompositeSerializerTestInstance(serializer, length, instances);
+            test.testAll();
         }
     }
 
     private static class Pojo {
-        public int f1;
-        public String[] f2;
+        public final int f1;
+        public final String[] f2;
 
         private Pojo(int f1, String[] f2) {
             this.f1 = f1;
@@ -222,7 +214,6 @@ public class CompositeSerializerTest {
 
         /** Constructor for read instantiation. */
         public TestListCompositeSerializerSnapshot() {
-            super(TestListCompositeSerializer.class);
             this.isImmutableTargetType = false;
         }
 
@@ -263,7 +254,6 @@ public class CompositeSerializerTest {
         }
     }
 
-    @Ignore("Prevents this class from being considered a test class by JUnit.")
     private static class CompositeSerializerTestInstance
             extends SerializerTestInstance<List<Object>> {
         @SuppressWarnings("unchecked")

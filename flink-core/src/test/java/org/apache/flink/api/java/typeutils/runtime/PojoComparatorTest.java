@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -27,11 +28,11 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
-import org.junit.Assert;
-
 import java.util.Arrays;
 
-public class PojoComparatorTest extends ComparatorTestBase<PojoContainingTuple> {
+import static org.assertj.core.api.Assertions.assertThat;
+
+class PojoComparatorTest extends ComparatorTestBase<PojoContainingTuple> {
     TypeInformation<PojoContainingTuple> type =
             TypeExtractor.getForClass(PojoContainingTuple.class);
 
@@ -45,7 +46,7 @@ public class PojoComparatorTest extends ComparatorTestBase<PojoContainingTuple> 
 
     @Override
     protected TypeComparator<PojoContainingTuple> createComparator(boolean ascending) {
-        Assert.assertTrue(type instanceof CompositeType);
+        assertThat(type).isInstanceOf(CompositeType.class);
         CompositeType<PojoContainingTuple> cType = (CompositeType<PojoContainingTuple>) type;
         ExpressionKeys<PojoContainingTuple> keys =
                 new ExpressionKeys<PojoContainingTuple>(new String[] {"theTuple.*"}, cType);
@@ -57,7 +58,7 @@ public class PojoComparatorTest extends ComparatorTestBase<PojoContainingTuple> 
 
     @Override
     protected TypeSerializer<PojoContainingTuple> createSerializer() {
-        return type.createSerializer(new ExecutionConfig());
+        return type.createSerializer(new SerializerConfigImpl());
     }
 
     @Override

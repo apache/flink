@@ -76,6 +76,6 @@ public class SlotSharingGroup implements java.io.Serializable {
 
     @Override
     public String toString() {
-        return "SlotSharingGroup " + this.ids.toString();
+        return "SlotSharingGroup{" + "ids=" + ids + ", resourceProfile=" + resourceProfile + '}';
     }
 }

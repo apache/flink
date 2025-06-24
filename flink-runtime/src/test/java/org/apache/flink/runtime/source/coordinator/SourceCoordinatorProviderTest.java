@@ -29,44 +29,44 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit tests for {@link SourceCoordinatorProvider}. */
-public class SourceCoordinatorProviderTest {
+class SourceCoordinatorProviderTest {
 
     private static final OperatorID OPERATOR_ID = new OperatorID(1234L, 5678L);
     private static final int NUM_SPLITS = 10;
 
     private SourceCoordinatorProvider<MockSourceSplit> provider;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         provider =
                 new SourceCoordinatorProvider<>(
                         "SourceCoordinatorProviderTest",
                         OPERATOR_ID,
                         new MockSource(Boundedness.BOUNDED, NUM_SPLITS),
                         1,
-                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                        null);
     }
 
     @Test
-    public void testCreate() throws Exception {
+    void testCreate() throws Exception {
         OperatorCoordinator coordinator =
                 provider.create(new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SPLITS));
-        assertTrue(coordinator instanceof RecreateOnResetOperatorCoordinator);
+        assertThat(coordinator).isInstanceOf(RecreateOnResetOperatorCoordinator.class);
     }
 
     @Test
-    public void testCheckpointAndReset() throws Exception {
+    void testCheckpointAndReset() throws Exception {
         final OperatorCoordinator.Context context =
                 new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SPLITS);
         final RecreateOnResetOperatorCoordinator coordinator =
@@ -77,13 +77,13 @@ public class SourceCoordinatorProviderTest {
         // Start the coordinator.
         coordinator.start();
         // register reader 0 and take a checkpoint.
-        coordinator.handleEventFromOperator(0, new ReaderRegistrationEvent(0, "location"));
+        coordinator.handleEventFromOperator(0, 0, new ReaderRegistrationEvent(0, "location"));
         CompletableFuture<byte[]> future = new CompletableFuture<>();
         coordinator.checkpointCoordinator(0L, future);
         byte[] bytes = future.get();
 
         // Register reader 1.
-        coordinator.handleEventFromOperator(1, new ReaderRegistrationEvent(1, "location"));
+        coordinator.handleEventFromOperator(1, 0, new ReaderRegistrationEvent(1, "location"));
         // Wait until the coordinator context is updated with registration of reader 1.
         while (sourceCoordinator.getContext().registeredReaders().size() < 2) {
             Thread.sleep(1);
@@ -93,19 +93,17 @@ public class SourceCoordinatorProviderTest {
         coordinator.resetToCheckpoint(0L, bytes);
         final SourceCoordinator<?, ?> restoredSourceCoordinator =
                 (SourceCoordinator<?, ?>) coordinator.getInternalCoordinator();
-        assertNotEquals(
-                "The restored source coordinator should be a different instance",
-                restoredSourceCoordinator,
-                sourceCoordinator);
+        assertThat(sourceCoordinator)
+                .as("The restored source coordinator should be a different instance")
+                .isNotEqualTo(restoredSourceCoordinator);
         // FLINK-21452: do not (re)store registered readers
-        assertEquals(
-                "There should be no registered reader.",
-                0,
-                restoredSourceCoordinator.getContext().registeredReaders().size());
+        assertThat(restoredSourceCoordinator.getContext().registeredReaders())
+                .as("There should be no registered reader.")
+                .isEmpty();
     }
 
     @Test
-    public void testCallAsyncExceptionFailsJob() throws Exception {
+    void testCallAsyncExceptionFailsJob() throws Exception {
         MockOperatorCoordinatorContext context =
                 new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SPLITS);
         RecreateOnResetOperatorCoordinator coordinator =
@@ -123,5 +121,20 @@ public class SourceCoordinatorProviderTest {
                 context::isJobFailed,
                 Duration.ofSeconds(10L),
                 "The job did not fail before timeout.");
+    }
+
+    @Test
+    void testCoordinatorExecutorThreadFactoryNewMultipleThread() {
+        SourceCoordinatorProvider.CoordinatorExecutorThreadFactory
+                coordinatorExecutorThreadFactory =
+                        new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
+                                "test_coordinator_thread",
+                                new MockOperatorCoordinatorContext(
+                                        new OperatorID(1234L, 5678L), 3));
+
+        coordinatorExecutorThreadFactory.newThread(() -> {});
+        // coordinatorExecutorThreadFactory cannot create multiple threads.
+        assertThatThrownBy(() -> coordinatorExecutorThreadFactory.newThread(() -> {}))
+                .isInstanceOf(IllegalStateException.class);
     }
 }

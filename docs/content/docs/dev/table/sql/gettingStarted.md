@@ -140,7 +140,8 @@ INSERT INTO department_counts
  SELECT 
 	dept_id,
 	COUNT(*) as emp_count 
-FROM employee_information;
+FROM employee_information
+GROUP BY dept_id;
  ``` 
  
 Once submitted, this will run and store the results into the sink table directly, instead of loading the results into the system memory. 

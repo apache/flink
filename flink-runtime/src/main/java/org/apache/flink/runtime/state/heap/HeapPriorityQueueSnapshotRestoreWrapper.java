@@ -97,10 +97,28 @@ public class HeapPriorityQueueSnapshotRestoreWrapper<T extends HeapPriorityQueue
      */
     public HeapPriorityQueueSnapshotRestoreWrapper<T> forUpdatedSerializer(
             @Nonnull TypeSerializer<T> updatedSerializer) {
+        return forUpdatedSerializer(updatedSerializer, false);
+    }
+
+    /**
+     * Returns a deep copy of the snapshot, where the serializer is re-registered by the serializer
+     * snapshot or changed to the given serializer.
+     *
+     * @param updatedSerializer updated serializer.
+     * @param allowFutureMetadataUpdates whether allow metadata to update in the future or not.
+     * @return the queue with the specified unique name.
+     */
+    public HeapPriorityQueueSnapshotRestoreWrapper<T> forUpdatedSerializer(
+            @Nonnull TypeSerializer<T> updatedSerializer, boolean allowFutureMetadataUpdates) {
 
         RegisteredPriorityQueueStateBackendMetaInfo<T> updatedMetaInfo =
                 new RegisteredPriorityQueueStateBackendMetaInfo<>(
                         metaInfo.getName(), updatedSerializer);
+
+        updatedMetaInfo =
+                allowFutureMetadataUpdates
+                        ? updatedMetaInfo.withSerializerUpgradesAllowed()
+                        : updatedMetaInfo;
 
         return new HeapPriorityQueueSnapshotRestoreWrapper<>(
                 priorityQueue,

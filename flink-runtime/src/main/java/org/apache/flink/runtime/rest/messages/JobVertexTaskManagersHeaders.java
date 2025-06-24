@@ -25,7 +25,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Message headers for the {@link JobVertexTaskManagersHandler}. */
 public class JobVertexTaskManagersHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 EmptyRequestBody, JobVertexTaskManagersInfo, JobVertexMessageParameters> {
 
     private static final JobVertexTaskManagersHeaders INSTANCE = new JobVertexTaskManagersHeaders();

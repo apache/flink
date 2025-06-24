@@ -21,8 +21,8 @@ package org.apache.flink.table.runtime.generated;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.codehaus.janino.ExpressionEvaluator;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -32,17 +32,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CompileUtils}. */
-public class CompileUtilsTest {
+class CompileUtilsTest {
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         // cleanup cached class before tests
         CompileUtils.COMPILED_CLASS_CACHE.invalidateAll();
         CompileUtils.COMPILED_EXPRESSION_CACHE.invalidateAll();
     }
 
     @Test
-    public void testCacheReuse() {
+    void testCacheReuse() {
         String code = "public class Main {\n" + "  int i;\n" + "  int j;\n" + "}";
 
         Class<?> class1 = CompileUtils.compile(this.getClass().getClassLoader(), "Main", code);
@@ -53,7 +53,7 @@ public class CompileUtilsTest {
     }
 
     @Test
-    public void testExpressionCacheReuse() {
+    void testExpressionCacheReuse() {
         String code = "a + b";
 
         ExpressionEvaluator evaluator1 =
@@ -79,7 +79,7 @@ public class CompileUtilsTest {
     }
 
     @Test
-    public void testWrongCode() {
+    void testWrongCode() {
         String code = "public class111 Main {\n" + "  int i;\n" + "  int j;\n" + "}";
         assertThatThrownBy(
                         () -> CompileUtils.compile(this.getClass().getClassLoader(), "Main", code))

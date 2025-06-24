@@ -28,8 +28,6 @@ import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
-
 /**
  * Heap-backed partitioned {@link ReducingState} that is snapshotted into files.
  *
@@ -40,7 +38,7 @@ import java.io.IOException;
 class HeapReducingState<K, N, V> extends AbstractHeapMergingState<K, N, V, V, V>
         implements InternalReducingState<K, N, V> {
 
-    private final ReduceTransformation<V> reduceTransformation;
+    private ReduceTransformation<V> reduceTransformation;
 
     /**
      * Creates a new key/value state for the given hash map of key/value pairs.
@@ -89,18 +87,14 @@ class HeapReducingState<K, N, V> extends AbstractHeapMergingState<K, N, V, V, V>
     }
 
     @Override
-    public void add(V value) throws IOException {
+    public void add(V value) throws Exception {
 
         if (value == null) {
             clear();
             return;
         }
 
-        try {
-            stateTable.transform(currentNamespace, value, reduceTransformation);
-        } catch (Exception e) {
-            throw new IOException("Exception while applying ReduceFunction in reducing state", e);
-        }
+        stateTable.transform(currentNamespace, value, reduceTransformation);
     }
 
     // ------------------------------------------------------------------------
@@ -110,6 +104,11 @@ class HeapReducingState<K, N, V> extends AbstractHeapMergingState<K, N, V, V, V>
     @Override
     protected V mergeState(V a, V b) throws Exception {
         return reduceTransformation.apply(a, b);
+    }
+
+    HeapReducingState<K, N, V> setReducingFunction(ReduceFunction<V> reduceFunction) {
+        this.reduceTransformation = new ReduceTransformation<>(reduceFunction);
+        return this;
     }
 
     static final class ReduceTransformation<V> implements StateTransformationFunction<V, V> {
@@ -139,5 +138,17 @@ class HeapReducingState<K, N, V> extends AbstractHeapMergingState<K, N, V, V, V>
                         stateTable.getNamespaceSerializer(),
                         stateDesc.getDefaultValue(),
                         ((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction());
+    }
+
+    @SuppressWarnings("unchecked")
+    static <K, N, SV, S extends State, IS extends S> IS update(
+            StateDescriptor<S, SV> stateDesc, StateTable<K, N, SV> stateTable, IS existingState) {
+        return (IS)
+                ((HeapReducingState<K, N, SV>) existingState)
+                        .setReducingFunction(
+                                ((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction())
+                        .setNamespaceSerializer(stateTable.getNamespaceSerializer())
+                        .setValueSerializer(stateTable.getStateSerializer())
+                        .setDefaultValue(stateDesc.getDefaultValue());
     }
 }

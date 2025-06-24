@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -32,10 +32,10 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link InputPriorityGraphGenerator}. */
-public class InputPriorityGraphGeneratorTest {
+class InputPriorityGraphGeneratorTest {
 
     @Test
-    public void testCalculatePipelinedAncestors() {
+    void testCalculatePipelinedAncestors() {
         // P = InputProperty.DamBehavior.PIPELINED, E = InputProperty.DamBehavior.END_INPUT
         //
         // 0 ------P----> 1 -E--> 2
@@ -72,7 +72,7 @@ public class InputPriorityGraphGeneratorTest {
     }
 
     @Test
-    public void testCalculateBoundedPipelinedAncestors() {
+    void testCalculateBoundedPipelinedAncestors() {
         // P = InputProperty.DamBehavior.PIPELINED, E = InputProperty.DamBehavior.END_INPUT
         //
         // 0 -P-> 1 -P-> 2

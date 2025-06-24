@@ -9,18 +9,6 @@
     </thead>
     <tbody>
         <tr>
-            <td><h5>cluster.evenly-spread-out-slots</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Boolean</td>
-            <td>Enable the slot spread out allocation strategy. This strategy tries to spread out the slots evenly across all available <code class="highlighter-rouge">TaskExecutors</code>.</td>
-        </tr>
-        <tr>
-            <td><h5>cluster.fine-grained-resource-management.enabled</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Boolean</td>
-            <td>Defines whether the cluster uses fine-grained resource management.</td>
-        </tr>
-        <tr>
             <td><h5>cluster.intercept-user-system-exit</h5></td>
             <td style="word-wrap: break-word;">DISABLED</td>
             <td><p>Enum</p></td>
@@ -40,37 +28,37 @@
         </tr>
         <tr>
             <td><h5>cluster.registration.error-delay</h5></td>
-            <td style="word-wrap: break-word;">10000</td>
-            <td>Long</td>
-            <td>The pause made after an registration attempt caused an exception (other than timeout) in milliseconds.</td>
+            <td style="word-wrap: break-word;">10 s</td>
+            <td>Duration</td>
+            <td>The pause made after an registration attempt caused an exception (other than timeout).</td>
         </tr>
         <tr>
             <td><h5>cluster.registration.initial-timeout</h5></td>
-            <td style="word-wrap: break-word;">100</td>
-            <td>Long</td>
-            <td>Initial registration timeout between cluster components in milliseconds.</td>
+            <td style="word-wrap: break-word;">100 ms</td>
+            <td>Duration</td>
+            <td>Initial registration timeout between cluster components.</td>
         </tr>
         <tr>
             <td><h5>cluster.registration.max-timeout</h5></td>
-            <td style="word-wrap: break-word;">30000</td>
-            <td>Long</td>
-            <td>Maximum registration timeout between cluster components in milliseconds.</td>
+            <td style="word-wrap: break-word;">30 s</td>
+            <td>Duration</td>
+            <td>Maximum registration timeout between cluster components.</td>
         </tr>
         <tr>
             <td><h5>cluster.registration.refused-registration-delay</h5></td>
-            <td style="word-wrap: break-word;">30000</td>
-            <td>Long</td>
-            <td>The pause made after the registration attempt was refused in milliseconds.</td>
+            <td style="word-wrap: break-word;">30 s</td>
+            <td>Duration</td>
+            <td>The pause made after the registration attempt was refused.</td>
         </tr>
         <tr>
             <td><h5>cluster.services.shutdown-timeout</h5></td>
-            <td style="word-wrap: break-word;">30000</td>
-            <td>Long</td>
-            <td>The shutdown timeout for cluster services like executors in milliseconds.</td>
+            <td style="word-wrap: break-word;">30 s</td>
+            <td>Duration</td>
+            <td>The shutdown timeout for cluster services like executors.</td>
         </tr>
         <tr>
             <td><h5>cluster.thread-dump.stacktrace-max-depth</h5></td>
-            <td style="word-wrap: break-word;">8</td>
+            <td style="word-wrap: break-word;">50</td>
             <td>Integer</td>
             <td>The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed.</td>
         </tr>
@@ -79,12 +67,6 @@
             <td style="word-wrap: break-word;">LOG</td>
             <td><p>Enum</p></td>
             <td>Defines whether cluster will handle any uncaught exceptions by just logging them (LOG mode), or by failing job (FAIL mode)<br /><br />Possible values:<ul><li>"LOG"</li><li>"FAIL"</li></ul></td>
-        </tr>
-        <tr>
-            <td><h5>fine-grained.shuffle-mode.all-blocking</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Boolean</td>
-            <td>Whether to convert all PIPELINE edges to BLOCKING when apply fine-grained resource management in batch jobs.</td>
         </tr>
         <tr>
             <td><h5>process.jobmanager.working-dir</h5></td>

@@ -17,8 +17,8 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary._
@@ -27,10 +27,11 @@ import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.util.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.legacy.types.logical.TypeInformationRawType
 import org.apache.flink.table.planner.codegen.GenerateUtils.{generateInputFieldUnboxing, generateNonNullField}
 import org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING
 import org.apache.flink.table.runtime.dataview.StateDataViewStore
-import org.apache.flink.table.runtime.generated.{AggsHandleFunction, HashFunction, NamespaceAggsHandleFunction, TableAggsHandleFunction}
+import org.apache.flink.table.runtime.generated._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.runtime.util.{MurmurHashUtil, TimeWindowUtil}
@@ -38,11 +39,12 @@ import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getPrecision, getScale, isCompositeType}
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
 import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.table.utils.EncodingUtils
-import org.apache.flink.types.{Row, RowKind}
+import org.apache.flink.types.{ColumnList, Row, RowKind}
+import org.apache.flink.types.variant.Variant
 
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Object => JObject, Short => JShort}
 import java.lang.reflect.Method
@@ -57,6 +59,8 @@ object CodeGenUtils {
   val DEFAULT_LEGACY_CAST_BEHAVIOUR = "legacyCastBehaviour"
 
   val DEFAULT_TIMEZONE_TERM = "timeZone"
+
+  val DEFAULT_INPUT_TERM = "in"
 
   val DEFAULT_INPUT1_TERM = "in1"
 
@@ -79,6 +83,8 @@ object CodeGenUtils {
   val ARRAY_DATA: String = className[ArrayData]
 
   val BINARY_ARRAY: String = className[BinaryArrayData]
+
+  val GENERIC_ARRAY: String = className[GenericArrayData]
 
   val BINARY_RAW_VALUE: String = className[BinaryRawValueData[_]]
 
@@ -118,18 +124,33 @@ object CodeGenUtils {
 
   val RUNTIME_CONTEXT: String = className[RuntimeContext]
 
+  val FILTER_CONTEXT: String = className[FilterCondition.Context]
+
   // ----------------------------------------------------------------------------------------
 
   private val nameCounter = new AtomicLong
 
-  def newName(name: String): String = {
-    s"$name$$${nameCounter.getAndIncrement}"
+  def newName(context: CodeGeneratorContext, name: String): String = {
+    if (context == null || context.getNameCounter == null) {
+      // Add an 'i' in the middle to distinguish from nameCounter in CodeGeneratorContext
+      // and avoid naming conflicts.
+      s"$name$$i${nameCounter.getAndIncrement}"
+    } else {
+      s"$name$$${context.getNameCounter.getAndIncrement}"
+    }
   }
 
-  def newNames(names: String*): Seq[String] = {
+  def newNames(context: CodeGeneratorContext, names: String*): Seq[String] = {
     require(names.toSet.size == names.length, "Duplicated names")
-    val newId = nameCounter.getAndIncrement
-    names.map(name => s"$name$$$newId")
+    if (context == null || context.getNameCounter == null) {
+      val newId = nameCounter.getAndIncrement
+      // Add an 'i' in the middle to distinguish from nameCounter in CodeGeneratorContext
+      // and avoid naming conflicts.
+      names.map(name => s"$name$$i$newId")
+    } else {
+      val newId = context.getNameCounter.getAndIncrement
+      names.map(name => s"$name$$$newId")
+    }
   }
 
   /** Retrieve the canonical name of a class type. */
@@ -252,6 +273,8 @@ object CodeGenUtils {
     case DISTINCT_TYPE => boxedTypeTermForType(t.asInstanceOf[DistinctType].getSourceType)
     case NULL => className[JObject] // special case for untyped null literals
     case RAW => className[BinaryRawValueData[_]]
+    case DESCRIPTOR => className[ColumnList]
+    case VARIANT => className[Variant]
     case SYMBOL | UNRESOLVED =>
       throw new IllegalArgumentException("Illegal type: " + t)
   }
@@ -297,7 +320,11 @@ object CodeGenUtils {
       case BOOLEAN =>
         s"${className[JBoolean]}.hashCode($term)"
       case BINARY | VARBINARY =>
-        s"${className[MurmurHashUtil]}.hashUnsafeBytes($term, $BYTE_ARRAY_BASE_OFFSET, $term.length)"
+        // Instead of computing the BYTE_ARRAY_BASE_OFFSET value in JM, generate the code
+        // and evaluate it in TM. This is required so that byte array offset will be consistent.
+        // See FLINK-37833 for more details.
+        s"${className[MurmurHashUtil]}.hashUnsafeBytes($term," +
+          s" ${className[BinaryRowDataUtil]}.BYTE_ARRAY_BASE_OFFSET, $term.length)"
       case DECIMAL =>
         s"$term.hashCode()"
       case TINYINT =>
@@ -311,22 +338,36 @@ object CodeGenUtils {
       case DOUBLE => s"${className[JDouble]}.hashCode($term)"
       case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         s"$term.hashCode()"
-      case TIMESTAMP_WITH_TIME_ZONE | ARRAY | MULTISET | MAP =>
+      case TIMESTAMP_WITH_TIME_ZONE =>
         throw new UnsupportedOperationException(
           s"Unsupported type($t) to generate hash code," +
             s" the type($t) is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field.")
+      case ARRAY =>
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
+        val genHash =
+          HashCodeGenerator.generateArrayHash(
+            subCtx,
+            t.asInstanceOf[ArrayType].getElementType,
+            "SubHashArray")
+        genHashFunction(ctx, subCtx, genHash, term)
+      case MULTISET | MAP =>
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
+        val (keyType, valueType) = t match {
+          case multiset: MultisetType =>
+            (multiset.getElementType, new IntType())
+          case map: MapType =>
+            (map.getKeyType, map.getValueType)
+        }
+        val genHash =
+          HashCodeGenerator.generateMapHash(subCtx, keyType, valueType, "SubHashMap")
+        genHashFunction(ctx, subCtx, genHash, term)
       case INTERVAL_DAY_TIME => s"${className[JLong]}.hashCode($term)"
       case ROW | STRUCTURED_TYPE =>
         val fieldCount = getFieldCount(t)
-        val subCtx = CodeGeneratorContext(ctx.tableConfig)
+        val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
         val genHash =
           HashCodeGenerator.generateRowHash(subCtx, t, "SubHashRow", (0 until fieldCount).toArray)
-        ctx.addReusableInnerClass(genHash.getClassName, genHash.getCode)
-        val refs = ctx.addReusableObject(subCtx.references.toArray, "subRefs")
-        val hashFunc = newName("hashFunc")
-        ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
-        ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
-        s"$hashFunc.hashCode($term)"
+        genHashFunction(ctx, subCtx, genHash, term)
       case DISTINCT_TYPE =>
         hashCodeForType(ctx, t.asInstanceOf[DistinctType].getSourceType, term)
       case RAW =>
@@ -334,7 +375,7 @@ object CodeGenUtils {
           case rt: RawType[_] =>
             rt.getTypeSerializer
           case tirt: TypeInformationRawType[_] =>
-            tirt.getTypeInformation.createSerializer(new ExecutionConfig)
+            tirt.getTypeInformation.createSerializer(new SerializerConfigImpl)
         }
         val serTerm = ctx.addReusableObject(serializer, "serializer")
         s"$BINARY_RAW_VALUE.getJavaObjectFromRawValueData($term, $serTerm).hashCode()"
@@ -343,6 +384,19 @@ object CodeGenUtils {
     }
 
   // -------------------------- Method & Enum ---------------------------------------
+
+  def genHashFunction(
+      ctx: CodeGeneratorContext,
+      subCtx: CodeGeneratorContext,
+      genHash: GeneratedHashFunction,
+      term: String): String = {
+    ctx.addReusableInnerClass(genHash.getClassName, genHash.getCode)
+    val refs = ctx.addReusableObject(subCtx.references.toArray, "subRefs")
+    val hashFunc = newName(ctx, "hashFunc")
+    ctx.addReusableMember(s"${classOf[HashFunction].getCanonicalName} $hashFunc;")
+    ctx.addReusableInitStatement(s"$hashFunc = new ${genHash.getClassName}($refs);")
+    s"$hashFunc.hashCode($term)"
+  }
 
   def qualifyMethod(method: Method): String =
     method.getDeclaringClass.getCanonicalName + "." + method.getName
@@ -407,6 +461,18 @@ object CodeGenUtils {
       throw new CodeGenException("Integer expression type expected.")
     }
 
+  def requireNumericAndTimeInterval(left: GeneratedExpression, right: GeneratedExpression): Unit = {
+    val numericAndTimeInterval = TypeCheckUtils.isNumeric(left.resultType) &&
+      TypeCheckUtils.isTimeInterval(right.resultType)
+    val timeIntervalAndTimeNumeric = TypeCheckUtils.isTimeInterval(left.resultType) &&
+      TypeCheckUtils.isNumeric(right.resultType)
+    if (!(numericAndTimeInterval || timeIntervalAndTimeNumeric)) {
+      throw new CodeGenException(
+        "Numeric and Temporal expression type, or Temporal and Numeric expression type expected. " +
+          " But were " + s"'${left.resultType}' and '${right.resultType}'.")
+    }
+  }
+
   def udfFieldName(udf: UserDefinedFunction): String = {
     s"function_${udf.functionIdentifier.replace('.', '$')}"
   }
@@ -461,6 +527,8 @@ object CodeGenUtils {
         rowFieldReadAccess(indexTerm, rowTerm, t.asInstanceOf[DistinctType].getSourceType)
       case RAW =>
         s"(($BINARY_RAW_VALUE) $rowTerm.getRawValue($indexTerm))"
+      case VARIANT =>
+        s"$rowTerm.getVariant($indexTerm)"
       case NULL | SYMBOL | UNRESOLVED =>
         throw new IllegalArgumentException("Illegal type: " + t)
     }
@@ -754,6 +822,8 @@ object CodeGenUtils {
     case RAW =>
       val ser = addSerializer(t)
       s"$writerTerm.writeRawValue($indexTerm, $fieldValTerm, $ser)"
+    case VARIANT =>
+      s"$writerTerm.writeVariant($indexTerm, $fieldValTerm)"
     case NULL | SYMBOL | UNRESOLVED =>
       throw new IllegalArgumentException("Illegal type: " + t);
   }
@@ -1003,6 +1073,42 @@ object CodeGenUtils {
       externalResultTerm
     } else {
       s"${internalExpr.nullTerm} ? null : ($externalResultTerm)"
+    }
+  }
+
+  def fieldIndices(t: LogicalType): Array[Int] = {
+    if (isCompositeType(t)) {
+      (0 until getFieldCount(t)).toArray
+    } else {
+      Array(0)
+    }
+  }
+
+  def getReuseRowFieldExprs(
+      ctx: CodeGeneratorContext,
+      inputType: RowType,
+      inputRowTerm: String): Seq[GeneratedExpression] = {
+    fieldIndices(inputType)
+      .map(
+        index => {
+          val expr = GenerateUtils.generateFieldAccess(ctx, inputType, inputRowTerm, index)
+          ctx.addReusableInputUnboxingExprs(inputRowTerm, index, expr)
+          expr
+        })
+      .toSeq
+  }
+
+  def getFieldExpr(
+      ctx: CodeGeneratorContext,
+      inputTerm: String,
+      inputType: RowType,
+      index: Int): GeneratedExpression = {
+    ctx.getReusableInputUnboxingExprs(inputTerm, index) match {
+      // For operator fusion codegen case, the input field expr have been prepared before do this logic.
+      case Some(expr) => expr
+      // For single operator codegen case, this is needed.
+      case None =>
+        GenerateUtils.generateFieldAccess(ctx, inputType, inputTerm, index)
     }
   }
 }

@@ -1,4 +1,3 @@
-package org.apache.flink.state.changelog;
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,6 +15,8 @@ package org.apache.flink.state.changelog;
  * limitations under the License.
  */
 
+package org.apache.flink.state.changelog;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.state.changelog.restore.ChangelogApplierFactory;
 import org.apache.flink.state.changelog.restore.StateChangeApplier;
@@ -27,6 +28,8 @@ import org.apache.flink.state.changelog.restore.StateChangeApplier;
 @Internal
 public interface ChangelogState {
     StateChangeApplier getChangeApplier(ChangelogApplierFactory factory);
+
+    <IS> void setDelegatedState(IS state);
 
     /** Enable logging meta data before next writes. */
     void resetWritingMetaFlag();

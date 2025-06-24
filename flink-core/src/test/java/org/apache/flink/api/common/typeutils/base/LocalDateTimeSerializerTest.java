@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.time.LocalDateTime;
 
 /** A test for the {@link LocalDateTimeSerializer}. */
-public class LocalDateTimeSerializerTest extends SerializerTestBase<LocalDateTime> {
+class LocalDateTimeSerializerTest extends SerializerTestBase<LocalDateTime> {
 
     @Override
     protected TypeSerializer<LocalDateTime> createSerializer() {

@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
@@ -33,7 +34,9 @@ import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import java.util.ArrayList;
 import java.util.List;
 
-/** @see org.apache.flink.api.common.functions.FlatMapFunction */
+/**
+ * @see org.apache.flink.api.common.functions.FlatMapFunction
+ */
 @Internal
 public class FilterOperatorBase<T, FT extends FlatMapFunction<T, T>>
         extends SingleInputOperator<T, T, FT> {
@@ -59,7 +62,7 @@ public class FilterOperatorBase<T, FT extends FlatMapFunction<T, T>>
         FlatMapFunction<T, T> function = this.userFunction.getUserCodeObject();
 
         FunctionUtils.setFunctionRuntimeContext(function, ctx);
-        FunctionUtils.openFunction(function, this.parameters);
+        FunctionUtils.openFunction(function, DefaultOpenContext.INSTANCE);
 
         ArrayList<T> result = new ArrayList<T>(inputData.size());
         ListCollector<T> collector = new ListCollector<T>(result);

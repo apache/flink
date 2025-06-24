@@ -17,15 +17,46 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
+import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
+import org.apache.flink.util.Preconditions;
+
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.function.BiFunction;
 
 class OutputStreamWithPos extends OutputStream {
-    private final OutputStream outputStream;
-    private long pos;
+    protected final Path path;
+    protected OutputStream outputStream;
+    protected long pos;
+    protected boolean compression;
+    protected final OutputStream originalStream;
 
-    public OutputStreamWithPos(OutputStream outputStream) {
-        this.outputStream = outputStream;
+    public OutputStreamWithPos(OutputStream outputStream, Path path) {
+        this.outputStream = Preconditions.checkNotNull(outputStream);
+        this.originalStream = Preconditions.checkNotNull(outputStream);
+        this.path = Preconditions.checkNotNull(path);
+        this.pos = 0;
+        this.compression = false;
+    }
+
+    protected OutputStream wrapInternal(boolean compression, int bufferSize, OutputStream fsStream)
+            throws IOException {
+        fsStream.write(compression ? 1 : 0);
+        StreamCompressionDecorator instance =
+                compression
+                        ? SnappyStreamCompressionDecorator.INSTANCE
+                        : UncompressedStreamCompressionDecorator.INSTANCE;
+        return new BufferedOutputStream(instance.decorateWithCompression(fsStream), bufferSize);
+    }
+
+    public void wrap(boolean compression, int bufferSize) throws IOException {
+        this.compression = compression;
+        this.outputStream = wrapInternal(compression, bufferSize, this.originalStream);
     }
 
     @Override
@@ -53,10 +84,23 @@ class OutputStreamWithPos extends OutputStream {
 
     @Override
     public void close() throws IOException {
-        outputStream.close();
+        try {
+            outputStream.close();
+            originalStream.close();
+        } catch (IOException e) {
+            getPath().getFileSystem().delete(getPath(), true);
+        }
     }
 
     public long getPos() {
         return pos;
+    }
+
+    public Path getPath() {
+        return path;
+    }
+
+    public StreamStateHandle getHandle(BiFunction<Path, Long, StreamStateHandle> handleFactory) {
+        return handleFactory.apply(path, this.pos);
     }
 }

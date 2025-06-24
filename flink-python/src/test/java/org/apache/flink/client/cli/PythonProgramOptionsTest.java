@@ -23,26 +23,26 @@ import org.apache.flink.python.PythonOptions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYMODULE_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYTHON_PATH;
 import static org.apache.flink.client.cli.CliFrontendParser.PY_OPTION;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link PythonProgramOptions}. */
-public class PythonProgramOptionsTest {
+class PythonProgramOptionsTest {
     private Options options;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         options = new Options();
         options.addOption(PY_OPTION);
         options.addOption(PYFILES_OPTION);
@@ -50,10 +50,11 @@ public class PythonProgramOptionsTest {
         options.addOption(PYREQUIREMENTS_OPTION);
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
+        options.addOption(PYTHON_PATH);
     }
 
     @Test
-    public void testCreateProgramOptionsWithPythonCommandLine() throws CliArgsException {
+    void testCreateProgramOptionsWithPythonCommandLine() throws CliArgsException {
         String[] parameters = {
             "-py", "test.py",
             "-pym", "test",
@@ -61,6 +62,7 @@ public class PythonProgramOptionsTest {
             "-pyreq", "a.txt#b_dir",
             "-pyarch", "c.zip#venv,d.zip",
             "-pyexec", "bin/python",
+            "-pypath", "bin/python/lib/:bin/python/lib64",
             "userarg1", "userarg2"
         };
 
@@ -68,39 +70,51 @@ public class PythonProgramOptionsTest {
         PythonProgramOptions programOptions = (PythonProgramOptions) ProgramOptions.create(line);
         Configuration config = new Configuration();
         programOptions.applyToConfiguration(config);
-        assertEquals(
-                "test1.py,test2.zip,test3.egg,test4_dir", config.get(PythonOptions.PYTHON_FILES));
-        assertEquals("a.txt#b_dir", config.get(PYTHON_REQUIREMENTS));
-        assertEquals("c.zip#venv,d.zip", config.get(PythonOptions.PYTHON_ARCHIVES));
-        assertEquals("bin/python", config.get(PYTHON_EXECUTABLE));
-        assertArrayEquals(
-                new String[] {"--python", "test.py", "--pyModule", "test", "userarg1", "userarg2"},
-                programOptions.getProgramArgs());
+        assertThat(config.get(PythonOptions.PYTHON_FILES))
+                .isEqualTo("test1.py,test2.zip,test3.egg,test4_dir");
+        assertThat(config.get(PYTHON_REQUIREMENTS)).isEqualTo("a.txt#b_dir");
+        assertThat(config.get(PythonOptions.PYTHON_ARCHIVES)).isEqualTo("c.zip#venv,d.zip");
+        assertThat(config.get(PYTHON_EXECUTABLE)).isEqualTo("bin/python");
+        assertThat(config.get(PythonOptions.PYTHON_PATH))
+                .isEqualTo("bin/python/lib/:bin/python/lib64");
+        assertThat(programOptions.getProgramArgs())
+                .containsExactly(
+                        "--python", "test.py", "--pyModule", "test", "userarg1", "userarg2");
     }
 
     @Test
-    public void testCreateProgramOptionsWithLongOptions() throws CliArgsException {
+    void testCreateProgramOptionsWithLongOptions() throws CliArgsException {
         String[] args = {
-            "--python", "xxx.py",
-            "--pyModule", "xxx",
-            "--pyFiles", "/absolute/a.py,relative/b.py,relative/c.py",
-            "--pyRequirements", "d.txt#e_dir",
-            "--pyExecutable", "/usr/bin/python",
-            "--pyArchives", "g.zip,h.zip#data,h.zip#data2",
-            "userarg1", "userarg2"
+            "--python",
+            "xxx.py",
+            "--pyModule",
+            "xxx",
+            "--pyFiles",
+            "/absolute/a.py,relative/b.py,relative/c.py",
+            "--pyRequirements",
+            "d.txt#e_dir",
+            "--pyExecutable",
+            "/usr/bin/python",
+            "--pyArchives",
+            "g.zip,h.zip#data,h.zip#data2",
+            "--pyPythonPath",
+            "bin/python/lib/:bin/python/lib64",
+            "userarg1",
+            "userarg2"
         };
         CommandLine line = CliFrontendParser.parse(options, args, false);
         PythonProgramOptions programOptions = (PythonProgramOptions) ProgramOptions.create(line);
         Configuration config = new Configuration();
         programOptions.applyToConfiguration(config);
-        assertEquals(
-                "/absolute/a.py,relative/b.py,relative/c.py",
-                config.get(PythonOptions.PYTHON_FILES));
-        assertEquals("d.txt#e_dir", config.get(PYTHON_REQUIREMENTS));
-        assertEquals("g.zip,h.zip#data,h.zip#data2", config.get(PythonOptions.PYTHON_ARCHIVES));
-        assertEquals("/usr/bin/python", config.get(PYTHON_EXECUTABLE));
-        assertArrayEquals(
-                new String[] {"--python", "xxx.py", "--pyModule", "xxx", "userarg1", "userarg2"},
-                programOptions.getProgramArgs());
+        assertThat(config.get(PythonOptions.PYTHON_FILES))
+                .isEqualTo("/absolute/a.py,relative/b.py,relative/c.py");
+        assertThat(config.get(PYTHON_REQUIREMENTS)).isEqualTo("d.txt#e_dir");
+        assertThat(config.get(PythonOptions.PYTHON_ARCHIVES))
+                .isEqualTo("g.zip,h.zip#data,h.zip#data2");
+        assertThat(config.get(PYTHON_EXECUTABLE)).isEqualTo("/usr/bin/python");
+        assertThat(config.get(PythonOptions.PYTHON_PATH))
+                .isEqualTo("bin/python/lib/:bin/python/lib64");
+        assertThat(programOptions.getProgramArgs())
+                .containsExactly("--python", "xxx.py", "--pyModule", "xxx", "userarg1", "userarg2");
     }
 }

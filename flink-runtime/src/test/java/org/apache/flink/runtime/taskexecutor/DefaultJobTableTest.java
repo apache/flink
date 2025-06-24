@@ -24,23 +24,19 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.NoOpCheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CountDownLatch;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DefaultJobTable}. */
-public class DefaultJobTableTest extends TestLogger {
+class DefaultJobTableTest {
 
     private static final SupplierWithException<JobTable.JobServices, RuntimeException>
             DEFAULT_JOB_SERVICES_SUPPLIER = () -> TestingJobServices.newBuilder().build();
@@ -49,36 +45,36 @@ public class DefaultJobTableTest extends TestLogger {
 
     private DefaultJobTable jobTable;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         jobTable = DefaultJobTable.create();
     }
 
-    @After
-    public void teardown() {
+    @AfterEach
+    void teardown() {
         if (jobTable != null) {
             jobTable.close();
         }
     }
 
     @Test
-    public void getOrCreateJob_NoRegisteredJob_WillCreateNewJob() {
+    void getOrCreateJob_NoRegisteredJob_WillCreateNewJob() {
         final JobTable.Job newJob = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
-        assertThat(newJob.getJobId(), is(jobId));
-        assertTrue(jobTable.getJob(jobId).isPresent());
+        assertThat(newJob.getJobId()).isEqualTo(jobId);
+        assertThat(jobTable.getJob(jobId)).isPresent();
     }
 
     @Test
-    public void getOrCreateJob_RegisteredJob_WillReturnRegisteredJob() {
+    void getOrCreateJob_RegisteredJob_WillReturnRegisteredJob() {
         final JobTable.Job newJob = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
         final JobTable.Job otherJob = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
-        assertThat(otherJob, sameInstance(newJob));
+        assertThat(otherJob).isSameAs(newJob);
     }
 
     @Test
-    public void closeJob_WillCloseJobServices() throws InterruptedException {
+    void closeJob_WillCloseJobServices() throws InterruptedException {
         final OneShotLatch shutdownLibraryCacheManagerLatch = new OneShotLatch();
         final TestingJobServices jobServices =
                 TestingJobServices.newBuilder()
@@ -92,25 +88,25 @@ public class DefaultJobTableTest extends TestLogger {
     }
 
     @Test
-    public void closeJob_WillRemoveItFromJobTable() {
+    void closeJob_WillRemoveItFromJobTable() {
         final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
         job.close();
 
-        assertFalse(jobTable.getJob(jobId).isPresent());
+        assertThat(jobTable.getJob(jobId)).isNotPresent();
     }
 
     @Test
-    public void connectJob_NotConnected_Succeeds() {
+    void connectJob_NotConnected_Succeeds() {
         final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
         final ResourceID resourceId = ResourceID.generate();
         final JobTable.Connection connection = connectJob(job, resourceId);
 
-        assertThat(connection.getJobId(), is(jobId));
-        assertThat(connection.getResourceId(), is(resourceId));
-        assertTrue(jobTable.getConnection(jobId).isPresent());
-        assertTrue(jobTable.getConnection(resourceId).isPresent());
+        assertThat(connection.getJobId()).isEqualTo(jobId);
+        assertThat(connection.getResourceId()).isEqualTo(resourceId);
+        assertThat(jobTable.getConnection(jobId)).isPresent();
+        assertThat(jobTable.getConnection(resourceId)).isPresent();
     }
 
     private JobTable.Connection connectJob(JobTable.Job job, ResourceID resourceId) {
@@ -123,16 +119,18 @@ public class DefaultJobTableTest extends TestLogger {
                 new NoOpPartitionProducerStateChecker());
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void connectJob_Connected_Fails() {
+    @Test
+    void connectJob_Connected_Fails() {
         final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
         connectJob(job, ResourceID.generate());
-        connectJob(job, ResourceID.generate());
+
+        assertThatThrownBy(() -> connectJob(job, ResourceID.generate()))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void disconnectConnection_RemovesConnection() {
+    void disconnectConnection_RemovesConnection() {
         final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
         final ResourceID resourceId = ResourceID.generate();
@@ -140,41 +138,43 @@ public class DefaultJobTableTest extends TestLogger {
 
         connection.disconnect();
 
-        assertFalse(jobTable.getConnection(jobId).isPresent());
-        assertFalse(jobTable.getConnection(resourceId).isPresent());
+        assertThat(jobTable.getConnection(jobId)).isNotPresent();
+        assertThat(jobTable.getConnection(resourceId)).isNotPresent();
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void access_AfterBeingClosed_WillFail() {
+    @Test
+    void access_AfterBeingClosed_WillFail() {
         final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
         job.close();
 
-        job.asConnection();
+        assertThatThrownBy(job::asConnection).isInstanceOf(IllegalStateException.class);
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void connectJob_AfterBeingClosed_WillFail() {
+    @Test
+    void connectJob_AfterBeingClosed_WillFail() {
         final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
         job.close();
 
-        connectJob(job, ResourceID.generate());
+        assertThatThrownBy(() -> connectJob(job, ResourceID.generate()))
+                .isInstanceOf(IllegalStateException.class);
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void accessJobManagerGateway_AfterBeingDisconnected_WillFail() {
+    @Test
+    void accessJobManagerGateway_AfterBeingDisconnected_WillFail() {
         final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
         final JobTable.Connection connection = connectJob(job, ResourceID.generate());
 
         connection.disconnect();
 
-        connection.getJobManagerGateway();
+        assertThatThrownBy(connection::getJobManagerGateway)
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void close_WillCloseAllRegisteredJobs() throws InterruptedException {
+    void close_WillCloseAllRegisteredJobs() throws InterruptedException {
         final CountDownLatch shutdownLibraryCacheManagerLatch = new CountDownLatch(2);
         final TestingJobServices jobServices1 =
                 TestingJobServices.newBuilder()
@@ -191,6 +191,6 @@ public class DefaultJobTableTest extends TestLogger {
         jobTable.close();
 
         shutdownLibraryCacheManagerLatch.await();
-        assertTrue(jobTable.isEmpty());
+        assertThat(jobTable.isEmpty()).isTrue();
     }
 }

@@ -89,7 +89,7 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
         // Set fixed ports
         flinkConfig.set(RestOptions.PORT, Constants.REST_PORT);
         flinkConfig.set(BlobServerOptions.PORT, Integer.toString(Constants.BLOB_SERVER_PORT));
-        flinkConfig.setString(
+        flinkConfig.set(
                 TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
 
         // Set resources
@@ -214,5 +214,25 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
     void testMainContainerImagePullPolicyOverwritten() {
         assertThat(this.resultPod.getMainContainer().getImagePullPolicy())
                 .isEqualTo(IMAGE_PULL_POLICY);
+    }
+
+    @Test
+    void testDNSPolicyWithPodTemplate() {
+        assertThat(this.resultPod.getPodWithoutMainContainer().getSpec().getDnsPolicy())
+                .isEqualTo("None");
+    }
+
+    @Test
+    void testDNSPolicyOverwritten() throws Exception {
+        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED, true);
+        final FlinkPod podTemplate =
+                KubernetesUtils.loadPodFromTemplateFile(
+                        flinkKubeClient,
+                        KubernetesPodTemplateTestUtils.getPodTemplateFile(),
+                        KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
+        final FlinkPod newResultPod = getResultPod(podTemplate);
+        assertThat(newResultPod.getPodWithoutMainContainer().getSpec().getDnsPolicy())
+                .isEqualTo(Constants.DNS_POLICY_HOSTNETWORK);
+        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED, false);
     }
 }

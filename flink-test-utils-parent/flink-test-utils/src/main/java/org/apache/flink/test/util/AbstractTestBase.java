@@ -18,14 +18,16 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,34 +59,34 @@ import java.io.IOException;
  *
  * </pre>
  */
-public abstract class AbstractTestBase extends TestLogger {
+public abstract class AbstractTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTestBase.class);
 
     private static final int DEFAULT_PARALLELISM = 4;
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    public static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
                             .build());
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir protected File temporaryFolder;
 
-    @After
-    public final void cleanupRunningJobs() throws Exception {
-        if (!MINI_CLUSTER_RESOURCE.getMiniCluster().isRunning()) {
-            // do nothing if the MiniCluster is not running
+    @AfterEach
+    public final void cleanupRunningJobs(@InjectClusterClient MiniClusterClient clusterClient)
+            throws Exception {
+        if (!MINI_CLUSTER_EXTENSION.isRunning()) {
             LOG.warn("Mini cluster is not running after the test!");
             return;
         }
 
-        for (JobStatusMessage path : MINI_CLUSTER_RESOURCE.getClusterClient().listJobs().get()) {
+        for (JobStatusMessage path : clusterClient.listJobs().get()) {
             if (!path.getJobState().isTerminalState()) {
                 try {
-                    MINI_CLUSTER_RESOURCE.getClusterClient().cancel(path.getJobId()).get();
+                    clusterClient.cancel(path.getJobId()).get();
                 } catch (Exception ignored) {
                     // ignore exceptions when cancelling dangling jobs
                 }
@@ -117,6 +119,6 @@ public abstract class AbstractTestBase extends TestLogger {
     }
 
     public File createAndRegisterTempFile(String fileName) throws IOException {
-        return new File(TEMPORARY_FOLDER.newFolder(), fileName);
+        return new File(temporaryFolder, fileName);
     }
 }

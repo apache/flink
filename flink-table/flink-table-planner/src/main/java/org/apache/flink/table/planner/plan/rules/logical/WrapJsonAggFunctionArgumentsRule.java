@@ -39,10 +39,13 @@ import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.mapping.MappingType;
 import org.apache.calcite.util.mapping.Mappings;
 import org.apache.calcite.util.mapping.Mappings.TargetMapping;
+import org.immutables.value.Value;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -62,11 +65,11 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_S
  * supported types in the aggregation function again.
  */
 @Internal
+@Value.Enclosing
 public class WrapJsonAggFunctionArgumentsRule
         extends RelRule<WrapJsonAggFunctionArgumentsRule.Config> {
 
-    public static final RelOptRule INSTANCE =
-            Config.EMPTY.as(Config.class).onJsonAggregateFunctions().toRule();
+    public static final RelOptRule INSTANCE = new WrapJsonAggFunctionArgumentsRule(Config.DEFAULT);
 
     /** Marker hint that a call has already been transformed. */
     private static final RelHint MARKER_HINT =
@@ -79,81 +82,86 @@ public class WrapJsonAggFunctionArgumentsRule
     @Override
     public void onMatch(RelOptRuleCall call) {
         final LogicalAggregate aggregate = call.rel(0);
-        final AggregateCall aggCall = aggregate.getAggCallList().get(0);
-
         final RelNode aggInput = aggregate.getInput();
         final RelBuilder relBuilder = call.builder().push(aggInput);
 
-        final List<Integer> affectedArgs = getAffectedArgs(aggCall);
-        addProjections(aggregate.getCluster(), relBuilder, affectedArgs);
-
-        final TargetMapping argsMapping =
-                getAggArgsMapping(aggInput.getRowType().getFieldCount(), affectedArgs);
-
-        final AggregateCall newAggregateCall = aggCall.transform(argsMapping);
-        final LogicalAggregate newAggregate =
-                aggregate.copy(
-                        aggregate.getTraitSet(),
-                        relBuilder.build(),
-                        aggregate.getGroupSet(),
-                        aggregate.getGroupSets(),
-                        Collections.singletonList(newAggregateCall));
-        call.transformTo(newAggregate.withHints(Collections.singletonList(MARKER_HINT)));
+        final LogicalAggregate wrappedAggregate = wrapJsonAggregate(aggregate, relBuilder);
+        call.transformTo(wrappedAggregate.withHints(Collections.singletonList(MARKER_HINT)));
     }
 
-    /**
-     * Returns the aggregation's arguments which need to be wrapped.
-     *
-     * <p>This list is a subset of {@link AggregateCall#getArgList()} as not every argument may need
-     * to be wrapped into a {@link BuiltInFunctionDefinitions#JSON_STRING} call.
-     *
-     * <p>Duplicates (e.g. for {@code JSON_OBJECTAGG(f0 VALUE f0)}) are removed as we only need to
-     * wrap them once.
-     */
-    private List<Integer> getAffectedArgs(AggregateCall aggCall) {
-        if (aggCall.getAggregation() instanceof SqlJsonObjectAggAggFunction) {
-            // For JSON_OBJECTAGG we only need to wrap its second (= value) argument
-            final int valueIndex = aggCall.getArgList().get(1);
-            return Collections.singletonList(valueIndex);
+    private LogicalAggregate wrapJsonAggregate(LogicalAggregate aggregate, RelBuilder relBuilder) {
+        final int inputCount = aggregate.getInput().getRowType().getFieldCount();
+        List<AggregateCall> aggCallList = new ArrayList<>(aggregate.getAggCallList());
+        // This map is a mapping relationship between jsonObjectAggCall and the argument index
+        // need to be wrapped into a BuiltInFunctionDefinitions#JSON_STRING. This map will be used
+        // to create newWrappedArgCallList after creating a new Project.
+        Map<Integer, Integer> wrapIndicesMap = new HashMap<>();
+        for (int i = 0; i < aggCallList.size(); i++) {
+            AggregateCall currentCall = aggCallList.get(i);
+            if (currentCall.getAggregation() instanceof SqlJsonObjectAggAggFunction) {
+                // For JSON_OBJECTAGG we only need to wrap its second (= value) argument
+                final int valueIndex = currentCall.getArgList().get(1);
+                wrapIndicesMap.put(i, valueIndex);
+            } else if (currentCall.getAggregation() instanceof SqlJsonArrayAggAggFunction) {
+                final int valueIndex = currentCall.getArgList().get(0);
+                wrapIndicesMap.put(i, valueIndex);
+            }
         }
 
-        return aggCall.getArgList().stream().distinct().collect(Collectors.toList());
+        // Create a new Project.
+        Map<Integer, Integer> valueIndicesAfterProjection = new HashMap<>();
+        addProjections(
+                aggregate.getCluster(),
+                relBuilder,
+                wrapIndicesMap.values().stream().distinct().sorted().collect(Collectors.toList()),
+                inputCount,
+                valueIndicesAfterProjection);
+
+        List<AggregateCall> newWrappedArgCallList = new ArrayList<>(aggCallList);
+        final int newInputCount = inputCount + valueIndicesAfterProjection.size();
+        for (Integer jsonAggCallIndex : wrapIndicesMap.keySet()) {
+            final TargetMapping argsMapping =
+                    Mappings.create(MappingType.BIJECTION, newInputCount, newInputCount);
+            Integer valueIndex = wrapIndicesMap.get(jsonAggCallIndex);
+            argsMapping.set(valueIndex, valueIndicesAfterProjection.get(valueIndex));
+            final AggregateCall newAggregateCall =
+                    newWrappedArgCallList.get(jsonAggCallIndex).transform(argsMapping);
+            newWrappedArgCallList.set(jsonAggCallIndex, newAggregateCall);
+        }
+
+        return aggregate.copy(
+                aggregate.getTraitSet(),
+                relBuilder.build(),
+                aggregate.getGroupSet(),
+                aggregate.getGroupSets(),
+                newWrappedArgCallList);
     }
 
     /**
-     * Adds (wrapped) projections for affected arguments of the aggregation.
+     * Adds (wrapped) projections for affected arguments of the aggregation. For duplicate
+     * projection fields, we only wrap them once and record the conversion relationship in the map
+     * valueIndicesAfterProjection.
      *
      * <p>Note that we cannot override any of the projections as a field may be used multiple times,
      * and in particular outside of the aggregation call. Therefore, we explicitly add the wrapped
      * projection as an additional one.
      */
     private void addProjections(
-            RelOptCluster cluster, RelBuilder relBuilder, List<Integer> affectedArgs) {
+            RelOptCluster cluster,
+            RelBuilder relBuilder,
+            List<Integer> affectedArgs,
+            int inputCount,
+            Map<Integer, Integer> valueIndicesAfterProjection) {
         final BridgingSqlFunction operandToStringOperator =
                 BridgingSqlFunction.of(cluster, JSON_STRING);
 
         final List<RexNode> projects = new ArrayList<>();
-        affectedArgs.stream()
-                .map(argIdx -> relBuilder.call(operandToStringOperator, relBuilder.field(argIdx)))
-                .forEach(projects::add);
-
-        relBuilder.projectPlus(projects);
-    }
-
-    /**
-     * Returns a {@link TargetMapping} that defines how the arguments of the aggregation must be
-     * mapped such that the wrapped arguments are used instead.
-     */
-    private TargetMapping getAggArgsMapping(int inputCount, List<Integer> affectedArgs) {
-        final int newCount = inputCount + affectedArgs.size();
-
-        final TargetMapping argsMapping =
-                Mappings.create(MappingType.BIJECTION, newCount, newCount);
-        for (int i = 0; i < affectedArgs.size(); i++) {
-            argsMapping.set(affectedArgs.get(i), inputCount + i);
+        for (Integer argIdx : affectedArgs) {
+            valueIndicesAfterProjection.put(argIdx, inputCount + projects.size());
+            projects.add(relBuilder.call(operandToStringOperator, relBuilder.field(argIdx)));
         }
 
-        return argsMapping;
+        relBuilder.projectPlus(projects);
     }
 
     private static boolean isJsonAggregation(AggregateCall aggCall) {
@@ -165,7 +173,13 @@ public class WrapJsonAggFunctionArgumentsRule
     // ---------------------------------------------------------------------------------------------
 
     /** Configuration for {@link WrapJsonAggFunctionArgumentsRule}. */
+    @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
+        Config DEFAULT =
+                ImmutableWrapJsonAggFunctionArgumentsRule.Config.builder()
+                        .build()
+                        .as(Config.class)
+                        .onJsonAggregateFunctions();
 
         @Override
         default RelOptRule toRule() {

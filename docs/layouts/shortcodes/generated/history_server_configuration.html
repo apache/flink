@@ -22,15 +22,27 @@
         </tr>
         <tr>
             <td><h5>historyserver.archive.fs.refresh-interval</h5></td>
-            <td style="word-wrap: break-word;">10000</td>
-            <td>Long</td>
-            <td>Interval in milliseconds for refreshing the archived job directories.</td>
+            <td style="word-wrap: break-word;">10 s</td>
+            <td>Duration</td>
+            <td>Interval for refreshing the archived job directories.</td>
         </tr>
         <tr>
             <td><h5>historyserver.archive.retained-jobs</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
             <td>The maximum number of jobs to retain in each archive directory defined by `historyserver.archive.fs.dir`. If set to `-1`(default), there is no limit to the number of archives. If set to `0` or less than `-1` HistoryServer will throw an <code class="highlighter-rouge">IllegalConfigurationException</code>. </td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.log.jobmanager.url-pattern</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Pattern of the log URL of JobManager. The HistoryServer will generate actual URLs from it, with replacing the special placeholders, `&lt;jobid&gt;`, to the id of job. Only http / https schemes are supported.</td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.log.taskmanager.url-pattern</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Pattern of the log URL of TaskManager. The HistoryServer will generate actual URLs from it, with replacing the special placeholders, `&lt;jobid&gt;` and `&lt;tmid&gt;`, to the id of job and TaskManager respectively. Only http / https schemes are supported.</td>
         </tr>
         <tr>
             <td><h5>historyserver.web.address</h5></td>
@@ -46,9 +58,9 @@
         </tr>
         <tr>
             <td><h5>historyserver.web.refresh-interval</h5></td>
-            <td style="word-wrap: break-word;">10000</td>
-            <td>Long</td>
-            <td>The refresh interval for the HistoryServer web-frontend in milliseconds.</td>
+            <td style="word-wrap: break-word;">10 s</td>
+            <td>Duration</td>
+            <td>The refresh interval for the HistoryServer web-frontend.</td>
         </tr>
         <tr>
             <td><h5>historyserver.web.ssl.enabled</h5></td>

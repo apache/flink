@@ -20,19 +20,15 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
-import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.collection.IsMapContaining;
-import org.junit.Test;
+import org.assertj.core.api.Condition;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for the {@link DefaultResourceTracker}.
@@ -40,28 +36,28 @@ import static org.junit.Assert.assertThat;
  * <p>Note: The majority is of the tracking logic is covered by the {@link
  * JobScopedResourceTrackerTest}.
  */
-public class DefaultResourceTrackerTest extends TestLogger {
+class DefaultResourceTrackerTest {
 
     private static final JobID JOB_ID_1 = JobID.generate();
     private static final JobID JOB_ID_2 = JobID.generate();
 
     @Test
-    public void testInitialBehavior() {
+    void testInitialBehavior() {
         DefaultResourceTracker tracker = new DefaultResourceTracker();
 
-        assertThat(tracker.isEmpty(), is(true));
+        assertThat(tracker.isEmpty()).isTrue();
         tracker.notifyLostResource(JobID.generate(), ResourceProfile.ANY);
     }
 
     @Test
-    public void testClearDoesNotThrowException() {
+    void testClearDoesNotThrowException() {
         DefaultResourceTracker tracker = new DefaultResourceTracker();
 
         tracker.clear();
     }
 
     @Test
-    public void testGetRequiredResources() {
+    void testGetRequiredResources() {
         DefaultResourceTracker tracker = new DefaultResourceTracker();
 
         ResourceRequirement requirement1 = ResourceRequirement.create(ResourceProfile.ANY, 1);
@@ -72,14 +68,34 @@ public class DefaultResourceTrackerTest extends TestLogger {
 
         Map<JobID, Collection<ResourceRequirement>> requiredResources =
                 tracker.getMissingResources();
-        assertThat(
-                requiredResources, IsMapContaining.hasEntry(is(JOB_ID_1), contains(requirement1)));
-        assertThat(
-                requiredResources, IsMapContaining.hasEntry(is(JOB_ID_2), contains(requirement2)));
+        assertMapKeyedEntriesContainsValue(requiredResources, JOB_ID_1, requirement1);
+
+        assertMapKeyedEntriesContainsValue(requiredResources, JOB_ID_2, requirement2);
+    }
+
+    private static <K, VE> void assertMapKeyedEntriesContainsValue(
+            Map<K, Collection<VE>> requiredResources, K jobID, VE resourceRequirementToContain) {
+        assertThat(requiredResources)
+                .hasEntrySatisfying(
+                        new Condition<K>() {
+                            @Override
+                            public boolean matches(K key) {
+                                return jobID.equals(key);
+                            }
+                        },
+                        new Condition<Collection<VE>>() {
+                            @Override
+                            public boolean matches(Collection<VE> value) {
+                                if (value == null || value.isEmpty()) {
+                                    return false;
+                                }
+                                return value.contains(resourceRequirementToContain);
+                            }
+                        });
     }
 
     @Test
-    public void testGetAcquiredResources() {
+    void testGetAcquiredResources() {
         DefaultResourceTracker tracker = new DefaultResourceTracker();
 
         ResourceRequirement requirement1 = ResourceRequirement.create(ResourceProfile.ANY, 1);
@@ -90,55 +106,39 @@ public class DefaultResourceTrackerTest extends TestLogger {
             tracker.notifyAcquiredResource(JOB_ID_2, requirement2.getResourceProfile());
         }
 
-        assertThat(tracker.getAcquiredResources(JOB_ID_1), contains(requirement1));
-        assertThat(tracker.getAcquiredResources(JOB_ID_2), contains(requirement2));
+        assertThat(tracker.getAcquiredResources(JOB_ID_1)).contains(requirement1);
+        assertThat(tracker.getAcquiredResources(JOB_ID_2)).contains(requirement2);
 
         tracker.notifyLostResource(JOB_ID_1, requirement1.getResourceProfile());
-        assertThat(tracker.getAcquiredResources(JOB_ID_1), empty());
+        assertThat(tracker.getAcquiredResources(JOB_ID_1)).isEmpty();
     }
 
     @Test
-    public void testTrackerRemovedOnRequirementReset() {
+    void testTrackerRemovedOnRequirementReset() {
         DefaultResourceTracker tracker = new DefaultResourceTracker();
 
         tracker.notifyResourceRequirements(
                 JOB_ID_1,
                 Collections.singletonList(ResourceRequirement.create(ResourceProfile.ANY, 1)));
-        assertThat(tracker.isEmpty(), is(false));
+        assertThat(tracker.isEmpty()).isFalse();
 
         tracker.notifyResourceRequirements(JOB_ID_1, Collections.emptyList());
-        assertThat(tracker.isEmpty(), is(true));
+        assertThat(tracker.isEmpty()).isTrue();
     }
 
     @Test
-    public void testTrackerRemovedOnResourceLoss() {
+    void testTrackerRemovedOnResourceLoss() {
         DefaultResourceTracker tracker = new DefaultResourceTracker();
 
         tracker.notifyAcquiredResource(JOB_ID_1, ResourceProfile.ANY);
-        assertThat(tracker.isEmpty(), is(false));
+        assertThat(tracker.isEmpty()).isFalse();
 
         tracker.notifyLostResource(JOB_ID_1, ResourceProfile.ANY);
-        assertThat(tracker.isEmpty(), is(true));
+        assertThat(tracker.isEmpty()).isTrue();
     }
 
     @Test
-    public void testTrackerRetainedOnResourceLossIfRequirementExists() {
-        DefaultResourceTracker tracker = new DefaultResourceTracker();
-
-        tracker.notifyAcquiredResource(JOB_ID_1, ResourceProfile.ANY);
-        tracker.notifyResourceRequirements(
-                JOB_ID_1,
-                Collections.singletonList(ResourceRequirement.create(ResourceProfile.ANY, 1)));
-
-        tracker.notifyLostResource(JOB_ID_1, ResourceProfile.ANY);
-        assertThat(tracker.isEmpty(), is(false));
-
-        tracker.notifyResourceRequirements(JOB_ID_1, Collections.emptyList());
-        assertThat(tracker.isEmpty(), is(true));
-    }
-
-    @Test
-    public void testTrackerRetainedOnRequirementResetIfResourceExists() {
+    void testTrackerRetainedOnResourceLossIfRequirementExists() {
         DefaultResourceTracker tracker = new DefaultResourceTracker();
 
         tracker.notifyAcquiredResource(JOB_ID_1, ResourceProfile.ANY);
@@ -146,10 +146,26 @@ public class DefaultResourceTrackerTest extends TestLogger {
                 JOB_ID_1,
                 Collections.singletonList(ResourceRequirement.create(ResourceProfile.ANY, 1)));
 
+        tracker.notifyLostResource(JOB_ID_1, ResourceProfile.ANY);
+        assertThat(tracker.isEmpty()).isFalse();
+
         tracker.notifyResourceRequirements(JOB_ID_1, Collections.emptyList());
-        assertThat(tracker.isEmpty(), is(false));
+        assertThat(tracker.isEmpty()).isTrue();
+    }
+
+    @Test
+    void testTrackerRetainedOnRequirementResetIfResourceExists() {
+        DefaultResourceTracker tracker = new DefaultResourceTracker();
+
+        tracker.notifyAcquiredResource(JOB_ID_1, ResourceProfile.ANY);
+        tracker.notifyResourceRequirements(
+                JOB_ID_1,
+                Collections.singletonList(ResourceRequirement.create(ResourceProfile.ANY, 1)));
+
+        tracker.notifyResourceRequirements(JOB_ID_1, Collections.emptyList());
+        assertThat(tracker.isEmpty()).isFalse();
 
         tracker.notifyLostResource(JOB_ID_1, ResourceProfile.ANY);
-        assertThat(tracker.isEmpty(), is(true));
+        assertThat(tracker.isEmpty()).isTrue();
     }
 }

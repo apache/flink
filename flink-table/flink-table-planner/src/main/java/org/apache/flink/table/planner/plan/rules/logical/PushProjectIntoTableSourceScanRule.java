@@ -50,12 +50,15 @@ import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexShuttle;
+import org.immutables.value.Value;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -79,13 +82,15 @@ import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFacto
  * metadata) of the source were used together.
  */
 @Internal
+@Value.Enclosing
 public class PushProjectIntoTableSourceScanRule
         extends RelRule<PushProjectIntoTableSourceScanRule.Config> {
 
-    public static final RelOptRule INSTANCE =
-            Config.EMPTY.as(Config.class).onProjectedScan().toRule();
+    public static final PushProjectIntoTableSourceScanRule INSTANCE =
+            new PushProjectIntoTableSourceScanRule(
+                    PushProjectIntoTableSourceScanRule.Config.DEFAULT);
 
-    public PushProjectIntoTableSourceScanRule(Config config) {
+    public PushProjectIntoTableSourceScanRule(PushProjectIntoTableSourceScanRule.Config config) {
         super(config);
     }
 
@@ -137,10 +142,25 @@ public class PushProjectIntoTableSourceScanRule
         final FlinkTypeFactory typeFactory = unwrapTypeFactory(scan);
         final ResolvedSchema schema = sourceTable.contextResolvedTable().getResolvedSchema();
         final RowType producedType = createProducedType(schema, sourceTable.tableSource());
-        final NestedSchema projectedSchema =
+        NestedSchema projectedSchema =
                 NestedProjectionUtil.build(
                         getProjections(project, scan),
                         typeFactory.buildRelNodeRowType(producedType));
+        // we can not perform an empty column query to the table scan, just choose the first column
+        // in such case
+        if (projectedSchema.columns().isEmpty()) {
+            if (scan.getRowType().getFieldCount() == 0) {
+                throw new TableException(
+                        "Unexpected empty row type of source table:"
+                                + String.join(".", scan.getTable().getQualifiedName()));
+            }
+            RexInputRef firstFieldRef = RexInputRef.of(0, scan.getRowType());
+            projectedSchema =
+                    NestedProjectionUtil.build(
+                            Collections.singletonList(firstFieldRef),
+                            typeFactory.buildRelNodeRowType(producedType));
+        }
+
         if (!supportsNestedProjection) {
             for (NestedColumn column : projectedSchema.columns().values()) {
                 column.markLeaf();
@@ -337,18 +357,84 @@ public class PushProjectIntoTableSourceScanRule
     private List<RexNode> rewriteProjections(
             RelOptRuleCall call, TableSourceTable source, NestedSchema projectedSchema) {
         final LogicalProject project = call.rel(0);
+        List<RexNode> newProjects = project.getProjects();
+
         if (supportsProjectionPushDown(source.tableSource())) {
-            return NestedProjectionUtil.rewrite(
-                    project.getProjects(), projectedSchema, call.builder().getRexBuilder());
-        } else {
-            return project.getProjects();
+            // if support project push down, then all input ref will be rewritten includes metadata
+            // columns.
+            newProjects =
+                    NestedProjectionUtil.rewrite(
+                            newProjects, projectedSchema, call.builder().getRexBuilder());
+        } else if (supportsMetadata(source.tableSource())) {
+            // supportsMetadataProjection only.
+            // Note: why not reuse the NestedProjectionUtil to rewrite metadata projection? because
+            // it only works for sources which support projection push down.
+            List<Column.MetadataColumn> metadataColumns =
+                    DynamicSourceUtils.extractMetadataColumns(
+                            source.contextResolvedTable().getResolvedSchema());
+            if (metadataColumns.size() > 0) {
+                Set<String> metaCols =
+                        metadataColumns.stream().map(Column::getName).collect(Collectors.toSet());
+
+                MetadataOnlyProjectionRewriter rewriter =
+                        new MetadataOnlyProjectionRewriter(
+                                project.getInput().getRowType(), source.getRowType(), metaCols);
+
+                newProjects =
+                        newProjects.stream()
+                                .map(p -> p.accept(rewriter))
+                                .collect(Collectors.toList());
+            }
+        }
+
+        return newProjects;
+    }
+
+    private static class MetadataOnlyProjectionRewriter extends RexShuttle {
+
+        private final RelDataType oldInputRowType;
+
+        private final RelDataType newInputRowType;
+
+        private final Set<String> metaCols;
+
+        public MetadataOnlyProjectionRewriter(
+                RelDataType oldInputRowType, RelDataType newInputRowType, Set<String> metaCols) {
+            this.oldInputRowType = oldInputRowType;
+            this.newInputRowType = newInputRowType;
+            this.metaCols = metaCols;
+        }
+
+        @Override
+        public RexNode visitInputRef(RexInputRef inputRef) {
+            int refIndex = inputRef.getIndex();
+            if (refIndex > oldInputRowType.getFieldCount() - 1) {
+                throw new TableException(
+                        "Illegal field ref:" + refIndex + " over input row:" + oldInputRowType);
+            }
+            String refName = oldInputRowType.getFieldNames().get(refIndex);
+            if (metaCols.contains(refName)) {
+                int newIndex = newInputRowType.getFieldNames().indexOf(refName);
+                if (newIndex == -1) {
+                    throw new TableException(
+                            "Illegal meta field:" + refName + " over input row:" + newInputRowType);
+                }
+                return new RexInputRef(newIndex, inputRef.getType());
+            }
+            return inputRef;
         }
     }
 
     // ---------------------------------------------------------------------------------------------
 
     /** Configuration for {@link PushProjectIntoTableSourceScanRule}. */
+    @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
+        Config DEFAULT =
+                ImmutablePushProjectIntoTableSourceScanRule.Config.builder()
+                        .build()
+                        .onProjectedScan()
+                        .as(Config.class);
 
         @Override
         default RelOptRule toRule() {

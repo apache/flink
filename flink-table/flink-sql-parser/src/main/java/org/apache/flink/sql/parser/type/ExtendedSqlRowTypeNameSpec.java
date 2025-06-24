@@ -95,22 +95,23 @@ public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.print("ROW");
-        if (getFieldNames().size() == 0) {
+        if (fieldNames.isEmpty()) {
             if (unparseAsStandard) {
                 writer.print("()");
             } else {
                 writer.print("<>");
             }
         } else {
-            SqlWriter.Frame frame;
+            final SqlWriter.Frame frame;
             if (unparseAsStandard) {
                 frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "(", ")");
             } else {
                 frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "<", ">");
             }
             int i = 0;
-            for (Pair<SqlIdentifier, SqlDataTypeSpec> p :
-                    Pair.zip(this.fieldNames, this.fieldTypes)) {
+            for (Pair<SqlIdentifier, SqlDataTypeSpec> p : Pair.zip(fieldNames, fieldTypes)) {
+                assert p.left != null;
+                assert p.right != null;
                 writer.sep(",", false);
                 p.left.unparse(writer, 0, 0);
                 p.right.unparse(writer, leftPrec, rightPrec);
@@ -127,25 +128,25 @@ public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
     }
 
     @Override
-    public boolean equalsDeep(SqlTypeNameSpec node, Litmus litmus) {
-        if (!(node instanceof SqlRowTypeNameSpec)) {
-            return litmus.fail("{} != {}", this, node);
+    public boolean equalsDeep(SqlTypeNameSpec spec, Litmus litmus) {
+        if (!(spec instanceof SqlRowTypeNameSpec)) {
+            return litmus.fail("{} != {}", this, spec);
         }
-        ExtendedSqlRowTypeNameSpec that = (ExtendedSqlRowTypeNameSpec) node;
+        final ExtendedSqlRowTypeNameSpec that = (ExtendedSqlRowTypeNameSpec) spec;
         if (this.fieldNames.size() != that.fieldNames.size()) {
-            return litmus.fail("{} != {}", this, node);
+            return litmus.fail("{} != {}", this, spec);
         }
         for (int i = 0; i < fieldNames.size(); i++) {
             if (!this.fieldNames.get(i).equalsDeep(that.fieldNames.get(i), litmus)) {
-                return litmus.fail("{} != {}", this, node);
+                return litmus.fail("{} != {}", this, spec);
             }
         }
         if (this.fieldTypes.size() != that.fieldTypes.size()) {
-            return litmus.fail("{} != {}", this, node);
+            return litmus.fail("{} != {}", this, spec);
         }
         for (int i = 0; i < fieldTypes.size(); i++) {
-            if (!this.fieldTypes.get(i).equals(that.fieldTypes.get(i))) {
-                return litmus.fail("{} != {}", this, node);
+            if (!this.fieldTypes.get(i).equalsDeep(that.fieldTypes.get(i), litmus)) {
+                return litmus.fail("{} != {}", this, spec);
             }
         }
         return litmus.succeed();

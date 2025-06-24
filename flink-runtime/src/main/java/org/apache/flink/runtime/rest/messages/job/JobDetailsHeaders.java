@@ -23,13 +23,13 @@ import org.apache.flink.runtime.rest.handler.job.JobDetailsHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** Message headers for the {@link JobDetailsHandler}. */
 public class JobDetailsHeaders
-        implements MessageHeaders<EmptyRequestBody, JobDetailsInfo, JobMessageParameters> {
+        implements RuntimeMessageHeaders<EmptyRequestBody, JobDetailsInfo, JobMessageParameters> {
 
     private static final JobDetailsHeaders INSTANCE = new JobDetailsHeaders();
 

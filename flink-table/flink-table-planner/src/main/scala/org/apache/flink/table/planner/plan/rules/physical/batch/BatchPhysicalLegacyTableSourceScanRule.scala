@@ -17,27 +17,23 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
+import org.apache.flink.legacy.table.sources.StreamTableSource
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLegacyTableSourceScan
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
-import org.apache.flink.table.sources.StreamTableSource
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.TableScan
 
 /**
  * Rule that converts [[FlinkLogicalLegacyTableSourceScan]] to
  * [[BatchPhysicalLegacyTableSourceScan]].
  */
-class BatchPhysicalLegacyTableSourceScanRule
-  extends ConverterRule(
-    classOf[FlinkLogicalLegacyTableSourceScan],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchPhysicalLegacyTableSourceScan") {
+class BatchPhysicalLegacyTableSourceScanRule(config: Config) extends ConverterRule(config) {
 
   /** Rule must only match if TableScan targets a bounded [[StreamTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -66,5 +62,10 @@ class BatchPhysicalLegacyTableSourceScanRule
 }
 
 object BatchPhysicalLegacyTableSourceScanRule {
-  val INSTANCE: RelOptRule = new BatchPhysicalLegacyTableSourceScanRule
+  val INSTANCE: RelOptRule = new BatchPhysicalLegacyTableSourceScanRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalLegacyTableSourceScan],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchPhysicalLegacyTableSourceScan"))
 }

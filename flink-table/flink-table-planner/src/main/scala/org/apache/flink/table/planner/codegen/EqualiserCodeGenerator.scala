@@ -19,34 +19,42 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
+import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator.generateRecordEqualiserCode
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens.generateEquals
 import org.apache.flink.table.runtime.generated.{GeneratedRecordEqualiser, RecordEqualiser}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
-import org.apache.flink.table.types.logical.{DistinctType, LogicalType, RowType}
+import org.apache.flink.table.types.logical.{BooleanType, DistinctType, LogicalType}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldTypes, isCompositeType}
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
-class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
+class EqualiserCodeGenerator(
+    leftFieldTypes: Array[LogicalType],
+    rightFieldTypes: Array[LogicalType],
+    classLoader: ClassLoader) {
 
   private val RECORD_EQUALISER = className[RecordEqualiser]
   private val LEFT_INPUT = "left"
   private val RIGHT_INPUT = "right"
 
-  def this(rowType: RowType) = {
-    this(rowType.getChildren.asScala.toArray)
+  def this(fieldTypes: Array[LogicalType], classLoader: ClassLoader) = {
+    this(fieldTypes, fieldTypes, classLoader)
+  }
+
+  def this(compositeType: LogicalType, classLoader: ClassLoader) = {
+    this(getFieldTypes(compositeType).asScala.toArray, classLoader)
   }
 
   def generateRecordEqualiser(name: String): GeneratedRecordEqualiser = {
     // ignore time zone
-    val ctx = CodeGeneratorContext(new Configuration)
-    val className = newName(name)
+    val ctx = new CodeGeneratorContext(new Configuration, classLoader)
+    val className = newName(ctx, name)
 
-    val equalsMethodCodes = for (idx <- fieldTypes.indices) yield generateEqualsMethod(ctx, idx)
-    val equalsMethodCalls = for (idx <- fieldTypes.indices) yield {
+    val equalsMethodCodes = for (idx <- leftFieldTypes.indices) yield generateEqualsMethod(ctx, idx)
+    val equalsMethodCalls = for (idx <- leftFieldTypes.indices) yield {
       val methodName = getEqualsMethodName(idx)
       s"""result = result && $methodName($LEFT_INPUT, $RIGHT_INPUT);"""
     }
@@ -93,18 +101,28 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
       ("boolean", "isNullRight")
     )
 
-    val fieldType = fieldTypes(idx)
-    val fieldTypeTerm = primitiveTypeTermForType(fieldType)
+    val leftFieldType = leftFieldTypes(idx)
+    val leftFieldTypeTerm = primitiveTypeTermForType(leftFieldType)
+    val rightFieldType = rightFieldTypes(idx)
+    val rightFieldTypeTerm = primitiveTypeTermForType(rightFieldType)
+
     val Seq(leftFieldTerm, rightFieldTerm) = ctx.addReusableLocalVariables(
-      (fieldTypeTerm, "leftField"),
-      (fieldTypeTerm, "rightField")
+      (leftFieldTypeTerm, "leftField"),
+      (rightFieldTypeTerm, "rightField")
     )
 
-    val leftReadCode = rowFieldReadAccess(idx, LEFT_INPUT, fieldType)
-    val rightReadCode = rowFieldReadAccess(idx, RIGHT_INPUT, fieldType)
+    val leftReadCode = rowFieldReadAccess(idx, LEFT_INPUT, leftFieldType)
+    val rightReadCode = rowFieldReadAccess(idx, RIGHT_INPUT, rightFieldType)
 
     val (equalsCode, equalsResult) =
-      generateEqualsCode(ctx, fieldType, leftFieldTerm, rightFieldTerm, leftNullTerm, rightNullTerm)
+      generateEqualsCode(
+        ctx,
+        leftFieldType,
+        rightFieldType,
+        leftFieldTerm,
+        rightFieldTerm,
+        leftNullTerm,
+        rightNullTerm)
 
     s"""
        |private boolean $methodName($ROW_DATA $LEFT_INPUT, $ROW_DATA $RIGHT_INPUT) {
@@ -131,32 +149,28 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
 
   private def generateEqualsCode(
       ctx: CodeGeneratorContext,
-      fieldType: LogicalType,
+      leftFieldType: LogicalType,
+      rightFieldType: LogicalType,
       leftFieldTerm: String,
       rightFieldTerm: String,
       leftNullTerm: String,
       rightNullTerm: String) = {
     // TODO merge ScalarOperatorGens.generateEquals.
-    if (isInternalPrimitive(fieldType)) {
+    if (isInternalPrimitive(leftFieldType) && isInternalPrimitive(rightFieldType)) {
       ("", s"$leftFieldTerm == $rightFieldTerm")
-    } else if (isCompositeType(fieldType)) {
-      val equaliserGenerator = new EqualiserCodeGenerator(getFieldTypes(fieldType).asScala.toArray)
-      val generatedEqualiser = equaliserGenerator.generateRecordEqualiser("fieldGeneratedEqualiser")
-      val generatedEqualiserTerm =
-        ctx.addReusableObject(generatedEqualiser, "fieldGeneratedEqualiser")
-      val equaliserTypeTerm = classOf[RecordEqualiser].getCanonicalName
-      val equaliserTerm = newName("equaliser")
-      ctx.addReusableMember(s"private $equaliserTypeTerm $equaliserTerm = null;")
-      ctx.addReusableInitStatement(
-        s"""
-           |$equaliserTerm = ($equaliserTypeTerm)
-           |  $generatedEqualiserTerm.newInstance(Thread.currentThread().getContextClassLoader());
-           |""".stripMargin)
-      ("", s"$equaliserTerm.equals($leftFieldTerm, $rightFieldTerm)")
+    } else if (isCompositeType(leftFieldType) && isCompositeType(rightFieldType)) {
+      generateRecordEqualiserCode(
+        ctx,
+        leftFieldType,
+        rightFieldType,
+        leftFieldTerm,
+        rightFieldTerm,
+        "fieldGeneratedEqualiser")
     } else {
-      val left = GeneratedExpression(leftFieldTerm, leftNullTerm, "", fieldType)
-      val right = GeneratedExpression(rightFieldTerm, rightNullTerm, "", fieldType)
-      val gen = generateEquals(ctx, left, right)
+      val left = GeneratedExpression(leftFieldTerm, leftNullTerm, "", leftFieldType)
+      val right = GeneratedExpression(rightFieldTerm, rightNullTerm, "", rightFieldType)
+      val resultType = new BooleanType(leftFieldType.isNullable || rightFieldType.isNullable)
+      val gen = generateEquals(ctx, left, right, resultType)
       (gen.code, gen.resultTerm)
     }
   }
@@ -170,5 +184,42 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
     case DISTINCT_TYPE => isInternalPrimitive(t.asInstanceOf[DistinctType].getSourceType)
 
     case _ => false
+  }
+}
+
+object EqualiserCodeGenerator {
+
+  def generateRowEquals(
+      ctx: CodeGeneratorContext,
+      compositeType: LogicalType,
+      name: String): GeneratedRecordEqualiser = {
+    val equaliserGenerator = new EqualiserCodeGenerator(compositeType, ctx.classLoader)
+    equaliserGenerator.generateRecordEqualiser(name)
+  }
+
+  def generateRecordEqualiserCode(
+      ctx: CodeGeneratorContext,
+      leftFieldType: LogicalType,
+      rightFieldType: LogicalType,
+      leftFieldTerm: String,
+      rightFieldTerm: String,
+      generatedEqualiserName: String): (String, String) = {
+    val equaliserGenerator =
+      new EqualiserCodeGenerator(
+        getFieldTypes(leftFieldType).asScala.toArray,
+        getFieldTypes(rightFieldType).asScala.toArray,
+        ctx.classLoader)
+    val generatedEqualiser = equaliserGenerator.generateRecordEqualiser(generatedEqualiserName)
+    val generatedEqualiserTerm =
+      ctx.addReusableObject(generatedEqualiser, generatedEqualiserName)
+    val equaliserTypeTerm = classOf[RecordEqualiser].getCanonicalName
+    val equaliserTerm = newName(ctx, "equaliser")
+    ctx.addReusableMember(s"private $equaliserTypeTerm $equaliserTerm = null;")
+    ctx.addReusableInitStatement(
+      s"""
+         |$equaliserTerm = ($equaliserTypeTerm)
+         |  $generatedEqualiserTerm.newInstance(Thread.currentThread().getContextClassLoader());
+         |""".stripMargin)
+    ("", s"$equaliserTerm.equals($leftFieldTerm, $rightFieldTerm)")
   }
 }

@@ -22,37 +22,29 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link CheckpointBarrier} type. */
-public class CheckpointBarrierTest {
+class CheckpointBarrierTest {
 
     /**
      * Test serialization of the checkpoint barrier. The checkpoint barrier does not support its own
      * serialization, in order to be immutable.
      */
     @Test
-    public void testSerialization() throws Exception {
+    void testSerialization() {
         long id = Integer.MAX_VALUE + 123123L;
         long timestamp = Integer.MAX_VALUE + 1228L;
 
         CheckpointOptions options = CheckpointOptions.forCheckpointWithDefaultLocation();
         CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp, options);
 
-        try {
-            barrier.write(new DataOutputSerializer(1024));
-            fail("should throw an exception");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> barrier.write(new DataOutputSerializer(1024)))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            barrier.read(new DataInputDeserializer(new byte[32]));
-            fail("should throw an exception");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> barrier.read(new DataInputDeserializer(new byte[32])))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 }

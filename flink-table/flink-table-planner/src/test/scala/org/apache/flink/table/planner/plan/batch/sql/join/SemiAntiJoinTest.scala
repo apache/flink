@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.batch.sql.join
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /** Test SEMI/ANTI Join, the join operators are chose based on cost. */
 class SemiAntiJoinTest extends SemiAntiJoinTestBase {

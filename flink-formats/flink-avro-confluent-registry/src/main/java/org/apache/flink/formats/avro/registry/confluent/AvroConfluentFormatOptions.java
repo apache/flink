@@ -49,6 +49,18 @@ public class AvroConfluentFormatOptions {
                                     + "is used as the value or key format. But for other connectors (e.g. 'filesystem'), "
                                     + "the subject option is required when used as sink.");
 
+    public static final ConfigOption<String> SCHEMA =
+            ConfigOptions.key("schema")
+                    .stringType()
+                    .noDefaultValue()
+                    .withFallbackKeys("schema-registry.schema")
+                    .withDescription(
+                            "The schema registered or to be registered in the Confluent Schema Registry. "
+                                    + "If no schema is provided Flink converts the table schema to avro schema. "
+                                    + "The schema provided must match the table schema ('avro-confluent') or "
+                                    + "the Debezium schema which is a nullable record type including "
+                                    + "fields 'before', 'after', 'op' ('debezium-avro-confluent').");
+
     // --------------------------------------------------------------------------------------------
     // Commonly used options maintained by Flink for convenience
     // --------------------------------------------------------------------------------------------

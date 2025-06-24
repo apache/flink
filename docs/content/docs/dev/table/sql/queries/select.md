@@ -32,7 +32,7 @@ The general syntax of the `SELECT` statement is:
 SELECT select_list FROM table_expression [ WHERE boolean_expression ]
 ```
 
-The `table_expression` refers to any source of data. It could be an existing table, view, or `VALUES` clause, the joined results of multiple existing tables, or a subquery. Assuming that the table is available in the catalog, the following would read all rows from `Orders`.
+The `table_expression` refers to any source of data. It could be an existing table, view, `VALUES`, or `VALUE` clause, the joined results of multiple existing tables, or a subquery. Assuming that the table is available in the catalog, the following would read all rows from `Orders`.
 
 ```sql
 SELECT * FROM Orders

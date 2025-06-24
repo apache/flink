@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
@@ -30,9 +31,9 @@ import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.Set;
 
-import static java.time.ZoneId.SHORT_IDS;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS;
 import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY;
+import static org.apache.flink.table.api.internal.TableConfigValidation.validateTimeZone;
 
 /** Utility class for {@link TableConfig} related helper functions. */
 public class TableConfigUtils {
@@ -73,12 +74,7 @@ public class TableConfigUtils {
      * @return the aggregate phase strategy
      */
     public static AggregatePhaseStrategy getAggPhaseStrategy(ReadableConfig tableConfig) {
-        String aggPhaseConf = tableConfig.get(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY).trim();
-        if (aggPhaseConf.isEmpty()) {
-            return AggregatePhaseStrategy.AUTO;
-        } else {
-            return AggregatePhaseStrategy.valueOf(aggPhaseConf);
-        }
+        return tableConfig.get(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY);
     }
 
     /**
@@ -101,36 +97,17 @@ public class TableConfigUtils {
      * @see TableConfig#getLocalTimeZone()
      */
     public static ZoneId getLocalTimeZone(ReadableConfig tableConfig) {
-        String zone = tableConfig.get(TableConfigOptions.LOCAL_TIME_ZONE);
+        final String zone = tableConfig.get(TableConfigOptions.LOCAL_TIME_ZONE);
+        if (TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)) {
+            return ZoneId.systemDefault();
+        }
         validateTimeZone(zone);
-        return TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
-                ? ZoneId.systemDefault()
-                : ZoneId.of(zone);
+        return ZoneId.of(zone);
     }
 
-    /**
-     * Similar to {@link TableConfig#getMaxIdleStateRetentionTime()}.
-     *
-     * @see TableConfig#getMaxIdleStateRetentionTime()
-     */
     @Deprecated
     public static long getMaxIdleStateRetentionTime(ReadableConfig tableConfig) {
         return tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis() * 3 / 2;
-    }
-
-    /** Validates user configured time zone. */
-    private static void validateTimeZone(String zone) {
-        final String zoneId = zone.toUpperCase();
-        if (zoneId.startsWith("UTC+")
-                || zoneId.startsWith("UTC-")
-                || SHORT_IDS.containsKey(zoneId)) {
-            throw new IllegalArgumentException(
-                    String.format(
-                            "The supported Zone ID is either a full name such as "
-                                    + "'America/Los_Angeles', or a custom timezone id such as "
-                                    + "'GMT-08:00', but configured Zone ID is '%s'.",
-                            zone));
-        }
     }
 
     // Make sure that we cannot instantiate this class

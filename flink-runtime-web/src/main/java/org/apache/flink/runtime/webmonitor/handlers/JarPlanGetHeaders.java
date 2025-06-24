@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 
 /** Message headers for {@link JarPlanHandler}. */
+@Documentation.ExcludeFromDocumentation("Subsumed by JarPlanPostHeaders")
 public class JarPlanGetHeaders extends AbstractJarPlanHeaders {
 
     private static final JarPlanGetHeaders INSTANCE = new JarPlanGetHeaders();

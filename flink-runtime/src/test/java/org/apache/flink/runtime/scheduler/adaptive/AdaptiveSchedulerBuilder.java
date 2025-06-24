@@ -17,21 +17,27 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
+import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsListener;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
+import org.apache.flink.runtime.checkpoint.DefaultCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
-import org.apache.flink.runtime.executiongraph.failover.flip1.NoRestartBackoffTimeStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.NoRestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultAllocatedSlotPool;
@@ -48,15 +54,23 @@ import org.apache.flink.util.FatalExitExceptionHandler;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /** Builder for {@link AdaptiveScheduler}. */
 public class AdaptiveSchedulerBuilder {
-    private static final Time DEFAULT_TIMEOUT = Time.seconds(300);
+    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(300);
 
     private final JobGraph jobGraph;
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
+    private final ScheduledExecutorService executorService;
+
+    @Nullable private JobResourceRequirements jobResourceRequirements;
 
     private Configuration jobMasterConfiguration = new Configuration();
     private ClassLoader userCodeLoader = ClassLoader.getSystemClassLoader();
@@ -64,7 +78,7 @@ public class AdaptiveSchedulerBuilder {
     private CheckpointRecoveryFactory checkpointRecoveryFactory =
             new StandaloneCheckpointRecoveryFactory();
     private DeclarativeSlotPool declarativeSlotPool;
-    private Time rpcTimeout = DEFAULT_TIMEOUT;
+    private Duration rpcTimeout = DEFAULT_TIMEOUT;
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
     private JobManagerJobMetricGroup jobManagerJobMetricGroup =
             UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
@@ -77,12 +91,27 @@ public class AdaptiveSchedulerBuilder {
                     FatalExitExceptionHandler.INSTANCE.uncaughtException(
                             Thread.currentThread(), error);
     private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
+    private Collection<FailureEnricher> failureEnrichers = Collections.emptySet();
     private long initializationTimestamp = System.currentTimeMillis();
 
     @Nullable private SlotAllocator slotAllocator;
 
+    /**
+     * {@code null} indicates that the default factory will be used based on the set configuration.
+     */
+    @Nullable
+    private AdaptiveScheduler.StateTransitionManagerFactory stateTransitionManagerFactory = null;
+
+    private BiFunction<JobManagerJobMetricGroup, CheckpointStatsListener, CheckpointStatsTracker>
+            checkpointStatsTrackerFactory =
+                    (metricGroup, checkpointStatsListener) ->
+                            new DefaultCheckpointStatsTracker(
+                                    10, metricGroup, checkpointStatsListener);
+
     public AdaptiveSchedulerBuilder(
-            final JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
+            final JobGraph jobGraph,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            ScheduledExecutorService executorService) {
         this.jobGraph = jobGraph;
         this.mainThreadExecutor = mainThreadExecutor;
 
@@ -92,12 +121,27 @@ public class AdaptiveSchedulerBuilder {
                         new DefaultAllocatedSlotPool(),
                         ignored -> {},
                         DEFAULT_TIMEOUT,
-                        rpcTimeout);
+                        rpcTimeout,
+                        Duration.ZERO,
+                        mainThreadExecutor);
+        this.executorService = executorService;
+    }
+
+    public AdaptiveSchedulerBuilder setJobResourceRequirements(
+            JobResourceRequirements jobResourceRequirements) {
+        this.jobResourceRequirements = jobResourceRequirements;
+        return this;
     }
 
     public AdaptiveSchedulerBuilder setJobMasterConfiguration(
             final Configuration jobMasterConfiguration) {
         this.jobMasterConfiguration = jobMasterConfiguration;
+        return this;
+    }
+
+    public AdaptiveSchedulerBuilder withConfigurationOverride(
+            Function<Configuration, Configuration> modifyFn) {
+        this.jobMasterConfiguration = modifyFn.apply(jobMasterConfiguration);
         return this;
     }
 
@@ -118,7 +162,7 @@ public class AdaptiveSchedulerBuilder {
         return this;
     }
 
-    public AdaptiveSchedulerBuilder setRpcTimeout(final Time rpcTimeout) {
+    public AdaptiveSchedulerBuilder setRpcTimeout(final Duration rpcTimeout) {
         this.rpcTimeout = rpcTimeout;
         return this;
     }
@@ -167,6 +211,12 @@ public class AdaptiveSchedulerBuilder {
         return this;
     }
 
+    public AdaptiveSchedulerBuilder setFailureEnrichers(
+            Collection<FailureEnricher> failureEnrichers) {
+        this.failureEnrichers = failureEnrichers;
+        return this;
+    }
+
     public AdaptiveSchedulerBuilder setInitializationTimestamp(long initializationTimestamp) {
         this.initializationTimestamp = initializationTimestamp;
         return this;
@@ -177,7 +227,25 @@ public class AdaptiveSchedulerBuilder {
         return this;
     }
 
-    public AdaptiveScheduler build(ScheduledExecutorService executorService) throws Exception {
+    public AdaptiveSchedulerBuilder setStateTransitionManagerFactory(
+            @Nullable
+                    AdaptiveScheduler.StateTransitionManagerFactory stateTransitionManagerFactory) {
+        this.stateTransitionManagerFactory = stateTransitionManagerFactory;
+        return this;
+    }
+
+    public AdaptiveSchedulerBuilder setCheckpointStatsTrackerFactory(
+            @Nullable
+                    BiFunction<
+                                    JobManagerJobMetricGroup,
+                                    CheckpointStatsListener,
+                                    CheckpointStatsTracker>
+                            checkpointStatsTrackerFactory) {
+        this.checkpointStatsTrackerFactory = checkpointStatsTrackerFactory;
+        return this;
+    }
+
+    public AdaptiveScheduler build() throws Exception {
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
                         jobMasterConfiguration,
@@ -191,26 +259,38 @@ public class AdaptiveSchedulerBuilder {
                         shuffleMaster,
                         partitionTracker);
 
+        final AdaptiveScheduler.Settings settings =
+                AdaptiveScheduler.Settings.of(jobMasterConfiguration);
         return new AdaptiveScheduler(
+                settings,
+                stateTransitionManagerFactory == null
+                        ? DefaultStateTransitionManager::new
+                        : stateTransitionManagerFactory,
+                checkpointStatsTrackerFactory,
                 jobGraph,
+                jobResourceRequirements,
                 jobMasterConfiguration,
                 declarativeSlotPool,
                 slotAllocator == null
                         ? AdaptiveSchedulerFactory.createSlotSharingSlotAllocator(
-                                declarativeSlotPool)
+                                declarativeSlotPool,
+                                jobMasterConfiguration.get(StateRecoveryOptions.LOCAL_RECOVERY),
+                                jobMasterConfiguration.get(DeploymentOptions.TARGET),
+                                jobMasterConfiguration.get(
+                                        JobManagerOptions
+                                                .SCHEDULER_PREFER_MINIMAL_TASKMANAGERS_ENABLED))
                         : slotAllocator,
                 executorService,
                 userCodeLoader,
                 checkpointsCleaner,
                 checkpointRecoveryFactory,
-                jobMasterConfiguration.get(JobManagerOptions.RESOURCE_WAIT_TIMEOUT),
-                jobMasterConfiguration.get(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT),
                 jobManagerJobMetricGroup,
                 restartBackoffTimeStrategy,
                 initializationTimestamp,
                 mainThreadExecutor,
                 fatalErrorHandler,
                 jobStatusListener,
+                failureEnrichers,
                 executionGraphFactory);
     }
 }

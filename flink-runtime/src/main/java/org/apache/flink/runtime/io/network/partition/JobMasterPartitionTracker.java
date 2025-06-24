@@ -19,8 +19,14 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * Utility for tracking partitions and issuing release calls to task executors and shuffle masters.
@@ -53,12 +59,35 @@ public interface JobMasterPartitionTracker
             Collection<ResultPartitionID> resultPartitionIds, boolean releaseOnShuffleMaster);
 
     /**
-     * Releases the job partitions and promotes the cluster partitions, and stops the tracking of
-     * partitions that were released/promoted.
+     * Promotes the given partitions, and stops the tracking of partitions that were promoted.
+     *
+     * @param resultPartitionIds ID of the partition containing both job partitions and cluster
+     *     partitions.
+     * @return Future that will be completed if the partitions are promoted.
      */
-    void stopTrackingAndReleaseOrPromotePartitions(
+    CompletableFuture<Void> stopTrackingAndPromotePartitions(
             Collection<ResultPartitionID> resultPartitionIds);
 
-    /** Get all the partitions under tracking. */
+    /** Gets all the partitions under tracking. */
     Collection<ResultPartitionDeploymentDescriptor> getAllTrackedPartitions();
+
+    /** Gets all the non-cluster partitions under tracking. */
+    default Collection<ResultPartitionDeploymentDescriptor> getAllTrackedNonClusterPartitions() {
+        return getAllTrackedPartitions().stream()
+                .filter(descriptor -> !descriptor.getPartitionType().isPersistent())
+                .collect(Collectors.toList());
+    }
+
+    /** Gets all the cluster partitions under tracking. */
+    default Collection<ResultPartitionDeploymentDescriptor> getAllTrackedClusterPartitions() {
+        return getAllTrackedPartitions().stream()
+                .filter(descriptor -> descriptor.getPartitionType().isPersistent())
+                .collect(Collectors.toList());
+    }
+
+    void connectToResourceManager(ResourceManagerGateway resourceManagerGateway);
+
+    /** Get the shuffle descriptors of the cluster partitions ordered by partition number. */
+    List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+            IntermediateDataSetID intermediateDataSetID);
 }

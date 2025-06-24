@@ -91,7 +91,7 @@ processing as though nothing had gone wrong.
 
 The location where these snapshots are stored is defined via the jobs _checkpoint storage_.
 Two implementations of checkpoint storage are available - one that persists its state snapshots
-to a distributed file system, and another that users the JobManager's heap. 
+to a distributed file system, and another that uses the JobManager's heap. 
 
 <center>
   <table class="table table-bordered">

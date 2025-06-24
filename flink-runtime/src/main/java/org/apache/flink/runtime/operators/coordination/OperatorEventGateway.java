@@ -43,7 +43,7 @@ public interface OperatorEventGateway {
 
     /**
      * Sends the given event to the coordinator, where it will be handled by the {@link
-     * OperatorCoordinator#handleEventFromOperator(int, OperatorEvent)} method.
+     * OperatorCoordinator#handleEventFromOperator(int, int, OperatorEvent)} method.
      */
     void sendEventToCoordinator(OperatorEvent event);
 }

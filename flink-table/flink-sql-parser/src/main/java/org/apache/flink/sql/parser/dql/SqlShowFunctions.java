@@ -18,27 +18,37 @@
 
 package org.apache.flink.sql.parser.dql;
 
-import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlCharStringLiteral;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import java.util.Collections;
-import java.util.List;
-
-/** SHOW [USER] FUNCTIONS Sql Call. */
-public class SqlShowFunctions extends SqlCall {
+/**
+ * Show Functions sql call. The full syntax for show functions is as followings:
+ *
+ * <pre>{@code
+ * SHOW [USER] FUNCTIONS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE)
+ * <sql_like_pattern> ] statement
+ * }</pre>
+ */
+public class SqlShowFunctions extends SqlShowCall {
 
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("SHOW FUNCTIONS", SqlKind.OTHER);
 
     private final boolean requireUser;
 
-    public SqlShowFunctions(SqlParserPos pos, boolean requireUser) {
-        super(pos);
+    public SqlShowFunctions(
+            SqlParserPos pos,
+            boolean requireUser,
+            String preposition,
+            SqlIdentifier databaseName,
+            String likeType,
+            SqlCharStringLiteral likeLiteral,
+            boolean notLike) {
+        super(pos, preposition, databaseName, likeType, likeLiteral, notLike);
         this.requireUser = requireUser;
     }
 
@@ -47,21 +57,12 @@ public class SqlShowFunctions extends SqlCall {
         return OPERATOR;
     }
 
-    @Override
-    public List<SqlNode> getOperandList() {
-        return Collections.EMPTY_LIST;
-    }
-
-    @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        if (requireUser) {
-            writer.keyword("SHOW USER FUNCTIONS");
-        } else {
-            writer.keyword("SHOW FUNCTIONS");
-        }
-    }
-
     public boolean requireUser() {
         return requireUser;
+    }
+
+    @Override
+    String getOperationName() {
+        return requireUser ? "SHOW USER FUNCTIONS" : "SHOW FUNCTIONS";
     }
 }

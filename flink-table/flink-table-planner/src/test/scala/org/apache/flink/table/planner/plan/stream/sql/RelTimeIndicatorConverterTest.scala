@@ -17,16 +17,16 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.api.scala._
+import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.planner.plan.stream.sql.RelTimeIndicatorConverterTest.TableFunc
+import org.apache.flink.table.planner.runtime.utils.TestSinkUtil
 import org.apache.flink.table.planner.utils.TableTestBase
-import org.apache.flink.table.types.logical.BigIntType
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 
@@ -83,7 +83,7 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
 
   @Test
   def testTableFunction(): Unit = {
-    util.addFunction("tableFunc", new TableFunc)
+    util.addTemporarySystemFunction("tableFunc", new TableFunc)
     val sqlQuery =
       """
         |SELECT rowtime, proctime, s
@@ -175,21 +175,37 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
 
     val table = util.tableEnv.sqlQuery(sql)
 
-    val appendSink1 =
-      util.createAppendTableSink(Array("long", "sum"), Array(new BigIntType(), new BigIntType()))
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSinkInternal("appendSink1", appendSink1)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "appendSink1",
+      List("long", "sum"),
+      List(DataTypes.BIGINT, DataTypes.BIGINT),
+      ChangelogMode.insertOnly()
+    )
     stmtSet.addInsert("appendSink1", table)
 
-    val appendSink2 =
-      util.createAppendTableSink(Array("long", "sum"), Array(new BigIntType(), new BigIntType()))
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSinkInternal("appendSink2", appendSink2)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "appendSink2",
+      List("long", "sum"),
+      List(DataTypes.BIGINT, DataTypes.BIGINT),
+      ChangelogMode.insertOnly()
+    )
     stmtSet.addInsert("appendSink2", table)
 
     util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
+  def testJoin(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT T1.rowtime, T2.proctime, T1.long, T2.`int`, T3.long
+        |FROM MyTable1 T1
+        |JOIN MyTable2 T2 ON T1.long = T2.long AND T1.`int` > 10
+        |JOIN MyTable1 T3 ON T1.long = T3.long AND T3.`int` < 20
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
   }
 
   // TODO add temporal table join case
@@ -200,6 +216,14 @@ object RelTimeIndicatorConverterTest {
   class TableFunc extends TableFunction[String] {
     val t = new Timestamp(0L)
 
+    @FunctionHint(
+      input = Array(
+        new DataTypeHint(
+          value = "TIMESTAMP(3)",
+          bridgedTo = classOf[org.apache.flink.table.data.TimestampData]),
+        new DataTypeHint(value = "TIMESTAMP_LTZ(3)", bridgedTo = classOf[java.sql.Timestamp]),
+        new DataTypeHint("STRING")
+      ))
     def eval(time1: TimestampData, time2: Timestamp, string: String): Unit = {
       collect(time1.toString + time2.after(t) + string)
     }

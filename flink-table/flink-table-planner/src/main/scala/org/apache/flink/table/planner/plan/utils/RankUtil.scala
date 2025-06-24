@@ -17,18 +17,20 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.ExpressionReducer
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeduplicate
-import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, RankType, VariableRankRange}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalRank, StreamPhysicalWindowDeduplicate}
+import org.apache.flink.table.runtime.operators.rank._
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelCollation
-import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil}
+import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 
 import java.util
@@ -74,11 +76,10 @@ object RankUtil {
       oriPred: RexNode,
       rankFieldIndex: Int,
       rexBuilder: RexBuilder,
-      tableConfig: TableConfig): (Option[RankRange], Option[RexNode]) = {
+      tableConfig: TableConfig,
+      classLoader: ClassLoader): (Option[RankRange], Option[RexNode]) = {
     val predicate = FlinkRexUtil.expandSearch(rexBuilder, oriPred)
-    // Converts the condition to conjunctive normal form (CNF)
-    val cnfNodeCount = tableConfig.get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
-    val cnfCondition = FlinkRexUtil.toCnf(rexBuilder, cnfNodeCount, predicate)
+    val cnfCondition = FlinkRexUtil.toCnf(rexBuilder, predicate)
 
     // split the condition into sort limit condition and other condition
     val (limitPreds: Seq[LimitPredicate], otherPreds: Seq[RexNode]) = cnfCondition match {
@@ -106,7 +107,8 @@ object RankUtil {
       return (None, Some(predicate))
     }
 
-    val sortBounds = limitPreds.map(computeWindowBoundFromPredicate(_, rexBuilder, tableConfig))
+    val sortBounds =
+      limitPreds.map(computeWindowBoundFromPredicate(_, rexBuilder, tableConfig, classLoader))
     val rankRange = sortBounds match {
       case Seq(Some(LowerBoundary(x)), Some(UpperBoundary(y))) =>
         new ConstantRankRange(x, y)
@@ -212,7 +214,8 @@ object RankUtil {
   private def computeWindowBoundFromPredicate(
       limitPred: LimitPredicate,
       rexBuilder: RexBuilder,
-      tableConfig: TableConfig): Option[Boundary] = {
+      tableConfig: TableConfig,
+      classLoader: ClassLoader): Option[Boundary] = {
 
     val bound: BoundDefine = limitPred.pred.getKind match {
       case SqlKind.GREATER_THAN | SqlKind.GREATER_THAN_OR_EQUAL if limitPred.rankOnLeftSide =>
@@ -238,7 +241,7 @@ object RankUtil {
       case (_: RexInputRef, Lower) => None
       case _ =>
         // reduce predicate to constants to compute bounds
-        val literal = reduceComparisonPredicate(limitPred, rexBuilder, tableConfig)
+        val literal = reduceComparisonPredicate(limitPred, rexBuilder, tableConfig, classLoader)
         if (literal.isEmpty) {
           None
         } else {
@@ -281,7 +284,8 @@ object RankUtil {
   private def reduceComparisonPredicate(
       limitPred: LimitPredicate,
       rexBuilder: RexBuilder,
-      tableConfig: TableConfig): Option[Long] = {
+      tableConfig: TableConfig,
+      classLoader: ClassLoader): Option[Long] = {
 
     val expression = if (limitPred.rankOnLeftSide) {
       limitPred.pred.operands.get(1)
@@ -294,7 +298,7 @@ object RankUtil {
     }
 
     // reduce expression to literal
-    val exprReducer = new ExpressionReducer(tableConfig)
+    val exprReducer = new ExpressionReducer(tableConfig, classLoader)
     val originList = new util.ArrayList[RexNode]()
     originList.add(expression)
     val reduceList = new util.ArrayList[RexNode]()
@@ -325,7 +329,7 @@ object RankUtil {
   }
 
   /**
-   * Whether the given rank could be converted to [[StreamPhysicalDeduplicate]].
+   * Whether the given rank could be converted to [[StreamPhysicalWindowDeduplicate]].
    *
    * Returns true if the given rank is sorted by time attribute and limits 1 and its RankFunction is
    * ROW_NUMBER, else false.
@@ -333,7 +337,7 @@ object RankUtil {
    * @param rank
    *   The [[FlinkLogicalRank]] node
    * @return
-   *   True if the input rank could be converted to [[StreamPhysicalDeduplicate]]
+   *   True if the input rank could be converted to [[StreamPhysicalWindowDeduplicate]]
    */
   def canConvertToDeduplicate(rank: FlinkLogicalRank): Boolean = {
     val sortCollation = rank.orderKey
@@ -348,21 +352,70 @@ object RankUtil {
     }
 
     val inputRowType = rank.getInput.getRowType
-    val isSortOnTimeAttribute = sortOnTimeAttribute(sortCollation, inputRowType)
+    val isSortOnTimeAttribute = sortOnTimeAttributeOnly(sortCollation, inputRowType)
 
     !rank.outputRankNumber && isLimit1 && isSortOnTimeAttribute && isRowNumberType
   }
 
-  private def sortOnTimeAttribute(
+  private def sortOnTimeAttributeOnly(
       sortCollation: RelCollation,
       inputRowType: RelDataType): Boolean = {
     if (sortCollation.getFieldCollations.size() != 1) {
-      false
-    } else {
-      val firstSortField = sortCollation.getFieldCollations.get(0)
-      val fieldType = inputRowType.getFieldList.get(firstSortField.getFieldIndex).getType
-      FlinkTypeFactory.isProctimeIndicatorType(fieldType) ||
-      FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
+      return false
+    }
+    val firstSortField = sortCollation.getFieldCollations.get(0)
+    val fieldType = inputRowType.getFieldList.get(firstSortField.getFieldIndex).getType
+    FlinkTypeFactory.isProctimeIndicatorType(fieldType) ||
+    FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
+  }
+
+  /**
+   * Checks if the given sort collation has a field collation which based on a rowtime attribute.
+   */
+  def sortOnRowTime(sortCollation: RelCollation, inputRowType: RelDataType): Boolean = {
+    sortCollation.getFieldCollations.exists {
+      firstSortField =>
+        val fieldType = inputRowType.getFieldList.get(firstSortField.getFieldIndex).getType
+        FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
     }
   }
+
+  /** Whether the given rank is logically a deduplication. */
+  def isDeduplication(rank: Rank): Boolean = {
+    !rank.outputRankNumber && rank.rankType == RankType.ROW_NUMBER && isTop1(rank.rankRange)
+  }
+
+  /**
+   * Whether the given [[StreamPhysicalRank]] could be converted to
+   * [[org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeduplicate]].
+   */
+  def canConvertToDeduplicate(rank: StreamPhysicalRank): Boolean = {
+    lazy val inputInsertOnly = ChangelogPlanUtils.inputInsertOnly(rank)
+    lazy val sortOnTimeAttributeOnly =
+      RankUtil.sortOnTimeAttributeOnly(rank.orderKey, rank.getInput.getRowType)
+
+    isDeduplication(rank) && inputInsertOnly && sortOnTimeAttributeOnly
+  }
+
+  /**
+   * Determines if the given order key indicates that the last row should be kept for deduplication.
+   */
+  def keepLastDeduplicateRow(orderKey: RelCollation): Boolean = {
+    // order by timeIndicator desc ==> lastRow, otherwise is firstRow
+    if (orderKey.getFieldCollations.size() != 1) {
+      return false
+    }
+    val fieldCollation = orderKey.getFieldCollations.get(0)
+    fieldCollation.direction.isDescending
+  }
+
+  /**
+   * Currently, append-only is not supported for mini-batch mode, however this could be supported in
+   * the future. Proctime keep first row mini-batch operators are already append-only.
+   *
+   * <p>keepLastRow can not support append only, as always more recent record will be retracting the
+   * previous one.
+   */
+  def outputInsertOnlyInDeduplicate(config: ReadableConfig, keepLastRow: Boolean): Boolean =
+    !keepLastRow && !config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
 }

@@ -1,6 +1,6 @@
 ---
 title: "Working with State"
-weight: 2
+weight: 1
 type: docs
 aliases:
   - /dev/stream/state/state.html
@@ -37,7 +37,7 @@ to learn about the concepts behind stateful stream processing.
 If you want to use keyed state, you first need to specify a key on a
 `DataStream` that should be used to partition the state (and also the records
 in the stream themselves). You can specify a key using `keyBy(KeySelector)`
-in Java/Scala API or `key_by(KeySelector)` in Python API on a `DataStream`.
+in Java API or `key_by(KeySelector)` in Python API on a `DataStream`.
 This will yield a `KeyedStream`, which then allows operations that use keyed state.
 
 A key selector function takes a single record as input and returns the key for
@@ -68,14 +68,6 @@ KeyedStream<WC> keyed = words
 ```
 
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-// some ordinary case class
-case class WC(word: String, count: Int)
-val words: DataStream[WC] = // [...]
-val keyed = words.keyBy( _.word )
-```
-{{< /tab >}}
 
 {{< tab "Python" >}}
 ```python
@@ -88,7 +80,7 @@ keyed = words.key_by(lambda row: row[0])
 #### Tuple Keys and Expression Keys
 
 Flink also has two alternative ways of defining keys: tuple keys and expression
-keys in the Java/Scala API(still not supported in the Python API). With this you can
+keys in the Java API(still not supported in the Python API). With this you can
 specify keys using tuple field indices or expressions
 for selecting fields of objects. We don't recommend using these today but you
 can refer to the Javadoc of DataStream to learn about them. Using a KeySelector
@@ -101,7 +93,7 @@ have potentially less overhead at runtime.
 
 The keyed state interfaces provides access to different types of state that are all scoped to
 the key of the current input element. This means that this type of state can only be used
-on a `KeyedStream`, which can be created via `stream.keyBy(…)` in Java/Scala API or `stream.key_by(…)` in Python API.
+on a `KeyedStream`, which can be created via `stream.keyBy(…)` in Java API or `stream.key_by(…)` in Python API.
 
 Now, we will first look at the different types of state available and then we will see
 how they can be used in a program. The available state primitives are:
@@ -192,7 +184,7 @@ public class CountWindowAverage extends RichFlatMapFunction<Tuple2<Long, Long>, 
     }
 
     @Override
-    public void open(Configuration config) {
+    public void open(OpenContext ctx) {
         ValueStateDescriptor<Tuple2<Long, Long>> descriptor =
                 new ValueStateDescriptor<>(
                         "average", // the state name
@@ -211,64 +203,6 @@ env.fromElements(Tuple2.of(1L, 3L), Tuple2.of(1L, 5L), Tuple2.of(1L, 7L), Tuple2
 // the printed output will be (1,4) and (1,5)
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class CountWindowAverage extends RichFlatMapFunction[(Long, Long), (Long, Long)] {
-
-  private var sum: ValueState[(Long, Long)] = _
-
-  override def flatMap(input: (Long, Long), out: Collector[(Long, Long)]): Unit = {
-
-    // access the state value
-    val tmpCurrentSum = sum.value
-
-    // If it hasn't been used before, it will be null
-    val currentSum = if (tmpCurrentSum != null) {
-      tmpCurrentSum
-    } else {
-      (0L, 0L)
-    }
-
-    // update the count
-    val newSum = (currentSum._1 + 1, currentSum._2 + input._2)
-
-    // update the state
-    sum.update(newSum)
-
-    // if the count reaches 2, emit the average and clear the state
-    if (newSum._1 >= 2) {
-      out.collect((input._1, newSum._2 / newSum._1))
-      sum.clear()
-    }
-  }
-
-  override def open(parameters: Configuration): Unit = {
-    sum = getRuntimeContext.getState(
-      new ValueStateDescriptor[(Long, Long)]("average", createTypeInformation[(Long, Long)])
-    )
-  }
-}
-
-
-object ExampleCountWindowAverage extends App {
-  val env = StreamExecutionEnvironment.getExecutionEnvironment
-
-  env.fromCollection(List(
-    (1L, 3L),
-    (1L, 5L),
-    (1L, 7L),
-    (1L, 4L),
-    (1L, 2L)
-  )).keyBy(_._1)
-    .flatMap(new CountWindowAverage())
-    .print()
-  // the printed output will be (1,4) and (1,5)
-
-  env.execute("ExampleKeyedState")
-}
-```
-{{< /tab >}}
-
 {{< tab "Python" >}}
 ```python
 from pyflink.common.typeinfo import Types
@@ -341,32 +275,16 @@ functionality can then be enabled in any state descriptor by passing the configu
 ```java
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.time.Time;
+import java.time.Duration;
 
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
     .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
     .build();
     
 ValueStateDescriptor<String> stateDescriptor = new ValueStateDescriptor<>("text state", String.class);
 stateDescriptor.enableTimeToLive(ttlConfig);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-import org.apache.flink.api.common.state.StateTtlConfig
-import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.api.common.time.Time
-
-val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
-    .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
-    .build
-    
-val stateDescriptor = new ValueStateDescriptor[String]("text state", classOf[String])
-stateDescriptor.enableTimeToLive(ttlConfig)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -376,7 +294,7 @@ from pyflink.common.typeinfo import Types
 from pyflink.datastream.state import ValueStateDescriptor, StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Time.seconds(1)) \
+  .new_builder(Duration.ofSeconds(1)) \
   .set_update_type(StateTtlConfig.UpdateType.OnCreateAndWrite) \
   .set_state_visibility(StateTtlConfig.StateVisibility.NeverReturnExpired) \
   .build()
@@ -429,10 +347,13 @@ will lead to compatibility failure and `StateMigrationException`.
 
 - The TTL configuration is not part of check- or savepoints but rather a way of how Flink treats it in the currently running job.
 
+- It is not recommended to restore checkpoint state with adjusting the ttl from a short value to a long value,
+which may cause potential data errors.
+
 - The map state with TTL currently supports null user values only if the user value serializer can handle null values. 
 If the serializer does not support null values, it can be wrapped with `NullableSerializer` at the cost of an extra byte in the serialized form.
 
-- With TTL enabled configuration, the `defaultValue` in `StateDescriptor`, which is atucally already deprecated, will no longer take an effect. This aims to make the semantics more clear and let user manually manage the default value if the contents of the state is null or expired.
+- With TTL enabled configuration, the `defaultValue` in `StateDescriptor`, which is actually already deprecated, will no longer take an effect. This aims to make the semantics more clear and let user manually manage the default value if the contents of the state is null or expired.
 
 #### Cleanup of Expired State
 
@@ -444,18 +365,9 @@ in the background if supported by the configured state backend. Background clean
 ```java
 import org.apache.flink.api.common.state.StateTtlConfig;
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .disableCleanupInBackground()
     .build();
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-import org.apache.flink.api.common.state.StateTtlConfig
-val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .disableCleanupInBackground
-    .build
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -464,7 +376,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Time.seconds(1)) \
+  .new_builder(Duration.ofSeconds(1)) \
   .disable_cleanup_in_background() \
   .build()
 ```
@@ -485,23 +397,12 @@ It can be configured in `StateTtlConfig`:
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.time.Time;
+import java.time.Duration;
 
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .cleanupFullSnapshot()
     .build();
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-import org.apache.flink.api.common.state.StateTtlConfig
-import org.apache.flink.api.common.time.Time
-
-val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupFullSnapshot
-    .build
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -510,7 +411,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Time.seconds(1)) \
+  .new_builder(Duration.ofSeconds(1)) \
   .cleanup_full_snapshot() \
   .build()
 ```
@@ -540,18 +441,9 @@ This feature can be configured in `StateTtlConfig`:
 ```java
 import org.apache.flink.api.common.state.StateTtlConfig;
  StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .cleanupIncrementally(10, true)
     .build();
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-import org.apache.flink.api.common.state.StateTtlConfig
-val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupIncrementally(10, true)
-    .build
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -560,7 +452,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Time.seconds(1)) \
+  .new_builder(Duration.ofSeconds(1)) \
   .cleanup_incrementally(10, True) \
   .build()
 ```
@@ -597,29 +489,20 @@ This feature can be configured in `StateTtlConfig`:
 import org.apache.flink.api.common.state.StateTtlConfig;
 
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupInRocksdbCompactFilter(1000)
+    .newBuilder(Duration.ofSeconds(1))
+    .cleanupInRocksdbCompactFilter(1000, Duration.ofHours(1))
     .build();
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-import org.apache.flink.api.common.state.StateTtlConfig
-
-val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupInRocksdbCompactFilter(1000)
-    .build
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
+from pyflink.common import Duration
 from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Time.seconds(1)) \
-  .cleanup_in_rocksdb_compact_filter(1000) \
+  .new_builder(Duration.ofSeconds(1)) \
+  .cleanup_in_rocksdb_compact_filter(1000, Duration.of_hours(1)) \
   .build()
 ```
 {{< /tab >}}
@@ -632,6 +515,15 @@ You can change it and pass a custom value to
 Updating the timestamp more often can improve cleanup speed 
 but it decreases compaction performance because it uses JNI call from native code.
 The default background cleanup for RocksDB backend queries the current timestamp each time 1000 entries have been processed.
+
+Periodic compaction could speed up expired state entries cleanup, especially for state entries rarely accessed. 
+Files older than this value will be picked up for compaction, and re-written to the same level as they were before. 
+It makes sure a file goes through compaction filters periodically.
+You can change it and pass a custom value to
+`StateTtlConfig.newBuilder(...).cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries, Duration periodicCompactionTime)` method.
+The default value of Periodic compaction seconds is 30 days.
+You could set it to 0 to turn off periodic compaction or set a small value to speed up expired state entries cleanup, but it
+would trigger more compactions.
 
 You can activate debug logs from the native code of RocksDB filter 
 by activating debug level for `FlinkCompactionFilter`:
@@ -648,25 +540,7 @@ the native TTL filter has to call additionally a Flink java type serializer of t
 where at least the first element has expired to determine the offset of the next unexpired element. 
 - For existing jobs, this cleanup strategy can be activated or deactivated anytime in `StateTtlConfig`, 
 e.g. after restart from savepoint.
-
-### State in the Scala DataStream API
-
-In addition to the interface described above, the Scala API has shortcuts for stateful
-`map()` or `flatMap()` functions with a single `ValueState` on `KeyedStream`. The user function
-gets the current value of the `ValueState` in an `Option` and must return an updated value that
-will be used to update the state.
-
-```scala
-val stream: DataStream[(String, Int)] = ...
-
-val counts: DataStream[(String, Int)] = stream
-  .keyBy(_._1)
-  .mapWithState((in: (String, Int), count: Option[Int]) =>
-    count match {
-      case Some(c) => ( (in._1, c), Some(c + in._2) )
-      case None => ( (in._1, 0), Some(in._2) )
-    })
-```
+- Periodic compaction could only work when TTL is enabled.
 
 ## Operator State
 
@@ -701,8 +575,6 @@ in that:
  2. it is only available to specific operators that have as inputs a
     *broadcasted* stream and a *non-broadcasted* one, and
  3. such an operator can have *multiple broadcast states* with different names.
-
-**Notes:** Broadcast state is still not supported in Python DataStream API.
 
 {{< top >}}
 
@@ -750,8 +622,6 @@ Below is an example of a stateful `SinkFunction` that uses `CheckpointedFunction
 to buffer elements before sending them to the outside world. It demonstrates
 the basic even-split redistribution list state:
 
-{{< tabs "5b99313c-1801-486c-a085-ce66882a2e49" >}}
-{{< tab "Java" >}}
 ```java
 public class BufferingSink
         implements SinkFunction<Tuple2<String, Integer>>,
@@ -781,10 +651,7 @@ public class BufferingSink
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        checkpointedState.clear();
-        for (Tuple2<String, Integer> element : bufferedElements) {
-            checkpointedState.add(element);
-        }
+        checkpointedState.update(bufferedElements);
     }
 
     @Override
@@ -804,54 +671,6 @@ public class BufferingSink
     }
 }
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class BufferingSink(threshold: Int = 0)
-  extends SinkFunction[(String, Int)]
-    with CheckpointedFunction {
-
-  @transient
-  private var checkpointedState: ListState[(String, Int)] = _
-
-  private val bufferedElements = ListBuffer[(String, Int)]()
-
-  override def invoke(value: (String, Int), context: Context): Unit = {
-    bufferedElements += value
-    if (bufferedElements.size >= threshold) {
-      for (element <- bufferedElements) {
-        // send it to the sink
-      }
-      bufferedElements.clear()
-    }
-  }
-
-  override def snapshotState(context: FunctionSnapshotContext): Unit = {
-    checkpointedState.clear()
-    for (element <- bufferedElements) {
-      checkpointedState.add(element)
-    }
-  }
-
-  override def initializeState(context: FunctionInitializationContext): Unit = {
-    val descriptor = new ListStateDescriptor[(String, Int)](
-      "buffered-elements",
-      TypeInformation.of(new TypeHint[(String, Int)]() {})
-    )
-
-    checkpointedState = context.getOperatorStateStore.getListState(descriptor)
-
-    if(context.isRestored) {
-      for(element <- checkpointedState.get().asScala) {
-        bufferedElements += element
-      }
-    }
-  }
-
-}
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 The `initializeState` method takes as argument a `FunctionInitializationContext`. This is used to initialize
 the non-keyed state "containers". These are a container of type `ListState` where the non-keyed state objects
@@ -861,9 +680,6 @@ Note how the state is initialized, similar to keyed state,
 with a `StateDescriptor` that contains the state name and information
 about the type of the value that the state holds:
 
-
-{{< tabs "e75410d8-4ea2-48e7-a7ef-249ece2a9997" >}}
-{{< tab "Java" >}}
 ```java
 ListStateDescriptor<Tuple2<String, Integer>> descriptor =
     new ListStateDescriptor<>(
@@ -873,20 +689,6 @@ ListStateDescriptor<Tuple2<String, Integer>> descriptor =
 checkpointedState = context.getOperatorStateStore().getListState(descriptor);
 ```
 
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-val descriptor = new ListStateDescriptor[(String, Long)](
-    "buffered-elements",
-    TypeInformation.of(new TypeHint[(String, Long)]() {})
-)
-
-checkpointedState = context.getOperatorStateStore.getListState(descriptor)
-
-```
-{{< /tab >}}
-{{< /tabs >}}
 The naming convention of the state access methods contain its redistribution
 pattern followed by its state structure. For example, to use list state with the
 union redistribution scheme on restore, access the state by using `getUnionListState(descriptor)`.
@@ -909,8 +711,6 @@ Stateful sources require a bit more care as opposed to other operators.
 In order to make the updates to the state and output collection atomic (required for exactly-once semantics
 on failure/recovery), the user is required to get a lock from the source's context.
 
-{{< tabs "aa821e89-7cc6-4c1e-be5b-90bfa0df6036" >}}
-{{< tab "Java" >}}
 ```java
 public static class CounterSource
         extends RichParallelSourceFunction<Long>
@@ -958,56 +758,10 @@ public static class CounterSource
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        state.clear();
-        state.add(offset);
+        state.update(Collections.singletonList(offset));
     }
 }
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class CounterSource
-       extends RichParallelSourceFunction[Long]
-       with CheckpointedFunction {
-
-  @volatile
-  private var isRunning = true
-
-  private var offset = 0L
-  private var state: ListState[Long] = _
-
-  override def run(ctx: SourceFunction.SourceContext[Long]): Unit = {
-    val lock = ctx.getCheckpointLock
-
-    while (isRunning) {
-      // output and state update are atomic
-      lock.synchronized({
-        ctx.collect(offset)
-
-        offset += 1
-      })
-    }
-  }
-
-  override def cancel(): Unit = isRunning = false
-  
-  override def initializeState(context: FunctionInitializationContext): Unit = {
-    state = context.getOperatorStateStore.getListState(
-      new ListStateDescriptor[Long]("state", classOf[Long]))
-
-    for (l <- state.get().asScala) {
-      offset = l
-    }
-  }
-
-  override def snapshotState(context: FunctionSnapshotContext): Unit = {
-    state.clear()
-    state.add(offset)
-  }
-}
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 Some operators might need the information when a checkpoint is fully acknowledged by Flink to communicate that with the outside world. In this case see the `org.apache.flink.api.common.state.CheckpointListener` interface.
 

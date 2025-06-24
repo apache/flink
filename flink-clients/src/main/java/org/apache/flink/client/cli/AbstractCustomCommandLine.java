@@ -56,11 +56,11 @@ public abstract class AbstractCustomCommandLine implements CustomCommandLine {
     @Override
     public Configuration toConfiguration(CommandLine commandLine) throws FlinkException {
         final Configuration resultingConfiguration = new Configuration();
-        resultingConfiguration.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME);
+        resultingConfiguration.set(DeploymentOptions.TARGET, RemoteExecutor.NAME);
 
         if (commandLine.hasOption(zookeeperNamespaceOption.getOpt())) {
             String zkNamespace = commandLine.getOptionValue(zookeeperNamespaceOption.getOpt());
-            resultingConfiguration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
+            resultingConfiguration.set(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
         }
 
         return resultingConfiguration;

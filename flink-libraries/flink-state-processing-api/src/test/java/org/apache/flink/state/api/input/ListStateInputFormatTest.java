@@ -59,16 +59,24 @@ public class ListStateInputFormatTest {
             testHarness.processElement(3, 0);
 
             OperatorSubtaskState subtaskState = testHarness.snapshot(0, 0);
-            OperatorState state = new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 4);
+            OperatorState state =
+                    new OperatorState(null, null, OperatorIDGenerator.fromUid("uid"), 1, 4);
             state.putState(0, subtaskState);
 
             OperatorStateInputSplit split =
                     new OperatorStateInputSplit(subtaskState.getManagedOperatorState(), 0);
 
+            MockStreamingRuntimeContext runtimeContext =
+                    new MockStreamingRuntimeContext(false, 1, 0);
             ListStateInputFormat<Integer> format =
-                    new ListStateInputFormat<>(state, new Configuration(), null, descriptor);
+                    new ListStateInputFormat<>(
+                            state,
+                            new Configuration(),
+                            null,
+                            descriptor,
+                            runtimeContext.getExecutionConfig());
 
-            format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+            format.setRuntimeContext(runtimeContext);
             format.open(split);
 
             List<Integer> results = new ArrayList<>();

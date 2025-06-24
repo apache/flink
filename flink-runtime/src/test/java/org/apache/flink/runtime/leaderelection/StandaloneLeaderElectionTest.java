@@ -18,49 +18,110 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-public class StandaloneLeaderElectionTest extends TestLogger {
-    private static final String TEST_URL = "akka://users/jobmanager";
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
+
+class StandaloneLeaderElectionTest {
+
+    private static final UUID SESSION_ID = UUID.randomUUID();
+
+    private static final String TEST_URL = "pekko://users/jobmanager";
 
     /**
      * Tests that the standalone leader election and retrieval service return the same leader URL.
      */
     @Test
-    public void testStandaloneLeaderElectionRetrieval() throws Exception {
-        StandaloneLeaderElectionService leaderElectionService =
-                new StandaloneLeaderElectionService();
+    void testStandaloneLeaderElectionRetrieval() throws Exception {
+        final UUID expectedSessionID = UUID.randomUUID();
         StandaloneLeaderRetrievalService leaderRetrievalService =
-                new StandaloneLeaderRetrievalService(TEST_URL);
-        TestingContender contender = new TestingContender(TEST_URL, leaderElectionService);
+                new StandaloneLeaderRetrievalService(TEST_URL, expectedSessionID);
         TestingListener testingListener = new TestingListener();
 
-        try {
-            leaderElectionService.start(contender);
+        try (LeaderElection leaderElection = new StandaloneLeaderElection(expectedSessionID)) {
+            TestingContender contender = new TestingContender(TEST_URL, leaderElection);
+            contender.startLeaderElection();
+
             leaderRetrievalService.start(testingListener);
 
             contender.waitForLeader();
 
-            assertTrue(contender.isLeader());
-            assertEquals(
-                    HighAvailabilityServices.DEFAULT_LEADER_ID, contender.getLeaderSessionID());
+            assertThat(contender.isLeader()).isTrue();
+            assertThat(contender.getLeaderSessionID()).isEqualTo(expectedSessionID);
 
             testingListener.waitForNewLeader();
 
-            assertEquals(TEST_URL, testingListener.getAddress());
-            assertEquals(
-                    HighAvailabilityServices.DEFAULT_LEADER_ID,
-                    testingListener.getLeaderSessionID());
+            assertThat(testingListener.getAddress()).isEqualTo(TEST_URL);
+            assertThat(testingListener.getLeaderSessionID()).isEqualTo(expectedSessionID);
         } finally {
-            leaderElectionService.stop();
             leaderRetrievalService.stop();
         }
+    }
+
+    @Test
+    void testStartLeaderElection() throws Exception {
+        final CompletableFuture<UUID> grantLeadershipResult = new CompletableFuture<>();
+        final TestingGenericLeaderContender contender =
+                TestingGenericLeaderContender.newBuilder()
+                        .setGrantLeadershipConsumer(grantLeadershipResult::complete)
+                        .build();
+        try (final LeaderElection testInstance = new StandaloneLeaderElection(SESSION_ID)) {
+            testInstance.startLeaderElection(contender);
+
+            assertThat(grantLeadershipResult).isCompletedWithValue(SESSION_ID);
+        }
+    }
+
+    @Test
+    void testHasLeadershipAsyncWithContender() throws Exception {
+        final TestingGenericLeaderContender contender =
+                TestingGenericLeaderContender.newBuilder().build();
+        try (final LeaderElection testInstance = new StandaloneLeaderElection(SESSION_ID)) {
+            testInstance.startLeaderElection(contender);
+
+            assertThatFuture(testInstance.hasLeadershipAsync(SESSION_ID))
+                    .eventuallySucceeds()
+                    .isEqualTo(true);
+
+            final UUID differentSessionID = UUID.randomUUID();
+            assertThatFuture(testInstance.hasLeadershipAsync(differentSessionID))
+                    .eventuallySucceeds()
+                    .isEqualTo(false);
+        }
+    }
+
+    @Test
+    void testHasLeadershipAsyncWithoutContender() throws Exception {
+        try (final LeaderElection testInstance = new StandaloneLeaderElection(SESSION_ID)) {
+            assertThatFuture(testInstance.hasLeadershipAsync(SESSION_ID))
+                    .eventuallySucceeds()
+                    .isEqualTo(false);
+
+            final UUID differentSessionID = UUID.randomUUID();
+            assertThatFuture(testInstance.hasLeadershipAsync(differentSessionID))
+                    .eventuallySucceeds()
+                    .isEqualTo(false);
+        }
+    }
+
+    @Test
+    void testRevokeCallOnClose() throws Exception {
+        final AtomicBoolean revokeLeadershipCalled = new AtomicBoolean(false);
+        final TestingGenericLeaderContender contender =
+                TestingGenericLeaderContender.newBuilder()
+                        .setRevokeLeadershipRunnable(() -> revokeLeadershipCalled.set(true))
+                        .build();
+        try (final LeaderElection testInstance = new StandaloneLeaderElection(SESSION_ID)) {
+            testInstance.startLeaderElection(contender);
+        }
+
+        assertThat(revokeLeadershipCalled).isTrue();
     }
 }

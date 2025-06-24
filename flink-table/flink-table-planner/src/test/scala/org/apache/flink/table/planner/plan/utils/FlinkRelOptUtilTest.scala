@@ -19,27 +19,25 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, _}
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
-import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil
+import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, StreamingEnvUtil}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.TableTestUtil
 
 import org.apache.calcite.sql.SqlExplainLevel
-import org.junit.{Before, Test}
-import org.junit.Assert.assertEquals
-
-import scala.collection.Seq
+import org.junit.jupiter.api.{BeforeEach, Test}
+import org.junit.jupiter.api.Assertions.assertEquals
 
 class FlinkRelOptUtilTest {
 
   var tableEnv: TableEnvironment = _
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     val settings = EnvironmentSettings.newInstance().build()
     val tEnv = TableEnvironmentImpl.create(settings)
@@ -58,8 +56,9 @@ class FlinkRelOptUtilTest {
     val env = StreamExecutionEnvironment.createLocalEnvironment()
     val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val table = env.fromElements[(Int, Long, String)]().toTable(tableEnv, 'a, 'b, 'c)
-    tableEnv.registerTable("MyTable", table)
+    val table =
+      StreamingEnvUtil.fromElements[(Int, Long, String)](env).toTable(tableEnv, 'a, 'b, 'c)
+    tableEnv.createTemporaryView("MyTable", table)
 
     val sqlQuery =
       """
@@ -98,6 +97,54 @@ class FlinkRelOptUtilTest {
         |         +- LogicalTableScan
       """.stripMargin
     assertEquals(expected2.trim, FlinkRelOptUtil.toString(rel, SqlExplainLevel.NO_ATTRIBUTES).trim)
+
+    // expect logical rel has no upsertKey info
+    assertEquals(
+      expected1.trim,
+      FlinkRelOptUtil.toString(rel, SqlExplainLevel.EXPPLAN_ATTRIBUTES, withUpsertKey = true).trim)
+  }
+
+  @Test
+  def testToStringWithUpsertKey(): Unit = {
+    val env = StreamExecutionEnvironment.createLocalEnvironment()
+    val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+
+    val table =
+      StreamingEnvUtil.fromElements[(Int, Long, String)](env).toTable(tableEnv, 'a, 'b, 'c)
+    tableEnv.createTemporaryView("MyTable", table)
+
+    val sqlQuery =
+      """
+        |WITH t1 AS (SELECT a, c, count(*) cnt FROM MyTable group by a, c),
+        |     t2 AS (SELECT a, max(b) b FROM MyTable WHERE b < 50 group by a)
+        |
+        |SELECT * FROM t1 JOIN t2 ON t1.a = t2.a
+      """.stripMargin
+    val result = tableEnv.sqlQuery(sqlQuery)
+    val rel = TableTestUtil.toRelNode(result)
+    val planner = tableEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+    // build optimized rel plan
+    val optimized = planner.optimize(rel)
+    val expected1 =
+      """
+        |Join(joinType=[InnerJoin], where=[=(a, a0)], select=[a, c, cnt, a0, b], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], upsertKeys=[[a, c, a0], [a, c]])
+        |:- Exchange(distribution=[hash[a]], upsertKeys=[[a, c]])
+        |:  +- GroupAggregate(groupBy=[a, c], select=[a, c, COUNT(*) AS cnt], upsertKeys=[[a, c]])
+        |:     +- Exchange(distribution=[hash[a, c]])
+        |:        +- Calc(select=[a, c])
+        |:           +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+        |+- Exchange(distribution=[hash[a]], upsertKeys=[[a]])
+        |   +- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS b], upsertKeys=[[a]])
+        |      +- Exchange(distribution=[hash[a]])
+        |         +- Calc(select=[a, b], where=[<(b, 50)])
+        |            +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+      """.stripMargin
+
+    assertEquals(
+      expected1.trim,
+      FlinkRelOptUtil
+        .toString(optimized, SqlExplainLevel.EXPPLAN_ATTRIBUTES, withUpsertKey = true)
+        .trim)
   }
 
   @Test
@@ -117,7 +164,7 @@ class FlinkRelOptUtilTest {
   @Test
   def testGetDigestWithDynamicFunctionView(): Unit = {
     val view = tableEnv.sqlQuery("SELECT id AS random FROM MyTable ORDER BY rand() LIMIT 1")
-    tableEnv.registerTable("MyView", view)
+    tableEnv.createTemporaryView("MyView", view)
     val table = tableEnv.sqlQuery("""
                                     |(SELECT * FROM MyView)
                                     |INTERSECT

@@ -23,18 +23,22 @@ import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.function.Supplier;
 
 /** Extension to generate {@link WorkingDirectory}. */
 public class WorkingDirectoryExtension implements CustomExtension {
-    private final File tmpDirectory;
+    private final Supplier<File> tmpDirectorySupplier;
 
     private int counter = 0;
 
-    public WorkingDirectoryExtension(File tmpDirectory) {
-        this.tmpDirectory = tmpDirectory;
+    public WorkingDirectoryExtension(Supplier<File> tmpDirectorySupplier) {
+        // We must use supplier because @TempDir has not yet been injected when constructing this
+        // extension.
+        this.tmpDirectorySupplier = tmpDirectorySupplier;
     }
 
     public WorkingDirectory createNewWorkingDirectory() throws IOException {
-        return WorkingDirectory.create(new File(tmpDirectory, "working_directory_" + counter++));
+        return WorkingDirectory.create(
+                new File(tmpDirectorySupplier.get(), "working_directory_" + counter++));
     }
 }

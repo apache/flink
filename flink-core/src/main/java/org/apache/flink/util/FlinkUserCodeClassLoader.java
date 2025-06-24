@@ -19,21 +19,20 @@
 package org.apache.flink.util;
 
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.function.Consumer;
 
 /**
  * This class loader accepts a custom handler if an exception occurs in {@link #loadClass(String,
  * boolean)}.
  */
-public abstract class FlinkUserCodeClassLoader extends URLClassLoader {
+public abstract class FlinkUserCodeClassLoader extends MutableURLClassLoader {
     public static final Consumer<Throwable> NOOP_EXCEPTION_HANDLER = classLoadingException -> {};
 
     static {
         ClassLoader.registerAsParallelCapable();
     }
 
-    private final Consumer<Throwable> classLoadingExceptionHandler;
+    protected final Consumer<Throwable> classLoadingExceptionHandler;
 
     protected FlinkUserCodeClassLoader(URL[] urls, ClassLoader parent) {
         this(urls, parent, NOOP_EXCEPTION_HANDLER);

@@ -19,11 +19,12 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
@@ -40,23 +41,23 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.futureFailedWith;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DispatcherCachedOperationsHandler} component. */
 public class DispatcherCachedOperationsHandlerTest extends TestLogger {
 
-    private static final Time TIMEOUT = Time.minutes(10);
+    private static final Duration TIMEOUT = Duration.ofMinutes(10);
 
-    private CompletedOperationCache<AsynchronousJobOperationKey, String> cache;
+    private CompletedOperationCache<AsynchronousJobOperationKey, Long> checkpointTriggerCache;
+    private CompletedOperationCache<AsynchronousJobOperationKey, String> savepointTriggerCache;
     private DispatcherCachedOperationsHandler handler;
 
+    private TriggerCheckpointSpyFunction triggerCheckpointFunction;
     private TriggerSavepointSpyFunction triggerSavepointFunction;
     private TriggerSavepointSpyFunction stopWithSavepointFunction;
 
+    private CompletableFuture<Long> checkpointIdFuture = new CompletableFuture<>();
     private CompletableFuture<String> savepointLocationFuture = new CompletableFuture<>();
     private final JobID jobID = new JobID();
     private final String targetDirectory = "dummyDirectory";
@@ -64,6 +65,18 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
 
     @BeforeEach
     public void setup() {
+
+        checkpointIdFuture = new CompletableFuture<>();
+        triggerCheckpointFunction =
+                TriggerCheckpointSpyFunction.wrap(
+                        new TriggerCheckpointSpyFunction() {
+                            @Override
+                            CompletableFuture<Long> applyWrappedFunction(
+                                    JobID jobID, CheckpointType checkpointType, Duration timeout) {
+                                return checkpointIdFuture;
+                            }
+                        });
+
         savepointLocationFuture = new CompletableFuture<>();
         triggerSavepointFunction =
                 TriggerSavepointSpyFunction.wrap(
@@ -73,12 +86,21 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                 TriggerSavepointSpyFunction.wrap(
                         (jobID, targetDirectory, formatType, savepointMode, timeout) ->
                                 savepointLocationFuture);
-        cache =
+
+        checkpointTriggerCache =
+                new CompletedOperationCache<>(
+                        RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue());
+
+        savepointTriggerCache =
                 new CompletedOperationCache<>(
                         RestOptions.ASYNC_OPERATION_STORE_DURATION.defaultValue());
         handler =
                 new DispatcherCachedOperationsHandler(
-                        triggerSavepointFunction, stopWithSavepointFunction, cache);
+                        triggerCheckpointFunction,
+                        checkpointTriggerCache,
+                        triggerSavepointFunction,
+                        stopWithSavepointFunction,
+                        savepointTriggerCache);
         operationKey = AsynchronousJobOperationKey.of(new TriggerId(), jobID);
     }
 
@@ -99,18 +121,17 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                         TriggerSavepointMode.SAVEPOINT,
                         TIMEOUT);
 
-        assertThat(triggerSavepointFunction.getNumberOfInvocations(), is(1));
-        assertThat(
-                triggerSavepointFunction.getInvocationParameters().get(0),
-                is(
+        assertThat(triggerSavepointFunction.getNumberOfInvocations()).isOne();
+        assertThat(triggerSavepointFunction.getInvocationParameters().get(0))
+                .isEqualTo(
                         new Tuple4<>(
                                 jobID,
                                 targetDirectory,
                                 SavepointFormatType.CANONICAL,
-                                TriggerSavepointMode.SAVEPOINT)));
+                                TriggerSavepointMode.SAVEPOINT));
 
-        assertThat(firstAcknowledge.get(), is(Acknowledge.get()));
-        assertThat(secondAcknowledge.get(), is(Acknowledge.get()));
+        assertThat(firstAcknowledge.get()).isEqualTo(Acknowledge.get());
+        assertThat(secondAcknowledge.get()).isEqualTo(Acknowledge.get());
     }
 
     @Test
@@ -130,18 +151,17 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                         TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT,
                         TIMEOUT);
 
-        assertThat(stopWithSavepointFunction.getNumberOfInvocations(), is(1));
-        assertThat(
-                stopWithSavepointFunction.getInvocationParameters().get(0),
-                is(
+        assertThat(stopWithSavepointFunction.getNumberOfInvocations()).isOne();
+        assertThat(stopWithSavepointFunction.getInvocationParameters().get(0))
+                .isEqualTo(
                         new Tuple4<>(
                                 jobID,
                                 targetDirectory,
                                 SavepointFormatType.CANONICAL,
-                                TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT)));
+                                TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT));
 
-        assertThat(firstAcknowledge.get(), is(Acknowledge.get()));
-        assertThat(secondAcknowledge.get(), is(Acknowledge.get()));
+        assertThat(firstAcknowledge.get()).isEqualTo(Acknowledge.get());
+        assertThat(secondAcknowledge.get()).isEqualTo(Acknowledge.get());
     }
 
     @Test
@@ -165,21 +185,22 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                 .get();
 
         // should not complete because we wait for the result to be accessed
-        assertThat(cache.closeAsync(), FlinkMatchers.willNotComplete(Duration.ofMillis(10)));
+        FlinkAssertions.assertThatFuture(savepointTriggerCache.closeAsync())
+                .willNotCompleteWithin(Duration.ofMillis(10));
     }
 
     @Test
     public void throwsIfCacheIsShuttingDown() {
-        cache.closeAsync();
-        assertThrows(
-                IllegalStateException.class,
-                () ->
-                        handler.triggerSavepoint(
-                                operationKey,
-                                targetDirectory,
-                                SavepointFormatType.CANONICAL,
-                                TriggerSavepointMode.SAVEPOINT,
-                                TIMEOUT));
+        savepointTriggerCache.closeAsync();
+        assertThatThrownBy(
+                        () ->
+                                handler.triggerSavepoint(
+                                        operationKey,
+                                        targetDirectory,
+                                        SavepointFormatType.CANONICAL,
+                                        TriggerSavepointMode.SAVEPOINT,
+                                        TIMEOUT))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -197,15 +218,52 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
         CompletableFuture<OperationResult<String>> statusFuture =
                 handler.getSavepointStatus(operationKey);
 
-        assertEquals(statusFuture.get(), OperationResult.success(savepointLocation));
+        assertThat(statusFuture.get()).isEqualTo(OperationResult.success(savepointLocation));
     }
 
     @Test
-    public void getStatusFailsIfKeyUnknown() throws InterruptedException {
+    public void getStatusFailsIfKeyUnknown() {
         CompletableFuture<OperationResult<String>> statusFuture =
                 handler.getSavepointStatus(operationKey);
 
-        assertThat(statusFuture, futureFailedWith(UnknownOperationKeyException.class));
+        FlinkAssertions.assertThatFuture(statusFuture)
+                .eventuallyFails()
+                .withCauseOfType(UnknownOperationKeyException.class);
+    }
+
+    private abstract static class TriggerCheckpointSpyFunction
+            implements TriggerCheckpointFunction {
+
+        private final List<Tuple2<JobID, CheckpointType>> invocations = new ArrayList<>();
+
+        @Override
+        public CompletableFuture<Long> apply(
+                JobID jobID, CheckpointType checkpointType, Duration timeout) {
+            invocations.add(new Tuple2<>(jobID, checkpointType));
+            return applyWrappedFunction(jobID, checkpointType, timeout);
+        }
+
+        abstract CompletableFuture<Long> applyWrappedFunction(
+                JobID jobID, CheckpointType checkpointType, Duration timeout);
+
+        public List<Tuple2<JobID, CheckpointType>> getInvocationParameters() {
+            return invocations;
+        }
+
+        public int getNumberOfInvocations() {
+            return invocations.size();
+        }
+
+        public static TriggerCheckpointSpyFunction wrap(
+                TriggerCheckpointSpyFunction wrappedFunction) {
+            return new TriggerCheckpointSpyFunction() {
+                @Override
+                CompletableFuture<Long> applyWrappedFunction(
+                        JobID jobID, CheckpointType checkpointType, Duration timeout) {
+                    return wrappedFunction.apply(jobID, checkpointType, timeout);
+                }
+            };
+        }
     }
 
     private abstract static class TriggerSavepointSpyFunction implements TriggerSavepointFunction {
@@ -219,7 +277,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                 String targetDirectory,
                 SavepointFormatType formatType,
                 TriggerSavepointMode savepointMode,
-                Time timeout) {
+                Duration timeout) {
             invocations.add(new Tuple4<>(jobID, targetDirectory, formatType, savepointMode));
             return applyWrappedFunction(jobID, targetDirectory, formatType, savepointMode, timeout);
         }
@@ -229,7 +287,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                 String targetDirectory,
                 SavepointFormatType formatType,
                 TriggerSavepointMode savepointMode,
-                Time timeout);
+                Duration timeout);
 
         public List<Tuple4<JobID, String, SavepointFormatType, TriggerSavepointMode>>
                 getInvocationParameters() {
@@ -248,7 +306,7 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                         String targetDirectory,
                         SavepointFormatType formatType,
                         TriggerSavepointMode savepointMode,
-                        Time timeout) {
+                        Duration timeout) {
                     return wrappedFunction.apply(
                             jobID, targetDirectory, formatType, savepointMode, timeout);
                 }

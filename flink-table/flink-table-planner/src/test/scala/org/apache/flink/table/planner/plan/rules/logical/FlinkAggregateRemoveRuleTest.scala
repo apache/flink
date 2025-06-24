@@ -17,27 +17,23 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets
-import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[FlinkAggregateRemoveRule]]. */
 class FlinkAggregateRemoveRuleTest extends TableTestBase {
   private val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     val programs = new FlinkChainedProgram[BatchOptimizeContext]()
     programs.addLast(
@@ -77,7 +73,7 @@ class FlinkAggregateRemoveRuleTest extends TableTestBase {
           FlinkLogicalJoin.CONVERTER,
           FlinkLogicalValues.CONVERTER,
           FlinkLogicalExpand.CONVERTER,
-          FlinkLogicalLegacyTableSourceScan.CONVERTER,
+          FlinkLogicalTableSourceScan.CONVERTER,
           FlinkLogicalLegacySink.CONVERTER
         ))
         .setRequiredOutputTraits(Array(FlinkConventions.LOGICAL))
@@ -86,18 +82,29 @@ class FlinkAggregateRemoveRuleTest extends TableTestBase {
     util.replaceBatchProgram(programs)
 
     util.addTableSource[(Int, Int, String)]("MyTable1", 'a, 'b, 'c)
-    util.addTableSource(
-      "MyTable2",
-      Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING),
-      Array("a", "b", "c"),
-      FlinkStatistic.builder().uniqueKeys(ImmutableSet.of(ImmutableSet.of("a"))).build()
-    )
-    util.addTableSource(
-      "MyTable3",
-      Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING, Types.STRING),
-      Array("a", "b", "c", "d"),
-      FlinkStatistic.builder().uniqueKeys(ImmutableSet.of(ImmutableSet.of("a"))).build()
-    )
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MyTable2 (
+                                |  a INT PRIMARY KEY NOT ENFORCED,
+                                |  b INT,
+                                |  c STRING
+                                |) WITH (
+                                |  'connector' = 'values',
+                                |  'bounded' = 'true',
+                                |  'enable-projection-push-down' = 'false'
+                                |)
+                                |""".stripMargin)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MyTable3 (
+                                |  a INT PRIMARY KEY NOT ENFORCED,
+                                |  b INT,
+                                |  c STRING,
+                                |  d STRING
+                                |) WITH (
+                                |  'connector' = 'values',
+                                |  'bounded' = 'true',
+                                |  'enable-projection-push-down' = 'false'
+                                |)
+                                |""".stripMargin)
   }
 
   @Test
@@ -131,7 +138,6 @@ class FlinkAggregateRemoveRuleTest extends TableTestBase {
 
   @Test
   def testAggRemove_WithoutGroupBy3(): Unit = {
-    // can not remove agg
     util.verifyRelPlan(
       "SELECT * FROM MyTable2 WHERE EXISTS (SELECT SUM(a) FROM MyTable1 WHERE 1=2)")
   }

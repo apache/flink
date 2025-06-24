@@ -21,6 +21,7 @@ package org.apache.flink.table.api.bridge.java.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
@@ -32,28 +33,34 @@ import org.apache.flink.table.api.bridge.internal.AbstractStreamTableEnvironment
 import org.apache.flink.table.api.bridge.java.StreamStatementSet;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogStore;
+import org.apache.flink.table.catalog.CatalogStoreHolder;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.SchemaResolver;
 import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.factories.CatalogStoreFactory;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.functions.TableAggregateFunction;
-import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.functions.UserDefinedFunctionHelper;
+import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.operations.ExternalQueryOperation;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
-import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceValidation;
+import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
+import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
 
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Optional;
 
@@ -70,42 +77,55 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     public StreamTableEnvironmentImpl(
             CatalogManager catalogManager,
             ModuleManager moduleManager,
+            ResourceManager resourceManager,
             FunctionCatalog functionCatalog,
             TableConfig tableConfig,
             StreamExecutionEnvironment executionEnvironment,
             Planner planner,
             Executor executor,
-            boolean isStreamingMode,
-            ClassLoader userClassLoader) {
+            boolean isStreamingMode) {
         super(
                 catalogManager,
                 moduleManager,
+                resourceManager,
                 tableConfig,
                 executor,
                 functionCatalog,
                 planner,
                 isStreamingMode,
-                userClassLoader,
                 executionEnvironment);
     }
 
     public static StreamTableEnvironment create(
             StreamExecutionEnvironment executionEnvironment, EnvironmentSettings settings) {
-
-        // temporary solution until FLINK-15635 is fixed
-        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-
-        final Executor executor = lookupExecutor(classLoader, executionEnvironment);
+        final MutableURLClassLoader userClassLoader =
+                FlinkUserCodeClassLoaders.create(
+                        new URL[0], settings.getUserClassLoader(), settings.getConfiguration());
+        final Executor executor = lookupExecutor(userClassLoader, executionEnvironment);
 
         final TableConfig tableConfig = TableConfig.getDefault();
         tableConfig.setRootConfiguration(executor.getConfiguration());
         tableConfig.addConfiguration(settings.getConfiguration());
 
+        final ResourceManager resourceManager =
+                new ResourceManager(settings.getConfiguration(), userClassLoader);
         final ModuleManager moduleManager = new ModuleManager();
+
+        final CatalogStoreFactory catalogStoreFactory =
+                TableFactoryUtil.findAndCreateCatalogStoreFactory(
+                        settings.getConfiguration(), userClassLoader);
+        final CatalogStoreFactory.Context catalogStoreFactoryContext =
+                TableFactoryUtil.buildCatalogStoreFactoryContext(
+                        settings.getConfiguration(), userClassLoader);
+        catalogStoreFactory.open(catalogStoreFactoryContext);
+        final CatalogStore catalogStore =
+                settings.getCatalogStore() != null
+                        ? settings.getCatalogStore()
+                        : catalogStoreFactory.createCatalogStore();
 
         final CatalogManager catalogManager =
                 CatalogManager.newBuilder()
-                        .classLoader(classLoader)
+                        .classLoader(userClassLoader)
                         .config(tableConfig)
                         .defaultCatalog(
                                 settings.getBuiltInCatalogName(),
@@ -113,58 +133,40 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                                         settings.getBuiltInCatalogName(),
                                         settings.getBuiltInDatabaseName()))
                         .executionConfig(executionEnvironment.getConfig())
+                        .catalogModificationListeners(
+                                TableFactoryUtil.findCatalogModificationListenerList(
+                                        settings.getConfiguration(), userClassLoader))
+                        .catalogStoreHolder(
+                                CatalogStoreHolder.newBuilder()
+                                        .classloader(userClassLoader)
+                                        .config(tableConfig)
+                                        .catalogStore(catalogStore)
+                                        .factory(catalogStoreFactory)
+                                        .build())
                         .build();
 
         final FunctionCatalog functionCatalog =
-                new FunctionCatalog(tableConfig, catalogManager, moduleManager);
+                new FunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager);
 
         final Planner planner =
                 PlannerFactoryUtil.createPlanner(
-                        executor, tableConfig, moduleManager, catalogManager, functionCatalog);
+                        executor,
+                        tableConfig,
+                        userClassLoader,
+                        moduleManager,
+                        catalogManager,
+                        functionCatalog);
 
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
+                resourceManager,
                 functionCatalog,
                 tableConfig,
                 executionEnvironment,
                 planner,
                 executor,
-                settings.isStreamingMode(),
-                classLoader);
-    }
-
-    @Override
-    public <T> void registerFunction(String name, TableFunction<T> tableFunction) {
-        TypeInformation<T> typeInfo =
-                UserDefinedFunctionHelper.getReturnTypeOfTableFunction(tableFunction);
-
-        functionCatalog.registerTempSystemTableFunction(name, tableFunction, typeInfo);
-    }
-
-    @Override
-    public <T, ACC> void registerFunction(
-            String name, AggregateFunction<T, ACC> aggregateFunction) {
-        TypeInformation<T> typeInfo =
-                UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(aggregateFunction);
-        TypeInformation<ACC> accTypeInfo =
-                UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(aggregateFunction);
-
-        functionCatalog.registerTempSystemAggregateFunction(
-                name, aggregateFunction, typeInfo, accTypeInfo);
-    }
-
-    @Override
-    public <T, ACC> void registerFunction(
-            String name, TableAggregateFunction<T, ACC> tableAggregateFunction) {
-        TypeInformation<T> typeInfo =
-                UserDefinedFunctionHelper.getReturnTypeOfAggregateFunction(tableAggregateFunction);
-        TypeInformation<ACC> accTypeInfo =
-                UserDefinedFunctionHelper.getAccumulatorTypeOfAggregateFunction(
-                        tableAggregateFunction);
-
-        functionCatalog.registerTempSystemAggregateFunction(
-                name, tableAggregateFunction, typeInfo, accTypeInfo);
+                settings.isStreamingMode());
     }
 
     @Override
@@ -213,6 +215,27 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
         Preconditions.checkNotNull(table, "Table must not be null.");
         // include all columns of the query (incl. metadata and computed columns)
         final DataType sourceType = table.getResolvedSchema().toSourceRowDataType();
+
+        if (!(table.getQueryOperation() instanceof ExternalQueryOperation)) {
+            return toDataStream(table, sourceType);
+        }
+
+        DataTypeFactory dataTypeFactory = getCatalogManager().getDataTypeFactory();
+        SchemaResolver schemaResolver = getCatalogManager().getSchemaResolver();
+        ExternalQueryOperation<?> queryOperation =
+                (ExternalQueryOperation<?>) table.getQueryOperation();
+        DataStream<?> dataStream = queryOperation.getDataStream();
+
+        SchemaTranslator.ConsumingResult consumingResult =
+                SchemaTranslator.createConsumingResult(dataTypeFactory, dataStream.getType(), null);
+        ResolvedSchema defaultSchema = consumingResult.getSchema().resolve(schemaResolver);
+
+        if (queryOperation.getChangelogMode().equals(ChangelogMode.insertOnly())
+                && table.getResolvedSchema().equals(defaultSchema)
+                && dataStream.getType() instanceof RowTypeInfo) {
+            return (DataStream<Row>) dataStream;
+        }
+
         return toDataStream(table, sourceType);
     }
 
@@ -288,11 +311,6 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     }
 
     @Override
-    public <T> void registerDataStream(String name, DataStream<T> dataStream) {
-        createTemporaryView(name, dataStream);
-    }
-
-    @Override
     public <T> void createTemporaryView(
             String path, DataStream<T> dataStream, Expression... fields) {
         createTemporaryView(path, fromDataStream(dataStream, fields));
@@ -329,11 +347,5 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                         wrapWithChangeFlag(typeInfo),
                         OutputConversionModifyOperation.UpdateMode.RETRACT);
         return toStreamInternal(table, modifyOperation);
-    }
-
-    @Override
-    protected void validateTableSource(TableSource<?> tableSource) {
-        super.validateTableSource(tableSource);
-        validateTimeCharacteristic(TableSourceValidation.hasRowtimeAttribute(tableSource));
     }
 }

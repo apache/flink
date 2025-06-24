@@ -19,17 +19,17 @@
 package org.apache.flink.sql.tests;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -38,28 +38,22 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.api.internal.TableEnvironmentInternal;
-import org.apache.flink.table.sources.DefinedFieldMapping;
-import org.apache.flink.table.sources.DefinedRowtimeAttributes;
-import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
-import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.sources.tsextractors.ExistingField;
-import org.apache.flink.table.sources.wmstrategies.BoundedOutOfOrderTimestamps;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.ParameterTool;
 
 import java.io.PrintStream;
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * End-to-end test for Stream SQL queries.
@@ -81,17 +75,35 @@ public class StreamSQLTestProgram {
 
         final StreamExecutionEnvironment sEnv =
                 StreamExecutionEnvironment.getExecutionEnvironment();
-        sEnv.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(3, Time.of(10, TimeUnit.SECONDS)));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 3);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofSeconds(10L));
+
+        sEnv.configure(configuration);
         sEnv.enableCheckpointing(4000);
         sEnv.getConfig().setAutoWatermarkInterval(1000);
 
         final StreamTableEnvironment tEnv = StreamTableEnvironment.create(sEnv);
 
-        ((TableEnvironmentInternal) tEnv)
-                .registerTableSourceInternal("table1", new GeneratorTableSource(10, 100, 60, 0));
-        ((TableEnvironmentInternal) tEnv)
-                .registerTableSourceInternal("table2", new GeneratorTableSource(5, 0.2f, 60, 5));
+        final Schema tableSchema =
+                Schema.newBuilder()
+                        .column("key", DataTypes.INT())
+                        .column("rowtime", DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class))
+                        .column("payload", DataTypes.STRING())
+                        .watermark("rowtime", "rowtime - interval '1' second")
+                        .build();
+
+        RowTypeInfo sourceType =
+                new RowTypeInfo(
+                        new TypeInformation[] {Types.INT, Types.SQL_TIMESTAMP, Types.STRING},
+                        new String[] {"key", "rowtime", "payload"});
+        DataStream<Row> source1 = sEnv.addSource(new Generator(10, 100, 60, 0), sourceType);
+        tEnv.createTemporaryView("table1", source1, tableSchema);
+
+        DataStream<Row> source2 = sEnv.addSource(new Generator(5, 0.2f, 60, 5), sourceType);
+        tEnv.createTemporaryView("table2", source2, tableSchema);
 
         int overWindowSizeSeconds = 1;
         int tumbleWindowSizeSeconds = 10;
@@ -146,7 +158,10 @@ public class StreamSQLTestProgram {
         Table result = tEnv.sqlQuery(finalAgg);
         // convert Table into append-only DataStream
         DataStream<Row> resultStream =
-                tEnv.toAppendStream(result, Types.ROW(Types.INT, Types.SQL_TIMESTAMP));
+                tEnv.toDataStream(
+                        result,
+                        DataTypes.ROW(
+                                DataTypes.INT(), DataTypes.TIMESTAMP().bridgedTo(Timestamp.class)));
 
         final StreamingFileSink<Row> sink =
                 StreamingFileSink.forRowFormat(
@@ -188,65 +203,6 @@ public class StreamSQLTestProgram {
         }
     }
 
-    /** TableSource for generated data. */
-    public static class GeneratorTableSource
-            implements StreamTableSource<Row>, DefinedRowtimeAttributes, DefinedFieldMapping {
-
-        private final int numKeys;
-        private final float recordsPerKeyAndSecond;
-        private final int durationSeconds;
-        private final int offsetSeconds;
-
-        public GeneratorTableSource(
-                int numKeys, float recordsPerKeyAndSecond, int durationSeconds, int offsetSeconds) {
-            this.numKeys = numKeys;
-            this.recordsPerKeyAndSecond = recordsPerKeyAndSecond;
-            this.durationSeconds = durationSeconds;
-            this.offsetSeconds = offsetSeconds;
-        }
-
-        @Override
-        public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-            return execEnv.addSource(
-                    new Generator(numKeys, recordsPerKeyAndSecond, durationSeconds, offsetSeconds));
-        }
-
-        @Override
-        public TypeInformation<Row> getReturnType() {
-            return Types.ROW(Types.INT, Types.LONG, Types.STRING);
-        }
-
-        @Override
-        public TableSchema getTableSchema() {
-            return new TableSchema(
-                    new String[] {"key", "rowtime", "payload"},
-                    new TypeInformation[] {Types.INT, Types.SQL_TIMESTAMP, Types.STRING});
-        }
-
-        @Override
-        public String explainSource() {
-            return "GeneratorTableSource";
-        }
-
-        @Override
-        public List<RowtimeAttributeDescriptor> getRowtimeAttributeDescriptors() {
-            return Collections.singletonList(
-                    new RowtimeAttributeDescriptor(
-                            "rowtime",
-                            new ExistingField("ts"),
-                            new BoundedOutOfOrderTimestamps(100)));
-        }
-
-        @Override
-        public Map<String, String> getFieldMapping() {
-            Map<String, String> mapping = new HashMap<>();
-            mapping.put("key", "f0");
-            mapping.put("ts", "f1");
-            mapping.put("payload", "f2");
-            return mapping;
-        }
-    }
-
     /** Data-generating source function. */
     public static class Generator
             implements SourceFunction<Row>, ResultTypeQueryable<Row>, CheckpointedFunction {
@@ -276,7 +232,11 @@ public class StreamSQLTestProgram {
             while (ms < durationMs) {
                 synchronized (ctx.getCheckpointLock()) {
                     for (int i = 0; i < numKeys; i++) {
-                        ctx.collect(Row.of(i, ms + offsetMS, "Some payload..."));
+                        ctx.collect(
+                                Row.of(
+                                        i,
+                                        Timestamp.from(Instant.ofEpochMilli(ms + offsetMS)),
+                                        "Some payload..."));
                     }
                     ms += sleepMs;
                 }
@@ -289,7 +249,7 @@ public class StreamSQLTestProgram {
 
         @Override
         public TypeInformation<Row> getProducedType() {
-            return Types.ROW(Types.INT, Types.LONG, Types.STRING);
+            return Types.ROW(Types.INT, Types.SQL_TIMESTAMP, Types.STRING);
         }
 
         @Override
@@ -307,8 +267,7 @@ public class StreamSQLTestProgram {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            state.clear();
-            state.add(ms);
+            state.update(Collections.singletonList(ms));
         }
     }
 
@@ -360,8 +319,7 @@ public class StreamSQLTestProgram {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            state.clear();
-            state.add(saveRecordCnt);
+            state.update(Collections.singletonList(saveRecordCnt));
         }
     }
 }

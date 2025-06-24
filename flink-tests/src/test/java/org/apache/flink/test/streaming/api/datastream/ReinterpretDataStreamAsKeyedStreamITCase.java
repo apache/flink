@@ -23,26 +23,25 @@ import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
@@ -57,7 +56,9 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
@@ -89,7 +90,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         env.setMaxParallelism(maxParallelism);
         env.setParallelism(parallelism);
         env.enableCheckpointing(100);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
         final List<File> partitionFiles = new ArrayList<>(parallelism);
         for (int i = 0; i < parallelism; ++i) {
@@ -98,7 +99,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         }
 
         env.addSource(new RandomTupleSource(numEventsPerInstance, numUniqueKeys))
-                .keyBy(0)
+                .keyBy(x -> x.f0)
                 .addSink(new ToPartitionFileSink(partitionFiles));
 
         env.execute();
@@ -113,7 +114,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
                         TypeInformation.of(Integer.class))
                 .window(
                         TumblingEventTimeWindows.of(
-                                Time.seconds(
+                                Duration.ofSeconds(
                                         1))) // test that also timers and aggregated state work as
                 // expected
                 .reduce(
@@ -166,9 +167,9 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
-            int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
+            int subtaskIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             dos =
                     new DataOutputStream(
                             new BufferedOutputStream(
@@ -210,9 +211,9 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
-            int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
+            int subtaskIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             File partitionFile = allPartitions.get(subtaskIdx);
             fileLength = partitionFile.length();
             waitForFailurePos = fileLength * 3 / 4;
@@ -278,8 +279,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            positionState.clear();
-            positionState.add(position);
+            positionState.update(Collections.singletonList(position));
         }
 
         @Override
@@ -313,9 +313,10 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
-            Preconditions.checkState(getRuntimeContext().getNumberOfParallelSubtasks() == 1);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
+            Preconditions.checkState(
+                    getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks() == 1);
         }
 
         @Override
@@ -331,8 +332,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            sumState.clear();
-            sumState.add(runningSum);
+            sumState.update(Collections.singletonList(runningSum));
         }
 
         @Override

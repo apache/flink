@@ -55,14 +55,18 @@ import scala.collection.Seq;
  */
 public class BatchPhysicalPythonAggregateRule extends ConverterRule {
 
-    public static final RelOptRule INSTANCE = new BatchPhysicalPythonAggregateRule();
+    public static final RelOptRule INSTANCE =
+            new BatchPhysicalPythonAggregateRule(
+                    Config.INSTANCE
+                            .withConversion(
+                                    FlinkLogicalAggregate.class,
+                                    FlinkConventions.LOGICAL(),
+                                    FlinkConventions.BATCH_PHYSICAL(),
+                                    "BatchPhysicalPythonAggregateRule")
+                            .withRuleFactory(BatchPhysicalPythonAggregateRule::new));
 
-    private BatchPhysicalPythonAggregateRule() {
-        super(
-                FlinkLogicalAggregate.class,
-                FlinkConventions.LOGICAL(),
-                FlinkConventions.BATCH_PHYSICAL(),
-                "BatchPhysicalPythonAggregateRule");
+    protected BatchPhysicalPythonAggregateRule(Config config) {
+        super(config);
     }
 
     @Override

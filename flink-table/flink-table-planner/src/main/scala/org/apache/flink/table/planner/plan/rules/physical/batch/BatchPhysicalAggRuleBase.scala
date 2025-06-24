@@ -19,15 +19,15 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.AggregatePhaseStrategy
 import org.apache.flink.table.data.binary.BinaryRowData
-import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.JArrayList
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalGroupAggregateBase, BatchPhysicalLocalHashAggregate, BatchPhysicalLocalSortAggregate}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil}
-import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, ShortcutUtils}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
@@ -204,7 +204,8 @@ trait BatchPhysicalAggRuleBase {
       auxGrouping: Array[Int],
       aggBufferTypes: Array[Array[DataType]],
       aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
-      isLocalHashAgg: Boolean): BatchPhysicalGroupAggregateBase = {
+      isLocalHashAgg: Boolean,
+      supportAdaptiveLocalHashAgg: Boolean): BatchPhysicalGroupAggregateBase = {
     val inputRowType = input.getRowType
     val aggFunctions = aggCallToAggFunction.map(_._2).toArray
 
@@ -232,6 +233,7 @@ trait BatchPhysicalAggRuleBase {
         inputRowType,
         grouping,
         auxGrouping,
+        supportAdaptiveLocalHashAgg,
         aggCallToAggFunction)
     } else {
       new BatchPhysicalLocalSortAggregate(

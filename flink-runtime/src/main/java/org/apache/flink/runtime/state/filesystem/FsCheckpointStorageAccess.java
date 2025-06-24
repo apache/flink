@@ -18,11 +18,12 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.fs.DuplicatingFileSystem;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.PathsCopyingFileSystem;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStateToolset;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
@@ -41,17 +42,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** An implementation of durable checkpoint storage to file systems. */
 public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess {
 
-    private final FileSystem fileSystem;
+    protected final FileSystem fileSystem;
 
-    private final Path checkpointsDirectory;
+    protected final Path checkpointsDirectory;
 
-    private final Path sharedStateDirectory;
+    protected final Path sharedStateDirectory;
 
-    private final Path taskOwnedStateDirectory;
+    protected final Path taskOwnedStateDirectory;
 
-    private final int fileSizeThreshold;
+    protected final int fileSizeThreshold;
 
-    private final int writeBufferSize;
+    protected final int writeBufferSize;
 
     private boolean baseLocationsInitialized = false;
 
@@ -67,6 +68,26 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
                 checkpointBaseDirectory.getFileSystem(),
                 checkpointBaseDirectory,
                 defaultSavepointDirectory,
+                true,
+                jobId,
+                fileSizeThreshold,
+                writeBufferSize);
+    }
+
+    public FsCheckpointStorageAccess(
+            Path checkpointBaseDirectory,
+            @Nullable Path defaultSavepointDirectory,
+            boolean createCheckpointSubDirs,
+            JobID jobId,
+            int fileSizeThreshold,
+            int writeBufferSize)
+            throws IOException {
+
+        this(
+                checkpointBaseDirectory.getFileSystem(),
+                checkpointBaseDirectory,
+                defaultSavepointDirectory,
+                createCheckpointSubDirs,
                 jobId,
                 fileSizeThreshold,
                 writeBufferSize);
@@ -76,6 +97,7 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
             FileSystem fs,
             Path checkpointBaseDirectory,
             @Nullable Path defaultSavepointDirectory,
+            boolean createCheckpointSubDirs,
             JobID jobId,
             int fileSizeThreshold,
             int writeBufferSize)
@@ -87,7 +109,10 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
         checkArgument(writeBufferSize >= 0);
 
         this.fileSystem = checkNotNull(fs);
-        this.checkpointsDirectory = getCheckpointDirectoryForJob(checkpointBaseDirectory, jobId);
+        this.checkpointsDirectory =
+                createCheckpointSubDirs
+                        ? getCheckpointDirectoryForJob(checkpointBaseDirectory, jobId)
+                        : checkpointBaseDirectory;
         this.sharedStateDirectory = new Path(checkpointsDirectory, CHECKPOINT_SHARED_STATE_DIR);
         this.taskOwnedStateDirectory =
                 new Path(checkpointsDirectory, CHECKPOINT_TASK_OWNED_STATE_DIR);
@@ -97,9 +122,16 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
 
     // ------------------------------------------------------------------------
 
-    @VisibleForTesting
-    Path getCheckpointsDirectory() {
+    public Path getCheckpointsDirectory() {
         return checkpointsDirectory;
+    }
+
+    public Path getSharedStateDirectory() {
+        return sharedStateDirectory;
+    }
+
+    public FileSystem getFileSystem() {
+        return fileSystem;
     }
 
     // ------------------------------------------------------------------------
@@ -113,8 +145,14 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
 
     @Override
     public void initializeBaseLocationsForCheckpoint() throws IOException {
-        fileSystem.mkdirs(sharedStateDirectory);
-        fileSystem.mkdirs(taskOwnedStateDirectory);
+        if (!fileSystem.mkdirs(sharedStateDirectory)) {
+            throw new IOException(
+                    "Failed to create directory for shared state: " + sharedStateDirectory);
+        }
+        if (!fileSystem.mkdirs(taskOwnedStateDirectory)) {
+            throw new IOException(
+                    "Failed to create directory for task owned state: " + taskOwnedStateDirectory);
+        }
     }
 
     @Override
@@ -181,9 +219,9 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
 
     @Override
     public CheckpointStateToolset createTaskOwnedCheckpointStateToolset() {
-        if (fileSystem instanceof DuplicatingFileSystem) {
+        if (fileSystem instanceof PathsCopyingFileSystem) {
             return new FsCheckpointStateToolset(
-                    taskOwnedStateDirectory, (DuplicatingFileSystem) fileSystem);
+                    taskOwnedStateDirectory, (PathsCopyingFileSystem) fileSystem);
         } else {
             return new NotDuplicatingCheckpointStateToolset();
         }
@@ -194,5 +232,18 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
         final CheckpointStorageLocationReference reference = encodePathAsReference(location);
         return new FsCheckpointStorageLocation(
                 fs, location, location, location, reference, fileSizeThreshold, writeBufferSize);
+    }
+
+    public FsMergingCheckpointStorageAccess toFileMergingStorage(
+            FileMergingSnapshotManager mergingSnapshotManager, Environment environment)
+            throws IOException {
+        return new FsMergingCheckpointStorageAccess(
+                checkpointsDirectory,
+                getDefaultSavepointDirectory(),
+                environment.getJobID(),
+                fileSizeThreshold,
+                writeBufferSize,
+                mergingSnapshotManager,
+                environment);
     }
 }

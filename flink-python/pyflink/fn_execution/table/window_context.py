@@ -22,7 +22,7 @@ from pyflink.common.constants import MAX_LONG_VALUE
 from pyflink.datastream.state import StateDescriptor, State, ValueStateDescriptor, \
     ListStateDescriptor, MapStateDescriptor
 from pyflink.datastream.window import TimeWindow, CountWindow
-from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTimerServiceImpl
+from pyflink.fn_execution.datastream.process.timerservice_impl import LegacyInternalTimerServiceImpl
 from pyflink.fn_execution.coders import from_type_info, MapCoder, GenericArrayCoder
 from pyflink.fn_execution.internal_state import InternalMergingState
 
@@ -182,8 +182,8 @@ class TriggerContext(object):
         self._trigger = trigger
         self._timer_service = timer_service
         self._state_backend = state_backend
-        self.window = None  # type: W
-        self.merged_windows = None  # type: Iterable[W]
+        self.window: W = None
+        self.merged_windows: Iterable[W] = None
 
     def open(self):
         self._trigger.open(self)
@@ -226,11 +226,11 @@ class TriggerContext(object):
             state = self._state_backend.get_value_state(
                 state_descriptor.name, from_type_info(state_descriptor.type_info))
         elif isinstance(state_descriptor, ListStateDescriptor):
-            array_coder = from_type_info(state_descriptor.type_info)  # type: GenericArrayCoder
+            array_coder: GenericArrayCoder = from_type_info(state_descriptor.type_info)
             state = self._state_backend.get_list_state(
                 state_descriptor.name, array_coder._elem_coder)
         elif isinstance(state_descriptor, MapStateDescriptor):
-            map_coder = from_type_info(state_descriptor.type_info)  # type: MapCoder
+            map_coder: MapCoder = from_type_info(state_descriptor.type_info)
             key_coder = map_coder._key_coder
             value_coder = map_coder._value_coder
             state = self._state_backend.get_map_state(

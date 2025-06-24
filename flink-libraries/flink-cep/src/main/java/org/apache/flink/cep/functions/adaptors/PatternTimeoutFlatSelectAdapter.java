@@ -19,12 +19,12 @@
 package org.apache.flink.cep.functions.adaptors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.cep.PatternFlatSelectFunction;
 import org.apache.flink.cep.PatternFlatTimeoutFunction;
 import org.apache.flink.cep.functions.PatternProcessFunction;
 import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -56,10 +56,10 @@ public class PatternTimeoutFlatSelectAdapter<IN, OUT, T> extends PatternFlatSele
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         FunctionUtils.setFunctionRuntimeContext(flatTimeoutFunction, getRuntimeContext());
-        FunctionUtils.openFunction(flatTimeoutFunction, parameters);
+        FunctionUtils.openFunction(flatTimeoutFunction, openContext);
 
         if (sideCollector == null) {
             sideCollector = new SideCollector<>(checkNotNull(timedOutPartialMatchesTag));

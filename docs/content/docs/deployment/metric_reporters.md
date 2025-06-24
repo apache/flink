@@ -29,7 +29,7 @@ under the License.
 Flink allows reporting metrics to external systems.
 For more information about Flink's metric system go to the [metric system documentation]({{< ref "docs/ops/metrics" >}}).
 
-Metrics can be exposed to an external system by configuring one or several reporters in `conf/flink-conf.yaml`. These
+Metrics can be exposed to an external system by configuring one or several reporters in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}). These
 reporters will be instantiated on each job and task manager when they are started.
 
 Below is a list of parameters that are generally applicable to all reporters. All properties are configured by setting `metrics.reporter.<reporter_name>.<property>` in the configuration. Reporters may additionally offer implementation-specific parameters, which are documented in the respective reporter's section. 
@@ -59,7 +59,8 @@ metrics.reporter.my_other_reporter.port: 10000
  All reporters documented on this page are available by default.
 
 You can write your own `Reporter` by implementing the `org.apache.flink.metrics.reporter.MetricReporter` interface.
-If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well.
+If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well. 
+Be careful that `report()` method must not block for a significant amount of time, and any reporter needing more time should instead run the operation asynchronously.
 By additionally implementing a `MetricReporterFactory` your reporter can also be loaded as a plugin.
 
 ## Identifiers vs. tags
@@ -245,6 +246,8 @@ Type: push/tags
 Note any variables in Flink metrics, such as `<host>`, `<job_name>`, `<tm_id>`, `<subtask_index>`, `<task_name>`, and `<operator_name>`,
 will be sent to Datadog as tags. Tags will look like `host:localhost` and `job_name:myjobname`.
 
+<span class="label label-danger">Note</span> For legacy reasons the reporter uses _both_ the metric identifier _and_ tags. This redundancy can be avoided by enabling `useLogicalIdentifier`.
+
 <span class="label label-info">Note</span> Histograms are exposed as a series of gauges following the naming convention of Datadog histograms (`<metric_name>.<aggregation>`).
 The `min` aggregation is reported by default, whereas `sum` is not available.
 In contrast to Datadog-provided Histograms the reported aggregations are not computed for a specific reporting interval.
@@ -252,25 +255,40 @@ In contrast to Datadog-provided Histograms the reported aggregations are not com
 Parameters:
 
 - `apikey` - the Datadog API key
-- `tags` - (optional) the global tags that will be applied to metrics when sending to Datadog. Tags should be separated by comma only
 - `proxyHost` - (optional) The proxy host to use when sending to Datadog.
 - `proxyPort` - (optional) The proxy port to use when sending to Datadog, defaults to 8080.
 - `dataCenter` - (optional) The data center (`EU`/`US`) to connect to, defaults to `US`.
 - `maxMetricsPerRequest` - (optional) The maximum number of metrics to include in each request, defaults to 2000.
+- `useLogicalIdentifier` -> (optional) Whether the reporter uses a logical metric identifier, defaults to `false`.
 
 Example configuration:
 
 ```yaml
 metrics.reporter.dghttp.factory.class: org.apache.flink.metrics.datadog.DatadogHttpReporterFactory
 metrics.reporter.dghttp.apikey: xxx
-metrics.reporter.dghttp.tags: myflinkapp,prod
 metrics.reporter.dghttp.proxyHost: my.web.proxy.com
 metrics.reporter.dghttp.proxyPort: 8080
 metrics.reporter.dghttp.dataCenter: US
 metrics.reporter.dghttp.maxMetricsPerRequest: 2000
 metrics.reporter.dghttp.interval: 60 SECONDS
+metrics.reporter.dghttp.useLogicalIdentifier: true
 ```
 
+### OpenTelemetry
+#### (org.apache.flink.metrics.otel.OpenTelemetryMetricReporterFactory)
+
+`OpenTelemetryMetricReporterFactory` currently supports only gRPC.
+
+Parameters:
+
+{{< include_reporter_config "layouts/shortcodes/generated/open_telemetry_reporter_configuration.html" >}}
+
+Example configuration:
+
+```yaml
+metrics.reporter.otel.factory.class: org.apache.flink.metrics.otel.OpenTelemetryMetricReporterFactory
+metrics.reporter.otel.exporter.endpoint: http://127.0.0.1:1337
+```
 
 ### Slf4j
 #### (org.apache.flink.metrics.slf4j.Slf4jReporter)

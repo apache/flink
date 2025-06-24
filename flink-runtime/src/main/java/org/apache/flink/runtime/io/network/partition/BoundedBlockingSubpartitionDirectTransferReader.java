@@ -116,11 +116,11 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     }
 
     @Override
-    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
-        // We simply assume there are no events except EndOfPartitionEvent for bath jobs,
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(boolean isCreditAvailable) {
+        // We simply assume there are no events except EndOfPartitionEvent for batch jobs,
         // then it has no essential effect to ignore the judgement of next event buffer.
         return new AvailabilityWithBacklog(
-                (numCreditsAvailable > 0 || numDataBuffers == 0) && numDataAndEventBuffers > 0,
+                (isCreditAvailable || numDataBuffers == 0) && numDataAndEventBuffers > 0,
                 numDataBuffers);
     }
 
@@ -161,6 +161,11 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     @Override
     public void notifyNewBufferSize(int newBufferSize) {
         parent.bufferSize(newBufferSize);
+    }
+
+    @Override
+    public int peekNextBufferSubpartitionId() {
+        throw new UnsupportedOperationException();
     }
 
     @Override

@@ -34,8 +34,8 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Test for {@link RowData}s. */
-public class RowDataTest {
+class RowDataTest {
 
     private StringData str;
     private RawValueData<String> generic;
@@ -60,8 +60,8 @@ public class RowDataTest {
     private TimestampData timestamp1;
     private TimestampData timestamp2;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         str = StringData.fromString("haha");
         generic = RawValueData.fromObject("haha");
         genericSerializer = new RawValueDataSerializer<>(StringSerializer.INSTANCE);
@@ -89,14 +89,14 @@ public class RowDataTest {
     }
 
     @Test
-    public void testBinaryRow() {
+    void testBinaryRow() {
         BinaryRowData binaryRow = getBinaryRow();
         testGetters(binaryRow);
         testSetters(binaryRow);
     }
 
     @Test
-    public void testNestedRow() {
+    void testNestedRow() {
         BinaryRowData row = new BinaryRowData(1);
         BinaryRowWriter writer = new BinaryRowWriter(row);
         writer.writeRow(0, getBinaryRow(), null);
@@ -136,7 +136,7 @@ public class RowDataTest {
     }
 
     @Test
-    public void testGenericRow() {
+    void testGenericRow() {
         GenericRowData row = new GenericRowData(18);
         row.setField(0, true);
         row.setField(1, (byte) 1);
@@ -160,7 +160,7 @@ public class RowDataTest {
     }
 
     @Test
-    public void testBoxedWrapperRow() {
+    void testBoxedWrapperRow() {
         BoxedWrapperRowData row = new BoxedWrapperRowData(18);
         row.setBoolean(0, true);
         row.setByte(1, (byte) 1);
@@ -184,7 +184,7 @@ public class RowDataTest {
     }
 
     @Test
-    public void testJoinedRow() {
+    void testJoinedRow() {
         GenericRowData row1 = new GenericRowData(5);
         row1.setField(0, true);
         row1.setField(1, (byte) 1);

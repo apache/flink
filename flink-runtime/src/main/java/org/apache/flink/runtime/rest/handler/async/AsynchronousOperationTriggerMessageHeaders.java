@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.rest.handler.async;
 
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 /**
  * Message headers for the triggering of an asynchronous operation.
@@ -30,7 +30,7 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
  */
 public abstract class AsynchronousOperationTriggerMessageHeaders<
                 R extends RequestBody, M extends MessageParameters>
-        implements MessageHeaders<R, TriggerResponse, M> {
+        implements RuntimeMessageHeaders<R, TriggerResponse, M> {
 
     @Override
     public Class<TriggerResponse> getResponseClass() {

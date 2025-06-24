@@ -46,7 +46,7 @@ under the License.
 // 计算每个司机每小时的小费总和
 DataStream<Tuple3<Long, Long, Float>> hourlyTips = fares
         .keyBy((TaxiFare fare) -> fare.driverId)
-        .window(TumblingEventTimeWindows.of(Time.hours(1)))
+        .window(TumblingEventTimeWindows.of(Duration.ofHours(1)))
         .process(new AddTips());
 ```
 
@@ -57,7 +57,7 @@ DataStream<Tuple3<Long, Long, Float>> hourlyTips = fares
 // 计算每个司机每小时的小费总和
 DataStream<Tuple3<Long, Long, Float>> hourlyTips = fares
         .keyBy((TaxiFare fare) -> fare.driverId)
-        .process(new PseudoWindow(Time.hours(1)));
+        .process(new PseudoWindow(Duration.ofHours(1)));
 ```
 
 在这个代码片段中，一个名为 `PseudoWindow` 的 `KeyedProcessFunction` 被应用于 KeyedStream，
@@ -79,7 +79,7 @@ public static class PseudoWindow extends
 
     @Override
     // 在初始化期间调用一次。
-    public void open(Configuration conf) {
+    public void open(OpenContext ctx) {
         . . .
     }
 
@@ -126,7 +126,7 @@ public static class PseudoWindow extends
 private transient MapState<Long, Float> sumOfTips;
 
 @Override
-public void open(Configuration conf) {
+public void open(OpenContext ctx) {
 
     MapStateDescriptor<Long, Float> sumDesc =
             new MapStateDescriptor<>("sumOfTips", Long.class, Float.class);
@@ -260,7 +260,7 @@ if (eventTime <= timerService.currentWatermark()) {
 // 计算每个司机每小时的小费总和
 SingleOutputStreamOperator hourlyTips = fares
         .keyBy((TaxiFare fare) -> fare.driverId)
-        .process(new PseudoWindow(Time.hours(1)));
+        .process(new PseudoWindow(Duration.ofHours(1)));
 
 hourlyTips.getSideOutput(lateFares).print();
 ```

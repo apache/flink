@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.parse;
 
-import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.api.SqlParserException;
@@ -111,8 +110,6 @@ public class CalciteParser {
             SqlAbstractParserImpl flinkParser = createFlinkParser(identifier);
             if (flinkParser instanceof FlinkSqlParserImpl) {
                 return ((FlinkSqlParserImpl) flinkParser).TableApiIdentifier();
-            } else if (flinkParser instanceof FlinkHiveSqlParserImpl) {
-                return ((FlinkHiveSqlParserImpl) flinkParser).TableApiIdentifier();
             } else {
                 throw new IllegalArgumentException(
                         "Unrecognized sql parser type " + flinkParser.getClass().getName());

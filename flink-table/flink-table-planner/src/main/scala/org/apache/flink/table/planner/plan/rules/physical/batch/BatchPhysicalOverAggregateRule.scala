@@ -26,16 +26,19 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggrega
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalOverAggregate, BatchPhysicalOverAggregateBase, BatchPhysicalPythonOverAggregate}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OverAggregateUtil, SortUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
-import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.planner.utils.ShortcutUtils
 
-import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{AggregateCall, Window}
+import org.apache.calcite.rel.core.Window
 import org.apache.calcite.rel.core.Window.Group
+import org.apache.calcite.rex.{RexInputRef, RexNode, RexShuttle}
+import org.apache.calcite.sql.SqlAggFunction
 import org.apache.calcite.tools.ValidationException
+
+import java.util
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -55,15 +58,10 @@ class BatchPhysicalOverAggregateRule
     val logicWindow: FlinkLogicalOverAggregate = call.rel(0)
     var input: RelNode = call.rel(1)
     var inputRowType = logicWindow.getInput.getRowType
+    val originInputSize = inputRowType.getFieldCount
     val typeFactory = logicWindow.getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
     val constants = logicWindow.constants.asScala
-    val constantTypes = constants.map(c => FlinkTypeFactory.toLogicalType(c.getType))
-    val inputNamesWithConstants = inputRowType.getFieldNames ++ constants.indices.map(i => s"TMP$i")
-    val inputTypesWithConstants = inputRowType.getFieldList
-      .map(i => FlinkTypeFactory.toLogicalType(i.getType)) ++ constantTypes
-    val inputTypeWithConstants =
-      typeFactory.buildRelNodeRowType(inputNamesWithConstants, inputTypesWithConstants)
 
     var overWindowAgg: BatchPhysicalOverAggregateBase = null
 
@@ -92,19 +90,23 @@ class BatchPhysicalOverAggregateRule
 
       val newInput = RelOptRule.convert(input, requiredTrait)
 
-      val groupToAggCallToAggFunction = groupBuffer.map {
-        group =>
+      val groupToAggCallToAggFunction = groupBuffer.zipWithIndex.map {
+        case (_, idx) =>
+          // we may need to adjust the arg index of AggregateCall in the group
+          // for the input's size may change
+          adjustGroup(groupBuffer, idx, originInputSize, newInput.getRowType.getFieldCount)
+          val group = groupBuffer.get(idx)
           val aggregateCalls = group.getAggregateCalls(logicWindow)
           val (_, _, aggregates) = AggregateUtil.transformToBatchAggregateFunctions(
             ShortcutUtils.unwrapTypeFactory(input),
-            FlinkTypeFactory.toLogicalRowType(inputTypeWithConstants),
+            FlinkTypeFactory.toLogicalRowType(generateInputTypeWithConstants()),
             aggregateCalls,
             sortSpec.getFieldIndices)
           val aggCallToAggFunction = aggregateCalls.zip(aggregates)
           (group, aggCallToAggFunction)
       }
 
-      val outputRowType = inferOutputRowType(
+      val outputRowType = OverAggregateUtil.inferOutputRowType(
         logicWindow.getCluster,
         inputRowType,
         groupToAggCallToAggFunction.flatMap(_._2).map(_._1))
@@ -152,6 +154,15 @@ class BatchPhysicalOverAggregateRule
       inputRowType = outputRowType
     }
 
+    def generateInputTypeWithConstants(): RelDataType = {
+      val constantTypes = constants.map(c => FlinkTypeFactory.toLogicalType(c.getType))
+      val inputNamesWithConstants = inputRowType.getFieldNames ++
+        constants.indices.map(i => s"TMP$i")
+      val inputTypesWithConstants = inputRowType.getFieldList
+        .map(i => FlinkTypeFactory.toLogicalType(i.getType)) ++ constantTypes
+      typeFactory.buildRelNodeRowType(inputNamesWithConstants, inputTypesWithConstants)
+    }
+
     logicWindow.groups.foreach {
       group =>
         validate(group)
@@ -186,20 +197,52 @@ class BatchPhysicalOverAggregateRule
     isSatisfied
   }
 
-  private def inferOutputRowType(
-      cluster: RelOptCluster,
-      inputType: RelDataType,
-      aggCalls: Seq[AggregateCall]): RelDataType = {
-
-    val inputNameList = inputType.getFieldNames
-    val inputTypeList = inputType.getFieldList.asScala.map(field => field.getType)
-
-    // we should avoid duplicated names with input column names
-    val aggNames = RowTypeUtils.getUniqueName(aggCalls.map(_.getName), inputNameList)
-    val aggTypes = aggCalls.map(_.getType)
-
-    val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    typeFactory.createStructType(inputTypeList ++ aggTypes, inputNameList ++ aggNames)
+  private def adjustGroup(
+      groupBuffer: ArrayBuffer[Window.Group],
+      groupIdx: Int,
+      originInputSize: Int,
+      newInputSize: Int): Unit = {
+    val inputSizeDiff = newInputSize - originInputSize
+    if (inputSizeDiff > 0) {
+      // the input's size of this group has increased, adjust the arg index of agg call
+      // in the group to make sure the arg index still refers to the origin value
+      var hasAdjust = false
+      val indexAdjustment = new RexShuttle() {
+        override def visitInputRef(inputRef: RexInputRef): RexNode = {
+          if (inputRef.getIndex >= originInputSize) {
+            hasAdjust = true
+            new RexInputRef(inputRef.getIndex + inputSizeDiff, inputRef.getType)
+          } else {
+            inputRef
+          }
+        }
+      }
+      val group = groupBuffer.get(groupIdx)
+      val newAggCalls = new util.ArrayList[Window.RexWinAggCall]()
+      group.aggCalls.forEach(
+        aggCall => {
+          val newOperands = indexAdjustment.visitList(aggCall.operands);
+          newAggCalls.add(
+            new Window.RexWinAggCall(
+              aggCall.getOperator.asInstanceOf[SqlAggFunction],
+              aggCall.getType,
+              newOperands,
+              aggCall.ordinal,
+              aggCall.distinct,
+              aggCall.ignoreNulls))
+        })
+      if (hasAdjust) {
+        groupBuffer.set(
+          groupIdx,
+          new Group(
+            group.keys,
+            group.isRows,
+            group.lowerBound,
+            group.upperBound,
+            group.orderKeys,
+            newAggCalls))
+      }
+    }
   }
 
   // SPARK/PostgreSQL don't support distinct on over(), and Hive only support distinct without

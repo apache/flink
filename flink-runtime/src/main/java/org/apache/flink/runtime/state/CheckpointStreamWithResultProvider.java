@@ -164,7 +164,7 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
             @Nonnegative long checkpointId,
             @Nonnull CheckpointedStateScope checkpointedStateScope,
             @Nonnull CheckpointStreamFactory primaryStreamFactory,
-            @Nonnull LocalRecoveryDirectoryProvider secondaryStreamDirProvider)
+            @Nonnull LocalSnapshotDirectoryProvider secondaryStreamDirProvider)
             throws IOException {
 
         CheckpointStateOutputStream primaryOut =

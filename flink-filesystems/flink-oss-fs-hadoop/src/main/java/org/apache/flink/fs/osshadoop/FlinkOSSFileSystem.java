@@ -18,7 +18,6 @@
 
 package org.apache.flink.fs.osshadoop;
 
-import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.core.fs.RefCountedFileWithStream;
 import org.apache.flink.core.fs.RefCountedTmpFileCreator;
@@ -80,11 +79,6 @@ public class FlinkOSSFileSystem extends HadoopFileSystem {
                 RefCountedTmpFileCreator.inDirectories(new File(localTmpDirectory));
 
         this.ossAccessor = ossAccessor;
-    }
-
-    @Override
-    public FileSystemKind getKind() {
-        return FileSystemKind.OBJECT_STORE;
     }
 
     @Override

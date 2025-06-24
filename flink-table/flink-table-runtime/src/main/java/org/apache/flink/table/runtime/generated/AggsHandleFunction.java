@@ -36,4 +36,16 @@ public interface AggsHandleFunction extends AggsHandleFunctionBase {
      * @return the final result (saved in a row) of the current accumulators.
      */
     RowData getValue() throws Exception;
+
+    /**
+     * Set window size for the aggregate function. It's used in batch scenario to set the total rows
+     * of the current window frame. More information for window frame:
+     * https://docs.oracle.com/cd/E17952_01/mysql-8.0-en/window-functions-frames.html
+     *
+     * <p>We may need to set the value for some window functions may require the total rows of
+     * current window frame to do calculation. For example, the function PERCENT_RANK need to know
+     * the window's size, and the SQL looks like: <code>
+     * SELECT PERCENT_RANK() OVER ([ partition_by_clause] order_by_clause)</code>.
+     */
+    void setWindowSize(int windowSize);
 }

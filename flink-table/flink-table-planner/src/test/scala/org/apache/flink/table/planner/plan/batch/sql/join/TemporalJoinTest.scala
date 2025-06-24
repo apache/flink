@@ -20,7 +20,8 @@ package org.apache.flink.table.planner.plan.batch.sql.join
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /**
  * Test temporal join in batch mode.
@@ -31,7 +32,7 @@ class TemporalJoinTest extends TableTestBase {
 
   val util: BatchTableTestUtil = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.addTable("""
                     |CREATE TABLE Orders (
@@ -104,7 +105,7 @@ class TemporalJoinTest extends TableTestBase {
         "GROUP BY currency ")
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testSimpleJoin(): Unit = {
     val sqlQuery = "SELECT " +
       "o_amount * rate as rate " +
@@ -112,10 +113,11 @@ class TemporalJoinTest extends TableTestBase {
       "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.o_rowtime as r " +
       "on o.o_currency = r.currency"
 
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testSimpleRowtimeVersionedViewJoin(): Unit = {
     val sqlQuery = "SELECT " +
       "o_amount * rate as rate " +
@@ -124,10 +126,11 @@ class TemporalJoinTest extends TableTestBase {
       "FOR SYSTEM_TIME AS OF o.o_rowtime as r1 " +
       "on o.o_currency = r1.currency"
 
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testSimpleProctimeVersionedViewJoin(): Unit = {
     val sqlQuery = "SELECT " +
       "o_amount * rate as rate " +
@@ -136,10 +139,11 @@ class TemporalJoinTest extends TableTestBase {
       "FOR SYSTEM_TIME AS OF o.o_proctime as r1 " +
       "on o.o_currency = r1.currency"
 
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testSimpleViewProcTimeJoin(): Unit = {
 
     val sqlQuery = "SELECT " +
@@ -149,6 +153,7 @@ class TemporalJoinTest extends TableTestBase {
       "FOR SYSTEM_TIME AS OF o.o_proctime as r1 " +
       "on o.o_currency = r1.currency"
 
-    util.verifyExecPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(sqlQuery))
   }
 }

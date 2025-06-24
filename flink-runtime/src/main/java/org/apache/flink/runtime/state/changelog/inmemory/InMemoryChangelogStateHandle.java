@@ -88,6 +88,11 @@ public class InMemoryChangelogStateHandle implements ChangelogStateHandle {
         return getStateSize();
     }
 
+    @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        collector.add(StateObjectLocation.LOCAL_MEMORY, getStateSize());
+    }
+
     public List<StateChange> getChanges() {
         return Collections.unmodifiableList(changes);
     }

@@ -19,10 +19,10 @@
 package org.apache.flink.test.cancelling;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.InfiniteIntegerInputFormat;
 
 import org.junit.Test;
@@ -51,15 +51,15 @@ public class MapCancelingITCase extends CancelingTestBase {
     }
 
     public void executeTask(MapFunction<Integer, Integer> mapper) throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.createInput(new InfiniteIntegerInputFormat(false))
                 .map(mapper)
-                .output(new DiscardingOutputFormat<Integer>());
+                .sinkTo(new DiscardingSink<>());
 
         env.setParallelism(PARALLELISM);
 
-        runAndCancelJob(env.createProgramPlan(), 5 * 1000, 10 * 1000);
+        runAndCancelJob(env.getStreamGraph().getJobGraph(), 5 * 1000, 10 * 1000);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -109,7 +109,7 @@ public class MapCancelingITCase extends CancelingTestBase {
         private static final long serialVersionUID = 1L;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             synchronized (this) {
                 wait();
             }

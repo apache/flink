@@ -20,13 +20,13 @@ package org.apache.flink.runtime.rest.messages.dataset;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** Specification for retrieving an overview over all available cluster partitions. */
 public class ClusterDataSetListHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 EmptyRequestBody, ClusterDataSetListResponseBody, EmptyMessageParameters> {
 
     public static final ClusterDataSetListHeaders INSTANCE = new ClusterDataSetListHeaders();

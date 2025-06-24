@@ -28,8 +28,6 @@ import org.apache.flink.test.state.operator.restore.ExecutionMode;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.Collection;
-
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createFirstStatefulMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createSecondStatefulMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createSource;
@@ -41,21 +39,8 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
 public abstract class AbstractNonKeyedOperatorRestoreTestBase
         extends AbstractOperatorRestoreTestBase {
 
-    private final FlinkVersion flinkVersion;
-
-    @Parameterized.Parameters(name = "Migrate Savepoint: {0}")
-    public static Collection<FlinkVersion> parameters() {
-        return FlinkVersion.rangeOf(FlinkVersion.v1_3, FlinkVersion.v1_15);
-    }
-
     protected AbstractNonKeyedOperatorRestoreTestBase(FlinkVersion flinkVersion) {
-        this.flinkVersion = flinkVersion;
-    }
-
-    protected AbstractNonKeyedOperatorRestoreTestBase(
-            FlinkVersion flinkVersion, boolean allowNonRestoredState) {
-        super(allowNonRestoredState);
-        this.flinkVersion = flinkVersion;
+        super(flinkVersion);
     }
 
     @Override
@@ -78,7 +63,7 @@ public abstract class AbstractNonKeyedOperatorRestoreTestBase
     }
 
     @Override
-    protected String getMigrationSavepointName() {
+    protected String getMigrationSavepointName(FlinkVersion flinkVersion) {
         return "nonKeyed-flink" + flinkVersion;
     }
 }

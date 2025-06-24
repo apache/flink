@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class YarnPrioritySchedulingITCase extends YarnTestBase {
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
 
         YARN_CONFIGURATION.setStrings("yarn.cluster.max-application-priority", "10");
         startYARNWithConfig(YARN_CONFIGURATION);

@@ -18,13 +18,16 @@
 
 package org.apache.flink.test.recovery;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
@@ -42,6 +45,11 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public abstract class SimpleRecoveryITCaseBase extends TestLogger {
 
+    private static final int PARALLELISM = 4;
+    private static final int DATA_FROM = 1;
+    private static final int DATA_TO = PARALLELISM * PARALLELISM;
+    private static final int EXPECTED_SUM = (DATA_FROM + DATA_TO) * (DATA_TO - DATA_FROM + 1) / 2;
+
     @ClassRule
     public static final MiniClusterWithClientResource MINI_CLUSTER_WITH_CLIENT_RESOURCE =
             new MiniClusterWithClientResource(
@@ -56,42 +64,55 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
         try {
             // attempt 1
             {
-                ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                StreamExecutionEnvironment env =
+                        StreamExecutionEnvironment.getExecutionEnvironment();
+                env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-                env.setParallelism(4);
-                env.setRestartStrategy(RestartStrategies.noRestart());
+                env.setParallelism(PARALLELISM);
+                Configuration configuration = new Configuration();
+                configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+                env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
                 try {
-                    env.generateSequence(1, 10)
-                            .rebalance()
-                            .map(new FailingMapper1<>())
-                            .reduce(Long::sum)
-                            .collect();
+                    CloseableIterator<Long> iterator =
+                            env.fromSequence(DATA_FROM, DATA_TO)
+                                    .rebalance()
+                                    .map(new FailingMapper1<>())
+                                    .fullWindowPartition()
+                                    .reduce(Long::sum)
+                                    .executeAndCollect();
+                    CollectionUtil.iteratorToList(iterator);
                     fail("The program should have failed, but run successfully");
-                } catch (JobExecutionException e) {
+                } catch (RuntimeException e) {
                     // expected
                 }
             }
 
             // attempt 2
             {
-                ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                StreamExecutionEnvironment env =
+                        StreamExecutionEnvironment.getExecutionEnvironment();
+                env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-                env.setParallelism(4);
-                env.setRestartStrategy(RestartStrategies.noRestart());
+                env.setParallelism(PARALLELISM);
+                Configuration configuration = new Configuration();
+                configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+                env.configure(configuration, Thread.currentThread().getContextClassLoader());
 
                 List<Long> resultCollection =
-                        env.generateSequence(1, 10)
-                                .rebalance()
-                                .map(new FailingMapper1<>())
-                                .reduce((ReduceFunction<Long>) Long::sum)
-                                .collect();
+                        CollectionUtil.iteratorToList(
+                                env.fromSequence(DATA_FROM, DATA_TO)
+                                        .rebalance()
+                                        .map(new FailingMapper1<>())
+                                        .fullWindowPartition()
+                                        .reduce((ReduceFunction<Long>) Long::sum)
+                                        .executeAndCollect());
 
                 long sum = 0;
                 for (long l : resultCollection) {
                     sum += l;
                 }
-                assertEquals(55, sum);
+                assertEquals(EXPECTED_SUM, sum);
             }
 
         } finally {
@@ -102,23 +123,26 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
     @Test
     public void testRestart() throws Exception {
         try {
-            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-            env.setParallelism(4);
+            env.setParallelism(PARALLELISM);
             // the default restart strategy should be taken
 
             List<Long> resultCollection =
-                    env.generateSequence(1, 10)
-                            .rebalance()
-                            .map(new FailingMapper2<>())
-                            .reduce(Long::sum)
-                            .collect();
+                    CollectionUtil.iteratorToList(
+                            env.fromSequence(DATA_FROM, DATA_TO)
+                                    .rebalance()
+                                    .map(new FailingMapper2<>())
+                                    .fullWindowPartition()
+                                    .reduce(Long::sum)
+                                    .executeAndCollect());
 
             long sum = 0;
             for (long l : resultCollection) {
                 sum += l;
             }
-            assertEquals(55, sum);
+            assertEquals(EXPECTED_SUM, sum);
         } finally {
             FailingMapper2.failuresBeforeSuccess = 1;
         }
@@ -127,22 +151,25 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
     @Test
     public void testRestartMultipleTimes() throws Exception {
         try {
-            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-            env.setParallelism(4);
+            env.setParallelism(PARALLELISM);
 
             List<Long> resultCollection =
-                    env.generateSequence(1, 10)
-                            .rebalance()
-                            .map(new FailingMapper3<>())
-                            .reduce(Long::sum)
-                            .collect();
+                    CollectionUtil.iteratorToList(
+                            env.fromSequence(DATA_FROM, DATA_TO)
+                                    .rebalance()
+                                    .map(new FailingMapper3<>())
+                                    .fullWindowPartition()
+                                    .reduce(Long::sum)
+                                    .executeAndCollect());
 
             long sum = 0;
             for (long l : resultCollection) {
                 sum += l;
             }
-            assertEquals(55, sum);
+            assertEquals(EXPECTED_SUM, sum);
         } finally {
             FailingMapper3.failuresBeforeSuccess = 3;
         }
@@ -156,7 +183,8 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
 
         @Override
         public T map(T value) throws Exception {
-            if (failuresBeforeSuccess > 0 && getRuntimeContext().getIndexOfThisSubtask() == 1) {
+            if (failuresBeforeSuccess > 0
+                    && getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                 failuresBeforeSuccess--;
                 throw new Exception("Test Failure");
             }
@@ -171,7 +199,8 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
 
         @Override
         public T map(T value) throws Exception {
-            if (failuresBeforeSuccess > 0 && getRuntimeContext().getIndexOfThisSubtask() == 1) {
+            if (failuresBeforeSuccess > 0
+                    && getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 1) {
                 failuresBeforeSuccess--;
                 throw new Exception("Test Failure");
             }
@@ -186,7 +215,8 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
 
         @Override
         public T map(T value) throws Exception {
-            if (failuresBeforeSuccess > 0 && getRuntimeContext().getIndexOfThisSubtask() == 1) {
+            if (failuresBeforeSuccess > 0
+                    && getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 1) {
                 failuresBeforeSuccess--;
                 throw new Exception("Test Failure");
             }

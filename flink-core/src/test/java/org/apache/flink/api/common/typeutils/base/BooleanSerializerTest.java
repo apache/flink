@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.util.Random;
 
 /** A test for the {@link org.apache.flink.api.common.typeutils.base.BooleanSerializer}. */
-public class BooleanSerializerTest extends SerializerTestBase<Boolean> {
+class BooleanSerializerTest extends SerializerTestBase<Boolean> {
 
     @Override
     protected TypeSerializer<Boolean> createSerializer() {

@@ -32,10 +32,11 @@ import org.apache.flink.runtime.operators.testutils.BinaryOperatorTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
-public abstract class AbstractOuterJoinTaskExternalITCase
+import static org.assertj.core.api.Assertions.assertThat;
+
+abstract class AbstractOuterJoinTaskExternalITCase
         extends BinaryOperatorTestBase<
                 FlatJoinFunction<
                         Tuple2<Integer, Integer>,
@@ -75,13 +76,13 @@ public abstract class AbstractOuterJoinTaskExternalITCase
     protected final CountingOutputCollector<Tuple2<Integer, Integer>> output =
             new CountingOutputCollector<>();
 
-    public AbstractOuterJoinTaskExternalITCase(ExecutionConfig config) {
+    AbstractOuterJoinTaskExternalITCase(ExecutionConfig config) {
         super(config, HASH_MEM, 2, SORT_MEM);
         bnljn_frac = (double) BNLJN_MEM / this.getMemoryManager().getMemorySize();
     }
 
-    @Test
-    public void testExternalSortOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testExternalSortOuterJoinTask() throws Exception {
         final int keyCnt1 = 16384 * 4;
         final int valCnt1 = 2;
 
@@ -114,7 +115,9 @@ public abstract class AbstractOuterJoinTaskExternalITCase
                 this.comparator2.duplicate());
         testDriver(testTask, MockJoinStub.class);
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        assertThat(this.output.getNumberOfRecords())
+                .withFailMessage("Wrong result set size.")
+                .isEqualTo(expCnt);
     }
 
     protected abstract int calculateExpectedCount(

@@ -235,7 +235,7 @@ public class Router<T> {
 
     // --------------------------------------------------------------------------
 
-    private String[] decodePathTokens(String uri) {
+    static String[] decodePathTokens(String uri) {
         // Need to split the original URI (instead of QueryStringDecoder#path) then decode the
         // tokens (components),
         // otherwise /test1/123%2F456 will not match /test1/:p1

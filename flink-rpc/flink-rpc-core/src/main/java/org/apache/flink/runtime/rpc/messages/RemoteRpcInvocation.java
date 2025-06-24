@@ -106,7 +106,7 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
 
     private void writeObject(ObjectOutputStream oos) throws IOException {
         // Translate it to byte array so that we can deserialize classes which cannot be found in
-        // akka class loader.
+        // pekko class loader.
         byte[] bytes = InstantiationUtil.serializeObject(methodInvocation);
         oos.writeObject(bytes);
     }

@@ -19,11 +19,13 @@
 package org.apache.flink.fs.gs.utils;
 
 import org.apache.flink.fs.gs.TestUtils;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import com.google.auth.oauth2.GoogleCredentials;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
@@ -32,30 +34,31 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test construction of Storage instance in GSFileSystemFactory. */
-@RunWith(Parameterized.class)
-public class ConfigUtilsStorageTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class ConfigUtilsStorageTest {
 
     /* The test case description. */
-    @Parameterized.Parameter(value = 0)
-    public String description;
+    private @Parameter String description;
 
     /* The value to use for the GOOGLE_APPLICATION_CREDENTIALS environment variable. */
-    @Parameterized.Parameter(value = 1)
-    public @Nullable String envGoogleApplicationCredentials;
+    @Parameter(value = 1)
+    @Nullable
+    private String envGoogleApplicationCredentials;
 
     /* The Hadoop config. */
-    @Parameterized.Parameter(value = 2)
-    public org.apache.hadoop.conf.Configuration hadoopConfig;
+    @Parameter(value = 2)
+    private org.apache.hadoop.conf.Configuration hadoopConfig;
 
     /* The expected credentials file to use. */
-    @Parameterized.Parameter(value = 3)
-    public @Nullable String expectedCredentialsFilePath;
+    @Parameter(value = 3)
+    @Nullable
+    private String expectedCredentialsFilePath;
 
-    @Parameterized.Parameters(name = "description={0}")
-    public static Collection<Object[]> data() {
+    @Parameters(name = "description={0}")
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     {
@@ -124,8 +127,8 @@ public class ConfigUtilsStorageTest {
                 });
     }
 
-    @Test
-    public void shouldProperlyCreateStorageCredentials() {
+    @TestTemplate
+    void shouldProperlyCreateStorageCredentials() {
 
         // populate this if we store credentials in the testing context
         Optional<GoogleCredentials> expectedCredentials = Optional.empty();
@@ -147,6 +150,6 @@ public class ConfigUtilsStorageTest {
         Optional<GoogleCredentials> loadedCredentials =
                 ConfigUtils.getStorageCredentials(hadoopConfig, configContext);
 
-        assertEquals(expectedCredentials, loadedCredentials);
+        assertThat(loadedCredentials).isEqualTo(expectedCredentials);
     }
 }

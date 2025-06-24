@@ -22,13 +22,19 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.ExceptionUtils;
@@ -41,9 +47,13 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Duration;
 import java.util.Comparator;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_DIR_PREFIX;
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME;
@@ -180,5 +190,76 @@ public class TestUtils {
         while (client.getJobStatus(jobId).get() != JobStatus.CANCELED) {
             Thread.sleep(50);
         }
+    }
+
+    /**
+     * Wait util all task of a job turns into RUNNING state.
+     *
+     * @param restClusterClient RestClusterClient which could be {@link
+     *     org.apache.flink.test.junit5.InjectClusterClient}.
+     */
+    public static void waitUntilAllTasksAreRunning(
+            RestClusterClient<?> restClusterClient, JobID jobId) throws Exception {
+        // access the REST endpoint of the cluster to determine the state of each ExecutionVertex
+        final JobDetailsHeaders detailsHeaders = JobDetailsHeaders.getInstance();
+        final JobMessageParameters params = detailsHeaders.getUnresolvedMessageParameters();
+        params.jobPathParameter.resolve(jobId);
+
+        CommonTestUtils.waitUntilCondition(
+                () ->
+                        restClusterClient
+                                .sendRequest(detailsHeaders, params, EmptyRequestBody.getInstance())
+                                .thenApply(
+                                        detailsInfo ->
+                                                allVerticesRunning(
+                                                        detailsInfo.getJobVerticesPerState()))
+                                .get());
+    }
+
+    /**
+     * Wait util the give condition is met or timeout is reached, whichever comes first.
+     *
+     * @param condition the condition to meet.
+     * @param message the message to show if the condition is not met before timeout.
+     * @throws InterruptedException when the thread is interrupted when waiting for the condition.
+     * @throws TimeoutException when the condition is not met after the specified timeout has
+     *     elapsed.
+     */
+    public static void waitUntil(Supplier<Boolean> condition, String message)
+            throws InterruptedException, TimeoutException {
+        waitUntil(condition, Duration.ofSeconds(5), message);
+    }
+
+    /**
+     * Wait util the give condition is met or timeout is reached, whichever comes first.
+     *
+     * @param condition the condition to meet.
+     * @param timeout the maximum time to wait for the condition to become true.
+     * @param message the message to show if the condition is not met before timeout.
+     * @throws InterruptedException when the thread is interrupted when waiting for the condition.
+     * @throws TimeoutException when the condition is not met after the specified timeout has
+     *     elapsed.
+     */
+    public static void waitUntil(Supplier<Boolean> condition, Duration timeout, String message)
+            throws InterruptedException, TimeoutException {
+        long startTime = System.currentTimeMillis();
+        while (!condition.get() && System.currentTimeMillis() < startTime + timeout.toMillis()) {
+            Thread.sleep(1);
+        }
+        if (!condition.get()) {
+            throw new TimeoutException(message);
+        }
+    }
+
+    private static boolean allVerticesRunning(Map<ExecutionState, Integer> states) {
+        return states.entrySet().stream()
+                .allMatch(
+                        entry -> {
+                            if (entry.getKey() == ExecutionState.RUNNING) {
+                                return entry.getValue() > 0;
+                            } else {
+                                return entry.getValue() == 0; // no vertices in non-running state.
+                            }
+                        });
     }
 }

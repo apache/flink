@@ -25,23 +25,34 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
+import org.apache.flink.table.catalog.exceptions.ModelAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
+import org.apache.flink.table.catalog.exceptions.ProcedureNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
-import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.procedures.Procedure;
 
+import javax.annotation.Nullable;
+
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This interface is responsible for reading and writing metadata such as database/table/views/UDFs
@@ -59,26 +70,19 @@ public interface Catalog {
      * internal catalog-specific objects to their own factory. For example, a custom {@link
      * CatalogTable} can be processed by a custom {@link DynamicTableFactory}.
      *
+     * <p>If this catalog support to create materialized table, you should also override this method
+     * to provide {@link DynamicTableFactory} which help planner to find {@link DynamicTableSource}
+     * and {@link DynamicTableSink} correctly during compile optimization phase. If you don't
+     * override this method, you must specify the physical connector identifier that this catalog
+     * represents storage when create materialized table. Otherwise, the planner can't find the
+     * {@link DynamicTableFactory}.
+     *
      * <p>Because all factories are interfaces, the returned {@link Factory} instance can implement
      * multiple supported extension points. An {@code instanceof} check is performed by the caller
      * that checks whether a required factory is implemented; otherwise the discovery process is
      * used.
      */
     default Optional<Factory> getFactory() {
-        return Optional.empty();
-    }
-
-    /**
-     * Get an optional {@link TableFactory} instance that's responsible for generating table-related
-     * instances stored in this catalog, instances such as source/sink.
-     *
-     * @return an optional TableFactory instance
-     * @deprecated Use {@link #getFactory()} for the new factory stack. The new factory stack uses
-     *     the new table sources and sinks defined in FLIP-95 and a slightly different discovery
-     *     mechanism.
-     */
-    @Deprecated
-    default Optional<TableFactory> getTableFactory() {
         return Optional.empty();
     }
 
@@ -115,9 +119,13 @@ public interface Catalog {
      * value probably comes from configuration, will not change for the life time of the catalog
      * instance.
      *
+     * <p>If the default database is null, users will need to set a current database themselves or
+     * qualify identifiers at least with the database name when using the catalog.
+     *
      * @return the name of the current database
      * @throws CatalogException in case of any runtime exception
      */
+    @Nullable
     String getDefaultDatabase() throws CatalogException;
 
     /**
@@ -240,6 +248,24 @@ public interface Catalog {
     CatalogBaseTable getTable(ObjectPath tablePath) throws TableNotExistException, CatalogException;
 
     /**
+     * Returns a {@link CatalogTable} or {@link CatalogView} at a specific time identified by the
+     * given {@link ObjectPath}. The framework will resolve the metadata objects when necessary.
+     *
+     * @param tablePath Path of the table or view
+     * @param timestamp Timestamp of the table snapshot, which is milliseconds since 1970-01-01
+     *     00:00:00 UTC
+     * @return The requested table or view
+     * @throws TableNotExistException if the target does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default CatalogBaseTable getTable(ObjectPath tablePath, long timestamp)
+            throws TableNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "getTable(ObjectPath, long) is not implemented for %s.", this.getClass()));
+    }
+
+    /**
      * Check if a table or view exists in this catalog.
      *
      * @param tablePath Path of the table or view
@@ -312,12 +338,30 @@ public interface Catalog {
             throws TableNotExistException, CatalogException;
 
     /**
-     * If true, tables which do not specify a connector will be translated to managed tables.
+     * Modifies an existing table or view. Note that the new and old {@link CatalogBaseTable} must
+     * be of the same kind. For example, this doesn't allow altering a regular table to partitioned
+     * table, or altering a view to a table, and vice versa.
      *
-     * @see CatalogBaseTable.TableKind#MANAGED
+     * <p>The framework will make sure to call this method with fully validated {@link
+     * ResolvedCatalogTable} or {@link ResolvedCatalogView}. Those instances are easy to serialize
+     * for a durable catalog implementation.
+     *
+     * @param tablePath path of the table or view to be modified
+     * @param newTable the new table definition
+     * @param tableChanges change to describe the modification between the newTable and the original
+     *     table.
+     * @param ignoreIfNotExists flag to specify behavior when the table or view does not exist: if
+     *     set to false, throw an exception, if set to true, do nothing.
+     * @throws TableNotExistException if the table does not exist
+     * @throws CatalogException in case of any runtime exception
      */
-    default boolean supportsManagedTable() {
-        return false;
+    default void alterTable(
+            ObjectPath tablePath,
+            CatalogBaseTable newTable,
+            List<TableChange> tableChanges,
+            boolean ignoreIfNotExists)
+            throws TableNotExistException, CatalogException {
+        alterTable(tablePath, newTable, ignoreIfNotExists);
     }
 
     // ------ partitions ------
@@ -348,8 +392,10 @@ public interface Catalog {
      */
     List<CatalogPartitionSpec> listPartitions(
             ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-            throws TableNotExistException, TableNotPartitionedException,
-                    PartitionSpecInvalidException, CatalogException;
+            throws TableNotExistException,
+                    TableNotPartitionedException,
+                    PartitionSpecInvalidException,
+                    CatalogException;
 
     /**
      * Get CatalogPartitionSpec of partitions by expression filters in the table.
@@ -405,8 +451,9 @@ public interface Catalog {
      * @param tablePath path of the table.
      * @param partitionSpec partition spec of the partition
      * @param partition the partition to add.
-     * @param ignoreIfExists flag to specify behavior if a table with the given name already exists:
-     *     if set to false, it throws a TableAlreadyExistException, if set to true, nothing happens.
+     * @param ignoreIfExists flag to specify behavior if a partition with the given name already
+     *     exists: if set to false, it throws a PartitionAlreadyExistsException, if set to true,
+     *     nothing happens.
      * @throws TableNotExistException thrown if the target table does not exist
      * @throws TableNotPartitionedException thrown if the target table is not partitioned
      * @throws PartitionSpecInvalidException thrown if the given partition spec is invalid
@@ -418,8 +465,10 @@ public interface Catalog {
             CatalogPartitionSpec partitionSpec,
             CatalogPartition partition,
             boolean ignoreIfExists)
-            throws TableNotExistException, TableNotPartitionedException,
-                    PartitionSpecInvalidException, PartitionAlreadyExistsException,
+            throws TableNotExistException,
+                    TableNotPartitionedException,
+                    PartitionSpecInvalidException,
+                    PartitionAlreadyExistsException,
                     CatalogException;
 
     /**
@@ -427,7 +476,7 @@ public interface Catalog {
      *
      * @param tablePath path of the table.
      * @param partitionSpec partition spec of the partition to drop
-     * @param ignoreIfNotExists flag to specify behavior if the database does not exist: if set to
+     * @param ignoreIfNotExists flag to specify behavior if the partition does not exist: if set to
      *     false, throw an exception, if set to true, nothing happens.
      * @throws PartitionNotExistException thrown if the target partition does not exist
      * @throws CatalogException in case of any runtime exception
@@ -442,7 +491,7 @@ public interface Catalog {
      * @param tablePath path of the table
      * @param partitionSpec partition spec of the partition
      * @param newPartition new partition to replace the old one
-     * @param ignoreIfNotExists flag to specify behavior if the database does not exist: if set to
+     * @param ignoreIfNotExists flag to specify behavior if the partition does not exist: if set to
      *     false, throw an exception, if set to true, nothing happens.
      * @throws PartitionNotExistException thrown if the target partition does not exist
      * @throws CatalogException in case of any runtime exception
@@ -468,6 +517,21 @@ public interface Catalog {
     List<String> listFunctions(String dbName) throws DatabaseNotExistException, CatalogException;
 
     /**
+     * List the names of all procedures in the given database. An empty list is returned if no
+     * procedure.
+     *
+     * @param dbName name of the database.
+     * @return a list of the names of the procedures in this database
+     * @throws DatabaseNotExistException if the database does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default List<String> listProcedures(String dbName)
+            throws DatabaseNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format("listProcedures is not implemented for %s.", this.getClass()));
+    }
+
+    /**
      * Get the function. Function name should be handled in a case insensitive way.
      *
      * @param functionPath path of the function
@@ -477,6 +541,20 @@ public interface Catalog {
      */
     CatalogFunction getFunction(ObjectPath functionPath)
             throws FunctionNotExistException, CatalogException;
+
+    /**
+     * Get the procedure. The procedure name should be handled in a case-insensitive way.
+     *
+     * @param procedurePath path of the procedure
+     * @return the requested procedure
+     * @throws ProcedureNotExistException if the procedure does not exist in the catalog
+     * @throws CatalogException in case of any runtime exception
+     */
+    default Procedure getProcedure(ObjectPath procedurePath)
+            throws ProcedureNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format("getProcedure is not implemented for %s.", this.getClass()));
+    }
 
     /**
      * Check whether a function exists or not. Function name should be handled in a case insensitive
@@ -521,7 +599,7 @@ public interface Catalog {
      * Drop a function. Function name should be handled in a case insensitive way.
      *
      * @param functionPath path of the function to be dropped
-     * @param ignoreIfNotExists plag to specify behavior if the function does not exist: if set to
+     * @param ignoreIfNotExists flag to specify behavior if the function does not exist: if set to
      *     false, throw an exception if set to true, nothing happens
      * @throws FunctionNotExistException if the function does not exist
      * @throws CatalogException in case of any runtime exception
@@ -567,6 +645,31 @@ public interface Catalog {
             throws PartitionNotExistException, CatalogException;
 
     /**
+     * Get a list of statistics of given partitions.
+     *
+     * @param tablePath path of the table
+     * @param partitionSpecs partition specs of partitions that will be used to filter out all other
+     *     unrelated statistics, i.e. the statistics fetch will be limited within the given
+     *     partitions
+     * @return list of statistics of given partitions
+     * @throws PartitionNotExistException if one partition does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default List<CatalogTableStatistics> bulkGetPartitionStatistics(
+            ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
+            throws PartitionNotExistException, CatalogException {
+
+        checkNotNull(partitionSpecs, "partitionSpecs cannot be null");
+
+        List<CatalogTableStatistics> result = new ArrayList<>(partitionSpecs.size());
+        for (CatalogPartitionSpec partitionSpec : partitionSpecs) {
+            result.add(getPartitionStatistics(tablePath, partitionSpec));
+        }
+
+        return result;
+    }
+
+    /**
      * Get the column statistics of a partition.
      *
      * @param tablePath path of the table
@@ -578,6 +681,31 @@ public interface Catalog {
     CatalogColumnStatistics getPartitionColumnStatistics(
             ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
             throws PartitionNotExistException, CatalogException;
+
+    /**
+     * Get a list of column statistics for given partitions.
+     *
+     * @param tablePath path of the table
+     * @param partitionSpecs partition specs of partitions that will be used to filter out all other
+     *     unrelated statistics, i.e. the statistics fetch will be limited within the given
+     *     partitions
+     * @return list of column statistics for given partitions
+     * @throws PartitionNotExistException if one partition does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default List<CatalogColumnStatistics> bulkGetPartitionColumnStatistics(
+            ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
+            throws PartitionNotExistException, CatalogException {
+
+        checkNotNull(partitionSpecs, "partitionSpecs cannot be null");
+
+        List<CatalogColumnStatistics> result = new ArrayList<>(partitionSpecs.size());
+        for (CatalogPartitionSpec partitionSpec : partitionSpecs) {
+            result.add(getPartitionColumnStatistics(tablePath, partitionSpec));
+        }
+
+        return result;
+    }
 
     /**
      * Update the statistics of a table.
@@ -644,4 +772,147 @@ public interface Catalog {
             CatalogColumnStatistics columnStatistics,
             boolean ignoreIfNotExists)
             throws PartitionNotExistException, CatalogException;
+
+    // ------ models  ------
+
+    /**
+     * Get names of all models under this database. An empty list is returned if none exists.
+     *
+     * @return a list of the names of all models in this database
+     * @throws DatabaseNotExistException if the database does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default List<String> listModels(String databaseName)
+            throws DatabaseNotExistException, CatalogException {
+        return Collections.emptyList();
+    }
+
+    /**
+     * Returns a {@link CatalogModel} identified by the given {@link ObjectPath}.
+     *
+     * @param modelPath Path of the model
+     * @return The requested model
+     * @throws ModelNotExistException if the target does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default CatalogModel getModel(ObjectPath modelPath)
+            throws ModelNotExistException, CatalogException {
+        throw new ModelNotExistException(null, modelPath);
+    }
+
+    /**
+     * Check if a model exists in this catalog.
+     *
+     * @param modelPath Path of the model
+     * @return true if the given model exists in the catalog false otherwise
+     * @throws CatalogException in case of any runtime exception
+     */
+    default boolean modelExists(ObjectPath modelPath) throws CatalogException {
+        return false;
+    }
+
+    /**
+     * Drop a model.
+     *
+     * @param modelPath Path of the model to be dropped
+     * @param ignoreIfNotExists Flag to specify behavior when the model does not exist: if set to
+     *     false, throw an exception, if set to true, do nothing.
+     * @throws ModelNotExistException if the model does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void dropModel(ObjectPath modelPath, boolean ignoreIfNotExists)
+            throws ModelNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "dropModel(ObjectPath, boolean) is not implemented for %s.",
+                        this.getClass()));
+    }
+
+    /**
+     * Rename an existing model.
+     *
+     * @param modelPath Path of the model to be renamed
+     * @param newModelName the new name of the model
+     * @param ignoreIfNotExists Flag to specify behavior when the model does not exist: if set to
+     *     false, throw an exception, if set to true, do nothing.
+     * @throws ModelNotExistException if the model does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void renameModel(ObjectPath modelPath, String newModelName, boolean ignoreIfNotExists)
+            throws ModelNotExistException, ModelAlreadyExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "renameModel(ObjectPath, String, boolean) is not implemented for %s.",
+                        this.getClass()));
+    }
+
+    /**
+     * Creates a new model.
+     *
+     * <p>The framework will make sure to call this method with fully validated {@link
+     * ResolvedCatalogModel}. Those instances are easy to serialize for a durable catalog
+     * implementation.
+     *
+     * @param modelPath path of the model to be created
+     * @param model the CatalogModel definition
+     * @param ignoreIfExists flag to specify behavior when a model already exists at the given path:
+     *     if set to false, it throws a ModelAlreadyExistException, if set to true, do nothing.
+     * @throws ModelAlreadyExistException if model already exists and ignoreIfExists is false
+     * @throws DatabaseNotExistException if the database in tablePath doesn't exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void createModel(ObjectPath modelPath, CatalogModel model, boolean ignoreIfExists)
+            throws ModelAlreadyExistException, DatabaseNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "createModel(ObjectPath, CatalogModel, boolean) is not implemented for %s.",
+                        this.getClass()));
+    }
+
+    /**
+     * Modifies an existing model.
+     *
+     * <p>The framework will make sure to call this method with fully validated {@link
+     * ResolvedCatalogModel}. Those instances are easy to serialize for a durable catalog
+     * implementation.
+     *
+     * @param modelPath path of the model to be modified
+     * @param newModel the new model definition
+     * @param ignoreIfNotExists flag to specify behavior when the model does not exist: if set to
+     *     false, throw an exception, if set to true, do nothing.
+     * @throws ModelNotExistException if the model does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void alterModel(ObjectPath modelPath, CatalogModel newModel, boolean ignoreIfNotExists)
+            throws ModelNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "alterModel(ObjectPath, CatalogModel, boolean) is not implemented for %s.",
+                        this.getClass()));
+    }
+
+    /**
+     * Modifies an existing model.
+     *
+     * <p>The framework will make sure to call this method with fully validated {@link
+     * ResolvedCatalogModel}. Those instances are easy to serialize for a durable catalog
+     * implementation.
+     *
+     * @param modelPath path of the model to be modified
+     * @param newModel the new model definition
+     * @param modelChanges changes to describe the modification between the newModel and the
+     *     original model
+     * @param ignoreIfNotExists flag to specify behavior when the model does not exist: if set to
+     *     false, throw an exception, if set to true, do nothing.
+     * @throws ModelNotExistException if the model does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void alterModel(
+            ObjectPath modelPath,
+            CatalogModel newModel,
+            List<ModelChange> modelChanges,
+            boolean ignoreIfNotExists)
+            throws ModelNotExistException, CatalogException {
+        alterModel(modelPath, newModel, ignoreIfNotExists);
+    }
 }

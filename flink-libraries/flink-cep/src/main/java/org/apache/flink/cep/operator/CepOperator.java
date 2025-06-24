@@ -161,7 +161,12 @@ public class CepOperator<IN, KEY, OUT>
     }
 
     @Override
-    public void setup(
+    public boolean useSplittableTimers() {
+        return true;
+    }
+
+    @Override
+    protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
             Output<StreamRecord<OUT>> output) {
@@ -194,10 +199,6 @@ public class CepOperator<IN, KEY, OUT>
                                         EVENT_QUEUE_STATE_NAME,
                                         LongSerializer.INSTANCE,
                                         new ListSerializer<>(inputSerializer)));
-
-        if (context.isRestored()) {
-            partialMatches.migrateOldState(getKeyedStateBackend(), computationStates);
-        }
     }
 
     @Override
@@ -242,9 +243,6 @@ public class CepOperator<IN, KEY, OUT>
             } else {
                 long currentTime = timerService.currentProcessingTime();
                 bufferEvent(element.getValue(), currentTime);
-
-                // register a timer for the next millisecond to sort and emit buffered data
-                timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + 1);
             }
 
         } else {
@@ -262,8 +260,6 @@ public class CepOperator<IN, KEY, OUT>
                 // we have an event with a valid timestamp, so
                 // we buffer it until we receive the proper watermark.
 
-                saveRegisterWatermarkTimer();
-
                 bufferEvent(value, timestamp);
 
             } else if (lateDataOutputTag != null) {
@@ -274,16 +270,11 @@ public class CepOperator<IN, KEY, OUT>
         }
     }
 
-    /**
-     * Registers a timer for {@code current watermark + 1}, this means that we get triggered
-     * whenever the watermark advances, which is what we want for working off the queue of buffered
-     * elements.
-     */
-    private void saveRegisterWatermarkTimer() {
-        long currentWatermark = timerService.currentWatermark();
-        // protect against overflow
-        if (currentWatermark + 1 > currentWatermark) {
-            timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, currentWatermark + 1);
+    private void registerTimer(long timestamp) {
+        if (isProcessingTime) {
+            timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, timestamp + 1);
+        } else {
+            timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, timestamp);
         }
     }
 
@@ -291,6 +282,7 @@ public class CepOperator<IN, KEY, OUT>
         List<IN> elementsForTimestamp = elementQueueState.get(currentTime);
         if (elementsForTimestamp == null) {
             elementsForTimestamp = new ArrayList<>();
+            registerTimer(currentTime);
         }
 
         elementsForTimestamp.add(event);
@@ -336,8 +328,9 @@ public class CepOperator<IN, KEY, OUT>
         // STEP 4
         updateNFA(nfaState);
 
-        if (!sortedTimestamps.isEmpty() || !partialMatches.isEmpty()) {
-            saveRegisterWatermarkTimer();
+        // In order to remove dangling partial matches.
+        if (nfaState.getPartialMatches().size() == 1 && nfaState.getCompletedMatches().isEmpty()) {
+            computationStates.clear();
         }
     }
 
@@ -371,6 +364,9 @@ public class CepOperator<IN, KEY, OUT>
         }
 
         // STEP 3
+        advanceTime(nfa, timerService.currentProcessingTime());
+
+        // STEP 4
         updateNFA(nfa);
     }
 
@@ -387,6 +383,7 @@ public class CepOperator<IN, KEY, OUT>
     private void updateNFA(NFAState nfaState) throws IOException {
         if (nfaState.isStateChanged()) {
             nfaState.resetStateChanged();
+            nfaState.resetNewStartPartialMatch();
             computationStates.update(nfaState);
         }
     }
@@ -417,6 +414,9 @@ public class CepOperator<IN, KEY, OUT>
                             timestamp,
                             afterMatchSkipStrategy,
                             cepTimerService);
+            if (nfa.getWindowTime() > 0 && nfaState.isNewStartPartialMatch()) {
+                registerTimer(timestamp + nfa.getWindowTime());
+            }
             processMatchedSequences(patterns, timestamp);
         }
     }
@@ -428,8 +428,22 @@ public class CepOperator<IN, KEY, OUT>
      */
     private void advanceTime(NFAState nfaState, long timestamp) throws Exception {
         try (SharedBufferAccessor<IN> sharedBufferAccessor = partialMatches.getAccessor()) {
-            Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut =
-                    nfa.advanceTime(sharedBufferAccessor, nfaState, timestamp);
+            Tuple2<
+                            Collection<Map<String, List<IN>>>,
+                            Collection<Tuple2<Map<String, List<IN>>, Long>>>
+                    pendingMatchesAndTimeout =
+                            nfa.advanceTime(
+                                    sharedBufferAccessor,
+                                    nfaState,
+                                    timestamp,
+                                    afterMatchSkipStrategy);
+
+            Collection<Map<String, List<IN>>> pendingMatches = pendingMatchesAndTimeout.f0;
+            Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut = pendingMatchesAndTimeout.f1;
+
+            if (!pendingMatches.isEmpty()) {
+                processMatchedSequences(pendingMatches, timestamp);
+            }
             if (!timedOut.isEmpty()) {
                 processTimedOutSequences(timedOut);
             }

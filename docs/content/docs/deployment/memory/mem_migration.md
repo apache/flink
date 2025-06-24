@@ -52,7 +52,7 @@ the following options is configured explicitly, otherwise the configuration will
 
 <br/>
 
-The [default `flink-conf.yaml`](#default-configuration-in-flink-confyaml) shipped with Flink sets
+The [default Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) shipped with Flink sets
 [`taskmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size) (since *1.10*) and
 [`jobmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-process-size) (since *1.11*)
 to make the default memory configuration consistent.
@@ -274,18 +274,18 @@ The direct or native off-heap memory consumers can now be addressed by the follo
 * JVM metaspace ([`jobmanager.memory.jvm-metaspace.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-jvm-metaspace-size))
 * [JVM overhead]({{< ref "docs/deployment/memory/mem_setup_jobmanager" >}}#detailed-configuration)
 
-## Default Configuration in flink-conf.yaml
+## Default Configuration in Flink configuration file
 
-This section describes the changes of the default `flink-conf.yaml` shipped with Flink.
+This section describes the changes of the default [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) shipped with Flink.
 
 The total memory for TaskManagers (`taskmanager.heap.size`) is replaced by [`taskmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size)
-in the default `flink-conf.yaml`. The value increased from 1024MB to 1728MB.
+in the default [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}). The value increased from 1024MB to 1728MB.
 
 The total memory for JobManagers (`jobmanager.heap.size`) is replaced by [`jobmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-process-size)
-in the default `flink-conf.yaml`. The value increased from 1024MB to 1600MB.
+in the default [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}). The value increased from 1024MB to 1600MB.
 
 See also [how to configure total memory now]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory).
 
 {{< hint warning >}}
-**Warning:** If you use the new default `flink-conf.yaml` it can result in different sizes of memory components and can lead to performance changes.
+**Warning:** If you use the new default [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) it can result in different sizes of memory components and can lead to performance changes.
 {{< /hint >}}

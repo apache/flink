@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -117,11 +118,12 @@ class ArrayToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Array
             LogicalType targetLogicalType) {
         final LogicalType innerInputType = ((ArrayType) inputLogicalType).getElementType();
 
-        final String builderTerm = newName("builder");
+        CodeGeneratorContext codeGeneratorContext = context.getCodeGeneratorContext();
+        final String builderTerm = newName(codeGeneratorContext, "builder");
         context.declareClassField(
                 className(StringBuilder.class), builderTerm, constructorCall(StringBuilder.class));
 
-        final String resultStringTerm = newName("resultString");
+        final String resultStringTerm = newName(codeGeneratorContext, "resultString");
         final int length = LogicalTypeChecks.getLength(targetLogicalType);
 
         CastRuleUtils.CodeWriter writer =
@@ -131,8 +133,9 @@ class ArrayToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Array
                         .forStmt(
                                 methodCall(inputTerm, "size"),
                                 (indexTerm, loopBodyWriter) -> {
-                                    String elementTerm = newName("element");
-                                    String elementIsNullTerm = newName("elementIsNull");
+                                    String elementTerm = newName(codeGeneratorContext, "element");
+                                    String elementIsNullTerm =
+                                            newName(codeGeneratorContext, "elementIsNull");
 
                                     CastCodeBlock codeBlock =
                                             // Null check is done at the array access level
@@ -194,7 +197,8 @@ class ArrayToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Array
                                                                             nullLiteral(
                                                                                     context
                                                                                             .legacyBehaviour()))));
-                                })
+                                },
+                                codeGeneratorContext)
                         .stmt(methodCall(builderTerm, "append", strLiteral("]")));
         return CharVarCharTrimPadCastRule.padAndTrimStringIfNeeded(
                         writer,
@@ -202,7 +206,8 @@ class ArrayToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Array
                         context.legacyBehaviour(),
                         length,
                         resultStringTerm,
-                        builderTerm)
+                        builderTerm,
+                        codeGeneratorContext)
                 // Assign the result value
                 .assignStmt(
                         returnVariable,

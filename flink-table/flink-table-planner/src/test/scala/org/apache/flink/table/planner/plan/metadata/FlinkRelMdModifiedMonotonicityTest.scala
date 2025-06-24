@@ -21,16 +21,23 @@ import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalRank, FlinkLogicalTableAggregate}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
-import org.apache.calcite.rel.`type`.RelDataTypeFieldImpl
+import org.apache.calcite.rel.`type`.{RelDataTypeFieldImpl, RelRecordType}
 import org.apache.calcite.rel.RelCollations
 import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.rel.hint.RelHint
+import org.apache.calcite.rel.logical.LogicalCalc
+import org.apache.calcite.rex.{RexNode, RexProgram}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.validate.SqlMonotonicity._
 import org.apache.calcite.util.ImmutableBitSet
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
+
+import java.util
 
 import scala.collection.JavaConversions._
+import scala.language.postfixOps
 
 class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
 
@@ -39,6 +46,99 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
     assertEquals(
       new RelModifiedMonotonicity(Array.fill(7)(CONSTANT)),
       mq.getRelModifiedMonotonicity(studentLogicalScan))
+  }
+
+  @Test
+  def testMonotonicityWithCondition(): Unit = {
+    // select id, age, count() from student group by id, age
+    val inputAgg = relBuilder
+      .scan("student")
+      .aggregate(
+        relBuilder.groupKey(relBuilder.field("id"), relBuilder.field("age")),
+        relBuilder.count().as("count"))
+      .build()
+    relBuilder.push(inputAgg)
+
+    // project `age` field and corresponding output type
+    val projection = List(relBuilder.field("age"))
+    val ageFieldType = inputAgg.getRowType.getFieldList.filter(x => x.getName.equals("age"))
+    val outputType = new RelRecordType(ageFieldType)
+
+    // select age from (select id, age, count() from student by id, age) where ...
+    // sub-query monotonicity is [CONSTANT, CONSTANT, INCREASING]
+    // some condition can broke monotonicity cause agg func
+    // like max/min depends on input monotonicity
+    def createCalc(condition: RexNode): LogicalCalc = {
+      val program =
+        RexProgram.create(inputAgg.getRowType, projection, condition, outputType, rexBuilder)
+      new LogicalCalc(cluster, logicalTraits, new util.ArrayList[RelHint](), inputAgg, program)
+    }
+    def assertMonotonicity(monotonicity: SqlMonotonicity, condition: RexNode): Unit =
+      assertEquals(
+        new RelModifiedMonotonicity(Array(monotonicity)),
+        mq.getRelModifiedMonotonicity(createCalc(condition))
+      )
+
+    // where count > 1 and count < 3
+    var condition = relBuilder
+      .and(
+        relBuilder.greaterThan(relBuilder.field("count"), relBuilder.literal(1)),
+        relBuilder.lessThan(relBuilder.field("count"), relBuilder.literal(3))
+      )
+    assertMonotonicity(NOT_MONOTONIC, condition)
+
+    // where count > 1
+    condition = relBuilder.greaterThan(relBuilder.field("count"), relBuilder.literal(1))
+    assertMonotonicity(CONSTANT, condition)
+
+    // where count < 3
+    condition = relBuilder.lessThan(relBuilder.field("count"), relBuilder.literal(3))
+    assertMonotonicity(NOT_MONOTONIC, condition)
+
+    // where count > 1 or count < 3
+    condition = relBuilder
+      .or(
+        relBuilder.greaterThan(relBuilder.field("count"), relBuilder.literal(1)),
+        relBuilder.lessThan(relBuilder.field("count"), relBuilder.literal(3))
+      )
+    // correct answer CONSTANT, but this condition must be
+    // destroyed by SimplifyFilterConditionRule and answer is null
+    assertMonotonicity(NOT_MONOTONIC, condition)
+    assertMonotonicity(CONSTANT, null)
+
+    // where count in (1,2,3)
+    // where count not in (1,2,3)
+    condition = relBuilder
+      .in(
+        relBuilder.field("count"),
+        relBuilder.literal(1),
+        relBuilder.literal(2),
+        relBuilder.literal(3))
+    assertMonotonicity(NOT_MONOTONIC, condition)
+    assertMonotonicity(NOT_MONOTONIC, relBuilder.not(condition))
+
+    // where count = 10
+    condition = relBuilder
+      .equals(relBuilder.field("count"), relBuilder.literal(10))
+    assertMonotonicity(NOT_MONOTONIC, condition)
+
+    // where count <> 10
+    condition = relBuilder
+      .notEquals(relBuilder.field("count"), relBuilder.literal(10))
+    assertMonotonicity(NOT_MONOTONIC, condition)
+
+    // where count > 5 or count < 2
+    condition = relBuilder
+      .or(
+        relBuilder.greaterThan(relBuilder.field("count"), relBuilder.literal(5)),
+        relBuilder.lessThan(relBuilder.field("count"), relBuilder.literal(2))
+      )
+    assertMonotonicity(NOT_MONOTONIC, condition)
+
+    // where age is not null
+    condition = relBuilder
+      .isNotNull(relBuilder.field("age"))
+    assertMonotonicity(CONSTANT, condition)
   }
 
   @Test

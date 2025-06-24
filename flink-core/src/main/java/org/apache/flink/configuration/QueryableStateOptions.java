@@ -22,8 +22,14 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
-/** The set of configuration options relating to Queryable State. */
+/**
+ * The set of configuration options relating to Queryable State.
+ *
+ * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed in a
+ *     future Flink major version.
+ */
 @PublicEvolving
+@Deprecated
 public class QueryableStateOptions {
 
     // ------------------------------------------------------------------------

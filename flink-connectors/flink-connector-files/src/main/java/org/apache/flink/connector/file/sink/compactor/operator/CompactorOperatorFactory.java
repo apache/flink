@@ -69,14 +69,11 @@ public class CompactorOperatorFactory
         try {
             final CompactorOperator compactOperator =
                     new CompactorOperator(
+                            parameters,
                             strategy,
                             committableSerializerSupplier.get(),
                             fileCompactor,
                             bucketWriterProvider.get());
-            compactOperator.setup(
-                    parameters.getContainingTask(),
-                    parameters.getStreamConfig(),
-                    parameters.getOutput());
             return (T) compactOperator;
         } catch (Exception e) {
             throw new IllegalStateException(

@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
@@ -41,7 +42,6 @@ import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.JAR_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PARALLELISM_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SHUTDOWN_IF_ATTACHED_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.YARN_DETACHED_OPTION;
 import static org.apache.flink.client.cli.ProgramOptionsUtils.containsPythonDependencyOptions;
 import static org.apache.flink.client.cli.ProgramOptionsUtils.createPythonProgramOptions;
 import static org.apache.flink.client.cli.ProgramOptionsUtils.isPythonEntryPoint;
@@ -56,6 +56,8 @@ public class ProgramOptions extends CommandLineOptions {
     private final List<URL> classpaths;
 
     private final String[] programArgs;
+
+    private final boolean hasParallelismOpt;
 
     private final int parallelism;
 
@@ -93,10 +95,11 @@ public class ProgramOptions extends CommandLineOptions {
         this.classpaths = classpaths;
 
         if (line.hasOption(PARALLELISM_OPTION.getOpt())) {
+            hasParallelismOpt = true;
             String parString = line.getOptionValue(PARALLELISM_OPTION.getOpt());
             try {
                 parallelism = Integer.parseInt(parString);
-                if (parallelism <= 0) {
+                if (parallelism <= 0 && parallelism != ExecutionConfig.PARALLELISM_DEFAULT) {
                     throw new NumberFormatException();
                 }
             } catch (NumberFormatException e) {
@@ -104,12 +107,11 @@ public class ProgramOptions extends CommandLineOptions {
                         "The parallelism must be a positive number: " + parString);
             }
         } else {
+            hasParallelismOpt = false;
             parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
         }
 
-        detachedMode =
-                line.hasOption(DETACHED_OPTION.getOpt())
-                        || line.hasOption(YARN_DETACHED_OPTION.getOpt());
+        detachedMode = line.hasOption(DETACHED_OPTION.getOpt());
         shutdownOnAttachedExit = line.hasOption(SHUTDOWN_IF_ATTACHED_OPTION.getOpt());
 
         this.savepointSettings = CliFrontendParser.createSavepointRestoreSettings(line);
@@ -133,6 +135,12 @@ public class ProgramOptions extends CommandLineOptions {
         // Java program should be specified a JAR file
         if (getJarFilePath() == null) {
             throw new CliArgsException("Java program should be specified a JAR file.");
+        }
+        if (savepointSettings.getRecoveryClaimMode().equals(RecoveryClaimMode.LEGACY)) {
+            System.out.printf(
+                    "Warning: The %s restore mode is deprecated, please use %s or"
+                            + " %s mode instead.%n",
+                    RecoveryClaimMode.LEGACY, RecoveryClaimMode.CLAIM, RecoveryClaimMode.NO_CLAIM);
         }
     }
 
@@ -169,13 +177,12 @@ public class ProgramOptions extends CommandLineOptions {
     }
 
     public void applyToConfiguration(Configuration configuration) {
-        if (getParallelism() != ExecutionConfig.PARALLELISM_DEFAULT) {
-            configuration.setInteger(CoreOptions.DEFAULT_PARALLELISM, getParallelism());
+        if (hasParallelismOpt) {
+            configuration.set(CoreOptions.DEFAULT_PARALLELISM, getParallelism());
         }
 
-        configuration.setBoolean(DeploymentOptions.ATTACHED, !getDetachedMode());
-        configuration.setBoolean(
-                DeploymentOptions.SHUTDOWN_IF_ATTACHED, isShutdownOnAttachedExit());
+        configuration.set(DeploymentOptions.ATTACHED, !getDetachedMode());
+        configuration.set(DeploymentOptions.SHUTDOWN_IF_ATTACHED, isShutdownOnAttachedExit());
         ConfigUtils.encodeCollectionToConfig(
                 configuration, PipelineOptions.CLASSPATHS, getClasspaths(), URL::toString);
         SavepointRestoreSettings.toConfiguration(getSavepointRestoreSettings(), configuration);

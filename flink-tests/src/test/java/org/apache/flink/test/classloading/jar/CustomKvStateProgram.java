@@ -19,16 +19,20 @@
 package org.apache.flink.test.classloading.jar;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.InfiniteIntegerSource;
 import org.apache.flink.util.Collector;
 
@@ -55,7 +59,8 @@ public class CustomKvStateProgram {
         env.enableCheckpointing(checkpointingInterval);
         unalignedCheckpoints.ifPresent(
                 value -> env.getCheckpointConfig().enableUnalignedCheckpoints(value));
-        env.setStateBackend(new FsStateBackend(checkpointPath));
+        StateBackendUtils.configureHashMapStateBackend(env);
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(env, checkpointPath);
 
         DataStream<Integer> source = env.addSource(new InfiniteIntegerSource());
         source.map(
@@ -78,7 +83,10 @@ public class CustomKvStateProgram {
                             }
                         })
                 .flatMap(new ReducingStateFlatMap())
-                .writeAsText(outputPath);
+                .sinkTo(
+                        FileSink.forRowFormat(
+                                        new Path(outputPath), new SimpleStringEncoder<Integer>())
+                                .build());
 
         env.execute();
     }
@@ -90,7 +98,7 @@ public class CustomKvStateProgram {
         private transient ReducingState<Integer> kvState;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             ReducingStateDescriptor<Integer> stateDescriptor =
                     new ReducingStateDescriptor<>("reducing-state", new ReduceSum(), Integer.class);
 

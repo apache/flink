@@ -18,27 +18,38 @@
 
 package org.apache.flink.test.hadoopcompatibility.mapred;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.test.hadoopcompatibility.mapred.example.HadoopMapredCompatWordCount;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.util.OperatingSystem;
 
-import org.junit.Assume;
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** IT cases for mapred. */
+@ExtendWith(ParameterizedTestExtension.class)
+// This test case has been updated from dataset to a datastream.
+// It is essentially a batch job, but the HadoopInputFormat is an unbounded source.
+// As a result, the test case cannot be set to batch runtime mode and should not run with the
+// adaptive scheduler.
+@Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
 public class HadoopMapredITCase extends JavaProgramTestBase {
 
     protected String textPath;
     protected String resultPath;
 
-    @Before
+    @BeforeEach
     public void checkOperatingSystem() {
         // FLINK-5164 - see https://wiki.apache.org/hadoop/WindowsProblems
-        Assume.assumeTrue(
-                "This test can't run successfully on Windows.", !OperatingSystem.isWindows());
+        assumeThat(OperatingSystem.isWindows())
+                .as("This test can't run successfully on Windows.")
+                .isFalse();
     }
 
     @Override
@@ -53,7 +64,7 @@ public class HadoopMapredITCase extends JavaProgramTestBase {
     }
 
     @Override
-    protected void testProgram() throws Exception {
-        HadoopMapredCompatWordCount.main(new String[] {textPath, resultPath});
+    protected JobExecutionResult testProgram() throws Exception {
+        return HadoopMapredCompatWordCount.run(new String[] {textPath, resultPath});
     }
 }

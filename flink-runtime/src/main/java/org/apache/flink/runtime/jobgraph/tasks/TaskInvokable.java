@@ -51,8 +51,8 @@ public interface TaskInvokable {
      *
      * <p>This method is called by the task manager when the actual execution of the task starts.
      *
-     * <p>All resources should be cleaned up by calling {@link #cleanUp(Throwable)} ()} after the
-     * method returns.
+     * <p>All resources should be cleaned up by calling {@link #cleanUp(Throwable)} after the method
+     * returns.
      */
     void invoke() throws Exception;
 

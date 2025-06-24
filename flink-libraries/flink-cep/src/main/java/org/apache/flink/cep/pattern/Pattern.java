@@ -29,8 +29,14 @@ import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.RichAndCondition;
 import org.apache.flink.cep.pattern.conditions.RichOrCondition;
 import org.apache.flink.cep.pattern.conditions.SubtypeCondition;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
+
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Base class for a pattern definition.
@@ -59,7 +65,7 @@ public class Pattern<T, F extends T> {
     private IterativeCondition<F> condition;
 
     /** Window length in which the pattern match has to occur. */
-    private Time windowTime;
+    private final Map<WithinType, Duration> windowTimes = new HashMap<>();
 
     /**
      * A quantifier for the pattern. By default set to {@link Quantifier#one(ConsumingStrategy)}.
@@ -97,8 +103,12 @@ public class Pattern<T, F extends T> {
         return name;
     }
 
-    public Time getWindowTime() {
-        return windowTime;
+    public Optional<Duration> getWindowSize() {
+        return getWindowSize(WithinType.FIRST_AND_LAST);
+    }
+
+    public Optional<Duration> getWindowSize(WithinType withinType) {
+        return Optional.ofNullable(windowTimes.get(withinType));
     }
 
     public Quantifier getQuantifier() {
@@ -242,9 +252,21 @@ public class Pattern<T, F extends T> {
      * @param windowTime Time of the matching window
      * @return The same pattern operator with the new window length
      */
-    public Pattern<T, F> within(Time windowTime) {
+    public Pattern<T, F> within(@Nullable Duration windowTime) {
+        return within(windowTime, WithinType.FIRST_AND_LAST);
+    }
+
+    /**
+     * Defines the maximum time interval in which a matching pattern has to be completed in order to
+     * be considered valid. This interval corresponds to the maximum time gap between events.
+     *
+     * @param withinType Type of the within interval between events
+     * @param windowTime Time of the matching window
+     * @return The same pattern operator with the new window length
+     */
+    public Pattern<T, F> within(@Nullable Duration windowTime, WithinType withinType) {
         if (windowTime != null) {
-            this.windowTime = windowTime;
+            windowTimes.put(withinType, windowTime);
         }
 
         return this;
@@ -348,10 +370,28 @@ public class Pattern<T, F extends T> {
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
     public Pattern<T, F> oneOrMore() {
+        return oneOrMore((Duration) null);
+    }
+
+    /**
+     * Specifies that this pattern can occur {@code one or more} times and time interval corresponds
+     * to the maximum time gap between previous and current event for each times. This means at
+     * least one and at most infinite number of events can be matched to this pattern.
+     *
+     * <p>If this quantifier is enabled for a pattern {@code A.oneOrMore().followedBy(B)} and a
+     * sequence of events {@code A1 A2 B} appears, this will generate patterns: {@code A1 B} and
+     * {@code A1 A2 B}. See also {@link #allowCombinations()}.
+     *
+     * @param windowTime time of the matching window between times
+     * @return The same pattern with a {@link Quantifier#looping(ConsumingStrategy)} quantifier
+     *     applied.
+     * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+     */
+    public Pattern<T, F> oneOrMore(@Nullable Duration windowTime) {
         checkIfNoNotPattern();
         checkIfQuantifierApplied();
         this.quantifier = Quantifier.looping(quantifier.getConsumingStrategy());
-        this.times = Times.of(1);
+        this.times = Times.of(1, windowTime);
         return this;
     }
 
@@ -377,11 +417,24 @@ public class Pattern<T, F extends T> {
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
     public Pattern<T, F> times(int times) {
+        return times(times, null);
+    }
+
+    /**
+     * Specifies exact number of times that this pattern should be matched and time interval
+     * corresponds to the maximum time gap between previous and current event for each times.
+     *
+     * @param times number of times matching event must appear
+     * @param windowTime time of the matching window between times
+     * @return The same pattern with number of times applied
+     * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+     */
+    public Pattern<T, F> times(int times, @Nullable Duration windowTime) {
         checkIfNoNotPattern();
         checkIfQuantifierApplied();
         Preconditions.checkArgument(times > 0, "You should give a positive number greater than 0.");
         this.quantifier = Quantifier.times(quantifier.getConsumingStrategy());
-        this.times = Times.of(times);
+        this.times = Times.of(times, windowTime);
         return this;
     }
 
@@ -394,6 +447,20 @@ public class Pattern<T, F extends T> {
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
     public Pattern<T, F> times(int from, int to) {
+        return times(from, to, null);
+    }
+
+    /**
+     * Specifies that the pattern can occur between from and to times with time interval corresponds
+     * to the maximum time gap between previous and current event for each times.
+     *
+     * @param from number of times matching event must appear at least
+     * @param to number of times matching event must appear at most
+     * @param windowTime time of the matching window between times
+     * @return The same pattern with the number of times range applied
+     * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+     */
+    public Pattern<T, F> times(int from, int to, @Nullable Duration windowTime) {
         checkIfNoNotPattern();
         checkIfQuantifierApplied();
         this.quantifier = Quantifier.times(quantifier.getConsumingStrategy());
@@ -401,7 +468,7 @@ public class Pattern<T, F extends T> {
             this.quantifier.optional();
             from = 1;
         }
-        this.times = Times.of(from, to);
+        this.times = Times.of(from, to, windowTime);
         return this;
     }
 
@@ -414,10 +481,26 @@ public class Pattern<T, F extends T> {
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
     public Pattern<T, F> timesOrMore(int times) {
+        return timesOrMore(times, null);
+    }
+
+    /**
+     * Specifies that this pattern can occur the specified times at least with interval corresponds
+     * to the maximum time gap between previous and current event for each times. This means at
+     * least the specified times and at most infinite number of events can be matched to this
+     * pattern.
+     *
+     * @param times number of times at least matching event must appear
+     * @param windowTime time of the matching window between times
+     * @return The same pattern with a {@link Quantifier#looping(ConsumingStrategy)} quantifier
+     *     applied.
+     * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+     */
+    public Pattern<T, F> timesOrMore(int times, @Nullable Duration windowTime) {
         checkIfNoNotPattern();
         checkIfQuantifierApplied();
         this.quantifier = Quantifier.looping(quantifier.getConsumingStrategy());
-        this.times = Times.of(times);
+        this.times = Times.of(times, windowTime);
         return this;
     }
 
@@ -560,7 +643,9 @@ public class Pattern<T, F extends T> {
         }
     }
 
-    /** @return the pattern's {@link AfterMatchSkipStrategy.SkipStrategy} after match. */
+    /**
+     * @return the pattern's {@link AfterMatchSkipStrategy.SkipStrategy} after match.
+     */
     public AfterMatchSkipStrategy getAfterMatchSkipStrategy() {
         return afterMatchSkipStrategy;
     }
@@ -589,8 +674,8 @@ public class Pattern<T, F extends T> {
                 + previous
                 + ", condition="
                 + condition
-                + ", windowTime="
-                + windowTime
+                + ", windowTimes="
+                + windowTimes
                 + ", quantifier="
                 + quantifier
                 + ", untilCondition="

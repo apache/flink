@@ -24,10 +24,9 @@ import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.MultipleConnectedStreams;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.streaming.api.operators.AbstractInput;
@@ -41,6 +40,8 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
@@ -85,8 +86,8 @@ public class SourceNAryInputChainingITCase extends TestLogger {
     @Test
     public void testDirectSourcesOnlyExecution() throws Exception {
         final DataStream<Long> stream = createProgramWithSourcesOnly();
-        final List<Long> result =
-                DataStreamUtils.collectBoundedStream(stream, "N-Ary Source Chaining Test Program");
+        final CloseableIterator<Long> result =
+                stream.executeAndCollect("N-Ary Source Chaining Test Program");
 
         verifySequence(result, 1L, 30L);
     }
@@ -102,8 +103,8 @@ public class SourceNAryInputChainingITCase extends TestLogger {
     @Test
     public void testMixedInputsExecution() throws Exception {
         final DataStream<Long> stream = createProgramWithMixedInputs();
-        final List<Long> result =
-                DataStreamUtils.collectBoundedStream(stream, "N-Ary Source Chaining Test Program");
+        final CloseableIterator<Long> result =
+                stream.executeAndCollect("N-Ary Source Chaining Test Program");
 
         verifySequence(result, 1L, 30L);
     }
@@ -119,8 +120,8 @@ public class SourceNAryInputChainingITCase extends TestLogger {
     @Test
     public void testMixedInputsWithUnionExecution() throws Exception {
         final DataStream<Long> stream = createProgramWithUnionInput();
-        final List<Long> result =
-                DataStreamUtils.collectBoundedStream(stream, "N-Ary Source Chaining Test Program");
+        final CloseableIterator<Long> result =
+                stream.executeAndCollect("N-Ary Source Chaining Test Program");
 
         verifySequence(result, 1L, 40L);
     }
@@ -136,8 +137,8 @@ public class SourceNAryInputChainingITCase extends TestLogger {
     @Test
     public void testMixedInputsWithMultipleUnionsExecution() throws Exception {
         final DataStream<Long> stream = createProgramWithMultipleUnionInputs();
-        final List<Long> result =
-                DataStreamUtils.collectBoundedStream(stream, "N-Ary Source Chaining Test Program");
+        final CloseableIterator<Long> result =
+                stream.executeAndCollect("N-Ary Source Chaining Test Program");
 
         verifySequence(result, 1L, 60L);
     }
@@ -359,13 +360,15 @@ public class SourceNAryInputChainingITCase extends TestLogger {
     }
 
     private static JobGraph sinkAndCompileJobGraph(DataStream<?> stream) {
-        stream.addSink(new DiscardingSink<>());
+        stream.sinkTo(new DiscardingSink<>());
 
         final StreamGraph streamGraph = stream.getExecutionEnvironment().getStreamGraph();
         return StreamingJobGraphGenerator.createJobGraph(streamGraph);
     }
 
-    private static void verifySequence(final List<Long> sequence, final long from, final long to) {
+    private static void verifySequence(
+            final CloseableIterator<Long> iter, final long from, final long to) {
+        List<Long> sequence = CollectionUtil.iteratorToList(iter);
         if (sequence.size() != to - from + 1) {
             fail(String.format("Expected: Sequence [%d, %d]. Found: %s", from, to, sequence));
         }

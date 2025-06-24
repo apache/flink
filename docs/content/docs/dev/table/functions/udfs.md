@@ -44,6 +44,7 @@ Currently, Flink distinguishes between the following kinds of functions:
 - *Aggregate functions* map scalar values of multiple rows to a new scalar value.
 - *Table aggregate functions* map scalar values of multiple rows to new rows.
 - *Async table functions* are special functions for table sources that perform a lookup.
+- *Process table functions* map tables to new rows. Enabling user-defined operators with state and timers.
 
 The following example shows how to create a simple scalar function and how to call the function in both Table API and SQL.
 
@@ -76,6 +77,9 @@ env.from("MyTable").select(call("SubstringFunction", $("myField"), 5, 12));
 
 // call registered function in SQL
 env.sqlQuery("SELECT SubstringFunction(myField, 5, 12) FROM MyTable");
+
+// call registered function in SQL using named parameters
+env.sqlQuery("SELECT SubstringFunction(param1 => myField, param2 => 5, param3 => 12) FROM MyTable");
 
 ```
 {{< /tab >}}
@@ -227,6 +231,20 @@ env.from("MyTable").select(call(classOf[MyConcatFunction], $"a", $"b", $"c"));
 {{< /tab >}}
 {{< /tabs >}}
 
+{{< hint info >}}
+`TableEnvironment` provides two overload methods to create temporary system function with an `UserDefinedFunction`:
+
+- *createTemporarySystemFunction(
+  String name, Class<? extends UserDefinedFunction> functionClass)*
+- *createTemporarySystemFunction(String name, UserDefinedFunction functionInstance)*
+
+It is recommended to use `functionClass` over `functionInstance` as far as user-defined functions provide no args constructor, 
+because Flink as the framework underneath can add more logic to control the process of creating new instance.
+Current built-in standard logic in `TableEnvironmentImpl` will validate the class and methods in the class 
+based on different subclass types of `UserDefinedFunction`, e.g. `ScalarFunction`, `TableFunction`.
+More logic or optimization could be added in the framework in the future with no need to change any users' existing code. 
+{{< /hint >}}
+
 {{< top >}}
 
 Implementation Guide
@@ -246,7 +264,7 @@ function is not stateful (i.e. containing only transient and static fields).
 
 ### Evaluation Methods
 
-The base class provides a set of methods that can be overridden such as `open()`, `close()`, or `isDeterministic()`.
+The base class provides a set of methods that can be overridden such as `open()`, `close()`, `isDeterministic()` or `supportsConstantFolding()`.
 
 However, in addition to those declared methods, the main runtime logic that is applied to every incoming record must be implemented through specialized _evaluation methods_.
 
@@ -398,19 +416,19 @@ class OverloadedFunction extends ScalarFunction {
 
   // define the precision and scale of a decimal
   @DataTypeHint("DECIMAL(12, 3)")
-  def eval(double a, double b): BigDecimal = {
-    java.lang.BigDecimal.valueOf(a + b)
+  def eval(a: Double, b: Double): BigDecimal = {
+    BigDecimal(a + b)
   }
 
   // define a nested data type
   @DataTypeHint("ROW<s STRING, t TIMESTAMP_LTZ(3)>")
-  def eval(Int i): Row = {
-    Row.of(java.lang.String.valueOf(i), java.time.Instant.ofEpochSecond(i))
+  def eval(i: Int): Row = {
+    Row.of(i.toString, java.time.Instant.ofEpochSecond(i))
   }
 
   // allow wildcard input and customly serialized output
   @DataTypeHint(value = "RAW", bridgedTo = classOf[java.nio.ByteBuffer])
-  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object o): java.nio.ByteBuffer = {
+  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) o: Any): java.nio.ByteBuffer = {
     MyUtils.serializeToByteBuffer(o)
   }
 }
@@ -596,6 +614,155 @@ public static class LiteralFunction extends ScalarFunction {
 For more examples of custom type inference, see also the `flink-examples-table` module with
 {{< gh_link file="/flink-examples/flink-examples-table/src/main/java/org/apache/flink/table/examples/java/functions/AdvancedFunctionsExample.java" name="advanced function implementation" >}}.
 
+### Named Parameters
+
+When calling a function, you can use parameter names to specify the values of the parameters. Named parameters allow passing both the parameter name and value to a function, avoiding confusion caused by incorrect parameter order and improving code readability and maintainability. In addition, named parameters can also omit optional parameters, which are filled with `null` by default.
+We can use the `@ArgumentHint` annotation to specify the name, type, and whether a parameter is required or not.
+
+**`@ArgumentHint`**
+
+The following 3 examples demonstrate how to use `@ArgumentHint` in different scopes. More information can be found in the documentation of the annotation class.
+
+1. Using `@ArgumentHint` annotation on the parameters of the `eval` method of the function.
+
+{{< tabs "20405d05-739c-4038-a885-3bde5f7998e8" >}}
+{{< tab "Java" >}}
+```java
+import com.sun.tracing.dtrace.ArgsAttributes;
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+public static class NamedParameterClass extends ScalarFunction {
+
+    // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+    public String eval(@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")) String s1,
+                       @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INT")) Integer s2) {
+        return s1 + ", " + s2;
+    }
+}
+
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+class NamedParameterClass extends ScalarFunction {
+
+  // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+  def eval(@ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")) s1: String,
+           @ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")) s2: Integer) = {
+    s1 + ", " + s2
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+2. Using `@ArgumentHint` annotation on the `eval` method of the function.
+
+{{< tabs "dbecd8a8-6285-4bc8-94e0-e79f6ca7f7c3" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+public static class NamedParameterClass extends ScalarFunction {
+    
+  // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+  @FunctionHint(
+    arguments = {
+      @ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+      @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))
+    }
+  )
+  public String eval(String s1, Integer s2) {
+    return s1 + ", " + s2;
+  }
+}
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+class NamedParameterClass extends ScalarFunction {
+
+  // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+  @FunctionHint(
+    arguments = Array(
+      new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+      new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER"))
+    )
+  )
+  def eval(s1: String, s2: Int): String = {
+    s1 + ", " + s2
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+3. Using `@ArgumentHint` annotation on the class of the function.
+
+{{< tabs "924dd007-3827-44ce-83c6-017dea78b9c4" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+// Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+@FunctionHint(
+  arguments = {
+    @ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+    @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))
+  }
+)
+public static class NamedParameterClass extends ScalarFunction {
+    
+  public String eval(String s1, Integer s2) {
+    return s1 + ", " + s2;
+  }
+}
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.functions.ScalarFunction;
+
+// Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
+@FunctionHint(
+  arguments = Array(
+    new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+    new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER"))
+  )
+)
+class NamedParameterClass extends ScalarFunction {
+
+  def eval(s1: String, s2: Int): String = {
+    s1 + ", " + s2
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+
+{{< hint info >}}
+* `@ArgumentHint` annotation already contains `@DataTypeHint` annotation, so it cannot be used together with `@DataTypeHint` in `@FunctionHint`. When applied to function parameters, `@ArgumentHint` cannot be used with `@DataTypeHint` at the same time, and it is recommended to use `@ArgumentHint`.
+* Named parameters only take effect when the corresponding class does not contain overloaded functions and variable parameter functions, otherwise using named parameters will cause an error.
+{{< /hint >}}
+
 ### Determinism
 
 Every user-defined function class can declare whether it produces deterministic results or not by overriding
@@ -605,15 +772,77 @@ the method must return `false`. By default, `isDeterministic()` returns `true`.
 Furthermore, the `isDeterministic()` method might also influence the runtime behavior. A runtime
 implementation might be called at two different stages:
 
-**During planning (i.e. pre-flight phase)**: If a function is called with constant expressions
+**1. During planning (i.e. pre-flight phase)**: If a function is called with constant expressions
 or constant expressions can be derived from the given statement, a function is pre-evaluated
 for constant expression reduction and might not be executed on the cluster anymore. Unless
 `isDeterministic()` is used to disable constant expression reduction in this case. For example,
 the following calls to `ABS` are executed during planning: `SELECT ABS(-1) FROM t` and
 `SELECT ABS(field) FROM t WHERE field = -1`; whereas `SELECT ABS(field) FROM t` is not.
 
-**During runtime (i.e. cluster execution)**: If a function is called with non-constant expressions
+**2. During runtime (i.e. cluster execution)**: If a function is called with non-constant expressions
 or `isDeterministic()` returns `false`.
+
+#### System (Built-in) Function Determinism
+The determinism of system (built-in) functions are immutable. There exists two kinds of functions which are not deterministic:
+dynamic function and non-deterministic function, according to Apache Calcite's `SqlOperator` definition:
+```java
+  /**
+   * Returns whether a call to this operator is guaranteed to always return
+   * the same result given the same operands; true is assumed by default.
+   */
+  public boolean isDeterministic() {
+    return true;
+  }
+
+  /**
+   * Returns whether it is unsafe to cache query plans referencing this
+   * operator; false is assumed by default.
+   */
+  public boolean isDynamicFunction() {
+    return false;
+  }
+```
+`isDeterministic` indicates the determinism of a function, will be evaluated per record during runtime if returns `false`.
+`isDynamicFunction` implies the function can only be evaluated at query-start if returns `true`,
+it will be only pre-evaluated during planning for batch mode, while for streaming mode, it is equivalent to a non-deterministic
+function because of the query is continuously being executed logically(the abstraction of [continuous query over the dynamic tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries)),
+so the dynamic functions are also re-evaluated for each query execution(equivalent to per record in current implementation).
+
+The following system functions are always non-deterministic(evaluated per record during runtime both in batch and streaming mode):
+- UUID
+- RAND
+- RAND_INTEGER
+- CURRENT_DATABASE
+- UNIX_TIMESTAMP
+- CURRENT_ROW_TIMESTAMP
+ 
+The following system temporal functions are dynamic, which will be pre-evaluated during planning(query-start) for batch mode and evaluated per record for streaming mode:
+- CURRENT_DATE
+- CURRENT_TIME
+- CURRENT_TIMESTAMP
+- NOW
+- LOCALTIME
+- LOCALTIMESTAMP
+
+Note: `isDynamicFunction` is only applicable for system functions.
+
+### Constant Expression Reduction
+
+User-defined functions can declare whether they allow for constant expression reduction by 
+overriding the method `supportsConstantFolding()`. Calls to functions with constant arguments can be 
+reduced and simplified in some cases. An example could be the user-defined function call `PlusOne(10)` might just be simplified to `11` in an
+expression. This optimization happens at planning time, resulting in a plan only utilizing the
+reduced value. This generally is desirable, and therefore is enabled by default, though there are some
+cases where it should be disabled.
+
+One is if the function call is not deterministic, which is covered in more detail in the 
+Determinism section above. Setting a function as non deterministic will have the effect of 
+preventing function call expression reduction, even if `supportsConstantFolding()` is true.
+
+A function call may also have some side effects, even if it always returns deterministic results. 
+This may mean that the correctness of the query within Flink may allow for constant expression reduction, but it may not
+be desired anyway. In this case, setting the method `supportsConstantFolding()` to return false also 
+has the effect of preventing constant expression reduction and ensuring invocation at runtime.
 
 ### Runtime Integration
 
@@ -1720,9 +1949,9 @@ def emitUpdateWithRetract(accumulator: ACC, out: RetractableCollector[T]): Unit
 The following example shows how to use the `emitUpdateWithRetract(...)` method to emit only incremental
 updates. In order to do so, the accumulator keeps both the old and new top 2 values.
 
-If the N of Top N is big, it might be inefficient to keep both the old and new values. One way to
-solve this case is to store only the input record in the accumulator in `accumulate` method and then perform
-a calculation in `emitUpdateWithRetract`.
+{{< hint info >}}
+Note: Do not update accumulator within `emitUpdateWithRetract` because after `function#emitUpdateWithRetract` is invoked, `GroupTableAggFunction` will not re-invoke `function#getAccumulators` to update the latest accumulator to state.
+{{< /hint >}}
 
 {{< tabs "043e94c6-05b5-4800-9e5f-7d11235f3a11" >}}
 {{< tab "Java" >}}
@@ -1751,6 +1980,8 @@ public static class Top2WithRetract
   }
 
   public void accumulate(Top2WithRetractAccumulator acc, Integer v) {
+    acc.oldFirst = acc.first;
+    acc.oldSecond = acc.second;
     if (v > acc.first) {
       acc.second = acc.first;
       acc.first = v;
@@ -1768,7 +1999,6 @@ public static class Top2WithRetract
           out.retract(Tuple2.of(acc.oldFirst, 1));
       }
       out.collect(Tuple2.of(acc.first, 1));
-      acc.oldFirst = acc.first;
     }
     if (!acc.second.equals(acc.oldSecond)) {
       // if there is an update, retract the old value then emit a new value
@@ -1776,7 +2006,6 @@ public static class Top2WithRetract
           out.retract(Tuple2.of(acc.oldSecond, 2));
       }
       out.collect(Tuple2.of(acc.second, 2));
-      acc.oldSecond = acc.second;
     }
   }
 }
@@ -1808,6 +2037,8 @@ class Top2WithRetract
   }
 
   def accumulate(acc: Top2WithRetractAccumulator, value: Integer): Unit = {
+    acc.oldFirst = acc.first
+    acc.oldSecond = acc.second
     if (value > acc.first) {
       acc.second = acc.first
       acc.first = value
@@ -1826,7 +2057,6 @@ class Top2WithRetract
           out.retract(Tuple2.of(acc.oldFirst, 1))
       }
       out.collect(Tuple2.of(acc.first, 1))
-      acc.oldFirst = acc.first
     }
     if (!acc.second.equals(acc.oldSecond)) {
       // if there is an update, retract the old value then emit a new value
@@ -1834,12 +2064,33 @@ class Top2WithRetract
           out.retract(Tuple2.of(acc.oldSecond, 2))
       }
       out.collect(Tuple2.of(acc.second, 2))
-      acc.oldSecond = acc.second
     }
   }
 }
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+{{< top >}}
+
+Process Table Functions
+-----------------------
+
+Process Table Functions (PTFs) are the most powerful function kind for Flink SQL and Table API. They enable implementing
+user-defined operators that can be as feature-rich as built-in operations. PTFs can take (partitioned) tables to produce
+a new table. They have access to Flink's managed state, event-time and timer services, and underlying table changelogs.
+
+Conceptually, a PTF is a superset of all other user-defined functions. It maps zero, one, or multiple tables to zero, one,
+or multiple rows (or structured types). Scalar arguments are supported. Due to its stateful nature, implementing aggregating
+behavior is possible as well.
+
+A PTF enables the following tasks:
+- Apply transformations on each row of a table.
+- Logically partition the table into distinct sets and apply transformations per set.
+- Store seen events for repeated access.
+- Continue the processing at a later point in time enabling waiting, synchronization, or timeouts.
+- Buffer and aggregate events using complex state machines or rule-based conditional logic.
+
+See the [dedicated page for PTFs]({{< ref "docs/dev/table/functions/ptfs" >}}) for more details.
 
 {{< top >}}

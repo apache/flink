@@ -30,17 +30,20 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.testutils.junit.SharedObjects;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.operators.lifecycle.graph.TestJobBuilders.COMPLEX_GRAPH_BUILDER;
 import static org.apache.flink.runtime.operators.lifecycle.graph.TestJobBuilders.SIMPLE_GRAPH_BUILDER;
@@ -94,10 +97,11 @@ import static org.apache.flink.runtime.operators.lifecycle.validation.TestOperat
  * </ul>
  */
 @RunWith(Parameterized.class)
-public class StopWithSavepointITCase extends AbstractTestBase {
+public class StopWithSavepointITCase extends AbstractTestBaseJUnit4 {
 
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+    @Rule public Timeout timeoutRule = new Timeout(10, TimeUnit.MINUTES);
 
     @Parameter(0)
     public boolean withDrain;
@@ -112,9 +116,8 @@ public class StopWithSavepointITCase extends AbstractTestBase {
                         sharedObjects,
                         cfg -> {},
                         env ->
-                                env.getCheckpointConfig()
-                                        .setCheckpointStorage(
-                                                TEMPORARY_FOLDER.newFolder().toURI()));
+                                CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                                        env, TEMPORARY_FOLDER.newFolder().toURI()));
 
         TestJobExecutor.execute(testJob, MINI_CLUSTER_RESOURCE)
                 .waitForEvent(WatermarkReceivedEvent.class)

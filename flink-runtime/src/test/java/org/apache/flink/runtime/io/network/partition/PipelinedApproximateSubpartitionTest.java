@@ -21,22 +21,22 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderAndConsumerTest.assertContent;
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderAndConsumerTest.toByteBuffer;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.assertContent;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.toByteBuffer;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link PipelinedApproximateSubpartition}. */
-public class PipelinedApproximateSubpartitionTest extends PipelinedSubpartitionTest {
+@ExtendWith(NoOpTestExtension.class)
+class PipelinedApproximateSubpartitionTest extends PipelinedSubpartitionTest {
     private static final int BUFFER_SIZE = 4 * Integer.BYTES;
 
     @Override
@@ -44,30 +44,30 @@ public class PipelinedApproximateSubpartitionTest extends PipelinedSubpartitionT
         return createPipelinedApproximateSubpartition();
     }
 
-    @Test
+    @TestTemplate
     @Override
-    public void testIllegalReadViewRequest() {
+    void testIllegalReadViewRequest() {
         // This is one of the main differences between PipelinedApproximateSubpartition and
         // PipelinedSubpartition
         // PipelinedApproximateSubpartition allows to recreate a view (release the old view first)
     }
 
-    @Test
-    public void testRecreateReadView() throws Exception {
+    @TestTemplate
+    void testRecreateReadView() throws Exception {
         final PipelinedApproximateSubpartition subpartition =
                 createPipelinedApproximateSubpartition();
 
         // first request
-        assertNotNull(subpartition.createReadView(() -> {}));
-        assertFalse(subpartition.isPartialBufferCleanupRequired());
+        assertThat(subpartition.createReadView((ResultSubpartitionView view) -> {})).isNotNull();
+        assertThat(subpartition.isPartialBufferCleanupRequired()).isFalse();
 
         // reconnecting request
-        assertNotNull(subpartition.createReadView(() -> {}));
-        assertTrue(subpartition.isPartialBufferCleanupRequired());
+        assertThat(subpartition.createReadView((ResultSubpartitionView view) -> {})).isNotNull();
+        assertThat(subpartition.isPartialBufferCleanupRequired()).isTrue();
     }
 
-    @Test
-    public void testSkipPartialDataEndsInBufferWithNoMoreData() throws Exception {
+    @TestTemplate
+    void testSkipPartialDataEndsInBufferWithNoMoreData() throws Exception {
         final BufferWritingResultPartition writer = createResultPartition();
         final PipelinedApproximateSubpartition subpartition =
                 getPipelinedApproximateSubpartition(writer);
@@ -76,14 +76,14 @@ public class PipelinedApproximateSubpartitionTest extends PipelinedSubpartitionT
         assertContent(requireNonNull(subpartition.pollBuffer()).buffer(), null, 0, 1, 2, 3);
 
         subpartition.setIsPartialBufferCleanupRequired();
-        assertNull(subpartition.pollBuffer());
+        assertThat(subpartition.pollBuffer()).isNull();
 
         writer.emitRecord(toByteBuffer(8, 9), 0);
         assertContent(requireNonNull(subpartition.pollBuffer()).buffer(), null, 8, 9);
     }
 
-    @Test
-    public void testSkipPartialDataEndsInBufferWithMoreData() throws Exception {
+    @TestTemplate
+    void testSkipPartialDataEndsInBufferWithMoreData() throws Exception {
         final BufferWritingResultPartition writer = createResultPartition();
         final PipelinedApproximateSubpartition subpartition =
                 getPipelinedApproximateSubpartition(writer);
@@ -97,8 +97,8 @@ public class PipelinedApproximateSubpartitionTest extends PipelinedSubpartitionT
         assertContent(requireNonNull(subpartition.pollBuffer()).buffer(), null, 8, 9);
     }
 
-    @Test
-    public void testSkipPartialDataStartWithFullRecord() throws Exception {
+    @TestTemplate
+    void testSkipPartialDataStartWithFullRecord() throws Exception {
         final BufferWritingResultPartition writer = createResultPartition();
         final PipelinedApproximateSubpartition subpartition =
                 getPipelinedApproximateSubpartition(writer);
@@ -112,8 +112,8 @@ public class PipelinedApproximateSubpartitionTest extends PipelinedSubpartitionT
         assertContent(requireNonNull(subpartition.pollBuffer()).buffer(), null, 42, 8, 9);
     }
 
-    @Test
-    public void testSkipPartialDataStartWithinBuffer() throws Exception {
+    @TestTemplate
+    void testSkipPartialDataStartWithinBuffer() throws Exception {
         final BufferWritingResultPartition writer = createResultPartition();
         final PipelinedApproximateSubpartition subpartition =
                 getPipelinedApproximateSubpartition(writer);
@@ -130,8 +130,8 @@ public class PipelinedApproximateSubpartitionTest extends PipelinedSubpartitionT
         assertContent(requireNonNull(subpartition.pollBuffer()).buffer(), null, 11);
     }
 
-    @Test
-    public void testSkipPartialDataLongRecordOccupyEntireBuffer() throws Exception {
+    @TestTemplate
+    void testSkipPartialDataLongRecordOccupyEntireBuffer() throws Exception {
         final BufferWritingResultPartition writer = createResultPartition();
         final PipelinedApproximateSubpartition subpartition =
                 getPipelinedApproximateSubpartition(writer);
@@ -141,11 +141,11 @@ public class PipelinedApproximateSubpartitionTest extends PipelinedSubpartitionT
         assertContent(requireNonNull(subpartition.pollBuffer()).buffer(), null, 0, 1, 2, 3);
 
         subpartition.setIsPartialBufferCleanupRequired();
-        assertNull(subpartition.pollBuffer());
+        assertThat(subpartition.pollBuffer()).isNull();
     }
 
-    @Test
-    public void testSkipPartialDataLongRecordOccupyEntireBufferWithMoreData() throws Exception {
+    @TestTemplate
+    void testSkipPartialDataLongRecordOccupyEntireBufferWithMoreData() throws Exception {
         final BufferWritingResultPartition writer = createResultPartition();
         final PipelinedApproximateSubpartition subpartition =
                 getPipelinedApproximateSubpartition(writer);
@@ -161,15 +161,15 @@ public class PipelinedApproximateSubpartitionTest extends PipelinedSubpartitionT
         // release again
         subpartition.setIsPartialBufferCleanupRequired();
         // 102 is cleaned up
-        assertNull(subpartition.pollBuffer());
+        assertThat(subpartition.pollBuffer()).isNull();
 
         writer.emitRecord(toByteBuffer(200, 201, 202, 203), 0);
         assertContent(requireNonNull(subpartition.pollBuffer()).buffer(), null, 200, 201, 202);
         assertContent(requireNonNull(subpartition.pollBuffer()).buffer(), null, 203);
     }
 
-    @Test
-    public void testSkipPartialDataLongRecordEndWithBuffer() throws Exception {
+    @TestTemplate
+    void testSkipPartialDataLongRecordEndWithBuffer() throws Exception {
         final BufferWritingResultPartition writer = createResultPartition();
         final PipelinedApproximateSubpartition subpartition =
                 getPipelinedApproximateSubpartition(writer);

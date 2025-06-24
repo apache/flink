@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.module.ModuleManager;
@@ -48,6 +49,7 @@ import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -69,6 +71,7 @@ import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.Arrays.asList;
@@ -99,9 +102,10 @@ public class PlannerContext {
             FunctionCatalog functionCatalog,
             CatalogManager catalogManager,
             CalciteSchema rootSchema,
-            List<RelTraitDef> traitDefs) {
+            List<RelTraitDef> traitDefs,
+            ClassLoader classLoader) {
         this.typeSystem = FlinkTypeSystem.INSTANCE;
-        this.typeFactory = new FlinkTypeFactory(typeSystem);
+        this.typeFactory = new FlinkTypeFactory(classLoader, typeSystem);
         this.context =
                 new FlinkContextImpl(
                         isBatchMode,
@@ -113,7 +117,8 @@ public class PlannerContext {
                                 typeFactory,
                                 this::createFlinkPlanner,
                                 this::getCalciteSqlDialect,
-                                this::createRelBuilder));
+                                this::createRelBuilder),
+                        classLoader);
         this.rootSchema = rootSchema;
         this.traitDefs = traitDefs;
         // Make a framework config to initialize the RelOptCluster instance,
@@ -144,7 +149,9 @@ public class PlannerContext {
                 .sqlToRelConverterConfig(getSqlToRelConverterConfig())
                 .operatorTable(getSqlOperatorTable(getCalciteConfig()))
                 // set the executor to evaluate constant expressions
-                .executor(new ExpressionReducer(context.getTableConfig(), false))
+                .executor(
+                        new ExpressionReducer(
+                                context.getTableConfig(), context.getClassLoader(), false))
                 .context(context)
                 .traitDefs(traitDefs)
                 .build();
@@ -183,18 +190,25 @@ public class PlannerContext {
         }
 
         final SqlParser.Config newSqlParserConfig =
-                SqlParser.configBuilder(sqlParserConfig).setCaseSensitive(caseSensitive).build();
+                sqlParserConfig.withCaseSensitive(caseSensitive);
 
         final SchemaPlus finalRootSchema = getRootSchema(rootSchema.plus());
 
         final CatalogManager catalogManager = context.getCatalogManager();
-        return new FlinkCalciteCatalogReader(
-                CalciteSchema.from(finalRootSchema),
-                asList(
+        final List<List<String>> paths = new ArrayList<>();
+        if (!StringUtils.isNullOrWhitespaceOnly(catalogManager.getCurrentCatalog())) {
+            if (!StringUtils.isNullOrWhitespaceOnly(catalogManager.getCurrentDatabase())) {
+                paths.add(
                         asList(
                                 catalogManager.getCurrentCatalog(),
-                                catalogManager.getCurrentDatabase()),
-                        singletonList(catalogManager.getCurrentCatalog())),
+                                catalogManager.getCurrentDatabase()));
+            }
+            paths.add(singletonList(catalogManager.getCurrentCatalog()));
+        }
+
+        return new FlinkCalciteCatalogReader(
+                CalciteSchema.from(finalRootSchema),
+                paths,
                 typeFactory,
                 CalciteConfig$.MODULE$.connectionConfig(newSqlParserConfig));
     }
@@ -207,7 +221,11 @@ public class PlannerContext {
         final FlinkCalciteCatalogReader calciteCatalogReader = createCatalogReader(false);
 
         // Sets up the ViewExpander explicitly for FlinkRelBuilder.
-        final Context chain = Contexts.of(context, planner.createToRelContext());
+        final Context chain =
+                Contexts.of(
+                        context,
+                        planner.createToRelContext(),
+                        FlinkRelBuilder.FLINK_REL_BUILDER_CONFIG);
 
         return FlinkRelBuilder.of(chain, cluster, calciteCatalogReader);
     }
@@ -258,8 +276,9 @@ public class PlannerContext {
     private FlinkSqlConformance getSqlConformance() {
         SqlDialect sqlDialect = context.getTableConfig().getSqlDialect();
         switch (sqlDialect) {
+            // Actually, in Hive dialect, we won't use Calcite parser.
+            // So, we can just use Flink's default sql conformance as a placeholder
             case HIVE:
-                return FlinkSqlConformance.HIVE;
             case DEFAULT:
                 return FlinkSqlConformance.DEFAULT;
             default:
@@ -277,15 +296,30 @@ public class PlannerContext {
         return JavaScalaConversionUtil.<SqlToRelConverter.Config>toJava(
                         getCalciteConfig().getSqlToRelConverterConfig())
                 .orElseGet(
-                        () ->
-                                SqlToRelConverter.config()
-                                        .withTrimUnusedFields(false)
-                                        .withHintStrategyTable(
-                                                FlinkHintStrategies.createHintStrategyTable())
-                                        .withInSubQueryThreshold(Integer.MAX_VALUE)
-                                        .withExpand(false)
-                                        .withRelBuilderFactory(
-                                                FlinkRelFactories.FLINK_REL_BUILDER()));
+                        () -> {
+                            SqlToRelConverter.Config config =
+                                    SqlToRelConverter.config()
+                                            .withTrimUnusedFields(false)
+                                            .withHintStrategyTable(
+                                                    FlinkHintStrategies.createHintStrategyTable())
+                                            .withInSubQueryThreshold(Integer.MAX_VALUE)
+                                            .withExpand(false)
+                                            .withRelBuilderFactory(
+                                                    FlinkRelFactories.FLINK_REL_BUILDER());
+
+                            // disable project merge in sql2rel phase, let it done by the optimizer
+                            boolean mergeProjectsDuringSqlToRel =
+                                    context.getTableConfig()
+                                            .getConfiguration()
+                                            .get(
+                                                    OptimizerConfigOptions
+                                                            .TABLE_OPTIMIZER_SQL2REL_PROJECT_MERGE_ENABLED);
+                            if (!mergeProjectsDuringSqlToRel) {
+                                config = config.addRelBuilderConfigTransform(c -> c.withBloat(-1));
+                            }
+
+                            return config;
+                        });
     }
 
     /** Returns the operator table for this environment including a custom Calcite configuration. */
@@ -311,6 +345,6 @@ public class PlannerContext {
                         context.getCatalogManager().getDataTypeFactory(),
                         typeFactory,
                         context.getRexFactory()),
-                FlinkSqlOperatorTable.instance());
+                FlinkSqlOperatorTable.instance(context.isBatchMode()));
     }
 }

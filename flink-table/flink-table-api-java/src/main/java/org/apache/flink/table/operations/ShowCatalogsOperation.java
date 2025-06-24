@@ -18,11 +18,42 @@
 
 package org.apache.flink.table.operations;
 
-/** Operation to describe a SHOW CATALOGS statement. */
-public class ShowCatalogsOperation implements ShowOperation {
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
+
+import javax.annotation.Nullable;
+
+import java.util.Collection;
+
+/**
+ * Operation to describe a SHOW CATALOGS statement. The full syntax for SHOW CATALOGS is as
+ * followings:
+ *
+ * <pre>{@code
+ * SHOW CATALOGS [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
+ * }</pre>
+ */
+@Internal
+public class ShowCatalogsOperation extends AbstractShowOperation {
+
+    public ShowCatalogsOperation(@Nullable ShowLikeOperator likeOp) {
+        super(null, null, likeOp);
+    }
 
     @Override
-    public String asSummaryString() {
+    protected String getOperationName() {
         return "SHOW CATALOGS";
+    }
+
+    @Override
+    protected String getColumnName() {
+        return "catalog name";
+    }
+
+    @Override
+    protected Collection<String> retrieveDataForTableResult(Context ctx) {
+        final CatalogManager catalogManager = ctx.getCatalogManager();
+        return catalogManager.listCatalogs();
     }
 }

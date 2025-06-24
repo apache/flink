@@ -1,0 +1,525 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testInsertInto[isMiniBatchEnabled=false, strategy=AUTO, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO MySink
+SELECT
+  AVG(a) AS avg_a,
+  COUNT(*) AS cnt,
+  count(b) AS cnt_b,
+  min(b) AS min_b,
+  MAX(c) FILTER (WHERE a > 1) AS max_c
+FROM MyTable]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink], fields=[avg_a, cnt, cnt_b, min_b, max_c])
++- Calc(select=[CAST(avg_a AS DOUBLE) AS avg_a, CAST(cnt AS BIGINT) AS cnt, CAST(cnt AS BIGINT) AS cnt_b, CAST(min_b AS BIGINT) AS min_b, max_c])
+   +- GroupAggregate(advice=[1], select=[AVG(a) AS avg_a, COUNT(*) AS cnt, MIN(b) AS min_b, MAX(c) FILTER $f3 AS max_c])
+      +- Exchange(distribution=[single])
+         +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.exec.mini-batch.enabled' to 'true').
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInsertInto[isMiniBatchEnabled=false, strategy=ONE_PHASE, miniBatchLatency=0, miniBatchSize=-1]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO MySink
+SELECT
+  AVG(a) AS avg_a,
+  COUNT(*) AS cnt,
+  count(b) AS cnt_b,
+  min(b) AS min_b,
+  MAX(c) FILTER (WHERE a > 1) AS max_c
+FROM MyTable]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink], fields=[avg_a, cnt, cnt_b, min_b, max_c])
++- Calc(select=[CAST(avg_a AS DOUBLE) AS avg_a, CAST(cnt AS BIGINT) AS cnt, CAST(cnt AS BIGINT) AS cnt_b, CAST(min_b AS BIGINT) AS min_b, max_c])
+   +- GroupAggregate(advice=[1], select=[AVG(a) AS avg_a, COUNT(*) AS cnt, MIN(b) AS min_b, MAX(c) FILTER $f3 AS max_c])
+      +- Exchange(distribution=[single])
+         +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO', 'table.exec.mini-batch.enabled' to 'true', 'table.exec.mini-batch.allow-latency' to a positive long value, 'table.exec.mini-batch.size' to a positive long value).
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInsertInto[isMiniBatchEnabled=true, strategy=AUTO, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO MySink
+SELECT
+  AVG(a) AS avg_a,
+  COUNT(*) AS cnt,
+  count(b) AS cnt_b,
+  min(b) AS min_b,
+  MAX(c) FILTER (WHERE a > 1) AS max_c
+FROM MyTable]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink], fields=[avg_a, cnt, cnt_b, min_b, max_c])
++- Calc(select=[CAST(avg_a AS DOUBLE) AS avg_a, CAST(cnt AS BIGINT) AS cnt, CAST(cnt AS BIGINT) AS cnt_b, CAST(min_b AS BIGINT) AS min_b, max_c])
+   +- GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS avg_a, COUNT(count1$2) AS cnt, MIN(min$3) AS min_b, MAX(max$4) AS max_c])
+      +- Exchange(distribution=[single])
+         +- LocalGroupAggregate(select=[AVG(a) AS (sum$0, count$1), COUNT(*) AS count1$2, MIN(b) AS min$3, MAX(c) FILTER $f3 AS max$4])
+            +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+               +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+No available advice...
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInsertInto[isMiniBatchEnabled=true, strategy=ONE_PHASE, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO MySink
+SELECT
+  AVG(a) AS avg_a,
+  COUNT(*) AS cnt,
+  count(b) AS cnt_b,
+  min(b) AS min_b,
+  MAX(c) FILTER (WHERE a > 1) AS max_c
+FROM MyTable]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink], fields=[avg_a, cnt, cnt_b, min_b, max_c])
++- Calc(select=[CAST(avg_a AS DOUBLE) AS avg_a, CAST(cnt AS BIGINT) AS cnt, CAST(cnt AS BIGINT) AS cnt_b, CAST(min_b AS BIGINT) AS min_b, max_c])
+   +- GroupAggregate(advice=[1], select=[AVG(a) AS avg_a, COUNT(*) AS cnt, MIN(b) AS min_b, MAX(c) FILTER $f3 AS max_c])
+      +- Exchange(distribution=[single])
+         +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+            +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO').
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelect[isMiniBatchEnabled=false, strategy=AUTO, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="sql">
+      <![CDATA[SELECT
+  AVG(a) AS avg_a,
+  COUNT(*) AS cnt,
+  count(b) AS cnt_b,
+  min(b) AS min_b,
+  MAX(c) FILTER (WHERE a > 1) AS max_c
+FROM MyTable]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Calc(select=[avg_a, cnt, cnt AS cnt_b, min_b, max_c])
++- GroupAggregate(advice=[1], select=[AVG(a) AS avg_a, COUNT(*) AS cnt, MIN(b) AS min_b, MAX(c) FILTER $f3 AS max_c])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.exec.mini-batch.enabled' to 'true').
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelect[isMiniBatchEnabled=false, strategy=ONE_PHASE, miniBatchLatency=0, miniBatchSize=-1]">
+    <Resource name="sql">
+      <![CDATA[SELECT
+  AVG(a) AS avg_a,
+  COUNT(*) AS cnt,
+  count(b) AS cnt_b,
+  min(b) AS min_b,
+  MAX(c) FILTER (WHERE a > 1) AS max_c
+FROM MyTable]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Calc(select=[avg_a, cnt, cnt AS cnt_b, min_b, max_c])
++- GroupAggregate(advice=[1], select=[AVG(a) AS avg_a, COUNT(*) AS cnt, MIN(b) AS min_b, MAX(c) FILTER $f3 AS max_c])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO', 'table.exec.mini-batch.enabled' to 'true', 'table.exec.mini-batch.allow-latency' to a positive long value, 'table.exec.mini-batch.size' to a positive long value).
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelect[isMiniBatchEnabled=true, strategy=AUTO, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="sql">
+      <![CDATA[SELECT
+  AVG(a) AS avg_a,
+  COUNT(*) AS cnt,
+  count(b) AS cnt_b,
+  min(b) AS min_b,
+  MAX(c) FILTER (WHERE a > 1) AS max_c
+FROM MyTable]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Calc(select=[avg_a, cnt, cnt AS cnt_b, min_b, max_c])
++- GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS avg_a, COUNT(count1$2) AS cnt, MIN(min$3) AS min_b, MAX(max$4) AS max_c])
+   +- Exchange(distribution=[single])
+      +- LocalGroupAggregate(select=[AVG(a) AS (sum$0, count$1), COUNT(*) AS count1$2, MIN(b) AS min$3, MAX(c) FILTER $f3 AS max$4])
+         +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+            +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+No available advice...
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSelect[isMiniBatchEnabled=true, strategy=ONE_PHASE, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="sql">
+      <![CDATA[SELECT
+  AVG(a) AS avg_a,
+  COUNT(*) AS cnt,
+  count(b) AS cnt_b,
+  min(b) AS min_b,
+  MAX(c) FILTER (WHERE a > 1) AS max_c
+FROM MyTable]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Calc(select=[avg_a, cnt, cnt AS cnt_b, min_b, max_c])
++- GroupAggregate(advice=[1], select=[AVG(a) AS avg_a, COUNT(*) AS cnt, MIN(b) AS min_b, MAX(c) FILTER $f3 AS max_c])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+         +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO').
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStatementSet[isMiniBatchEnabled=false, strategy=AUTO, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink], fields=[avg_a, cnt, cnt_b, min_b, max_c])
++- Calc(select=[CAST(avg_a AS DOUBLE) AS avg_a, CAST(cnt AS BIGINT) AS cnt, CAST(cnt AS BIGINT) AS cnt_b, CAST(min_b AS BIGINT) AS min_b, max_c])
+   +- GroupAggregate(advice=[1], select=[AVG(a) AS avg_a, COUNT(*) AS cnt, MIN(b) AS min_b, MAX(c) FILTER $f3 AS max_c])
+      +- Exchange(distribution=[single])
+         +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+Sink(table=[default_catalog.default_database.MySink2], fields=[avg_a, cnt, cnt_b, min_b, max_c])
++- Calc(select=[CAST(avg_a AS DOUBLE) AS avg_a, CAST(cnt AS BIGINT) AS cnt, CAST(cnt AS BIGINT) AS cnt_b, CAST(min_b AS BIGINT) AS min_b, max_c])
+   +- GroupAggregate(advice=[1], select=[AVG(a) AS avg_a, COUNT(*) AS cnt, MIN(b) AS min_b, MAX(c) FILTER $f3 AS max_c])
+      +- Exchange(distribution=[single])
+         +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+Sink(table=[default_catalog.default_database.MySink3], fields=[b, sum_a, cnt_c])
++- GroupAggregate(advice=[1], groupBy=[b], select=[b, SUM(a) AS sum_a, COUNT(c) AS cnt_c])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, a, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.exec.mini-batch.enabled' to 'true').
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStatementSet[isMiniBatchEnabled=false, strategy=ONE_PHASE, miniBatchLatency=0, miniBatchSize=-1]">
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink], fields=[avg_a, cnt, cnt_b, min_b, max_c])
++- Calc(select=[CAST(avg_a AS DOUBLE) AS avg_a, CAST(cnt AS BIGINT) AS cnt, CAST(cnt AS BIGINT) AS cnt_b, CAST(min_b AS BIGINT) AS min_b, max_c])
+   +- GroupAggregate(advice=[1], select=[AVG(a) AS avg_a, COUNT(*) AS cnt, MIN(b) AS min_b, MAX(c) FILTER $f3 AS max_c])
+      +- Exchange(distribution=[single])
+         +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+Sink(table=[default_catalog.default_database.MySink2], fields=[avg_a, cnt, cnt_b, min_b, max_c])
++- Calc(select=[CAST(avg_a AS DOUBLE) AS avg_a, CAST(cnt AS BIGINT) AS cnt, CAST(cnt AS BIGINT) AS cnt_b, CAST(min_b AS BIGINT) AS min_b, max_c])
+   +- GroupAggregate(advice=[1], select=[AVG(a) AS avg_a, COUNT(*) AS cnt, MIN(b) AS min_b, MAX(c) FILTER $f3 AS max_c])
+      +- Exchange(distribution=[single])
+         +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+Sink(table=[default_catalog.default_database.MySink3], fields=[b, sum_a, cnt_c])
++- GroupAggregate(advice=[1], groupBy=[b], select=[b, SUM(a) AS sum_a, COUNT(c) AS cnt_c])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, a, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO', 'table.exec.mini-batch.enabled' to 'true', 'table.exec.mini-batch.allow-latency' to a positive long value, 'table.exec.mini-batch.size' to a positive long value).
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStatementSet[isMiniBatchEnabled=true, strategy=AUTO, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink], fields=[avg_a, cnt, cnt_b, min_b, max_c])
++- Calc(select=[CAST(avg_a AS DOUBLE) AS avg_a, CAST(cnt AS BIGINT) AS cnt, CAST(cnt AS BIGINT) AS cnt_b, CAST(min_b AS BIGINT) AS min_b, max_c])
+   +- GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS avg_a, COUNT(count1$2) AS cnt, MIN(min$3) AS min_b, MAX(max$4) AS max_c])
+      +- Exchange(distribution=[single])
+         +- LocalGroupAggregate(select=[AVG(a) AS (sum$0, count$1), COUNT(*) AS count1$2, MIN(b) AS min$3, MAX(c) FILTER $f3 AS max$4])
+            +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+               +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+Sink(table=[default_catalog.default_database.MySink2], fields=[avg_a, cnt, cnt_b, min_b, max_c])
++- Calc(select=[CAST(avg_a AS DOUBLE) AS avg_a, CAST(cnt AS BIGINT) AS cnt, CAST(cnt AS BIGINT) AS cnt_b, CAST(min_b AS BIGINT) AS min_b, max_c])
+   +- GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS avg_a, COUNT(count1$2) AS cnt, MIN(min$3) AS min_b, MAX(max$4) AS max_c])
+      +- Exchange(distribution=[single])
+         +- LocalGroupAggregate(select=[AVG(a) AS (sum$0, count$1), COUNT(*) AS count1$2, MIN(b) AS min$3, MAX(c) FILTER $f3 AS max$4])
+            +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+               +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+Sink(table=[default_catalog.default_database.MySink3], fields=[b, sum_a, cnt_c])
++- GlobalGroupAggregate(groupBy=[b], select=[b, SUM(sum$0) AS sum_a, COUNT(count$1) AS cnt_c])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalGroupAggregate(groupBy=[b], select=[b, SUM(a) AS sum$0, COUNT(c) AS count$1])
+         +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+            +- Calc(select=[b, a, c])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+No available advice...
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testStatementSet[isMiniBatchEnabled=true, strategy=ONE_PHASE, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink], fields=[avg_a, cnt, cnt_b, min_b, max_c])
++- Calc(select=[CAST(avg_a AS DOUBLE) AS avg_a, CAST(cnt AS BIGINT) AS cnt, CAST(cnt AS BIGINT) AS cnt_b, CAST(min_b AS BIGINT) AS min_b, max_c])
+   +- GroupAggregate(advice=[1], select=[AVG(a) AS avg_a, COUNT(*) AS cnt, MIN(b) AS min_b, MAX(c) FILTER $f3 AS max_c])
+      +- Exchange(distribution=[single])
+         +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+            +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+Sink(table=[default_catalog.default_database.MySink2], fields=[avg_a, cnt, cnt_b, min_b, max_c])
++- Calc(select=[CAST(avg_a AS DOUBLE) AS avg_a, CAST(cnt AS BIGINT) AS cnt, CAST(cnt AS BIGINT) AS cnt_b, CAST(min_b AS BIGINT) AS min_b, max_c])
+   +- GroupAggregate(advice=[1], select=[AVG(a) AS avg_a, COUNT(*) AS cnt, MIN(b) AS min_b, MAX(c) FILTER $f3 AS max_c])
+      +- Exchange(distribution=[single])
+         +- Calc(select=[a, b, c, IS TRUE(>(a, 1)) AS $f3])
+            +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+Sink(table=[default_catalog.default_database.MySink3], fields=[b, sum_a, cnt_c])
++- GroupAggregate(advice=[1], groupBy=[b], select=[b, SUM(a) AS sum_a, COUNT(c) AS cnt_c])
+   +- Exchange(distribution=[hash[b]])
+      +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+         +- Calc(select=[b, a, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, c], metadata=[]]], fields=[a, b, c])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO').
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuse[isMiniBatchEnabled=false, strategy=AUTO, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="sql">
+      <![CDATA[WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM MyTable GROUP BY c)
+SELECT * FROM r r1, r r2 WHERE r1.a = CAST(r2.b AS BIGINT) AND r2.a > 1]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Calc(select=[c, a, b, c0, a0, b0])
++- Join(joinType=[InnerJoin], where=[=(a, b00)], select=[c, a, b, c0, a0, b0, b00], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- GroupAggregate(advice=[1], groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
+   :     +- Exchange(distribution=[hash[c]])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+   +- Exchange(distribution=[hash[b0]])
+      +- Calc(select=[c, a, b, CAST(b AS BIGINT) AS b0], where=[>(a, 1)])
+         +- GroupAggregate(advice=[1], groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
+            +- Exchange(distribution=[hash[c]])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.exec.mini-batch.enabled' to 'true').
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuse[isMiniBatchEnabled=false, strategy=ONE_PHASE, miniBatchLatency=0, miniBatchSize=-1]">
+    <Resource name="sql">
+      <![CDATA[WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM MyTable GROUP BY c)
+SELECT * FROM r r1, r r2 WHERE r1.a = CAST(r2.b AS BIGINT) AND r2.a > 1]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Calc(select=[c, a, b, c0, a0, b0])
++- Join(joinType=[InnerJoin], where=[=(a, b00)], select=[c, a, b, c0, a0, b0, b00], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey])
+   :- Exchange(distribution=[hash[a]])
+   :  +- GroupAggregate(advice=[1], groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
+   :     +- Exchange(distribution=[hash[c]])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+   +- Exchange(distribution=[hash[b0]])
+      +- Calc(select=[c, a, b, CAST(b AS BIGINT) AS b0], where=[>(a, 1)])
+         +- GroupAggregate(advice=[1], groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
+            +- Exchange(distribution=[hash[c]])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO', 'table.exec.mini-batch.enabled' to 'true', 'table.exec.mini-batch.allow-latency' to a positive long value, 'table.exec.mini-batch.size' to a positive long value).
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuse[isMiniBatchEnabled=true, strategy=AUTO, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="sql">
+      <![CDATA[WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM MyTable GROUP BY c)
+SELECT * FROM r r1, r r2 WHERE r1.a = CAST(r2.b AS BIGINT) AND r2.a > 1]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Calc(select=[c, a, b, c0, a0, b0])
++- Join(joinType=[InnerJoin], where=[=(a, b00)], select=[c, a, b, c0, a0, b0, b00], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], miniBatch=[true])
+   :- Exchange(distribution=[hash[a]])
+   :  +- GlobalGroupAggregate(groupBy=[c], select=[c, SUM(sum$0) AS a, SUM(sum$1) AS b])
+   :     +- Exchange(distribution=[hash[c]])
+   :        +- LocalGroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum$0, SUM(b) AS sum$1])
+   :           +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+   +- Exchange(distribution=[hash[b0]])
+      +- Calc(select=[c, a, b, CAST(b AS BIGINT) AS b0], where=[>(a, 1)])
+         +- GlobalGroupAggregate(groupBy=[c], select=[c, SUM(sum$0) AS a, SUM(sum$1) AS b])
+            +- Exchange(distribution=[hash[c]])
+               +- LocalGroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum$0, SUM(b) AS sum$1])
+                  +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+
+No available advice...
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuse[isMiniBatchEnabled=true, strategy=ONE_PHASE, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="sql">
+      <![CDATA[WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM MyTable GROUP BY c)
+SELECT * FROM r r1, r r2 WHERE r1.a = CAST(r2.b AS BIGINT) AND r2.a > 1]]>
+    </Resource>
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Calc(select=[c, a, b, c0, a0, b0])
++- Join(joinType=[InnerJoin], where=[=(a, b00)], select=[c, a, b, c0, a0, b0, b00], leftInputSpec=[HasUniqueKey], rightInputSpec=[HasUniqueKey], miniBatch=[true])
+   :- Exchange(distribution=[hash[a]])
+   :  +- GroupAggregate(advice=[1], groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
+   :     +- Exchange(distribution=[hash[c]])
+   :        +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+   +- Exchange(distribution=[hash[b0]])
+      +- Calc(select=[c, a, b, CAST(b AS BIGINT) AS b0], where=[>(a, 1)])
+         +- GroupAggregate(advice=[1], groupBy=[c], select=[c, SUM(a) AS a, SUM(b) AS b])
+            +- Exchange(distribution=[hash[c]])
+               +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, b], metadata=[]]], fields=[c, a, b])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO').
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUserDefinedAggCalls[isMiniBatchEnabled=false, strategy=AUTO, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink1], fields=[avg_a_1])
++- Calc(select=[CAST(avg_a_1 AS DOUBLE) AS avg_a_1])
+   +- GroupAggregate(advice=[1], select=[weightedAvg(a, d) AS avg_a_1])
+      +- Exchange(distribution=[single])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, d], metadata=[]]], fields=[a, d])
+
+Sink(table=[default_catalog.default_database.MySink2], fields=[avg_a_1, avg_a_2])
++- Calc(select=[CAST(avg_a_1 AS DOUBLE) AS avg_a_1, CAST(avg_a_2 AS DOUBLE) AS avg_a_2])
+   +- GroupAggregate(select=[weightedAvg(a, d) AS avg_a_1, weightedAvgWithoutMerge(a, d) AS avg_a_2])
+      +- Exchange(distribution=[single])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, d], metadata=[]]], fields=[a, d])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.exec.mini-batch.enabled' to 'true').
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUserDefinedAggCalls[isMiniBatchEnabled=false, strategy=ONE_PHASE, miniBatchLatency=0, miniBatchSize=-1]">
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink1], fields=[avg_a_1])
++- Calc(select=[CAST(avg_a_1 AS DOUBLE) AS avg_a_1])
+   +- GroupAggregate(advice=[1], select=[weightedAvg(a, d) AS avg_a_1])
+      +- Exchange(distribution=[single])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, d], metadata=[]]], fields=[a, d])
+
+Sink(table=[default_catalog.default_database.MySink2], fields=[avg_a_1, avg_a_2])
++- Calc(select=[CAST(avg_a_1 AS DOUBLE) AS avg_a_1, CAST(avg_a_2 AS DOUBLE) AS avg_a_2])
+   +- GroupAggregate(select=[weightedAvg(a, d) AS avg_a_1, weightedAvgWithoutMerge(a, d) AS avg_a_2])
+      +- Exchange(distribution=[single])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, d], metadata=[]]], fields=[a, d])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO', 'table.exec.mini-batch.enabled' to 'true', 'table.exec.mini-batch.allow-latency' to a positive long value, 'table.exec.mini-batch.size' to a positive long value).
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUserDefinedAggCalls[isMiniBatchEnabled=true, strategy=ONE_PHASE, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink1], fields=[avg_a_1])
++- Calc(select=[CAST(avg_a_1 AS DOUBLE) AS avg_a_1])
+   +- GroupAggregate(advice=[1], select=[weightedAvg(a, d) AS avg_a_1])
+      +- Exchange(distribution=[single])
+         +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, d], metadata=[]]], fields=[a, d])
+
+Sink(table=[default_catalog.default_database.MySink2], fields=[avg_a_1, avg_a_2])
++- Calc(select=[CAST(avg_a_1 AS DOUBLE) AS avg_a_1, CAST(avg_a_2 AS DOUBLE) AS avg_a_2])
+   +- GroupAggregate(select=[weightedAvg(a, d) AS avg_a_1, weightedAvgWithoutMerge(a, d) AS avg_a_2])
+      +- Exchange(distribution=[single])
+         +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, d], metadata=[]]], fields=[a, d])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO').
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUserDefinedAggCalls[isMiniBatchEnabled=true, strategy=AUTO, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink1], fields=[avg_a_1])
++- Calc(select=[CAST(avg_a_1 AS DOUBLE) AS avg_a_1])
+   +- GlobalGroupAggregate(select=[weightedAvg(weightedavg$0) AS avg_a_1])
+      +- Exchange(distribution=[single])
+         +- LocalGroupAggregate(select=[weightedAvg(a, d) AS weightedavg$0])
+            +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, d], metadata=[]]], fields=[a, d])
+
+Sink(table=[default_catalog.default_database.MySink2], fields=[avg_a_1, avg_a_2])
++- Calc(select=[CAST(avg_a_1 AS DOUBLE) AS avg_a_1, CAST(avg_a_2 AS DOUBLE) AS avg_a_2])
+   +- GroupAggregate(select=[weightedAvg(a, d) AS avg_a_1, weightedAvgWithoutMerge(a, d) AS avg_a_2])
+      +- Exchange(distribution=[single])
+         +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, d], metadata=[]]], fields=[a, d])
+
+No available advice...
+
+]]>
+    </Resource>
+  </TestCase>
+</Root>

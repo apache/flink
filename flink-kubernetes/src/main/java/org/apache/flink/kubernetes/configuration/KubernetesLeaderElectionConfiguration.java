@@ -37,7 +37,7 @@ public class KubernetesLeaderElectionConfiguration {
 
     public KubernetesLeaderElectionConfiguration(
             String configMapName, String lockIdentity, Configuration config) {
-        this.clusterId = config.getString(KubernetesConfigOptions.CLUSTER_ID);
+        this.clusterId = config.get(KubernetesConfigOptions.CLUSTER_ID);
         this.configMapName = configMapName;
         this.lockIdentity = lockIdentity;
 

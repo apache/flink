@@ -19,7 +19,10 @@ package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.RexNode
+
+import java.util
 
 /**
  * Sub-class of [[WatermarkAssigner]] that is a relational operator which generates
@@ -30,16 +33,22 @@ final class LogicalWatermarkAssigner(
     cluster: RelOptCluster,
     traits: RelTraitSet,
     input: RelNode,
+    hints: util.List[RelHint],
     rowtimeFieldIndex: Int,
     watermarkExpr: RexNode)
-  extends WatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkExpr) {
+  extends WatermarkAssigner(cluster, traits, input, hints, rowtimeFieldIndex, watermarkExpr) {
 
   override def copy(
       traitSet: RelTraitSet,
       input: RelNode,
+      hints: util.List[RelHint],
       rowtime: Int,
       watermark: RexNode): RelNode = {
-    new LogicalWatermarkAssigner(cluster, traitSet, input, rowtime, watermark)
+    new LogicalWatermarkAssigner(cluster, traitSet, input, hints, rowtime, watermark)
+  }
+
+  override def withHints(hintList: util.List[RelHint]): RelNode = {
+    new LogicalWatermarkAssigner(cluster, traits, input, hintList, rowtimeFieldIndex, watermarkExpr)
   }
 }
 
@@ -48,9 +57,10 @@ object LogicalWatermarkAssigner {
   def create(
       cluster: RelOptCluster,
       input: RelNode,
+      hints: util.List[RelHint],
       rowtimeFieldIndex: Int,
       watermarkExpr: RexNode): LogicalWatermarkAssigner = {
     val traits = cluster.traitSetOf(Convention.NONE)
-    new LogicalWatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkExpr)
+    new LogicalWatermarkAssigner(cluster, traits, input, hints, rowtimeFieldIndex, watermarkExpr)
   }
 }

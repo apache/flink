@@ -39,10 +39,11 @@ public class MetricNames {
     public static final String IO_NUM_BUFFERS_OUT_RATE = IO_NUM_BUFFERS_OUT + SUFFIX_RATE;
 
     public static final String IO_CURRENT_INPUT_WATERMARK = "currentInputWatermark";
-    @Deprecated public static final String IO_CURRENT_INPUT_1_WATERMARK = "currentInput1Watermark";
-    @Deprecated public static final String IO_CURRENT_INPUT_2_WATERMARK = "currentInput2Watermark";
     public static final String IO_CURRENT_INPUT_WATERMARK_PATERN = "currentInput%dWatermark";
     public static final String IO_CURRENT_OUTPUT_WATERMARK = "currentOutputWatermark";
+
+    public static final String NUM_FIRED_TIMERS = "numFiredTimers";
+    public static final String NUM_FIRED_TIMERS_RATE = "numFiredTimers" + SUFFIX_RATE;
 
     public static final String NUM_RUNNING_JOBS = "numRunningJobs";
     public static final String TASK_SLOTS_AVAILABLE = "taskSlotsAvailable";
@@ -51,17 +52,30 @@ public class MetricNames {
     public static final String NUM_PENDING_TASK_MANAGERS = "numPendingTaskManagers";
 
     public static final String NUM_RESTARTS = "numRestarts";
-
-    @Deprecated public static final String FULL_RESTARTS = "fullRestarts";
+    public static final String NUM_RESCALES = "numRescales";
 
     public static final String MEMORY_USED = "Used";
     public static final String MEMORY_COMMITTED = "Committed";
     public static final String MEMORY_MAX = "Max";
 
+    public static final String FILE_DESCRIPTOR_MAX = "Max";
+    public static final String FILE_DESCRIPTOR_OPEN = "Open";
+
     public static final String IS_BACK_PRESSURED = "isBackPressured";
 
     public static final String CHECKPOINT_ALIGNMENT_TIME = "checkpointAlignmentTime";
     public static final String CHECKPOINT_START_DELAY_TIME = "checkpointStartDelayNanos";
+    public static final String INITIALIZATION_TIME = "initializationTime";
+
+    public static final String MAILBOX_START_DURATION = "MailboxStartDurationMs";
+    public static final String READ_OUTPUT_DATA_DURATION = "ReadOutputDataDurationMs";
+    public static final String INITIALIZE_STATE_DURATION = "InitializeStateDurationMs";
+    public static final String GATE_RESTORE_DURATION = "GateRestoreDurationMs";
+    public static final String DOWNLOAD_STATE_DURATION = "DownloadStateDurationMs";
+    public static final String RESTORE_STATE_DURATION = "RestoreStateDurationMs";
+    public static final String RESTORED_STATE_SIZE = "RestoredStateSizeBytes";
+    public static final String RESTORE_ASYNC_COMPACTION_DURATION =
+            "RestoreAsyncCompactionDurationMs";
 
     public static final String START_WORKER_FAILURE_RATE = "startWorkFailure" + SUFFIX_RATE;
 
@@ -72,10 +86,14 @@ public class MetricNames {
     public static final String TASK_IDLE_TIME = "idleTimeMs" + SUFFIX_RATE;
     public static final String TASK_BUSY_TIME = "busyTimeMs" + SUFFIX_RATE;
     public static final String TASK_BACK_PRESSURED_TIME = "backPressuredTimeMs" + SUFFIX_RATE;
+    public static final String ACC_TASK_IDLE_TIME = "accumulateIdleTimeMs";
+    public static final String ACC_TASK_BUSY_TIME = "accumulateBusyTimeMs";
+    public static final String ACC_TASK_BACK_PRESSURED_TIME = "accumulateBackPressuredTimeMs";
     public static final String TASK_SOFT_BACK_PRESSURED_TIME =
             "softBackPressuredTimeMs" + SUFFIX_RATE;
     public static final String TASK_HARD_BACK_PRESSURED_TIME =
             "hardBackPressuredTimeMs" + SUFFIX_RATE;
+    public static final String CHANGELOG_BUSY_TIME = "changelogBusyTimeMs" + SUFFIX_RATE;
     public static final String TASK_MAX_SOFT_BACK_PRESSURED_TIME = "maxSoftBackPressureTimeMs";
     public static final String TASK_MAX_HARD_BACK_PRESSURED_TIME = "maxHardBackPressureTimeMs";
 
@@ -84,8 +102,7 @@ public class MetricNames {
     public static final String DEBLOATED_BUFFER_SIZE = "debloatedBufferSize";
 
     // FLIP-33 sink
-    // deprecated use NUM_RECORDS_SEND_ERRORS instead.
-    @Deprecated public static final String NUM_RECORDS_OUT_ERRORS = "numRecordsOutErrors";
+    public static final String NUM_RECORDS_OUT_ERRORS = "numRecordsOutErrors";
     public static final String NUM_RECORDS_SEND_ERRORS = "numRecordsSendErrors";
     public static final String CURRENT_SEND_TIME = "currentSendTime";
     public static final String NUM_RECORDS_SEND = "numRecordsSend";
@@ -106,4 +123,38 @@ public class MetricNames {
     public static final String MAILBOX_THROUGHPUT = "mailboxMailsPerSecond";
     public static final String MAILBOX_LATENCY = "mailboxLatencyMs";
     public static final String MAILBOX_SIZE = "mailboxQueueSize";
+
+    // speculative execution
+    public static final String NUM_SLOW_EXECUTION_VERTICES = "numSlowExecutionVertices";
+    public static final String NUM_EFFECTIVE_SPECULATIVE_EXECUTIONS =
+            "numEffectiveSpeculativeExecutions";
+
+    // FLIP-221 for caches
+    public static final String HIT_COUNT = "hitCount";
+    public static final String MISS_COUNT = "missCount";
+    public static final String LOAD_COUNT = "loadCount";
+    public static final String NUM_LOAD_FAILURES = "numLoadFailures";
+    public static final String LATEST_LOAD_TIME = "latestLoadTime";
+    public static final String NUM_CACHED_RECORDS = "numCachedRecords";
+    public static final String NUM_CACHED_BYTES = "numCachedBytes";
+
+    // FLIP-27 for split enumerator
+    public static final String UNASSIGNED_SPLITS = "unassignedSplits";
+
+    // FLIP-371 for sink committer
+    public static final String TOTAL_COMMITTABLES = "totalCommittables";
+    public static final String SUCCESSFUL_COMMITTABLES = "successfulCommittables";
+    public static final String ALREADY_COMMITTED_COMMITTABLES = "alreadyCommittedCommittables";
+    public static final String FAILED_COMMITTABLES = "failedCommittables";
+    public static final String RETRIED_COMMITTABLES = "retriedCommittables";
+    public static final String PENDING_COMMITTABLES = "pendingCommittables";
+
+    // FLIP-513 split level metrics
+    public static final String SPLIT_CURRENT_WATERMARK = "currentWatermark";
+    public static final String SPLIT_ACTIVE_TIME = "activeTimeMs" + SUFFIX_RATE;
+    public static final String SPLIT_PAUSED_TIME = "pausedTimeMs" + SUFFIX_RATE;
+    public static final String SPLIT_IDLE_TIME = "idleTimeMs" + SUFFIX_RATE;
+    public static final String ACC_SPLIT_PAUSED_TIME = "accumulatedPausedTimeMs";
+    public static final String ACC_SPLIT_ACTIVE_TIME = "accumulatedActiveTimeMs";
+    public static final String ACC_SPLIT_IDLE_TIME = "accumulatedIdleTimeMs";
 }

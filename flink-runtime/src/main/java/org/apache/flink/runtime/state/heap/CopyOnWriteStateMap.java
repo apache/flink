@@ -108,7 +108,7 @@ import static org.apache.flink.util.CollectionUtil.MAX_ARRAY_SIZE;
 public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
 
     /** The logger. */
-    private static final Logger LOG = LoggerFactory.getLogger(HeapKeyedStateBackend.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CopyOnWriteStateMap.class);
 
     /**
      * Min capacity (other than zero) for a {@link CopyOnWriteStateMap}. Must be a power of two
@@ -134,7 +134,7 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
     private static final int MIN_TRANSFERRED_PER_INCREMENTAL_REHASH = 4;
 
     /** The serializer of the state. */
-    protected final TypeSerializer<S> stateSerializer;
+    protected TypeSerializer<S> stateSerializer;
 
     /**
      * An empty map shared by all zero-capacity maps (typically from default constructor). It is
@@ -450,7 +450,9 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
     // Private utility functions for StateMap management
     // -------------------------------------------------------------
 
-    /** @see #releaseSnapshot(StateMapSnapshot) */
+    /**
+     * @see #releaseSnapshot(StateMapSnapshot)
+     */
     @VisibleForTesting
     void releaseSnapshot(int snapshotVersion) {
         // we guard against concurrent modifications of highestRequiredSnapshotVersion between
@@ -792,6 +794,10 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
 
     public TypeSerializer<S> getStateSerializer() {
         return stateSerializer;
+    }
+
+    public void setStateSerializer(TypeSerializer<S> stateSerializer) {
+        this.stateSerializer = Preconditions.checkNotNull(stateSerializer);
     }
 
     // StateMapEntry

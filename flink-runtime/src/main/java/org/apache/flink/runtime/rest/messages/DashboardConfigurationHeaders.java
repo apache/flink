@@ -25,7 +25,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Message headers for the {@link DashboardConfigHandler}. */
 public final class DashboardConfigurationHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 EmptyRequestBody, DashboardConfiguration, EmptyMessageParameters> {
 
     public static final DashboardConfigurationHeaders INSTANCE =

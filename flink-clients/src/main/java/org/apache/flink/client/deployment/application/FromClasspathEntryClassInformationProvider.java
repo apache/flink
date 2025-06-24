@@ -19,7 +19,6 @@
 package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -31,9 +30,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -60,12 +56,6 @@ public class FromClasspathEntryClassInformationProvider implements EntryClassInf
             String jobClassName, Iterable<URL> classpath) throws IOException, FlinkException {
         Preconditions.checkNotNull(jobClassName, "No job class name passed.");
         Preconditions.checkNotNull(classpath, "No classpath passed.");
-        if (!userClasspathContainsJobClass(jobClassName, classpath)) {
-            throw new FlinkException(
-                    String.format(
-                            "Could not find the provided job class (%s) in the user lib directory.",
-                            jobClassName));
-        }
 
         return new FromClasspathEntryClassInformationProvider(jobClassName);
     }
@@ -178,38 +168,6 @@ public class FromClasspathEntryClassInformationProvider implements EntryClassInf
                     "Multiple JAR archives with entry classes found on classpath. Please provide an entry class name.",
                     e);
         }
-    }
-
-    private static boolean userClasspathContainsJobClass(
-            String jobClassName, Iterable<URL> classpath) throws IOException {
-        for (URL url : classpath) {
-            if (!isJarFile(url)) {
-                continue;
-            }
-
-            try (final JarFile jarFile = new JarFile(url.getFile())) {
-                if (jarContainsJobClass(jobClassName, jarFile)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private static boolean jarContainsJobClass(String jobClassName, JarFile jarFile) {
-        return jarFile.stream()
-                .map(JarEntry::getName)
-                .filter(fileName -> fileName.endsWith(FileUtils.CLASS_FILE_EXTENSION))
-                .map(FileUtils::stripFileExtension)
-                .map(
-                        fileName ->
-                                fileName.replaceAll(
-                                        Pattern.quote(File.separator), FileUtils.PACKAGE_SEPARATOR))
-                .anyMatch(name -> name.equals(jobClassName));
-    }
-
-    private static boolean isJarFile(URL url) {
-        return isJarFilename(url.getFile());
     }
 
     private static boolean isJarFilename(String filename) {

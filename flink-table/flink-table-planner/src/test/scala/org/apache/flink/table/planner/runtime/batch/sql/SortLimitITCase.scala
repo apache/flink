@@ -22,11 +22,11 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.types.Row
 
-import org.junit._
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class SortLimitITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     env.setParallelism(1) // set sink parallelism to 1

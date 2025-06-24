@@ -20,7 +20,7 @@ package org.apache.flink.types.parser;
 
 import org.apache.flink.types.IntValue;
 
-public class IntValueParserTest extends ParserTestBase<IntValue> {
+class IntValueParserTest extends ParserTestBase<IntValue> {
 
     @Override
     public String[] getValidTestValues() {
@@ -55,7 +55,7 @@ public class IntValueParserTest extends ParserTestBase<IntValue> {
             "1569a86",
             "-57-6",
             "7-877678",
-            String.valueOf(Integer.MAX_VALUE) + "0",
+            Integer.MAX_VALUE + "0",
             String.valueOf(Long.MIN_VALUE),
             String.valueOf(((long) Integer.MAX_VALUE) + 1),
             String.valueOf(((long) Integer.MIN_VALUE) - 1),

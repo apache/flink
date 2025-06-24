@@ -19,29 +19,28 @@
 package org.apache.flink.runtime.testutils.statemigration;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.PriorityComparable;
-import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
-
-import org.junit.Assert;
+import org.apache.flink.runtime.state.heap.AbstractHeapPriorityQueueElement;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Objects;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * A data type used as state in state migration tests.
  *
  * <p>This is implemented so that the type can also be used as keyed priority queue state.
  */
-public class TestType
-        implements HeapPriorityQueueElement, PriorityComparable<TestType>, Keyed<String> {
-
-    private int index;
+public class TestType extends AbstractHeapPriorityQueueElement
+        implements PriorityComparable<TestType>, Keyed<String> {
 
     private final int value;
     private final String key;
@@ -63,16 +62,6 @@ public class TestType
     @Override
     public int comparePriorityTo(@Nonnull TestType other) {
         return Integer.compare(value, other.value);
-    }
-
-    @Override
-    public int getInternalIndex() {
-        return index;
-    }
-
-    @Override
-    public void setInternalIndex(int newIndex) {
-        this.index = newIndex;
     }
 
     @Override
@@ -141,16 +130,16 @@ public class TestType
         @Override
         public TestType deserialize(DataInputView source) throws IOException {
             String key = source.readUTF();
-            Assert.assertEquals(RANDOM_PAYLOAD, source.readUTF());
+            assertThat(source.readUTF()).isEqualTo(RANDOM_PAYLOAD);
             int value = source.readInt();
-            Assert.assertTrue(source.readBoolean());
+            assertThat(source.readBoolean()).isTrue();
 
             return new TestType(key, value);
         }
 
         @Override
         public TypeSerializerSnapshot<TestType> snapshotConfiguration() {
-            return new V1TestTypeSerializerSnapshot();
+            return new V2TestTypeSerializerSnapshot();
         }
     }
 
@@ -176,8 +165,47 @@ public class TestType
 
         @Override
         public TypeSerializerSnapshot<TestType> snapshotConfiguration() {
-            throw new UnsupportedOperationException(
-                    "The serializer should have been reconfigured as a new instance; shouldn't be used.");
+            return new ReconfigurationRequiringTestTypeSerializerSnapshot();
+        }
+
+        public static class ReconfigurationRequiringTestTypeSerializerSnapshot
+                implements TypeSerializerSnapshot<TestType> {
+
+            @Override
+            public int getCurrentVersion() {
+                return 0;
+            }
+
+            @Override
+            public void writeSnapshot(DataOutputView out) {
+                // do nothing
+            }
+
+            @Override
+            public void readSnapshot(
+                    int readVersion, DataInputView in, ClassLoader userCodeClassLoader) {
+                // do nothing
+            }
+
+            @Override
+            public TypeSerializer<TestType> restoreSerializer() {
+                return new ReconfigurationRequiringTestTypeSerializer();
+            }
+
+            @Override
+            public TypeSerializerSchemaCompatibility<TestType> resolveSchemaCompatibility(
+                    TypeSerializerSnapshot<TestType> oldSerializerSnapshot) {
+                // mimic the reconfiguration by just re-instantiating the correct serializer
+                if (oldSerializerSnapshot instanceof V1TestTypeSerializerSnapshot) {
+                    return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
+                            new TestType.V1TestTypeSerializer());
+                } else if (oldSerializerSnapshot instanceof V2TestTypeSerializerSnapshot) {
+                    return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
+                            new TestType.V2TestTypeSerializer());
+                } else {
+                    return TypeSerializerSchemaCompatibility.incompatible();
+                }
+            }
         }
     }
 
@@ -200,8 +228,38 @@ public class TestType
 
         @Override
         public TypeSerializerSnapshot<TestType> snapshotConfiguration() {
-            throw new UnsupportedOperationException(
-                    "This is an incompatible serializer; shouldn't be used.");
+            return new IncompatibleTestTypeSerializerSnapshot();
+        }
+
+        public static class IncompatibleTestTypeSerializerSnapshot
+                implements TypeSerializerSnapshot<TestType> {
+
+            @Override
+            public int getCurrentVersion() {
+                return 0;
+            }
+
+            @Override
+            public void writeSnapshot(DataOutputView out) {
+                // do nothing
+            }
+
+            @Override
+            public void readSnapshot(
+                    int readVersion, DataInputView in, ClassLoader userCodeClassLoader) {
+                // do nothing
+            }
+
+            @Override
+            public TypeSerializer<TestType> restoreSerializer() {
+                return new IncompatibleTestTypeSerializer();
+            }
+
+            @Override
+            public TypeSerializerSchemaCompatibility<TestType> resolveSchemaCompatibility(
+                    TypeSerializerSnapshot<TestType> oldSerializerSnapshot) {
+                return TypeSerializerSchemaCompatibility.incompatible();
+            }
         }
     }
 

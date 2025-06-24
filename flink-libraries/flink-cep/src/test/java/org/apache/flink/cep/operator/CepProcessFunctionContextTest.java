@@ -24,7 +24,6 @@ import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -32,6 +31,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -418,7 +418,7 @@ public class CepProcessFunctionContextTest extends TestLogger {
         public NFA<Event> createNFA() {
 
             Pattern<Event, ?> pattern =
-                    Pattern.<Event>begin("1").next("2").within(Time.milliseconds(10));
+                    Pattern.<Event>begin("1").next("2").within(Duration.ofMillis(10));
 
             return NFACompiler.compileFactory(pattern, true).createNFA();
         }

@@ -20,6 +20,8 @@ package org.apache.flink.runtime.operators.util;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.util.Preconditions;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 public class BitSet {
     private MemorySegment memorySegment;
 
@@ -81,6 +83,15 @@ public class BitSet {
     /** Number of bits */
     public int bitSize() {
         return bitLength;
+    }
+
+    /**
+     * Serializing {@link MemorySegment} to bytes, note that only heap memory is currently
+     * supported.
+     */
+    public byte[] toBytes() {
+        checkState(!memorySegment.isOffHeap(), "Only support use heap memory for serialization");
+        return memorySegment.getArray();
     }
 
     /** Clear the bit set. */

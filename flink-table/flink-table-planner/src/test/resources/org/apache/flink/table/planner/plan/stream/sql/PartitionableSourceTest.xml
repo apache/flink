@@ -73,6 +73,79 @@ Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField], where=[((id >
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPushDownNonExistentPartition[sourceFetchPartitions=false, useCatalogFilter=false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM PartitionableTable WHERE part2 = 4]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalFilter(condition=[=($3, 4)])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPushDownNonExistentPartition[sourceFetchPartitions=false, useCatalogFilter=true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM PartitionableTable WHERE part2 = 4]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalFilter(condition=[=($3, 4)])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[test_catalog, test_database, PartitionableTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPushDownPartitionAndFiltersContainPartitionKeys[sourceFetchPartitions=true, useCatalogFilter=false]">
+    <Resource name="sql">
+      <![CDATA[select * from PartitionableAndFilterableTable where part1 = 'A' and part2 > 1 and id > 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1), >($0, 1))])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, PartitionableAndFilterableTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[id, name, CAST('A' AS VARCHAR(2147483647)) AS part1, part2, (part2 + 1) AS virtualField])
++- TableSourceScan(table=[[default_catalog, default_database, PartitionableAndFilterableTable, partitions=[{part1=A, part2=2}], filter=[>(id, 1)], project=[id, name, part2], metadata=[]]], fields=[id, name, part2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPushDownNonExistentPartition[sourceFetchPartitions=true, useCatalogFilter=false]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM PartitionableTable WHERE part2 = 4]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
++- LogicalFilter(condition=[=($3, 4)])
+   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, PartitionableTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPushDownPartitionAndFiltersContainPartitionKeys[sourceFetchPartitions=false, useCatalogFilter=false]">
     <Resource name="sql">
       <![CDATA[select * from PartitionableAndFilterableTable where part1 = 'A' and part2 > 1 and id > 1]]>
@@ -108,25 +181,6 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       <![CDATA[
 Calc(select=[id, name, CAST('A' AS VARCHAR(2147483647)) AS part1, part2, (part2 + 1) AS virtualField])
 +- TableSourceScan(table=[[test_catalog, test_database, PartitionableAndFilterableTable, partitions=[{part1=A, part2=2}], filter=[>(id, 1)], project=[id, name, part2], metadata=[]]], fields=[id, name, part2])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testPushDownPartitionAndFiltersContainPartitionKeys[sourceFetchPartitions=true, useCatalogFilter=false]">
-    <Resource name="sql">
-      <![CDATA[select * from PartitionableAndFilterableTable where part1 = 'A' and part2 > 1 and id > 1]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
-+- LogicalFilter(condition=[AND(=($2, _UTF-16LE'A'), >($3, 1), >($0, 1))])
-   +- LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[+($3, 1)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, PartitionableAndFilterableTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[id, name, CAST('A' AS VARCHAR(2147483647)) AS part1, part2, (part2 + 1) AS virtualField])
-+- TableSourceScan(table=[[default_catalog, default_database, PartitionableAndFilterableTable, partitions=[{part1=A, part2=2}], filter=[>(id, 1)], project=[id, name, part2], metadata=[]]], fields=[id, name, part2])
 ]]>
     </Resource>
   </TestCase>

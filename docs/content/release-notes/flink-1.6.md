@@ -28,9 +28,9 @@ These release notes discuss important aspects, such as configuration, behavior, 
 
 The default value of the slot idle timeout `slot.idle.timeout` is set to the default value of the heartbeat timeout (`50 s`). 
 
-### Changed ElasticSearch 5.x Sink API
+### Changed Elasticsearch 5.x Sink API
 
-Previous APIs in the Flink ElasticSearch 5.x Sink's `RequestIndexer` interface have been deprecated in favor of new signatures. 
+Previous APIs in the Flink Elasticsearch 5.x Sink's `RequestIndexer` interface have been deprecated in favor of new signatures. 
 When adding requests to the `RequestIndexer`, the requests now must be of type `IndexRequest`, `DeleteRequest`, or `UpdateRequest`, instead of the base `ActionRequest`.
 
 <!-- Remove once FLINK-10712 has been fixed -->

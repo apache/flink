@@ -21,12 +21,10 @@ package org.apache.flink.runtime.scheduler.strategy;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Strategy test utilities. */
-public class StrategyTestUtil {
+class StrategyTestUtil {
 
     static void assertLatestScheduledVerticesAreEqualTo(
             final List<List<TestingSchedulingExecutionVertex>> expected,
@@ -34,11 +32,10 @@ public class StrategyTestUtil {
         final List<List<ExecutionVertexID>> allScheduledVertices =
                 testingSchedulerOperation.getScheduledVertices();
         final int expectedScheduledBulks = expected.size();
-        assertThat(expectedScheduledBulks, lessThanOrEqualTo(allScheduledVertices.size()));
+        assertThat(expectedScheduledBulks).isLessThanOrEqualTo(allScheduledVertices.size());
         for (int i = 0; i < expectedScheduledBulks; i++) {
-            assertEquals(
-                    idsFromVertices(expected.get(expectedScheduledBulks - i - 1)),
-                    allScheduledVertices.get(allScheduledVertices.size() - i - 1));
+            assertThat(allScheduledVertices.get(allScheduledVertices.size() - i - 1))
+                    .isEqualTo(idsFromVertices(expected.get(expectedScheduledBulks - i - 1)));
         }
     }
 

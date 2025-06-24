@@ -18,77 +18,23 @@
 
 package org.apache.flink.tests.util;
 
-import org.apache.flink.tests.util.parameters.ParameterProperty;
-
-import java.io.FileNotFoundException;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /** General test utilities. */
 public enum TestUtils {
     ;
-
-    private static final ParameterProperty<Path> MODULE_DIRECTORY =
-            new ParameterProperty<>("moduleDir", Paths::get);
-
-    /**
-     * Searches for a resource file matching the given regex in the given directory. This method is
-     * primarily intended to be used for the initialization of static {@link Path} fields for
-     * resource file(i.e. jar, config file) that reside in the modules {@code target} directory.
-     *
-     * @param resourceNameRegex regex pattern to match against
-     * @return Path pointing to the matching jar
-     * @throws RuntimeException if none or multiple resource files could be found
-     */
-    public static Path getResource(final String resourceNameRegex) {
-        // if the property is not set then we are most likely running in the IDE, where the working
-        // directory is the
-        // module of the test that is currently running, which is exactly what we want
-        Path moduleDirectory = MODULE_DIRECTORY.get(Paths.get("").toAbsolutePath());
-
-        try (Stream<Path> dependencyResources = Files.walk(moduleDirectory)) {
-            final List<Path> matchingResources =
-                    dependencyResources
-                            .filter(
-                                    jar ->
-                                            Pattern.compile(resourceNameRegex)
-                                                    .matcher(jar.toAbsolutePath().toString())
-                                                    .find())
-                            .collect(Collectors.toList());
-            switch (matchingResources.size()) {
-                case 0:
-                    throw new RuntimeException(
-                            new FileNotFoundException(
-                                    String.format(
-                                            "No resource file could be found that matches the pattern %s. "
-                                                    + "This could mean that the test module must be rebuilt via maven.",
-                                            resourceNameRegex)));
-                case 1:
-                    return matchingResources.get(0);
-                default:
-                    throw new RuntimeException(
-                            new IOException(
-                                    String.format(
-                                            "Multiple resource files were found matching the pattern %s. Matches=%s",
-                                            resourceNameRegex, matchingResources)));
-            }
-        } catch (final IOException ioe) {
-            throw new RuntimeException("Could not search for resource resource files.", ioe);
-        }
-    }
 
     /**
      * Copy all the files and sub-directories under source directory to destination directory
@@ -131,5 +77,19 @@ public enum TestUtils {
                 });
 
         return destination;
+    }
+
+    /** Read the all files with the specified path. */
+    public static List<String> readCsvResultFiles(Path path) throws IOException {
+        File filePath = path.toFile();
+        // list all the non-hidden files
+        File[] csvFiles = filePath.listFiles((dir, name) -> !name.startsWith("."));
+        List<String> result = new ArrayList<>();
+        if (csvFiles != null) {
+            for (File file : csvFiles) {
+                result.addAll(Files.readAllLines(file.toPath()));
+            }
+        }
+        return result;
     }
 }

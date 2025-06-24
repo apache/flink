@@ -18,40 +18,47 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Test suite for the {@link DataInputDeserializer} class. */
-public class DataInputDeserializerTest {
+class DataInputDeserializerTest {
 
     @Test
-    public void testAvailable() throws Exception {
+    void testAvailable() throws Exception {
         byte[] bytes;
         DataInputDeserializer dis;
 
         bytes = new byte[] {};
         dis = new DataInputDeserializer(bytes, 0, bytes.length);
-        Assert.assertEquals(bytes.length, dis.available());
+        assertThat(dis.available()).isEqualTo(bytes.length);
 
         bytes = new byte[] {1, 2, 3};
         dis = new DataInputDeserializer(bytes, 0, bytes.length);
-        Assert.assertEquals(bytes.length, dis.available());
+        assertThat(dis.available()).isEqualTo(bytes.length);
 
         dis.readByte();
-        Assert.assertEquals(2, dis.available());
+        assertThat(dis.available()).isEqualTo(2);
         dis.readByte();
-        Assert.assertEquals(1, dis.available());
+        assertThat(dis.available()).isOne();
         dis.readByte();
-        Assert.assertEquals(0, dis.available());
+        assertThat(dis.available()).isZero();
 
-        try {
-            dis.readByte();
-            Assert.fail("Did not throw expected IOException");
-        } catch (IOException e) {
-            // ignore
-        }
-        Assert.assertEquals(0, dis.available());
+        assertThatThrownBy(dis::readByte).isInstanceOf(IOException.class);
+        assertThat(dis.available()).isZero();
+    }
+
+    @Test
+    void testReadWithLenZero() throws IOException {
+        byte[] bytes = new byte[0];
+        DataInputDeserializer dis = new DataInputDeserializer(bytes, 0, bytes.length);
+        assertThat(dis.available()).isZero();
+
+        byte[] bytesForRead = new byte[0];
+        assertThat(dis.read(bytesForRead, 0, 0)).isZero(); // do not throw when read with len 0
     }
 }

@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 
 /** A utility for constructing {@link InputFormat} based sources that are marked as BOUNDED. */

@@ -18,17 +18,19 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-public class EnvironmentInformationTest extends TestLogger {
+class EnvironmentInformationTest {
+
+    private final Logger log = LoggerFactory.getLogger(getClass());
 
     @Test
     public void testJavaMemory() {
@@ -36,15 +38,15 @@ public class EnvironmentInformationTest extends TestLogger {
             long fullHeap = EnvironmentInformation.getMaxJvmHeapMemory();
             long freeWithGC = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag();
 
-            assertTrue(fullHeap > 0);
-            assertTrue(freeWithGC >= 0);
+            assertThat(fullHeap).isGreaterThan(0);
+            assertThat(freeWithGC).isGreaterThanOrEqualTo(0);
 
             try {
                 long free = EnvironmentInformation.getSizeOfFreeHeapMemory();
-                assertTrue(free >= 0);
+                assertThat(free).isGreaterThanOrEqualTo(0);
             } catch (RuntimeException e) {
                 // this may only occur if the Xmx is not set
-                assertEquals(Long.MAX_VALUE, EnvironmentInformation.getMaxJvmHeapMemory());
+                assertThat(EnvironmentInformation.getMaxJvmHeapMemory()).isEqualTo(Long.MAX_VALUE);
             }
 
             // we cannot make these assumptions, because the test JVM may grow / shrink during the
@@ -60,21 +62,21 @@ public class EnvironmentInformationTest extends TestLogger {
     @Test
     public void testEnvironmentMethods() {
         try {
-            assertNotNull(EnvironmentInformation.getJvmStartupOptions());
-            assertNotNull(EnvironmentInformation.getJvmStartupOptionsArray());
-            assertNotNull(EnvironmentInformation.getJvmVersion());
-            assertNotNull(EnvironmentInformation.getRevisionInformation());
-            assertNotNull(EnvironmentInformation.getVersion());
-            assertNotNull(EnvironmentInformation.getScalaVersion());
-            assertNotNull(EnvironmentInformation.getBuildTime());
-            assertNotNull(EnvironmentInformation.getBuildTimeString());
-            assertNotNull(EnvironmentInformation.getGitCommitId());
-            assertNotNull(EnvironmentInformation.getGitCommitIdAbbrev());
-            assertNotNull(EnvironmentInformation.getGitCommitTime());
-            assertNotNull(EnvironmentInformation.getGitCommitTimeString());
-            EnvironmentInformation.getHadoopVersionString();
-            assertNotNull(EnvironmentInformation.getHadoopUser());
-            assertTrue(EnvironmentInformation.getOpenFileHandlesLimit() >= -1);
+            assertThat(EnvironmentInformation.getJvmStartupOptions()).isNotNull();
+            assertThat(EnvironmentInformation.getJvmStartupOptionsArray()).isNotNull();
+            assertThat(EnvironmentInformation.getJvmVersion()).isNotNull();
+            assertThat(EnvironmentInformation.getRevisionInformation()).isNotNull();
+            assertThat(EnvironmentInformation.getVersion()).isNotNull();
+            assertThat(EnvironmentInformation.getScalaVersion()).isNotNull();
+            assertThat(EnvironmentInformation.getBuildTime()).isNotNull();
+            assertThat(EnvironmentInformation.getBuildTimeString()).isNotNull();
+            assertThat(EnvironmentInformation.getGitCommitId()).isNotNull();
+            assertThat(EnvironmentInformation.getGitCommitIdAbbrev()).isNotNull();
+            assertThat(EnvironmentInformation.getGitCommitTime()).isNotNull();
+            assertThat(EnvironmentInformation.getGitCommitTimeString()).isNotNull();
+            assertThat(EnvironmentInformation.getHadoopVersionString()).isNotNull();
+            assertThat(EnvironmentInformation.getHadoopUser()).isNotNull();
+            assertThat(EnvironmentInformation.getOpenFileHandlesLimit()).isGreaterThanOrEqualTo(-1);
 
             if (log.isInfoEnabled()) {
                 // Visual inspection of the available Environment variables

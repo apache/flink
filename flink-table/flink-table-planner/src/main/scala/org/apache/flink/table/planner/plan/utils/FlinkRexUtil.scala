@@ -17,18 +17,22 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.annotation.Experimental
-import org.apache.flink.configuration.ConfigOption
-import org.apache.flink.configuration.ConfigOptions.key
+import org.apache.flink.table.planner.{JInt, JMap}
 import org.apache.flink.table.planner.functions.sql.SqlTryCastFunction
+import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
+import org.apache.flink.table.planner.plan.optimize.RelNodeBlock
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core._
+import org.apache.calcite.rel.logical.LogicalUnion
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlAsOperator, SqlKind, SqlOperator}
@@ -39,6 +43,7 @@ import org.apache.calcite.util._
 import java.lang.{Iterable => JIterable}
 import java.math.BigDecimal
 import java.util
+import java.util.Optional
 import java.util.function.Predicate
 
 import scala.collection.JavaConversions._
@@ -47,30 +52,9 @@ import scala.collection.mutable
 /** Utility methods concerning [[RexNode]]. */
 object FlinkRexUtil {
 
-  // It is a experimental config, will may be removed later.
-  @Experimental
-  private[flink] val TABLE_OPTIMIZER_CNF_NODES_LIMIT: ConfigOption[Integer] =
-    key("table.optimizer.cnf-nodes-limit")
-      .intType()
-      .defaultValue(Integer.valueOf(-1))
-      .withDescription(
-        "When converting to conjunctive normal form (CNF, like '(a AND b) OR" +
-          " c' will be converted to '(a OR c) AND (b OR c)'), fail if the expression  exceeds " +
-          "this threshold; (e.g. predicate in TPC-DS q41.sql will be converted to hundreds of " +
-          "thousands of CNF nodes.) the threshold is expressed in terms of number of nodes " +
-          "(only count RexCall node, including leaves and interior nodes). " +
-          "Negative number to use the default threshold: double of number of nodes.")
-
   /**
-   * Similar to [[RexUtil#toCnf(RexBuilder, Int, RexNode)]]; it lets you specify a threshold in the
-   * number of nodes that can be created out of the conversion. however, if the threshold is a
-   * negative number, this method will give a default threshold value that is double of the number
-   * of RexCall in the given node.
-   *
-   * <p>If the number of resulting RexCalls exceeds that threshold, stops conversion and returns the
-   * original expression.
-   *
-   * <p>Leaf nodes(e.g. RexInputRef) in the expression do not count towards the threshold.
+   * Converts an expression to conjunctive normal form (CNF). See more at
+   * [[RexUtil#toCnf(RexBuilder, RexNode)]].
    *
    * <p>We strongly discourage use the [[RexUtil#toCnf(RexBuilder, RexNode)]] and
    * [[RexUtil#toCnf(RexBuilder, Int, RexNode)]], because there are many bad case when using
@@ -78,13 +62,38 @@ object FlinkRexUtil {
    * to extremely complex expression (including 736450 RexCalls); and we can not give an appropriate
    * value for `maxCnfNodeCount` when using [[RexUtil#toCnf(RexBuilder, Int, RexNode)]].
    */
-  def toCnf(rexBuilder: RexBuilder, maxCnfNodeCount: Int, rex: RexNode): RexNode = {
-    val maxCnfNodeCnt = if (maxCnfNodeCount < 0) {
-      getNumberOfRexCall(rex) * 2
-    } else {
-      maxCnfNodeCount
-    }
+  def toCnf(rexBuilder: RexBuilder, rex: RexNode): RexNode = {
+    val maxCnfNodeCnt = getNumberOfRexCall(rex) * 2
     new CnfHelper(rexBuilder, maxCnfNodeCnt).toCnf(rex)
+  }
+
+  /**
+   * Returns true if a input blocks only consist of [[Filter]], [[Project]], [[TableScan]],
+   * [[Calc]], [[Values]], and [[Sink]] nodes.
+   */
+  def shouldSkipMiniBatch(blocks: Seq[RelNodeBlock]): Boolean = {
+
+    val noMiniBatchRequired = {
+      (node: RelNode) =>
+        node match {
+          case project: Project =>
+            // TODO: to avoid FLINK-37280, require mini batch if ROW_NUMBER is used
+            !project.getProjects.exists(ex => ex.getKind.equals(SqlKind.ROW_NUMBER))
+          case _: Filter | _: Project | _: TableScan | _: Calc | _: Values | _: Sink |
+              _: LegacySink =>
+            true
+          case unionNode: LogicalUnion => unionNode.all
+          case _ => false
+        }
+    }
+
+    def nodeTraverser(node: RelNode): Boolean = {
+      noMiniBatchRequired(node) && node.getInputs
+        .map(n => nodeTraverser(n))
+        .forall(r => r)
+    }
+
+    blocks.map(b => nodeTraverser(b.outputNode)).forall(r => r)
   }
 
   /** Returns true if the RexNode contains any node in the given expected [[RexInputRef]] nodes. */
@@ -212,8 +221,8 @@ object FlinkRexUtil {
     val binaryComparisonExprReduced =
       sameExprMerged.accept(new BinaryComparisonExprReducer(rexBuilder))
 
-    val rexSimplify = new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, true, executor)
-    rexSimplify.simplify(binaryComparisonExprReduced)
+    val rexSimplify = new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, executor)
+    rexSimplify.simplifyUnknownAs(binaryComparisonExprReduced, RexUnknownAs.falseIf(true))
   }
 
   val BINARY_COMPARISON: util.Set[SqlKind] = util.EnumSet.of(
@@ -309,10 +318,11 @@ object FlinkRexUtil {
 
   /**
    * Find all inputRefs.
+   *
    * @return
    *   InputRef HashSet.
    */
-  private[flink] def findAllInputRefs(node: RexNode): util.HashSet[RexInputRef] = {
+  def findAllInputRefs(node: RexNode): util.HashSet[RexInputRef] = {
     val set = new util.HashSet[RexInputRef]
     node.accept(new RexVisitorImpl[Void](true) {
       override def visitInputRef(inputRef: RexInputRef): Void = {
@@ -393,28 +403,26 @@ object FlinkRexUtil {
    * @return
    *   Return new expression with new field indices.
    */
-  private[flink] def adjustInputRef(
-      expr: RexNode,
-      fieldsOldToNewIndexMapping: Map[Int, Int]): RexNode = expr.accept(new RexShuttle() {
-    override def visitInputRef(inputRef: RexInputRef): RexNode = {
-      require(fieldsOldToNewIndexMapping.containsKey(inputRef.getIndex))
-      val newIndex = fieldsOldToNewIndexMapping(inputRef.getIndex)
-      new RexInputRef(newIndex, inputRef.getType)
-    }
-  })
+  def adjustInputRef(expr: RexNode, fieldsOldToNewIndexMapping: JMap[JInt, JInt]): RexNode =
+    expr.accept(new RexShuttle() {
+      override def visitInputRef(inputRef: RexInputRef): RexNode = {
+        require(fieldsOldToNewIndexMapping.containsKey(inputRef.getIndex))
+        val newIndex = fieldsOldToNewIndexMapping(inputRef.getIndex)
+        new RexInputRef(newIndex, inputRef.getType)
+      }
+    })
 
   private class EquivalentExprShuttle(rexBuilder: RexBuilder) extends RexShuttle {
-    private val equiExprMap = mutable.HashMap[String, RexNode]()
+    private val equiExprSet = mutable.HashSet[RexNode]()
 
     override def visitCall(call: RexCall): RexNode = {
       call.getOperator match {
         case EQUALS | NOT_EQUALS | GREATER_THAN | LESS_THAN | GREATER_THAN_OR_EQUAL |
             LESS_THAN_OR_EQUAL =>
-          val swapped = swapOperands(call)
-          if (equiExprMap.contains(swapped.toString)) {
-            swapped
+          if (equiExprSet.contains(call)) {
+            swapOperands(call)
           } else {
-            equiExprMap.put(call.toString, call)
+            equiExprSet.add(call)
             call
           }
         case _ => super.visitCall(call)
@@ -584,6 +592,64 @@ object FlinkRexUtil {
         return true
     }
     false
+  }
+
+  /**
+   * Returns the non-deterministic call name for a given expression. Use java [[Optional]] for
+   * scala-free goal.
+   */
+  def getNonDeterministicCallName(e: RexNode): Optional[String] = try {
+    val visitor = new RexVisitorImpl[Void](true) {
+      override def visitCall(call: RexCall): Void = {
+        if (!call.getOperator.isDeterministic) {
+          throw new Util.FoundOne(call.getOperator.getName)
+        }
+        super.visitCall(call)
+      }
+    }
+    e.accept(visitor)
+    Optional.empty[String]
+  } catch {
+    case ex: Util.FoundOne =>
+      Util.swallow(ex, null)
+      Optional.ofNullable(ex.getNode.toString)
+  }
+
+  /**
+   * Returns whether a given [[RexProgram]] is deterministic.
+   *
+   * @return
+   *   false if any expression of the program is not deterministic
+   */
+  def isDeterministic(rexProgram: RexProgram): Boolean = try {
+    if (null != rexProgram.getCondition) {
+      val rexCondi = rexProgram.expandLocalRef(rexProgram.getCondition)
+      if (!RexUtil.isDeterministic(rexCondi)) {
+        return false
+      }
+    }
+    val projects = rexProgram.getProjectList.map(rexProgram.expandLocalRef)
+    projects.forall(RexUtil.isDeterministic)
+  }
+
+  /**
+   * Return convertible rex nodes and unconverted rex nodes extracted from the filter expression.
+   */
+  def extractPredicates(
+      inputNames: Array[String],
+      filterExpression: RexNode,
+      rel: RelNode,
+      rexBuilder: RexBuilder): (Array[RexNode], Array[RexNode]) = {
+    val context = ShortcutUtils.unwrapContext(rel)
+    val converter =
+      new RexNodeToExpressionConverter(
+        rexBuilder,
+        inputNames,
+        context.getFunctionCatalog,
+        context.getCatalogManager,
+        Some(rel.getRowType));
+
+    RexNodeExtractor.extractConjunctiveConditions(filterExpression, rexBuilder, converter);
   }
 }
 

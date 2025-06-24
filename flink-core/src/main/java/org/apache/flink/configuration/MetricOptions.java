@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
@@ -67,13 +68,26 @@ public class MetricOptions {
                                     + " any of the names in the list will be started. Otherwise, all reporters that could be found in"
                                     + " the configuration will be started.");
 
-    /** @deprecated use {@link MetricOptions#REPORTER_FACTORY_CLASS} instead. */
-    @Deprecated
-    public static final ConfigOption<String> REPORTER_CLASS =
-            key("class")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("The reporter class to use for the reporter named <name>.");
+    /**
+     * Returns a view over the given configuration via which options can be set/retrieved for the
+     * given reporter.
+     *
+     * <pre>
+     *     Configuration config = ...
+     *     MetricOptions.forReporter(config, "my_reporter")
+     *         .set(MetricOptions.REPORTER_INTERVAL, Duration.ofSeconds(10))
+     *         ...
+     * </pre>
+     *
+     * @param configuration backing configuration
+     * @param reporterName reporter name
+     * @return view over configuration
+     */
+    @Experimental
+    public static Configuration forReporter(Configuration configuration, String reporterName) {
+        return new DelegatingConfiguration(
+                configuration, ConfigConstants.METRICS_REPORTER_PREFIX + reporterName + ".");
+    }
 
     @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
     @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 1)
@@ -243,17 +257,30 @@ public class MetricOptions {
 
     /** The scope format string that is applied to all metrics scoped to a job on a JobManager. */
     public static final ConfigOption<String> SCOPE_NAMING_JM_JOB =
-            key("metrics.scope.jm.job")
+            key("metrics.scope.jm-job")
                     .stringType()
                     .defaultValue("<host>.jobmanager.<job_name>")
+                    .withDeprecatedKeys("metrics.scope.jm.job")
                     .withDescription(
                             "Defines the scope format string that is applied to all metrics scoped to a job on a JobManager. Only effective when a identifier-based reporter is configured");
 
+    /**
+     * The scope format string that is applied to all metrics scoped to the components running on a
+     * JobManager of an operator.
+     */
+    public static final ConfigOption<String> SCOPE_NAMING_JM_OPERATOR =
+            key("metrics.scope.jm-operator")
+                    .stringType()
+                    .defaultValue("<host>.jobmanager.<job_name>.<operator_name>")
+                    .withDescription(
+                            "Defines the scope format string that is applied to all metrics scoped to the components running on a JobManager of an Operator, like OperatorCoordinator for Source Enumerator metrics.");
+
     /** The scope format string that is applied to all metrics scoped to a job on a TaskManager. */
     public static final ConfigOption<String> SCOPE_NAMING_TM_JOB =
-            key("metrics.scope.tm.job")
+            key("metrics.scope.tm-job")
                     .stringType()
                     .defaultValue("<host>.taskmanager.<tm_id>.<job_name>")
+                    .withDeprecatedKeys("metrics.scope.tm.job")
                     .withDescription(
                             "Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager. Only effective when a identifier-based reporter is configured");
 
@@ -275,10 +302,10 @@ public class MetricOptions {
                     .withDescription(
                             "Defines the scope format string that is applied to all metrics scoped to an operator. Only effective when a identifier-based reporter is configured");
 
-    public static final ConfigOption<Long> LATENCY_INTERVAL =
+    public static final ConfigOption<Duration> LATENCY_INTERVAL =
             key("metrics.latency.interval")
-                    .longType()
-                    .defaultValue(0L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(0L))
                     .withDescription(
                             "Defines the interval at which latency tracking marks are emitted from the sources."
                                     + " Disables latency tracking if set to 0 or a negative value. Enabling this feature can significantly"
@@ -320,16 +347,17 @@ public class MetricOptions {
                     .withDescription(
                             "Flag indicating whether Flink should report system resource metrics such as machine's CPU,"
                                     + " memory or network usage.");
+
     /**
      * Interval between probing of system resource metrics specified in milliseconds. Has an effect
      * only when {@link #SYSTEM_RESOURCE_METRICS} is enabled.
      */
-    public static final ConfigOption<Long> SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL =
+    public static final ConfigOption<Duration> SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL =
             key("metrics.system-resource-probing-interval")
-                    .longType()
-                    .defaultValue(5000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(5000L))
                     .withDescription(
-                            "Interval between probing of system resource metrics specified in milliseconds. Has an effect"
+                            "Interval between probing of system resource metrics specified. Has an effect"
                                     + " only when '"
                                     + SYSTEM_RESOURCE_METRICS.key()
                                     + "' is enabled.");
@@ -359,19 +387,20 @@ public class MetricOptions {
                     .defaultValue(1)
                     .withDescription(
                             "The thread priority used for Flink's internal metric query service. The thread is created"
-                                    + " by Akka's thread pool executor. "
+                                    + " by Pekko's thread pool executor. "
                                     + "The range of the priority is from 1 (MIN_PRIORITY) to 10 (MAX_PRIORITY). "
                                     + "Warning, increasing this value may bring the main Flink components down.");
+
     /**
      * The config parameter defining the update interval for the metric fetcher used by the web UI
      * in milliseconds.
      */
-    public static final ConfigOption<Long> METRIC_FETCHER_UPDATE_INTERVAL =
+    public static final ConfigOption<Duration> METRIC_FETCHER_UPDATE_INTERVAL =
             key("metrics.fetcher.update-interval")
-                    .longType()
-                    .defaultValue(10000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(10000L))
                     .withDescription(
-                            "Update interval for the metric fetcher used by the web UI in milliseconds. Decrease this value for "
+                            "Update interval for the metric fetcher used by the web UI. Decrease this value for "
                                     + "faster updating metrics. Increase this value if the metric fetcher causes too much load. Setting this value to 0 "
                                     + "disables the metric fetching completely.");
 

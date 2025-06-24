@@ -17,13 +17,14 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.legacy.table.sinks.UpsertStreamTableSink
+import org.apache.flink.table.legacy.sinks.TableSink
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLegacySink
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, UpdatingPlanChecker}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.sinks._
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -32,7 +33,7 @@ import org.apache.calcite.rel.hint.RelHint
 import java.util
 
 /**
- * Stream physical RelNode to to write data into an external sink defined by a [[TableSink]].
+ * Stream physical RelNode to write data into an external sink defined by a [[TableSink]].
  *
  * @tparam T
  *   The return type of the [[TableSink]].

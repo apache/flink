@@ -18,7 +18,14 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
@@ -27,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Operation to describe a DROP FUNCTION statement for catalog functions. */
+@Internal
 public class DropCatalogFunctionOperation implements DropOperation {
     private final ObjectIdentifier functionIdentifier;
     private final boolean ifExists;
@@ -67,5 +75,29 @@ public class DropCatalogFunctionOperation implements DropOperation {
 
     public String getFunctionName() {
         return this.functionIdentifier.getObjectName();
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        try {
+            if (isTemporary()) {
+                ctx.getFunctionCatalog()
+                        .dropTempCatalogFunction(getFunctionIdentifier(), isIfExists());
+            } else {
+                Catalog catalog =
+                        ctx.getCatalogManager()
+                                .getCatalogOrThrowException(
+                                        getFunctionIdentifier().getCatalogName());
+
+                catalog.dropFunction(getFunctionIdentifier().toObjectPath(), isIfExists());
+            }
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (ValidationException e) {
+            throw e;
+        } catch (FunctionNotExistException e) {
+            throw new ValidationException(e.getMessage(), e);
+        } catch (Exception e) {
+            throw new TableException(String.format("Could not execute %s", asSummaryString()), e);
+        }
     }
 }

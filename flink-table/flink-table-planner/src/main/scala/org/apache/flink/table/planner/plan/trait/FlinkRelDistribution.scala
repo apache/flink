@@ -119,7 +119,7 @@ class FlinkRelDistribution private (
           try {
             val i = mapping.getTargetOpt(fieldCollation.getFieldIndex)
             if (i >= 0) {
-              newFieldCollations.add(fieldCollation.copy(i))
+              newFieldCollations.add(fieldCollation.withFieldIndex(i))
             } else {
               return FlinkRelDistribution.ANY
             }

@@ -32,8 +32,7 @@ import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -41,34 +40,44 @@ import java.util.Iterator;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TaskExecutorStateChangelogStoragesManager}. */
-public class TaskExecutorStateChangelogStoragesManagerTest {
+class TaskExecutorStateChangelogStoragesManagerTest {
 
     @Test
-    public void testDuplicatedAllocation() throws IOException {
+    void testDuplicatedAllocation() throws IOException {
         TaskExecutorStateChangelogStoragesManager manager =
                 new TaskExecutorStateChangelogStoragesManager();
         Configuration configuration = new Configuration();
         JobID jobId1 = new JobID(1L, 1L);
         StateChangelogStorage<?> storage1 =
                 manager.stateChangelogStorageForJob(
-                        jobId1, configuration, createUnregisteredTaskManagerJobMetricGroup());
+                        jobId1,
+                        configuration,
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled());
         StateChangelogStorage<?> storage2 =
                 manager.stateChangelogStorageForJob(
-                        jobId1, configuration, createUnregisteredTaskManagerJobMetricGroup());
-        Assert.assertEquals(storage1, storage2);
+                        jobId1,
+                        configuration,
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled());
+        assertThat(storage2).isEqualTo(storage1);
 
         JobID jobId2 = new JobID(1L, 2L);
         StateChangelogStorage<?> storage3 =
                 manager.stateChangelogStorageForJob(
-                        jobId2, configuration, createUnregisteredTaskManagerJobMetricGroup());
-        Assert.assertNotEquals(storage1, storage3);
+                        jobId2,
+                        configuration,
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled());
+        assertThat(storage3).isNotEqualTo(storage1);
         manager.shutdown();
     }
 
     @Test
-    public void testReleaseForJob() throws IOException {
+    void testReleaseForJob() throws IOException {
         StateChangelogStorageLoader.initialize(TestStateChangelogStorageFactory.pluginManager);
         TaskExecutorStateChangelogStoragesManager manager =
                 new TaskExecutorStateChangelogStoragesManager();
@@ -79,23 +88,29 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
         JobID jobId1 = new JobID(1L, 1L);
         StateChangelogStorage<?> storage1 =
                 manager.stateChangelogStorageForJob(
-                        jobId1, configuration, createUnregisteredTaskManagerJobMetricGroup());
-        Assert.assertTrue(storage1 instanceof TestStateChangelogStorage);
-        Assert.assertFalse(((TestStateChangelogStorage) storage1).closed);
-        manager.releaseStateChangelogStorageForJob(jobId1);
-        Assert.assertTrue(((TestStateChangelogStorage) storage1).closed);
+                        jobId1,
+                        configuration,
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled());
+        assertThat(storage1).isInstanceOf(TestStateChangelogStorage.class);
+        assertThat(((TestStateChangelogStorage) storage1).closed).isFalse();
+        manager.releaseResourcesForJob(jobId1);
+        assertThat(((TestStateChangelogStorage) storage1).closed).isTrue();
 
         StateChangelogStorage<?> storage2 =
                 manager.stateChangelogStorageForJob(
-                        jobId1, configuration, createUnregisteredTaskManagerJobMetricGroup());
-        Assert.assertNotEquals(storage1, storage2);
+                        jobId1,
+                        configuration,
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled());
+        assertThat(storage2).isNotEqualTo(storage1);
 
         manager.shutdown();
         StateChangelogStorageLoader.initialize(null);
     }
 
     @Test
-    public void testConsistencyAmongTask() throws IOException {
+    void testConsistencyAmongTask() throws IOException {
         TaskExecutorStateChangelogStoragesManager manager =
                 new TaskExecutorStateChangelogStoragesManager();
         Configuration configuration = new Configuration();
@@ -104,8 +119,11 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
         JobID jobId1 = new JobID(1L, 1L);
         StateChangelogStorage<?> storage1 =
                 manager.stateChangelogStorageForJob(
-                        jobId1, configuration, createUnregisteredTaskManagerJobMetricGroup());
-        Assert.assertNull(storage1);
+                        jobId1,
+                        configuration,
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled());
+        assertThat(storage1).isNull();
 
         // change configuration, assert the result not change.
         configuration.set(
@@ -113,27 +131,36 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
                 StateChangelogOptions.STATE_CHANGE_LOG_STORAGE.defaultValue());
         StateChangelogStorage<?> storage2 =
                 manager.stateChangelogStorageForJob(
-                        jobId1, configuration, createUnregisteredTaskManagerJobMetricGroup());
-        Assert.assertNull(storage2);
+                        jobId1,
+                        configuration,
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled());
+        assertThat(storage2).isNull();
 
         JobID jobId2 = new JobID(1L, 2L);
         StateChangelogStorage<?> storage3 =
                 manager.stateChangelogStorageForJob(
-                        jobId2, configuration, createUnregisteredTaskManagerJobMetricGroup());
-        Assert.assertNotNull(storage3);
+                        jobId2,
+                        configuration,
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled());
+        assertThat(storage3).isNotNull();
 
         configuration.set(StateChangelogOptions.STATE_CHANGE_LOG_STORAGE, "invalid");
         StateChangelogStorage<?> storage4 =
                 manager.stateChangelogStorageForJob(
-                        jobId2, configuration, createUnregisteredTaskManagerJobMetricGroup());
-        Assert.assertNotNull(storage4);
-        Assert.assertEquals(storage3, storage4);
+                        jobId2,
+                        configuration,
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled());
+        assertThat(storage4).isNotNull();
+        assertThat(storage4).isEqualTo(storage3);
 
         manager.shutdown();
     }
 
     @Test
-    public void testShutdown() throws IOException {
+    void testShutdown() throws IOException {
         StateChangelogStorageLoader.initialize(TestStateChangelogStorageFactory.pluginManager);
         TaskExecutorStateChangelogStoragesManager manager =
                 new TaskExecutorStateChangelogStoragesManager();
@@ -144,20 +171,26 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
         JobID jobId1 = new JobID(1L, 1L);
         StateChangelogStorage<?> storage1 =
                 manager.stateChangelogStorageForJob(
-                        jobId1, configuration, createUnregisteredTaskManagerJobMetricGroup());
-        Assert.assertTrue(storage1 instanceof TestStateChangelogStorage);
-        Assert.assertFalse(((TestStateChangelogStorage) storage1).closed);
+                        jobId1,
+                        configuration,
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled());
+        assertThat(storage1).isInstanceOf(TestStateChangelogStorage.class);
+        assertThat(((TestStateChangelogStorage) storage1).closed).isFalse();
 
         JobID jobId2 = new JobID(1L, 2L);
         StateChangelogStorage<?> storage2 =
                 manager.stateChangelogStorageForJob(
-                        jobId1, configuration, createUnregisteredTaskManagerJobMetricGroup());
-        Assert.assertTrue(storage2 instanceof TestStateChangelogStorage);
-        Assert.assertFalse(((TestStateChangelogStorage) storage2).closed);
+                        jobId1,
+                        configuration,
+                        createUnregisteredTaskManagerJobMetricGroup(),
+                        TestLocalRecoveryConfig.disabled());
+        assertThat(storage2).isInstanceOf(TestStateChangelogStorage.class);
+        assertThat(((TestStateChangelogStorage) storage2).closed).isFalse();
 
         manager.shutdown();
-        Assert.assertTrue(((TestStateChangelogStorage) storage1).closed);
-        Assert.assertTrue(((TestStateChangelogStorage) storage2).closed);
+        assertThat(((TestStateChangelogStorage) storage1).closed).isTrue();
+        assertThat(((TestStateChangelogStorage) storage2).closed).isTrue();
 
         StateChangelogStorageLoader.initialize(null);
     }
@@ -207,12 +240,16 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
 
         @Override
         public StateChangelogStorage<?> createStorage(
-                Configuration configuration, TaskManagerJobMetricGroup metricGroup) {
+                JobID jobID,
+                Configuration configuration,
+                TaskManagerJobMetricGroup metricGroup,
+                LocalRecoveryConfig localRecoveryConfig) {
             return new TestStateChangelogStorage();
         }
 
         @Override
-        public StateChangelogStorageView<?> createStorageView() throws IOException {
+        public StateChangelogStorageView<?> createStorageView(Configuration configuration)
+                throws IOException {
             return new TestStateChangelogStorage();
         }
     }

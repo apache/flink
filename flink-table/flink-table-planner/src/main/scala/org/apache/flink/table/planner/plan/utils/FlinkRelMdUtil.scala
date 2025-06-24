@@ -37,6 +37,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName.{TIME, TIMESTAMP}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.{ImmutableBitSet, NumberUtil}
+import org.apache.calcite.util.NumberUtil.multiply
 
 import java.math.BigDecimal
 import java.util

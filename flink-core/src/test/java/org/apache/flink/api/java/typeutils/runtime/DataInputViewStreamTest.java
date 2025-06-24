@@ -19,30 +19,29 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for {@link DataInputViewStream}. */
-public class DataInputViewStreamTest extends TestLogger {
+class DataInputViewStreamTest {
 
     @Test
-    public void testSkip() throws IOException {
+    void testSkip() throws IOException {
         final TestInputStream inputStream = new TestInputStream();
         try (TestDataInputView dataInputView = new TestDataInputView(inputStream)) {
             try (DataInputViewStream dataInputViewStream = new DataInputViewStream(dataInputView)) {
-                assertEquals(1, dataInputViewStream.skip(1));
-                assertEquals(1, inputStream.skipped);
+                assertThat(dataInputViewStream.skip(1)).isOne();
+                assertThat(inputStream.skipped).isOne();
 
                 final long bigNumberToSkip = 1024L + 2L * Integer.MAX_VALUE;
-                assertEquals(bigNumberToSkip, dataInputViewStream.skip(bigNumberToSkip));
-                assertEquals(1 + bigNumberToSkip, inputStream.skipped);
+                assertThat(dataInputViewStream.skip(bigNumberToSkip)).isEqualTo(bigNumberToSkip);
+                assertThat(inputStream.skipped).isEqualTo(1 + bigNumberToSkip);
             }
         }
     }

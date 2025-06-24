@@ -67,7 +67,7 @@ You should see something like:
 
 For now, you may want to note that:
 - __bin/__ directory contains the `flink` binary as well as several bash scripts that manage various jobs and tasks
-- __conf/__ directory contains configuration files, including `flink-conf.yaml`
+- __conf/__ directory contains configuration files, including [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}})
 - __examples/__ directory contains sample applications that can be used as is with Flink
 
 
@@ -141,7 +141,7 @@ You can view the data flow plan for the execution:
 
 Here for the job execution, Flink has two operators. The ﬁrst is the source operator which reads data from the
 collection source. The second operator is the transformation operator which aggregates counts of words. Learn
-more about [DataStream operators]({{< ref "docs/dev/datastream/operators" >}}).
+more about [DataStream operators]({{< ref "docs/dev/datastream/operators/overview" >}}).
 
 You can also look at the timeline of the job execution:
 
@@ -154,4 +154,4 @@ folder or deploy your own job!
 
 In this guide, you downloaded Flink, explored the project directory, started and stopped a local cluster, and submitted a sample Flink job!
 
-To learn more about Flink fundamentals, check out the [concepts]({{< ref "docs/concepts" >}}) section. If you want to try something more hands-on, try one of the tutorials.
+To learn more about Flink fundamentals, check out the [concepts]({{< ref "docs/concepts/overview" >}}) section. If you want to try something more hands-on, try one of the tutorials.

@@ -19,18 +19,19 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
 import java.util.Collections;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Tests for {@link MessageParameters}. */
-public class MessageParametersTest extends TestLogger {
+class MessageParametersTest {
     @Test
-    public void testResolveUrl() {
+    void testResolveUrl() {
         String genericUrl = "/jobs/:jobid/state";
         TestMessageParameters parameters = new TestMessageParameters();
         JobID pathJobID = new JobID();
@@ -40,24 +41,21 @@ public class MessageParametersTest extends TestLogger {
 
         String resolvedUrl = MessageParameters.resolveUrl(genericUrl, parameters);
 
-        Assert.assertEquals("/jobs/" + pathJobID + "/state?jobid=" + queryJobID, resolvedUrl);
+        assertThat("/jobs/" + pathJobID + "/state?jobid=" + queryJobID).isEqualTo(resolvedUrl);
     }
 
     @Test
-    public void testUnresolvedParameters() {
+    void testUnresolvedParameters() {
         String genericUrl = "/jobs/:jobid/state";
         TestMessageParameters parameters = new TestMessageParameters();
-        try {
-            MessageParameters.resolveUrl(genericUrl, parameters);
-            Assert.fail();
-        } catch (IllegalStateException expected) {
-            // the mandatory jobid path parameter was not resolved
-        }
+        assertThatThrownBy(() -> MessageParameters.resolveUrl(genericUrl, parameters))
+                .isInstanceOf(IllegalStateException.class);
+
         JobID jobID = new JobID();
         parameters.pathParameter.resolve(jobID);
 
         String resolvedUrl = MessageParameters.resolveUrl(genericUrl, parameters);
-        Assert.assertEquals("/jobs/" + jobID + "/state", resolvedUrl);
+        assertThat(resolvedUrl).isEqualTo("/jobs/" + jobID + "/state");
     }
 
     private static class TestMessageParameters extends MessageParameters {

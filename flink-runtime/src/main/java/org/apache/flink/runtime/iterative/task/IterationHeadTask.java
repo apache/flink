@@ -74,7 +74,7 @@ import java.util.List;
  * will send a {@link TerminationEvent} to all it's connected tasks, signaling them to shutdown.
  *
  * <p>Assumption on the ordering of the outputs: - The first n output gates write to channels that
- * go to the tasks of the step function. - The next m output gates to to the tasks that consume the
+ * go to the tasks of the step function. - The next m output gates to the tasks that consume the
  * final solution. - The last output gate connects to the synchronization task.
  *
  * @param <X> The type of the bulk partial solution / solution set and the final output.

@@ -26,7 +26,7 @@ import java.util.LinkedList;
 import java.util.Random;
 
 /** A test for the {@link LinkedListSerializer}. */
-public class LinkedListSerializerTest extends SerializerTestBase<LinkedList<Long>> {
+class LinkedListSerializerTest extends SerializerTestBase<LinkedList<Long>> {
 
     @Override
     protected TypeSerializer<LinkedList<Long>> createSerializer() {

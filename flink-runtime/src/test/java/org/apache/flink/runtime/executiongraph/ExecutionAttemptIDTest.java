@@ -19,27 +19,29 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ExecutionAttemptID}. */
-public class ExecutionAttemptIDTest {
+class ExecutionAttemptIDTest {
     private static final NettyBufferPool ALLOCATOR = new NettyBufferPool(1);
 
     @Test
-    public void testByteBufWriteAndRead() {
-        final ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+    void testByteBufWriteAndRead() {
+        final ExecutionAttemptID executionAttemptID =
+                new ExecutionAttemptID(
+                        new ExecutionGraphID(), new ExecutionVertexID(new JobVertexID(), 123), 456);
         final int byteBufLen = ExecutionAttemptID.getByteBufLength();
         final ByteBuf byteBuf = ALLOCATOR.directBuffer(byteBufLen, byteBufLen);
         executionAttemptID.writeTo(byteBuf);
 
-        assertThat(byteBuf.writerIndex(), is(equalTo(ExecutionAttemptID.getByteBufLength())));
-        assertThat(ExecutionAttemptID.fromByteBuf(byteBuf), is(equalTo(executionAttemptID)));
+        assertThat(byteBuf.writerIndex()).isEqualTo(ExecutionAttemptID.getByteBufLength());
+        assertThat(ExecutionAttemptID.fromByteBuf(byteBuf)).isEqualTo(executionAttemptID);
     }
 }

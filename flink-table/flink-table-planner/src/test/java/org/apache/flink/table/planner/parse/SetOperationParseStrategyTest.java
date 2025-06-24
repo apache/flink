@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.planner.parse;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SetOperationParseStrategy}. */
-public class SetOperationParseStrategyTest {
+class SetOperationParseStrategyTest {
 
     @Test
-    public void testMatches() {
+    void testMatches() {
         assertThat(SetOperationParseStrategy.INSTANCE.match("SET")).isTrue();
         assertThat(
                         SetOperationParseStrategy.INSTANCE.match(
@@ -48,7 +48,7 @@ public class SetOperationParseStrategyTest {
     }
 
     @Test
-    public void testDoesNotMatchQuotedKey() {
+    void testDoesNotMatchQuotedKey() {
         assertThat(
                         SetOperationParseStrategy.INSTANCE.match(
                                 "SET 'table.local-time-zone' = Europe/Berlin"))

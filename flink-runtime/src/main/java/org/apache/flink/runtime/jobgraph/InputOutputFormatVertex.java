@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.api.common.io.FinalizeOnMaster;
+import org.apache.flink.api.common.io.FinalizeOnMaster.FinalizationContext;
 import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
@@ -53,7 +54,8 @@ public class InputOutputFormatVertex extends JobVertex {
     }
 
     @Override
-    public void initializeOnMaster(ClassLoader loader) throws Exception {
+    public void initializeOnMaster(InitializeOnMasterContext context) throws Exception {
+        ClassLoader loader = context.getClassLoader();
         final InputOutputFormatContainer formatContainer = initInputOutputformatContainer(loader);
 
         final ClassLoader original = Thread.currentThread().getContextClassLoader();
@@ -107,7 +109,8 @@ public class InputOutputFormatVertex extends JobVertex {
                 }
 
                 if (outputFormat instanceof InitializeOnMaster) {
-                    ((InitializeOnMaster) outputFormat).initializeGlobal(getParallelism());
+                    int executionParallelism = context.getExecutionParallelism();
+                    ((InitializeOnMaster) outputFormat).initializeGlobal(executionParallelism);
                 }
             }
         } finally {
@@ -117,7 +120,8 @@ public class InputOutputFormatVertex extends JobVertex {
     }
 
     @Override
-    public void finalizeOnMaster(ClassLoader loader) throws Exception {
+    public void finalizeOnMaster(FinalizeOnMasterContext context) throws Exception {
+        final ClassLoader loader = context.getClassLoader();
         final InputOutputFormatContainer formatContainer = initInputOutputformatContainer(loader);
 
         final ClassLoader original = Thread.currentThread().getContextClassLoader();
@@ -145,7 +149,20 @@ public class InputOutputFormatVertex extends JobVertex {
                 }
 
                 if (outputFormat instanceof FinalizeOnMaster) {
-                    ((FinalizeOnMaster) outputFormat).finalizeGlobal(getParallelism());
+                    int executionParallelism = context.getExecutionParallelism();
+                    ((FinalizeOnMaster) outputFormat)
+                            .finalizeGlobal(
+                                    new FinalizationContext() {
+                                        @Override
+                                        public int getParallelism() {
+                                            return executionParallelism;
+                                        }
+
+                                        @Override
+                                        public int getFinishedAttempt(int subtaskIndex) {
+                                            return context.getFinishedAttempt(subtaskIndex);
+                                        }
+                                    });
                 }
             }
         } finally {

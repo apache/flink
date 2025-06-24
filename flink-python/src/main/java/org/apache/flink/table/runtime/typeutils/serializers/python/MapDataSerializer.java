@@ -170,11 +170,11 @@ public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.
     public static final class BaseMapSerializerSnapshot implements TypeSerializerSnapshot<MapData> {
         private static final int CURRENT_VERSION = 1;
 
-        private LogicalType previousKeyType;
-        private LogicalType previousValueType;
+        private LogicalType keyType;
+        private LogicalType valueType;
 
-        private TypeSerializer previousKeySerializer;
-        private TypeSerializer previousValueSerializer;
+        private TypeSerializer keySerializer;
+        private TypeSerializer valueSerializer;
 
         @SuppressWarnings("unused")
         public BaseMapSerializerSnapshot() {
@@ -186,11 +186,11 @@ public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.
                 LogicalType valueT,
                 TypeSerializer keySer,
                 TypeSerializer valueSer) {
-            this.previousKeyType = keyT;
-            this.previousValueType = valueT;
+            this.keyType = keyT;
+            this.valueType = valueT;
 
-            this.previousKeySerializer = keySer;
-            this.previousValueSerializer = valueSer;
+            this.keySerializer = keySer;
+            this.valueSerializer = valueSer;
         }
 
         @Override
@@ -201,10 +201,10 @@ public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.
         @Override
         public void writeSnapshot(DataOutputView out) throws IOException {
             DataOutputViewStream outStream = new DataOutputViewStream(out);
-            InstantiationUtil.serializeObject(outStream, previousKeyType);
-            InstantiationUtil.serializeObject(outStream, previousValueType);
-            InstantiationUtil.serializeObject(outStream, previousKeySerializer);
-            InstantiationUtil.serializeObject(outStream, previousValueSerializer);
+            InstantiationUtil.serializeObject(outStream, keyType);
+            InstantiationUtil.serializeObject(outStream, valueType);
+            InstantiationUtil.serializeObject(outStream, keySerializer);
+            InstantiationUtil.serializeObject(outStream, valueSerializer);
         }
 
         @Override
@@ -212,13 +212,11 @@ public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.
                 throws IOException {
             try {
                 DataInputViewStream inStream = new DataInputViewStream(in);
-                this.previousKeyType =
+                this.keyType = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+                this.valueType = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+                this.keySerializer =
                         InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
-                this.previousValueType =
-                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
-                this.previousKeySerializer =
-                        InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
-                this.previousValueSerializer =
+                this.valueSerializer =
                         InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
             } catch (ClassNotFoundException e) {
                 throw new IOException(e);
@@ -227,25 +225,22 @@ public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.
 
         @Override
         public TypeSerializer<MapData> restoreSerializer() {
-            return new MapDataSerializer(
-                    previousKeyType,
-                    previousValueType,
-                    previousKeySerializer,
-                    previousValueSerializer);
+            return new MapDataSerializer(keyType, valueType, keySerializer, valueSerializer);
         }
 
         @Override
         public TypeSerializerSchemaCompatibility<MapData> resolveSchemaCompatibility(
-                TypeSerializer<MapData> newSerializer) {
-            if (!(newSerializer instanceof MapDataSerializer)) {
+                TypeSerializerSnapshot<MapData> oldSerializerSnapshot) {
+            if (!(oldSerializerSnapshot instanceof BaseMapSerializerSnapshot)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 
-            MapDataSerializer newMapDataSerializer = (MapDataSerializer) newSerializer;
-            if (!previousKeyType.equals(newMapDataSerializer.keyType)
-                    || !previousValueType.equals(newMapDataSerializer.valueType)
-                    || !previousKeySerializer.equals(newMapDataSerializer.keyTypeSerializer)
-                    || !previousValueSerializer.equals(newMapDataSerializer.valueTypeSerializer)) {
+            BaseMapSerializerSnapshot oldBaseMapDataSerializerSnapshot =
+                    (BaseMapSerializerSnapshot) oldSerializerSnapshot;
+            if (!keyType.equals(oldBaseMapDataSerializerSnapshot.keyType)
+                    || !valueType.equals(oldBaseMapDataSerializerSnapshot.valueType)
+                    || !keySerializer.equals(oldBaseMapDataSerializerSnapshot.keySerializer)
+                    || !valueSerializer.equals(oldBaseMapDataSerializerSnapshot.valueSerializer)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             } else {
                 return TypeSerializerSchemaCompatibility.compatibleAsIs();

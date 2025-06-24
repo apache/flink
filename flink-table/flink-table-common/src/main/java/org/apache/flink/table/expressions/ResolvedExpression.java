@@ -47,6 +47,17 @@ public interface ResolvedExpression extends Expression {
      * @return detailed string for persisting in a catalog
      */
     default String asSerializableString() {
+        return asSerializableString(DefaultSqlFactory.INSTANCE);
+    }
+
+    /**
+     * Returns a string that fully serializes this instance. The serialized string can be used for
+     * storing the query in, for example, a {@link org.apache.flink.table.catalog.Catalog} as a
+     * view.
+     *
+     * @return detailed string for persisting in a catalog
+     */
+    default String asSerializableString(SqlFactory sqlFactory) {
         throw new TableException(
                 String.format(
                         "Expression '%s' is not string serializable. Currently, only expressions that "

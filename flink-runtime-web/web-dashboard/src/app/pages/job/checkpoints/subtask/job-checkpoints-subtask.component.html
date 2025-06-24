@@ -156,13 +156,18 @@
         <th [nzSortFn]="sortAlignmentDurationFn"><strong>Alignment Duration</strong></th>
         <th [nzSortFn]="sortStartDelayFn"><strong>Start Delay</strong></th>
         <th [nzSortFn]="sortUnalignedCpFn"><strong>Unaligned Checkpoint</strong></th>
+        <ng-container
+          *ngIf="table.data && table.data[0] && table.data[0]['status'] === 'pending_or_failed'"
+        >
+          <th><strong>TaskManager</strong></th>
+        </ng-container>
       </tr>
     </thead>
     <tbody>
       <tr *ngFor="let subTask of table.data">
         <td>{{ subTask['index'] }}</td>
         <ng-container *ngIf="subTask['status'] === 'completed'">
-          <td>{{ subTask['ack_timestamp'] | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ subTask['ack_timestamp'] | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
           <td>
             {{ subTask['end_to_end_duration'] | humanizeDuration }}
             <span *ngIf="subTask['aborted']">(aborted)</span>
@@ -181,7 +186,19 @@
           <td>{{ subTask['unaligned_checkpoint'] }}</td>
         </ng-container>
         <ng-container *ngIf="subTask['status'] === 'pending_or_failed'">
-          <td colspan="8">n/a</td>
+          <td colspan="10">n/a</td>
+          <td>
+            <a
+              *ngIf="mapOfSubtask.get(subTask['index'])"
+              [routerLink]="[
+                '/task-manager',
+                mapOfSubtask.get(subTask['index'])['taskmanager-id'],
+                'logs'
+              ]"
+            >
+              View Logs
+            </a>
+          </td>
         </ng-container>
       </tr>
     </tbody>

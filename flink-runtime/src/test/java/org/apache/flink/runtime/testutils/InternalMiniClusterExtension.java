@@ -20,13 +20,16 @@ package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.core.testutils.CustomExtension;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.test.junit5.InjectClusterClientConfiguration;
 import org.apache.flink.test.junit5.InjectClusterRESTAddress;
 import org.apache.flink.test.junit5.InjectMiniCluster;
 
 import org.junit.jupiter.api.extension.AfterAllCallback;
+import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
@@ -42,7 +45,12 @@ import java.net.URI;
  */
 @Internal
 public class InternalMiniClusterExtension
-        implements BeforeAllCallback, AfterAllCallback, ParameterResolver {
+        implements BeforeAllCallback,
+                AfterAllCallback,
+                BeforeEachCallback,
+                AfterEachCallback,
+                ParameterResolver,
+                CustomExtension {
 
     private final MiniClusterResource miniClusterResource;
 
@@ -63,8 +71,8 @@ public class InternalMiniClusterExtension
         return miniClusterResource.getClientConfiguration();
     }
 
-    public URI getRestAddres() {
-        return miniClusterResource.getRestAddres();
+    public URI getRestAddress() {
+        return miniClusterResource.getRestAddress();
     }
 
     @Override
@@ -105,8 +113,28 @@ public class InternalMiniClusterExtension
             return miniClusterResource.getClientConfiguration();
         }
         if (parameterContext.isAnnotated(InjectClusterRESTAddress.class)) {
-            return miniClusterResource.getRestAddres();
+            return miniClusterResource.getRestAddress();
         }
         throw new ParameterResolutionException("Unsupported parameter");
+    }
+
+    @Override
+    public void beforeEach(ExtensionContext context) throws Exception {
+        miniClusterResource.before();
+    }
+
+    @Override
+    public void afterEach(ExtensionContext context) throws Exception {
+        miniClusterResource.after();
+    }
+
+    @Override
+    public void before(ExtensionContext context) throws Exception {
+        miniClusterResource.before();
+    }
+
+    @Override
+    public void after(ExtensionContext context) throws Exception {
+        miniClusterResource.after();
     }
 }

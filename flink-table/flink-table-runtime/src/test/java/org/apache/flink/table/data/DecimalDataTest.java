@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.data;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
@@ -47,11 +47,11 @@ import static org.apache.flink.table.data.DecimalDataUtils.subtract;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link DecimalData}. */
-public class DecimalDataTest {
+class DecimalDataTest {
 
     @SuppressWarnings("ConstantConditions")
     @Test
-    public void testNormal() {
+    void testNormal() {
         BigDecimal bigDecimal1 = new BigDecimal("13145678.90123");
         BigDecimal bigDecimal2 = new BigDecimal("1234567890.0987654321");
         // fromUnscaledBytes
@@ -126,7 +126,7 @@ public class DecimalDataTest {
 
     @SuppressWarnings("ConstantConditions")
     @Test
-    public void testNotCompact() {
+    void testNotCompact() {
         DecimalData decimal1 = DecimalData.fromBigDecimal(new BigDecimal(10), 20, 0);
         DecimalData decimal2 = DecimalData.fromBigDecimal(new BigDecimal(15), 20, 0);
         assertThat(DecimalData.fromBigDecimal(new BigDecimal(10), 20, 0).hashCode())
@@ -167,10 +167,15 @@ public class DecimalDataTest {
         assertThat(DecimalData.fromBigDecimal(new BigDecimal(Long.MAX_VALUE), 5, 0)).isNull();
         assertThat(DecimalData.zero(20, 2).toBigDecimal().intValue()).isEqualTo(0);
         assertThat(DecimalData.zero(20, 2).toBigDecimal().intValue()).isEqualTo(0);
+
+        DecimalData decimal3 = DecimalData.fromBigDecimal(new BigDecimal(10), 18, 0);
+        DecimalData decimal4 = DecimalData.fromBigDecimal(new BigDecimal(15), 18, 0);
+        assertThat(DecimalDataUtils.compare(subtract(decimal3, decimal4, 19, 0), -5)).isEqualTo(0);
+        assertThat(DecimalDataUtils.compare(add(decimal3, decimal4, 19, 0), 25)).isEqualTo(0);
     }
 
     @Test
-    public void testToString() {
+    void testToString() {
         String val = "0.0000000000000000001";
         assertThat(castFrom(val, 39, val.length() - 2).toString()).isEqualTo(val);
         val = "123456789012345678901234567890123456789";

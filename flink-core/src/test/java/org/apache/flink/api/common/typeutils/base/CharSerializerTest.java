@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.util.Random;
 
 /** A test for the {@link org.apache.flink.api.common.typeutils.base.CharSerializer}. */
-public class CharSerializerTest extends SerializerTestBase<Character> {
+class CharSerializerTest extends SerializerTestBase<Character> {
 
     @Override
     protected TypeSerializer<Character> createSerializer() {
@@ -44,7 +44,7 @@ public class CharSerializerTest extends SerializerTestBase<Character> {
     @Override
     protected Character[] getTestData() {
         Random rnd = new Random(874597969123412341L);
-        int rndInt = rnd.nextInt((int) Character.MAX_VALUE);
+        int rndInt = rnd.nextInt(Character.MAX_VALUE);
 
         return new Character[] {
             new Character('a'),

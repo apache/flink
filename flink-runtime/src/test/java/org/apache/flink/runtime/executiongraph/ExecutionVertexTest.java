@@ -30,39 +30,42 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertFalse;
 
 /** Tests for the {@link ExecutionVertex}. */
-public class ExecutionVertexTest extends TestLogger {
+class ExecutionVertexTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     @Test
-    public void testResetForNewExecutionReleasesPartitions() throws Exception {
+    void testResetForNewExecutionReleasesPartitions() throws Exception {
         final JobVertex producerJobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
         final JobVertex consumerJobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
-        consumerJobVertex.connectNewDataSetAsInput(
-                producerJobVertex, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                consumerJobVertex,
+                producerJobVertex,
+                DistributionPattern.POINTWISE,
+                ResultPartitionType.BLOCKING);
 
         final CompletableFuture<Collection<ResultPartitionID>> releasePartitionsFuture =
                 new CompletableFuture<>();
@@ -74,7 +77,7 @@ public class ExecutionVertexTest extends TestLogger {
         final JobGraph jobGraph =
                 JobGraphTestUtils.streamingJobGraph(producerJobVertex, consumerJobVertex);
         final SchedulerBase scheduler =
-                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 jobGraph,
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                                 EXECUTOR_RESOURCE.getExecutor())
@@ -89,11 +92,11 @@ public class ExecutionVertexTest extends TestLogger {
         Execution execution =
                 producerExecutionJobVertex.getTaskVertices()[0].getCurrentExecutionAttempt();
 
-        assertFalse(releasePartitionsFuture.isDone());
+        assertThat(releasePartitionsFuture).isNotDone();
 
         execution.markFinished();
 
-        assertFalse(releasePartitionsFuture.isDone());
+        assertThat(releasePartitionsFuture).isNotDone();
 
         for (ExecutionVertex executionVertex : producerExecutionJobVertex.getTaskVertices()) {
             executionVertex.resetForNewExecution();
@@ -113,7 +116,7 @@ public class ExecutionVertexTest extends TestLogger {
     }
 
     @Test
-    public void testFindLatestAllocationIgnoresFailedAttempts() throws Exception {
+    void testFindLatestAllocationIgnoresFailedAttempts() throws Exception {
         final JobVertex source = ExecutionGraphTestUtils.createNoOpVertex(1);
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(source);
         final TestingPhysicalSlotProvider withLimitedAmountOfPhysicalSlots =
@@ -122,7 +125,7 @@ public class ExecutionVertexTest extends TestLogger {
         // make sure that retrieving the last (al)location is independent from the history size
         configuration.set(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE, 1);
         final SchedulerBase scheduler =
-                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 jobGraph,
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                                 EXECUTOR_RESOURCE.getExecutor())

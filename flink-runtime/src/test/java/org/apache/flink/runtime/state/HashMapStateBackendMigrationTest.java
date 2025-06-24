@@ -21,37 +21,41 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
 
 /** Tests for the partitioned state part of {@link HashMapStateBackend}. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class HashMapStateBackendMigrationTest
         extends StateBackendMigrationTestBase<HashMapStateBackend> {
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @TempDir private static Path tempFolder;
 
-    @Parameterized.Parameters
-    public static Object[] modes() {
-        return new Object[] {
-            (SupplierWithException<CheckpointStorage, IOException>)
-                    JobManagerCheckpointStorage::new,
-            (SupplierWithException<CheckpointStorage, IOException>)
-                    () -> {
-                        String checkpointPath = TEMP_FOLDER.newFolder().toURI().toString();
-                        return new FileSystemCheckpointStorage(checkpointPath);
-                    }
-        };
+    @Parameters
+    public static List<Object> modes() {
+        return Arrays.asList(
+                (SupplierWithException<CheckpointStorage, IOException>)
+                        JobManagerCheckpointStorage::new,
+                (SupplierWithException<CheckpointStorage, IOException>)
+                        () -> {
+                            String checkpointPath =
+                                    TempDirUtils.newFolder(tempFolder).toURI().toString();
+                            return new FileSystemCheckpointStorage(checkpointPath);
+                        });
     }
 
-    @Parameterized.Parameter
-    public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
+    @Parameter public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
 
     @Override
     protected HashMapStateBackend getStateBackend() throws Exception {

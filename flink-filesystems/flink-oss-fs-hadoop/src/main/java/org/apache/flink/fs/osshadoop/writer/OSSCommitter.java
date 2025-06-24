@@ -75,8 +75,7 @@ public class OSSCommitter implements RecoverableFsDataOutputStream.Committer {
                 ossAccessor.completeMultipartUpload(objectName, uploadId, partETags);
             } catch (Exception e) {
                 LOG.info(
-                        "Failed to commit after recovery {} with multi-part upload ID {}. "
-                                + "exception {}",
+                        "Failed to commit after recovery {} with multi-part upload ID {}.",
                         objectName,
                         uploadId,
                         e);

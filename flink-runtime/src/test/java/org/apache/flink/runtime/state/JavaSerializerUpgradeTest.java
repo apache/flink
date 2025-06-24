@@ -20,45 +20,32 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 
-import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.assertj.core.api.Condition;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import static org.hamcrest.Matchers.is;
-
 /** A {@link TypeSerializerUpgradeTestBase} for {@link JavaSerializer}. */
-@RunWith(Parameterized.class)
-public class JavaSerializerUpgradeTest
-        extends TypeSerializerUpgradeTestBase<Serializable, Serializable> {
+class JavaSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Serializable, Serializable> {
 
     private static final String SPEC_NAME = "java-serializer";
 
-    public JavaSerializerUpgradeTest(
-            TestSpecification<Serializable, Serializable> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
 
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            SPEC_NAME,
-                            flinkVersion,
-                            JavaSerializerSetup.class,
-                            JavaSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        SPEC_NAME,
+                        flinkVersion,
+                        JavaSerializerSetup.class,
+                        JavaSerializerVerifier.class));
 
         return testSpecifications;
     }
@@ -96,14 +83,14 @@ public class JavaSerializerUpgradeTest
         }
 
         @Override
-        public Matcher<Serializable> testDataMatcher() {
-            return is(26);
+        public Condition<Serializable> testDataCondition() {
+            return new Condition<>(value -> 26 == (int) value, "");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<Serializable>> schemaCompatibilityMatcher(
-                FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<Serializable>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 }

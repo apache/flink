@@ -30,12 +30,14 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.api.java.typeutils.SetTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.Value;
+import org.apache.flink.types.variant.Variant;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -49,8 +51,10 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * This class gives access to the type information of the most common types for which Flink has
@@ -152,6 +156,8 @@ public class Types {
 
     /** Returns type information for {@link java.time.Instant}. Supports a null value. */
     public static final TypeInformation<Instant> INSTANT = BasicTypeInfo.INSTANT_TYPE_INFO;
+
+    public static final TypeInformation<Variant> VARIANT = VariantTypeInfo.INSTANCE;
 
     // CHECKSTYLE.OFF: MethodName
 
@@ -268,6 +274,10 @@ public class Types {
      * independent of the field's type.
      *
      * <p>The generic types for all fields of the POJO can be defined in a hierarchy of subclasses.
+     *
+     * <p>Java Record classes can also be used as valid POJOs (even though they don't fulfill some
+     * of the above criteria). In this case Flink will use the record canonical constructor to
+     * create the objects.
      *
      * <p>If Flink's type analyzer is unable to extract a valid POJO type information with type
      * information for all fields, an {@link
@@ -437,6 +447,22 @@ public class Types {
      */
     public static <E> TypeInformation<List<E>> LIST(TypeInformation<E> elementType) {
         return new ListTypeInfo<>(elementType);
+    }
+
+    /**
+     * Returns type information for a Java {@link java.util.Set}. A set must not be null. Null
+     * values in elements are not supported.
+     *
+     * <p>By default, sets are untyped and treated as a generic type in Flink; therefore, it is
+     * useful to pass type information whenever a set is used.
+     *
+     * <p><strong>Note:</strong> Flink does not preserve the concrete {@link Set} type. It converts
+     * a list into {@link HashSet} when copying or deserializing.
+     *
+     * @param elementType type information for the set's elements
+     */
+    public static <E> TypeInformation<Set<E>> SET(TypeInformation<E> elementType) {
+        return new SetTypeInfo<>(elementType);
     }
 
     /**

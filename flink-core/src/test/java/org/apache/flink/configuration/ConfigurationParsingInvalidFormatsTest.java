@@ -18,22 +18,24 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.Collections;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Tests for reading configuration parameters with invalid formats. */
-@RunWith(Parameterized.class)
-public class ConfigurationParsingInvalidFormatsTest extends TestLogger {
-    @Parameterized.Parameters(name = "option: {0}, invalidString: {1}")
-    public static Object[][] getSpecs() {
+@ExtendWith(ParameterizedTestExtension.class)
+class ConfigurationParsingInvalidFormatsTest {
+
+    @Parameters(name = "option = {0}, invalidString = {1}")
+    private static Object[][] getSpecs() {
         return new Object[][] {
             new Object[] {ConfigOptions.key("int").intType().defaultValue(1), "ABC"},
             new Object[] {ConfigOptions.key("long").longType().defaultValue(1L), "ABC"},
@@ -64,35 +66,39 @@ public class ConfigurationParsingInvalidFormatsTest extends TestLogger {
         };
     }
 
-    @Parameterized.Parameter public ConfigOption<?> option;
+    @Parameter private ConfigOption<?> option;
 
-    @Parameterized.Parameter(value = 1)
-    public String invalidString;
+    @Parameter(value = 1)
+    private String invalidString;
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
-    @Test
-    public void testInvalidStringParsingWithGetOptional() {
-        Configuration configuration = new Configuration();
-        configuration.setString(option.key(), invalidString);
-
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(
-                String.format(
-                        "Could not parse value '%s' for key '%s'", invalidString, option.key()));
-        configuration.getOptional(option);
+    @TestTemplate
+    void testInvalidStringParsingWithGetOptional() {
+        assertThatThrownBy(
+                        () -> {
+                            Configuration configuration = new Configuration();
+                            configuration.setString(option.key(), invalidString);
+                            configuration.getOptional(option);
+                        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        String.format(
+                                "Could not parse value '%s' for key '%s'",
+                                invalidString, option.key()));
     }
 
-    @Test
-    public void testInvalidStringParsingWithGet() {
-        Configuration configuration = new Configuration();
-        configuration.setString(option.key(), invalidString);
-
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(
-                String.format(
-                        "Could not parse value '%s' for key '%s'", invalidString, option.key()));
-        configuration.get(option);
+    @TestTemplate
+    void testInvalidStringParsingWithGet() {
+        assertThatThrownBy(
+                        () -> {
+                            Configuration configuration = new Configuration();
+                            configuration.setString(option.key(), invalidString);
+                            configuration.get(option);
+                        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        String.format(
+                                "Could not parse value '%s' for key '%s'",
+                                invalidString, option.key()));
     }
 
     private enum TestEnum {

@@ -17,13 +17,13 @@
  */
 package org.apache.flink.table.planner.plan.stream.table
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{PandasAggregateFunction, TestPythonAggregateFunction}
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 import java.time.Duration
 
@@ -89,7 +89,7 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
     util.verifyExecPlan(resultTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testPandasEventTimeSessionGroupWindowOverTime(): Unit = {
     val util = streamTestUtil()
     val sourceTable =
@@ -100,7 +100,9 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
       .window(Session.withGap(7.millis).on('rowtime).as('w))
       .groupBy('w, 'b)
       .select('b, 'w.start, 'w.end, func('a, 'c))
-    util.verifyExecPlan(windowedTable)
+
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(windowedTable))
   }
 
   @Test
@@ -177,7 +179,7 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
     util.verifyExecPlan(windowedTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testEmitStrategyNotSupported(): Unit = {
     val util = streamTestUtil()
     val tableConf = util.getTableEnv.getConfig
@@ -193,6 +195,7 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
       .groupBy('w, 'b)
       .select('b, 'w.start, 'w.end, func('a, 'c))
 
-    util.verifyExecPlan(resultTable)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan(resultTable))
   }
 }

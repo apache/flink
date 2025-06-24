@@ -39,7 +39,7 @@ import org.apache.flink.table.types.logical.LogicalType
 case class GeneratedExpression(
     resultTerm: String,
     nullTerm: String,
-    code: String,
+    var code: String,
     resultType: LogicalType,
     literalValue: Option[Any] = None) {
 

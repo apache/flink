@@ -18,43 +18,33 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TimeUtils;
+
+import java.time.Duration;
 
 /** Configuration class for the {@link ResourceManagerRuntimeServices} class. */
 public class ResourceManagerRuntimeServicesConfiguration {
 
-    private final Time jobTimeout;
+    private final Duration jobTimeout;
 
     private final SlotManagerConfiguration slotManagerConfiguration;
 
-    private final boolean enableFineGrainedResourceManagement;
-
     public ResourceManagerRuntimeServicesConfiguration(
-            Time jobTimeout,
-            SlotManagerConfiguration slotManagerConfiguration,
-            boolean enableFineGrainedResourceManagement) {
+            Duration jobTimeout, SlotManagerConfiguration slotManagerConfiguration) {
         this.jobTimeout = Preconditions.checkNotNull(jobTimeout);
         this.slotManagerConfiguration = Preconditions.checkNotNull(slotManagerConfiguration);
-        this.enableFineGrainedResourceManagement = enableFineGrainedResourceManagement;
     }
 
-    public Time getJobTimeout() {
+    public Duration getJobTimeout() {
         return jobTimeout;
     }
 
     public SlotManagerConfiguration getSlotManagerConfiguration() {
         return slotManagerConfiguration;
-    }
-
-    public boolean isEnableFineGrainedResourceManagement() {
-        return enableFineGrainedResourceManagement;
     }
 
     // ---------------------------- Static methods ----------------------------------
@@ -63,11 +53,9 @@ public class ResourceManagerRuntimeServicesConfiguration {
             Configuration configuration, WorkerResourceSpecFactory defaultWorkerResourceSpecFactory)
             throws ConfigurationException {
 
-        final String strJobTimeout = configuration.getString(ResourceManagerOptions.JOB_TIMEOUT);
-        final Time jobTimeout;
-
+        final Duration jobTimeout;
         try {
-            jobTimeout = Time.milliseconds(TimeUtils.parseDuration(strJobTimeout).toMillis());
+            jobTimeout = configuration.get(ResourceManagerOptions.JOB_TIMEOUT);
         } catch (IllegalArgumentException e) {
             throw new ConfigurationException(
                     "Could not parse the resource manager's job timeout "
@@ -83,10 +71,7 @@ public class ResourceManagerRuntimeServicesConfiguration {
                 SlotManagerConfiguration.fromConfiguration(
                         configuration, defaultWorkerResourceSpec);
 
-        final boolean enableFineGrainedResourceManagement =
-                ClusterOptions.isFineGrainedResourceManagementEnabled(configuration);
-
         return new ResourceManagerRuntimeServicesConfiguration(
-                jobTimeout, slotManagerConfiguration, enableFineGrainedResourceManagement);
+                jobTimeout, slotManagerConfiguration);
     }
 }

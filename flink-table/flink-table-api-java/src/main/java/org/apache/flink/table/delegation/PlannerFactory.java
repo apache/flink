@@ -19,6 +19,7 @@
 package org.apache.flink.table.delegation;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -44,12 +45,20 @@ public interface PlannerFactory extends Factory {
     Planner create(Context context);
 
     /** Context used when creating a planner. */
+    @Internal
     interface Context {
         /** The executor required by the planner. */
         Executor getExecutor();
 
         /** The configuration of the planner to use. */
         TableConfig getTableConfig();
+
+        /**
+         * The user classloader.
+         *
+         * @see EnvironmentSettings#getUserClassLoader()
+         */
+        ClassLoader getClassLoader();
 
         /** The module manager. */
         ModuleManager getModuleManager();
@@ -62,9 +71,11 @@ public interface PlannerFactory extends Factory {
     }
 
     /** Default implementation of {@link Context}. */
+    @Internal
     class DefaultPlannerContext implements Context {
         private final Executor executor;
         private final TableConfig tableConfig;
+        private final ClassLoader classLoader;
         private final ModuleManager moduleManager;
         private final CatalogManager catalogManager;
         private final FunctionCatalog functionCatalog;
@@ -72,11 +83,13 @@ public interface PlannerFactory extends Factory {
         public DefaultPlannerContext(
                 Executor executor,
                 TableConfig tableConfig,
+                ClassLoader classLoader,
                 ModuleManager moduleManager,
                 CatalogManager catalogManager,
                 FunctionCatalog functionCatalog) {
             this.executor = executor;
             this.tableConfig = tableConfig;
+            this.classLoader = classLoader;
             this.moduleManager = moduleManager;
             this.catalogManager = catalogManager;
             this.functionCatalog = functionCatalog;
@@ -90,6 +103,11 @@ public interface PlannerFactory extends Factory {
         @Override
         public TableConfig getTableConfig() {
             return tableConfig;
+        }
+
+        @Override
+        public ClassLoader getClassLoader() {
+            return classLoader;
         }
 
         @Override

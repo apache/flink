@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, LogicalExpand}
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rex.RexNode
 
 import java.util
@@ -46,12 +47,7 @@ class FlinkLogicalExpand(
 
 }
 
-private class FlinkLogicalExpandConverter
-  extends ConverterRule(
-    classOf[LogicalExpand],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalExpandConverter") {
+private class FlinkLogicalExpandConverter(config: Config) extends ConverterRule(config) {
 
   override def convert(rel: RelNode): RelNode = {
     val expand = rel.asInstanceOf[LogicalExpand]
@@ -61,7 +57,12 @@ private class FlinkLogicalExpandConverter
 }
 
 object FlinkLogicalExpand {
-  val CONVERTER: ConverterRule = new FlinkLogicalExpandConverter()
+  val CONVERTER: ConverterRule = new FlinkLogicalExpandConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalExpand],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalExpandConverter"))
 
   def create(
       input: RelNode,

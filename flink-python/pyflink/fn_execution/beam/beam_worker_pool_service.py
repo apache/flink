@@ -33,8 +33,10 @@ from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import endpoints_pb2
-from apache_beam.portability.api.beam_provision_api_pb2 import GetProvisionInfoRequest
-from apache_beam.portability.api.beam_provision_api_pb2_grpc import ProvisionServiceStub
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2 \
+    import GetProvisionInfoRequest
+from apache_beam.portability.api.org.apache.beam.model.fn_execution.v1.beam_provision_api_pb2_grpc \
+    import ProvisionServiceStub
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
@@ -154,7 +156,7 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
                 control_address=control_service_descriptor.url,
                 status_address=status_service_descriptor.url,
                 worker_id=_worker_id,
-                state_cache_size=sdk_worker_main._get_state_cache_size(experiments),
+                state_cache_size=sdk_worker_main._get_state_cache_size_bytes(sdk_pipeline_options),
                 data_buffer_time_limit_ms=sdk_worker_main._get_data_buffer_time_limit_ms(
                     experiments),
                 profiler_factory=profiler.Profile.factory_from_options(

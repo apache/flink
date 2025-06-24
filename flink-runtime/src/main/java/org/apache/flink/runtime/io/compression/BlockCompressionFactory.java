@@ -18,7 +18,12 @@
 
 package org.apache.flink.runtime.io.compression;
 
-import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
+
+import io.airlift.compress.lzo.LzoCompressor;
+import io.airlift.compress.lzo.LzoDecompressor;
+import io.airlift.compress.zstd.ZstdCompressor;
+import io.airlift.compress.zstd.ZstdDecompressor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -32,58 +37,32 @@ public interface BlockCompressionFactory {
 
     BlockDecompressor getDecompressor();
 
-    /** Name of {@link BlockCompressionFactory}. */
-    enum CompressionFactoryName {
-        LZ4
-    }
-
     /**
      * Creates {@link BlockCompressionFactory} according to the configuration.
      *
-     * @param compressionFactoryName supported compression codecs or user-defined class name
-     *     inherited from {@link BlockCompressionFactory}.
+     * @param compressionName supported compression codecs.
      */
-    static BlockCompressionFactory createBlockCompressionFactory(String compressionFactoryName) {
+    static BlockCompressionFactory createBlockCompressionFactory(CompressionCodec compressionName) {
 
-        checkNotNull(compressionFactoryName);
+        checkNotNull(compressionName);
 
-        CompressionFactoryName compressionName;
-        try {
-            compressionName = CompressionFactoryName.valueOf(compressionFactoryName.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            compressionName = null;
+        BlockCompressionFactory blockCompressionFactory;
+        switch (compressionName) {
+            case LZ4:
+                blockCompressionFactory = new Lz4BlockCompressionFactory();
+                break;
+            case LZO:
+                blockCompressionFactory =
+                        new AirCompressorFactory(new LzoCompressor(), new LzoDecompressor());
+                break;
+            case ZSTD:
+                blockCompressionFactory =
+                        new AirCompressorFactory(new ZstdCompressor(), new ZstdDecompressor());
+                break;
+            default:
+                throw new IllegalStateException("Unknown CompressionMethod " + compressionName);
         }
 
-        BlockCompressionFactory blockCompressionFactory = null;
-        if (compressionName != null) {
-            switch (compressionName) {
-                case LZ4:
-                    blockCompressionFactory = new Lz4BlockCompressionFactory();
-                    break;
-                default:
-                    throw new IllegalStateException("Unknown CompressionMethod " + compressionName);
-            }
-        } else {
-            Object factoryObj;
-            try {
-                factoryObj = Class.forName(compressionFactoryName).newInstance();
-            } catch (ClassNotFoundException e) {
-                throw new IllegalConfigurationException(
-                        "Cannot load class " + compressionFactoryName, e);
-            } catch (Exception e) {
-                throw new IllegalConfigurationException(
-                        "Cannot create object for class " + compressionFactoryName, e);
-            }
-            if (factoryObj instanceof BlockCompressionFactory) {
-                blockCompressionFactory = (BlockCompressionFactory) factoryObj;
-            } else {
-                throw new IllegalArgumentException(
-                        "CompressionFactoryName should inherit from"
-                                + " interface BlockCompressionFactory, or use the default compression codec.");
-            }
-        }
-
-        checkNotNull(blockCompressionFactory);
         return blockCompressionFactory;
     }
 }

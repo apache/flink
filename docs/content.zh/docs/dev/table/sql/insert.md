@@ -206,6 +206,13 @@ part_spec:
 
 `PARTITION` 语句应该包含需要插入的静态分区列与值。
 
+**COLUMN LIST**
+
+给定一个表 T(a INT, b INT, c INT)，Flink 支持 INSERT INTO T(c, b) SELECT x, y FROM S。
+预期行为是 “x” 被写入 “c” 列，“y” 被写入 “b” 列，而 “a” 被设置为空值（假设 “a” 列可为空）。<br />
+连接器开发人员在处理部分列更新时，如果希望避免用空值覆盖非目标列，可以从 {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/DynamicTableSink.java" name="DynamicTableSink$Context.getTargetColumns()" >}}
+中获取用户插入语句指定的目标列信息，然后决定如何处理部分更新。
+
 ### 示例
 
 ```sql

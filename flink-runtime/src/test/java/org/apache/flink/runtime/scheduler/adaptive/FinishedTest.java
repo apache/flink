@@ -20,52 +20,56 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AdaptiveScheduler AdaptiveScheduler's} {@link Finished} state. */
-public class FinishedTest extends TestLogger {
+class FinishedTest {
+
+    private static final Logger log = LoggerFactory.getLogger(FinishedTest.class);
     private final JobStatus testJobStatus = JobStatus.FAILED;
 
     @Test
-    public void testOnFinishedCallOnEnter() throws Exception {
+    void testOnFinishedCallOnEnter() {
         MockFinishedContext ctx = new MockFinishedContext();
         createFinishedState(ctx);
 
-        assertThat(ctx.getArchivedExecutionGraph().getState(), is(testJobStatus));
+        assertThat(ctx.getArchivedExecutionGraph().getState()).isEqualTo(testJobStatus);
     }
 
     @Test
-    public void testCancelIgnored() throws Exception {
+    void testCancelIgnored() {
         MockFinishedContext ctx = new MockFinishedContext();
         createFinishedState(ctx).cancel();
-        assertThat(ctx.getArchivedExecutionGraph().getState(), is(testJobStatus));
+        assertThat(ctx.getArchivedExecutionGraph().getState()).isEqualTo(testJobStatus);
     }
 
     @Test
-    public void testSuspendIgnored() throws Exception {
+    void testSuspendIgnored() {
         MockFinishedContext ctx = new MockFinishedContext();
         createFinishedState(ctx).suspend(new RuntimeException());
-        assertThat(ctx.getArchivedExecutionGraph().getState(), is(testJobStatus));
+        assertThat(ctx.getArchivedExecutionGraph().getState()).isEqualTo(testJobStatus);
     }
 
     @Test
-    public void testGlobalFailureIgnored() {
+    void testGlobalFailureIgnored() {
         MockFinishedContext ctx = new MockFinishedContext();
-        createFinishedState(ctx).handleGlobalFailure(new RuntimeException());
-        assertThat(ctx.getArchivedExecutionGraph().getState(), is(testJobStatus));
+        createFinishedState(ctx)
+                .handleGlobalFailure(
+                        new RuntimeException(), FailureEnricherUtils.EMPTY_FAILURE_LABELS);
+        assertThat(ctx.getArchivedExecutionGraph().getState()).isEqualTo(testJobStatus);
     }
 
     @Test
-    public void testGetJobStatus() {
+    void testGetJobStatus() {
         MockFinishedContext ctx = new MockFinishedContext();
-        assertThat(createFinishedState(ctx).getJobStatus(), is(testJobStatus));
+        assertThat(createFinishedState(ctx).getJobStatus()).isEqualTo(testJobStatus);
     }
 
     private Finished createFinishedState(MockFinishedContext ctx) {
@@ -85,10 +89,6 @@ public class FinishedTest extends TestLogger {
             } else {
                 throw new AssertionError("Transitioned to onFinished twice");
             }
-        }
-
-        private void assertNoStateTransition() {
-            assertThat(archivedExecutionGraph, nullValue());
         }
 
         private ArchivedExecutionGraph getArchivedExecutionGraph() {

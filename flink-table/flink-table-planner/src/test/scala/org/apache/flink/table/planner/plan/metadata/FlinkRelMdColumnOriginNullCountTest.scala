@@ -19,8 +19,8 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, LESS_THAN_OR_EQUAL}
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConversions._
 

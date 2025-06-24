@@ -42,8 +42,8 @@ class StreamPhysicalWindowDeduplicate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
-    partitionKeys: Array[Int],
-    orderKey: Int,
+    val partitionKeys: Array[Int],
+    val orderKey: Int,
     keepLastRow: Boolean,
     windowing: WindowingStrategy)
   extends SingleRel(cluster, traitSet, inputRel)
@@ -87,5 +87,9 @@ class StreamPhysicalWindowDeduplicate(
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
+  }
+
+  def getWindowingStrategy: WindowingStrategy = {
+    windowing
   }
 }

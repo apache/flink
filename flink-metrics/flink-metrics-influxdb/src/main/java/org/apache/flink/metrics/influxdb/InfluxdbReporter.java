@@ -51,6 +51,7 @@ import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.RETENTIO
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.USERNAME;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.WRITE_TIMEOUT;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getConsistencyLevel;
+import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getDuration;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getInteger;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getScheme;
 import static org.apache.flink.metrics.influxdb.InfluxdbReporterOptions.getString;
@@ -89,8 +90,8 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
         this.retentionPolicy = getString(config, RETENTION_POLICY);
         this.consistency = getConsistencyLevel(config, CONSISTENCY);
 
-        int connectTimeout = getInteger(config, CONNECT_TIMEOUT);
-        int writeTimeout = getInteger(config, WRITE_TIMEOUT);
+        int connectTimeout = Math.toIntExact(getDuration(config, CONNECT_TIMEOUT).toMillis());
+        int writeTimeout = Math.toIntExact(getDuration(config, WRITE_TIMEOUT).toMillis());
         OkHttpClient.Builder client =
                 new OkHttpClient.Builder()
                         .connectTimeout(connectTimeout, TimeUnit.MILLISECONDS)

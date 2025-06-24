@@ -23,8 +23,7 @@ import org.apache.flink.annotation.Public;
 /**
  * Rich variant of the {@link MapFunction}. As a {@link RichFunction}, it gives access to the {@link
  * org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
- * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
- * RichFunction#close()}.
+ * {@link RichFunction#open(OpenContext)} and {@link RichFunction#close()}.
  *
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.

@@ -23,15 +23,21 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.SerializableSupplier;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.cfg.JsonNodeFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
 import java.util.Arrays;
 import java.util.Objects;
+
+import static org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN;
 
 /**
  * Serialization schema that serializes an object of Flink Table & SQL internal data structure into
@@ -53,14 +59,16 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
     /** Runtime instance that performs the actual work. */
     private final RowDataToCsvConverters.RowDataToCsvConverter runtimeConverter;
 
+    private final SerializableSupplier<CsvMapper> csvMapperSuppler;
+
     /** CsvMapper used to write {@link JsonNode} into bytes. */
-    private final CsvMapper csvMapper;
+    private transient CsvMapper csvMapper;
 
     /** Schema describing the input CSV data. */
     private final CsvSchema csvSchema;
 
     /** Object writer used to write rows. It is configured by {@link CsvSchema}. */
-    private final ObjectWriter objectWriter;
+    private transient ObjectWriter objectWriter;
 
     /** Reusable object node. */
     private transient ObjectNode root;
@@ -70,11 +78,19 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
                     .RowDataToCsvFormatConverterContext
             converterContext;
 
-    private CsvRowDataSerializationSchema(RowType rowType, CsvSchema csvSchema) {
+    private CsvRowDataSerializationSchema(
+            RowType rowType,
+            CsvSchema csvSchema,
+            SerializableSupplier<CsvMapper> csvMapperSupplier) {
         this.rowType = rowType;
         this.runtimeConverter = RowDataToCsvConverters.createRowConverter(rowType);
-        this.csvMapper = new CsvMapper();
         this.csvSchema = csvSchema.withLineSeparator("");
+        this.csvMapperSuppler = csvMapperSupplier;
+    }
+
+    @Override
+    public void open(InitializationContext context) throws Exception {
+        this.csvMapper = csvMapperSuppler.get();
         this.objectWriter = csvMapper.writer(this.csvSchema);
     }
 
@@ -84,6 +100,7 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
 
         private final RowType rowType;
         private CsvSchema csvSchema;
+        private boolean isScientificNotation;
 
         /**
          * Creates a {@link CsvRowDataSerializationSchema} expecting the given {@link RowType}.
@@ -128,8 +145,26 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
             return this;
         }
 
+        public void setWriteBigDecimalInScientificNotation(boolean isScientificNotation) {
+            this.isScientificNotation = isScientificNotation;
+        }
+
         public CsvRowDataSerializationSchema build() {
-            return new CsvRowDataSerializationSchema(rowType, csvSchema);
+            // assign to local variable to avoid reference to non-serializable builder
+            final boolean isScientificNotation = this.isScientificNotation;
+            return new CsvRowDataSerializationSchema(
+                    rowType,
+                    csvSchema,
+                    () -> {
+                        final CsvMapper csvMapper = JacksonMapperFactory.createCsvMapper();
+
+                        csvMapper.configure(WRITE_BIGDECIMAL_AS_PLAIN, !isScientificNotation);
+                        csvMapper.configure(
+                                DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
+                        csvMapper.configure(
+                                JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES, false);
+                        return csvMapper;
+                    });
         }
     }
 

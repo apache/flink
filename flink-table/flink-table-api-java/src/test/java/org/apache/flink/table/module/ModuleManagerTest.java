@@ -20,10 +20,9 @@ package org.apache.flink.table.module;
 
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.utils.ModuleMock;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -36,17 +35,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ModuleManager}. */
-public class ModuleManagerTest extends TestLogger {
+class ModuleManagerTest {
 
     private ModuleManager manager;
 
-    @Before
+    @BeforeEach
     public void before() {
         manager = new ModuleManager();
     }
 
     @Test
-    public void testLoadModuleTwice() {
+    void testLoadModuleTwice() {
         // CoreModule is loaded by default
         assertThat(manager.getUsedModules())
                 .isEqualTo(Collections.singletonList(CoreModuleFactory.IDENTIFIER));
@@ -60,7 +59,7 @@ public class ModuleManagerTest extends TestLogger {
     }
 
     @Test
-    public void testLoadModuleWithoutUnusedModulesExist() {
+    void testLoadModuleWithoutUnusedModulesExist() {
         ModuleMock x = new ModuleMock("x");
         ModuleMock y = new ModuleMock("y");
         ModuleMock z = new ModuleMock("z");
@@ -80,7 +79,7 @@ public class ModuleManagerTest extends TestLogger {
     }
 
     @Test
-    public void testLoadModuleWithUnusedModulesExist() {
+    void testLoadModuleWithUnusedModulesExist() {
         ModuleMock y = new ModuleMock("y");
         ModuleMock z = new ModuleMock("z");
         manager.loadModule(y.getType(), y);
@@ -108,7 +107,7 @@ public class ModuleManagerTest extends TestLogger {
     }
 
     @Test
-    public void testUnloadModuleTwice() {
+    void testUnloadModuleTwice() {
         assertThat(manager.getUsedModules()).containsSequence(CoreModuleFactory.IDENTIFIER);
 
         manager.unloadModule(CoreModuleFactory.IDENTIFIER);
@@ -121,14 +120,14 @@ public class ModuleManagerTest extends TestLogger {
     }
 
     @Test
-    public void testUseUnloadedModules() {
+    void testUseUnloadedModules() {
         assertThatThrownBy(() -> manager.useModules(CoreModuleFactory.IDENTIFIER, "x"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage("No module with name 'x' exists");
     }
 
     @Test
-    public void testUseModulesWithDuplicateModuleName() {
+    void testUseModulesWithDuplicateModuleName() {
         assertThatThrownBy(
                         () ->
                                 manager.useModules(
@@ -138,7 +137,7 @@ public class ModuleManagerTest extends TestLogger {
     }
 
     @Test
-    public void testUseModules() {
+    void testUseModules() {
         ModuleMock x = new ModuleMock("x");
         ModuleMock y = new ModuleMock("y");
         ModuleMock z = new ModuleMock("z");
@@ -163,7 +162,7 @@ public class ModuleManagerTest extends TestLogger {
     }
 
     @Test
-    public void testListModules() {
+    void testListModules() {
         ModuleMock y = new ModuleMock("y");
         ModuleMock z = new ModuleMock("z");
         manager.loadModule("y", y);
@@ -174,7 +173,7 @@ public class ModuleManagerTest extends TestLogger {
     }
 
     @Test
-    public void testListFullModules() {
+    void testListFullModules() {
         ModuleMock x = new ModuleMock("x");
         ModuleMock y = new ModuleMock("y");
         ModuleMock z = new ModuleMock("z");
@@ -190,7 +189,7 @@ public class ModuleManagerTest extends TestLogger {
     }
 
     @Test
-    public void testListFunctions() {
+    void testListFunctions() {
         ModuleMock x = new ModuleMock("x");
         manager.loadModule(x.getType(), x);
 
@@ -205,7 +204,7 @@ public class ModuleManagerTest extends TestLogger {
     }
 
     @Test
-    public void testGetFunctionDefinition() {
+    void testGetFunctionDefinition() {
         ModuleMock x = new ModuleMock("x");
         manager.loadModule(x.getType(), x);
 

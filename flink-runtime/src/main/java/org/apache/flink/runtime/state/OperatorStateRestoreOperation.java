@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.runtime.state.filemerging.EmptyFileMergingOperatorStreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
 
@@ -32,6 +33,7 @@ import org.apache.commons.io.IOUtils;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -65,7 +67,8 @@ public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
 
         for (OperatorStateHandle stateHandle : stateHandles) {
 
-            if (stateHandle == null) {
+            if (stateHandle == null
+                    || stateHandle instanceof EmptyFileMergingOperatorStreamStateHandle) {
                 continue;
             }
 
@@ -168,25 +171,41 @@ public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
                     }
                 }
 
-                // Restore all the states
-                for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> nameToOffsets :
-                        stateHandle.getStateNameToPartitionOffsets().entrySet()) {
+                // Restore states in the order in which they were written. Operator states come
+                // before Broadcast states.
+                final List<String> toRestore = new ArrayList<>();
+                restoredOperatorMetaInfoSnapshots.forEach(
+                        stateName -> toRestore.add(stateName.getName()));
+                restoredBroadcastMetaInfoSnapshots.forEach(
+                        stateName -> toRestore.add(stateName.getName()));
 
-                    final String stateName = nameToOffsets.getKey();
+                final StreamCompressionDecorator compressionDecorator =
+                        backendSerializationProxy.isUsingStateCompression()
+                                ? SnappyStreamCompressionDecorator.INSTANCE
+                                : UncompressedStreamCompressionDecorator.INSTANCE;
 
-                    PartitionableListState<?> listStateForName =
-                            registeredOperatorStates.get(stateName);
-                    if (listStateForName == null) {
-                        BackendWritableBroadcastState<?, ?> broadcastStateForName =
-                                registeredBroadcastStates.get(stateName);
-                        Preconditions.checkState(
-                                broadcastStateForName != null,
-                                "Found state without " + "corresponding meta info: " + stateName);
-                        deserializeBroadcastStateValues(
-                                broadcastStateForName, in, nameToOffsets.getValue());
-                    } else {
-                        deserializeOperatorStateValues(
-                                listStateForName, in, nameToOffsets.getValue());
+                try (final CompressibleFSDataInputStream compressedIn =
+                        new CompressibleFSDataInputStream(
+                                in,
+                                compressionDecorator)) { // closes only the outer compression stream
+                    for (String stateName : toRestore) {
+                        final OperatorStateHandle.StateMetaInfo offsets =
+                                stateHandle.getStateNameToPartitionOffsets().get(stateName);
+                        PartitionableListState<?> listStateForName =
+                                registeredOperatorStates.get(stateName);
+                        if (listStateForName == null) {
+                            BackendWritableBroadcastState<?, ?> broadcastStateForName =
+                                    registeredBroadcastStates.get(stateName);
+                            Preconditions.checkState(
+                                    broadcastStateForName != null,
+                                    "Found state without "
+                                            + "corresponding meta info: "
+                                            + stateName);
+                            deserializeBroadcastStateValues(
+                                    broadcastStateForName, compressedIn, offsets);
+                        } else {
+                            deserializeOperatorStateValues(listStateForName, compressedIn, offsets);
+                        }
                     }
                 }
 

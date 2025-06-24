@@ -20,21 +20,21 @@ package org.apache.flink.state.api.runtime.metadata;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.OperatorState;
-import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.state.api.OperatorIdentifier;
 import org.apache.flink.state.api.runtime.StateBootstrapTransformationWithID;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 /**
- * This class specifies an operator state maintained by {@link SavepointMetadata}. An operator state
- * is either represented as an existing {@link OperatorState}, or a {@link
- * org.apache.flink.state.api.BootstrapTransformation} that will be used to create it.
+ * This class specifies an operator state maintained by {@link SavepointMetadataV2}. An operator
+ * state is either represented as an existing {@link OperatorState}, or a {@link
+ * org.apache.flink.state.api.StateBootstrapTransformation} that will be used to create it.
  */
 @Internal
 class OperatorStateSpecV2 {
 
-    private final OperatorID id;
+    private final OperatorIdentifier identifier;
 
     @Nullable private final OperatorState existingState;
 
@@ -50,13 +50,18 @@ class OperatorStateSpecV2 {
     }
 
     private OperatorStateSpecV2(OperatorState existingState) {
-        this.id = existingState.getOperatorID();
+        if (existingState.getOperatorUid().isPresent()) {
+            this.identifier = OperatorIdentifier.forUid(existingState.getOperatorUid().get());
+        } else {
+            this.identifier =
+                    OperatorIdentifier.forUidHash(existingState.getOperatorID().toHexString());
+        }
         this.existingState = existingState;
         this.newOperatorStateTransformation = null;
     }
 
     private OperatorStateSpecV2(StateBootstrapTransformationWithID<?> transformation) {
-        this.id = transformation.getOperatorID();
+        this.identifier = transformation.getOperatorIdentifier();
         this.newOperatorStateTransformation = transformation;
         this.existingState = null;
     }
@@ -71,7 +76,7 @@ class OperatorStateSpecV2 {
 
     OperatorState asExistingState() {
         Preconditions.checkState(
-                isExistingState(), "OperatorState %s is not an existing state.", id);
+                isExistingState(), "OperatorState %s is not an existing state.", identifier);
         return existingState;
     }
 
@@ -80,7 +85,7 @@ class OperatorStateSpecV2 {
         Preconditions.checkState(
                 isNewStateTransformation(),
                 "OperatorState %s is not a new state defined with BootstrapTransformation",
-                id);
+                identifier);
         return (StateBootstrapTransformationWithID<T>) newOperatorStateTransformation;
     }
 }

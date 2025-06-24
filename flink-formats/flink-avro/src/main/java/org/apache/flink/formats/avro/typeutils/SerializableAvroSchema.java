@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 
 /** A wrapper for Avro {@link Schema}, that is Java serializable. */
 @Internal
@@ -52,14 +53,18 @@ final class SerializableAvroSchema implements Serializable {
             oos.writeBoolean(false);
         } else {
             oos.writeBoolean(true);
-            oos.writeUTF(schema.toString(false));
+            byte[] schemaStrInBytes = schema.toString(false).getBytes(StandardCharsets.UTF_8);
+            oos.writeInt(schemaStrInBytes.length);
+            oos.write(schemaStrInBytes);
         }
     }
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
         if (ois.readBoolean()) {
-            String schema = ois.readUTF();
-            this.schema = new Parser().parse(schema);
+            int len = ois.readInt();
+            byte[] content = new byte[len];
+            ois.readFully(content);
+            this.schema = new Parser().parse(new String(content, StandardCharsets.UTF_8));
         } else {
             this.schema = null;
         }

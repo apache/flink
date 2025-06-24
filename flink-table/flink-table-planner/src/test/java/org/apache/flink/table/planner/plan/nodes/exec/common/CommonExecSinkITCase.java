@@ -18,12 +18,15 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.transformations.SinkV1Adapter;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.operators.sink.TestSink;
+import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Schema;
@@ -33,31 +36,28 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
 import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.factories.TableFactoryHarness;
-import org.apache.flink.test.util.AbstractTestBase;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.types.Row;
 
-import org.jetbrains.annotations.NotNull;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+
+import javax.annotation.Nullable;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -70,34 +70,31 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Test for {@link CommonExecSink}. */
-@RunWith(Parameterized.class)
-public class CommonExecSinkITCase extends AbstractTestBase {
+class CommonExecSinkITCase {
 
     private static final int PARALLELISM = 4;
 
-    private final boolean useSinkV2;
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(PARALLELISM)
+                            .build());
+
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
+
     private StreamExecutionEnvironment env;
 
-    @Parameterized.Parameters
-    public static Collection<Boolean> useSinkV2() {
-        return Arrays.asList(true, false);
-    }
-
-    public CommonExecSinkITCase(boolean useSinkV2) {
-        this.useSinkV2 = useSinkV2;
-    }
-
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
     }
 
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
-
     @Test
-    public void testStreamRecordTimestampInserterSinkRuntimeProvider()
+    void testStreamRecordTimestampInserterSinkRuntimeProvider()
             throws ExecutionException, InterruptedException {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         final SharedReference<List<Long>> timestamps = sharedObjects.add(new ArrayList<>());
@@ -122,7 +119,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testStreamRecordTimestampInserterDataStreamSinkProvider()
+    void testStreamRecordTimestampInserterDataStreamSinkProvider()
             throws ExecutionException, InterruptedException {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         final SharedReference<List<Long>> timestamps = sharedObjects.add(new ArrayList<>());
@@ -149,8 +146,14 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                                     @Override
                                     public DataStreamSinkProvider getSinkRuntimeProvider(
                                             DynamicTableSink.Context context) {
-                                        return (providerContext, dataStream) ->
-                                                dataStream.addSink(sinkFunction);
+                                        return new DataStreamSinkProvider() {
+                                            @Override
+                                            public DataStreamSink<?> consumeDataStream(
+                                                    ProviderContext providerContext,
+                                                    DataStream<RowData> dataStream) {
+                                                return dataStream.addSink(sinkFunction);
+                                            }
+                                        };
                                     }
                                 })
                         .build();
@@ -163,7 +166,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testStreamRecordTimestampInserterNotApplied() {
+    void testStreamRecordTimestampInserterNotApplied() {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         final SharedReference<List<Long>> timestamps = sharedObjects.add(new ArrayList<>());
         final List<Row> rows =
@@ -184,7 +187,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testUnifiedSinksAreUsableWithDataStreamSinkProvider()
+    void testUnifiedSinksAreUsableWithDataStreamSinkProvider()
             throws ExecutionException, InterruptedException {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         final SharedReference<List<RowData>> fetched = sharedObjects.add(new ArrayList<>());
@@ -206,7 +209,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testCharLengthEnforcer() throws ExecutionException, InterruptedException {
+    void testCharLengthEnforcer() throws ExecutionException, InterruptedException {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         final List<Row> rows =
                 Arrays.asList(
@@ -260,7 +263,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testBinaryLengthEnforcer() throws ExecutionException, InterruptedException {
+    void testBinaryLengthEnforcer() throws ExecutionException, InterruptedException {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         final List<Row> rows =
                 Arrays.asList(
@@ -362,7 +365,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testNullEnforcer() throws ExecutionException, InterruptedException {
+    void testNullEnforcer() throws ExecutionException, InterruptedException {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         final List<Row> rows =
                 Arrays.asList(
@@ -425,7 +428,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFromValuesWatermarkPropagation() throws Exception {
+    void testFromValuesWatermarkPropagation() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         final SharedReference<List<Long>> watermarks = sharedObjects.add(new ArrayList<>());
         final SinkFunction<RowData> sinkFunction =
@@ -443,8 +446,14 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                                     @Override
                                     public DataStreamSinkProvider getSinkRuntimeProvider(
                                             DynamicTableSink.Context context) {
-                                        return (providerContext, dataStream) ->
-                                                dataStream.addSink(sinkFunction);
+                                        return new DataStreamSinkProvider() {
+                                            @Override
+                                            public DataStreamSink<?> consumeDataStream(
+                                                    ProviderContext providerContext,
+                                                    DataStream<RowData> dataStream) {
+                                                return dataStream.addSink(sinkFunction);
+                                            }
+                                        };
                                     }
                                 })
                         .build();
@@ -466,40 +475,36 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         elements.applySync(l -> l.add(element));
     }
 
-    private static TestSink<RowData> buildRecordWriterTestSink(
-            TestSink.DefaultSinkWriter<RowData> writer) {
-        return TestSink.newBuilder()
-                .setWriter(writer)
-                .setCommittableSerializer(TestSink.StringCommittableSerializer.INSTANCE)
-                .build();
+    private static TestSinkV2<RowData> buildRecordWriterTestSink(
+            TestSinkV2.DefaultSinkWriter<RowData> writer) {
+        return TestSinkV2.<RowData>newBuilder().setWriter(writer).build();
     }
 
     private TableFactoryHarness.SinkBase buildRuntimeSinkProvider(
-            TestSink.DefaultSinkWriter<RowData> writer) {
+            TestSinkV2.DefaultSinkWriter<RowData> writer) {
         return new TableFactoryHarness.SinkBase() {
             @Override
             public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-                TestSink<RowData> sink = buildRecordWriterTestSink(writer);
-                if (useSinkV2) {
-                    return SinkV2Provider.of(SinkV1Adapter.wrap(sink));
-                }
-                return SinkProvider.of(sink);
+                TestSinkV2<RowData> sink = buildRecordWriterTestSink(writer);
+                return SinkV2Provider.of(sink);
             }
         };
     }
 
-    @NotNull
+    @Nullable
     private TableFactoryHarness.SinkBase buildDataStreamSinkProvider(
             SharedReference<List<RowData>> fetched) {
         return new TableFactoryHarness.SinkBase() {
             @Override
             public DataStreamSinkProvider getSinkRuntimeProvider(Context context) {
-                return (providerContext, dataStream) -> {
-                    TestSink<RowData> sink = buildRecordWriterTestSink(new RecordWriter(fetched));
-                    if (useSinkV2) {
-                        return dataStream.sinkTo(SinkV1Adapter.wrap(sink));
+                return new DataStreamSinkProvider() {
+                    @Override
+                    public DataStreamSink<?> consumeDataStream(
+                            ProviderContext providerContext, DataStream<RowData> dataStream) {
+                        TestSinkV2<RowData> sink =
+                                buildRecordWriterTestSink(new RecordWriter(fetched));
+                        return dataStream.sinkTo(sink);
                     }
-                    return dataStream.sinkTo(sink);
                 };
             }
         };
@@ -609,7 +614,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         public void cancel() {}
     }
 
-    private static class TestTimestampWriter extends TestSink.DefaultSinkWriter<RowData> {
+    private static class TestTimestampWriter extends TestSinkV2.DefaultSinkWriter<RowData> {
 
         private final SharedReference<List<Long>> timestamps;
 
@@ -624,7 +629,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         }
     }
 
-    private static class RecordWriter extends TestSink.DefaultSinkWriter<RowData> {
+    private static class RecordWriter extends TestSinkV2.DefaultSinkWriter<RowData> {
 
         private final SharedReference<List<RowData>> rows;
 

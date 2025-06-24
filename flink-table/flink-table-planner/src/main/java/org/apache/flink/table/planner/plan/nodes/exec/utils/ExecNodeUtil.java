@@ -21,14 +21,18 @@ package org.apache.flink.table.planner.plan.nodes.exec.utils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -36,6 +40,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /** An Utility class that helps translating {@link ExecNode} to {@link Transformation}. */
 public class ExecNodeUtil {
@@ -63,9 +68,16 @@ public class ExecNodeUtil {
             TransformationMetadata transformationMeta,
             StreamOperator<O> operator,
             TypeInformation<O> outputType,
-            int parallelism) {
+            int parallelism,
+            boolean parallelismConfigured) {
         return createOneInputTransformation(
-                input, transformationMeta, operator, outputType, parallelism, 0);
+                input,
+                transformationMeta,
+                operator,
+                outputType,
+                parallelism,
+                0,
+                parallelismConfigured);
     }
 
     /** Create a {@link OneInputTransformation}. */
@@ -75,14 +87,16 @@ public class ExecNodeUtil {
             String desc,
             StreamOperator<O> operator,
             TypeInformation<O> outputType,
-            int parallelism) {
+            int parallelism,
+            boolean parallelismConfigured) {
         return createOneInputTransformation(
                 input,
                 new TransformationMetadata(name, desc),
                 operator,
                 outputType,
                 parallelism,
-                0);
+                0,
+                parallelismConfigured);
     }
 
     /** Create a {@link OneInputTransformation} with memoryBytes. */
@@ -92,14 +106,16 @@ public class ExecNodeUtil {
             StreamOperator<O> operator,
             TypeInformation<O> outputType,
             int parallelism,
-            long memoryBytes) {
+            long memoryBytes,
+            boolean parallelismConfigured) {
         return createOneInputTransformation(
                 input,
                 transformationMeta,
                 SimpleOperatorFactory.of(operator),
                 outputType,
                 parallelism,
-                memoryBytes);
+                memoryBytes,
+                parallelismConfigured);
     }
 
     /** Create a {@link OneInputTransformation}. */
@@ -108,9 +124,16 @@ public class ExecNodeUtil {
             TransformationMetadata transformationMeta,
             StreamOperatorFactory<O> operatorFactory,
             TypeInformation<O> outputType,
-            int parallelism) {
+            int parallelism,
+            boolean parallelismConfigured) {
         return createOneInputTransformation(
-                input, transformationMeta, operatorFactory, outputType, parallelism, 0);
+                input,
+                transformationMeta,
+                operatorFactory,
+                outputType,
+                parallelism,
+                0,
+                parallelismConfigured);
     }
 
     /** Create a {@link OneInputTransformation}. */
@@ -120,14 +143,16 @@ public class ExecNodeUtil {
             String desc,
             StreamOperatorFactory<O> operatorFactory,
             TypeInformation<O> outputType,
-            int parallelism) {
+            int parallelism,
+            boolean parallelismConfigured) {
         return createOneInputTransformation(
                 input,
                 new TransformationMetadata(name, desc),
                 operatorFactory,
                 outputType,
                 parallelism,
-                0);
+                0,
+                parallelismConfigured);
     }
 
     /** Create a {@link OneInputTransformation} with memoryBytes. */
@@ -138,14 +163,16 @@ public class ExecNodeUtil {
             StreamOperatorFactory<O> operatorFactory,
             TypeInformation<O> outputType,
             int parallelism,
-            long memoryBytes) {
+            long memoryBytes,
+            boolean parallelismConfigured) {
         return createOneInputTransformation(
                 input,
                 new TransformationMetadata(name, desc),
                 operatorFactory,
                 outputType,
                 parallelism,
-                memoryBytes);
+                memoryBytes,
+                parallelismConfigured);
     }
 
     /** Create a {@link OneInputTransformation} with memoryBytes. */
@@ -155,14 +182,16 @@ public class ExecNodeUtil {
             StreamOperatorFactory<O> operatorFactory,
             TypeInformation<O> outputType,
             int parallelism,
-            long memoryBytes) {
+            long memoryBytes,
+            boolean parallelismConfigured) {
         OneInputTransformation<I, O> transformation =
                 new OneInputTransformation<>(
                         input,
                         transformationMeta.getName(),
                         operatorFactory,
                         outputType,
-                        parallelism);
+                        parallelism,
+                        parallelismConfigured);
         setManagedMemoryWeight(transformation, memoryBytes);
         transformationMeta.fill(transformation);
         return transformation;
@@ -175,9 +204,17 @@ public class ExecNodeUtil {
             TransformationMetadata transformationMeta,
             TwoInputStreamOperator<IN1, IN2, O> operator,
             TypeInformation<O> outputType,
-            int parallelism) {
+            int parallelism,
+            boolean parallelismConfigured) {
         return createTwoInputTransformation(
-                input1, input2, transformationMeta, operator, outputType, parallelism, 0);
+                input1,
+                input2,
+                transformationMeta,
+                operator,
+                outputType,
+                parallelism,
+                0,
+                parallelismConfigured);
     }
 
     /** Create a {@link TwoInputTransformation} with memoryBytes. */
@@ -216,6 +253,26 @@ public class ExecNodeUtil {
                 outputType,
                 parallelism,
                 memoryBytes);
+    }
+
+    public static <IN1, IN2, O> TwoInputTransformation<IN1, IN2, O> createTwoInputTransformation(
+            Transformation<IN1> input1,
+            Transformation<IN2> input2,
+            TransformationMetadata transformationMeta,
+            TwoInputStreamOperator<IN1, IN2, O> operator,
+            TypeInformation<O> outputType,
+            int parallelism,
+            long memoryBytes,
+            boolean parallelismConfigured) {
+        return createTwoInputTransformation(
+                input1,
+                input2,
+                transformationMeta,
+                SimpleOperatorFactory.of(operator),
+                outputType,
+                parallelism,
+                memoryBytes,
+                parallelismConfigured);
     }
 
     /** Create a {@link TwoInputTransformation} with memoryBytes. */
@@ -260,6 +317,29 @@ public class ExecNodeUtil {
         return transformation;
     }
 
+    public static <I1, I2, O> TwoInputTransformation<I1, I2, O> createTwoInputTransformation(
+            Transformation<I1> input1,
+            Transformation<I2> input2,
+            TransformationMetadata transformationMeta,
+            StreamOperatorFactory<O> operatorFactory,
+            TypeInformation<O> outputType,
+            int parallelism,
+            long memoryBytes,
+            boolean parallelismConfigured) {
+        TwoInputTransformation<I1, I2, O> transformation =
+                new TwoInputTransformation<>(
+                        input1,
+                        input2,
+                        transformationMeta.getName(),
+                        operatorFactory,
+                        outputType,
+                        parallelism,
+                        parallelismConfigured);
+        setManagedMemoryWeight(transformation, memoryBytes);
+        transformationMeta.fill(transformation);
+        return transformation;
+    }
+
     /** Create a {@link TwoInputTransformation} with memoryBytes. */
     public static <I1, I2, O> TwoInputTransformation<I1, I2, O> createTwoInputTransformation(
             Transformation<I1> input1,
@@ -269,7 +349,8 @@ public class ExecNodeUtil {
             StreamOperatorFactory<O> operatorFactory,
             TypeInformation<O> outputType,
             int parallelism,
-            long memoryBytes) {
+            long memoryBytes,
+            boolean parallelismConfigured) {
         return createTwoInputTransformation(
                 input1,
                 input2,
@@ -277,7 +358,35 @@ public class ExecNodeUtil {
                 operatorFactory,
                 outputType,
                 parallelism,
-                memoryBytes);
+                memoryBytes,
+                parallelismConfigured);
+    }
+
+    /** Create a {@link KeyedMultipleInputTransformation}. */
+    public static <I, K, O> KeyedMultipleInputTransformation<O> createKeyedMultiInputTransformation(
+            List<Transformation<I>> inputs,
+            List<KeySelector<I, K>> keySelectors,
+            TypeInformation<?> keyType,
+            TransformationMetadata transformationMeta,
+            StreamOperatorFactory<O> operatorFactory,
+            TypeInformation<O> outputType,
+            int parallelism,
+            boolean parallelismConfigured) {
+        final KeyedMultipleInputTransformation<O> transformation =
+                new KeyedMultipleInputTransformation<>(
+                        transformationMeta.getName(),
+                        operatorFactory,
+                        outputType,
+                        parallelism,
+                        parallelismConfigured,
+                        keyType);
+        transformationMeta.fill(transformation);
+        IntStream.range(0, inputs.size())
+                .forEach(
+                        inputIdx ->
+                                transformation.addInput(
+                                        inputs.get(inputIdx), keySelectors.get(inputIdx)));
+        return transformation;
     }
 
     /** Return description for multiple input node. */
@@ -312,5 +421,16 @@ public class ExecNodeUtil {
             ((LegacySourceTransformation<?>) transformation).setBoundedness(Boundedness.BOUNDED);
         }
         transformation.getInputs().forEach(ExecNodeUtil::makeLegacySourceTransformationsBounded);
+    }
+
+    /** Create a {@link PartitionTransformation}. */
+    public static <I> Transformation<I> createPartitionTransformation(
+            Transformation<I> input,
+            TransformationMetadata transformationMeta,
+            StreamPartitioner<I> streamPartitioner) {
+        PartitionTransformation<I> transformation =
+                new PartitionTransformation<>(input, streamPartitioner);
+        transformationMeta.fill(transformation);
+        return transformation;
     }
 }

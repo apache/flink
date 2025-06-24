@@ -68,11 +68,15 @@ public interface InProgressFileWriter<IN, BucketID>
     /** The handle can be used to recover pending file. */
     interface PendingFileRecoverable {
 
-        /** @return The target path of the pending file, null if unavailable. */
+        /**
+         * @return The target path of the pending file, null if unavailable.
+         */
         @Nullable
         Path getPath();
 
-        /** @return The size of the pending file, -1 if unavailable. */
+        /**
+         * @return The size of the pending file, -1 if unavailable.
+         */
         long getSize();
     }
 }

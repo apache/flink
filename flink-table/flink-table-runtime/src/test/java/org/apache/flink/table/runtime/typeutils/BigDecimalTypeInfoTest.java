@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.typeutils;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /** Test for {@link BigDecimalTypeInfo}. */
-public class BigDecimalTypeInfoTest extends TypeInformationTestBase<BigDecimalTypeInfo> {
+class BigDecimalTypeInfoTest extends TypeInformationTestBase<BigDecimalTypeInfo> {
 
     @Override
     protected BigDecimalTypeInfo[] getTestData() {

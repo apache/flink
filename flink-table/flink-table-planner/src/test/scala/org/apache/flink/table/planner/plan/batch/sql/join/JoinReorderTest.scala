@@ -19,7 +19,12 @@ package org.apache.flink.table.planner.plan.batch.sql.join
 
 import org.apache.flink.table.planner.plan.common.JoinReorderTestBase
 import org.apache.flink.table.planner.utils.TableTestUtil
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 
-class JoinReorderTest extends JoinReorderTestBase {
+import org.junit.jupiter.api.extension.ExtendWith
+
+/** The plan test for join reorder in batch mode. */
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class JoinReorderTest(isBushyJoinReorder: Boolean) extends JoinReorderTestBase(isBushyJoinReorder) {
   override protected def getTableTestUtil: TableTestUtil = batchTestUtil()
 }

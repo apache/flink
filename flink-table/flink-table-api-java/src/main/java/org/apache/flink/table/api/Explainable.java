@@ -36,7 +36,20 @@ public interface Explainable<SELF extends Explainable<SELF>> {
      *     e.g. estimated cost, changelog mode for streaming
      * @return AST and the execution plan.
      */
-    String explain(ExplainDetail... extraDetails);
+    default String explain(ExplainDetail... extraDetails) {
+        return explain(ExplainFormat.TEXT, extraDetails);
+    }
+
+    /**
+     * Returns the AST of this object and the execution plan to compute the result of the given
+     * statement.
+     *
+     * @param format The output format of explained plan
+     * @param extraDetails The extra explain details which the result of this method should include,
+     *     e.g. estimated cost, changelog mode for streaming
+     * @return AST and the execution plan.
+     */
+    String explain(ExplainFormat format, ExplainDetail... extraDetails);
 
     /** Like {@link #explain(ExplainDetail...)}, but piping the result to {@link System#out}. */
     @SuppressWarnings("unchecked")

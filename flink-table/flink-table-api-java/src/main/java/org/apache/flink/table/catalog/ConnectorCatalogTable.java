@@ -20,12 +20,12 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.DefinedProctimeAttribute;
-import org.apache.flink.table.sources.DefinedRowtimeAttributes;
-import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
-import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.sinks.TableSink;
+import org.apache.flink.table.legacy.sources.DefinedProctimeAttribute;
+import org.apache.flink.table.legacy.sources.DefinedRowtimeAttributes;
+import org.apache.flink.table.legacy.sources.RowtimeAttributeDescriptor;
+import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -94,13 +94,6 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
     }
 
     @Override
-    public Map<String, String> toProperties() {
-        // This effectively makes sure the table cannot be persisted in a catalog.
-        throw new UnsupportedOperationException(
-                "ConnectorCatalogTable cannot be converted to properties");
-    }
-
-    @Override
     public CatalogTable copy(Map<String, String> options) {
         throw new UnsupportedOperationException(
                 "ConnectorCatalogTable cannot copy with new table options");
@@ -135,6 +128,10 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
         }
         if (source instanceof DefinedProctimeAttribute) {
             updateProctimeIndicator((DefinedProctimeAttribute) source, fieldNames, types);
+        }
+        if (tableSchema.getPrimaryKey().isPresent()) {
+            String[] pkCols = tableSchema.getPrimaryKey().get().getColumns().toArray(new String[0]);
+            return TableSchema.builder().fields(fieldNames, types).primaryKey(pkCols).build();
         }
         return TableSchema.builder().fields(fieldNames, types).build();
     }

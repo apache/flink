@@ -40,7 +40,7 @@ Flink 还在 `/opt` 文件夹下提供了额外的可选依赖项，可以通过
 
 ## Scala 版本
 
-不同的 Scala 版本二进制不兼容，所有（传递地）依赖于 Scala 的 Flink 依赖项都以它们构建的 Scala 版本为后缀（如 `flink-streaming-scala_2.12`）。
+不同的 Scala 版本二进制不兼容，所有（传递地）依赖于 Scala 的 Flink 依赖项都以它们构建的 Scala 版本为后缀（如 `flink-table-api-scala-bridge_2.12`）。
 
 如果您只使用 Flink 的 Java API，您可以使用任何 Scala 版本。如果您使用 Flink 的 Scala API，则需要选择与应用程序的 Scala 匹配的 Scala 版本。
 
@@ -89,9 +89,7 @@ Flink 发行版默认包含执行 Flink SQL 任务的必要 JAR 文件（位于 
 
 ## Hadoop 依赖
 
-**一般规则：** 没有必要直接添加 Hadoop 依赖到您的应用程序里，唯一的例外是您通过 [Hadoop 兼容](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/dataset/hadoop_compatibility/) 使用已有的 Hadoop 读写 format。
-
-如果您想将 Flink 与 Hadoop 一起使用，您需要有一个包含 Hadoop 依赖项的 Flink 系统，而不是添加 Hadoop 作为应用程序依赖项。换句话说，Hadoop 必须是 Flink 系统本身的依赖，而不是用户代码的依赖。Flink 将使用 `HADOOP_CLASSPATH` 环境变量指定 Hadoop 依赖项，可以这样设置：
+**一般规则：** 没有必要直接添加 Hadoop 依赖到您的应用程序里，如果您想将 Flink 与 Hadoop 一起使用，您需要有一个包含 Hadoop 依赖项的 Flink 系统，而不是添加 Hadoop 作为应用程序依赖项。换句话说，Hadoop 必须是 Flink 系统本身的依赖，而不是用户代码的依赖。Flink 将使用 `HADOOP_CLASSPATH` 环境变量指定 Hadoop 依赖项，可以这样设置：
 
 ```bash
 export HADOOP_CLASSPATH=`hadoop classpath`

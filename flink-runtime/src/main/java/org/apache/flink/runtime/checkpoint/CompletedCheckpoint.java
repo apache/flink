@@ -21,13 +21,16 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.FutureUtils.ConjunctFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +45,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -93,8 +100,14 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
     /** States of the different operator groups belonging to this checkpoint. */
     private final Map<OperatorID, OperatorState> operatorStates;
 
-    /** Properties for this checkpoint. */
+    /** Properties of this checkpoint. Might change during recovery. */
     private final CheckpointProperties props;
+
+    /**
+     * Properties of this checkpoint as they were during checkpoint creation. Might be null for
+     * older versions.
+     */
+    @Nullable private final CheckpointProperties restoredProps;
 
     /** States that were created by a hook on the master (in the checkpoint coordinator). */
     private final Collection<MasterState> masterHookStates;
@@ -123,6 +136,30 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
             CheckpointProperties props,
             CompletedCheckpointStorageLocation storageLocation,
             @Nullable CompletedCheckpointStats completedCheckpointStats) {
+        this(
+                job,
+                checkpointID,
+                timestamp,
+                completionTimestamp,
+                operatorStates,
+                masterHookStates,
+                props,
+                storageLocation,
+                completedCheckpointStats,
+                null);
+    }
+
+    public CompletedCheckpoint(
+            JobID job,
+            long checkpointID,
+            long timestamp,
+            long completionTimestamp,
+            Map<OperatorID, OperatorState> operatorStates,
+            @Nullable Collection<MasterState> masterHookStates,
+            CheckpointProperties props,
+            CompletedCheckpointStorageLocation storageLocation,
+            @Nullable CompletedCheckpointStats completedCheckpointStats,
+            @Nullable CheckpointProperties restoredProps) {
 
         checkArgument(checkpointID >= 0);
         checkArgument(timestamp >= 0);
@@ -146,6 +183,7 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
         this.metadataHandle = storageLocation.getMetadataHandle();
         this.externalPointer = storageLocation.getExternalPointer();
         this.completedCheckpointStats = completedCheckpointStats;
+        this.restoredProps = restoredProps;
     }
 
     // ------------------------------------------------------------------------
@@ -171,6 +209,10 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
 
     public CheckpointProperties getProperties() {
         return props;
+    }
+
+    public Optional<CheckpointProperties> getRestoredProperties() {
+        return Optional.ofNullable(restoredProps);
     }
 
     public Map<OperatorID, OperatorState> getOperatorStates() {
@@ -204,17 +246,17 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
     // ------------------------------------------------------------------------
 
     /**
-     * Register all shared states in the given registry. This is method is called before the
-     * checkpoint is added into the store.
+     * Register all shared states in the given registry. This method is called before the checkpoint
+     * is added into the store.
      *
      * @param sharedStateRegistry The registry where shared states are registered
-     * @param restoreMode the mode in which this checkpoint was restored from
+     * @param recoveryClaimMode the mode in which this checkpoint was restored from
      */
     public void registerSharedStatesAfterRestored(
-            SharedStateRegistry sharedStateRegistry, RestoreMode restoreMode) {
+            SharedStateRegistry sharedStateRegistry, RecoveryClaimMode recoveryClaimMode) {
         // in claim mode we should not register any shared handles
         if (!props.isUnclaimed()) {
-            sharedStateRegistry.registerAllAfterRestored(this, restoreMode);
+            sharedStateRegistry.registerAllAfterRestored(this, recoveryClaimMode);
         }
     }
 
@@ -291,7 +333,6 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
     /** Implementation of {@link org.apache.flink.runtime.checkpoint.Checkpoint.DiscardObject}. */
     @NotThreadSafe
     public class CompletedCheckpointDiscardObject implements DiscardObject {
-
         @Override
         public void discard() throws Exception {
             LOG.trace("Executing discard procedure for {}.", this);
@@ -334,6 +375,35 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
 
         private boolean isMarkedAsDiscarded() {
             return completedCheckpointStats == null || completedCheckpointStats.isDiscarded();
+        }
+
+        @Override
+        public CompletableFuture<Void> discardAsync(Executor ioExecutor) {
+            checkState(
+                    isMarkedAsDiscarded(),
+                    "Checkpoint should be marked as discarded before discard.");
+
+            List<StateObject> discardables =
+                    operatorStates.values().stream()
+                            .flatMap(op -> op.getDiscardables().stream())
+                            .collect(Collectors.toList());
+            discardables.add(metadataHandle);
+
+            ConjunctFuture<Void> discardStates =
+                    FutureUtils.completeAll(
+                            discardables.stream()
+                                    .map(
+                                            item ->
+                                                    FutureUtils.runAsync(
+                                                            item::discardState, ioExecutor))
+                                    .collect(Collectors.toList()));
+
+            return FutureUtils.runAfterwards(
+                    discardStates,
+                    () -> {
+                        operatorStates.clear();
+                        storageLocation.disposeStorageLocation();
+                    });
         }
     }
 }

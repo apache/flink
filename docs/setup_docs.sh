@@ -23,21 +23,48 @@ if [[ "$HERE" != "docs" ]]; then
     exit 1;
 fi
 
-# Create a default go.mod file
-cat <<EOF >go.mod
-module github.com/apache/flink
+function integrate_connector_docs {
+  local connector ref additional_folders
+  connector=$1
+  ref=$2
 
-go 1.18
-EOF
+  git clone --single-branch --branch ${ref} https://github.com/apache/flink-connector-${connector}
+  theme_dir="../themes/connectors"
+  mkdir -p "${theme_dir}"
 
-echo "Created temporary file" $goModFileLocation/go.mod
+  cp -r flink-connector-${connector}/docs/* "${theme_dir}/"
+}
 
-# Make Hugo retrieve modules which are used for externally hosted documentation
-currentBranch=$(git rev-parse --abbrev-ref HEAD)
 
-if [[ ! "$currentBranch" =~ ^release- ]] || [[ -z "$currentBranch" ]]; then
-  # If the current branch is master or not provided, get the documentation from the main branch
-  $(command -v hugo) mod get -u github.com/apache/flink-connector-elasticsearch/docs@main
-  # Since there's no documentation yet available for a release branch,
-  # we only get the documentation from the main branch
+SKIP_INTEGRATE_CONNECTOR_DOCS=false
+for arg in "$@"; do
+  if [ "$arg" == "--skip-integrate-connector-docs" ]; then
+    SKIP_INTEGRATE_CONNECTOR_DOCS=true
+    break
+  fi
+done
+
+# Integrate the connector documentation
+if [ "$SKIP_INTEGRATE_CONNECTOR_DOCS" = false ]; then
+  rm -rf themes/connectors/*
+  rm -rf tmp
+  mkdir tmp
+  cd tmp
+
+  integrate_connector_docs elasticsearch v4.0
+  integrate_connector_docs aws v5.0
+  integrate_connector_docs cassandra v3.1
+  integrate_connector_docs pulsar v4.0
+  integrate_connector_docs jdbc v3.1
+  integrate_connector_docs rabbitmq v3.0
+  integrate_connector_docs gcp-pubsub v3.0
+  integrate_connector_docs mongodb v2.0
+  integrate_connector_docs opensearch v1.2
+  integrate_connector_docs kafka v4.0
+  integrate_connector_docs hbase v4.0
+  integrate_connector_docs prometheus v1.0
+  integrate_connector_docs hive v3.0
+
+  cd ..
+  rm -rf tmp
 fi

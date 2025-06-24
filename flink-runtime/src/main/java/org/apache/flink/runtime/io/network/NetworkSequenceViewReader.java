@@ -18,8 +18,13 @@
 
 package org.apache.flink.runtime.io.network;
 
+import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
+import org.apache.flink.runtime.io.network.partition.PartitionRequestListener;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
@@ -34,11 +39,38 @@ import java.io.IOException;
  */
 public interface NetworkSequenceViewReader {
 
-    void requestSubpartitionView(
+    /**
+     * When the netty server receives the downstream task's partition request and the upstream task
+     * has registered its partition, it will process the partition request immediately, otherwise it
+     * will create a {@link PartitionRequestListener} for given {@link ResultPartitionID} in {@link
+     * ResultPartitionManager} and notify the listener when the upstream task registers its
+     * partition.
+     *
+     * @param partitionProvider the result partition provider
+     * @param resultPartitionId the result partition id
+     * @param subpartitionIndexSet the sub partition indexes
+     * @throws IOException the thrown exception
+     */
+    void requestSubpartitionViewOrRegisterListener(
             ResultPartitionProvider partitionProvider,
             ResultPartitionID resultPartitionId,
-            int subPartitionIndex)
+            ResultSubpartitionIndexSet subpartitionIndexSet)
             throws IOException;
+
+    /**
+     * When the {@link ResultPartitionManager} registers {@link ResultPartition}, it will get the
+     * {@link PartitionRequestListener} via given {@link ResultPartitionID}, and create subpartition
+     * view reader for downstream task.
+     *
+     * @param partition the result partition
+     * @param subpartitionIndexSet the sub partition indexes
+     * @throws IOException the thrown exception
+     */
+    void notifySubpartitionsCreated(
+            ResultPartition partition, ResultSubpartitionIndexSet subpartitionIndexSet)
+            throws IOException;
+
+    int peekNextBufferSubpartitionId() throws IOException;
 
     @Nullable
     BufferAndAvailability getNextBuffer() throws IOException;
@@ -52,6 +84,14 @@ public interface NetworkSequenceViewReader {
      * @param creditDeltas The credit deltas
      */
     void addCredit(int creditDeltas);
+
+    /**
+     * Notify the id of required segment from consumer.
+     *
+     * @param subpartitionId The id of the corresponding subpartition.
+     * @param segmentId The id of required segment.
+     */
+    void notifyRequiredSegmentId(int subpartitionId, int segmentId);
 
     /** Resumes data consumption after an exactly once checkpoint. */
     void resumeConsumption();
@@ -84,4 +124,12 @@ public interface NetworkSequenceViewReader {
     InputChannelID getReceiverId();
 
     void notifyNewBufferSize(int newBufferSize);
+
+    /**
+     * When the partition request from the given downstream task is timeout, it should notify the
+     * reader in netty server and send {@link PartitionNotFoundException} to the task.
+     *
+     * @param partitionRequestListener the timeout message of given {@link PartitionRequestListener}
+     */
+    void notifyPartitionRequestTimeout(PartitionRequestListener partitionRequestListener);
 }

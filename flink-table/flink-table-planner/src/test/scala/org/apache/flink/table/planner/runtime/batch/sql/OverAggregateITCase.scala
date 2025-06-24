@@ -17,12 +17,11 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, FLOAT_TYPE_INFO, INT_TYPE_INFO, SHORT_TYPE_INFO, STRING_TYPE_INFO}
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
-import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.functions.{AggregateFunction, FunctionDefinition, ScalarFunctionDefinition}
 import org.apache.flink.table.module.{CoreModule, Module}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
@@ -30,19 +29,19 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.IsNullUDF
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
+import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies}
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.lang.{Iterable => JIterable, Long => JLong}
 import java.util.{Collections, Optional}
 
-import scala.collection.Seq
 import scala.util.Random
 
 class OverAggregateITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)
@@ -59,7 +58,7 @@ class OverAggregateITCase extends BatchTestBase {
   @Test
   def testOverWindowWithUDAGG(): Unit = {
 
-    registerFunction("countFun", new CountAggFunction())
+    tEnv.createTemporarySystemFunction("countFun", new CountAggFunction())
 
     checkResult(
       "SELECT sd, sf, sh, countFun(sh) " +
@@ -266,7 +265,6 @@ class OverAggregateITCase extends BatchTestBase {
 
   @Test
   def testWindowAggregationRank2(): Unit = {
-
     checkResult(
       "SELECT d, e, rank() over (order by e desc), dense_rank() over (order by e desc) FROM Table5",
       Seq(
@@ -530,6 +528,48 @@ class OverAggregateITCase extends BatchTestBase {
         row(5, 13, 91),
         row(5, 14, 105),
         row(5, 15, 120)
+      )
+    )
+  }
+
+  @Test
+  def testWindowAggregationSumWithQualify(): Unit = {
+    checkResult(
+      "SELECT d, e FROM Table5 QUALIFY sum(e) OVER (PARTITION BY d ORDER BY e) > 20",
+      Seq(
+        row(4, 9),
+        row(4, 10),
+        row(5, 12),
+        row(5, 13),
+        row(5, 14),
+        row(5, 15)
+      )
+    )
+  }
+
+  @Test
+  def testWindowAggregationRowNumberWithQualify(): Unit = {
+    checkResult(
+      "SELECT d, e, row_number() OVER (PARTITION BY d ORDER BY e) AS rownum FROM Table5 " +
+        "QUALIFY rownum = 1",
+      Seq(
+        row(1, 1, 1),
+        row(2, 2, 1),
+        row(3, 4, 1),
+        row(4, 7, 1),
+        row(5, 11, 1)
+      )
+    )
+  }
+
+  @Test
+  def testWindowAggregationCountWithQualify(): Unit = {
+    checkResult(
+      "SELECT d, e FROM Table5 QUALIFY count(*) OVER (PARTITION BY d ORDER BY e) = 3",
+      Seq(
+        row(3, 6),
+        row(4, 9),
+        row(5, 13)
       )
     )
   }
@@ -2759,6 +2799,181 @@ class OverAggregateITCase extends BatchTestBase {
       "select dep,name,rank() over (partition by dep order by salary desc) as rnk from emp",
       Seq(row("1", "A", 2), row("1", "B", 1), row("2", "C", 1)))
   }
+
+  @Test
+  def testCumeDist(): Unit = {
+    checkResult(
+      "SELECT f, CUME_DIST() over (order by e desc)," +
+        " CUME_DIST() over (partition by d order by e) " +
+        " FROM Table5",
+      Seq(
+        row(0, 1.0, 1.0),
+        row(1, 0.9333333333333333, 0.5),
+        row(2, 0.8666666666666667, 1.0),
+        row(3, 0.8, 0.3333333333333333),
+        row(4, 0.7333333333333333, 0.6666666666666666),
+        row(5, 0.6666666666666666, 1.0),
+        row(6, 0.6, 0.25),
+        row(7, 0.5333333333333333, 0.5),
+        row(8, 0.4666666666666667, 0.75),
+        row(9, 0.4, 1.0),
+        row(10, 0.3333333333333333, 0.2),
+        row(11, 0.26666666666666666, 0.4),
+        row(12, 0.2, 0.6),
+        row(13, 0.13333333333333333, 0.8),
+        row(14, 0.06666666666666667, 1.0)
+      )
+    )
+
+    // test values of order-key containing duplicates
+    checkResult(
+      "SELECT f, CUME_DIST() over (order by d), CUME_DIST() over (order by d desc)" +
+        " FROM Table5",
+      Seq(
+        row(13, 1.0, 0.3333333333333333),
+        row(12, 1.0, 0.3333333333333333),
+        row(14, 1.0, 0.3333333333333333),
+        row(11, 1.0, 0.3333333333333333),
+        row(10, 1.0, 0.3333333333333333),
+        row(9, 0.6666666666666666, 0.6),
+        row(6, 0.6666666666666666, 0.6),
+        row(8, 0.6666666666666666, 0.6),
+        row(7, 0.6666666666666666, 0.6),
+        row(4, 0.4, 0.8),
+        row(5, 0.4, 0.8),
+        row(3, 0.4, 0.8),
+        row(1, 0.2, 0.9333333333333333),
+        row(2, 0.2, 0.9333333333333333),
+        row(0, 0.06666666666666667, 1.0)
+      )
+    )
+  }
+
+  @Test
+  def testPercentRank(): Unit = {
+    checkResult(
+      "SELECT f, PERCENT_RANK() over (order by e desc)," +
+        "PERCENT_RANK() over (partition by d order by e) FROM Table5",
+      Seq(
+        row(14, 0.0, 1.0),
+        row(13, 0.07142857142857142, 0.75),
+        row(12, 0.14285714285714285, 0.5),
+        row(11, 0.21428571428571427, 0.25),
+        row(10, 0.2857142857142857, 0.0),
+        row(9, 0.35714285714285715, 1.0),
+        row(8, 0.42857142857142855, 0.6666666666666666),
+        row(7, 0.5, 0.3333333333333333),
+        row(6, 0.5714285714285714, 0.0),
+        row(5, 0.6428571428571429, 1.0),
+        row(4, 0.7142857142857143, 0.5),
+        row(3, 0.7857142857142857, 0.0),
+        row(2, 0.8571428571428571, 1.0),
+        row(1, 0.9285714285714286, 0.0),
+        row(0, 1.0, 0.0)
+      )
+    )
+
+    // test values of order-key containing duplicates
+    checkResult(
+      "SELECT f, PERCENT_RANK() over (order by d), PERCENT_RANK() over (order by d desc)" +
+        " FROM Table5",
+      Seq(
+        row(0, 0.0, 1.0),
+        row(1, 0.07142857142857142, 0.8571428571428571),
+        row(2, 0.07142857142857142, 0.8571428571428571),
+        row(3, 0.21428571428571427, 0.6428571428571429),
+        row(4, 0.21428571428571427, 0.6428571428571429),
+        row(5, 0.21428571428571427, 0.6428571428571429),
+        row(6, 0.42857142857142855, 0.35714285714285715),
+        row(7, 0.42857142857142855, 0.35714285714285715),
+        row(8, 0.42857142857142855, 0.35714285714285715),
+        row(9, 0.42857142857142855, 0.35714285714285715),
+        row(10, 0.7142857142857143, 0.0),
+        row(11, 0.7142857142857143, 0.0),
+        row(12, 0.7142857142857143, 0.0),
+        row(13, 0.7142857142857143, 0.0),
+        row(14, 0.7142857142857143, 0.0)
+      )
+    )
+  }
+
+  @Test
+  def testNTILE(): Unit = {
+    checkResult(
+      "SELECT f, NTILE(4) over (order by e)," +
+        " NTILE(3) over (partition by d order by e desc) FROM Table5",
+      Seq(
+        row(0, 1, 1),
+        row(1, 1, 2),
+        row(2, 1, 1),
+        row(3, 1, 3),
+        row(4, 2, 2),
+        row(5, 2, 1),
+        row(6, 2, 3),
+        row(7, 2, 2),
+        row(8, 3, 1),
+        row(9, 3, 1),
+        row(10, 3, 3),
+        row(11, 3, 2),
+        row(12, 4, 2),
+        row(13, 4, 1),
+        row(14, 4, 1)
+      )
+    )
+
+    // test values of order-key containing duplicates
+    checkResult(
+      "SELECT d,  NTILE(4) over (order by d)" +
+        " FROM Table5",
+      Seq(
+        row(5, 3),
+        row(5, 3),
+        row(5, 4),
+        row(5, 4),
+        row(5, 4),
+        row(4, 2),
+        row(4, 2),
+        row(4, 3),
+        row(4, 3),
+        row(3, 1),
+        row(3, 2),
+        row(3, 2),
+        row(2, 1),
+        row(2, 1),
+        row(1, 1)
+      )
+    )
+  }
+
+  @Test
+  def testPercentile(): Unit = {
+    checkResult(
+      "SELECT " +
+        "e, " +
+        "PERCENTILE(e, 0.5) over (order by e), " +
+        "PERCENTILE(e, 0.5, d) over (order by e), " +
+        "PERCENTILE(e, ARRAY[0.25, 0.75]) over (order by e), " +
+        "PERCENTILE(e, ARRAY[0.25, 0.75], d) over (order by e) " +
+        "FROM Table5",
+      Seq(
+        row(1, 1.0, 1.0, Array(1.0, 1.0), Array(1.0, 1.0)),
+        row(2, 1.5, 2.0, Array(1.25, 1.75), Array(1.5, 2.0)),
+        row(3, 2.0, 2.0, Array(1.5, 2.5), Array(2.0, 3.0)),
+        row(4, 2.5, 3.0, Array(1.75, 3.25), Array(2.0, 4.0)),
+        row(5, 3.0, 4.0, Array(2.0, 4.0), Array(2.5, 4.5)),
+        row(6, 3.5, 4.0, Array(2.25, 4.75), Array(3.0, 5.0)),
+        row(7, 4.0, 5.0, Array(2.5, 5.5), Array(3.25, 6.0)),
+        row(8, 4.5, 5.5, Array(2.75, 6.25), Array(4.0, 7.0)),
+        row(9, 5.0, 6.0, Array(3.0, 7.0), Array(4.0, 8.0)),
+        row(10, 5.5, 7.0, Array(3.25, 7.75), Array(4.25, 8.75)),
+        row(11, 6.0, 7.0, Array(3.5, 8.5), Array(5.0, 9.5)),
+        row(12, 6.5, 8.0, Array(3.75, 9.25), Array(5.0, 10.25)),
+        row(13, 7.0, 9.0, Array(4.0, 10.0), Array(6.0, 11.0)),
+        row(14, 7.5, 9.0, Array(4.25, 10.75), Array(6.0, 12.0)),
+        row(15, 8.0, 10.0, Array(4.5, 11.5), Array(6.5, 13.0))
+      )
+    )
+  }
 }
 
 /** The initial accumulator for count aggregate function */
@@ -2803,11 +3018,14 @@ class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
     new CountAccumulator
   }
 
-  override def getAccumulatorType: TypeInformation[CountAccumulator] = {
-    new TupleTypeInfo(classOf[CountAccumulator], Types.LONG)
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder
+      .typedArguments(DataTypes.BIGINT())
+      .accumulatorTypeStrategy(TypeStrategies.explicit(
+        DataTypes.STRUCTURED(classOf[CountAccumulator], DataTypes.FIELD("f0", DataTypes.BIGINT()))))
+      .outputTypeStrategy(TypeStrategies.explicit(DataTypes.BIGINT()))
+      .build
   }
-
-  override def getResultType: TypeInformation[JLong] = Types.LONG
 }
 
 private class TestModule extends Module {

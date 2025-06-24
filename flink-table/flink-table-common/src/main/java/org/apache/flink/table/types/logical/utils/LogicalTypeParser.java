@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.legacy.utils.TypeStringUtils;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -31,6 +32,7 @@ import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
@@ -43,23 +45,27 @@ import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
-import org.apache.flink.table.utils.TypeStringUtils;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -104,17 +110,6 @@ public final class LogicalTypeParser {
         final List<Token> tokens = tokenize(typeString);
         final TokenParser converter = new TokenParser(typeString, tokens, classLoader);
         return converter.parseTokens();
-    }
-
-    /**
-     * Parses a type string. All types will be fully resolved except for {@link
-     * UnresolvedUserDefinedType}s.
-     *
-     * @param typeString a string like "ROW(field1 INT, field2 BOOLEAN)"
-     * @throws ValidationException in case of parsing errors.
-     */
-    public static LogicalType parse(String typeString) {
-        return parse(typeString, Thread.currentThread().getContextClassLoader());
     }
 
     // --------------------------------------------------------------------------------------------
@@ -336,7 +331,10 @@ public final class LogicalTypeParser {
         NULL,
         RAW,
         LEGACY,
-        NOT
+        NOT,
+        DESCRIPTOR,
+        STRUCTURED,
+        VARIANT
     }
 
     private static final Set<String> KEYWORDS =
@@ -572,12 +570,18 @@ public final class LogicalTypeParser {
                     return parseMapType();
                 case ROW:
                     return parseRowType();
+                case STRUCTURED:
+                    return parseStructuredType();
                 case NULL:
                     return new NullType();
                 case RAW:
                     return parseRawType();
                 case LEGACY:
                     return parseLegacyType();
+                case DESCRIPTOR:
+                    return new DescriptorType();
+                case VARIANT:
+                    return new VariantType();
                 default:
                     throw parsingError("Unsupported type: " + token().value);
             }
@@ -867,22 +871,25 @@ public final class LogicalTypeParser {
         }
 
         private LogicalType parseRowType() {
-            List<RowType.RowField> fields;
+            final List<ParsedField> fields;
             // SQL standard notation
             if (hasNextToken(TokenType.BEGIN_PARAMETER)) {
                 nextToken(TokenType.BEGIN_PARAMETER);
-                fields = parseRowFields(TokenType.END_PARAMETER);
+                fields = parseFields(TokenType.END_PARAMETER);
                 nextToken(TokenType.END_PARAMETER);
             } else {
                 nextToken(TokenType.BEGIN_SUBTYPE);
-                fields = parseRowFields(TokenType.END_SUBTYPE);
+                fields = parseFields(TokenType.END_SUBTYPE);
                 nextToken(TokenType.END_SUBTYPE);
             }
-            return new RowType(fields);
+            return new RowType(
+                    fields.stream()
+                            .map(f -> new RowField(f.name, f.type, f.description))
+                            .collect(Collectors.toList()));
         }
 
-        private List<RowType.RowField> parseRowFields(TokenType endToken) {
-            List<RowType.RowField> fields = new ArrayList<>();
+        private List<ParsedField> parseFields(TokenType endToken) {
+            final List<ParsedField> fields = new ArrayList<>();
             boolean isFirst = true;
             while (!hasNextToken(endToken)) {
                 if (isFirst) {
@@ -891,17 +898,48 @@ public final class LogicalTypeParser {
                     nextToken(TokenType.LIST_SEPARATOR);
                 }
                 nextToken(TokenType.IDENTIFIER);
-                final String name = tokenAsString();
-                final LogicalType type = parseTypeWithNullability();
+                final ParsedField field = new ParsedField();
+                field.name = tokenAsString();
+                field.type = parseTypeWithNullability();
                 if (hasNextToken(TokenType.LITERAL_STRING)) {
                     nextToken(TokenType.LITERAL_STRING);
-                    final String description = tokenAsString();
-                    fields.add(new RowType.RowField(name, type, description));
-                } else {
-                    fields.add(new RowType.RowField(name, type));
+                    field.description = tokenAsString();
                 }
+                fields.add(field);
             }
             return fields;
+        }
+
+        private LogicalType parseStructuredType() {
+            nextToken(TokenType.BEGIN_SUBTYPE);
+            nextToken(TokenType.LITERAL_STRING);
+            final String className = tokenAsString();
+
+            final List<ParsedField> fields;
+            if (hasNextToken(TokenType.LIST_SEPARATOR)) {
+                nextToken(TokenType.LIST_SEPARATOR);
+                fields = parseFields(TokenType.END_SUBTYPE);
+            } else {
+                fields = List.of();
+            }
+            nextToken(TokenType.END_SUBTYPE);
+
+            final Optional<Class<?>> resolvedClass =
+                    StructuredType.resolveClass(classLoader, className);
+
+            final StructuredType.Builder builder =
+                    resolvedClass
+                            .map(StructuredType::newBuilder)
+                            .orElseGet(() -> StructuredType.newBuilder(className));
+
+            return builder.attributes(
+                            fields.stream()
+                                    .map(
+                                            f ->
+                                                    new StructuredAttribute(
+                                                            f.name, f.type, f.description))
+                                    .collect(Collectors.toList()))
+                    .build();
         }
 
         @SuppressWarnings("unchecked")
@@ -944,5 +982,11 @@ public final class LogicalTypeParser {
                         t);
             }
         }
+    }
+
+    private static class ParsedField {
+        String name;
+        LogicalType type;
+        @Nullable String description;
     }
 }

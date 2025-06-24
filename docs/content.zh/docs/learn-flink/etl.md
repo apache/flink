@@ -227,7 +227,6 @@ minutesByStartCell
 * **持久性**: Flink 状态是容错的，例如，它可以自动按一定的时间间隔产生 checkpoint，并且在任务失败后进行恢复
 * **纵向可扩展性**: Flink 状态可以存储在集成的 RocksDB 实例中，这种方式下可以通过增加本地磁盘来扩展空间
 * **横向可扩展性**: Flink 状态可以随着集群的扩缩容重新分布
-* **可查询性**: Flink 状态可以通过使用 [状态查询 API]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}) 从外部进行查询。
 
 在本节中你将学习如何使用 Flink 的 API 来管理 keyed state。
 
@@ -237,7 +236,7 @@ minutesByStartCell
 
 对其中的每一个接口，Flink 同样提供了一个所谓 "rich" 的变体，如 `RichFlatMapFunction`，其中增加了以下方法，包括：
 
-- `open(Configuration c)`
+- `open(OpenContext context)`
 - `close()`
 - `getRuntimeContext()`
 
@@ -281,7 +280,7 @@ public static class Deduplicator extends RichFlatMapFunction<Event, Event> {
     ValueState<Boolean> keyHasBeenSeen;
 
     @Override
-    public void open(Configuration conf) {
+    public void open(OpenContext ctx) {
         ValueStateDescriptor<Boolean> desc = new ValueStateDescriptor<>("keyHasBeenSeen", Types.BOOLEAN);
         keyHasBeenSeen = getRuntimeContext().getState(desc);
     }
@@ -348,11 +347,11 @@ public static void main(String[] args) throws Exception {
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
     DataStream<String> control = env
-        .fromElements("DROP", "IGNORE")
+        .fromData("DROP", "IGNORE")
         .keyBy(x -> x);
 
     DataStream<String> streamOfWords = env
-        .fromElements("Apache", "DROP", "Flink", "IGNORE")
+        .fromData("Apache", "DROP", "Flink", "IGNORE")
         .keyBy(x -> x);
   
     control
@@ -374,7 +373,7 @@ public static class ControlFunction extends RichCoFlatMapFunction<String, String
     private ValueState<Boolean> blocked;
       
     @Override
-    public void open(Configuration config) {
+    public void open(OpenContext ctx) {
         blocked = getRuntimeContext()
             .getState(new ValueStateDescriptor<>("blocked", Boolean.class));
     }
@@ -399,7 +398,7 @@ public static class ControlFunction extends RichCoFlatMapFunction<String, String
 
 在 Flink 运行时中，`flatMap1` 和 `flatMap2` 在连接流有新元素到来时被调用 —— 在我们的例子中，`control` 流中的元素会进入 `flatMap1`，`streamOfWords` 中的元素会进入 `flatMap2`。这是由两个流连接的顺序决定的，本例中为 `control.connect(streamOfWords)`。
 
-认识到你没法控制 `flatMap1` 和 `flatMap2` 的调用顺序是很重要的。这两个输入流是相互竞争的关系，Flink 运行时将根据从一个流或另一个流中消费的事件做它要做的。对于需要保证时间和/或顺序的场景，你会发现在 Flink 的管理状态中缓存事件一直到它们能够被处理是必须的。（注意：如果你真的感到绝望，可以使用自定义的算子实现 `InputSelectable` 接口，在两输入算子消费它的输入流时增加一些顺序上的限制。）
+认识到你没法控制 `flatMap1` 和 `flatMap2` 的调用顺序是很重要的。这两个输入流是相互竞争的关系，Flink 运行时将根据从一个流或另一个流中消费的事件做它要做的。对于需要保证时间和/或顺序的场景，你会发现在 Flink 的管理状态中缓存事件一直到它们能够被处理是必须的。（注意：如果你真的迫切需要，可以使用自定义的算子实现 {{< javadoc name="InputSelectable" file="org/apache/flink/streaming/api/operators/InputSelectable.html" >}} 接口，在两输入算子消费它的输入流时增加一些顺序上的限制。）
 
 {{< top >}}
 

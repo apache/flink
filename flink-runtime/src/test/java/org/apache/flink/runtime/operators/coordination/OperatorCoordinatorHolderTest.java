@@ -18,19 +18,37 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
+import org.apache.flink.runtime.checkpoint.CheckpointPlanCalculatorContext;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
+import org.apache.flink.runtime.checkpoint.DefaultCheckpointPlanCalculator;
+import org.apache.flink.runtime.checkpoint.NoOpCheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.NoOpFailJobCall;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.EventReceivingTasks.EventWithSubtask;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.junit.After;
-import org.junit.Test;
+import org.apache.commons.collections.iterators.IteratorChain;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -38,6 +56,7 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -46,27 +65,20 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A test that ensures the before/after conditions around event sending and checkpoint are met.
  * concurrency
  */
-@SuppressWarnings("serial")
-public class OperatorCoordinatorHolderTest extends TestLogger {
+class OperatorCoordinatorHolderTest {
 
     private final GlobalFailureHandler globalFailureHandler = (t) -> globalFailure = t;
     private Throwable globalFailure;
 
-    @After
-    public void checkNoGlobalFailure() throws Exception {
+    @AfterEach
+    void checkNoGlobalFailure() throws Exception {
         if (globalFailure != null) {
             ExceptionUtils.rethrowException(globalFailure);
         }
@@ -75,7 +87,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
     // ------------------------------------------------------------------------
 
     @Test
-    public void checkpointFutureInitiallyNotDone() throws Exception {
+    void checkpointFutureInitiallyNotDone() throws Exception {
         final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
         final OperatorCoordinatorHolder holder =
                 createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
@@ -83,11 +95,11 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
         holder.checkpointCoordinator(1L, checkpointFuture);
 
-        assertFalse(checkpointFuture.isDone());
+        assertThat(checkpointFuture).isNotDone();
     }
 
     @Test
-    public void completedCheckpointFuture() throws Exception {
+    void completedCheckpointFuture() throws Exception {
         final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
         final OperatorCoordinatorHolder holder =
                 createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
@@ -98,24 +110,25 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         holder.checkpointCoordinator(9L, checkpointFuture);
         getCoordinator(holder).getLastTriggeredCheckpoint().complete(testData);
 
-        assertTrue(checkpointFuture.isDone());
-        assertArrayEquals(testData, checkpointFuture.get());
+        assertThat(checkpointFuture).isDone();
+        assertThatFuture(checkpointFuture).eventuallySucceeds().isEqualTo(testData);
     }
 
     @Test
-    public void eventsBeforeCheckpointFutureCompletionPassThrough() throws Exception {
+    void eventsBeforeCheckpointFutureCompletionPassThrough() throws Exception {
         final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
         final OperatorCoordinatorHolder holder =
                 createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
 
         holder.checkpointCoordinator(1L, new CompletableFuture<>());
         getCoordinator(holder).getSubtaskGateway(1).sendEvent(new TestOperatorEvent(1));
+        holder.handleEventFromOperator(1, 0, new AcknowledgeCheckpointEvent(1L));
 
-        assertThat(tasks.getSentEventsForSubtask(1), contains(new TestOperatorEvent(1)));
+        assertThat(tasks.getSentEventsForSubtask(1)).containsExactly(new TestOperatorEvent(1));
     }
 
     @Test
-    public void eventsAreBlockedAfterCheckpointFutureCompletes() throws Exception {
+    void eventsAreBlockedAfterCheckpointFutureCompletes() throws Exception {
         final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
         final OperatorCoordinatorHolder holder =
                 createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
@@ -123,11 +136,11 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         triggerAndCompleteCheckpoint(holder, 10L);
         getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(1337));
 
-        assertEquals(0, tasks.getNumberOfSentEvents());
+        assertThat(tasks.getNumberOfSentEvents()).isZero();
     }
 
     @Test
-    public void abortedCheckpointReleasesBlockedEvents() throws Exception {
+    void abortedCheckpointReleasesBlockedEvents() throws Exception {
         final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
         final OperatorCoordinatorHolder holder =
                 createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
@@ -136,24 +149,24 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(1337));
         holder.abortCurrentTriggering();
 
-        assertThat(tasks.getSentEventsForSubtask(0), contains(new TestOperatorEvent(1337)));
+        assertThat(tasks.getSentEventsForSubtask(0)).containsExactly(new TestOperatorEvent(1337));
     }
 
     @Test
-    public void sourceBarrierInjectionReleasesBlockedEvents() throws Exception {
+    void acknowledgeCheckpointEventReleasesBlockedEvents() throws Exception {
         final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
         final OperatorCoordinatorHolder holder =
                 createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
 
         triggerAndCompleteCheckpoint(holder, 1111L);
         getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(1337));
-        holder.afterSourceBarrierInjection(1111L);
+        holder.handleEventFromOperator(0, 0, new AcknowledgeCheckpointEvent(1111L));
 
-        assertThat(tasks.getSentEventsForSubtask(0), contains(new TestOperatorEvent(1337)));
+        assertThat(tasks.getSentEventsForSubtask(0)).containsExactly(new TestOperatorEvent(1337));
     }
 
     @Test
-    public void restoreOpensValveEvents() throws Exception {
+    void restoreOpensGatewayEvents() throws Exception {
         final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
         final OperatorCoordinatorHolder holder =
                 createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
@@ -162,11 +175,11 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         holder.resetToCheckpoint(1L, new byte[0]);
         getCoordinator(holder).getSubtaskGateway(1).sendEvent(new TestOperatorEvent(999));
 
-        assertThat(tasks.getSentEventsForSubtask(1), contains(new TestOperatorEvent(999)));
+        assertThat(tasks.getSentEventsForSubtask(1)).containsExactly(new TestOperatorEvent(999));
     }
 
     @Test
-    public void lateCompleteCheckpointFutureDoesNotBlockEvents() throws Exception {
+    void lateCompleteCheckpointFutureDoesNotBlockEvents() throws Exception {
         final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
         final OperatorCoordinatorHolder holder =
                 createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
@@ -179,33 +192,18 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         holder.abortCurrentTriggering();
 
         triggerAndCompleteCheckpoint(holder, 1010L);
-        holder.afterSourceBarrierInjection(1010L);
+        holder.handleEventFromOperator(0, 0, new AcknowledgeCheckpointEvent(1010L));
 
         future1.complete(new byte[0]);
 
         getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(123));
 
-        assertThat(tasks.events, contains(new EventWithSubtask(new TestOperatorEvent(123), 0)));
+        assertThat(tasks.events)
+                .containsExactly(new EventWithSubtask(new TestOperatorEvent(123), 0));
     }
 
     @Test
-    public void triggeringFailsIfOtherTriggeringInProgress() throws Exception {
-        final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
-        final OperatorCoordinatorHolder holder =
-                createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
-
-        holder.checkpointCoordinator(11L, new CompletableFuture<>());
-
-        final CompletableFuture<byte[]> future = new CompletableFuture<>();
-        holder.checkpointCoordinator(12L, future);
-
-        assertTrue(future.isCompletedExceptionally());
-        assertNotNull(globalFailure);
-        globalFailure = null;
-    }
-
-    @Test
-    public void takeCheckpointAfterSuccessfulCheckpoint() throws Exception {
+    void takeCheckpointAfterSuccessfulCheckpoint() throws Exception {
         final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
         final OperatorCoordinatorHolder holder =
                 createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
@@ -214,25 +212,28 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 
         triggerAndCompleteCheckpoint(holder, 22L);
         getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(1));
-        holder.afterSourceBarrierInjection(22L);
+        holder.handleEventFromOperator(0, 0, new AcknowledgeCheckpointEvent(22L));
+        holder.handleEventFromOperator(1, 0, new AcknowledgeCheckpointEvent(22L));
+        holder.handleEventFromOperator(2, 0, new AcknowledgeCheckpointEvent(22L));
 
         getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(2));
 
         triggerAndCompleteCheckpoint(holder, 23L);
         getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(3));
-        holder.afterSourceBarrierInjection(23L);
+        holder.handleEventFromOperator(0, 0, new AcknowledgeCheckpointEvent(23L));
+        holder.handleEventFromOperator(1, 0, new AcknowledgeCheckpointEvent(23L));
+        holder.handleEventFromOperator(2, 0, new AcknowledgeCheckpointEvent(23L));
 
-        assertThat(
-                tasks.getSentEventsForSubtask(0),
-                contains(
+        assertThat(tasks.getSentEventsForSubtask(0))
+                .containsExactly(
                         new TestOperatorEvent(0),
                         new TestOperatorEvent(1),
                         new TestOperatorEvent(2),
-                        new TestOperatorEvent(3)));
+                        new TestOperatorEvent(3));
     }
 
     @Test
-    public void takeCheckpointAfterAbortedCheckpoint() throws Exception {
+    void takeCheckpointAfterAbortedCheckpoint() throws Exception {
         final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
         final OperatorCoordinatorHolder holder =
                 createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
@@ -247,24 +248,24 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 
         triggerAndCompleteCheckpoint(holder, 23L);
         getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(3));
-        holder.afterSourceBarrierInjection(23L);
+        holder.handleEventFromOperator(0, 0, new AcknowledgeCheckpointEvent(23L));
 
-        assertThat(
-                tasks.getSentEventsForSubtask(0),
-                contains(
+        assertThat(tasks.getSentEventsForSubtask(0))
+                .containsExactly(
                         new TestOperatorEvent(0),
                         new TestOperatorEvent(1),
                         new TestOperatorEvent(2),
-                        new TestOperatorEvent(3)));
+                        new TestOperatorEvent(3));
     }
 
     @Test
-    public void testFailingJobMultipleTimesNotCauseCascadingJobFailure() throws Exception {
+    void testFailingJobMultipleTimesNotCauseCascadingJobFailure() throws Exception {
         Function<OperatorCoordinator.Context, OperatorCoordinator> coordinatorProvider =
                 context ->
                         new TestingOperatorCoordinator(context) {
                             @Override
-                            public void handleEventFromOperator(int subtask, OperatorEvent event) {
+                            public void handleEventFromOperator(
+                                    int subtask, int attemptNumber, OperatorEvent event) {
                                 context.failJob(new RuntimeException("Artificial Exception"));
                             }
                         };
@@ -272,29 +273,28 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         final OperatorCoordinatorHolder holder =
                 createCoordinatorHolder(tasks, coordinatorProvider);
 
-        holder.handleEventFromOperator(0, new TestOperatorEvent());
-        assertNotNull(globalFailure);
+        holder.handleEventFromOperator(0, 0, new TestOperatorEvent());
+        assertThat(globalFailure).isNotNull();
         final Throwable firstGlobalFailure = globalFailure;
 
-        holder.handleEventFromOperator(1, new TestOperatorEvent());
-        assertEquals(
-                "The global failure should be the same instance because the context"
-                        + "should only take the first request from the coordinator to fail the job.",
-                firstGlobalFailure,
-                globalFailure);
+        holder.handleEventFromOperator(1, 0, new TestOperatorEvent());
+        assertThat(firstGlobalFailure)
+                .as(
+                        "The global failure should be the same instance because the context"
+                                + "should only take the first request from the coordinator to fail the job.")
+                .isEqualTo(globalFailure);
 
         holder.resetToCheckpoint(0L, new byte[0]);
-        holder.handleEventFromOperator(1, new TestOperatorEvent());
-        assertNotEquals(
-                "The new failures should be propagated after the coordinator " + "is reset.",
-                firstGlobalFailure,
-                globalFailure);
+        holder.handleEventFromOperator(1, 1, new TestOperatorEvent());
+        assertThat(firstGlobalFailure)
+                .as("The new failures should be propagated after the coordinator " + "is reset.")
+                .isNotEqualTo(globalFailure);
         // Reset global failure to null to make the after method check happy.
         globalFailure = null;
     }
 
     @Test
-    public void checkpointCompletionWaitsForEventFutures() throws Exception {
+    void checkpointCompletionWaitsForEventFutures() throws Exception {
         final CompletableFuture<Acknowledge> ackFuture = new CompletableFuture<>();
         final EventReceivingTasks tasks =
                 EventReceivingTasks.createForRunningTasksWithRpcResult(ackFuture);
@@ -304,10 +304,10 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(0));
 
         final CompletableFuture<?> checkpointFuture = triggerAndCompleteCheckpoint(holder, 22L);
-        assertFalse(checkpointFuture.isDone());
+        assertThat(checkpointFuture).isNotDone();
 
         ackFuture.complete(Acknowledge.get());
-        assertTrue(checkpointFuture.isDone());
+        assertThat(checkpointFuture).isDone();
     }
 
     /**
@@ -318,8 +318,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
      * event directly after that.
      */
     @Test
-    public void verifyCheckpointEventOrderWhenCheckpointFutureCompletedImmediately()
-            throws Exception {
+    void verifyCheckpointEventOrderWhenCheckpointFutureCompletedImmediately() throws Exception {
         checkpointEventValueAtomicity(FutureCompletedInstantlyTestCoordinator::new);
     }
 
@@ -331,7 +330,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
      * before completing the checkpoint future.
      */
     @Test
-    public void verifyCheckpointEventOrderWhenCheckpointFutureCompletesLate() throws Exception {
+    void verifyCheckpointEventOrderWhenCheckpointFutureCompletesLate() throws Exception {
         checkpointEventValueAtomicity(FutureCompletedAfterSendingEventsCoordinator::new);
     }
 
@@ -356,7 +355,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         Thread.sleep(new Random().nextInt(10));
         executor.triggerAll();
 
-        // trigger the checkpoint - this should also shut the valve as soon as the future is
+        // trigger the checkpoint - this should also close the gateway as soon as the future is
         // completed
         final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
         holder.checkpointCoordinator(0L, checkpointFuture);
@@ -368,18 +367,18 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         holder.close();
         executor.triggerAll();
 
-        assertTrue(checkpointFuture.isDone());
+        assertThat(checkpointFuture).isDone();
         final int checkpointedNumber = bytesToInt(checkpointFuture.get());
 
-        assertEquals(checkpointedNumber, sender.getNumberOfSentEvents());
+        assertThat(sender.getNumberOfSentEvents()).isEqualTo(checkpointedNumber);
         for (int i = 0; i < checkpointedNumber; i++) {
-            assertEquals(
-                    i, ((TestOperatorEvent) sender.getAllSentEvents().get(i).event).getValue());
+            assertThat(((TestOperatorEvent) sender.getAllSentEvents().get(i).event).getValue())
+                    .isEqualTo(i);
         }
     }
 
     @Test
-    public void testCheckpointFailsIfSendingEventFailedAfterTrigger() throws Exception {
+    void testCheckpointFailsIfSendingEventFailedAfterTrigger() throws Exception {
         CompletableFuture<Acknowledge> eventSendingResult = new CompletableFuture<>();
         final EventReceivingTasks tasks =
                 EventReceivingTasks.createForRunningTasksWithRpcResult(eventSendingResult);
@@ -397,11 +396,11 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         // Fail the event sending.
         eventSendingResult.completeExceptionally(new RuntimeException("Artificial"));
 
-        assertTrue(checkpointResult.isCompletedExceptionally());
+        assertThat(checkpointResult).isCompletedExceptionally();
     }
 
     @Test
-    public void testCheckpointFailsIfSendingEventFailedBeforeTrigger() throws Exception {
+    void testCheckpointFailsIfSendingEventFailedBeforeTrigger() throws Exception {
         final ReorderableManualExecutorService executor = new ReorderableManualExecutorService();
         final ComponentMainThreadExecutor mainThreadExecutor =
                 new ComponentMainThreadExecutorServiceAdapter(
@@ -432,14 +431,36 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         executor.triggerAll();
         getCoordinator(holder).getLastTriggeredCheckpoint().complete(new byte[0]);
         executor.triggerAll();
-        assertFalse(checkpointResult.isDone());
+        assertThat(checkpointResult).isNotDone();
 
         // Then the failure finally get processed by fail the corresponding tasks.
         executor.executeAllDelayedRunnables();
         executor.triggerAll();
 
         // The checkpoint would be finally confirmed.
-        assertTrue(checkpointResult.isCompletedExceptionally());
+        assertThat(checkpointResult).isCompletedExceptionally();
+    }
+
+    @Test
+    void testControlGatewayAtSubtaskGranularity() throws Exception {
+        final EventReceivingTasks tasks = EventReceivingTasks.createForRunningTasks();
+        final OperatorCoordinatorHolder holder =
+                createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
+
+        holder.checkpointCoordinator(1L, new CompletableFuture<>());
+        getCoordinator(holder).getLastTriggeredCheckpoint().complete(new byte[0]);
+
+        getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(0));
+        getCoordinator(holder).getSubtaskGateway(1).sendEvent(new TestOperatorEvent(1));
+        holder.handleEventFromOperator(1, 0, new AcknowledgeCheckpointEvent(1L));
+
+        assertThat(tasks.getSentEventsForSubtask(0)).isEmpty();
+        assertThat(tasks.getSentEventsForSubtask(1)).containsExactly(new TestOperatorEvent(1));
+
+        holder.handleEventFromOperator(0, 0, new AcknowledgeCheckpointEvent(1L));
+
+        assertThat(tasks.getSentEventsForSubtask(0)).containsExactly(new TestOperatorEvent(0));
+        assertThat(tasks.getSentEventsForSubtask(1)).containsExactly(new TestOperatorEvent(1));
     }
 
     // ------------------------------------------------------------------------
@@ -511,9 +532,48 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
                         getClass().getClassLoader(),
                         3,
                         1775,
-                        eventTarget);
+                        eventTarget,
+                        false,
+                        new TaskInformation(
+                                new JobVertexID(),
+                                "test task",
+                                1,
+                                1,
+                                NoOpInvokable.class.getName(),
+                                new Configuration()),
+                        UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
-        holder.lazyInitialize(globalFailureHandler, mainThreadExecutor);
+        JobID jobId = new JobID();
+        holder.lazyInitialize(
+                globalFailureHandler,
+                mainThreadExecutor,
+                new CheckpointCoordinator(
+                        jobId,
+                        CheckpointCoordinatorConfiguration.builder().build(),
+                        Collections.emptyList(),
+                        new StandaloneCheckpointIDCounter(),
+                        new StandaloneCompletedCheckpointStore(10),
+                        new JobManagerCheckpointStorage(),
+                        mainThreadExecutor,
+                        new CheckpointsCleaner(),
+                        mainThreadExecutor,
+                        new CheckpointFailureManager(0, NoOpFailJobCall.INSTANCE),
+                        new DefaultCheckpointPlanCalculator(
+                                jobId,
+                                new CheckpointPlanCalculatorContext() {
+                                    @Override
+                                    public ScheduledExecutor getMainExecutor() {
+                                        return null;
+                                    }
+
+                                    @Override
+                                    public boolean hasFinishedTasks() {
+                                        return false;
+                                    }
+                                },
+                                IteratorChain::new,
+                                false),
+                        NoOpCheckpointStatsTracker.INSTANCE));
         holder.start();
 
         return holder;
@@ -675,16 +735,17 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         }
 
         @Override
-        public void handleEventFromOperator(int subtask, OperatorEvent event) {}
+        public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event) {}
 
         @Override
-        public void subtaskFailed(int subtask, @Nullable Throwable reason) {}
+        public void executionAttemptFailed(
+                int subtask, int attemptNumber, @Nullable Throwable reason) {}
 
         @Override
         public void subtaskReset(int subtask, long checkpointId) {}
 
         @Override
-        public void subtaskReady(int subtask, SubtaskGateway gateway) {
+        public void executionAttemptReady(int subtask, int attemptNumber, SubtaskGateway gateway) {
             subtaskGateways[subtask] = gateway;
 
             for (SubtaskGateway subtaskGateway : subtaskGateways) {

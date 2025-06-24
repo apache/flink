@@ -35,4 +35,8 @@ public interface ModifyOperationVisitor<T> {
     <U> T visit(UnregisteredSinkModifyOperation<U> unregisteredSink);
 
     T visit(CollectModifyOperation selectOperation);
+
+    T visit(CreateTableASOperation ctas);
+
+    T visit(ReplaceTableAsOperation rtas);
 }

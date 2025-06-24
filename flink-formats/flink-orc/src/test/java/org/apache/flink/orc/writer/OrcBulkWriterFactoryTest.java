@@ -26,35 +26,31 @@ import org.apache.flink.orc.vector.Vectorizer;
 import org.apache.hadoop.fs.Path;
 import org.apache.orc.MemoryManager;
 import org.apache.orc.OrcFile;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the behavior of {@link OrcBulkWriterFactory}. */
-public class OrcBulkWriterFactoryTest {
-
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+class OrcBulkWriterFactoryTest {
 
     @Test
-    public void testNotOverrideInMemoryManager() throws IOException {
+    void testNotOverrideInMemoryManager(@TempDir java.nio.file.Path tmpDir) throws IOException {
         TestMemoryManager memoryManager = new TestMemoryManager();
         OrcBulkWriterFactory<Record> factory =
                 new TestOrcBulkWriterFactory<>(
                         new RecordVectorizer("struct<_col0:string,_col1:int>"), memoryManager);
-        factory.create(new LocalDataOutputStream(temporaryFolder.newFile()));
-        factory.create(new LocalDataOutputStream(temporaryFolder.newFile()));
+        factory.create(new LocalDataOutputStream(tmpDir.resolve("file1").toFile()));
+        factory.create(new LocalDataOutputStream(tmpDir.resolve("file2").toFile()));
 
         List<Path> addedWriterPath = memoryManager.getAddedWriterPath();
-        assertEquals(2, addedWriterPath.size());
-        assertNotEquals(addedWriterPath.get(0), addedWriterPath.get(1));
+        assertThat(addedWriterPath).hasSize(2);
+        assertThat(addedWriterPath.get(1)).isNotEqualTo(addedWriterPath.get(0));
     }
 
     private static class TestOrcBulkWriterFactory<T> extends OrcBulkWriterFactory<T> {

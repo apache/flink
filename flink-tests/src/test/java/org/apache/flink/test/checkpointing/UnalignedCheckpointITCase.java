@@ -20,6 +20,7 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -29,7 +30,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -38,21 +38,20 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.stream.Stream;
 
 import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
-import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava33.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.LOCAL;
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.MIXED;
 import static org.apache.flink.test.checkpointing.UnalignedCheckpointTestBase.ChannelType.REMOTE;
@@ -104,7 +103,6 @@ import static org.hamcrest.Matchers.equalTo;
  * </ul>
  */
 @RunWith(Parameterized.class)
-@Category(FailsWithAdaptiveScheduler.class) // FLINK-21689
 public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
     enum Topology implements DagCreator {
         PIPELINE {
@@ -113,7 +111,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                     StreamExecutionEnvironment env,
                     int minCheckpoints,
                     boolean slotSharing,
-                    int expectedRestarts) {
+                    int expectedRestarts,
+                    long sourceSleepMs) {
                 final int parallelism = env.getParallelism();
                 final SingleOutputStreamOperator<Long> stream =
                         env.fromSource(
@@ -121,7 +120,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                                                 minCheckpoints,
                                                 parallelism,
                                                 expectedRestarts,
-                                                env.getCheckpointInterval()),
+                                                env.getCheckpointInterval(),
+                                                sourceSleepMs),
                                         noWatermarks(),
                                         "source")
                                 .slotSharingGroup(slotSharing ? "default" : "source")
@@ -144,7 +144,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                     StreamExecutionEnvironment env,
                     int minCheckpoints,
                     boolean slotSharing,
-                    int expectedRestarts) {
+                    int expectedRestarts,
+                    long sourceSleepMs) {
                 final int parallelism = env.getParallelism();
                 DataStream<Long> combinedSource = null;
                 for (int inputIndex = 0; inputIndex < NUM_SOURCES; inputIndex++) {
@@ -154,7 +155,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                                                     minCheckpoints,
                                                     parallelism,
                                                     expectedRestarts,
-                                                    env.getCheckpointInterval()),
+                                                    env.getCheckpointInterval(),
+                                                    sourceSleepMs),
                                             noWatermarks(),
                                             "source" + inputIndex)
                                     .slotSharingGroup(
@@ -182,7 +184,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                     StreamExecutionEnvironment env,
                     int minCheckpoints,
                     boolean slotSharing,
-                    int expectedRestarts) {
+                    int expectedRestarts,
+                    long sourceSleepMs) {
                 final int parallelism = env.getParallelism();
                 DataStream<Tuple2<Integer, Long>> combinedSource = null;
                 for (int inputIndex = 0; inputIndex < NUM_SOURCES; inputIndex++) {
@@ -193,7 +196,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                                                     minCheckpoints,
                                                     parallelism,
                                                     expectedRestarts,
-                                                    env.getCheckpointInterval()),
+                                                    env.getCheckpointInterval(),
+                                                    sourceSleepMs),
                                             noWatermarks(),
                                             "source" + inputIndex)
                                     .slotSharingGroup(
@@ -224,8 +228,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         }
     }
 
-    @Parameterized.Parameters(
-            name = "{0} with {2} channels, p = {1}, timeout = {3}, buffersPerChannel = {4}")
+    @Parameterized.Parameters(name = "{0} with {2} channels, p = {1}, timeout = {3}")
     public static Object[][] parameters() {
         Object[] defaults = {Topology.PIPELINE, 1, MIXED, 0};
 
@@ -244,12 +247,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         };
         return Stream.of(runs)
                 .map(params -> addDefaults(params, defaults))
-                .map(
-                        params ->
-                                new Object[][] {
-                                    ArrayUtils.add(params, 0),
-                                    ArrayUtils.add(params, BUFFER_PER_CHANNEL)
-                                })
+                .map(params -> new Object[][] {ArrayUtils.insert(params.length, params)})
                 .flatMap(Arrays::stream)
                 .toArray(Object[][]::new);
     }
@@ -262,11 +260,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
     private final UnalignedSettings settings;
 
     public UnalignedCheckpointITCase(
-            Topology topology,
-            int parallelism,
-            ChannelType channelType,
-            int timeout,
-            int buffersPerChannel) {
+            Topology topology, int parallelism, ChannelType channelType, int timeout) {
         settings =
                 new UnalignedSettings(topology)
                         .setParallelism(parallelism)
@@ -278,8 +272,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                         // after triggering)
                         .setCheckpointTimeout(Duration.ofSeconds(30))
                         .setTolerableCheckpointFailures(3)
-                        .setAlignmentTimeout(timeout)
-                        .setBuffersPerChannel(buffersPerChannel);
+                        .setAlignmentTimeout(timeout);
     }
 
     @Test
@@ -307,7 +300,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 // shifts records from one partition to another evenly to retain order
                 .partitionCustom(new ShiftingPartitioner(), l -> l)
                 .map(
-                        new FailingMapper(
+                        new FailingMapper<>(
                                 state ->
                                         state.completedCheckpoints >= minCheckpoints / 4
                                                         && state.runNumber == 0
@@ -347,7 +340,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 
         @Override
         protected State createState() {
-            return new State(getRuntimeContext().getNumberOfParallelSubtasks());
+            return new State(getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
         }
 
         @Override
@@ -368,8 +361,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                             "Out of order records current={} and last={} @ {} subtask ({} attempt)",
                             value,
                             lastRecord,
-                            getRuntimeContext().getIndexOfThisSubtask(),
-                            getRuntimeContext().getAttemptNumber());
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                            getRuntimeContext().getTaskInfo().getAttemptNumber());
                     firstOutOfOrder = false;
                 }
             } else if (value == lastRecord) {
@@ -378,8 +371,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                     LOG.info(
                             "Duplicate record {} @ {} subtask ({} attempt)",
                             value,
-                            getRuntimeContext().getIndexOfThisSubtask(),
-                            getRuntimeContext().getAttemptNumber());
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                            getRuntimeContext().getTaskInfo().getAttemptNumber());
                     firstDuplicate = false;
                 }
             } else if (lastRecord != -1) {
@@ -392,8 +385,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                                 value,
                                 expectedValue,
                                 lastRecord,
-                                getRuntimeContext().getIndexOfThisSubtask(),
-                                getRuntimeContext().getAttemptNumber());
+                                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                                getRuntimeContext().getTaskInfo().getAttemptNumber());
                         firstLostValue = false;
                     }
                 }
@@ -418,8 +411,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         ValueState<Long> state;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             state =
                     getRuntimeContext()
                             .getState(
@@ -451,7 +444,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 throws Exception {
             int source = sourceValue.f0;
             long value = withoutHeader(sourceValue.f1);
-            int partition = (int) (value % getRuntimeContext().getNumberOfParallelSubtasks());
+            int partition =
+                    (int) (value % getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
             state.lastValues[source][partition] = value;
             for (int index = 0; index < numSources; index++) {
                 if (state.lastValues[index][partition] < value) {
@@ -463,8 +457,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            stateList.clear();
-            stateList.add(state);
+            stateList.update(Collections.singletonList(state));
         }
 
         @Override
@@ -476,7 +469,10 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                     getOnlyElement(
                             stateList.get(),
                             new State(
-                                    numSources, getRuntimeContext().getNumberOfParallelSubtasks()));
+                                    numSources,
+                                    getRuntimeContext()
+                                            .getTaskInfo()
+                                            .getNumberOfParallelSubtasks()));
         }
 
         private static class State {

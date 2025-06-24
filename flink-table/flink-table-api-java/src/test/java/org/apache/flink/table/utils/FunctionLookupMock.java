@@ -18,26 +18,16 @@
 
 package org.apache.flink.table.utils;
 
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
-import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
-import org.apache.flink.table.functions.ScalarFunctionDefinition;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.TypeInferenceUtil;
-import org.apache.flink.table.types.utils.TypeConversions;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * A test implementation for a {@link FunctionLookup}. It mocks away a few features of a {@link
@@ -105,35 +95,5 @@ public final class FunctionLookupMock implements FunctionLookup {
     public ContextResolvedFunction lookupBuiltInFunction(BuiltInFunctionDefinition definition) {
         return ContextResolvedFunction.permanent(
                 FunctionIdentifier.of(definition.getName()), definition);
-    }
-
-    @Override
-    public PlannerTypeInferenceUtil getPlannerTypeInferenceUtil() {
-        return (unresolvedCall, resolvedArgs) -> {
-            FunctionDefinition functionDefinition = unresolvedCall.getFunctionDefinition();
-            List<DataType> argumentTypes =
-                    resolvedArgs.stream()
-                            .map(ResolvedExpression::getOutputDataType)
-                            .collect(Collectors.toList());
-            if (functionDefinition.equals(BuiltInFunctionDefinitions.EQUALS)) {
-                return new TypeInferenceUtil.Result(argumentTypes, null, DataTypes.BOOLEAN());
-            } else if (functionDefinition.equals(BuiltInFunctionDefinitions.IS_NULL)) {
-                return new TypeInferenceUtil.Result(argumentTypes, null, DataTypes.BOOLEAN());
-            } else if (functionDefinition instanceof ScalarFunctionDefinition) {
-                return new TypeInferenceUtil.Result(
-                        argumentTypes,
-                        null,
-                        // We do not support a full legacy type inference here. We support only a
-                        // static result
-                        // type
-                        TypeConversions.fromLegacyInfoToDataType(
-                                ((ScalarFunctionDefinition) functionDefinition)
-                                        .getScalarFunction()
-                                        .getResultType(null)));
-            }
-
-            throw new IllegalArgumentException(
-                    "Unsupported builtin function in the test: " + unresolvedCall);
-        };
     }
 }

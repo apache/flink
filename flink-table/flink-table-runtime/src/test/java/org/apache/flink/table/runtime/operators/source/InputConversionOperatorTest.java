@@ -29,7 +29,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -37,10 +37,10 @@ import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link InputConversionOperator}. */
-public class InputConversionOperatorTest {
+class InputConversionOperatorTest {
 
     @Test
-    public void testInvalidRecords() {
+    void testInvalidRecords() {
         final InputConversionOperator<Row> operator =
                 new InputConversionOperator<>(
                         createConverter(DataTypes.ROW(DataTypes.FIELD("f", DataTypes.INT()))),
@@ -72,7 +72,7 @@ public class InputConversionOperatorTest {
     }
 
     @Test
-    public void testInvalidEventTime() {
+    void testInvalidEventTime() {
         final InputConversionOperator<Row> operator =
                 new InputConversionOperator<>(
                         createConverter(DataTypes.ROW(DataTypes.FIELD("f", DataTypes.INT()))),
@@ -91,7 +91,7 @@ public class InputConversionOperatorTest {
     }
 
     @Test
-    public void testWatermarkSuppression() throws Exception {
+    void testWatermarkSuppression() throws Exception {
         final InputConversionOperator<Row> operator =
                 new InputConversionOperator<>(
                         createConverter(DataTypes.ROW(DataTypes.FIELD("f", DataTypes.INT()))),
@@ -104,8 +104,8 @@ public class InputConversionOperatorTest {
         operator.processWatermark(new Watermark(1000));
     }
 
-    @Test(expected = NullPointerException.class)
-    public void testReceiveMaxWatermark() throws Exception {
+    @Test
+    void testReceiveMaxWatermark() throws Exception {
         final InputConversionOperator<Row> operator =
                 new InputConversionOperator<>(
                         createConverter(DataTypes.ROW(DataTypes.FIELD("f", DataTypes.INT()))),
@@ -115,7 +115,8 @@ public class InputConversionOperatorTest {
                         true);
 
         // would throw an exception because it always emits Watermark.MAX_WATERMARK
-        operator.processWatermark(Watermark.MAX_WATERMARK);
+        assertThatThrownBy(() -> operator.processWatermark(Watermark.MAX_WATERMARK))
+                .isInstanceOf(NullPointerException.class);
     }
 
     private static DynamicTableSource.DataStructureConverter createConverter(DataType dataType) {

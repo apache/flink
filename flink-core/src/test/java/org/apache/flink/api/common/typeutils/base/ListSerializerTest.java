@@ -27,8 +27,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
-/** A test for the {@link LongSerializer}. */
-public class ListSerializerTest extends SerializerTestBase<List<Long>> {
+/** A test for the {@link ListSerializer}. */
+class ListSerializerTest extends SerializerTestBase<List<Long>> {
 
     @Override
     protected TypeSerializer<List<Long>> createSerializer() {
@@ -46,7 +46,7 @@ public class ListSerializerTest extends SerializerTestBase<List<Long>> {
         return (Class<List<Long>>) (Class<?>) List.class;
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({"unchecked"})
     @Override
     protected List<Long>[] getTestData() {
         final Random rnd = new Random(123654789);

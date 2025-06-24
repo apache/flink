@@ -41,6 +41,7 @@ import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYMODULE_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYTHON_PATH;
 import static org.apache.flink.client.cli.CliFrontendParser.PY_OPTION;
 
 /** Utility class for {@link ProgramOptions}. */
@@ -61,15 +62,16 @@ public enum ProgramOptionsUtils {
     }
 
     /**
-     * @return True if the commandline contains "-pyfs", "-pyarch", "-pyreq", "-pyexec" options,
-     *     false otherwise.
+     * @return True if the commandline contains "-pyfs", "-pyarch", "-pyreq", "-pyexec", "-pypath"
+     *     options, false otherwise.
      */
     public static boolean containsPythonDependencyOptions(CommandLine line) {
         return line.hasOption(PYFILES_OPTION.getOpt())
                 || line.hasOption(PYREQUIREMENTS_OPTION.getOpt())
                 || line.hasOption(PYARCHIVE_OPTION.getOpt())
                 || line.hasOption(PYEXEC_OPTION.getOpt())
-                || line.hasOption(PYCLIENTEXEC_OPTION.getOpt());
+                || line.hasOption(PYCLIENTEXEC_OPTION.getOpt())
+                || line.hasOption(PYTHON_PATH.getOpt());
     }
 
     public static ProgramOptions createPythonProgramOptions(CommandLine line)

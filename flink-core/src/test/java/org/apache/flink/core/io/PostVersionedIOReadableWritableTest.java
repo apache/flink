@@ -24,62 +24,65 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Suite of tests for {@link PostVersionedIOReadableWritable}. */
-public class PostVersionedIOReadableWritableTest {
+class PostVersionedIOReadableWritableTest {
 
     @Test
-    public void testReadVersioned() throws IOException {
-        byte[] payload = "test-data".getBytes();
+    void testReadVersioned() throws IOException {
+        byte[] payload = "test-data".getBytes(StandardCharsets.UTF_8);
         byte[] serialized = serializeWithPostVersionedReadableWritable(payload);
         byte[] restored = restoreWithPostVersionedReadableWritable(serialized, payload.length);
 
-        Assert.assertArrayEquals(payload, restored);
+        assertThat(restored).containsExactly(payload);
     }
 
     @Test
-    public void testReadNonVersioned() throws IOException {
+    void testReadNonVersioned() throws IOException {
         byte[] preVersionedPayload = new byte[] {0x00, 0x00, 0x02, 0x33};
         byte[] serialized = serializeWithNonVersionedReadableWritable(preVersionedPayload);
         byte[] restored =
                 restoreWithPostVersionedReadableWritable(serialized, preVersionedPayload.length);
 
-        Assert.assertArrayEquals(preVersionedPayload, restored);
+        assertThat(restored).containsExactly(preVersionedPayload);
     }
 
     @Test
-    public void testReadNonVersionedWithLongPayload() throws IOException {
-        byte[] preVersionedPayload = "test-data".getBytes();
+    void testReadNonVersionedWithLongPayload() throws IOException {
+        byte[] preVersionedPayload = "test-data".getBytes(StandardCharsets.UTF_8);
         byte[] serialized = serializeWithNonVersionedReadableWritable(preVersionedPayload);
         byte[] restored =
                 restoreWithPostVersionedReadableWritable(serialized, preVersionedPayload.length);
 
-        Assert.assertArrayEquals(preVersionedPayload, restored);
+        assertThat(restored).containsExactly(preVersionedPayload);
     }
 
     @Test
-    public void testReadNonVersionedWithShortPayload() throws IOException {
+    void testReadNonVersionedWithShortPayload() throws IOException {
         byte[] preVersionedPayload = new byte[] {-15, -51};
         byte[] serialized = serializeWithNonVersionedReadableWritable(preVersionedPayload);
         byte[] restored =
                 restoreWithPostVersionedReadableWritable(serialized, preVersionedPayload.length);
 
-        Assert.assertArrayEquals(preVersionedPayload, restored);
+        assertThat(restored).containsExactly(preVersionedPayload);
     }
 
     @Test
-    public void testReadNonVersionedWithEmptyPayload() throws IOException {
+    void testReadNonVersionedWithEmptyPayload() throws IOException {
         byte[] preVersionedPayload = new byte[0];
         byte[] serialized = serializeWithNonVersionedReadableWritable(preVersionedPayload);
         byte[] restored =
                 restoreWithPostVersionedReadableWritable(serialized, preVersionedPayload.length);
 
-        Assert.assertArrayEquals(preVersionedPayload, restored);
+        assertThat(restored).containsExactly(preVersionedPayload);
     }
 
     private byte[] serializeWithNonVersionedReadableWritable(byte[] payload) throws IOException {
@@ -121,18 +124,14 @@ public class PostVersionedIOReadableWritableTest {
         return restoredVersionedReadableWritable.getData();
     }
 
-    private static void assertEmpty(DataInputView in) throws IOException {
-        try {
-            in.readByte();
-            Assert.fail();
-        } catch (EOFException ignore) {
-        }
+    private static void assertEmpty(DataInputView in) {
+        assertThatThrownBy(in::readByte).isInstanceOf(EOFException.class);
     }
 
     static class TestPostVersionedReadableWritable extends PostVersionedIOReadableWritable {
 
         private static final int VERSION = 1;
-        private byte[] data;
+        private final byte[] data;
 
         TestPostVersionedReadableWritable(int len) {
             this.data = new byte[len];
@@ -166,7 +165,7 @@ public class PostVersionedIOReadableWritableTest {
 
     static class TestNonVersionedReadableWritable implements IOReadableWritable {
 
-        private byte[] data;
+        private final byte[] data;
 
         TestNonVersionedReadableWritable(byte[] data) {
             this.data = data;

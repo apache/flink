@@ -23,6 +23,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.util.HadoopConfigLoader;
 
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +32,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.function.BiFunction;
 
 /** Utilities class for configuration of Hadoop and Google Storage. */
 public class ConfigUtils {
@@ -154,6 +156,14 @@ public class ConfigUtils {
             LOGGER.info("Creating GSRecoverableWriter using no credentials");
             return Optional.empty();
         }
+    }
+
+    public static Optional<String> getGcsRootUrl(
+            org.apache.hadoop.conf.Configuration hadoopConfig) {
+        // Ignore the default value, only returning a value if actually included in the config
+        BiFunction<String, String, String> getterFn = (key, defaultValue) -> hadoopConfig.get(key);
+        String value = GoogleHadoopFileSystemConfiguration.GCS_ROOT_URL.get(hadoopConfig, getterFn);
+        return Optional.ofNullable(value);
     }
 
     /**

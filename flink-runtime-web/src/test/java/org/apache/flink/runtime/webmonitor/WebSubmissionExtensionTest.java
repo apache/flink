@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.deployment.application.ApplicationRunner;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
@@ -38,13 +37,13 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -75,7 +74,7 @@ class WebSubmissionExtensionTest {
                         new CompletableFuture<>(),
                         uploadDir,
                         Executors.directExecutor(),
-                        Time.of(5, TimeUnit.SECONDS),
+                        Duration.ofSeconds(5),
                         () -> threadCapturingApplicationRunner);
 
         final String jarId = uploadJar(webSubmissionExtension, jarFile, dispatcherGateway);

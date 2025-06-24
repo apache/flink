@@ -37,7 +37,6 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
-import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -47,6 +46,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.client.Watcher.Action;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -55,9 +55,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -65,6 +67,7 @@ import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
+import static org.apache.flink.kubernetes.utils.Constants.KUBERNETES_ZERO_RESOURCE_VERSION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
@@ -278,6 +281,25 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     }
 
     @Test
+    void testGetPodsWithLabels() {
+        final String podName = "pod-with-labels";
+        final Pod pod =
+                new PodBuilder()
+                        .editOrNewMetadata()
+                        .withName(podName)
+                        .withLabels(TESTING_LABELS)
+                        .endMetadata()
+                        .editOrNewSpec()
+                        .endSpec()
+                        .build();
+        this.kubeClient.pods().inNamespace(NAMESPACE).create(pod);
+        List<KubernetesPod> kubernetesPods = this.flinkKubeClient.getPodsWithLabels(TESTING_LABELS);
+        assertThat(kubernetesPods)
+                .satisfiesExactly(
+                        kubernetesPod -> assertThat(kubernetesPod.getName()).isEqualTo(podName));
+    }
+
+    @Test
     void testServiceLoadBalancerWithNoIP() {
         final String hostName = "test-host-name";
         mockExpectedServiceFromServerSide(buildExternalServiceWithLoadBalancer(hostName, ""));
@@ -319,9 +341,15 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
         flinkConfig.set(
                 KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE, addressType);
         final List<String> internalAddresses =
-                Arrays.asList("InternalIP:10.0.0.1", "InternalIP:10.0.0.2", "InternalIP:10.0.0.3");
+                Arrays.asList(
+                        "InternalIP:10.0.0.1:true",
+                        "InternalIP:10.0.0.2:false",
+                        "InternalIP:10.0.0.3: ");
         final List<String> externalAddresses =
-                Arrays.asList("ExternalIP:7.7.7.7", "ExternalIP:8.8.8.8", "ExternalIP:9.9.9.9");
+                Arrays.asList(
+                        "ExternalIP:7.7.7.7:true",
+                        "ExternalIP:8.8.8.8:false",
+                        "ExternalIP:9.9.9.9: ");
         final List<String> addresses = new ArrayList<>();
         addresses.addAll(internalAddresses);
         addresses.addAll(externalAddresses);
@@ -329,9 +357,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
         mockExpectedNodesFromServerSide(addresses);
         try (final Fabric8FlinkKubeClient localClient =
                 new Fabric8FlinkKubeClient(
-                        flinkConfig,
-                        kubeClient,
-                        org.apache.flink.util.concurrent.Executors.newDirectExecutorService())) {
+                        flinkConfig, kubeClient, Executors.newSingleThreadScheduledExecutor())) {
             final Optional<Endpoint> resultEndpoint = localClient.getRestEndpoint(CLUSTER_ID);
             assertThat(resultEndpoint).isPresent();
             final List<String> expectedIps;
@@ -339,12 +365,14 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                 case InternalIP:
                     expectedIps =
                             internalAddresses.stream()
+                                    .filter(s -> !"true".equals(s.split(":")[2]))
                                     .map(s -> s.split(":")[1])
                                     .collect(Collectors.toList());
                     break;
                 case ExternalIP:
                     expectedIps =
                             externalAddresses.stream()
+                                    .filter(s -> !"true".equals(s.split(":")[2]))
                                     .map(s -> s.split(":")[1])
                                     .collect(Collectors.toList());
                     break;
@@ -352,6 +380,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                     throw new IllegalArgumentException(
                             String.format("Unexpected address type %s.", addressType));
             }
+            assertThat(expectedIps.size()).isEqualTo(2);
             assertThat(resultEndpoint.get().getAddress()).isIn(expectedIps);
             assertThat(resultEndpoint.get().getPort()).isEqualTo(NODE_PORT);
         }
@@ -403,6 +432,42 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     }
 
     @Test
+    void testWatchPodsAndDoCallback() throws Exception {
+        mockPodEventWithLabels(
+                NAMESPACE, TASKMANAGER_POD_NAME, KUBERNETES_ZERO_RESOURCE_VERSION, TESTING_LABELS);
+        // the count latch for events.
+        CompletableFuture<Action> podAddedAction = new CompletableFuture();
+        CompletableFuture<Action> podDeletedAction = new CompletableFuture();
+        CompletableFuture<Action> podModifiedAction = new CompletableFuture();
+        TestingWatchCallbackHandler<KubernetesPod> watchCallbackHandler =
+                TestingWatchCallbackHandler.<KubernetesPod>builder()
+                        .setOnAddedConsumer((ignore) -> podAddedAction.complete(Action.ADDED))
+                        .setOnDeletedConsumer((ignore) -> podDeletedAction.complete(Action.DELETED))
+                        .setOnModifiedConsumer(
+                                (ignore) -> podModifiedAction.complete(Action.MODIFIED))
+                        .build();
+        this.flinkKubeClient.watchPodsAndDoCallback(TESTING_LABELS, watchCallbackHandler);
+        assertThat(podAddedAction.get()).isEqualTo(Action.ADDED);
+        assertThat(podDeletedAction.get()).isEqualTo(Action.DELETED);
+        assertThat(podModifiedAction.get()).isEqualTo(Action.MODIFIED);
+    }
+
+    @Test
+    void testWatchPodsAndDoCallbackFail() throws Exception {
+        mockWatchPodSuccessAfterFailTwoTimes(
+                NAMESPACE, KUBERNETES_ZERO_RESOURCE_VERSION, TESTING_LABELS);
+        TestingWatchCallbackHandler<KubernetesPod> watchCallbackHandler =
+                TestingWatchCallbackHandler.<KubernetesPod>builder().build();
+        // disable the retry of kubeClient
+        kubeClient.getConfiguration().setRequestRetryBackoffLimit(0);
+        assertThat(
+                        flinkKubeClient
+                                .watchPodsAndDoCallback(TESTING_LABELS, watchCallbackHandler)
+                                .get(10, TimeUnit.SECONDS))
+                .isNotNull();
+    }
+
+    @Test
     void testCreateConfigMap() throws Exception {
         final KubernetesConfigMap configMap = buildTestingConfigMap();
         this.flinkKubeClient.createConfigMap(configMap).get();
@@ -436,21 +501,6 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
         assertThat(currentOpt).isPresent();
         assertThat(currentOpt.get().getData())
                 .containsEntry(TESTING_CONFIG_MAP_KEY, TESTING_CONFIG_MAP_VALUE);
-    }
-
-    @Test
-    void testDeleteConfigMapByLabels() throws Exception {
-        this.flinkKubeClient.createConfigMap(buildTestingConfigMap()).get();
-        assertThat(this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME)).isPresent();
-        this.flinkKubeClient.deleteConfigMapsByLabels(TESTING_LABELS).get();
-        assertThat(this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME)).isNotPresent();
-    }
-
-    @Test
-    void testDeleteNotExistingConfigMapByLabels() throws Exception {
-        assertThat(this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME)).isNotPresent();
-        this.flinkKubeClient.deleteConfigMapsByLabels(TESTING_LABELS).get();
-        assertThat(this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME)).isNotPresent();
     }
 
     @Test
@@ -535,10 +585,11 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     @Test
     void testCheckAndUpdateConfigMapWhenGetConfigMapFailed() throws Exception {
         final int configuredRetries =
-                flinkConfig.getInteger(
+                flinkConfig.get(
                         KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
         final KubernetesConfigMap configMap = buildTestingConfigMap();
         this.flinkKubeClient.createConfigMap(configMap).get();
+        kubeClient.getConfiguration().setRequestRetryBackoffLimit(0);
 
         mockGetConfigMapFailed(configMap.getInternalResource());
 
@@ -571,7 +622,7 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     @Test
     void testCheckAndUpdateConfigMapWhenReplaceConfigMapFailed() throws Exception {
         final int configuredRetries =
-                flinkConfig.getInteger(
+                flinkConfig.get(
                         KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
         final KubernetesConfigMap configMap = buildTestingConfigMap();
         this.flinkKubeClient.createConfigMap(configMap).get();
@@ -600,8 +651,8 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
 
     @Test
     void testIOExecutorShouldBeShutDownWhenFlinkKubeClientClosed() {
-        final ExecutorService executorService =
-                Executors.newFixedThreadPool(2, new ExecutorThreadFactory("Testing-IO"));
+        final ScheduledExecutorService executorService =
+                Executors.newSingleThreadScheduledExecutor();
         final FlinkKubeClient flinkKubeClient =
                 new Fabric8FlinkKubeClient(flinkConfig, kubeClient, executorService);
         flinkKubeClient.close();

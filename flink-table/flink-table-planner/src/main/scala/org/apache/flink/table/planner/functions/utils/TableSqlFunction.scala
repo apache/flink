@@ -192,7 +192,7 @@ class OperandMetadata(name: String, udtf: TableFunction[_], methods: Array[Metho
     var isVarargs = false
     methods.foreach(
       m => {
-        var len = m.getParameterTypes.length
+        var len = m.getParameterCount
         if (len > 0 && m.isVarArgs && m.getParameterTypes()(len - 1).isArray) {
           isVarargs = true
           len = len - 1

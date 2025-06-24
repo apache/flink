@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
+import org.apache.flink.util.CollectionUtil;
 
 import java.io.Closeable;
 import java.io.File;
@@ -37,8 +38,8 @@ public class SpillChannelManager implements Closeable {
     private volatile boolean closed;
 
     public SpillChannelManager() {
-        this.channels = new HashSet<>(64);
-        this.openChannels = new HashSet<>(64);
+        this.channels = CollectionUtil.newHashSetWithExpectedSize(64);
+        this.openChannels = CollectionUtil.newHashSetWithExpectedSize(64);
     }
 
     /** Add a new File channel. */

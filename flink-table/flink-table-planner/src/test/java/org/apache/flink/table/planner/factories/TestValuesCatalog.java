@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.factories;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
@@ -29,8 +28,11 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.factories.FunctionDefinitionFactory;
+import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.planner.utils.FilterUtils;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DoubleType;
@@ -44,7 +46,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** Use TestValuesCatalog to test partition push down. */
+/** Use TestValuesCatalog to test partition push down and create function definition. */
 public class TestValuesCatalog extends GenericInMemoryCatalog {
     private final boolean supportListPartitionByFilter;
 
@@ -90,9 +92,14 @@ public class TestValuesCatalog extends GenericInMemoryCatalog {
                             Function<String, Comparable<?>> getter =
                                     getValueGetter(partition.getPartitionSpec(), schema);
                             return FilterUtils.isRetainedAfterApplyingFilterPredicates(
-                                    resolvedExpressions, getter);
+                                    resolvedExpressions, getter, null);
                         })
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<FunctionDefinitionFactory> getFunctionDefinitionFactory() {
+        return Optional.of(new TestFunctionDefinitionFactory());
     }
 
     private Function<String, Comparable<?>> getValueGetter(
@@ -117,6 +124,8 @@ public class TestValuesCatalog extends GenericInMemoryCatalog {
             return Double.valueOf(value);
         } else if (type instanceof IntType) {
             return Integer.valueOf(value);
+        } else if (type instanceof BigIntType) {
+            return Long.valueOf(value);
         } else if (type instanceof VarCharType) {
             return value;
         } else {

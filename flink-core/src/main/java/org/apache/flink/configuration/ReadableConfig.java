@@ -18,8 +18,10 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -50,4 +52,13 @@ public interface ReadableConfig {
      * @see #get(ConfigOption)
      */
     <T> Optional<T> getOptional(ConfigOption<T> option);
+
+    /**
+     * Converts the configuration items into a map of string key-value pairs.
+     *
+     * @return a map containing the configuration properties, where the keys are strings and the
+     *     values are the corresponding configuration values in string format.
+     */
+    @Internal
+    Map<String, String> toMap();
 }

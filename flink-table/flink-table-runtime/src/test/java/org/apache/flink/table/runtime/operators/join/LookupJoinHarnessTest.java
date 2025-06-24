@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
@@ -28,8 +30,11 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.utils.JoinedRowData;
+import org.apache.flink.table.runtime.collector.ListenableCollector;
 import org.apache.flink.table.runtime.collector.TableFunctionCollector;
+import org.apache.flink.table.runtime.generated.FilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedCollectorWrapper;
+import org.apache.flink.table.runtime.generated.GeneratedFilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedFunctionWrapper;
 import org.apache.flink.table.runtime.operators.join.lookup.LookupJoinRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.LookupJoinWithCalcRunner;
@@ -38,7 +43,7 @@ import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,7 +56,7 @@ import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
 /** Harness tests for {@link LookupJoinRunner} and {@link LookupJoinWithCalcRunner}. */
-public class LookupJoinHarnessTest {
+class LookupJoinHarnessTest {
 
     private final TypeSerializer<RowData> inSerializer =
             new RowDataSerializer(
@@ -67,7 +72,7 @@ public class LookupJoinHarnessTest {
                     });
 
     @Test
-    public void testTemporalInnerJoin() throws Exception {
+    void testTemporalInnerJoin() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITHOUT_FILTER);
 
@@ -78,6 +83,7 @@ public class LookupJoinHarnessTest {
         testHarness.processElement(insertRecord(3, "c"));
         testHarness.processElement(insertRecord(4, "d"));
         testHarness.processElement(insertRecord(5, "e"));
+        testHarness.processElement(insertRecord(6, null));
 
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
@@ -90,7 +96,7 @@ public class LookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalInnerJoinWithFilter() throws Exception {
+    void testTemporalInnerJoinWithFilter() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITH_FILTER);
 
@@ -112,7 +118,7 @@ public class LookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalLeftJoin() throws Exception {
+    void testTemporalLeftJoin() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITHOUT_FILTER);
 
@@ -123,6 +129,7 @@ public class LookupJoinHarnessTest {
         testHarness.processElement(insertRecord(3, "c"));
         testHarness.processElement(insertRecord(4, "d"));
         testHarness.processElement(insertRecord(5, "e"));
+        testHarness.processElement(insertRecord(6, null));
 
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
@@ -131,13 +138,14 @@ public class LookupJoinHarnessTest {
         expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
         expectedOutput.add(insertRecord(5, "e", null, null));
+        expectedOutput.add(insertRecord(6, null, null, null));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
     }
 
     @Test
-    public void testTemporalLeftJoinWithFilter() throws Exception {
+    void testTemporalLeftJoinWithFilter() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITH_FILTER);
 
@@ -148,6 +156,7 @@ public class LookupJoinHarnessTest {
         testHarness.processElement(insertRecord(3, "c"));
         testHarness.processElement(insertRecord(4, "d"));
         testHarness.processElement(insertRecord(5, "e"));
+        testHarness.processElement(insertRecord(6, null));
 
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
@@ -155,6 +164,49 @@ public class LookupJoinHarnessTest {
         expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
         expectedOutput.add(insertRecord(5, "e", null, null));
+        expectedOutput.add(insertRecord(6, null, null, null));
+
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    @Test
+    void testTemporalLeftJoinWithPreFilter() throws Exception {
+        ProcessFunction<RowData, RowData> joinRunner =
+                new LookupJoinRunner(
+                        new GeneratedFunctionWrapper<>(new TestingFetcherFunction()),
+                        new GeneratedCollectorWrapper<>(new TestingFetcherCollector()),
+                        // test the pre-filter via constructor
+                        new GeneratedFilterCondition("", "", new Object[0]) {
+                            @Override
+                            public FilterCondition newInstance(ClassLoader classLoader) {
+                                return new TestingPreFilterCondition();
+                            }
+                        },
+                        true,
+                        2);
+        ProcessOperator<RowData, RowData> operator = new ProcessOperator<>(joinRunner);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                new OneInputStreamOperatorTestHarness<>(operator, inSerializer);
+
+        testHarness.open();
+
+        testHarness.processElement(insertRecord(1, "a"));
+        testHarness.processElement(insertRecord(2, "b"));
+        testHarness.processElement(insertRecord(3, "c"));
+        testHarness.processElement(insertRecord(4, "d"));
+        testHarness.processElement(insertRecord(5, "e"));
+        testHarness.processElement(insertRecord(6, null));
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
+        expectedOutput.add(insertRecord(2, "b", null, null));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jark"));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
+        expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
+        expectedOutput.add(insertRecord(5, "e", null, null));
+        expectedOutput.add(insertRecord(6, null, null, null));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
@@ -172,6 +224,7 @@ public class LookupJoinHarnessTest {
                     new LookupJoinRunner(
                             new GeneratedFunctionWrapper<>(new TestingFetcherFunction()),
                             new GeneratedCollectorWrapper<>(new TestingFetcherCollector()),
+                            new GeneratedFunctionWrapper<>(new TestingPreFilterCondition()),
                             isLeftJoin,
                             2);
         } else {
@@ -180,6 +233,7 @@ public class LookupJoinHarnessTest {
                             new GeneratedFunctionWrapper<>(new TestingFetcherFunction()),
                             new GeneratedFunctionWrapper<>(new CalculateOnTemporalTable()),
                             new GeneratedCollectorWrapper<>(new TestingFetcherCollector()),
+                            new GeneratedFunctionWrapper<>(new TestingPreFilterCondition()),
                             isLeftJoin,
                             2);
         }
@@ -238,13 +292,15 @@ public class LookupJoinHarnessTest {
      * The {@link TestingFetcherCollector} is a simple implementation of {@link
      * TableFunctionCollector} which combines left and right into a JoinedRowData.
      */
-    public static final class TestingFetcherCollector extends TableFunctionCollector {
+    public static final class TestingFetcherCollector extends ListenableCollector<RowData> {
         private static final long serialVersionUID = -312754413938303160L;
 
         @Override
-        public void collect(Object record) {
+        public void collect(RowData record) {
             RowData left = (RowData) getInput();
-            RowData right = (RowData) record;
+            RowData right = record;
+            getCollectListener().ifPresent(listener -> listener.onCollect(record));
+
             outputResult(new JoinedRowData(left, right));
         }
     }
@@ -264,6 +320,31 @@ public class LookupJoinHarnessTest {
             if (name.getSizeInBytes() >= 6) {
                 out.collect(value);
             }
+        }
+    }
+
+    /**
+     * The {@link TestingPreFilterCondition} is a pre-filter on the left input which only accepts
+     * non-null name.
+     */
+    public static final class TestingPreFilterCondition extends AbstractRichFunction
+            implements FilterCondition {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public void open(OpenContext context) throws Exception {
+            // do nothing
+        }
+
+        @Override
+        public void close() throws Exception {
+            // do nothing
+        }
+
+        @Override
+        public boolean apply(Context ctx, RowData in) {
+            // a pre-filter that will not affect the final result
+            return !in.isNullAt(1);
         }
     }
 }

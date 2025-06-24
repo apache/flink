@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,38 +18,56 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import java.util.UUID;
+
 /**
- * A {@link LeaderElectionDriver} is responsible for performing the leader election and storing the
- * leader information. All the leader internal state is guarded by lock in {@link
- * LeaderElectionService}. Different driver implementations do not need to care about the lock. And
- * it should use {@link LeaderElectionEventHandler} if it want to respond to the leader change
- * events.
- *
- * <p><strong>Important</strong>: The {@link LeaderElectionDriver} could not guarantee that there is
- * no {@link LeaderElectionEventHandler} callbacks happen after {@link #close()}.
+ * A leader election driver that allows to write {@link LeaderInformation} for multiple components.
  */
-public interface LeaderElectionDriver {
+public interface LeaderElectionDriver extends AutoCloseable {
 
     /**
-     * Write the current leader information to external persistent storage(e.g. Zookeeper,
-     * Kubernetes ConfigMap). This is a blocking IO operation. The write operation takes effect only
-     * when the driver still has the leadership.
+     * Returns whether the driver has currently leadership.
      *
-     * @param leaderInformation current leader information. It could be {@link
-     *     LeaderInformation#empty()}, which means the caller want to clear the leader information
-     *     on external storage. Please remember that the clear operation should only happen before a
-     *     new leader is elected and has written his leader information on the storage. Otherwise,
-     *     we may have a risk to wrongly update the storage with empty leader information.
-     */
-    void writeLeaderInformation(LeaderInformation leaderInformation);
-
-    /**
-     * Check whether the driver still have the leadership in the distributed coordination system.
-     *
-     * @return Return whether the driver has leadership.
+     * @return {@code true} if the driver has leadership, otherwise {@code false}
      */
     boolean hasLeadership();
 
-    /** Close the services used for leader election. */
-    void close() throws Exception;
+    /**
+     * Publishes the leader information for the given component.
+     *
+     * @param componentId identifying the component for which to publish the leader information
+     * @param leaderInformation leader information of the respective component
+     */
+    void publishLeaderInformation(String componentId, LeaderInformation leaderInformation);
+
+    /**
+     * Deletes the leader information for the given component.
+     *
+     * @param componentId identifying the component for which to delete the leader information
+     */
+    void deleteLeaderInformation(String componentId);
+
+    /** Listener interface for state changes of the {@link LeaderElectionDriver}. */
+    interface Listener {
+
+        /** Callback that is called once the driver obtains the leadership. */
+        void onGrantLeadership(UUID leaderSessionID);
+
+        /** Callback that is called once the driver loses the leadership. */
+        void onRevokeLeadership();
+
+        /**
+         * Notifies the listener about a changed leader information for the given component.
+         *
+         * @param componentId identifying the component whose leader information has changed
+         * @param leaderInformation new leader information
+         */
+        void onLeaderInformationChange(String componentId, LeaderInformation leaderInformation);
+
+        /** Notifies the listener about all currently known leader information. */
+        void onLeaderInformationChange(LeaderInformationRegister leaderInformationRegister);
+
+        /** Notifies the listener if an error occurred. */
+        void onError(Throwable t);
+    }
 }

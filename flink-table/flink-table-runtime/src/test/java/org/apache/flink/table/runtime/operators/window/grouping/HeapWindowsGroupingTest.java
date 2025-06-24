@@ -23,7 +23,7 @@ import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.util.RowIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -33,12 +33,13 @@ import java.util.List;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link HeapWindowsGrouping}. */
-public class HeapWindowsGroupingTest {
+class HeapWindowsGroupingTest {
 
     @Test
-    public void testJumpingWindowCase() throws IOException {
+    void testJumpingWindowCase() throws IOException {
         Long[] ts = new Long[] {1L, 2L, 3L, 4L, 7L, 8L, 11L, 13L, 81L, 93L};
         // jumping window(10, 3)
         List<TimeWindow> expectedWindows =
@@ -51,7 +52,7 @@ public class HeapWindowsGroupingTest {
     }
 
     @Test
-    public void testNegativeCase() throws IOException {
+    void testNegativeCase() throws IOException {
         Long[] ts = new Long[] {-16L, -6L, -1L, 10L};
         // tumbling(10)
         List<TimeWindow> expectedWindows =
@@ -78,7 +79,7 @@ public class HeapWindowsGroupingTest {
     }
 
     @Test
-    public void testNullValueCase() throws IOException {
+    void testNullValueCase() throws IOException {
         Long[] ts =
                 new Long[] {
                     null, 0L, 0L, 0L, 1L, 2L, 3L, 3L, 4L, 5L, 6L, 7L, null, 7L, 8L, 9L, 11L, 12L,
@@ -134,7 +135,7 @@ public class HeapWindowsGroupingTest {
     }
 
     @Test
-    public void testFirstOverlappingWindow() throws IOException {
+    void testFirstOverlappingWindow() throws IOException {
         Long[] ts = new Long[] {1L};
         List<TimeWindow> expectedWindows =
                 asList(
@@ -153,7 +154,7 @@ public class HeapWindowsGroupingTest {
     }
 
     @Test
-    public void testCommonCase() throws IOException {
+    void testCommonCase() throws IOException {
         Long[] ts =
                 new Long[] {
                     0L, 0L, 0L, 1L, 2L, 3L, 3L, 4L, 5L, 6L, 7L, 7L, 8L, 9L, 11L, 12L, 12L, 12L
@@ -208,7 +209,7 @@ public class HeapWindowsGroupingTest {
     }
 
     @Test
-    public void testSparseCase() throws IOException {
+    void testSparseCase() throws IOException {
         Long[] ts = new Long[] {0L, 7L, 33L, 76L, 77L, 77L, 98L, 99L, 100L, 999L};
         // sliding(4, 2)
         List<TimeWindow> expectedWindows =
@@ -286,7 +287,7 @@ public class HeapWindowsGroupingTest {
     }
 
     @Test
-    public void testSingleInputCase() throws IOException {
+    void testSingleInputCase() throws IOException {
         Long[] ts = new Long[] {33L};
         // sliding(4, 2)
         List<TimeWindow> expectedWindows = asList(TimeWindow.of(30, 34), TimeWindow.of(32, 36));
@@ -316,15 +317,16 @@ public class HeapWindowsGroupingTest {
         verify(5000, ts, 19L, 3L, expected, expectedWindows);
     }
 
-    @Test(expected = IOException.class)
-    public void testOOM() throws IOException {
+    @Test
+    void testOOM() throws IOException {
         Long[] ts = new Long[] {33L, 33L, 33L, 33L, 33L, 33L};
         // sliding(4, 2)
-        verify(5, ts, 4L, 2L, new ArrayList<>(), new ArrayList<>());
+        assertThatThrownBy(() -> verify(5, ts, 4L, 2L, new ArrayList<>(), new ArrayList<>()))
+                .isInstanceOf(IOException.class);
     }
 
     @Test
-    public void testAdvanceWatermarkFirst() throws IOException {
+    void testAdvanceWatermarkFirst() throws IOException {
         Long[] ts = new Long[] {16L};
         // sliding(8, 4)
         List<TimeWindow> expectedWindows = asList(TimeWindow.of(12, 20), TimeWindow.of(16, 24));
@@ -344,25 +346,30 @@ public class HeapWindowsGroupingTest {
         assertThat(actual).isEqualTo(expected);
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testInvalidWindowTrigger() throws IOException {
+    @Test
+    void testInvalidWindowTrigger() throws IOException {
         Long[] ts = new Long[] {8L};
         RowIterator<BinaryRowData> iterator = new HeapWindowsGroupingTest.TestInputIterator(ts);
         HeapWindowsGrouping grouping = new HeapWindowsGrouping(5000, 0L, 8L, 4L, 0, false);
         grouping.addInputToBuffer(iterator.getRow());
 
         System.out.println("valid window trigger");
-        RowIterator<BinaryRowData> iter = grouping.buildTriggerWindowElementsIterator();
-        TimeWindow window = grouping.getTriggerWindow();
-        List<Long> buffer = new ArrayList<>();
-        while (iter.advanceNext()) {
-            buffer.add(iter.getRow().getLong(0));
-        }
-        assertThat(window).isEqualTo(TimeWindow.of(0, 8L));
-        assertThat(buffer).isEmpty();
+        assertThatThrownBy(
+                        () -> {
+                            RowIterator<BinaryRowData> iter =
+                                    grouping.buildTriggerWindowElementsIterator();
+                            TimeWindow window = grouping.getTriggerWindow();
+                            List<Long> buffer = new ArrayList<>();
+                            while (iter.advanceNext()) {
+                                buffer.add(iter.getRow().getLong(0));
+                            }
+                            assertThat(window).isEqualTo(TimeWindow.of(0, 8L));
+                            assertThat(buffer).isEmpty();
 
-        System.out.println("try invalid window trigger");
-        grouping.buildTriggerWindowElementsIterator();
+                            System.out.println("try invalid window trigger");
+                            grouping.buildTriggerWindowElementsIterator();
+                        })
+                .isInstanceOf(IllegalStateException.class);
     }
 
     private void verify(

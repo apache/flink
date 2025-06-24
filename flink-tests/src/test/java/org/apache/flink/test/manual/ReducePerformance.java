@@ -21,10 +21,12 @@ package org.apache.flink.test.manual;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.SplittableIterator;
 
 import java.io.Serializable;
@@ -102,20 +104,19 @@ public class ReducePerformance {
             boolean print)
             throws Exception {
 
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().enableObjectReuse();
 
         @SuppressWarnings("unchecked")
-        DataSet<T> output =
+        DataStream<T> output =
                 env.fromParallelCollection(
                                 new SplittableRandomIterator<T, B>(numRecords, iterator), typeInfo)
-                        .groupBy("0")
-                        .reduce(new SumReducer())
-                        .setCombineHint(hint);
+                        .keyBy(x -> ((Tuple) x).getField(0))
+                        .reduce(new SumReducer());
 
         long start = System.currentTimeMillis();
 
-        System.out.println(output.count());
+        System.out.println(CollectionUtil.iteratorToList(output.executeAndCollect()).size());
 
         long end = System.currentTimeMillis();
         if (print) {

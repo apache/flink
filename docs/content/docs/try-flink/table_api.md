@@ -38,7 +38,7 @@ The pipeline will read data from Kafka and write the results to MySQL visualized
 
 ## Prerequisites
 
-This walkthrough assumes that you have some familiarity with Java or Scala, but you should be able to follow along even if you come from a different programming language.
+This walkthrough assumes that you have some familiarity with Java, but you should be able to follow along even if you come from a different programming language.
 It also assumes that you are familiar with basic relational concepts such as `SELECT` and `GROUP BY` clauses.
 
 ## Help, I’m Stuck! 
@@ -198,7 +198,7 @@ The goal is to build a report that shows the total spend for each account across
 This means the timestamp column needs be be rounded down from millisecond to hour granularity. 
 
 Flink supports developing relational applications in pure [SQL]({{< ref "docs/dev/table/sql/overview" >}}) or using the [Table API]({{< ref "docs/dev/table/tableApi" >}}).
-The Table API is a fluent DSL inspired by SQL, that can be written in Python, Java, or Scala and supports strong IDE integration.
+The Table API is a fluent DSL inspired by SQL, that can be written in Java or Python and supports strong IDE integration.
 Just like a SQL query, Table programs can select the required fields and group by your keys.
 These features, along with [built-in functions]({{< ref "docs/dev/table/functions/systemFunctions" >}}) like `floor` and `sum`, enable you to write this report.
 
@@ -298,8 +298,8 @@ The environment contains a Kafka topic, a continuous data generator, MySql, and 
 From within the `table-walkthrough` folder start the docker-compose script.
 
 ```bash
-$ docker-compose build
-$ docker-compose up -d
+$ docker compose build
+$ docker compose up -d
 ```
 
 You can see information on the running job via the [Flink console](http://localhost:8082/).
@@ -309,7 +309,7 @@ You can see information on the running job via the [Flink console](http://localh
 Explore the results from inside MySQL.
 
 ```bash
-$ docker-compose exec mysql mysql -Dsql-demo -usql-demo -pdemo-sql
+$ docker compose exec mysql mysql -Dsql-demo -usql-demo -pdemo-sql
 
 mysql> use sql-demo;
 Database changed

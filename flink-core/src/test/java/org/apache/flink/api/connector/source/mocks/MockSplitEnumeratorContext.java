@@ -23,6 +23,7 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
+import org.apache.flink.api.connector.source.SupportsIntermediateNoMoreSplits;
 import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.ThrowableCatchingRunnable;
@@ -49,7 +50,7 @@ import java.util.function.BiConsumer;
 
 /** A mock class for {@link SplitEnumeratorContext}. */
 public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
-        implements SplitEnumeratorContext<SplitT>, AutoCloseable {
+        implements SplitEnumeratorContext<SplitT>, SupportsIntermediateNoMoreSplits, AutoCloseable {
     private final Map<Integer, List<SourceEvent>> sentSourceEvent;
     private final ConcurrentMap<Integer, ReaderInfo> registeredReaders;
     private final List<SplitsAssignment<SplitT>> splitsAssignmentSequence;
@@ -61,6 +62,7 @@ public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
     private final BlockingQueue<Callable<Future<?>>> oneTimeCallables;
     private final List<Callable<Future<?>>> periodicCallables;
     private final AtomicBoolean stoppedAcceptAsyncCalls;
+    private final boolean[] subtaskHasNoMoreSplits;
 
     private final int parallelism;
 
@@ -78,6 +80,7 @@ public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
                 getExecutor(getThreadFactory("SplitEnumerator-worker", errorInWorkerThread));
         this.mainExecutor = getExecutor(mainThreadFactory);
         this.stoppedAcceptAsyncCalls = new AtomicBoolean(false);
+        this.subtaskHasNoMoreSplits = new boolean[parallelism];
     }
 
     @Override
@@ -120,7 +123,16 @@ public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
     }
 
     @Override
-    public void signalNoMoreSplits(int subtask) {}
+    public void signalNoMoreSplits(int subtask) {
+        subtaskHasNoMoreSplits[subtask] = true;
+    }
+
+    @Override
+    public void signalIntermediateNoMoreSplits(int subtask) {}
+
+    public void resetNoMoreSplits(int subtask) {
+        subtaskHasNoMoreSplits[subtask] = false;
+    }
 
     @Override
     public <T> void callAsync(Callable<T> callable, BiConsumer<T, Throwable> handler) {
@@ -187,6 +199,9 @@ public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
         mainExecutor.execute(runnable);
     }
 
+    @Override
+    public void setIsProcessingBacklog(boolean isProcessingBacklog) {}
+
     public void close() throws Exception {
         stoppedAcceptAsyncCalls.set(true);
         workerExecutor.shutdownNow();
@@ -227,6 +242,10 @@ public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
 
     public List<SplitsAssignment<SplitT>> getSplitsAssignmentSequence() {
         return splitsAssignmentSequence;
+    }
+
+    public boolean hasNoMoreSplits(int subtaskIndex) {
+        return subtaskHasNoMoreSplits[subtaskIndex];
     }
 
     // ------------- private helpers -------------

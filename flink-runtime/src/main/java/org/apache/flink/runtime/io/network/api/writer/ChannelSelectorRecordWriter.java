@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.io.IOReadableWritable;
 
 import java.io.IOException;
@@ -46,7 +47,7 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable>
         super(writer, timeout, taskName);
 
         this.channelSelector = checkNotNull(channelSelector);
-        this.channelSelector.setup(numberOfChannels);
+        this.channelSelector.setup(numberOfSubpartitions);
     }
 
     @Override
@@ -58,17 +59,24 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable>
     public void broadcastEmit(T record) throws IOException {
         checkErroneous();
 
-        // Emitting to all channels in a for loop can be better than calling
+        // Emitting to all subpartitions in a for loop can be better than calling
         // ResultPartitionWriter#broadcastRecord because the broadcastRecord
         // method incurs extra overhead.
         ByteBuffer serializedRecord = serializeRecord(serializer, record);
-        for (int channelIndex = 0; channelIndex < numberOfChannels; channelIndex++) {
+        for (int subpartitionIndex = 0;
+                subpartitionIndex < numberOfSubpartitions;
+                subpartitionIndex++) {
             serializedRecord.rewind();
-            emit(record, channelIndex);
+            emit(serializedRecord, subpartitionIndex);
         }
 
         if (flushAlways) {
             flushAll();
         }
+    }
+
+    @VisibleForTesting
+    public ChannelSelector<T> getChannelSelector() {
+        return channelSelector;
     }
 }

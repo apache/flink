@@ -18,9 +18,9 @@
 package org.apache.flink.table.planner.plan.nodes.physical.common
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.table.legacy.sources.TableSource
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
-import org.apache.flink.table.sources.TableSource
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType

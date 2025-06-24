@@ -17,90 +17,112 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.utils.NonPojo
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.{Rule, Test}
-import org.junit.Assert._
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
 
 import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
-  @Test
+  @TestTemplate
   def testUnion(): Unit = {
-    val ds1 = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(smallTupleData3).toTable(tEnv, 'd, 'e, 'f)
+    val ds1 = StreamingEnvUtil.fromCollection(env, smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil.fromCollection(env, smallTupleData3).toTable(tEnv, 'd, 'e, 'f)
 
     val unionDs = ds1.unionAll(ds2).select('c)
 
     val sink = new TestingAppendSink
-    unionDs.toAppendStream[Row].addSink(sink)
+    unionDs.toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("Hi", "Hello", "Hello world", "Hi", "Hello", "Hello world")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testUnionWithFilter(): Unit = {
-    val ds1 = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
+    val ds1 = StreamingEnvUtil.fromCollection(env, smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil.fromCollection(env, tupleData5).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
 
     val unionDs = ds1.unionAll(ds2.select('a, 'b, 'c)).filter('b < 2).select('c)
 
     val sink = new TestingAppendSink
-    unionDs.toAppendStream[Row].addSink(sink)
+    unionDs.toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("Hi", "Hallo")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testUnionWithAnyType(): Unit = {
-    val s1 = env.fromElements((1, new NonPojo), (2, new NonPojo)).toTable(tEnv, 'a, 'b)
-    val s2 = env.fromElements((3, new NonPojo), (4, new NonPojo)).toTable(tEnv, 'a, 'b)
+    val schema = Schema
+      .newBuilder()
+      .column("_1", DataTypes.INT())
+      .column(
+        "_2",
+        DataTypes.STRUCTURED(
+          classOf[NonPojo],
+          DataTypes.FIELD("x", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()))))
+      .build()
+    val s1 =
+      StreamingEnvUtil.fromElements(env, (1, new NonPojo), (2, new NonPojo)).toTable(tEnv, schema)
+    val s2 =
+      StreamingEnvUtil.fromElements(env, (3, new NonPojo), (4, new NonPojo)).toTable(tEnv, schema)
 
     val sink = new TestingAppendSink
-    s1.unionAll(s2).toAppendStream[Row].addSink(sink)
+    s1.unionAll(s2)
+      .toDataStream(
+        DataTypes.ROW(
+          DataTypes.INT(),
+          DataTypes.STRUCTURED(
+            classOf[NonPojo],
+            DataTypes.FIELD("x", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())))))
+      .addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,{}", "2,{}", "3,{}", "4,{}")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testUnionWithCompositeType(): Unit = {
-    val s1 = env
-      .fromElements((1, (1, "a")), (2, (2, "b")))
+    val s1 = StreamingEnvUtil
+      .fromElements(env, (1, (1, "a")), (2, (2, "b")))
       .toTable(tEnv, 'a, 'b)
-    val s2 = env
-      .fromElements(((3, "c"), 3), ((4, "d"), 4))
+    val s2 = StreamingEnvUtil
+      .fromElements(env, ((3, "c"), 3), ((4, "d"), 4))
       .toTable(tEnv, 'a, 'b)
 
     val sink = new TestingAppendSink
-    s1.unionAll(s2.select('b, 'a)).toAppendStream[Row].addSink(sink)
+    val result = s1
+      .unionAll(s2.select('b, 'a))
+      .toDataStream(
+        DataTypes.ROW(DataTypes.INT(), DataTypes.ROW(DataTypes.INT(), DataTypes.STRING())))
+      .addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,1,a", "2,2,b", "3,3,c", "4,4,d")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testInUncorrelated(): Unit = {
     val dataA = Seq(
       (1, 1L, "Hello"),
@@ -115,9 +137,9 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       (4, "hello")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
+    val tableA = StreamingEnvUtil.fromCollection(env, dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
+    val tableB = StreamingEnvUtil.fromCollection(env, dataB).toTable(tEnv, 'x, 'y)
 
     val sink = new TestingRetractSink
     tableA.where('a.in(tableB.select('x))).toRetractStream[Row].addSink(sink)
@@ -129,10 +151,10 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "4,4,Hello"
     )
 
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testInUncorrelatedWithConditionAndAgg(): Unit = {
     val dataA = Seq(
       (1, 1L, "Hello"),
@@ -150,9 +172,9 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       (-1, "Hanoi-1")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
+    val tableA = StreamingEnvUtil.fromCollection(env, dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
+    val tableB = StreamingEnvUtil.fromCollection(env, dataB).toTable(tEnv, 'x, 'y)
 
     val sink = new TestingRetractSink
 
@@ -167,10 +189,10 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "3,3,Hello World"
     )
 
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testInWithMultiUncorrelatedCondition(): Unit = {
     val dataA = Seq(
       (1, 1L, "Hello"),
@@ -191,11 +213,11 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       (2L, "Cool")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
+    val tableA = StreamingEnvUtil.fromCollection(env, dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
+    val tableB = StreamingEnvUtil.fromCollection(env, dataB).toTable(tEnv, 'x, 'y)
 
-    val tableC = env.fromCollection(dataC).toTable(tEnv, 'w, 'z)
+    val tableC = StreamingEnvUtil.fromCollection(env, dataC).toTable(tEnv, 'w, 'z)
 
     val sink = new TestingRetractSink
 
@@ -210,6 +232,6 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "2,2,Hello"
     )
 
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 }

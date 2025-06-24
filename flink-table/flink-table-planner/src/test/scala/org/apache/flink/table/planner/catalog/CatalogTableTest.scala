@@ -21,8 +21,8 @@ import org.apache.flink.table.api.{DataTypes, EnvironmentSettings, TableEnvironm
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog.{Column, ResolvedSchema}
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 /** Unit tests around catalog table and DDL. */
 class CatalogTableTest {

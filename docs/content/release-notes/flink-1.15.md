@@ -406,6 +406,22 @@ updating the client dependency to a version >= 7.14.0 is required due to interna
 The old JDBC connector (indicated by `connector.type=jdbc` in DDL) has been removed.
 If not done already, users need to upgrade to the newer stack (indicated by `connector=jdbc` in DDL).
 
+
+#### Extensible unified Sink uses new metric to capture outgoing records
+
+##### [FLINK-26126](https://issues.apache.org/jira/browse/FLINK-26126)
+
+New metrics `numRecordsSend` and `numRecordsSendErrors` have been introduced for users to monitor the number of 
+records sent to the external system. The `numRecordsOut` should be used to monitor the number of records 
+transferred between sink tasks.
+
+Connector developers should pay attention to the usage of these metrics numRecordsOut, 
+numRecordsSend and numRecordsSendErrors while building sink connectors. 
+Please refer to the new Kafka Sink for details. 
+Additionally, since numRecordsOut now only counts the records sent between sink tasks 
+and numRecordsOutErrors was designed for counting the records sent to the external system, 
+we deprecated numRecordsOutErrors and recommend using numRecordsSendErrors instead.
+
 ## Runtime & Coordination
 
 #### Integrate retry strategy for cleanup stage 
@@ -587,3 +603,18 @@ By default Flink now uses a Zookeeper 3.5 client.
 ##### [FLINK-24765](https://issues.apache.org/jira/browse/FLINK-24765)
 
 Kafka connector uses Kafka client 2.8.1 by default now.
+
+## Bind to localhost by default
+
+For security purposes, standalone clusters now bind the REST API and RPC endpoints to 
+localhost by default. The goal is to prevent cases where users unknowingly exposed the cluster to 
+the outside, as they would previously bind to all interfaces.
+
+This can be reverted by removing the:
+
+* `rest.bind-address` 
+* `jobmanager.bind-host`
+* `taskmanager.bind-host`
+settings from the flink-conf.yaml .
+
+Note that within Docker containers, the REST API still binds to 0.0.0.0.

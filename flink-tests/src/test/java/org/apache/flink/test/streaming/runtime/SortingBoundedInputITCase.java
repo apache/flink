@@ -23,6 +23,7 @@ import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -36,7 +37,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -58,7 +58,7 @@ import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransfor
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -83,10 +83,10 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** An end to end test for sorted inputs for a keyed operator with bounded inputs. */
-public class SortingBoundedInputITCase extends AbstractTestBase {
+public class SortingBoundedInputITCase extends AbstractTestBaseJUnit4 {
 
     @Test
-    public void testOneInputOperator() {
+    public void testOneInputOperator() throws Exception {
         long numberOfRecords = 1_000_000;
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -109,7 +109,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                                 new AssertingOperator());
 
         long sum =
-                CollectionUtil.iteratorToList(DataStreamUtils.collect(counts)).stream()
+                CollectionUtil.iteratorToList(counts.executeAndCollect()).stream()
                         .mapToLong(l -> l)
                         .sum();
 
@@ -117,7 +117,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testTwoInputOperator() {
+    public void testTwoInputOperator() throws Exception {
         long numberOfRecords = 500_000;
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -148,7 +148,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                                 new AssertingTwoInputOperator());
 
         long sum =
-                CollectionUtil.iteratorToList(DataStreamUtils.collect(counts)).stream()
+                CollectionUtil.iteratorToList(counts.executeAndCollect()).stream()
                         .mapToLong(l -> l)
                         .sum();
 
@@ -156,7 +156,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testThreeInputOperator() {
+    public void testThreeInputOperator() throws Exception {
         long numberOfRecords = 500_000;
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -203,7 +203,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
         DataStream<Long> counts = new DataStream<>(env, assertingTransformation);
 
         long sum =
-                CollectionUtil.iteratorToList(DataStreamUtils.collect(counts)).stream()
+                CollectionUtil.iteratorToList(counts.executeAndCollect()).stream()
                         .mapToLong(l -> l)
                         .sum();
 
@@ -211,7 +211,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testBatchExecutionWithTimersOneInput() {
+    public void testBatchExecutionWithTimersOneInput() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1); // set parallelism to 1 to have consistent order of results
 
@@ -223,7 +223,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                 WatermarkStrategy.forGenerator(ctx -> GENERATE_WATERMARK_AFTER_4_14_TIMESTAMP)
                         .withTimestampAssigner((r, previousTimestamp) -> r.f1);
         SingleOutputStreamOperator<Tuple2<Integer, Integer>> elements =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(1, 3),
                                 Tuple2.of(1, 1),
                                 Tuple2.of(2, 1),
@@ -252,7 +252,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                                     private ValueState<Long> previousTimestampState;
 
                                     @Override
-                                    public void open(Configuration parameters) {
+                                    public void open(OpenContext openContext) {
                                         countState =
                                                 getRuntimeContext()
                                                         .getMapState(
@@ -323,9 +323,9 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
 
         DataStream<Integer> lateStream = sums.getSideOutput(lateElements);
         List<Integer> lateRecordsCollected =
-                CollectionUtil.iteratorToList(DataStreamUtils.collect(lateStream));
+                CollectionUtil.iteratorToList(lateStream.executeAndCollect());
         List<Tuple3<Long, Integer, Integer>> sumsCollected =
-                CollectionUtil.iteratorToList(DataStreamUtils.collect(sums));
+                CollectionUtil.iteratorToList(sums.executeAndCollect());
 
         assertTrue(lateRecordsCollected.isEmpty());
         assertThat(
@@ -339,7 +339,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testBatchExecutionWithTimersTwoInput() {
+    public void testBatchExecutionWithTimersTwoInput() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1); // set parallelism to 1 to have consistent order of results
 
@@ -351,7 +351,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                 WatermarkStrategy.forGenerator(ctx -> GENERATE_WATERMARK_AFTER_4_14_TIMESTAMP)
                         .withTimestampAssigner((r, previousTimestamp) -> r.f1);
         SingleOutputStreamOperator<Integer> elements1 =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(1, 3),
                                 Tuple2.of(1, 1),
                                 Tuple2.of(2, 1),
@@ -369,7 +369,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                         .map(element -> element.f0);
 
         SingleOutputStreamOperator<Integer> elements2 =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(1, 3),
                                 Tuple2.of(1, 1),
                                 Tuple2.of(2, 1),
@@ -403,7 +403,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                                     private ValueState<Long> previousTimestampState;
 
                                     @Override
-                                    public void open(Configuration parameters) {
+                                    public void open(OpenContext openContext) {
                                         countState =
                                                 getRuntimeContext()
                                                         .getMapState(
@@ -486,9 +486,9 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
 
         DataStream<Integer> lateStream = sums.getSideOutput(lateElements);
         List<Integer> lateRecordsCollected =
-                CollectionUtil.iteratorToList(DataStreamUtils.collect(lateStream));
+                CollectionUtil.iteratorToList(lateStream.executeAndCollect());
         List<Tuple3<Long, Integer, Integer>> sumsCollected =
-                CollectionUtil.iteratorToList(DataStreamUtils.collect(sums));
+                CollectionUtil.iteratorToList(sums.executeAndCollect());
 
         assertTrue(lateRecordsCollected.isEmpty());
         assertThat(

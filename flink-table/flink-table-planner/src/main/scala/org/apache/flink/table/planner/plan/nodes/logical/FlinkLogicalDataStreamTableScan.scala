@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.{RelCollation, RelCollationTraitDef, RelNode, RelWriter}
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableScan
@@ -66,12 +67,7 @@ class FlinkLogicalDataStreamTableScan(
 
 }
 
-class FlinkLogicalDataStreamTableScanConverter
-  extends ConverterRule(
-    classOf[LogicalTableScan],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalDataStreamTableScanConverter") {
+class FlinkLogicalDataStreamTableScanConverter(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: TableScan = call.rel(0)
@@ -86,7 +82,12 @@ class FlinkLogicalDataStreamTableScanConverter
 }
 
 object FlinkLogicalDataStreamTableScan {
-  val CONVERTER = new FlinkLogicalDataStreamTableScanConverter
+  val CONVERTER = new FlinkLogicalDataStreamTableScanConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalTableScan],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalDataStreamTableScanConverter"))
 
   def isDataStreamTableScan(scan: TableScan): Boolean = {
     val dataStreamTable = scan.getTable.unwrap(classOf[DataStreamTable[_]])

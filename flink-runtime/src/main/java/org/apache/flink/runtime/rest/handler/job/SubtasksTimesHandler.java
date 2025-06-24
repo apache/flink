@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.job;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
@@ -37,11 +36,12 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.CollectionUtil;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -52,7 +52,7 @@ public class SubtasksTimesHandler
         implements OnlyExecutionGraphJsonArchivist {
     public SubtasksTimesHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, SubtasksTimesInfo, JobVertexMessageParameters>
                     messageHeaders,
@@ -101,7 +101,8 @@ public class SubtasksTimesHandler
 
         int num = 0;
         for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
-
+            // Use one of the current execution attempts to represent the subtask, rather than
+            // adding times info of all attempts.
             long[] timestamps = vertex.getCurrentExecutionAttempt().getStateTimestamps();
             ExecutionState status = vertex.getExecutionState();
 
@@ -112,16 +113,17 @@ public class SubtasksTimesHandler
             long duration = start >= 0 ? end - start : -1L;
 
             TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
-            String locationString = location == null ? "(unassigned)" : location.getHostname();
+            String host = location == null ? "(unassigned)" : location.getHostname();
+            String endpoint = location == null ? "(unassigned)" : location.getEndpoint();
 
-            Map<ExecutionState, Long> timestampMap = new HashMap<>(ExecutionState.values().length);
+            Map<ExecutionState, Long> timestampMap =
+                    CollectionUtil.newHashMapWithExpectedSize(ExecutionState.values().length);
             for (ExecutionState state : ExecutionState.values()) {
                 timestampMap.put(state, timestamps[state.ordinal()]);
             }
 
             subtasks.add(
-                    new SubtasksTimesInfo.SubtaskTimeInfo(
-                            num++, locationString, duration, timestampMap));
+                    new SubtasksTimesInfo.SubtaskTimeInfo(num++, endpoint, duration, timestampMap));
         }
         return new SubtasksTimesInfo(id, name, now, subtasks);
     }

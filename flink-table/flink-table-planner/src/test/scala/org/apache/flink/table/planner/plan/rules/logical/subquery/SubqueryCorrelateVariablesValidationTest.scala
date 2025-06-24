@@ -17,16 +17,17 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical.subquery
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 import java.sql.{Date, Timestamp}
 
 class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
 
-  util.addTableSource[(String, Short, Int, Long, Float, Double, BigDecimal, Timestamp, Date)](
+  util.addTableSource[
+    (String, Short, Int, Long, Float, Double, java.math.BigDecimal, Timestamp, Date)](
     "t1",
     't1a,
     't1b,
@@ -37,7 +38,8 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
     't1g,
     't1h,
     't1i)
-  util.addTableSource[(String, Short, Int, Long, Float, Double, BigDecimal, Timestamp, Date)](
+  util.addTableSource[
+    (String, Short, Int, Long, Float, Double, java.math.BigDecimal, Timestamp, Date)](
     "t2",
     't2a,
     't2b,
@@ -48,7 +50,8 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
     't2g,
     't2h,
     't2i)
-  util.addTableSource[(String, Short, Int, Long, Float, Double, BigDecimal, Timestamp, Date)](
+  util.addTableSource[
+    (String, Short, Int, Long, Float, Double, java.math.BigDecimal, Timestamp, Date)](
     "t3",
     't3a,
     't3b,
@@ -83,7 +86,7 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testWithProjectJoinCorrelate(): Unit = {
     val sqlQuery =
       """
@@ -93,10 +96,11 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |FROM t1
         |    WHERE  t1a = 'val1b'
       """.stripMargin
-    util.verifyRelPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[RuntimeException])
+      .isThrownBy(() => util.verifyRelPlan(sqlQuery))
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testWithFilterJoinCorrelate(): Unit = {
     val sqlQuery =
       """
@@ -109,7 +113,7 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testWithFilterInCorrelate(): Unit = {
     val sqlQuery =
       """
@@ -120,10 +124,11 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |    WHERE t1.t1e
         |    IN (select t2e from t2))
       """.stripMargin
-    util.verifyRelPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyRelPlan(sqlQuery))
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testWithFilterExistsCorrelate(): Unit = {
     val sqlQuery =
       """
@@ -133,10 +138,11 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |              FROM t3
         |              WHERE EXISTS(select * from t3 WHERE t1.t1a = t3.t3a))
       """.stripMargin
-    util.verifyRelPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyRelPlan(sqlQuery))
   }
 
-  @Test(expected = classOf[AssertionError])
+  @Test
   // TODO some bugs in RelDecorrelator.AdjustProjectForCountAggregateRule
   def testWithProjectCaseWhenCorrelate(): Unit = {
     val sqlQuery =
@@ -149,7 +155,8 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |FROM   t1
         |    WHERE  t1a = 'test'
       """.stripMargin
-    util.verifyRelPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[AssertionError])
+      .isThrownBy(() => util.verifyRelPlan(sqlQuery))
   }
 
 }

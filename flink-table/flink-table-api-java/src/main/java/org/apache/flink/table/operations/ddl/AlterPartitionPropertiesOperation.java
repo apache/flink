@@ -18,12 +18,18 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.OperationUtils;
 
 /** Operation to alter the properties of partition. */
+@Internal
 public class AlterPartitionPropertiesOperation extends AlterPartitionOperation {
 
     private final CatalogPartition catalogPartition;
@@ -47,5 +53,22 @@ public class AlterPartitionPropertiesOperation extends AlterPartitionOperation {
         return String.format(
                 "ALTER TABLE %s PARTITION (%s) SET (%s)",
                 tableIdentifier.asSummaryString(), spec, properties);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        Catalog catalog =
+                ctx.getCatalogManager()
+                        .getCatalogOrThrowException(getTableIdentifier().getCatalogName());
+        try {
+            catalog.alterPartition(
+                    getTableIdentifier().toObjectPath(),
+                    getPartitionSpec(),
+                    getCatalogPartition(),
+                    ignoreIfTableNotExists());
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (Exception e) {
+            throw new TableException(String.format("Could not execute %s", asSummaryString()), e);
+        }
     }
 }

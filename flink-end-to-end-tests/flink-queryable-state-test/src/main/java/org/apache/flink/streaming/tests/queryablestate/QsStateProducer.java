@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.tests.queryablestate;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.MapState;
@@ -24,20 +25,19 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.ParameterTool;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -59,22 +59,25 @@ public class QsStateProducer {
         String tmpPath = tool.getRequired("tmp-dir");
         String stateBackendType = tool.getRequired("state-backend");
 
-        StateBackend stateBackend;
+        Configuration configuration = new Configuration();
         switch (stateBackendType) {
             case "rocksdb":
-                stateBackend = new RocksDBStateBackend(tmpPath);
+                configuration.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
+                configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, tmpPath);
                 break;
             case "fs":
-                stateBackend = new FsStateBackend(tmpPath);
+                configuration.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+                configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, tmpPath);
                 break;
             case "memory":
-                stateBackend = new MemoryStateBackend();
+                configuration.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+                configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
                 break;
             default:
                 throw new RuntimeException("Unsupported state backend " + stateBackendType);
         }
 
-        env.setStateBackend(stateBackend);
+        env.configure(configuration);
         env.enableCheckpointing(1000L);
         env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(0);
@@ -95,6 +98,11 @@ public class QsStateProducer {
         env.execute();
     }
 
+    /**
+     * @deprecated This class is based on the {@link SourceFunction} API, which is due to be
+     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     */
+    @Deprecated
     private static class EmailSource extends RichSourceFunction<Email> {
 
         private static final long serialVersionUID = -7286937645300388040L;
@@ -104,8 +112,8 @@ public class QsStateProducer {
         private transient Random random;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             this.random = new Random();
             this.isRunning = true;
         }
@@ -152,7 +160,7 @@ public class QsStateProducer {
         private transient long lastCompletedCheckpoint;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             MapStateDescriptor<EmailId, EmailInformation> stateDescriptor =
                     new MapStateDescriptor<>(
                             QsConstants.STATE_NAME,

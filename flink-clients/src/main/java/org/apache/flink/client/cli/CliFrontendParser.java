@@ -20,8 +20,8 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
-import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
@@ -34,8 +34,6 @@ import org.apache.commons.cli.ParseException;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * A simple command line parser (based on Apache Commons CLI) that extracts command line options.
@@ -88,19 +86,6 @@ public class CliFrontendParser {
                     "If the job is submitted in attached mode, perform a best-effort cluster shutdown "
                             + "when the CLI is terminated abruptly, e.g., in response to a user interrupt, such as typing Ctrl + C.");
 
-    /**
-     * @deprecated use non-prefixed variant {@link #DETACHED_OPTION} for both YARN and non-YARN
-     *     deployments
-     */
-    @Deprecated
-    public static final Option YARN_DETACHED_OPTION =
-            new Option(
-                    "yd",
-                    "yarndetached",
-                    false,
-                    "If present, runs "
-                            + "the job in detached mode (deprecated; use non-YARN specific option instead)");
-
     public static final Option ARGS_OPTION =
             new Option(
                     "a",
@@ -132,17 +117,27 @@ public class CliFrontendParser {
                             + "You need to allow this if you removed an operator from your "
                             + "program that was part of the program when the savepoint was triggered.");
 
-    public static final Option SAVEPOINT_RESTORE_MODE =
+    public static final Option SAVEPOINT_CLAIM_MODE =
             new Option(
-                    "rm",
-                    "restoreMode",
+                    "cm",
+                    "claimMode",
                     true,
                     "Defines how should we restore from the given savepoint. Supported options: "
                             + "[claim - claim ownership of the savepoint and delete once it is"
                             + " subsumed, no_claim (default) - do not claim ownership, the first"
                             + " checkpoint will not reuse any files from the restored one, legacy "
-                            + "- the old behaviour, do not assume ownership of the savepoint files,"
-                            + " but can reuse some shared files.");
+                            + "(deprecated) - the old behaviour, do not assume ownership of the "
+                            + "savepoint files, but can reuse some shared files.");
+
+    @Deprecated
+    public static final Option SAVEPOINT_RESTORE_MODE =
+            new Option(
+                    "rm",
+                    "restoreMode",
+                    true,
+                    "This option is deprecated, please use '"
+                            + SAVEPOINT_CLAIM_MODE.getLongOpt()
+                            + "' instead.");
 
     static final Option SAVEPOINT_DISPOSE_OPTION =
             new Option("d", "dispose", true, "Path of savepoint to dispose.");
@@ -156,6 +151,21 @@ public class CliFrontendParser {
                             + " options: [canonical - a common format for all state backends, allow"
                             + " for changing state backends, native = a specific format for the"
                             + " chosen state backend, might be faster to take and restore from.");
+
+    static final Option CHECKPOINT_FULL_OPTION =
+            new Option(
+                    "full",
+                    "full",
+                    false,
+                    "Defines whether to trigger this checkpoint as a full one.");
+
+    static final Option SAVEPOINT_DETACHED_OPTION =
+            new Option(
+                    "detached",
+                    false,
+                    "Triggering savepoint in detached mode, client and JM are decoupled,"
+                            + " return the savepoint trigger id as the unique identification of"
+                            + " the detached savepoint.");
 
     // list specific options
     static final Option RUNNING_OPTION =
@@ -201,7 +211,7 @@ public class CliFrontendParser {
                     "d",
                     "drain",
                     false,
-                    "Send MAX_WATERMARK before taking the savepoint and stopping the pipelne.");
+                    "Send MAX_WATERMARK before taking the savepoint and stopping the pipeline.");
 
     public static final Option PY_OPTION =
             new Option(
@@ -265,8 +275,8 @@ public class CliFrontendParser {
                     true,
                     "Specify the path of the python interpreter used to execute the python UDF worker "
                             + "(e.g.: --pyExecutable /usr/local/bin/python3). "
-                            + "The python UDF worker depends on Python 3.6+, Apache Beam (version == 2.27.0), "
-                            + "Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0). "
+                            + "The python UDF worker depends on Python 3.9+, Apache Beam (version >= 2.54.0, <= 2.61.0), "
+                            + "Pip (version >= 20.3) and SetupTools (version >= 37.0.0). "
                             + "Please ensure that the specified environment meets the above requirements.");
 
     public static final Option PYCLIENTEXEC_OPTION =
@@ -277,6 +287,15 @@ public class CliFrontendParser {
                     "The path of the Python interpreter used to launch the Python "
                             + "process when submitting the Python jobs via \"flink run\" or compiling "
                             + "the Java/Scala jobs containing Python UDFs.");
+
+    public static final Option PYTHON_PATH =
+            new Option(
+                    "pypath",
+                    "pyPythonPath",
+                    true,
+                    "Specify the path of the python installation in worker nodes."
+                            + "(e.g.: --pyPythonPath /python/lib64/python3.7/)."
+                            + "User can specify multiple paths using the separator \":\".");
 
     static {
         HELP_OPTION.setRequired(false);
@@ -298,7 +317,6 @@ public class CliFrontendParser {
 
         DETACHED_OPTION.setRequired(false);
         SHUTDOWN_IF_ATTACHED_OPTION.setRequired(false);
-        YARN_DETACHED_OPTION.setRequired(false);
 
         ARGS_OPTION.setRequired(false);
         ARGS_OPTION.setArgName("programArgs");
@@ -311,6 +329,7 @@ public class CliFrontendParser {
         SAVEPOINT_PATH_OPTION.setArgName("savepointPath");
 
         SAVEPOINT_ALLOW_NON_RESTORED_OPTION.setRequired(false);
+        SAVEPOINT_CLAIM_MODE.setRequired(false);
         SAVEPOINT_RESTORE_MODE.setRequired(false);
 
         SAVEPOINT_FORMAT_OPTION.setRequired(false);
@@ -344,6 +363,8 @@ public class CliFrontendParser {
         PYEXEC_OPTION.setRequired(false);
 
         PYCLIENTEXEC_OPTION.setRequired(false);
+
+        PYTHON_PATH.setRequired(false);
     }
 
     static final Options RUN_OPTIONS = getRunCommandOptions();
@@ -363,7 +384,6 @@ public class CliFrontendParser {
         options.addOption(ARGS_OPTION);
         options.addOption(DETACHED_OPTION);
         options.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
-        options.addOption(YARN_DETACHED_OPTION);
         options.addOption(PY_OPTION);
         options.addOption(PYFILES_OPTION);
         options.addOption(PYMODULE_OPTION);
@@ -371,6 +391,7 @@ public class CliFrontendParser {
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
         options.addOption(PYCLIENTEXEC_OPTION);
+        options.addOption(PYTHON_PATH);
         return options;
     }
 
@@ -387,6 +408,7 @@ public class CliFrontendParser {
         options.addOption(PYARCHIVE_OPTION);
         options.addOption(PYEXEC_OPTION);
         options.addOption(PYCLIENTEXEC_OPTION);
+        options.addOption(PYTHON_PATH);
         return options;
     }
 
@@ -394,6 +416,7 @@ public class CliFrontendParser {
         return getProgramSpecificOptions(buildGeneralOptions(new Options()))
                 .addOption(SAVEPOINT_PATH_OPTION)
                 .addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION)
+                .addOption(SAVEPOINT_CLAIM_MODE)
                 .addOption(SAVEPOINT_RESTORE_MODE);
     }
 
@@ -419,14 +442,20 @@ public class CliFrontendParser {
         return buildGeneralOptions(new Options())
                 .addOption(STOP_WITH_SAVEPOINT_PATH)
                 .addOption(STOP_AND_DRAIN)
-                .addOption(SAVEPOINT_FORMAT_OPTION);
+                .addOption(SAVEPOINT_FORMAT_OPTION)
+                .addOption(SAVEPOINT_DETACHED_OPTION);
     }
 
     static Options getSavepointCommandOptions() {
         return buildGeneralOptions(new Options())
                 .addOption(SAVEPOINT_DISPOSE_OPTION)
                 .addOption(JAR_OPTION)
-                .addOption(SAVEPOINT_FORMAT_OPTION);
+                .addOption(SAVEPOINT_FORMAT_OPTION)
+                .addOption(SAVEPOINT_DETACHED_OPTION);
+    }
+
+    static Options getCheckpointCommandOptions() {
+        return buildGeneralOptions(new Options()).addOption(CHECKPOINT_FULL_OPTION);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -437,6 +466,7 @@ public class CliFrontendParser {
         return getProgramSpecificOptionsWithoutDeprecatedOptions(options)
                 .addOption(SAVEPOINT_PATH_OPTION)
                 .addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION)
+                .addOption(SAVEPOINT_CLAIM_MODE)
                 .addOption(SAVEPOINT_RESTORE_MODE);
     }
 
@@ -460,13 +490,19 @@ public class CliFrontendParser {
     private static Options getStopOptionsWithoutDeprecatedOptions(Options options) {
         return options.addOption(STOP_WITH_SAVEPOINT_PATH)
                 .addOption(STOP_AND_DRAIN)
-                .addOption(SAVEPOINT_FORMAT_OPTION);
+                .addOption(SAVEPOINT_FORMAT_OPTION)
+                .addOption(SAVEPOINT_DETACHED_OPTION);
     }
 
     private static Options getSavepointOptionsWithoutDeprecatedOptions(Options options) {
         return options.addOption(SAVEPOINT_DISPOSE_OPTION)
                 .addOption(SAVEPOINT_FORMAT_OPTION)
-                .addOption(JAR_OPTION);
+                .addOption(JAR_OPTION)
+                .addOption(SAVEPOINT_DETACHED_OPTION);
+    }
+
+    private static Options getCheckpointOptionsWithoutDeprecatedOptions(Options options) {
+        return options.addOption(CHECKPOINT_FULL_OPTION);
     }
 
     /** Prints the help for the client. */
@@ -476,12 +512,12 @@ public class CliFrontendParser {
         System.out.println("The following actions are available:");
 
         printHelpForRun(customCommandLines);
-        printHelpForRunApplication(customCommandLines);
         printHelpForInfo();
         printHelpForList(customCommandLines);
         printHelpForStop(customCommandLines);
         printHelpForCancel(customCommandLines);
         printHelpForSavepoint(customCommandLines);
+        printHelpForCheckpoint(customCommandLines);
 
         System.out.println();
     }
@@ -498,27 +534,6 @@ public class CliFrontendParser {
 
         printCustomCliOptions(customCommandLines, formatter, true);
 
-        System.out.println();
-    }
-
-    public static void printHelpForRunApplication(
-            Collection<CustomCommandLine> customCommandLines) {
-        HelpFormatter formatter = new HelpFormatter();
-        formatter.setLeftPadding(5);
-        formatter.setWidth(80);
-
-        System.out.println("\nAction \"run-application\" runs an application in Application Mode.");
-        System.out.println("\n  Syntax: run-application [OPTIONS] <jar-file> <arguments>");
-        formatter.setSyntaxPrefix("  \"run-application\" action options:");
-
-        // Only GenericCLI works with application mode, the other CLIs will be phased out
-        // in the future
-        List<CustomCommandLine> filteredCommandLines =
-                customCommandLines.stream()
-                        .filter((cli) -> cli instanceof GenericCLI)
-                        .collect(Collectors.toList());
-
-        printCustomCliOptions(filteredCommandLines, formatter, true);
         System.out.println();
     }
 
@@ -598,6 +613,21 @@ public class CliFrontendParser {
         System.out.println();
     }
 
+    public static void printHelpForCheckpoint(Collection<CustomCommandLine> customCommandLines) {
+        HelpFormatter formatter = new HelpFormatter();
+        formatter.setLeftPadding(5);
+        formatter.setWidth(80);
+
+        System.out.println("\nAction \"checkpoint\" triggers checkpoints for a running job.");
+        System.out.println("\n  Syntax: checkpoint [OPTIONS] <Job ID>");
+        formatter.setSyntaxPrefix("  \"checkpoint\" action options:");
+        formatter.printHelp(" ", getCheckpointOptionsWithoutDeprecatedOptions(new Options()));
+
+        printCustomCliOptions(customCommandLines, formatter, false);
+
+        System.out.println();
+    }
+
     /**
      * Prints custom cli options.
      *
@@ -627,17 +657,25 @@ public class CliFrontendParser {
             String savepointPath = commandLine.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
             boolean allowNonRestoredState =
                     commandLine.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt());
-            final RestoreMode restoreMode;
-            if (commandLine.hasOption(SAVEPOINT_RESTORE_MODE)) {
-                restoreMode =
+            final RecoveryClaimMode recoveryClaimMode;
+            if (commandLine.hasOption(SAVEPOINT_CLAIM_MODE)) {
+                recoveryClaimMode =
+                        ConfigurationUtils.convertValue(
+                                commandLine.getOptionValue(SAVEPOINT_CLAIM_MODE),
+                                RecoveryClaimMode.class);
+            } else if (commandLine.hasOption(SAVEPOINT_RESTORE_MODE)) {
+                recoveryClaimMode =
                         ConfigurationUtils.convertValue(
                                 commandLine.getOptionValue(SAVEPOINT_RESTORE_MODE),
-                                RestoreMode.class);
+                                RecoveryClaimMode.class);
+                System.out.printf(
+                        "The option '%s' is deprecated. Please use '%s' instead.%n",
+                        SAVEPOINT_RESTORE_MODE.getLongOpt(), SAVEPOINT_CLAIM_MODE.getLongOpt());
             } else {
-                restoreMode = SavepointConfigOptions.RESTORE_MODE.defaultValue();
+                recoveryClaimMode = StateRecoveryOptions.RESTORE_MODE.defaultValue();
             }
             return SavepointRestoreSettings.forPath(
-                    savepointPath, allowNonRestoredState, restoreMode);
+                    savepointPath, allowNonRestoredState, recoveryClaimMode);
         } else {
             return SavepointRestoreSettings.none();
         }

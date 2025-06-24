@@ -48,7 +48,10 @@ def normalize_table_function_result(it):
             return [value]
 
     if it is None:
-        return []
+        def func():
+            for i in []:
+                yield i
+        return func()
 
     if isinstance(it, (list, range, Generator)):
         def func():
@@ -57,7 +60,9 @@ def normalize_table_function_result(it):
 
         return func()
     else:
-        return [normalize_one_row(it)]
+        def func():
+            yield normalize_one_row(it)
+        return func()
 
 
 def normalize_pandas_result(it):
@@ -279,43 +284,6 @@ def load_aggregate_function(payload):
         return cls()
     else:
         return pickle.loads(payload)
-
-
-def parse_function_proto(proto):
-    from pyflink.fn_execution import flink_fn_execution_pb2
-    serialized_fn = flink_fn_execution_pb2.UserDefinedFunctions()
-    serialized_fn.ParseFromString(proto)
-    return serialized_fn
-
-
-def deserialized_operation_from_serialized_bytes(b):
-    import cloudpickle
-    return cloudpickle.loads(b)
-
-
-def create_scalar_operation_from_proto(proto, one_arg_optimization=False,
-                                       one_result_optimization=False):
-    from pyflink.fn_execution.table.operations import ScalarFunctionOperation
-
-    serialized_fn = parse_function_proto(proto)
-    scalar_operation = ScalarFunctionOperation(
-        serialized_fn, one_arg_optimization, one_result_optimization)
-    return scalar_operation
-
-
-def create_serialized_scalar_operation_from_proto(proto, one_arg_optimization=False,
-                                                  one_result_optimization=False):
-    """
-    The CPython extension included in proto does not support initialization multiple times, so we
-    choose the only interpreter process to be responsible for initialization and proto parsing. The
-    only interpreter parses the proto and serializes function operations with cloudpickle.
-    """
-
-    import cloudpickle
-
-    scalar_operation = create_scalar_operation_from_proto(
-        bytes(b % 256 for b in proto), one_arg_optimization, one_result_optimization)
-    return cloudpickle.dumps(scalar_operation)
 
 
 class PeriodicThread(threading.Thread):

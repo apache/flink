@@ -42,7 +42,10 @@ public class DecimalDataRandomGenerator implements DataGenerator<DecimalData> {
 
     private final double max;
 
-    public DecimalDataRandomGenerator(int precision, int scale, double min, double max) {
+    private final float nullRate;
+
+    public DecimalDataRandomGenerator(
+            int precision, int scale, double min, double max, float nullRate) {
         Preconditions.checkState(
                 min < max, String.format("min bound must be less than max [%f, %f]", min, max));
         double largest = Math.pow(10, precision - scale) - Math.pow(10, -scale);
@@ -50,6 +53,7 @@ public class DecimalDataRandomGenerator implements DataGenerator<DecimalData> {
         this.scale = scale;
         this.min = Math.max(-1 * largest, min);
         this.max = Math.min(largest, max);
+        this.nullRate = nullRate;
     }
 
     @Override
@@ -64,10 +68,13 @@ public class DecimalDataRandomGenerator implements DataGenerator<DecimalData> {
 
     @Override
     public DecimalData next() {
-        BigDecimal decimal =
-                new BigDecimal(
-                        ThreadLocalRandom.current().nextDouble(min, max),
-                        new MathContext(precision, RoundingMode.DOWN));
-        return DecimalData.fromBigDecimal(decimal, precision, scale);
+        if (nullRate == 0f || ThreadLocalRandom.current().nextFloat() > nullRate) {
+            BigDecimal decimal =
+                    new BigDecimal(
+                            ThreadLocalRandom.current().nextDouble(min, max),
+                            new MathContext(precision, RoundingMode.DOWN));
+            return DecimalData.fromBigDecimal(decimal, precision, scale);
+        }
+        return null;
     }
 }

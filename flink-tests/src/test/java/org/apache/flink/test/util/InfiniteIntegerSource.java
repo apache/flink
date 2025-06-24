@@ -19,7 +19,7 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
 
 /** Source that emits an integers indefinitely. */
 public class InfiniteIntegerSource implements ParallelSourceFunction<Integer> {

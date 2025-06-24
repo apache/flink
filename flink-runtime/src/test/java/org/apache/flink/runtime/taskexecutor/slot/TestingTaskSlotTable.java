@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -27,10 +26,13 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Set;
@@ -43,7 +45,7 @@ import java.util.function.Supplier;
 /** Testing implementation of {@link TaskSlotTable} for tests. */
 public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlotTable<T> {
     private final Supplier<SlotReport> createSlotReportSupplier;
-    private final Supplier<Boolean> allocateSlotSupplier;
+    private final ThrowingRunnable<SlotAllocationException> allocateSlotSupplier;
     private final BiFunction<JobID, AllocationID, Boolean> tryMarkSlotActiveBiFunction;
     private final Function<T, Boolean> addTaskFunction;
     private final Function<AllocationID, MemoryManager> memoryManagerGetter;
@@ -54,7 +56,7 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
 
     private TestingTaskSlotTable(
             Supplier<SlotReport> createSlotReportSupplier,
-            Supplier<Boolean> allocateSlotSupplier,
+            ThrowingRunnable<SlotAllocationException> allocateSlotSupplier,
             BiFunction<JobID, AllocationID, Boolean> tryMarkSlotActiveBiFunction,
             Function<T, Boolean> addTaskFunction,
             Function<AllocationID, MemoryManager> memoryManagerGetter,
@@ -98,19 +100,21 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
     }
 
     @Override
-    public boolean allocateSlot(
-            int index, JobID jobId, AllocationID allocationId, Time slotTimeout) {
-        return allocateSlotSupplier.get();
+    public void allocateSlot(
+            int index, JobID jobId, AllocationID allocationId, Duration slotTimeout)
+            throws SlotAllocationException {
+        allocateSlotSupplier.run();
     }
 
     @Override
-    public boolean allocateSlot(
+    public void allocateSlot(
             int index,
             JobID jobId,
             AllocationID allocationId,
             ResourceProfile resourceProfile,
-            Time slotTimeout) {
-        return allocateSlotSupplier.get();
+            Duration slotTimeout)
+            throws SlotAllocationException {
+        allocateSlotSupplier.run();
     }
 
     @Override
@@ -119,7 +123,7 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
     }
 
     @Override
-    public boolean markSlotInactive(AllocationID allocationId, Time slotTimeout) {
+    public boolean markSlotInactive(AllocationID allocationId, Duration slotTimeout) {
         throw new UnsupportedOperationException();
     }
 
@@ -211,7 +215,11 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
     /** Builder for {@link TestingTaskSlotTable}. */
     public static class TestingTaskSlotTableBuilder<T extends TaskSlotPayload> {
         private Supplier<SlotReport> createSlotReportSupplier = SlotReport::new;
-        private Supplier<Boolean> allocateSlotSupplier = () -> false;
+        private ThrowingRunnable<SlotAllocationException> allocateSlotSupplier =
+                () -> {
+                    throw new SlotAllocationException(
+                            "Default behavior of the TestingTaskSlotTable.");
+                };
         private BiFunction<JobID, AllocationID, Boolean> tryMarkSlotActiveBiFunction =
                 (ignoredA, ignoredB) -> false;
         private Function<T, Boolean> addTaskFunction = (ignored) -> false;
@@ -236,7 +244,13 @@ public class TestingTaskSlotTable<T extends TaskSlotPayload> implements TaskSlot
         }
 
         public TestingTaskSlotTableBuilder<T> allocateSlotReturns(boolean toReturn) {
-            this.allocateSlotSupplier = () -> toReturn;
+            this.allocateSlotSupplier =
+                    toReturn
+                            ? () -> {}
+                            : () -> {
+                                throw new SlotAllocationException(
+                                        "Expected error during slot allocation.");
+                            };
             return this;
         }
 

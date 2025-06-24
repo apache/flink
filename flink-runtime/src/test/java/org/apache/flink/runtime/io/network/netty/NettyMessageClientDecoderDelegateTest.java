@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.TestingPartitionRequestClient;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.FullyFilledBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
@@ -30,31 +31,30 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.verifyBufferResponseHeader;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the client side message decoder. */
-public class NettyMessageClientDecoderDelegateTest extends TestLogger {
+class NettyMessageClientDecoderDelegateTest {
 
     private static final int BUFFER_SIZE = 1024;
 
@@ -72,11 +72,12 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 
     private InputChannelID releasedInputChannelId;
 
-    @Before
-    public void setup() throws IOException, InterruptedException {
+    private void setup(int numOfPartialBuffers) throws IOException, InterruptedException {
         CreditBasedPartitionRequestClientHandler handler =
                 new CreditBasedPartitionRequestClientHandler();
-        networkBufferPool = new NetworkBufferPool(NUMBER_OF_BUFFER_RESPONSES, BUFFER_SIZE);
+        networkBufferPool =
+                new NetworkBufferPool(
+                        NUMBER_OF_BUFFER_RESPONSES, numOfPartialBuffers * BUFFER_SIZE);
         channel = new EmbeddedChannel(new NettyMessageClientDecoderDelegate(handler));
 
         inputGate = createSingleInputGate(1, networkBufferPool);
@@ -85,7 +86,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
                         inputGate, new TestingPartitionRequestClient(), NUMBER_OF_BUFFER_RESPONSES);
         inputGate.setInputChannels(inputChannel);
         inputGate.setup();
-        inputChannel.requestSubpartition();
+        inputChannel.requestSubpartitions();
         handler.addInputChannel(inputChannel);
         inputChannelId = inputChannel.getInputChannelId();
 
@@ -97,8 +98,8 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
         releasedInputChannelId = releasedInputChannel.getInputChannelId();
     }
 
-    @After
-    public void tearDown() throws IOException {
+    @AfterEach
+    void tearDown() throws IOException {
         if (inputGate != null) {
             inputGate.close();
         }
@@ -113,42 +114,63 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
         }
     }
 
+    private static Stream<Arguments> bufferDescriptors() {
+        return Stream.of(
+                Arguments.of(false, 1), // Scenario with a regular Buffer
+                Arguments.of(true, 1), // FullyFilledBuffer with 1 partial buffer
+                Arguments.of(true, 3) // FullyFilledBuffer with 3 partial buffers
+                );
+    }
+
     /** Verifies that the client side decoder works well for unreleased input channels. */
-    @Test
-    public void testClientMessageDecode() throws Exception {
-        testNettyMessageClientDecoding(false, false, false);
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    void testClientMessageDecode(boolean isFullyFilled, int numOfPartialBuffers) throws Exception {
+        setup(numOfPartialBuffers);
+        testNettyMessageClientDecoding(isFullyFilled, numOfPartialBuffers, false, false, false);
     }
 
     /**
      * Verifies that the client side decoder works well for empty buffers. Empty buffers should not
      * consume data buffers of the input channels.
      */
-    @Test
-    public void testClientMessageDecodeWithEmptyBuffers() throws Exception {
-        testNettyMessageClientDecoding(true, false, false);
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    void testClientMessageDecodeWithEmptyBuffers(boolean isFullyFilled, int numOfPartialBuffers)
+            throws Exception {
+        setup(numOfPartialBuffers);
+        testNettyMessageClientDecoding(isFullyFilled, numOfPartialBuffers, true, false, false);
     }
 
     /**
      * Verifies that the client side decoder works well with buffers sent to a released input
      * channel. The data buffer part should be discarded before reading the next message.
      */
-    @Test
-    public void testClientMessageDecodeWithReleasedInputChannel() throws Exception {
-        testNettyMessageClientDecoding(false, true, false);
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    void testClientMessageDecodeWithReleasedInputChannel(
+            boolean isFullyFilled, int numOfPartialBuffers) throws Exception {
+        setup(numOfPartialBuffers);
+        testNettyMessageClientDecoding(isFullyFilled, numOfPartialBuffers, false, true, false);
     }
 
     /**
      * Verifies that the client side decoder works well with buffers sent to a removed input
      * channel. The data buffer part should be discarded before reading the next message.
      */
-    @Test
-    public void testClientMessageDecodeWithRemovedInputChannel() throws Exception {
-        testNettyMessageClientDecoding(false, false, true);
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    void testClientMessageDecodeWithRemovedInputChannel(
+            boolean isFullyFilled, int numOfPartialBuffers) throws Exception {
+        setup(numOfPartialBuffers);
+        testNettyMessageClientDecoding(isFullyFilled, numOfPartialBuffers, false, false, true);
     }
 
     // ------------------------------------------------------------------------------------------------------------------
 
     private void testNettyMessageClientDecoding(
+            boolean isFullyFilled,
+            int numOfPartialBuffers,
             boolean hasEmptyBuffer,
             boolean hasBufferForReleasedChannel,
             boolean hasBufferForRemovedChannel)
@@ -159,6 +181,8 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
         try {
             List<BufferResponse> messages =
                     createMessageList(
+                            isFullyFilled,
+                            numOfPartialBuffers,
                             hasEmptyBuffer,
                             hasBufferForReleasedChannel,
                             hasBufferForRemovedChannel);
@@ -182,6 +206,8 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
     }
 
     private List<BufferResponse> createMessageList(
+            boolean isFullyFilled,
+            int numOfPartialBuffers,
             boolean hasEmptyBuffer,
             boolean hasBufferForRemovedChannel,
             boolean hasBufferForReleasedChannel) {
@@ -191,6 +217,8 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 
         for (int i = 0; i < NUMBER_OF_BUFFER_RESPONSES - 1; i++) {
             addBufferResponse(
+                    isFullyFilled,
+                    numOfPartialBuffers,
                     messages,
                     inputChannelId,
                     Buffer.DataType.DATA_BUFFER,
@@ -200,10 +228,18 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 
         if (hasEmptyBuffer) {
             addBufferResponse(
-                    messages, inputChannelId, Buffer.DataType.DATA_BUFFER, 0, seqNumber++);
+                    isFullyFilled,
+                    numOfPartialBuffers,
+                    messages,
+                    inputChannelId,
+                    Buffer.DataType.DATA_BUFFER,
+                    0,
+                    seqNumber++);
         }
         if (hasBufferForReleasedChannel) {
             addBufferResponse(
+                    isFullyFilled,
+                    numOfPartialBuffers,
                     messages,
                     releasedInputChannelId,
                     Buffer.DataType.DATA_BUFFER,
@@ -212,6 +248,8 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
         }
         if (hasBufferForRemovedChannel) {
             addBufferResponse(
+                    isFullyFilled,
+                    numOfPartialBuffers,
                     messages,
                     new InputChannelID(),
                     Buffer.DataType.DATA_BUFFER,
@@ -219,32 +257,80 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
                     seqNumber++);
         }
 
-        addBufferResponse(messages, inputChannelId, Buffer.DataType.EVENT_BUFFER, 32, seqNumber++);
         addBufferResponse(
-                messages, inputChannelId, Buffer.DataType.DATA_BUFFER, BUFFER_SIZE, seqNumber);
+                isFullyFilled,
+                numOfPartialBuffers,
+                messages,
+                inputChannelId,
+                Buffer.DataType.EVENT_BUFFER,
+                32,
+                seqNumber++);
+        addBufferResponse(
+                isFullyFilled,
+                numOfPartialBuffers,
+                messages,
+                inputChannelId,
+                Buffer.DataType.DATA_BUFFER,
+                BUFFER_SIZE,
+                seqNumber);
 
         return messages;
     }
 
     private void addBufferResponse(
+            boolean isFullyFilled,
+            int numOfPartialBuffers,
             List<BufferResponse> messages,
             InputChannelID inputChannelId,
             Buffer.DataType dataType,
             int bufferSize,
             int seqNumber) {
 
-        Buffer buffer = createDataBuffer(bufferSize, dataType);
-        messages.add(new BufferResponse(buffer, seqNumber, inputChannelId, 1));
+        Buffer buffer = createDataBuffer(isFullyFilled, numOfPartialBuffers, bufferSize, dataType);
+        BufferResponse bufferResponse =
+                new BufferResponse(
+                        buffer,
+                        seqNumber,
+                        inputChannelId,
+                        0,
+                        isFullyFilled ? numOfPartialBuffers : 0,
+                        1);
+        if (isFullyFilled) {
+            for (int i = 0; i < numOfPartialBuffers; i++) {
+                bufferResponse.getPartialBufferSizes().add(bufferSize);
+            }
+        }
+        messages.add(bufferResponse);
     }
 
-    private Buffer createDataBuffer(int size, Buffer.DataType dataType) {
-        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(size);
-        NetworkBuffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, dataType);
-        for (int i = 0; i < size / 4; ++i) {
-            buffer.writeInt(i);
-        }
+    private Buffer createDataBuffer(
+            boolean isFullyFilled, int numOfPartialBuffers, int size, Buffer.DataType dataType) {
+        if (!isFullyFilled) {
+            MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(size);
+            NetworkBuffer buffer =
+                    new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, dataType);
+            for (int i = 0; i < size / 4; ++i) {
+                buffer.writeInt(i);
+            }
 
-        return buffer;
+            return buffer;
+        } else {
+            FullyFilledBuffer fullyFilledBuffer =
+                    new FullyFilledBuffer(dataType, numOfPartialBuffers * size, false);
+
+            for (int i = 0; i < numOfPartialBuffers; i++) {
+                MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(size);
+                NetworkBuffer buffer =
+                        new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, dataType);
+                for (int num = 0; num < size / 4; ++num) {
+                    buffer.writeInt(num);
+                }
+
+                fullyFilledBuffer.addPartialBuffer(buffer);
+            }
+
+            return fullyFilledBuffer;
+        }
     }
 
     private ByteBuf[] encodeMessages(List<BufferResponse> messages) throws Exception {
@@ -318,7 +404,7 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
         List<NettyMessage> decodedMessages = new ArrayList<>();
         Object input;
         while ((input = channel.readInbound()) != null) {
-            assertTrue(input instanceof NettyMessage);
+            assertThat(input).isInstanceOf(NettyMessage.class);
             decodedMessages.add((NettyMessage) input);
         }
 
@@ -327,17 +413,22 @@ public class NettyMessageClientDecoderDelegateTest extends TestLogger {
 
     private void verifyDecodedMessages(
             List<BufferResponse> expectedMessages, List<NettyMessage> decodedMessages) {
-        assertEquals(expectedMessages.size(), decodedMessages.size());
+        assertThat(decodedMessages).hasSameSizeAs(expectedMessages);
         for (int i = 0; i < expectedMessages.size(); ++i) {
-            assertEquals(expectedMessages.get(i).getClass(), decodedMessages.get(i).getClass());
+            assertThat(decodedMessages.get(i)).isInstanceOf(expectedMessages.get(i).getClass());
 
             BufferResponse expected = expectedMessages.get(i);
             BufferResponse actual = (BufferResponse) decodedMessages.get(i);
             verifyBufferResponseHeader(expected, actual);
             if (expected.bufferSize == 0 || !expected.receiverId.equals(inputChannelId)) {
-                assertNull(actual.getBuffer());
+                assertThat(actual.getBuffer()).isNull();
             } else {
-                assertEquals(expected.getBuffer(), actual.getBuffer());
+                Buffer buffer = expected.getBuffer();
+                if (buffer instanceof FullyFilledBuffer) {
+                    assertThat(actual.getBuffer()).isEqualTo(buffer.asByteBuf());
+                } else {
+                    assertThat(actual.getBuffer()).isEqualTo(buffer);
+                }
             }
         }
     }

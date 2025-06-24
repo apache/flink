@@ -213,7 +213,7 @@ public class ExternalResourceUtils {
                                             resourceName))
                             .stringType()
                             .noDefaultValue();
-            final String driverFactoryClassName = config.getString(driverClassOption);
+            final String driverFactoryClassName = config.get(driverClassOption);
             if (StringUtils.isNullOrWhitespaceOnly(driverFactoryClassName)) {
                 LOG.warn(
                         "Could not find driver class name for {}. Please make sure {} is configured.",

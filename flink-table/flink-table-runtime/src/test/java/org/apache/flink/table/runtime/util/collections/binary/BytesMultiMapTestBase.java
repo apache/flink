@@ -37,7 +37,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Iterator;
 import java.util.Random;
@@ -92,7 +92,7 @@ public abstract class BytesMultiMapTestBase<K> extends BytesMapTestBase {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    public void testBuildAndRetrieve() throws Exception {
+    void testBuildAndRetrieve() throws Exception {
         final int numMemSegments =
                 needNumMemSegments(
                         NUM_ENTRIES,

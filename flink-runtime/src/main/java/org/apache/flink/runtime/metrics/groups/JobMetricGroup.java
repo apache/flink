@@ -20,10 +20,12 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.events.EventBuilder;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.traces.SpanBuilder;
 
 import javax.annotation.Nullable;
 
@@ -72,6 +74,16 @@ public abstract class JobMetricGroup<C extends ComponentMetricGroup<C>>
     protected QueryScopeInfo.JobQueryScopeInfo createQueryServiceMetricInfo(
             CharacterFilter filter) {
         return new QueryScopeInfo.JobQueryScopeInfo(this.jobId.toString());
+    }
+
+    @Override
+    public void addSpan(SpanBuilder spanBuilder) {
+        super.addSpan(spanBuilder.setAttribute("jobId", this.jobId.toString()));
+    }
+
+    @Override
+    public void addEvent(EventBuilder eventBuilder) {
+        super.addEvent(eventBuilder.setAttribute("jobId", this.jobId.toString()));
     }
 
     // ------------------------------------------------------------------------

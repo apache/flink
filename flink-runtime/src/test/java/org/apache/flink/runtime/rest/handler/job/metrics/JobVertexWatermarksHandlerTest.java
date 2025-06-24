@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -37,27 +36,27 @@ import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /** Tests for {@link JobVertexWatermarksHandler}. */
-public class JobVertexWatermarksHandlerTest {
+class JobVertexWatermarksHandlerTest {
 
     private static final JobID TEST_JOB_ID = new JobID();
 
@@ -69,8 +68,8 @@ public class JobVertexWatermarksHandlerTest {
     private HandlerRequest<EmptyRequestBody> request;
     private AccessExecutionJobVertex vertex;
 
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void before() throws Exception {
         taskMetricStore = Mockito.mock(MetricStore.TaskMetricStore.class);
 
         MetricStore metricStore = Mockito.mock(MetricStore.class);
@@ -85,7 +84,7 @@ public class JobVertexWatermarksHandlerTest {
         watermarkHandler =
                 new JobVertexWatermarksHandler(
                         Mockito.mock(LeaderGatewayRetriever.class),
-                        Time.seconds(1),
+                        Duration.ofSeconds(1),
                         Collections.emptyMap(),
                         metricFetcher,
                         NoOpExecutionGraphCache.INSTANCE,
@@ -115,45 +114,45 @@ public class JobVertexWatermarksHandlerTest {
         Mockito.when(vertex.getTaskVertices()).thenReturn(accessExecutionVertices);
     }
 
-    @After
-    public void after() {
+    @AfterEach
+    void after() {
         Mockito.verify(metricFetcher).update();
     }
 
     @Test
-    public void testWatermarksRetrieval() throws Exception {
+    void testWatermarksRetrieval() throws Exception {
         Mockito.when(taskMetricStore.getMetric("0.currentInputWatermark")).thenReturn("23");
         Mockito.when(taskMetricStore.getMetric("1.currentInputWatermark")).thenReturn("42");
 
         MetricCollectionResponseBody response = watermarkHandler.handleRequest(request, vertex);
 
-        assertThat(
-                response.getMetrics(),
-                containsInAnyOrder(
-                        new MetricMatcher("0.currentInputWatermark", "23"),
-                        new MetricMatcher("1.currentInputWatermark", "42")));
+        assertThat(response.getMetrics())
+                .satisfies(
+                        matching(
+                                containsInAnyOrder(
+                                        new MetricMatcher("0.currentInputWatermark", "23"),
+                                        new MetricMatcher("1.currentInputWatermark", "42"))));
     }
 
     @Test
-    public void testPartialWatermarksAvailable() throws Exception {
+    void testPartialWatermarksAvailable() throws Exception {
         Mockito.when(taskMetricStore.getMetric("0.currentInputWatermark")).thenReturn("23");
         Mockito.when(taskMetricStore.getMetric("1.currentInputWatermark")).thenReturn(null);
 
         MetricCollectionResponseBody response = watermarkHandler.handleRequest(request, vertex);
 
-        assertThat(
-                response.getMetrics(),
-                contains(new MetricMatcher("0.currentInputWatermark", "23")));
+        assertThat(response.getMetrics())
+                .satisfies(matching(contains(new MetricMatcher("0.currentInputWatermark", "23"))));
     }
 
     @Test
-    public void testNoWatermarksAvailable() throws Exception {
+    void testNoWatermarksAvailable() throws Exception {
         Mockito.when(taskMetricStore.getMetric("0.currentInputWatermark")).thenReturn(null);
         Mockito.when(taskMetricStore.getMetric("1.currentInputWatermark")).thenReturn(null);
 
         MetricCollectionResponseBody response = watermarkHandler.handleRequest(request, vertex);
 
-        assertThat(response.getMetrics(), is(empty()));
+        assertThat(response.getMetrics()).isEmpty();
     }
 
     private static class MetricMatcher extends BaseMatcher<Metric> {

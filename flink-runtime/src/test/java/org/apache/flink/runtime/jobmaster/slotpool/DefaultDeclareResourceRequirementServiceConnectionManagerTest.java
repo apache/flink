@@ -26,10 +26,9 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
@@ -40,18 +39,17 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DefaultDeclareResourceRequirementServiceConnectionManager}. */
-public class DefaultDeclareResourceRequirementServiceConnectionManagerTest extends TestLogger {
+class DefaultDeclareResourceRequirementServiceConnectionManagerTest {
 
     private final ManuallyTriggeredScheduledExecutorService scheduledExecutor =
             new ManuallyTriggeredScheduledExecutorService();
     private final JobID jobId = new JobID();
 
     @Test
-    public void testIgnoreDeclareResourceRequirementsIfNotConnected() {
+    void testIgnoreDeclareResourceRequirementsIfNotConnected() {
         final DeclareResourceRequirementServiceConnectionManager
                 declareResourceRequirementServiceConnectionManager =
                         createResourceManagerConnectionManager();
@@ -61,7 +59,7 @@ public class DefaultDeclareResourceRequirementServiceConnectionManagerTest exten
     }
 
     @Test
-    public void testDeclareResourceRequirementsSendsRequirementsIfConnected() {
+    void testDeclareResourceRequirementsSendsRequirementsIfConnected() {
         final DeclareResourceRequirementServiceConnectionManager
                 declareResourceRequirementServiceConnectionManager =
                         createResourceManagerConnectionManager();
@@ -78,12 +76,11 @@ public class DefaultDeclareResourceRequirementServiceConnectionManagerTest exten
         declareResourceRequirementServiceConnectionManager.declareResourceRequirements(
                 resourceRequirements);
 
-        assertThat(declareResourceRequirementsFuture.join(), is(resourceRequirements));
+        assertThat(declareResourceRequirementsFuture.join()).isEqualTo(resourceRequirements);
     }
 
     @Test
-    public void testRetryDeclareResourceRequirementsIfTransmissionFailed()
-            throws InterruptedException {
+    void testRetryDeclareResourceRequirementsIfTransmissionFailed() throws InterruptedException {
         final DeclareResourceRequirementServiceConnectionManager
                 declareResourceRequirementServiceConnectionManager =
                         createResourceManagerConnectionManager();
@@ -100,20 +97,19 @@ public class DefaultDeclareResourceRequirementServiceConnectionManagerTest exten
 
         scheduledExecutor.triggerNonPeriodicScheduledTasksWithRecursion();
 
-        assertThat(
-                failingDeclareResourceRequirementsService.nextResourceRequirements(),
-                is(resourceRequirements));
-        assertThat(failingDeclareResourceRequirementsService.hasResourceRequirements(), is(false));
+        assertThat(failingDeclareResourceRequirementsService.nextResourceRequirements())
+                .isEqualTo(resourceRequirements);
+        assertThat(failingDeclareResourceRequirementsService.hasResourceRequirements()).isFalse();
     }
 
     @Test
-    public void testDisconnectStopsSendingResourceRequirements() throws InterruptedException {
+    void testDisconnectStopsSendingResourceRequirements() throws InterruptedException {
         runStopSendingResourceRequirementsTest(
                 DeclareResourceRequirementServiceConnectionManager::disconnect);
     }
 
     @Test
-    public void testCloseStopsSendingResourceRequirements() throws InterruptedException {
+    void testCloseStopsSendingResourceRequirements() throws InterruptedException {
         runStopSendingResourceRequirementsTest(
                 DeclareResourceRequirementServiceConnectionManager::close);
     }
@@ -139,11 +135,11 @@ public class DefaultDeclareResourceRequirementServiceConnectionManagerTest exten
         testAction.accept(declareResourceRequirementServiceConnectionManager);
         scheduledExecutor.triggerNonPeriodicScheduledTasksWithRecursion();
 
-        assertThat(declareResourceRequirementsService.hasResourceRequirements(), is(false));
+        assertThat(declareResourceRequirementsService.hasResourceRequirements()).isFalse();
     }
 
     @Test
-    public void testNewResourceRequirementsOverrideOldRequirements() throws InterruptedException {
+    void testNewResourceRequirementsOverrideOldRequirements() throws InterruptedException {
         final DeclareResourceRequirementServiceConnectionManager
                 declareResourceRequirementServiceConnectionManager =
                         createResourceManagerConnectionManager();
@@ -169,10 +165,9 @@ public class DefaultDeclareResourceRequirementServiceConnectionManagerTest exten
 
         scheduledExecutor.triggerNonPeriodicScheduledTasksWithRecursion();
 
-        assertThat(
-                failingDeclareResourceRequirementsService.nextResourceRequirements(),
-                is(resourceRequirements2));
-        assertThat(failingDeclareResourceRequirementsService.hasResourceRequirements(), is(false));
+        assertThat(failingDeclareResourceRequirementsService.nextResourceRequirements())
+                .isEqualTo(resourceRequirements2);
+        assertThat(failingDeclareResourceRequirementsService.hasResourceRequirements()).isFalse();
     }
 
     @Nonnull

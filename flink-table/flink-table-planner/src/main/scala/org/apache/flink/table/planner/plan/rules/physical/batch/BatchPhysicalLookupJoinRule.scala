@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
+import org.apache.flink.table.legacy.sources.LookupableTableSource
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLookupJoin
@@ -32,8 +33,8 @@ import org.apache.calcite.rex.RexProgram
  *
  * There are 2 conditions for this rule:
  *   1. the root parent of [[FlinkLogicalSnapshot]] should be a TableSource which implements
- *      [[org.apache.flink.table.sources.LookupableTableSource]]. 2. the period of
- *      [[FlinkLogicalSnapshot]] must be left table's proctime attribute.
+ *      [[LookupableTableSource]]. 2. the period of [[FlinkLogicalSnapshot]] must be left table's
+ *      proctime attribute.
  */
 object BatchPhysicalLookupJoinRule {
   val SNAPSHOT_ON_TABLESCAN: RelOptRule = new SnapshotOnTableScanRule
@@ -47,7 +48,12 @@ object BatchPhysicalLookupJoinRule {
         input: FlinkLogicalRel,
         temporalTable: RelOptTable,
         calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin = {
-      doTransform(join, input, temporalTable, calcProgram)
+      transformToLookupJoin(
+        join,
+        input,
+        temporalTable,
+        calcProgram,
+        FlinkConventions.BATCH_PHYSICAL)
     }
   }
 
@@ -59,29 +65,12 @@ object BatchPhysicalLookupJoinRule {
         input: FlinkLogicalRel,
         temporalTable: RelOptTable,
         calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin = {
-      doTransform(join, input, temporalTable, calcProgram)
+      transformToLookupJoin(
+        join,
+        input,
+        temporalTable,
+        calcProgram,
+        FlinkConventions.BATCH_PHYSICAL)
     }
-
-  }
-
-  private def doTransform(
-      join: FlinkLogicalJoin,
-      input: FlinkLogicalRel,
-      temporalTable: RelOptTable,
-      calcProgram: Option[RexProgram]): BatchPhysicalLookupJoin = {
-    val joinInfo = join.analyzeCondition
-    val cluster = join.getCluster
-
-    val providedTrait = join.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    val requiredTrait = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    val convInput = RelOptRule.convert(input, requiredTrait)
-    new BatchPhysicalLookupJoin(
-      cluster,
-      providedTrait,
-      convInput,
-      temporalTable,
-      calcProgram,
-      joinInfo,
-      join.getJoinType)
   }
 }

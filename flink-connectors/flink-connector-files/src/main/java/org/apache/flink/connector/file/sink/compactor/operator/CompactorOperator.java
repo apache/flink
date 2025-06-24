@@ -34,6 +34,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
@@ -43,10 +44,9 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -108,11 +108,15 @@ public class CompactorOperator
     // submitted again while restoring
     private ListState<Map<Long, List<CompactorRequest>>> remainingRequestsState;
 
+    private long lastKnownCheckpointId = CheckpointIDCounter.INITIAL_CHECKPOINT_ID - 1;
+
     public CompactorOperator(
+            StreamOperatorParameters<CommittableMessage<FileSinkCommittable>> parameters,
             FileCompactStrategy strategy,
             SimpleVersionedSerializer<FileSinkCommittable> committableSerializer,
             FileCompactor fileCompactor,
             BucketWriter<?, String> bucketWriter) {
+        super(parameters);
         this.strategy = strategy;
         this.committableSerializer = committableSerializer;
         this.fileCompactor = fileCompactor;
@@ -138,15 +142,16 @@ public class CompactorOperator
     @Override
     public void endInput() throws Exception {
         // add collecting requests into the final snapshot
-        checkpointRequests.put(Long.MAX_VALUE, collectingRequests);
+        long checkpointId = lastKnownCheckpointId + 1;
+        checkpointRequests.put(checkpointId, collectingRequests);
         collectingRequests = new ArrayList<>();
 
         // submit all requests and wait until they are done
-        submitUntil(Long.MAX_VALUE);
+        submitUntil(checkpointId);
         assert checkpointRequests.isEmpty();
 
         getAllTasksFuture().join();
-        emitCompacted(null);
+        emitCompacted(checkpointId);
         assert compactingRequests.isEmpty();
     }
 
@@ -223,7 +228,9 @@ public class CompactorOperator
         canSubmit.clear();
     }
 
-    private void emitCompacted(@Nullable Long checkpointId) throws Exception {
+    private void emitCompacted(long checkpointId) throws Exception {
+        lastKnownCheckpointId = checkpointId;
+
         List<FileSinkCommittable> compacted = new ArrayList<>();
         Iterator<Tuple2<CompactorRequest, CompletableFuture<Iterable<FileSinkCommittable>>>> iter =
                 compactingRequests.iterator();
@@ -247,17 +254,18 @@ public class CompactorOperator
         // A summary must be sent before all results during this checkpoint
         CommittableSummary<FileSinkCommittable> summary =
                 new CommittableSummary<>(
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getNumberOfParallelSubtasks(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
                         checkpointId,
-                        compacted.size(),
                         compacted.size(),
                         0);
         output.collect(new StreamRecord<>(summary));
         for (FileSinkCommittable c : compacted) {
             CommittableWithLineage<FileSinkCommittable> comm =
                     new CommittableWithLineage<>(
-                            c, checkpointId, getRuntimeContext().getIndexOfThisSubtask());
+                            c,
+                            checkpointId,
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
             output.collect(new StreamRecord<>(comm));
         }
     }

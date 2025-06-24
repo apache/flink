@@ -27,15 +27,15 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TestProcessingTimeService}. */
-public class TestProcessingTimeServiceTest {
+class TestProcessingTimeServiceTest {
 
     @Test
-    public void testCustomTimeServiceProvider() throws Throwable {
+    void testCustomTimeServiceProvider() throws Throwable {
         final TestProcessingTimeService tp = new TestProcessingTimeService();
 
         final OneInputStreamTaskTestHarness<String, String> testHarness =
@@ -59,27 +59,27 @@ public class TestProcessingTimeServiceTest {
         ProcessingTimeService processingTimeService =
                 ((StreamMap<?, ?>) testHarness.getHeadOperator()).getProcessingTimeService();
 
-        assertEquals(Long.MIN_VALUE, processingTimeService.getCurrentProcessingTime());
+        assertThat(processingTimeService.getCurrentProcessingTime()).isEqualTo(Long.MIN_VALUE);
 
         tp.setCurrentTime(11);
-        assertEquals(processingTimeService.getCurrentProcessingTime(), 11);
+        assertThat(processingTimeService.getCurrentProcessingTime()).isEqualTo(11);
 
         tp.setCurrentTime(15);
         tp.setCurrentTime(16);
-        assertEquals(processingTimeService.getCurrentProcessingTime(), 16);
+        assertThat(processingTimeService.getCurrentProcessingTime()).isEqualTo(16);
 
         // register 2 tasks
         processingTimeService.registerTimer(30, timestamp -> {});
 
         processingTimeService.registerTimer(40, timestamp -> {});
 
-        assertEquals(2, tp.getNumActiveTimers());
+        assertThat(tp.getNumActiveTimers()).isEqualTo(2);
 
         tp.setCurrentTime(35);
-        assertEquals(1, tp.getNumActiveTimers());
+        assertThat(tp.getNumActiveTimers()).isOne();
 
         tp.setCurrentTime(40);
-        assertEquals(0, tp.getNumActiveTimers());
+        assertThat(tp.getNumActiveTimers()).isZero();
 
         tp.shutdownService();
     }

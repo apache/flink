@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
@@ -29,6 +31,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.FullyFilledBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
@@ -40,6 +43,7 @@ import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportExcept
 import org.apache.flink.runtime.io.network.netty.exception.TransportException;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
@@ -56,25 +60,23 @@ import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.epoll.Epoll;
 import org.apache.flink.shaded.netty4.io.netty.channel.unix.Errors;
 
-import org.junit.Assume;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.io.network.netty.PartitionRequestQueueTest.blockChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assumptions.assumeThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -83,7 +85,28 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Test for {@link CreditBasedPartitionRequestClientHandler}. */
-public class CreditBasedPartitionRequestClientHandlerTest {
+class CreditBasedPartitionRequestClientHandlerTest {
+
+    private static Stream<Arguments> bufferDescriptors() {
+        return Stream.of(
+                Arguments.of(false, 1), // Scenario with a regular Buffer
+                Arguments.of(true, 1), // FullyFilledBuffer with 1 partial buffer
+                Arguments.of(true, 3) // FullyFilledBuffer with 3 partial buffers
+                );
+    }
+
+    private static Stream<Arguments> bufferDescriptorsWithCompression() {
+        return Stream.of(
+                Arguments.of(false, 1, "LZ4"),
+                Arguments.of(false, 1, "LZO"),
+                Arguments.of(false, 1, "ZSTD"),
+                Arguments.of(true, 1, "LZ4"),
+                Arguments.of(true, 1, "LZO"),
+                Arguments.of(true, 1, "ZSTD"),
+                Arguments.of(true, 3, "LZ4"),
+                Arguments.of(true, 3, "LZO"),
+                Arguments.of(true, 3, "ZSTD"));
+    }
 
     /**
      * Tests a fix for FLINK-1627.
@@ -96,9 +119,12 @@ public class CreditBasedPartitionRequestClientHandlerTest {
      *
      * @see <a href="https://issues.apache.org/jira/browse/FLINK-1627">FLINK-1627</a>
      */
-    @Test(timeout = 60000)
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    @Timeout(60)
     @SuppressWarnings("unchecked")
-    public void testReleaseInputChannelDuringDecode() throws Exception {
+    void testReleaseInputChannelDuringDecode(boolean isFullyFilled, int numOfPartialBuffers)
+            throws Exception {
         // Mocks an input channel in a state as it was released during a decode.
         final BufferProvider bufferProvider = mock(BufferProvider.class);
         when(bufferProvider.requestBuffer()).thenReturn(null);
@@ -115,7 +141,8 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 
         final BufferResponse receivedBuffer =
                 createBufferResponse(
-                        TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE),
+                        createBuffer(
+                                isFullyFilled, numOfPartialBuffers, TestBufferFactory.BUFFER_SIZE),
                         0,
                         inputChannel.getInputChannelId(),
                         2,
@@ -129,8 +156,9 @@ public class CreditBasedPartitionRequestClientHandlerTest {
      *
      * <p>FLINK-1761 discovered an IndexOutOfBoundsException, when receiving buffers of size 0.
      */
-    @Test
-    public void testReceiveEmptyBuffer() throws Exception {
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    void testReceiveEmptyBuffer(boolean isFullyFilled, int numOfPartialBuffers) throws Exception {
         // Minimal mock of a remote input channel
         final BufferProvider bufferProvider = mock(BufferProvider.class);
         when(bufferProvider.requestBuffer()).thenReturn(TestBufferFactory.createBuffer(0));
@@ -139,9 +167,6 @@ public class CreditBasedPartitionRequestClientHandlerTest {
         when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
         when(inputChannel.getBufferProvider()).thenReturn(bufferProvider);
 
-        // An empty buffer of size 0
-        final Buffer emptyBuffer = TestBufferFactory.createBuffer(0);
-
         final CreditBasedPartitionRequestClientHandler client =
                 new CreditBasedPartitionRequestClientHandler();
         client.addInputChannel(inputChannel);
@@ -149,7 +174,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
         final int backlog = 2;
         final BufferResponse receivedBuffer =
                 createBufferResponse(
-                        emptyBuffer,
+                        createBuffer(isFullyFilled, numOfPartialBuffers, 0),
                         0,
                         inputChannel.getInputChannelId(),
                         backlog,
@@ -164,12 +189,14 @@ public class CreditBasedPartitionRequestClientHandlerTest {
     }
 
     /**
-     * Verifies that {@link RemoteInputChannel#onBuffer(Buffer, int, int)} is called when a {@link
-     * BufferResponse} is received.
+     * Verifies that {@link RemoteInputChannel#onBuffer(Buffer, int, int, int)} is called when a
+     * {@link BufferResponse} is received.
      */
-    @Test
-    public void testReceiveBuffer() throws Exception {
-        final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    void testReceiveBuffer(boolean isFullyFilled, int numOfPartialBuffers) throws Exception {
+        final NetworkBufferPool networkBufferPool =
+                new NetworkBufferPool(10, 32 * numOfPartialBuffers);
         final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
         final RemoteInputChannel inputChannel =
                 InputChannelBuilder.newBuilder().buildRemoteChannel(inputGate);
@@ -186,15 +213,15 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             final int backlog = 2;
             final BufferResponse bufferResponse =
                     createBufferResponse(
-                            TestBufferFactory.createBuffer(32),
+                            createBuffer(isFullyFilled, numOfPartialBuffers, 32),
                             0,
                             inputChannel.getInputChannelId(),
                             backlog,
                             new NetworkBufferAllocator(handler));
             handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
 
-            assertEquals(1, inputChannel.getNumberOfQueuedBuffers());
-            assertEquals(2, inputChannel.getSenderBacklog());
+            assertThat(inputChannel.getNumberOfQueuedBuffers()).isEqualTo(numOfPartialBuffers);
+            assertThat(inputChannel.getSenderBacklog()).isEqualTo(2);
         } finally {
             releaseResource(inputGate, networkBufferPool);
         }
@@ -203,12 +230,19 @@ public class CreditBasedPartitionRequestClientHandlerTest {
     /**
      * Verifies that {@link BufferResponse} of compressed {@link Buffer} can be handled correctly.
      */
-    @Test
-    public void testReceiveCompressedBuffer() throws Exception {
+    @ParameterizedTest(
+            name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}, compressionCodec={2}")
+    @MethodSource("bufferDescriptorsWithCompression")
+    void testReceiveCompressedBuffer(
+            final boolean isFullyFilled,
+            final int numOfPartialBuffers,
+            final String compressionCodec)
+            throws Exception {
         int bufferSize = 1024;
-        String compressionCodec = "LZ4";
-        BufferCompressor compressor = new BufferCompressor(bufferSize, compressionCodec);
-        BufferDecompressor decompressor = new BufferDecompressor(bufferSize, compressionCodec);
+        BufferCompressor compressor =
+                new BufferCompressor(bufferSize, CompressionCodec.valueOf(compressionCodec));
+        BufferDecompressor decompressor =
+                new BufferDecompressor(bufferSize, CompressionCodec.valueOf(compressionCodec));
         NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize);
         SingleInputGate inputGate =
                 new SingleInputGateBuilder()
@@ -227,21 +261,21 @@ public class CreditBasedPartitionRequestClientHandlerTest {
                     new CreditBasedPartitionRequestClientHandler();
             handler.addInputChannel(inputChannel);
 
-            Buffer buffer =
-                    compressor.compressToOriginalBuffer(TestBufferFactory.createBuffer(bufferSize));
             BufferResponse bufferResponse =
                     createBufferResponse(
-                            buffer,
+                            compressBuffer(
+                                    compressor,
+                                    createBuffer(isFullyFilled, numOfPartialBuffers, bufferSize)),
                             0,
                             inputChannel.getInputChannelId(),
                             2,
                             new NetworkBufferAllocator(handler));
-            assertTrue(bufferResponse.isCompressed);
+            assertThat(bufferResponse.isCompressed).isTrue();
             handler.channelRead(null, bufferResponse);
 
             Buffer receivedBuffer = inputChannel.getNextReceivedBuffer();
-            assertNotNull(receivedBuffer);
-            assertTrue(receivedBuffer.isCompressed());
+            assertThat(receivedBuffer).isNotNull();
+            assertThat(receivedBuffer.isCompressed()).isTrue();
             receivedBuffer.recycleBuffer();
         } finally {
             releaseResource(inputGate, networkBufferPool);
@@ -250,7 +284,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 
     /** Verifies that {@link NettyMessage.BacklogAnnouncement} can be handled correctly. */
     @Test
-    public void testReceiveBacklogAnnouncement() throws Exception {
+    void testReceiveBacklogAnnouncement() throws Exception {
         int bufferSize = 1024;
         int numBuffers = 10;
         NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, bufferSize);
@@ -268,26 +302,26 @@ public class CreditBasedPartitionRequestClientHandlerTest {
                     new CreditBasedPartitionRequestClientHandler();
             handler.addInputChannel(inputChannel);
 
-            assertEquals(2, inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(0, inputChannel.unsynchronizedGetFloatingBuffersAvailable());
+            assertThat(inputChannel.getNumberOfAvailableBuffers()).isEqualTo(2);
+            assertThat(inputChannel.unsynchronizedGetFloatingBuffersAvailable()).isZero();
 
             int backlog = 5;
             NettyMessage.BacklogAnnouncement announcement =
                     new NettyMessage.BacklogAnnouncement(backlog, inputChannel.getInputChannelId());
             handler.channelRead(null, announcement);
-            assertEquals(7, inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(7, inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(backlog, inputChannel.getSenderBacklog());
-            assertEquals(5, inputChannel.unsynchronizedGetFloatingBuffersAvailable());
+            assertThat(inputChannel.getNumberOfAvailableBuffers()).isEqualTo(7);
+            assertThat(inputChannel.getNumberOfRequiredBuffers()).isEqualTo(7);
+            assertThat(inputChannel.getSenderBacklog()).isEqualTo(backlog);
+            assertThat(inputChannel.unsynchronizedGetFloatingBuffersAvailable()).isEqualTo(5);
 
             backlog = 12;
             announcement =
                     new NettyMessage.BacklogAnnouncement(backlog, inputChannel.getInputChannelId());
             handler.channelRead(null, announcement);
-            assertEquals(10, inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(14, inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(backlog, inputChannel.getSenderBacklog());
-            assertEquals(8, inputChannel.unsynchronizedGetFloatingBuffersAvailable());
+            assertThat(inputChannel.getNumberOfAvailableBuffers()).isEqualTo(10);
+            assertThat(inputChannel.getNumberOfRequiredBuffers()).isEqualTo(14);
+            assertThat(inputChannel.getSenderBacklog()).isEqualTo(backlog);
+            assertThat(inputChannel.unsynchronizedGetFloatingBuffersAvailable()).isEqualTo(8);
         } finally {
             releaseResource(inputGate, networkBufferPool);
         }
@@ -297,8 +331,10 @@ public class CreditBasedPartitionRequestClientHandlerTest {
      * Verifies that {@link RemoteInputChannel#onError(Throwable)} is called when a {@link
      * BufferResponse} is received but no available buffer in input channel.
      */
-    @Test
-    public void testThrowExceptionForNoAvailableBuffer() throws Exception {
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    void testThrowExceptionForNoAvailableBuffer(boolean isFullyFilled, int numOfPartialBuffers)
+            throws Exception {
         final SingleInputGate inputGate = createSingleInputGate(1);
         final RemoteInputChannel inputChannel =
                 spy(InputChannelBuilder.newBuilder().buildRemoteChannel(inputGate));
@@ -307,19 +343,19 @@ public class CreditBasedPartitionRequestClientHandlerTest {
                 new CreditBasedPartitionRequestClientHandler();
         handler.addInputChannel(inputChannel);
 
-        assertEquals(
-                "There should be no buffers available in the channel.",
-                0,
-                inputChannel.getNumberOfAvailableBuffers());
+        assertThat(inputChannel.getNumberOfAvailableBuffers())
+                .as("There should be no buffers available in the channel.")
+                .isZero();
 
         final BufferResponse bufferResponse =
                 createBufferResponse(
-                        TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE),
+                        createBuffer(
+                                isFullyFilled, numOfPartialBuffers, TestBufferFactory.BUFFER_SIZE),
                         0,
                         inputChannel.getInputChannelId(),
                         2,
                         new NetworkBufferAllocator(handler));
-        assertNull(bufferResponse.getBuffer());
+        assertThat(bufferResponse.getBuffer()).isNull();
 
         handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
         verify(inputChannel, times(1)).onError(any(IllegalStateException.class));
@@ -330,7 +366,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
      * PartitionNotFoundException} is received.
      */
     @Test
-    public void testReceivePartitionNotFoundException() throws Exception {
+    void testReceivePartitionNotFoundException() throws Exception {
         // Minimal mock of a remote input channel
         final BufferProvider bufferProvider = mock(BufferProvider.class);
         when(bufferProvider.requestBuffer()).thenReturn(TestBufferFactory.createBuffer(0));
@@ -360,7 +396,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
     }
 
     @Test
-    public void testCancelBeforeActive() throws Exception {
+    void testCancelBeforeActive() throws Exception {
 
         final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
         when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
@@ -381,8 +417,10 @@ public class CreditBasedPartitionRequestClientHandlerTest {
      * and verifies the behaviour of credit notification by triggering channel's writability
      * changed.
      */
-    @Test
-    public void testNotifyCreditAvailable() throws Exception {
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    void testNotifyCreditAvailable(boolean isFullyFilled, int numOfPartialBuffers)
+            throws Exception {
         final CreditBasedPartitionRequestClientHandler handler =
                 new CreditBasedPartitionRequestClientHandler();
         final NetworkBufferAllocator allocator = new NetworkBufferAllocator(handler);
@@ -394,7 +432,8 @@ public class CreditBasedPartitionRequestClientHandlerTest {
                         mock(ConnectionID.class),
                         mock(PartitionRequestClientFactory.class));
 
-        final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
+        final NetworkBufferPool networkBufferPool =
+                new NetworkBufferPool(10, 32 * numOfPartialBuffers);
         final SingleInputGate inputGate = createSingleInputGate(2, networkBufferPool);
         final RemoteInputChannel[] inputChannels = new RemoteInputChannel[2];
         inputChannels[0] = createRemoteInputChannel(inputGate, client);
@@ -405,38 +444,36 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
 
-            inputChannels[0].requestSubpartition();
-            inputChannels[1].requestSubpartition();
+            inputChannels[0].requestSubpartitions();
+            inputChannels[1].requestSubpartitions();
 
             // The two input channels should send partition requests
-            assertTrue(channel.isWritable());
+            assertThat(channel.isWritable()).isTrue();
             Object readFromOutbound = channel.readOutbound();
-            assertThat(readFromOutbound, instanceOf(PartitionRequest.class));
-            assertEquals(
-                    inputChannels[0].getInputChannelId(),
-                    ((PartitionRequest) readFromOutbound).receiverId);
-            assertEquals(2, ((PartitionRequest) readFromOutbound).credit);
+            assertThat(readFromOutbound).isInstanceOf(PartitionRequest.class);
+            assertThat(inputChannels[0].getInputChannelId())
+                    .isEqualTo(((PartitionRequest) readFromOutbound).receiverId);
+            assertThat(((PartitionRequest) readFromOutbound).credit).isEqualTo(2);
 
             readFromOutbound = channel.readOutbound();
-            assertThat(readFromOutbound, instanceOf(PartitionRequest.class));
-            assertEquals(
-                    inputChannels[1].getInputChannelId(),
-                    ((PartitionRequest) readFromOutbound).receiverId);
-            assertEquals(2, ((PartitionRequest) readFromOutbound).credit);
+            assertThat(readFromOutbound).isInstanceOf(PartitionRequest.class);
+            assertThat(inputChannels[1].getInputChannelId())
+                    .isEqualTo(((PartitionRequest) readFromOutbound).receiverId);
+            assertThat(((PartitionRequest) readFromOutbound).credit).isEqualTo(2);
 
             // The buffer response will take one available buffer from input channel, and it will
             // trigger
             // requesting (backlog + numExclusiveBuffers - numAvailableBuffers) floating buffers
             final BufferResponse bufferResponse1 =
                     createBufferResponse(
-                            TestBufferFactory.createBuffer(32),
+                            createBuffer(isFullyFilled, numOfPartialBuffers, 32),
                             0,
                             inputChannels[0].getInputChannelId(),
                             1,
                             allocator);
             final BufferResponse bufferResponse2 =
                     createBufferResponse(
-                            TestBufferFactory.createBuffer(32),
+                            createBuffer(isFullyFilled, numOfPartialBuffers, 32),
                             0,
                             inputChannels[1].getInputChannelId(),
                             1,
@@ -444,26 +481,24 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse1);
             handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse2);
 
-            assertEquals(2, inputChannels[0].getUnannouncedCredit());
-            assertEquals(2, inputChannels[1].getUnannouncedCredit());
+            assertThat(inputChannels[0].getUnannouncedCredit()).isEqualTo(2);
+            assertThat(inputChannels[1].getUnannouncedCredit()).isEqualTo(2);
 
             channel.runPendingTasks();
 
             // The two input channels should notify credits availability via the writable channel
             readFromOutbound = channel.readOutbound();
-            assertThat(readFromOutbound, instanceOf(AddCredit.class));
-            assertEquals(
-                    inputChannels[0].getInputChannelId(),
-                    ((AddCredit) readFromOutbound).receiverId);
-            assertEquals(2, ((AddCredit) readFromOutbound).credit);
+            assertThat(readFromOutbound).isInstanceOf(AddCredit.class);
+            assertThat(inputChannels[0].getInputChannelId())
+                    .isEqualTo(((AddCredit) readFromOutbound).receiverId);
+            assertThat(((AddCredit) readFromOutbound).credit).isEqualTo(2);
 
             readFromOutbound = channel.readOutbound();
-            assertThat(readFromOutbound, instanceOf(AddCredit.class));
-            assertEquals(
-                    inputChannels[1].getInputChannelId(),
-                    ((AddCredit) readFromOutbound).receiverId);
-            assertEquals(2, ((AddCredit) readFromOutbound).credit);
-            assertNull(channel.readOutbound());
+            assertThat(readFromOutbound).isInstanceOf(AddCredit.class);
+            assertThat(inputChannels[1].getInputChannelId())
+                    .isEqualTo(((AddCredit) readFromOutbound).receiverId);
+            assertThat(((AddCredit) readFromOutbound).credit).isEqualTo(2);
+            assertThat((Object) channel.readOutbound()).isNull();
 
             ByteBuf channelBlockingBuffer = blockChannel(channel);
 
@@ -471,36 +506,36 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             // un-writable channel
             final BufferResponse bufferResponse3 =
                     createBufferResponse(
-                            TestBufferFactory.createBuffer(32),
-                            1,
+                            createBuffer(isFullyFilled, numOfPartialBuffers, 32),
+                            numOfPartialBuffers,
                             inputChannels[0].getInputChannelId(),
                             1,
                             allocator);
             handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse3);
 
-            assertEquals(1, inputChannels[0].getUnannouncedCredit());
-            assertEquals(0, inputChannels[1].getUnannouncedCredit());
+            assertThat(inputChannels[0].getUnannouncedCredit()).isOne();
+            assertThat(inputChannels[1].getUnannouncedCredit()).isZero();
 
             channel.runPendingTasks();
 
             // The input channel will not notify credits via un-writable channel
-            assertFalse(channel.isWritable());
-            assertNull(channel.readOutbound());
+            assertThat(channel.isWritable()).isFalse();
+            assertThat((Object) channel.readOutbound()).isNull();
 
             // Flush the buffer to make the channel writable again
             channel.flush();
-            assertSame(channelBlockingBuffer, channel.readOutbound());
+            assertThat(channelBlockingBuffer).isSameAs(channel.readOutbound());
 
             // The input channel should notify credits via channel's writability changed event
-            assertTrue(channel.isWritable());
+            assertThat(channel.isWritable()).isTrue();
             readFromOutbound = channel.readOutbound();
-            assertThat(readFromOutbound, instanceOf(AddCredit.class));
-            assertEquals(1, ((AddCredit) readFromOutbound).credit);
-            assertEquals(0, inputChannels[0].getUnannouncedCredit());
-            assertEquals(0, inputChannels[1].getUnannouncedCredit());
+            assertThat(readFromOutbound).isInstanceOf(AddCredit.class);
+            assertThat(((AddCredit) readFromOutbound).credit).isOne();
+            assertThat(inputChannels[0].getUnannouncedCredit()).isZero();
+            assertThat(inputChannels[1].getUnannouncedCredit()).isZero();
 
             // no more messages
-            assertNull(channel.readOutbound());
+            assertThat((Object) channel.readOutbound()).isNull();
         } finally {
             releaseResource(inputGate, networkBufferPool);
             channel.close();
@@ -511,8 +546,10 @@ public class CreditBasedPartitionRequestClientHandlerTest {
      * Verifies that {@link RemoteInputChannel} is enqueued in the pipeline, but {@link AddCredit}
      * message is not sent actually when this input channel is released.
      */
-    @Test
-    public void testNotifyCreditAvailableAfterReleased() throws Exception {
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    void testNotifyCreditAvailableAfterReleased(boolean isFullyFilled, int numOfPartialBuffers)
+            throws Exception {
         final CreditBasedPartitionRequestClientHandler handler =
                 new CreditBasedPartitionRequestClientHandler();
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
@@ -523,7 +560,8 @@ public class CreditBasedPartitionRequestClientHandlerTest {
                         mock(ConnectionID.class),
                         mock(PartitionRequestClientFactory.class));
 
-        final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
+        final NetworkBufferPool networkBufferPool =
+                new NetworkBufferPool(10, 32 * numOfPartialBuffers);
         final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
         final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client);
         try {
@@ -532,24 +570,24 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
 
-            inputChannel.requestSubpartition();
+            inputChannel.requestSubpartitions();
 
             // This should send the partition request
             Object readFromOutbound = channel.readOutbound();
-            assertThat(readFromOutbound, instanceOf(PartitionRequest.class));
-            assertEquals(2, ((PartitionRequest) readFromOutbound).credit);
+            assertThat(readFromOutbound).isInstanceOf(PartitionRequest.class);
+            assertThat(((PartitionRequest) readFromOutbound).credit).isEqualTo(2);
 
             // Trigger request floating buffers via buffer response to notify credits available
             final BufferResponse bufferResponse =
                     createBufferResponse(
-                            TestBufferFactory.createBuffer(32),
+                            createBuffer(isFullyFilled, numOfPartialBuffers, 32),
                             0,
                             inputChannel.getInputChannelId(),
                             1,
                             new NetworkBufferAllocator(handler));
             handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
 
-            assertEquals(2, inputChannel.getUnannouncedCredit());
+            assertThat(inputChannel.getUnannouncedCredit()).isEqualTo(2);
 
             // Release the input channel
             inputGate.close();
@@ -557,43 +595,57 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             // it should send a close request after releasing the input channel,
             // but will not notify credits for a released input channel.
             readFromOutbound = channel.readOutbound();
-            assertThat(readFromOutbound, instanceOf(CloseRequest.class));
+            assertThat(readFromOutbound).isInstanceOf(CloseRequest.class);
 
             channel.runPendingTasks();
-
-            assertNull(channel.readOutbound());
+            assertThat((Object) channel.readOutbound()).isNull();
         } finally {
             releaseResource(inputGate, networkBufferPool);
             channel.close();
         }
     }
 
-    @Test
-    public void testReadBufferResponseBeforeReleasingChannel() throws Exception {
-        testReadBufferResponseWithReleasingOrRemovingChannel(false, true);
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    void testReadBufferResponseBeforeReleasingChannel(
+            boolean isFullyFilled, int numOfPartialBuffers) throws Exception {
+        testReadBufferResponseWithReleasingOrRemovingChannel(
+                isFullyFilled, false, true, numOfPartialBuffers);
     }
 
-    @Test
-    public void testReadBufferResponseBeforeRemovingChannel() throws Exception {
-        testReadBufferResponseWithReleasingOrRemovingChannel(true, true);
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    void testReadBufferResponseBeforeRemovingChannel(boolean isFullyFilled, int numOfPartialBuffers)
+            throws Exception {
+        testReadBufferResponseWithReleasingOrRemovingChannel(
+                isFullyFilled, true, true, numOfPartialBuffers);
     }
 
-    @Test
-    public void testReadBufferResponseAfterReleasingChannel() throws Exception {
-        testReadBufferResponseWithReleasingOrRemovingChannel(false, false);
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    void testReadBufferResponseAfterReleasingChannel(boolean isFullyFilled, int numOfPartialBuffers)
+            throws Exception {
+        testReadBufferResponseWithReleasingOrRemovingChannel(
+                isFullyFilled, false, false, numOfPartialBuffers);
     }
 
-    @Test
-    public void testReadBufferResponseAfterRemovingChannel() throws Exception {
-        testReadBufferResponseWithReleasingOrRemovingChannel(true, false);
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    void testReadBufferResponseAfterRemovingChannel(boolean isFullyFilled, int numOfPartialBuffers)
+            throws Exception {
+        testReadBufferResponseWithReleasingOrRemovingChannel(
+                isFullyFilled, true, false, numOfPartialBuffers);
     }
 
-    @Test
-    public void testDoNotFailHandlerOnSingleChannelFailure() throws Exception {
+    @ParameterizedTest(name = "{index} => isFullyFilled={0}, numOfPartialBuffers={1}")
+    @MethodSource("bufferDescriptors")
+    void testDoNotFailHandlerOnSingleChannelFailure(boolean isFullyFilled, int numOfPartialBuffers)
+            throws Exception {
         // Setup
         final int bufferSize = 1024;
         final String expectedMessage = "test exception on buffer";
-        final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize);
+        final NetworkBufferPool networkBufferPool =
+                new NetworkBufferPool(10, bufferSize * numOfPartialBuffers);
         final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
         final RemoteInputChannel inputChannel =
                 new TestRemoteInputChannelForError(inputGate, expectedMessage);
@@ -608,7 +660,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 
             final BufferResponse bufferResponse =
                     createBufferResponse(
-                            TestBufferFactory.createBuffer(bufferSize),
+                            createBuffer(isFullyFilled, numOfPartialBuffers, bufferSize),
                             0,
                             inputChannel.getInputChannelId(),
                             1,
@@ -620,13 +672,11 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             // The handler should not be tagged as error for above excepted exception
             handler.checkError();
 
-            try {
-                // The input channel should be tagged as error and the respective exception is
-                // thrown via #getNext
-                inputGate.getNext();
-            } catch (IOException ignored) {
-                assertEquals(expectedMessage, ignored.getMessage());
-            }
+            // The input channel should be tagged as error and the respective exception is
+            // thrown via #getNext
+            assertThatThrownBy(inputGate::getNext)
+                    .isInstanceOf(IOException.class)
+                    .hasMessage(expectedMessage);
         } finally {
             // Cleanup
             releaseResource(inputGate, networkBufferPool);
@@ -634,7 +684,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
     }
 
     @Test
-    public void testExceptionWrap() {
+    void testExceptionWrap() {
         testExceptionWrap(LocalTransportException.class, new Exception());
         testExceptionWrap(LocalTransportException.class, new Exception("some error"));
         testExceptionWrap(
@@ -642,7 +692,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 
         // Only when Epoll is available the following exception could be initiated normally
         // since it relies on the native strerror method.
-        Assume.assumeTrue(Epoll.isAvailable());
+        assumeThat(Epoll.isAvailable()).isTrue();
         testExceptionWrap(
                 RemoteTransportException.class,
                 new Errors.NativeIoException("readAddress", Errors.ERRNO_ECONNRESET_NEGATIVE));
@@ -652,6 +702,8 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             Class<? extends TransportException> expectedClass, Exception cause) {
         CreditBasedPartitionRequestClientHandler handler =
                 new CreditBasedPartitionRequestClientHandler();
+        handler.setConnectionId(
+                new ConnectionID(ResourceID.generate(), new InetSocketAddress("localhost", 0), 0));
         EmbeddedChannel embeddedChannel =
                 new EmbeddedChannel(
                         // A test handler to trigger the exception.
@@ -665,19 +717,16 @@ public class CreditBasedPartitionRequestClientHandlerTest {
                         handler);
 
         embeddedChannel.writeInbound(1);
-        try {
-            handler.checkError();
-            fail(
-                    String.format(
-                            "The handler should wrap the exception %s as %s, but it does not.",
-                            cause, expectedClass));
-        } catch (IOException e) {
-            assertThat(e, instanceOf(expectedClass));
-        }
+        assertThatThrownBy(() -> handler.checkError())
+                .isInstanceOf(expectedClass)
+                .withFailMessage(
+                        String.format(
+                                "The handler should wrap the exception %s as %s, but it does not.",
+                                cause, expectedClass));
     }
 
     @Test
-    public void testAnnounceBufferSize() throws Exception {
+    void testAnnounceBufferSize() throws Exception {
         final CreditBasedPartitionRequestClientHandler handler =
                 new CreditBasedPartitionRequestClientHandler();
         final EmbeddedChannel channel = new EmbeddedChannel(handler);
@@ -699,8 +748,8 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
 
-            inputChannels[0].requestSubpartition();
-            inputChannels[1].requestSubpartition();
+            inputChannels[0].requestSubpartitions();
+            inputChannels[1].requestSubpartitions();
             channel.readOutbound();
             channel.readOutbound();
 
@@ -709,13 +758,13 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             channel.runPendingTasks();
 
             NettyMessage.NewBufferSize readOutbound = channel.readOutbound();
-            assertThat(readOutbound, instanceOf(NettyMessage.NewBufferSize.class));
-            assertThat(readOutbound.receiverId, is(inputChannels[0].getInputChannelId()));
-            assertThat(readOutbound.bufferSize, is(333));
+            assertThat(readOutbound).isInstanceOf(NettyMessage.NewBufferSize.class);
+            assertThat(inputChannels[0].getInputChannelId()).isEqualTo(readOutbound.receiverId);
+            assertThat(readOutbound.bufferSize).isEqualTo(333);
 
             readOutbound = channel.readOutbound();
-            assertThat(readOutbound.receiverId, is(inputChannels[1].getInputChannelId()));
-            assertThat(readOutbound.bufferSize, is(333));
+            assertThat(inputChannels[1].getInputChannelId()).isEqualTo(readOutbound.receiverId);
+            assertThat(readOutbound.bufferSize).isEqualTo(333);
 
         } finally {
             releaseResource(inputGate, networkBufferPool);
@@ -724,11 +773,16 @@ public class CreditBasedPartitionRequestClientHandlerTest {
     }
 
     private void testReadBufferResponseWithReleasingOrRemovingChannel(
-            boolean isRemoved, boolean readBeforeReleasingOrRemoving) throws Exception {
+            boolean isFullyFilled,
+            boolean isRemoved,
+            boolean readBeforeReleasingOrRemoving,
+            int numOfPartialBuffers)
+            throws Exception {
 
         int bufferSize = 1024;
 
-        NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize);
+        NetworkBufferPool networkBufferPool =
+                new NetworkBufferPool(10, bufferSize * numOfPartialBuffers);
         SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
         RemoteInputChannel inputChannel = new InputChannelBuilder().buildRemoteChannel(inputGate);
         inputGate.setInputChannels(inputChannel);
@@ -750,7 +804,7 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 
             BufferResponse bufferResponse =
                     createBufferResponse(
-                            TestBufferFactory.createBuffer(bufferSize),
+                            createBuffer(isFullyFilled, numOfPartialBuffers, bufferSize),
                             0,
                             inputChannel.getInputChannelId(),
                             1,
@@ -766,19 +820,20 @@ public class CreditBasedPartitionRequestClientHandlerTest {
 
             handler.channelRead(null, bufferResponse);
 
-            assertEquals(0, inputChannel.getNumberOfQueuedBuffers());
+            assertThat(inputChannel.getNumberOfQueuedBuffers()).isZero();
             if (!readBeforeReleasingOrRemoving) {
-                assertNull(bufferResponse.getBuffer());
+                assertThat(bufferResponse.getBuffer()).isNull();
             } else {
-                assertNotNull(bufferResponse.getBuffer());
-                assertTrue(bufferResponse.getBuffer().isRecycled());
+                assertThat(bufferResponse.getBuffer()).isNotNull();
+                assertThat(bufferResponse.getBuffer().isRecycled()).isTrue();
             }
 
             embeddedChannel.runScheduledPendingTasks();
             NettyMessage.CancelPartitionRequest cancelPartitionRequest =
                     embeddedChannel.readOutbound();
-            assertNotNull(cancelPartitionRequest);
-            assertEquals(inputChannel.getInputChannelId(), cancelPartitionRequest.receiverId);
+            assertThat(cancelPartitionRequest).isNotNull();
+            assertThat(inputChannel.getInputChannelId())
+                    .isEqualTo(cancelPartitionRequest.receiverId);
         } finally {
             releaseResource(inputGate, networkBufferPool);
             embeddedChannel.close();
@@ -802,22 +857,82 @@ public class CreditBasedPartitionRequestClientHandlerTest {
             int backlog,
             NetworkBufferAllocator allocator)
             throws IOException {
-        // Mock buffer to serialize
-        BufferResponse resp =
-                new BufferResponse(buffer, sequenceNumber, receivingChannelId, backlog);
+        // Check if the buffer is an instance of FullyFilledBuffer
+        if (buffer instanceof FullyFilledBuffer) {
+            FullyFilledBuffer fullyFilledBuffer = (FullyFilledBuffer) buffer;
+            int partialBuffers = fullyFilledBuffer.getPartialBuffers().size();
 
-        ByteBuf serialized = resp.write(UnpooledByteBufAllocator.DEFAULT);
+            BufferResponse resp =
+                    new BufferResponse(
+                            buffer, sequenceNumber, receivingChannelId, 0, partialBuffers, backlog);
 
-        // Skip general header bytes
-        serialized.readBytes(NettyMessage.FRAME_HEADER_LENGTH);
+            ByteBuf serialized = resp.write(UnpooledByteBufAllocator.DEFAULT);
 
-        // Deserialize the bytes to construct the BufferResponse.
-        return BufferResponse.readFrom(serialized, allocator);
+            // Skip general header bytes
+            serialized.readBytes(NettyMessage.FRAME_HEADER_LENGTH);
+
+            // Deserialize the bytes to construct the BufferResponse.
+            BufferResponse bufferResponse = BufferResponse.readFrom(serialized, allocator);
+
+            // Add partial buffer sizes to the response
+            for (Buffer partialBuffer : fullyFilledBuffer.getPartialBuffers()) {
+                bufferResponse.getPartialBufferSizes().add(partialBuffer.getSize());
+            }
+            return bufferResponse;
+        } else {
+            // Construct BufferResponse normally when there are no partial buffers
+            BufferResponse resp =
+                    new BufferResponse(buffer, sequenceNumber, receivingChannelId, 0, 0, backlog);
+
+            ByteBuf serialized = resp.write(UnpooledByteBufAllocator.DEFAULT);
+
+            // Skip general header bytes
+            serialized.readBytes(NettyMessage.FRAME_HEADER_LENGTH);
+
+            // Deserialize the bytes to construct the BufferResponse.
+            return BufferResponse.readFrom(serialized, allocator);
+        }
+    }
+
+    private static Buffer createBuffer(
+            boolean isFullyFilled, int numOfPartialBuffers, int bufferSize) {
+        if (!isFullyFilled) {
+            return TestBufferFactory.createBuffer(bufferSize);
+        } else {
+            return createFullyFilledBuffer(numOfPartialBuffers, bufferSize);
+        }
+    }
+
+    private static FullyFilledBuffer createFullyFilledBuffer(
+            int numOfPartialBuffers, int bufferSize) {
+        FullyFilledBuffer buffer =
+                new FullyFilledBuffer(
+                        Buffer.DataType.DATA_BUFFER, bufferSize * numOfPartialBuffers, false);
+
+        for (int i = 0; i < numOfPartialBuffers; i++) {
+            buffer.addPartialBuffer(TestBufferFactory.createBuffer(bufferSize));
+        }
+        return buffer;
+    }
+
+    private static Buffer compressBuffer(BufferCompressor compressor, Buffer buffer) {
+        if (buffer instanceof FullyFilledBuffer) {
+            FullyFilledBuffer fullyFilledBuffer = (FullyFilledBuffer) buffer;
+            FullyFilledBuffer newFullyFilledBuffer =
+                    new FullyFilledBuffer(buffer.getDataType(), buffer.getSize(), true);
+            for (Buffer partialBuffer : fullyFilledBuffer.getPartialBuffers()) {
+                newFullyFilledBuffer.addPartialBuffer(
+                        compressor.compressToOriginalBuffer(partialBuffer));
+            }
+            return newFullyFilledBuffer;
+        } else {
+            return compressor.compressToOriginalBuffer(buffer);
+        }
     }
 
     /**
      * The test remote input channel to throw expected exception while calling {@link
-     * RemoteInputChannel#onBuffer(Buffer, int, int)}.
+     * RemoteInputChannel#onBuffer(Buffer, int, int, int)}.
      */
     private static class TestRemoteInputChannelForError extends RemoteInputChannel {
         private final String expectedMessage;
@@ -827,10 +942,11 @@ public class CreditBasedPartitionRequestClientHandlerTest {
                     inputGate,
                     0,
                     new ResultPartitionID(),
-                    0,
+                    new ResultSubpartitionIndexSet(0),
                     InputChannelBuilder.STUB_CONNECTION_ID,
                     new TestingConnectionManager(),
                     0,
+                    100,
                     100,
                     2,
                     new SimpleCounter(),
@@ -840,7 +956,8 @@ public class CreditBasedPartitionRequestClientHandlerTest {
         }
 
         @Override
-        public void onBuffer(Buffer buffer, int sequenceNumber, int backlog) throws IOException {
+        public void onBuffer(Buffer buffer, int sequenceNumber, int backlog, int subpartitionId)
+                throws IOException {
             buffer.recycleBuffer();
             throw new IOException(expectedMessage);
         }

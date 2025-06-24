@@ -19,12 +19,9 @@
 package org.apache.flink.table.dataview;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.LegacySerializerSnapshotTransformer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.base.MapSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.table.api.dataview.MapView;
@@ -143,26 +140,6 @@ public class MapViewSerializer<K, V> extends TypeSerializer<MapView<K, V>>
             TypeSerializerSnapshot<U> legacySnapshot) {
         if (legacySnapshot instanceof MapViewSerializerSnapshot) {
             return (TypeSerializerSnapshot<MapView<K, V>>) legacySnapshot;
-        } else if (legacySnapshot instanceof MapSerializerConfigSnapshot) {
-            // first, transform the incorrect map serializer's snapshot
-            // into a proper ListSerializerSnapshot
-            MapSerializerSnapshot<K, V> transformedNestedMapSerializerSnapshot =
-                    new MapSerializerSnapshot<>();
-            MapSerializerConfigSnapshot<K, V> snapshot =
-                    (MapSerializerConfigSnapshot<K, V>) legacySnapshot;
-            CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
-                    transformedNestedMapSerializerSnapshot,
-                    snapshot.getNestedSerializersAndConfigs().get(0).f1,
-                    snapshot.getNestedSerializersAndConfigs().get(1).f1);
-
-            // then, wrap the transformed MapSerializerSnapshot
-            // as a nested snapshot in the final resulting MapViewSerializerSnapshot
-            MapViewSerializerSnapshot<K, V> transformedMapViewSerializerSnapshot =
-                    new MapViewSerializerSnapshot<>();
-            CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
-                    transformedMapViewSerializerSnapshot, transformedNestedMapSerializerSnapshot);
-
-            return transformedMapViewSerializerSnapshot;
         } else {
             throw new UnsupportedOperationException(
                     legacySnapshot.getClass().getCanonicalName() + " is not supported.");

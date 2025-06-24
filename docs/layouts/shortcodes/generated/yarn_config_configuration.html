@@ -30,13 +30,13 @@
             <td><h5>yarn.application-attempt-failures-validity-interval</h5></td>
             <td style="word-wrap: break-word;">10000</td>
             <td>Long</td>
-            <td>Time window in milliseconds which defines the number of application attempt failures when restarting the AM. Failures which fall outside of this window are not being considered. Set this value to -1 in order to count globally. See <a href="https://hortonworks.com/blog/apache-hadoop-yarn-hdp-2-2-fault-tolerance-features-long-running-services/">here</a> for more information.</td>
+            <td>Time window in milliseconds which defines the number of application attempt failures when restarting the AM. Failures which fall outside of this window are not being considered. Set this value to -1 in order to count globally. See <a href="https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/ResourceManagerRest.html#Cluster_Application_Attempts_API">here</a> for more information.</td>
         </tr>
         <tr>
             <td><h5>yarn.application-attempts</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>Number of ApplicationMaster restarts. By default, the value will be set to 1. If high availability is enabled, then the default value will be 2. The restart number is also limited by YARN (configured via <a href="https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-common/yarn-default.xml">yarn.resourcemanager.am.max-attempts</a>). Note that that the entire Flink cluster will restart and the YARN Client will lose the connection.</td>
+            <td>Integer</td>
+            <td>Number of ApplicationMaster restarts. By default, the value will be set to 1. If high availability is enabled, then the default value will be 2. The restart number is also limited by YARN (configured via <a href="https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-common/yarn-default.xml">yarn.resourcemanager.am.max-attempts</a>). Note that the entire Flink cluster will restart and the YARN Client will lose the connection.</td>
         </tr>
         <tr>
             <td><h5>yarn.application-master.port</h5></td>
@@ -93,6 +93,12 @@
             <td>Defines whether user-jars are included in the system class path as well as their positioning in the path.<br /><br />Possible values:<ul><li>"DISABLED": Exclude user jars from the system class path</li><li>"FIRST": Position at the beginning</li><li>"LAST": Position at the end</li><li>"ORDER": Position based on the name of the jar</li></ul></td>
         </tr>
         <tr>
+            <td><h5>yarn.container-start-command-template</h5></td>
+            <td style="word-wrap: break-word;">"%java% %jvmmem% %jvmopts% %logging% %class% %args% %redirects%"</td>
+            <td>String</td>
+            <td>This configuration parameter allows users to pass custom settings (such as JVM paths, arguments etc.) to start the YARN. The following placeholders will be replaced: <ul><li>%java%: Path to the Java executable</li><li>%jvmmem%: JVM memory limits and tweaks</li><li>%jvmopts%: Options for the Java VM</li><li>%logging%: Logging-related configuration settings</li><li>%class%: Main class to execute</li><li>%args%: Arguments for the main class</li><li>%redirects%: Output redirects</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>yarn.containers.vcores</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
@@ -112,15 +118,21 @@
         </tr>
         <tr>
             <td><h5>yarn.heartbeat.container-request-interval</h5></td>
-            <td style="word-wrap: break-word;">500</td>
-            <td>Integer</td>
-            <td>Time between heartbeats with the ResourceManager in milliseconds if Flink requests containers:<ul><li>The lower this value is, the faster Flink will get notified about container allocations since requests and allocations are transmitted via heartbeats.</li><li>The lower this value is, the more excessive containers might get allocated which will eventually be released but put pressure on Yarn.</li></ul>If you observe too many container allocations on the ResourceManager, then it is recommended to increase this value. See <a href="https://issues.apache.org/jira/browse/YARN-1902">this link</a> for more information.</td>
+            <td style="word-wrap: break-word;">500 ms</td>
+            <td>Duration</td>
+            <td>Time between heartbeats with the ResourceManager if Flink requests containers:<ul><li>The lower this value is, the faster Flink will get notified about container allocations since requests and allocations are transmitted via heartbeats.</li><li>The lower this value is, the more excessive containers might get allocated which will eventually be released but put pressure on Yarn.</li></ul>If you observe too many container allocations on the ResourceManager, then it is recommended to increase this value. See <a href="https://issues.apache.org/jira/browse/YARN-1902">this link</a> for more information.</td>
         </tr>
         <tr>
             <td><h5>yarn.heartbeat.interval</h5></td>
             <td style="word-wrap: break-word;">5</td>
             <td>Integer</td>
             <td>Time between heartbeats with the ResourceManager in seconds.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.modify.acls</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Users and groups to give MODIFY access. The ACLs are of for comma-separated-users&amp;lt;space&amp;gt;comma-separated-groups. Wildcard ACL is also supported. The only valid wildcard ACL is *, which grants permission to all users and groups.</td>
         </tr>
         <tr>
             <td><h5>yarn.properties-file.location</h5></td>
@@ -135,16 +147,34 @@
             <td>A semicolon-separated list of provided lib directories. They should be pre-uploaded and world-readable. Flink will use them to exclude the local Flink jars(e.g. flink-dist, lib/, plugins/)uploading to accelerate the job submission process. Also YARN will cache them on the nodes so that they doesn't need to be downloaded every time for each application. An example could be hdfs://$namenode_address/path/of/flink/lib</td>
         </tr>
         <tr>
-            <td><h5>yarn.security.kerberos.additionalFileSystems</h5></td>
+            <td><h5>yarn.provided.usrlib.dir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The provided usrlib directory in remote. It should be pre-uploaded and world-readable. Flink will use it to exclude the local usrlib directory(i.e. usrlib/ under the parent directory of FLINK_LIB_DIR). Unlike yarn.provided.lib.dirs, YARN will not cache it on the nodes as it is for each application. An example could be hdfs://$namenode_address/path/of/flink/usrlib</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.rolled-logs.exclude-pattern</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Java regular expression to exclude certain log files from rolling log aggregation. Log files matching the defined exclude pattern will be ignored during aggregation. If a log file matches both the include and exclude patterns, the exclude pattern takes precedence and the file will be excluded from aggregation.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.rolled-logs.include-pattern</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Java regular expression to match log file names for inclusion in rolling log aggregation. This regex is used by YARN’s log aggregation mechanism to identify which log files to collect. To enable rolling aggregation in YARN, set the `yarn.nodemanager.log-aggregation.roll-monitoring-interval-seconds` property in `yarn-site.xml`. Ensure that Flink’s Log4J configuration uses FileAppender or a compatible appender that can handle file deletions during runtime. The regex pattern (e.g., `jobmanager*`) must align with the log file names defined in the Log4J configuration (e.g., `jobmanager.log`) to ensure all relevant files will be aggregated.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.security.appmaster.delegation.token.services</h5></td>
+            <td style="word-wrap: break-word;">"hadoopfs"</td>
             <td>List&lt;String&gt;</td>
-            <td>A comma-separated list of additional Kerberos-secured Hadoop filesystems Flink is going to access. For example, yarn.security.kerberos.additionalFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. The client submitting to YARN needs to have access to these file systems to retrieve the security tokens.</td>
+            <td>The delegation token provider services are allowed to pass obtained tokens to YARN application master. For backward compatibility to make log aggregation to work, we add tokens obtained by `hadoopfs` provider to AM by default.</td>
         </tr>
         <tr>
             <td><h5>yarn.security.kerberos.localized-keytab-path</h5></td>
             <td style="word-wrap: break-word;">"krb5.keytab"</td>
             <td>String</td>
-            <td>Local (on NodeManager) path where kerberos keytab file will be localized to. If yarn.security.kerberos.ship-local-keytab set to true, Flink willl ship the keytab file as a YARN local resource. In this case, the path is relative to the local resource directory. If set to false, Flink will try to directly locate the keytab from the path itself.</td>
+            <td>Local (on NodeManager) path where kerberos keytab file will be localized to. If yarn.security.kerberos.ship-local-keytab set to true, Flink will ship the keytab file as a YARN local resource. In this case, the path is relative to the local resource directory. If set to false, Flink will try to directly locate the keytab from the path itself.</td>
         </tr>
         <tr>
             <td><h5>yarn.security.kerberos.ship-local-keytab</h5></td>
@@ -156,13 +186,13 @@
             <td><h5>yarn.ship-archives</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
-            <td>A semicolon-separated list of archives to be shipped to the YARN cluster. These archives will be un-packed when localizing and they can be any of the following types: ".tar.gz", ".tar", ".tgz", ".dst", ".jar", ".zip".</td>
+            <td>A semicolon-separated list of archives to be shipped to the YARN cluster. These archives can come from the local path of flink client or HDFS. They will be un-packed when localizing and they can be any of the following types: ".tar.gz", ".tar", ".tgz", ".dst", ".jar", ".zip". For example, "/path/to/local/archive.jar;hdfs://$namenode_address/path/to/archive.jar"</td>
         </tr>
         <tr>
             <td><h5>yarn.ship-files</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
-            <td>A semicolon-separated list of files and/or directories to be shipped to the YARN cluster.</td>
+            <td>A semicolon-separated list of files and/or directories to be shipped to the YARN cluster. These files/directories can come from the local path of flink client or HDFS. For example, "/path/to/local/file;/path/to/local/directory;hdfs://$namenode_address/path/of/file;hdfs://$namenode_address/path/of/directory"</td>
         </tr>
         <tr>
             <td><h5>yarn.staging-directory</h5></td>
@@ -181,6 +211,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Specify YARN node label for the Flink TaskManagers, it will override the yarn.application.node-label for TaskManagers if both are set.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.view.acls</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Users and groups to give VIEW access. The ACLs are of for comma-separated-users&amp;lt;space&amp;gt;comma-separated-groups. Wildcard ACL is also supported. The only valid wildcard ACL is *, which grants permission to all users and groups.</td>
         </tr>
     </tbody>
 </table>

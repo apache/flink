@@ -21,9 +21,12 @@ package org.apache.flink.formats.csv;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.formats.common.Converter;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonEncoding;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
@@ -39,7 +42,7 @@ class CsvBulkWriter<T, R, C> implements BulkWriter<T> {
     private final FSDataOutputStream stream;
     private final Converter<T, R, C> converter;
     @Nullable private final C converterContext;
-    private final ObjectWriter csvWriter;
+    private final JsonGenerator generator;
 
     CsvBulkWriter(
             CsvMapper mapper,
@@ -50,13 +53,18 @@ class CsvBulkWriter<T, R, C> implements BulkWriter<T> {
         checkNotNull(mapper);
         checkNotNull(schema);
 
+        // Prevent Jackson's writeValue() method calls from closing the stream.
+        mapper.getFactory().disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+        mapper.disable(SerializationFeature.FLUSH_AFTER_WRITE_VALUE);
+
         this.converter = checkNotNull(converter);
         this.stream = checkNotNull(stream);
         this.converterContext = converterContext;
-        this.csvWriter = mapper.writer(schema);
-
-        // Prevent Jackson's writeValue() method calls from closing the stream.
-        mapper.getFactory().disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+        try {
+            this.generator = mapper.writer(schema).createGenerator(stream, JsonEncoding.UTF8);
+        } catch (IOException e) {
+            throw new FlinkRuntimeException("Could not create CSV generator.", e);
+        }
     }
 
     /**
@@ -89,7 +97,7 @@ class CsvBulkWriter<T, R, C> implements BulkWriter<T> {
      */
     static <T> CsvBulkWriter<T, T, Void> forPojo(Class<T> pojoClass, FSDataOutputStream stream) {
         final Converter<T, T, Void> converter = (value, context) -> value;
-        final CsvMapper csvMapper = new CsvMapper();
+        final CsvMapper csvMapper = JacksonMapperFactory.createCsvMapper();
         final CsvSchema schema = csvMapper.schemaFor(pojoClass).withoutQuoteChar();
         return new CsvBulkWriter<>(csvMapper, schema, converter, null, stream);
     }
@@ -97,16 +105,17 @@ class CsvBulkWriter<T, R, C> implements BulkWriter<T> {
     @Override
     public void addElement(T element) throws IOException {
         final R r = converter.convert(element, converterContext);
-        csvWriter.writeValue(stream, r);
+        generator.writeObject(r);
     }
 
     @Override
     public void flush() throws IOException {
-        stream.flush();
+        generator.flush();
     }
 
     @Override
     public void finish() throws IOException {
+        generator.close();
         stream.sync();
     }
 }

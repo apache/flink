@@ -18,10 +18,22 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.internal.TableResultInternal;
+
+import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
+
 /** Operation to describe a SHOW CURRENT CATALOG statement. */
+@Internal
 public class ShowCurrentCatalogOperation implements ShowOperation {
     @Override
     public String asSummaryString() {
         return "SHOW CURRENT CATALOG";
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        return buildStringArrayResult(
+                "current catalog name", new String[] {ctx.getCatalogManager().getCurrentCatalog()});
     }
 }

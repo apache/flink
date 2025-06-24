@@ -50,7 +50,7 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
     private final MemorySegment memorySegment;
 
     /** The recycler for the backing {@link MemorySegment}. */
-    private final BufferRecycler recycler;
+    private BufferRecycler recycler;
 
     /** The {@link DataType} this buffer represents. */
     private DataType dataType;
@@ -152,6 +152,11 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
     }
 
     @Override
+    public void setRecycler(BufferRecycler bufferRecycler) {
+        this.recycler = bufferRecycler;
+    }
+
+    @Override
     public void recycleBuffer() {
         release();
     }
@@ -173,8 +178,10 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 
     @Override
     public ReadOnlySlicedNetworkBuffer readOnlySlice(int index, int length) {
-        checkState(!isCompressed, "Unable to slice a compressed buffer.");
-        return new ReadOnlySlicedNetworkBuffer(this, index, length);
+        checkState(
+                !isCompressed || index + length != writerIndex(),
+                "Unable to partially slice a compressed buffer.");
+        return new ReadOnlySlicedNetworkBuffer(this, index, length, isCompressed);
     }
 
     @Override

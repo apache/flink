@@ -61,21 +61,13 @@ created for an job/application and will contain the job/application's jar files.
 
 -->
 
-**Per-Job Mode (deprecated) (Yarn)**
-
-Currently, only Yarn supports Per-Job mode. By default, running a Flink cluster in Per-Job mode will include the user jars 
-(the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder) into the system classpath (the *AppClassLoader*).
-This behavior can be controlled with the [yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar) config option. 
-When setting it to `DISABLED`, Flink will include the user jars in the user classpath and load them dynamically by *FlinkUserCodeClassLoader*.
-See [Flink on Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}) for more details.
-
 **Application Mode (Standalone/Yarn/Kubernetes)**
 
 When run a Standalone/Kubernetes Flink cluster in Application Mode, the user jars (the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder)
 will be loaded dynamically by *FlinkUserCodeClassLoader*.
 
 When run a Yarn Flink cluster in Application Mode, the user jars (the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder)
-will be included into the system classpath (the *AppClassLoader*) by default. Same as Per-Job mode, when setting the [yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar)
+will be included into the system classpath (the *AppClassLoader*) by default. When setting the [yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar)
 to `DISABLED`, Flink will include the user jars in the user classpath and load them dynamically by *FlinkUserCodeClassLoader*.
 
 ## Inverted Class Loading and ClassLoader Resolution Order
@@ -100,9 +92,9 @@ For user code classloading, you can revert back to Java's default mode by config
 
 Please note that certain classes are always resolved in a *parent-first* way (through the parent ClassLoader first), because they
 are shared between Flink's core and the plugin/user code or the plugin/user-code facing APIs. The packages for these classes are configured via 
-[`classloader.parent-first-patterns-default`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-default) and
-[`classloader.parent-first-patterns-additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-additional).
-To add new packages to be *parent-first* loaded, please set the `classloader.parent-first-patterns-additional` config option.
+[`classloader.parent-first-patterns.default`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns.default) and
+[`classloader.parent-first-patterns.additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns.additional).
+To add new packages to be *parent-first* loaded, please set the `classloader.parent-first-patterns.additional` config option.
 
 
 ## Avoiding Dynamic Classloading for User Code
@@ -139,7 +131,7 @@ This means that multiple versions of the class `com.foo.X` have been loaded by d
 
 One common reason is that a library is not compatible with Flink's *inverted classloading* approach. You can turn off inverted classloading
 to verify this (set [`classloader.resolve-order: parent-first`]({{< ref "docs/deployment/config" >}}#classloader-resolve-order) in the Flink config) or exclude
-the library from inverted classloading (set [`classloader.parent-first-patterns-additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-additional)
+the library from inverted classloading (set [`classloader.parent-first-patterns.additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns.additional)
 in the Flink config).
 
 Another cause can be cached object instances, as produced by some libraries like *Apache Avro*, or by interning objects (for example via Guava's Interners).
@@ -166,7 +158,9 @@ Common causes for class leaks and suggested fixes:
     interners, or Avro's class/object caches in the serializers.
 
   - *JDBC*: JDBC drivers leak references outside the user code classloader. To ensure that these classes are only loaded once
-   you should either add the driver jars to Flink's `lib/` folder, or add the driver classes to the list of parent-first loaded class via [`classloader.parent-first-patterns-additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns-additional).
+   you should add the driver jars to Flink's `lib/` folder instead of bundling them in the user-jar. 
+   If you can't guarantee that none of your user-jars bundle the driver, you have to additionally add the driver classes to the list of parent-first
+   loaded classes via [`classloader.parent-first-patterns.additional`]({{< ref "docs/deployment/config" >}}#classloader-parent-first-patterns.additional).
 
 A helpful tool for unloading dynamically loaded classes are the user code class loader release hooks. These are hooks which are executed prior to the unloading of a classloader. It is generally recommended to shutdown and unload resources as part of the regular function lifecycle (typically the `close()` methods). But in some cases (for example for static fields), it is better to unload once a classloader is certainly not needed anymore.
 

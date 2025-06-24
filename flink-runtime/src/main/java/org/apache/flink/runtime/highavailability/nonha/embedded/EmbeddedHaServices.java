@@ -21,7 +21,7 @@ package org.apache.flink.runtime.highavailability.nonha.embedded;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.AbstractNonHaServices;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.Preconditions;
 
@@ -76,13 +76,13 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
     }
 
     @Override
-    public LeaderElectionService getResourceManagerLeaderElectionService() {
-        return resourceManagerLeaderService.createLeaderElectionService();
+    public LeaderElection getResourceManagerLeaderElection() {
+        return resourceManagerLeaderService.createLeaderElectionService("resource_manager");
     }
 
     @Override
-    public LeaderElectionService getDispatcherLeaderElectionService() {
-        return dispatcherLeaderService.createLeaderElectionService();
+    public LeaderElection getDispatcherLeaderElection() {
+        return dispatcherLeaderService.createLeaderElectionService("dispatcher");
     }
 
     @Override
@@ -108,19 +108,19 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
     }
 
     @Override
-    public LeaderElectionService getJobManagerLeaderElectionService(JobID jobID) {
+    public LeaderElection getJobManagerLeaderElection(JobID jobID) {
         checkNotNull(jobID);
 
         synchronized (lock) {
             checkNotShutdown();
             EmbeddedLeaderService service = getOrCreateJobManagerService(jobID);
-            return service.createLeaderElectionService();
+            return service.createLeaderElectionService("job-" + jobID);
         }
     }
 
     @Override
-    public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
-        return clusterRestEndpointLeaderService.createLeaderElectionService();
+    public LeaderElection getClusterRestEndpointLeaderElection() {
+        return clusterRestEndpointLeaderService.createLeaderElectionService("rest_server");
     }
 
     // ------------------------------------------------------------------------

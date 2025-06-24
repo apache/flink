@@ -55,4 +55,12 @@ public interface SchedulingStrategy {
      * @param resultPartitionId The id of the result partition
      */
     void onPartitionConsumable(IntermediateResultPartitionID resultPartitionId);
+
+    /**
+     * Schedules all vertices and excludes any vertices that are already finished or whose inputs
+     * are not yet ready.
+     */
+    default void scheduleAllVerticesIfPossible() {
+        throw new UnsupportedOperationException();
+    }
 }

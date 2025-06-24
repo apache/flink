@@ -51,12 +51,18 @@ Flink natively support various connectors. The following tables list all availab
     <tr>
       <td><a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
       <td></td>
-      <td>Bounded and Unbounded Scan, Lookup</td>
+      <td>Bounded and Unbounded Scan</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
       <td><a href="{{< ref "docs/connectors/table/elasticsearch" >}}">Elasticsearch</a></td>
       <td>6.x & 7.x</td>
+      <td>Not supported</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/opensearch" >}}">Opensearch</a></td>
+      <td>1.x & 2.x</td>
       <td>Not supported</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
@@ -67,9 +73,21 @@ Flink natively support various connectors. The following tables list all availab
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
+      <td><a href="{{< ref "docs/connectors/table/dynamodb" >}}">Amazon DynamoDB</a></td>
+      <td></td>
+      <td>Not supported</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
       <td><a href="{{< ref "docs/connectors/table/kinesis" >}}">Amazon Kinesis Data Streams</a></td>
       <td></td>
       <td>Unbounded Scan</td>
+      <td>Streaming Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/firehose" >}}">Amazon Kinesis Data Firehose</a></td>
+      <td></td>
+      <td>Not supported</td>
       <td>Streaming Sink</td>
     </tr>
     <tr>
@@ -88,6 +106,12 @@ Flink natively support various connectors. The following tables list all availab
       <td><a href="{{< ref "docs/connectors/table/hive/overview" >}}">Apache Hive</a></td>
       <td><a href="{{< ref "docs/connectors/table/hive/overview" >}}#supported-hive-versions">Supported Versions</a></td>
       <td>Unbounded Scan, Bounded Scan, Lookup</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/mongodb" >}}">MongoDB</a></td>
+      <td>3.6.x & 4.x & 5.x & 6.0.x</td>
+      <td>Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     </tbody>
@@ -144,7 +168,7 @@ Transform table connector/format resources
 
 Flink uses Java's [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) to load the table connector/format factories by their identifiers. Since the SPI resource file named `org.apache.flink.table.factories.Factory` for every table connector/format is under the same directory `META-INF/services`, these resource files will override each other when build the uber-jar of the project which uses more than one table connector/format, which will cause Flink to fail to load table connector/format factories.
 
-In this situation, the recommended way is transforming these resource files under the directory `META-INF/services` by [ServicesResourceTransformer](https://maven.apache.org/plugins/maven-shade-plugin/examples/resource-transformers.html) of maven shade plugin. Given the pom.xml file content of example that contains connector `flink-sql-connector-hive-3.1.2` and format `flink-parquet` in a project.
+In this situation, the recommended way is transforming these resource files under the directory `META-INF/services` by [ServicesResourceTransformer](https://maven.apache.org/plugins/maven-shade-plugin/examples/resource-transformers.html) of maven shade plugin. Given the pom.xml file content of example that contains connector `flink-sql-connector-hive-3.1.3` and format `flink-parquet` in a project.
 
 ```xml
 
@@ -157,7 +181,7 @@ In this situation, the recommended way is transforming these resource files unde
         <!--  other project dependencies  ...-->
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-sql-connector-hive-3.1.2{{< scala_version >}}</artifactId>
+            <artifactId>flink-sql-connector-hive-3.1.3</artifactId>
             <version>{{< version >}}</version>
         </dependency>
 

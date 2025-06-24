@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.executors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.deployment.executors.AbstractSessionClusterExecutor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.kubernetes.KubernetesClusterClientFactory;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
@@ -31,7 +32,7 @@ public class KubernetesSessionClusterExecutor
 
     public static final String NAME = KubernetesDeploymentTarget.SESSION.getName();
 
-    public KubernetesSessionClusterExecutor() {
-        super(new KubernetesClusterClientFactory());
+    public KubernetesSessionClusterExecutor(Configuration configuration) {
+        super(new KubernetesClusterClientFactory(), configuration);
     }
 }

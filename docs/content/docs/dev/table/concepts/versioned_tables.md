@@ -127,6 +127,7 @@ The `JSON` format does not support native changelog semantics, so Flink can only
 +(INSERT)        09:00:00      Euro       114
 +(INSERT)        09:00:00      USD        1
 +(INSERT)        11:15:00      Euro       119
++(INSERT)        11:45:00      Pounds     107
 +(INSERT)        11:49:00      Pounds     108
 ```
 
@@ -152,9 +153,9 @@ WHERE rownum = 1;
 +(INSERT)        09:00:00      Yen        102
 +(INSERT)        09:00:00      Euro       114
 +(INSERT)        09:00:00      USD        1
-+(UPDATE_AFTER)  10:45:00      Euro       116
 +(UPDATE_AFTER)  11:15:00      Euro       119
-+(INSERT)        11:49:00      Pounds     108
++(INSERT)        11:45:00      Pounds     107
++(UPDATE_AFTER)  11:49:00      Pounds     108
 ```
 
 Flink has a special optimization step that will efficiently transform this query into a versioned
@@ -163,12 +164,8 @@ In general, the results of a query with the following format produces a versione
 
 ```sql
 SELECT [column_list]
-FROM (
-   SELECT [column_list],
-     ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]]
-       ORDER BY time_attr DESC) AS rownum
-   FROM table_name)
-WHERE rownum = 1
+FROM table_name
+QUALIFY ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]] ORDER BY time_attr [asc|desc]) = 1
 ```
 
 **Parameter Specification:**

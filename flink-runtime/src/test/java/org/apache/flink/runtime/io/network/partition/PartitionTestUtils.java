@@ -31,14 +31,12 @@ import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 
-import org.hamcrest.Matchers;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This class should consolidate all mocking logic for ResultPartitions. While using Mockito
@@ -108,20 +106,26 @@ public enum PartitionTestUtils {
         final ResultPartitionManager partitionManager = new ResultPartitionManager();
         final ResultPartition parent = subpartition.parent;
         partitionManager.registerResultPartition(parent);
-        return partitionManager.createSubpartitionView(parent.partitionId, 0, listener);
+        return partitionManager.createSubpartitionView(
+                parent.partitionId, new ResultSubpartitionIndexSet(0), listener);
     }
 
     static void verifyCreateSubpartitionViewThrowsException(
-            ResultPartitionProvider partitionManager, ResultPartitionID partitionId)
-            throws IOException {
-        try {
-            partitionManager.createSubpartitionView(
-                    partitionId, 0, new NoOpBufferAvailablityListener());
-
-            fail("Should throw a PartitionNotFoundException.");
-        } catch (PartitionNotFoundException notFound) {
-            assertThat(partitionId, Matchers.is(notFound.getPartitionId()));
-        }
+            ResultPartitionProvider partitionManager, ResultPartitionID partitionId) {
+        assertThatThrownBy(
+                        () ->
+                                partitionManager.createSubpartitionView(
+                                        partitionId,
+                                        new ResultSubpartitionIndexSet(0),
+                                        new NoOpBufferAvailablityListener()))
+                .as("Should throw a PartitionNotFoundException.")
+                .isInstanceOf(PartitionNotFoundException.class)
+                .satisfies(
+                        err ->
+                                assertThat(partitionId)
+                                        .isEqualTo(
+                                                ((PartitionNotFoundException) err)
+                                                        .getPartitionId()));
     }
 
     public static ResultPartitionDeploymentDescriptor createPartitionDeploymentDescriptor(
@@ -143,7 +147,7 @@ public enum PartitionTestUtils {
             int bufferSize,
             byte[] dataBytes)
             throws Exception {
-        List<BufferWithChannel> buffers = new ArrayList<>();
+        List<BufferWithSubpartition> buffers = new ArrayList<>();
         for (int i = 0; i < numSubpartitions; ++i) {
             for (int j = 0; j < numBuffersPerSubpartition; ++j) {
                 Buffer.DataType dataType =
@@ -156,12 +160,17 @@ public enum PartitionTestUtils {
                 Buffer buffer =
                         new NetworkBuffer(
                                 segment, FreeingBufferRecycler.INSTANCE, dataType, bufferSize);
-                buffers.add(new BufferWithChannel(buffer, i));
+                buffers.add(new BufferWithSubpartition(buffer, i));
             }
         }
 
+        int[] writeOrder = new int[numSubpartitions];
+        for (int i = 0; i < numSubpartitions; i++) {
+            writeOrder[i] = i;
+        }
+
         PartitionedFileWriter fileWriter =
-                new PartitionedFileWriter(numSubpartitions, 1024, basePath);
+                new PartitionedFileWriter(numSubpartitions, 1024, basePath, writeOrder);
         fileWriter.startNewRegion(false);
         fileWriter.writeBuffers(buffers);
         return fileWriter.finish();

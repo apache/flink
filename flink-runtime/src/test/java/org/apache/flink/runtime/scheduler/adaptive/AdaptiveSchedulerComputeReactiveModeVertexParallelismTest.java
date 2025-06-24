@@ -22,64 +22,67 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test vertex parallelism configuration for the {@link AdaptiveScheduler} in Reactive mode. */
-@RunWith(Parameterized.class)
-public class AdaptiveSchedulerComputeReactiveModeVertexParallelismTest extends TestLogger {
-    @Parameterized.Parameters(
+@ExtendWith(ParameterizedTestExtension.class)
+class AdaptiveSchedulerComputeReactiveModeVertexParallelismTest {
+    @Parameters(
             name =
                     "parallelism = {0}, maxParallelism = {1}, expected max = {2}, rescale to = {3}, can rescale = {4}")
-    public static Object[][] data() {
-        return new Object[][] {
-            // default minimum and rescale to higher
-            {1, JobVertex.MAX_PARALLELISM_DEFAULT, 128, 129, true},
-            // test round up part 1 and rescale to lower
-            {171, JobVertex.MAX_PARALLELISM_DEFAULT, 256, 42, false},
-            // test round up part 2 and rescale to equal
-            {172, JobVertex.MAX_PARALLELISM_DEFAULT, 512, 512, true},
-            // test round up limit and rescale to equal
-            {
-                UPPER_BOUND_MAX_PARALLELISM,
-                JobVertex.MAX_PARALLELISM_DEFAULT,
-                UPPER_BOUND_MAX_PARALLELISM,
-                UPPER_BOUND_MAX_PARALLELISM,
-                true
-            },
-            // test configured / takes precedence computed default and rescale to lower
-            {4, UPPER_BOUND_MAX_PARALLELISM, UPPER_BOUND_MAX_PARALLELISM, 3, false},
-            // test override takes precedence test configured 2 and rescale to higher
-            {4, 7, 7, UPPER_BOUND_MAX_PARALLELISM, true},
-        };
+    private static Collection<Object[]> data() {
+        return Arrays.asList(
+                // default minimum and rescale to higher
+                new Object[] {1, JobVertex.MAX_PARALLELISM_DEFAULT, 128, 129, true},
+                // test round up part 1 and rescale to lower
+                new Object[] {171, JobVertex.MAX_PARALLELISM_DEFAULT, 256, 42, false},
+                // test round up part 2 and rescale to equal
+                new Object[] {172, JobVertex.MAX_PARALLELISM_DEFAULT, 512, 512, true},
+                // test round up limit and rescale to equal
+                new Object[] {
+                    UPPER_BOUND_MAX_PARALLELISM,
+                    JobVertex.MAX_PARALLELISM_DEFAULT,
+                    UPPER_BOUND_MAX_PARALLELISM,
+                    UPPER_BOUND_MAX_PARALLELISM,
+                    true
+                },
+                // test configured / takes precedence computed default and rescale to lower
+                new Object[] {
+                    4, UPPER_BOUND_MAX_PARALLELISM, UPPER_BOUND_MAX_PARALLELISM, 3, false
+                },
+                // test override takes precedence test configured 2 and rescale to higher
+                new Object[] {4, 7, 7, UPPER_BOUND_MAX_PARALLELISM, true});
     }
 
-    @Parameterized.Parameter(0)
-    public int parallelism;
+    @Parameter private int parallelism;
 
-    @Parameterized.Parameter(1)
-    public int maxParallelism;
+    @Parameter(1)
+    private int maxParallelism;
 
-    @Parameterized.Parameter(2)
-    public int expectedMaxParallelism;
+    @Parameter(2)
+    private int expectedMaxParallelism;
 
-    @Parameterized.Parameter(3)
-    public int maxToScaleTo;
+    @Parameter(3)
+    private int maxToScaleTo;
 
-    @Parameterized.Parameter(4)
-    public boolean expectedCanRescaleTo;
+    @Parameter(4)
+    private boolean expectedCanRescaleTo;
 
-    @Test
-    public void testCreateStoreWithoutAdjustedParallelism() {
+    @TestTemplate
+    void testCreateStoreWithoutAdjustedParallelism() {
         JobVertex jobVertex = createNoOpVertex("test", parallelism, maxParallelism);
         VertexParallelismStore store =
                 AdaptiveScheduler.computeReactiveModeVertexParallelismStore(
@@ -89,17 +92,16 @@ public class AdaptiveSchedulerComputeReactiveModeVertexParallelismTest extends T
 
         VertexParallelismInformation info = store.getParallelismInfo(jobVertex.getID());
 
-        Assert.assertEquals("parallelism is not adjusted", parallelism, info.getParallelism());
-        Assert.assertEquals("expected max", expectedMaxParallelism, info.getMaxParallelism());
+        assertThat(info.getParallelism()).as("parallelism is not adjusted").isEqualTo(parallelism);
+        assertThat(info.getMaxParallelism()).as("expected max").isEqualTo(expectedMaxParallelism);
 
-        Assert.assertEquals(
-                "can rescale max",
-                expectedCanRescaleTo,
-                info.canRescaleMaxParallelism(maxToScaleTo));
+        assertThat(info.canRescaleMaxParallelism(maxToScaleTo))
+                .as("can rescale max")
+                .isEqualTo(expectedCanRescaleTo);
     }
 
-    @Test
-    public void testCreateStoreWithAdjustedParallelism() {
+    @TestTemplate
+    void testCreateStoreWithAdjustedParallelism() {
         JobVertex jobVertex = createNoOpVertex("test", parallelism, maxParallelism);
         VertexParallelismStore store =
                 AdaptiveScheduler.computeReactiveModeVertexParallelismStore(
@@ -109,13 +111,13 @@ public class AdaptiveSchedulerComputeReactiveModeVertexParallelismTest extends T
 
         VertexParallelismInformation info = store.getParallelismInfo(jobVertex.getID());
 
-        Assert.assertEquals(
-                "parallelism is adjusted to max", expectedMaxParallelism, info.getParallelism());
-        Assert.assertEquals("expected max", expectedMaxParallelism, info.getMaxParallelism());
+        assertThat(info.getParallelism())
+                .as("parallelism is adjusted to max")
+                .isEqualTo(expectedMaxParallelism);
+        assertThat(info.getMaxParallelism()).as("expected max").isEqualTo(expectedMaxParallelism);
 
-        Assert.assertEquals(
-                "can rescale max",
-                expectedCanRescaleTo,
-                info.canRescaleMaxParallelism(maxToScaleTo));
+        assertThat(info.canRescaleMaxParallelism(maxToScaleTo))
+                .as("can rescale max")
+                .isEqualTo(expectedCanRescaleTo);
     }
 }

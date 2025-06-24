@@ -18,14 +18,11 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.slotmanager.DeclarativeSlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultResourceAllocationStrategy;
 import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultResourceTracker;
 import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultSlotStatusSyncer;
-import org.apache.flink.runtime.resourcemanager.slotmanager.DefaultSlotTracker;
 import org.apache.flink.runtime.resourcemanager.slotmanager.FineGrainedSlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.FineGrainedTaskManagerTracker;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
@@ -36,9 +33,6 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 /** Container class for the {@link ResourceManager} services. */
 public class ResourceManagerRuntimeServices {
-    // We currently make the delay of requirements check a constant time. This delay might be
-    // configurable by user in the future.
-    private static final long REQUIREMENTS_CHECK_DELAY_MS = 50L;
 
     private final SlotManager slotManager;
     private final JobLeaderIdService jobLeaderIdService;
@@ -81,27 +75,22 @@ public class ResourceManagerRuntimeServices {
             SlotManagerMetricGroup slotManagerMetricGroup) {
         final SlotManagerConfiguration slotManagerConfiguration =
                 configuration.getSlotManagerConfiguration();
-        if (configuration.isEnableFineGrainedResourceManagement()) {
-            return new FineGrainedSlotManager(
-                    scheduledExecutor,
-                    slotManagerConfiguration,
-                    slotManagerMetricGroup,
-                    new DefaultResourceTracker(),
-                    new FineGrainedTaskManagerTracker(),
-                    new DefaultSlotStatusSyncer(
-                            slotManagerConfiguration.getTaskManagerRequestTimeout()),
-                    new DefaultResourceAllocationStrategy(
-                            SlotManagerUtils.generateTaskManagerTotalResourceProfile(
-                                    slotManagerConfiguration.getDefaultWorkerResourceSpec()),
-                            slotManagerConfiguration.getNumSlotsPerWorker()),
-                    Time.milliseconds(REQUIREMENTS_CHECK_DELAY_MS));
-        } else {
-            return new DeclarativeSlotManager(
-                    scheduledExecutor,
-                    slotManagerConfiguration,
-                    slotManagerMetricGroup,
-                    new DefaultResourceTracker(),
-                    new DefaultSlotTracker());
-        }
+        return new FineGrainedSlotManager(
+                scheduledExecutor,
+                slotManagerConfiguration,
+                slotManagerMetricGroup,
+                new DefaultResourceTracker(),
+                new FineGrainedTaskManagerTracker(),
+                new DefaultSlotStatusSyncer(
+                        slotManagerConfiguration.getTaskManagerRequestTimeout()),
+                new DefaultResourceAllocationStrategy(
+                        SlotManagerUtils.generateTaskManagerTotalResourceProfile(
+                                slotManagerConfiguration.getDefaultWorkerResourceSpec()),
+                        slotManagerConfiguration.getNumSlotsPerWorker(),
+                        slotManagerConfiguration.getTaskManagerLoadBalanceMode(),
+                        slotManagerConfiguration.getTaskManagerTimeout(),
+                        slotManagerConfiguration.getRedundantTaskManagerNum(),
+                        slotManagerConfiguration.getMinTotalCpu(),
+                        slotManagerConfiguration.getMinTotalMem()));
     }
 }

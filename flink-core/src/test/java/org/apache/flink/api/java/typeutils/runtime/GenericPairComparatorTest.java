@@ -35,7 +35,7 @@ public class GenericPairComparatorTest
                 Tuple3<Integer, String, Double>, Tuple4<Integer, Float, Long, Double>> {
 
     @SuppressWarnings("unchecked")
-    private Tuple3<Integer, String, Double>[] dataISD =
+    private final Tuple3<Integer, String, Double>[] dataISD =
             new Tuple3[] {
                 new Tuple3<Integer, String, Double>(4, "hello", 20.0),
                 new Tuple3<Integer, String, Double>(4, "world", 23.2),
@@ -48,7 +48,7 @@ public class GenericPairComparatorTest
             };
 
     @SuppressWarnings("unchecked")
-    private Tuple4<Integer, Float, Long, Double>[] dataIDL =
+    private final Tuple4<Integer, Float, Long, Double>[] dataIDL =
             new Tuple4[] {
                 new Tuple4<Integer, Float, Long, Double>(4, 0.11f, 14L, 20.0),
                 new Tuple4<Integer, Float, Long, Double>(4, 0.221f, 15L, 23.2),

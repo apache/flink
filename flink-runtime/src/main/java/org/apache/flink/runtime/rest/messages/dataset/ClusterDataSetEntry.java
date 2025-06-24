@@ -28,7 +28,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
  *
  * @see ClusterDataSetListResponseBody
  */
-class ClusterDataSetEntry {
+public class ClusterDataSetEntry {
     private static final String FIELD_NAME_DATA_SET_ID = "id";
     private static final String FIELD_NAME_COMPLETE = "isComplete";
 

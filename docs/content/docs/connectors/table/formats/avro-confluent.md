@@ -264,6 +264,14 @@ Format Options
             <td>Password for SSL truststore</td>
         </tr>
         <tr>
+            <td><h5>avro-confluent.schema</h5></td>
+            <td>optional</td>
+            <td>no</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The schema registered or to be registered in the Confluent Schema Registry. If no schema is provided Flink converts the table schema to avro schema. The schema provided must match the table schema.</td>
+        </tr>
+        <tr>
             <td><h5>avro-confluent.subject</h5></td>
             <td>optional</td>
             <td>yes</td>
@@ -290,4 +298,4 @@ See the [Apache Avro Format]({{< ref "docs/connectors/table/formats/avro" >}}#da
 
 In addition to the types listed there, Flink supports reading/writing nullable types. Flink maps nullable types to Avro `union(something, null)`, where `something` is the Avro type converted from Flink type.
 
-You can refer to [Avro Specification](https://avro.apache.org/docs/current/spec.html) for more information about Avro types.
+You can refer to [Avro Specification](https://avro.apache.org/docs/++version++/specification/) for more information about Avro types.

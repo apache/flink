@@ -21,27 +21,38 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Simple container class which contains the raw/managed operator state and key-group state handles
- * from all sub tasks of an operator and therefore represents the complete state of a logical
+ * from all subtasks of an operator and therefore represents the complete state of a logical
  * operator.
  */
 public class OperatorState implements CompositeStateHandle {
 
     private static final long serialVersionUID = -4845578005863201810L;
+
+    /** The name of the operator. */
+    @Nullable private String operatorName;
+
+    /** The Uid of the operator. */
+    @Nullable private String operatorUid;
 
     /** The id of the operator. */
     private final OperatorID operatorID;
@@ -56,12 +67,17 @@ public class OperatorState implements CompositeStateHandle {
     private final int parallelism;
 
     /**
-     * The maximum parallelism (for number of keygroups) of the operator when the job was first
+     * The maximum parallelism (for number of KeyGroups) of the operator when the job was first
      * created.
      */
     private final int maxParallelism;
 
-    public OperatorState(OperatorID operatorID, int parallelism, int maxParallelism) {
+    public OperatorState(
+            @Nullable String operatorName,
+            @Nullable String operatorUid,
+            OperatorID operatorID,
+            int parallelism,
+            int maxParallelism) {
         if (parallelism > maxParallelism) {
             throw new IllegalArgumentException(
                     String.format(
@@ -69,12 +85,30 @@ public class OperatorState implements CompositeStateHandle {
                             parallelism, maxParallelism));
         }
 
+        this.operatorName = operatorName;
+        this.operatorUid = operatorUid;
         this.operatorID = operatorID;
 
-        this.operatorSubtaskStates = new HashMap<>(parallelism);
+        this.operatorSubtaskStates = CollectionUtil.newHashMapWithExpectedSize(parallelism);
 
         this.parallelism = parallelism;
         this.maxParallelism = maxParallelism;
+    }
+
+    public Optional<String> getOperatorName() {
+        return Optional.ofNullable(operatorName);
+    }
+
+    public void setOperatorName(String operatorName) {
+        this.operatorName = operatorName;
+    }
+
+    public Optional<String> getOperatorUid() {
+        return Optional.ofNullable(operatorUid);
+    }
+
+    public void setOperatorUid(String operatorUid) {
+        this.operatorUid = operatorUid;
     }
 
     public OperatorID getOperatorID() {
@@ -141,22 +175,42 @@ public class OperatorState implements CompositeStateHandle {
         return maxParallelism;
     }
 
+    public OperatorState copyWithNewIDs(@Nullable String newOperatorUid, OperatorID newOperatorId) {
+        OperatorState newState =
+                new OperatorState(
+                        operatorName, newOperatorUid, newOperatorId, parallelism, maxParallelism);
+        operatorSubtaskStates.forEach(newState::putState);
+        return newState;
+    }
+
     public OperatorState copyAndDiscardInFlightData() {
-        OperatorState newState = new OperatorState(operatorID, parallelism, maxParallelism);
+        OperatorState newState =
+                new OperatorState(
+                        operatorName, operatorUid, operatorID, parallelism, maxParallelism);
 
         for (Map.Entry<Integer, OperatorSubtaskState> originalSubtaskStateEntry :
                 operatorSubtaskStates.entrySet()) {
             newState.putState(
                     originalSubtaskStateEntry.getKey(),
-                    originalSubtaskStateEntry
-                            .getValue()
-                            .toBuilder()
+                    originalSubtaskStateEntry.getValue().toBuilder()
                             .setResultSubpartitionState(StateObjectCollection.empty())
                             .setInputChannelState(StateObjectCollection.empty())
                             .build());
         }
 
         return newState;
+    }
+
+    public List<StateObject> getDiscardables() {
+        List<StateObject> toDispose =
+                operatorSubtaskStates.values().stream()
+                        .flatMap(op -> op.getDiscardables().stream())
+                        .collect(Collectors.toList());
+
+        if (coordinatorState != null) {
+            toDispose.add(coordinatorState);
+        }
+        return toDispose;
     }
 
     @Override
@@ -183,16 +237,17 @@ public class OperatorState implements CompositeStateHandle {
 
     @Override
     public long getStateSize() {
-        long result = coordinatorState == null ? 0L : coordinatorState.getStateSize();
+        return streamAllSubHandles().mapToLong(StateObject::getStateSize).sum();
+    }
 
-        for (int i = 0; i < parallelism; i++) {
-            OperatorSubtaskState operatorSubtaskState = operatorSubtaskStates.get(i);
-            if (operatorSubtaskState != null) {
-                result += operatorSubtaskState.getStateSize();
-            }
-        }
+    @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        streamAllSubHandles().forEach(handle -> handle.collectSizeStats(collector));
+    }
 
-        return result;
+    private Stream<StateObject> streamAllSubHandles() {
+        return Stream.concat(Stream.of(coordinatorState), operatorSubtaskStates.values().stream())
+                .filter(Objects::nonNull);
     }
 
     @Override
@@ -233,7 +288,11 @@ public class OperatorState implements CompositeStateHandle {
         // KvStates are always null in 1.1. Don't print this as it might
         // confuse users that don't care about how we store it internally.
         return "OperatorState("
-                + "operatorID: "
+                + "name: "
+                + getOperatorName()
+                + ", uid: "
+                + getOperatorUid()
+                + ", operatorID: "
                 + operatorID
                 + ", parallelism: "
                 + parallelism

@@ -33,13 +33,17 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.legacy.factories.TableFactory;
+import org.apache.flink.table.ml.ModelProvider;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -47,16 +51,17 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -65,7 +70,6 @@ import java.util.stream.StreamSupport;
 import static org.apache.flink.configuration.ConfigurationUtils.canBePrefixMap;
 import static org.apache.flink.configuration.ConfigurationUtils.filterPrefixMapKey;
 import static org.apache.flink.configuration.GlobalConfiguration.HIDDEN_CONTENT;
-import static org.apache.flink.table.factories.ManagedTableFactory.DEFAULT_IDENTIFIER;
 import static org.apache.flink.table.module.CommonModuleOptions.MODULE_TYPE;
 
 /** Utility for working with {@link Factory}s. */
@@ -93,6 +97,14 @@ public final class FactoryUtil {
                             "Uniquely identifies the connector of a dynamic table that is used for accessing data in "
                                     + "an external system. Its value is used during table source and table sink discovery.");
 
+    public static final ConfigOption<String> PROVIDER =
+            ConfigOptions.key("provider")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Uniquely identifies the provider of a model that is used for model inference."
+                                    + " Its value is used during model provider discovery.");
+
     public static final ConfigOption<String> FORMAT =
             ConfigOptions.key("format")
                     .stringType()
@@ -110,6 +122,67 @@ public final class FactoryUtil {
                                     + "By default, if this option is not defined, the planner will derive the parallelism "
                                     + "for each statement individually by also considering the global configuration.");
 
+    public static final ConfigOption<List<String>> SQL_GATEWAY_ENDPOINT_TYPE =
+            ConfigOptions.key("sql-gateway.endpoint.type")
+                    .stringType()
+                    .asList()
+                    .defaultValues("rest")
+                    .withDescription("Specify the endpoints that are used.");
+
+    public static final ConfigOption<Integer> SOURCE_PARALLELISM =
+            ConfigOptions.key("scan.parallelism")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Defines a custom parallelism for the source. "
+                                    + "By default, if this option is not defined, the planner will derive the parallelism "
+                                    + "for each statement individually by also considering the global configuration.");
+
+    public static final ConfigOption<WatermarkEmitStrategy> WATERMARK_EMIT_STRATEGY =
+            ConfigOptions.key("scan.watermark.emit.strategy")
+                    .enumType(WatermarkEmitStrategy.class)
+                    .defaultValue(WatermarkEmitStrategy.ON_PERIODIC)
+                    .withDescription(
+                            "The strategy for emitting watermark. "
+                                    + "'on-event' means emitting watermark for every event. "
+                                    + "'on-periodic' means emitting watermark periodically. "
+                                    + "The default strategy is 'on-periodic'");
+
+    public static final ConfigOption<String> WATERMARK_ALIGNMENT_GROUP =
+            ConfigOptions.key("scan.watermark.alignment.group")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("The watermark alignment group name.");
+
+    public static final ConfigOption<Duration> WATERMARK_ALIGNMENT_MAX_DRIFT =
+            ConfigOptions.key("scan.watermark.alignment.max-drift")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription("The max allowed watermark drift.");
+
+    public static final ConfigOption<Duration> WATERMARK_ALIGNMENT_UPDATE_INTERVAL =
+            ConfigOptions.key("scan.watermark.alignment.update-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(1000))
+                    .withDescription("Update interval to align watermark.");
+
+    public static final ConfigOption<Duration> SOURCE_IDLE_TIMEOUT =
+            ConfigOptions.key("scan.watermark.idle-timeout")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "When a source do not receive any elements for the timeout time, "
+                                    + "it will be marked as temporarily idle. This allows downstream "
+                                    + "tasks to advance their watermarks without the need to wait for "
+                                    + "watermarks from this source while it is idle.");
+
+    public static final ConfigOption<String> WORKFLOW_SCHEDULER_TYPE =
+            ConfigOptions.key("workflow-scheduler.type")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Specify the workflow scheduler type that is used for materialized table.");
+
     /**
      * Suffix for keys of {@link ConfigOption} in case a connector requires multiple formats (e.g.
      * for both key and value).
@@ -124,6 +197,18 @@ public final class FactoryUtil {
      * Factory} for details.
      */
     public static final String PLACEHOLDER_SYMBOL = "#";
+
+    private static final Set<ConfigOption<?>> watermarkOptionSet;
+
+    static {
+        Set<ConfigOption<?>> set = new HashSet<>();
+        set.add(WATERMARK_EMIT_STRATEGY);
+        set.add(WATERMARK_ALIGNMENT_GROUP);
+        set.add(WATERMARK_ALIGNMENT_MAX_DRIFT);
+        set.add(WATERMARK_ALIGNMENT_UPDATE_INTERVAL);
+        set.add(SOURCE_IDLE_TIMEOUT);
+        watermarkOptionSet = Collections.unmodifiableSet(set);
+    }
 
     /**
      * Creates a {@link DynamicTableSource} from a {@link CatalogTable}.
@@ -167,63 +252,6 @@ public final class FactoryUtil {
                                     .collect(Collectors.joining("\n"))),
                     t);
         }
-    }
-
-    /**
-     * @deprecated Use {@link #createDynamicTableSource(DynamicTableSourceFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)}
-     */
-    @Deprecated
-    public static DynamicTableSource createDynamicTableSource(
-            @Nullable DynamicTableSourceFactory preferredFactory,
-            ObjectIdentifier objectIdentifier,
-            ResolvedCatalogTable catalogTable,
-            ReadableConfig configuration,
-            ClassLoader classLoader,
-            boolean isTemporary) {
-        return createDynamicTableSource(
-                preferredFactory,
-                objectIdentifier,
-                catalogTable,
-                Collections.emptyMap(),
-                configuration,
-                classLoader,
-                isTemporary);
-    }
-
-    /**
-     * Creates a {@link DynamicTableSource} from a {@link CatalogTable}.
-     *
-     * <p>It considers {@link Catalog#getFactory()} if provided.
-     *
-     * @deprecated Use {@link #createDynamicTableSource(DynamicTableSourceFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)} instead.
-     */
-    @Deprecated
-    public static DynamicTableSource createTableSource(
-            @Nullable Catalog catalog,
-            ObjectIdentifier objectIdentifier,
-            ResolvedCatalogTable catalogTable,
-            ReadableConfig configuration,
-            ClassLoader classLoader,
-            boolean isTemporary) {
-        final DefaultDynamicTableContext context =
-                new DefaultDynamicTableContext(
-                        objectIdentifier,
-                        catalogTable,
-                        Collections.emptyMap(),
-                        configuration,
-                        classLoader,
-                        isTemporary);
-
-        return createDynamicTableSource(
-                getDynamicTableFactory(DynamicTableSourceFactory.class, catalog, context),
-                objectIdentifier,
-                catalogTable,
-                Collections.emptyMap(),
-                configuration,
-                classLoader,
-                isTemporary);
     }
 
     /**
@@ -273,60 +301,43 @@ public final class FactoryUtil {
     }
 
     /**
-     * @deprecated Use {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)}
+     * Creates a {@link ModelProvider} from a {@link ResolvedCatalogModel}.
+     *
+     * <p>If {@param preferredFactory} is passed, the model provider is created from that factory.
+     * Otherwise, an attempt is made to discover a matching factory using Java SPI (see {@link
+     * Factory} for details).
      */
-    @Deprecated
-    public static DynamicTableSink createDynamicTableSink(
-            @Nullable DynamicTableSinkFactory preferredFactory,
+    public static ModelProvider createModelProvider(
+            @Nullable ModelProviderFactory preferredFactory,
             ObjectIdentifier objectIdentifier,
-            ResolvedCatalogTable catalogTable,
+            ResolvedCatalogModel catalogModel,
             ReadableConfig configuration,
             ClassLoader classLoader,
             boolean isTemporary) {
-        return createDynamicTableSink(
-                preferredFactory,
-                objectIdentifier,
-                catalogTable,
-                Collections.emptyMap(),
-                configuration,
-                classLoader,
-                isTemporary);
-    }
+        final DefaultModelProviderContext context =
+                new DefaultModelProviderContext(
+                        objectIdentifier, catalogModel, configuration, classLoader, isTemporary);
 
-    /**
-     * Creates a {@link DynamicTableSink} from a {@link CatalogTable}.
-     *
-     * <p>It considers {@link Catalog#getFactory()} if provided.
-     *
-     * @deprecated Use {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)} instead.
-     */
-    @Deprecated
-    public static DynamicTableSink createTableSink(
-            @Nullable Catalog catalog,
-            ObjectIdentifier objectIdentifier,
-            ResolvedCatalogTable catalogTable,
-            ReadableConfig configuration,
-            ClassLoader classLoader,
-            boolean isTemporary) {
-        final DefaultDynamicTableContext context =
-                new DefaultDynamicTableContext(
-                        objectIdentifier,
-                        catalogTable,
-                        Collections.emptyMap(),
-                        configuration,
-                        classLoader,
-                        isTemporary);
+        try {
+            final ModelProviderFactory factory =
+                    preferredFactory != null
+                            ? preferredFactory
+                            : discoverModelProviderFactory(context);
 
-        return createDynamicTableSink(
-                getDynamicTableFactory(DynamicTableSinkFactory.class, catalog, context),
-                objectIdentifier,
-                catalogTable,
-                Collections.emptyMap(),
-                configuration,
-                classLoader,
-                isTemporary);
+            return factory.createModelProvider(context);
+        } catch (Throwable t) {
+            throw new ValidationException(
+                    String.format(
+                            "Unable to create a model provider for model '%s'.\n\n"
+                                    + "Model options are:\n\n"
+                                    + "%s",
+                            objectIdentifier.asSummaryString(),
+                            catalogModel.getOptions().entrySet().stream()
+                                    .map(e -> stringifyOption(e.getKey(), e.getValue()))
+                                    .sorted()
+                                    .collect(Collectors.joining("\n"))),
+                    t);
+        }
     }
 
     /**
@@ -337,6 +348,16 @@ public final class FactoryUtil {
     public static CatalogFactoryHelper createCatalogFactoryHelper(
             CatalogFactory factory, CatalogFactory.Context context) {
         return new CatalogFactoryHelper(factory, context);
+    }
+
+    /**
+     * Creates a utility that helps validating options for a {@link CatalogStoreFactory}.
+     *
+     * <p>Note: This utility checks for left-over options in the final step.
+     */
+    public static CatalogStoreFactoryHelper createCatalogStoreFactoryHelper(
+            CatalogStoreFactory factory, CatalogStoreFactory.Context context) {
+        return new CatalogStoreFactoryHelper(factory, context);
     }
 
     /**
@@ -388,6 +409,16 @@ public final class FactoryUtil {
     }
 
     /**
+     * Creates a utility that helps validate options for a {@link ModelProviderFactory}.
+     *
+     * <p>Note: This utility checks for left-over options in the final step.
+     */
+    public static ModelProviderFactoryHelper createModelProviderFactoryHelper(
+            ModelProviderFactory factory, ModelProviderFactory.Context context) {
+        return new ModelProviderFactoryHelper(factory, context);
+    }
+
+    /**
      * Attempts to discover an appropriate catalog factory and creates an instance of the catalog.
      *
      * <p>This first uses the legacy {@link TableFactory} stack to discover a matching {@link
@@ -399,48 +430,39 @@ public final class FactoryUtil {
             Map<String, String> options,
             ReadableConfig configuration,
             ClassLoader classLoader) {
-        // Use the legacy mechanism first for compatibility
+        final DefaultCatalogContext discoveryContext =
+                new DefaultCatalogContext(catalogName, options, configuration, classLoader);
         try {
-            final CatalogFactory legacyFactory =
-                    TableFactoryService.find(CatalogFactory.class, options, classLoader);
-            return legacyFactory.createCatalog(catalogName, options);
-        } catch (NoMatchingTableFactoryException e) {
-            // No matching legacy factory found, try using the new stack
+            final CatalogFactory factory = getCatalogFactory(discoveryContext);
 
-            final DefaultCatalogContext discoveryContext =
-                    new DefaultCatalogContext(catalogName, options, configuration, classLoader);
-            try {
-                final CatalogFactory factory = getCatalogFactory(discoveryContext);
-
-                // The type option is only used for discovery, we don't actually want to forward it
-                // to the catalog factory itself.
-                final Map<String, String> factoryOptions =
-                        options.entrySet().stream()
-                                .filter(
-                                        entry ->
-                                                !CommonCatalogOptions.CATALOG_TYPE
-                                                        .key()
-                                                        .equals(entry.getKey()))
-                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-                final DefaultCatalogContext context =
-                        new DefaultCatalogContext(
-                                catalogName, factoryOptions, configuration, classLoader);
-                return factory.createCatalog(context);
-            } catch (Throwable t) {
-                throw new ValidationException(
-                        String.format(
-                                "Unable to create catalog '%s'.%n%nCatalog options are:%n%s",
-                                catalogName,
-                                options.entrySet().stream()
-                                        .map(
-                                                optionEntry ->
-                                                        stringifyOption(
-                                                                optionEntry.getKey(),
-                                                                optionEntry.getValue()))
-                                        .sorted()
-                                        .collect(Collectors.joining("\n"))),
-                        t);
-            }
+            // The type option is only used for discovery, we don't actually want to forward it
+            // to the catalog factory itself.
+            final Map<String, String> factoryOptions =
+                    options.entrySet().stream()
+                            .filter(
+                                    entry ->
+                                            !CommonCatalogOptions.CATALOG_TYPE
+                                                    .key()
+                                                    .equals(entry.getKey()))
+                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            final DefaultCatalogContext context =
+                    new DefaultCatalogContext(
+                            catalogName, factoryOptions, configuration, classLoader);
+            return factory.createCatalog(context);
+        } catch (Throwable t) {
+            throw new ValidationException(
+                    String.format(
+                            "Unable to create catalog '%s'.%n%nCatalog options are:%n%s",
+                            catalogName,
+                            options.entrySet().stream()
+                                    .map(
+                                            optionEntry ->
+                                                    stringifyOption(
+                                                            optionEntry.getKey(),
+                                                            optionEntry.getValue()))
+                                    .sorted()
+                                    .collect(Collectors.joining("\n"))),
+                    t);
         }
     }
 
@@ -464,41 +486,32 @@ public final class FactoryUtil {
                             MODULE_TYPE.key(), options.get(MODULE_TYPE.key())));
         }
 
+        final DefaultModuleContext discoveryContext =
+                new DefaultModuleContext(options, configuration, classLoader);
         try {
-            final Map<String, String> optionsWithType = new HashMap<>(options);
-            optionsWithType.put(MODULE_TYPE.key(), moduleName);
+            final ModuleFactory factory =
+                    discoverFactory(
+                            ((ModuleFactory.Context) discoveryContext).getClassLoader(),
+                            ModuleFactory.class,
+                            moduleName);
 
-            final ModuleFactory legacyFactory =
-                    TableFactoryService.find(ModuleFactory.class, optionsWithType, classLoader);
-            return legacyFactory.createModule(optionsWithType);
-        } catch (NoMatchingTableFactoryException e) {
-            final DefaultModuleContext discoveryContext =
+            final DefaultModuleContext context =
                     new DefaultModuleContext(options, configuration, classLoader);
-            try {
-                final ModuleFactory factory =
-                        discoverFactory(
-                                ((ModuleFactory.Context) discoveryContext).getClassLoader(),
-                                ModuleFactory.class,
-                                moduleName);
-
-                final DefaultModuleContext context =
-                        new DefaultModuleContext(options, configuration, classLoader);
-                return factory.createModule(context);
-            } catch (Throwable t) {
-                throw new ValidationException(
-                        String.format(
-                                "Unable to create module '%s'.%n%nModule options are:%n%s",
-                                moduleName,
-                                options.entrySet().stream()
-                                        .map(
-                                                optionEntry ->
-                                                        stringifyOption(
-                                                                optionEntry.getKey(),
-                                                                optionEntry.getValue()))
-                                        .sorted()
-                                        .collect(Collectors.joining("\n"))),
-                        t);
-            }
+            return factory.createModule(context);
+        } catch (Throwable t) {
+            throw new ValidationException(
+                    String.format(
+                            "Unable to create module '%s'.%n%nModule options are:%n%s",
+                            moduleName,
+                            options.entrySet().stream()
+                                    .map(
+                                            optionEntry ->
+                                                    stringifyOption(
+                                                            optionEntry.getKey(),
+                                                            optionEntry.getValue()))
+                                    .sorted()
+                                    .collect(Collectors.joining("\n"))),
+                    t);
         }
     }
 
@@ -506,10 +519,10 @@ public final class FactoryUtil {
      * Discovers a factory using the given factory base class and identifier.
      *
      * <p>This method is meant for cases where {@link #createTableFactoryHelper(DynamicTableFactory,
-     * DynamicTableFactory.Context)} {@link #createTableSource(Catalog, ObjectIdentifier,
-     * ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)}, and {@link
-     * #createTableSink(Catalog, ObjectIdentifier, ResolvedCatalogTable, ReadableConfig,
-     * ClassLoader, boolean)} are not applicable.
+     * DynamicTableFactory.Context)} {@link #createDynamicTableSource(DynamicTableSourceFactory,
+     * ObjectIdentifier, ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)}, and
+     * {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
+     * ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)} are not applicable.
      */
     @SuppressWarnings("unchecked")
     public static <T extends Factory> T discoverFactory(
@@ -543,7 +556,6 @@ public final class FactoryUtil {
                             factoryClass.getName(),
                             foundFactories.stream()
                                     .map(Factory::factoryIdentifier)
-                                    .filter(identifier -> !DEFAULT_IDENTIFIER.equals(identifier))
                                     .distinct()
                                     .sorted()
                                     .collect(Collectors.joining("\n"))));
@@ -669,6 +681,17 @@ public final class FactoryUtil {
         }
     }
 
+    /** Returns the {@link DynamicTableFactory} via {@link Catalog}. */
+    public static <T extends DynamicTableFactory> Optional<T> getDynamicTableFactory(
+            Class<T> factoryClass, @Nullable Catalog catalog) {
+        if (catalog == null) {
+            return Optional.empty();
+        }
+
+        return catalog.getFactory()
+                .map(f -> factoryClass.isAssignableFrom(f.getClass()) ? (T) f : null);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper methods
     // --------------------------------------------------------------------------------------------
@@ -679,28 +702,33 @@ public final class FactoryUtil {
                 .orElseGet(() -> discoverTableFactory(factoryClass, context));
     }
 
-    @SuppressWarnings("unchecked")
-    private static <T extends DynamicTableFactory> Optional<T> getDynamicTableFactory(
-            Class<T> factoryClass, @Nullable Catalog catalog) {
-        if (catalog == null) {
-            return Optional.empty();
-        }
-
-        return catalog.getFactory()
-                .map(f -> factoryClass.isAssignableFrom(f.getClass()) ? (T) f : null);
-    }
-
     private static <T extends DynamicTableFactory> T discoverTableFactory(
             Class<T> factoryClass, DynamicTableFactory.Context context) {
         final String connectorOption = context.getCatalogTable().getOptions().get(CONNECTOR.key());
         if (connectorOption == null) {
-            return discoverManagedTableFactory(context.getClassLoader(), factoryClass);
+            throw new ValidationException(
+                    String.format(
+                            "Table options do not contain an option key '%s' for discovering a connector.",
+                            CONNECTOR.key()));
         }
         try {
             return discoverFactory(context.getClassLoader(), factoryClass, connectorOption);
         } catch (ValidationException e) {
             throw enrichNoMatchingConnectorError(factoryClass, context, connectorOption);
         }
+    }
+
+    private static ModelProviderFactory discoverModelProviderFactory(
+            ModelProviderFactory.Context context) {
+        final String providerOption = context.getCatalogModel().getOptions().get(PROVIDER.key());
+        if (providerOption == null) {
+            throw new ValidationException(
+                    String.format(
+                            "Model options do not contain an option key '%s' for discovering a provider.",
+                            PROVIDER.key()));
+        }
+        return discoverFactory(
+                context.getClassLoader(), ModelProviderFactory.class, providerOption);
     }
 
     private static CatalogFactory getCatalogFactory(CatalogFactory.Context context) {
@@ -758,66 +786,38 @@ public final class FactoryUtil {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    static <T extends DynamicTableFactory> T discoverManagedTableFactory(
-            ClassLoader classLoader, Class<T> implementClass) {
-        final List<Factory> factories = discoverFactories(classLoader);
-
-        final List<Factory> foundFactories =
-                factories.stream()
-                        .filter(f -> ManagedTableFactory.class.isAssignableFrom(f.getClass()))
-                        .filter(f -> implementClass.isAssignableFrom(f.getClass()))
-                        .collect(Collectors.toList());
-
-        if (foundFactories.isEmpty()) {
-            throw new ValidationException(
-                    String.format(
-                            "Table options do not contain an option key 'connector' for discovering a connector. "
-                                    + "Therefore, Flink assumes a managed table. However, a managed table factory "
-                                    + "that implements %s is not in the classpath.",
-                            implementClass.getName()));
-        }
-
-        if (foundFactories.size() > 1) {
-            throw new ValidationException(
-                    String.format(
-                            "Multiple factories for managed table found in the classpath.\n\n"
-                                    + "Ambiguous factory classes are:\n\n"
-                                    + "%s",
-                            foundFactories.stream()
-                                    .map(f -> f.getClass().getName())
-                                    .sorted()
-                                    .collect(Collectors.joining("\n"))));
-        }
-
-        return (T) foundFactories.get(0);
-    }
-
     static List<Factory> discoverFactories(ClassLoader classLoader) {
-        final List<Factory> result = new LinkedList<>();
-        ServiceLoaderUtil.load(Factory.class, classLoader)
-                .forEach(
-                        loadResult -> {
-                            if (loadResult.hasFailed()) {
-                                if (loadResult.getError() instanceof NoClassDefFoundError) {
-                                    LOG.debug(
-                                            "NoClassDefFoundError when loading a "
-                                                    + Factory.class
-                                                    + ". This is expected when trying to load a format dependency but no flink-connector-files is loaded.",
-                                            loadResult.getError());
-                                    // After logging, we just ignore this failure
-                                    return;
-                                }
-                                throw new TableException(
-                                        "Unexpected error when trying to load service provider for factories.",
-                                        loadResult.getError());
-                            }
-                            result.add(loadResult.getService());
-                        });
-        return result;
+        final Iterator<Factory> serviceLoaderIterator =
+                ServiceLoader.load(Factory.class, classLoader).iterator();
+
+        final List<Factory> loadResults = new ArrayList<>();
+        while (true) {
+            try {
+                // error handling should also be applied to the hasNext() call because service
+                // loading might cause problems here as well
+                if (!serviceLoaderIterator.hasNext()) {
+                    break;
+                }
+
+                loadResults.add(serviceLoaderIterator.next());
+            } catch (Throwable t) {
+                if (t instanceof NoClassDefFoundError) {
+                    LOG.debug(
+                            "NoClassDefFoundError when loading a "
+                                    + Factory.class.getCanonicalName()
+                                    + ". This is expected when trying to load a format dependency but no flink-connector-files is loaded.",
+                            t);
+                } else {
+                    throw new TableException(
+                            "Unexpected error when trying to load service provider.", t);
+                }
+            }
+        }
+
+        return loadResults;
     }
 
-    private static String stringifyOption(String key, String value) {
+    public static String stringifyOption(String key, String value) {
         if (GlobalConfiguration.isSensitive(key)) {
             value = HIDDEN_CONTENT;
         }
@@ -876,7 +876,9 @@ public final class FactoryUtil {
     // Helper classes
     // --------------------------------------------------------------------------------------------
 
-    private static class FactoryHelper<F extends Factory> {
+    /** Base helper utility for validating all options for a {@link Factory}. */
+    @PublicEvolving
+    public static class FactoryHelper<F extends Factory> {
 
         protected final F factory;
 
@@ -886,7 +888,7 @@ public final class FactoryUtil {
 
         protected final Set<String> deprecatedOptionKeys;
 
-        FactoryHelper(
+        public FactoryHelper(
                 F factory, Map<String, String> configuration, ConfigOption<?>... implicitOptions) {
             this.factory = factory;
             this.allOptions = Configuration.fromMap(configuration);
@@ -916,6 +918,7 @@ public final class FactoryUtil {
                     allOptions.keySet(),
                     consumedOptionKeys,
                     deprecatedOptionKeys);
+            validateWatermarkOptions(factory.factoryIdentifier(), allOptions);
         }
 
         /**
@@ -958,6 +961,36 @@ public final class FactoryUtil {
     }
 
     /**
+     * Helper utility for validating all options for a {@link CatalogStoreFactory}.
+     *
+     * @see #createCatalogStoreFactoryHelper(CatalogStoreFactory, CatalogStoreFactory.Context)
+     */
+    @PublicEvolving
+    public static class CatalogStoreFactoryHelper extends FactoryHelper<CatalogStoreFactory> {
+        public CatalogStoreFactoryHelper(
+                CatalogStoreFactory catalogStoreFactory, CatalogStoreFactory.Context context) {
+            super(catalogStoreFactory, context.getOptions(), PROPERTY_VERSION);
+        }
+    }
+
+    /**
+     * Helper utility for validating all options for a {@link ModelProviderFactory}.
+     *
+     * @see #createModelProviderFactoryHelper(ModelProviderFactory, ModelProviderFactory.Context)
+     */
+    @PublicEvolving
+    public static class ModelProviderFactoryHelper extends FactoryHelper<ModelProviderFactory> {
+        public ModelProviderFactoryHelper(
+                ModelProviderFactory modelProviderFactory, ModelProviderFactory.Context context) {
+            super(
+                    modelProviderFactory,
+                    context.getCatalogModel().getOptions(),
+                    PROPERTY_VERSION,
+                    PROVIDER);
+        }
+    }
+
+    /**
      * Helper utility for validating all options for a {@link ModuleFactory}.
      *
      * @see #createModuleFactoryHelper(ModuleFactory, ModuleFactory.Context)
@@ -992,6 +1025,8 @@ public final class FactoryUtil {
             this.context = context;
             this.enrichingOptions = Configuration.fromMap(context.getEnrichmentOptions());
             this.forwardOptions();
+            this.consumedOptionKeys.addAll(
+                    watermarkOptionSet.stream().map(ConfigOption::key).collect(Collectors.toSet()));
         }
 
         /**
@@ -1195,6 +1230,55 @@ public final class FactoryUtil {
         }
     }
 
+    /** Default implementation of {@link ModelProviderFactory.Context}. */
+    @Internal
+    public static class DefaultModelProviderContext implements ModelProviderFactory.Context {
+
+        private final ObjectIdentifier objectIdentifier;
+        private final ResolvedCatalogModel catalogModel;
+        private final ReadableConfig configuration;
+        private final ClassLoader classLoader;
+        private final boolean isTemporary;
+
+        public DefaultModelProviderContext(
+                ObjectIdentifier objectIdentifier,
+                ResolvedCatalogModel catalogModel,
+                ReadableConfig configuration,
+                ClassLoader classLoader,
+                boolean isTemporary) {
+            this.objectIdentifier = objectIdentifier;
+            this.catalogModel = catalogModel;
+            this.configuration = configuration;
+            this.classLoader = classLoader;
+            this.isTemporary = isTemporary;
+        }
+
+        @Override
+        public ObjectIdentifier getObjectIdentifier() {
+            return objectIdentifier;
+        }
+
+        @Override
+        public ResolvedCatalogModel getCatalogModel() {
+            return catalogModel;
+        }
+
+        @Override
+        public ReadableConfig getConfiguration() {
+            return configuration;
+        }
+
+        @Override
+        public ClassLoader getClassLoader() {
+            return classLoader;
+        }
+
+        @Override
+        public boolean isTemporary() {
+            return isTemporary;
+        }
+    }
+
     /** Default implementation of {@link DynamicTableFactory.Context}. */
     @Internal
     public static class DefaultDynamicTableContext implements DynamicTableFactory.Context {
@@ -1292,6 +1376,41 @@ public final class FactoryUtil {
         }
     }
 
+    /** Default implementation of {@link CatalogStoreFactory.Context}. */
+    @Internal
+    public static class DefaultCatalogStoreContext implements CatalogStoreFactory.Context {
+
+        private Map<String, String> options;
+
+        private ReadableConfig configuration;
+
+        private ClassLoader classLoader;
+
+        public DefaultCatalogStoreContext(
+                Map<String, String> options,
+                ReadableConfig configuration,
+                ClassLoader classLoader) {
+            this.options = options;
+            this.configuration = configuration;
+            this.classLoader = classLoader;
+        }
+
+        @Override
+        public Map<String, String> getOptions() {
+            return options;
+        }
+
+        @Override
+        public ReadableConfig getConfiguration() {
+            return configuration;
+        }
+
+        @Override
+        public ClassLoader getClassLoader() {
+            return classLoader;
+        }
+    }
+
     /** Default implementation of {@link ModuleFactory.Context}. */
     @Internal
     public static class DefaultModuleContext implements ModuleFactory.Context {
@@ -1328,5 +1447,52 @@ public final class FactoryUtil {
 
     private FactoryUtil() {
         // no instantiation
+    }
+
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Validate watermark options from table options.
+     *
+     * @param factoryIdentifier identifier of table
+     * @param conf table options
+     */
+    public static void validateWatermarkOptions(String factoryIdentifier, ReadableConfig conf) {
+        Optional<String> errMsgOptional = checkWatermarkOptions(conf);
+        if (errMsgOptional.isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "Error configuring watermark for '%s', %s",
+                            factoryIdentifier, errMsgOptional.get()));
+        }
+    }
+
+    /**
+     * Check watermark-related options and return error messages.
+     *
+     * @param conf table options
+     * @return Optional of error messages
+     */
+    public static Optional<String> checkWatermarkOptions(ReadableConfig conf) {
+        // try to validate watermark options by parsing it
+        watermarkOptionSet.forEach(option -> readOption(conf, option));
+
+        // check watermark alignment options
+        Optional<String> groupOptional = conf.getOptional(WATERMARK_ALIGNMENT_GROUP);
+        Optional<Duration> maxDriftOptional = conf.getOptional(WATERMARK_ALIGNMENT_MAX_DRIFT);
+        Optional<Duration> updateIntervalOptional =
+                conf.getOptional(WATERMARK_ALIGNMENT_UPDATE_INTERVAL);
+
+        if ((groupOptional.isPresent()
+                        || maxDriftOptional.isPresent()
+                        || updateIntervalOptional.isPresent())
+                && (!groupOptional.isPresent() || !maxDriftOptional.isPresent())) {
+            String errMsg =
+                    String.format(
+                            "'%s' and '%s' must be set when configuring watermark alignment",
+                            WATERMARK_ALIGNMENT_GROUP.key(), WATERMARK_ALIGNMENT_MAX_DRIFT.key());
+            return Optional.of(errMsg);
+        }
+        return Optional.empty();
     }
 }

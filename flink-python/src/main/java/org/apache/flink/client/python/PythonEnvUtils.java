@@ -22,8 +22,8 @@ import org.apache.flink.client.deployment.application.UnsuccessfulExecutionExcep
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.python.util.CompressionUtils;
 import org.apache.flink.python.util.PythonDependencyUtils;
+import org.apache.flink.util.CompressionUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
@@ -31,7 +31,7 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
+import org.apache.flink.shaded.guava33.com.google.common.base.Strings;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +70,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.python.PythonOptions.PYTHON_ARCHIVES;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
+import static org.apache.flink.python.PythonOptions.PYTHON_PATH;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
 
 /** The util class help to prepare Python env and run the python process. */
@@ -171,12 +172,33 @@ final class PythonEnvUtils {
                                         originalFileName = archivePath.getName();
                                     } else {
                                         archivePath = new Path(archive);
-                                        targetDirName = archivePath.getName();
-                                        originalFileName = targetDirName;
+                                        originalFileName = archivePath.getName();
+                                        targetDirName = originalFileName;
                                     }
+
+                                    Path localArchivePath = archivePath;
+                                    try {
+                                        if (archivePath.getFileSystem().isDistributedFS()) {
+                                            localArchivePath =
+                                                    new Path(
+                                                            env.tempDirectory,
+                                                            String.join(
+                                                                    File.separator,
+                                                                    UUID.randomUUID().toString(),
+                                                                    originalFileName));
+                                            FileUtils.copy(archivePath, localArchivePath, false);
+                                        }
+                                    } catch (IOException e) {
+                                        String msg =
+                                                String.format(
+                                                        "Error occurred when copying %s to %s.",
+                                                        archivePath, localArchivePath);
+                                        throw new RuntimeException(msg, e);
+                                    }
+
                                     try {
                                         CompressionUtils.extractFile(
-                                                archivePath.getPath(),
+                                                localArchivePath.getPath(),
                                                 String.join(
                                                         File.separator,
                                                         env.archivesDirectory,
@@ -189,6 +211,15 @@ final class PythonEnvUtils {
                                     }
                                 }
                             });
+        }
+
+        // 4. append configured python.pythonpath to the PYTHONPATH.
+        if (config.getOptional(PYTHON_PATH).isPresent()) {
+            env.pythonPath =
+                    String.join(
+                            File.pathSeparator,
+                            config.getOptional(PYTHON_PATH).get(),
+                            env.pythonPath);
         }
 
         if (entryPointScript != null) {
@@ -395,7 +426,9 @@ final class PythonEnvUtils {
      * @param gatewayServer the gateway which creates the callback server.
      */
     private static void resetCallbackClientExecutorService(GatewayServer gatewayServer)
-            throws NoSuchFieldException, IllegalAccessException, NoSuchMethodException,
+            throws NoSuchFieldException,
+                    IllegalAccessException,
+                    NoSuchMethodException,
                     InvocationTargetException {
         CallbackClient callbackClient = (CallbackClient) gatewayServer.getCallbackClient();
         // The Java API of py4j does not provide approach to set "daemonize_connections" parameter.
@@ -420,8 +453,11 @@ final class PythonEnvUtils {
             GatewayServer gatewayServer,
             String callbackServerListeningAddress,
             int callbackServerListeningPort)
-            throws UnknownHostException, InvocationTargetException, NoSuchMethodException,
-                    IllegalAccessException, NoSuchFieldException {
+            throws UnknownHostException,
+                    InvocationTargetException,
+                    NoSuchMethodException,
+                    IllegalAccessException,
+                    NoSuchFieldException {
 
         gatewayServer.resetCallbackClient(
                 InetAddress.getByName(callbackServerListeningAddress), callbackServerListeningPort);

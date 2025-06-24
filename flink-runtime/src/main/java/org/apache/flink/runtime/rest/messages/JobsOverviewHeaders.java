@@ -26,7 +26,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Message headers for {@link JobsOverviewHandler}. */
 public final class JobsOverviewHeaders
-        implements MessageHeaders<EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters> {
+        implements RuntimeMessageHeaders<
+                EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters> {
 
     private static final JobsOverviewHeaders INSTANCE = new JobsOverviewHeaders();
 

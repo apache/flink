@@ -18,24 +18,33 @@
 package org.apache.flink.table.planner.plan.common
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.plan.rules.logical.JoinDeriveNullFilterRule
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+
+import java.util
 
 import scala.collection.JavaConversions._
 
-abstract class JoinReorderTestBase extends TableTestBase {
+/**
+ * Ths base plan test for join reorder. This class will test
+ * [[org.apache.flink.table.planner.plan.rules.logical.FlinkBushyJoinReorderRule]] and
+ * [[org.apache.calcite.rel.rules.LoptOptimizeJoinRule]] together by changing the factor
+ * isBushyJoinReorder.
+ */
+abstract class JoinReorderTestBase(isBushyJoinReorder: Boolean) extends TableTestBase {
 
   protected val util: TableTestUtil = getTableTestUtil
 
   protected def getTableTestUtil: TableTestUtil
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     val types = Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)
 
@@ -47,10 +56,10 @@ abstract class JoinReorderTestBase extends TableTestBase {
         .builder()
         .tableStats(
           new TableStats(
-            1000000L,
+            100000L,
             Map(
               "a1" -> new ColumnStats(1000000L, 0L, 4.0, 4, null, null),
-              "b1" -> new ColumnStats(10L, 0L, 8.0, 8, null, null)
+              "b1" -> new ColumnStats(50L, 0L, 8.0, 8, null, null)
             )))
         .build()
     )
@@ -66,7 +75,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
             10000L,
             Map(
               "a2" -> new ColumnStats(100L, 0L, 4.0, 4, null, null),
-              "b2" -> new ColumnStats(5000L, 0L, 8.0, 8, null, null)
+              "b2" -> new ColumnStats(500000L, 0L, 8.0, 8, null, null)
             )))
         .build()
     )
@@ -79,10 +88,10 @@ abstract class JoinReorderTestBase extends TableTestBase {
         .builder()
         .tableStats(
           new TableStats(
-            10L,
+            1000L,
             Map(
               "a3" -> new ColumnStats(5L, 0L, 4.0, 4, null, null),
-              "b3" -> new ColumnStats(2L, 0L, 8.0, 8, null, null)
+              "b3" -> new ColumnStats(50L, 0L, 8.0, 8, null, null)
             )))
         .build()
     )
@@ -98,7 +107,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
             100L,
             Map(
               "a4" -> new ColumnStats(100L, 0L, 4.0, 4, null, null),
-              "b4" -> new ColumnStats(20L, 0L, 8.0, 8, null, null)
+              "b4" -> new ColumnStats(500000L, 0L, 8.0, 8, null, null)
             )))
         .build()
     )
@@ -121,59 +130,72 @@ abstract class JoinReorderTestBase extends TableTestBase {
 
     util.getTableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, Boolean.box(true))
+
+    if (!isBushyJoinReorder) {
+      util.getTableEnv.getConfig
+        .set(
+          OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD,
+          Integer.valueOf(3))
+    } else {
+      util.getTableEnv.getConfig
+        .set(
+          OptimizerConfigOptions.TABLE_OPTIMIZER_BUSHY_JOIN_REORDER_THRESHOLD,
+          Integer.valueOf(1000))
+    }
+
   }
 
-  @Test
+  @TestTemplate
   def testStarJoinCondition1(): Unit = {
     val sql =
       s"""
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE a1 = a2 AND a1 = a3 AND a1 = a4 AND a1 = a5
          """.stripMargin
-    util.verifyExecPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testStarJoinCondition2(): Unit = {
     val sql =
       s"""
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE b1 = b2 AND b1 = b3 AND b1 = b4 AND b1 = b5
          """.stripMargin
-    util.verifyExecPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testBushyJoinCondition1(): Unit = {
     val sql =
       s"""
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE a1 = a2 AND a2 = a3 AND a1 = a4 AND a3 = a5
          """.stripMargin
-    util.verifyExecPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testBushyJoinCondition2(): Unit = {
     val sql =
       s"""
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE b1 = b2 AND b2 = b3 AND b1 = b4 AND b3 = b5
          """.stripMargin
-    util.verifyExecPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testWithoutColumnStats(): Unit = {
     val sql =
       s"""
          |SELECT * FROM T1, T2, T3, T4, T5
          |WHERE c1 = c2 AND c1 = c3 AND c2 = c4 AND c1 = c5
          """.stripMargin
-    util.verifyExecPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithProject(): Unit = {
     val sql =
       s"""
@@ -184,10 +206,10 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |SELECT * FROM V3, T5 where a4 = a5
          """.stripMargin
     // can not reorder now
-    util.verifyExecPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithFilter(): Unit = {
     val sql =
       s"""
@@ -197,10 +219,24 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |
          |SELECT * FROM V3, T5 WHERE a4 = a5 AND b5 < 15
          """.stripMargin
-    util.verifyExecPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
+  def testAllInnerJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   JOIN T2 ON a1 = a2
+         |   JOIN T3 ON a2 = a3
+         |   JOIN T4 ON a2 = a4
+         |   JOIN T5 ON a1 = a5
+         """.stripMargin
+    // can reorder.
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
   def testInnerAndLeftOuterJoin(): Unit = {
     val sql =
       s"""
@@ -208,27 +244,27 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   JOIN T2 ON a1 = a2
          |   JOIN T3 ON a2 = a3
          |   LEFT OUTER JOIN T4 ON a1 = a4
-         |   JOIN T5 ON a4 = a5
+         |   JOIN T5 ON a1 = a5
          """.stripMargin
-    // T1, T2, T3 can reorder
-    util.verifyExecPlan(sql)
+    // T1, T2, T3 T4 T5 can reorder.
+    util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testInnerAndRightOuterJoin(): Unit = {
     val sql =
       s"""
          |SELECT * FROM T1
          |   RIGHT OUTER JOIN T2 ON a1 = a2
          |   JOIN T3 ON a2 = a3
-         |   JOIN T4 ON a1 = a4
+         |   JOIN T4 ON a2 = a4
          |   JOIN T5 ON a4 = a5
          """.stripMargin
-    // T3, T4, T5 can reorder
-    util.verifyExecPlan(sql)
+    // T1, T2, T3, T4, T5 can reorder
+    util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testInnerAndFullOuterJoin(): Unit = {
     val sql =
       s"""
@@ -238,24 +274,25 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   JOIN T4 ON a1 = a4
          |   JOIN T5 ON a4 = a5
          """.stripMargin
-    util.verifyExecPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testAllLeftOuterJoin(): Unit = {
     val sql =
       s"""
          |SELECT * FROM T1
          |   LEFT OUTER JOIN T2 ON a1 = a2
-         |   LEFT OUTER JOIN T3 ON a2 = a3
+         |   LEFT OUTER JOIN T3 ON a1 = a3
          |   LEFT OUTER JOIN T4 ON a1 = a4
-         |   LEFT OUTER JOIN T5 ON a4 = a5
+         |   LEFT OUTER JOIN T5 ON a1 = a5
          """.stripMargin
-    // can not reorder
-    util.verifyExecPlan(sql)
+    // can reorder. Left outer join will be converted to one multi
+    // set by FlinkJoinToMultiJoinRule.
+    util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testAllRightOuterJoin(): Unit = {
     val sql =
       s"""
@@ -265,11 +302,11 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   RIGHT OUTER JOIN T4 ON a1 = a4
          |   RIGHT OUTER JOIN T5 ON a4 = a5
          """.stripMargin
-    // can not reorder
-    util.verifyExecPlan(sql)
+    // can not reorder.
+    util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testAllFullOuterJoin(): Unit = {
     val sql =
       s"""
@@ -280,21 +317,151 @@ abstract class JoinReorderTestBase extends TableTestBase {
          |   FULL OUTER JOIN T5 ON a4 = a5
          """.stripMargin
     // can not reorder
-    util.verifyExecPlan(sql)
+    util.verifyRelPlan(sql)
   }
 
-  @Test
+  @TestTemplate
+  def testInnerJoinLeftOuterJoinInnerJoinLeftOuterJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   JOIN T2 ON a1 = a2
+         |   LEFT OUTER JOIN T3 ON a1 = a3
+         |   JOIN T4 ON a1 = a4
+         |   LEFT OUTER JOIN T5 ON a4 = a5
+         """.stripMargin
+    // T1, T2, T3, T4, T5 can reorder.
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testLeftOuterJoinInnerJoinLeftOuterJoinInnerJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   LEFT OUTER JOIN T2 ON a1 = a2
+         |   JOIN T3 ON a1 = a3
+         |   LEFT OUTER JOIN T4 ON a1 = a4
+         |   JOIN T5 ON a4 = a5
+         """.stripMargin
+    // T1, T2, T3, T4, T5 can reorder.
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testInnerJoinRightOuterJoinInnerJoinRightOuterJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   JOIN T2 ON a1 = a2
+         |   RIGHT OUTER JOIN T3 ON a1 = a3
+         |   JOIN T4 ON a1 = a4
+         |   RIGHT OUTER JOIN T5 ON a4 = a5
+         """.stripMargin
+    // T1 and T2 can not reorder, but MJ(T1, T2), T3, T4 can reorder.
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testRightOuterJoinInnerJoinRightOuterJoinInnerJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   RIGHT OUTER JOIN T2 ON a1 = a2
+         |   JOIN T3 ON a1 = a3
+         |   RIGHT OUTER JOIN T4 ON a1 = a4
+         |   JOIN T5 ON a4 = a5
+         """.stripMargin
+    // T1, T2, T3 can reorder, and MJ(T1, T2, T3), T4, T5 can reorder.
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testInnerJoinSemiJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   JOIN T2 ON a1 = a2
+         |   JOIN T3 ON a2 = a3
+         |   JOIN T4 ON a1 = a4
+         |   WHERE a1 IN (SELECT a5 FROM T5)
+         """.stripMargin
+    // can not reorder. Semi join will support join order in future.
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testInnerJoinAntiJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1
+         |   JOIN T2 ON a1 = a2
+         |   JOIN T3 ON a2 = a3
+         |   JOIN T4 ON a1 = a4
+         |   WHERE NOT EXISTS (SELECT a5 FROM T5 WHERE a1 = a5)
+         """.stripMargin
+    // can not reorder
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testCrossJoin(): Unit = {
+    val sql = "SELECT * FROM T1, T2, T3, T4, T5"
+    // All table can reorder.
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testInnerJoinCrossJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1,
+         |   (SELECT * FROM T2 JOIN T3 ON a2 = a3) tab1, T4
+         """.stripMargin
+    // All table can reorder.
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testInnerJoinLeftOuterJoinCrossJoin(): Unit = {
+    val sql =
+      s"""
+         |SELECT * FROM T1,
+         |   (SELECT * FROM T2 LEFT JOIN T3 ON a2 = a3 JOIN T4 ON a2 = a4) tab1, T5
+         """.stripMargin
+    // All table can reorder.
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testInnerJoinWithBushyTypeJoinCondition(): Unit = {
+    // This case is to test whether can build a bushy join tree.
+    // If variable isBushyJoinReorder is true, it can be built to
+    // a bushy join tree. Otherwise the join reorder tree is not bushy
+    // join tree.
+    val sql =
+      s"""
+         |SELECT * FROM
+         |(SELECT * FROM T1 JOIN T2 ON T1.b1 = T2.b2) tab1 JOIN
+         |(SELECT * FROM T3 JOIN T4 ON T3.b3 = T4.b4) tab2
+         |ON tab1.b2 = tab2.b4
+         """.stripMargin
+    // All table can reorder.
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
   def testDeriveNullFilterAfterJoinReorder(): Unit = {
     val types = Array[TypeInformation[_]](Types.INT, Types.LONG)
     val builderA = ColumnStats.Builder
       .builder()
-      .setNdv(200000L)
-      .setNullCount(50000L)
+      .setNdv(2000000L)
+      .setNullCount(JoinDeriveNullFilterRule.JOIN_NULL_FILTER_THRESHOLD + 1)
       .setAvgLen(4.0)
       .setMaxLen(4)
     val builderB = ColumnStats.Builder
       .builder()
-      .setNdv(100000L)
+      .setNdv(1000000L)
       .setNullCount(0L)
       .setAvgLen(8.0)
       .setMaxLen(8)
@@ -307,7 +474,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
         .builder()
         .tableStats(
           new TableStats(
-            500000L,
+            5000000L,
             Map(
               "a6" -> builderA.build(),
               "b6" -> builderB.build()
@@ -322,7 +489,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
         .builder()
         .tableStats(
           new TableStats(
-            500000L,
+            5000000L,
             Map(
               "a7" -> builderA.build(),
               "b7" -> builderB.build()
@@ -337,21 +504,26 @@ abstract class JoinReorderTestBase extends TableTestBase {
         .builder()
         .tableStats(
           new TableStats(
-            500000L,
+            5000000L,
             Map(
               "a8" -> builderA.build(),
               "b8" -> builderB.build()
             )))
         .build())
 
-    util.getTableEnv.getConfig
-      .set(JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD, Long.box(10000))
     val sql =
       s"""
          |SELECT * FROM T6
          |   INNER JOIN T7 ON b6 = b7
          |   INNER JOIN T8 ON a6 = a8
          |""".stripMargin
-    util.verifyExecPlan(sql)
+    util.verifyRelPlan(sql)
+  }
+}
+
+object JoinReorderTestBase {
+  @Parameters(name = "isBushyJoinReorder={0}")
+  def parameters(): util.Collection[Boolean] = {
+    util.Arrays.asList(true, false)
   }
 }

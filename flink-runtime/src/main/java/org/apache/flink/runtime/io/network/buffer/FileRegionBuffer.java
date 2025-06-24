@@ -179,6 +179,11 @@ public class FileRegionBuffer extends DefaultFileRegion implements Buffer {
     }
 
     @Override
+    public void setRecycler(BufferRecycler bufferRecycler) {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
+
+    @Override
     public void recycleBuffer() {
         // nothing to do
     }

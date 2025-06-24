@@ -18,17 +18,21 @@
 
 package org.apache.flink.table.runtime.io;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
-import org.apache.flink.runtime.io.compression.Lz4BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,24 +41,41 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests for {@link CompressedHeaderlessChannelReaderInputView} and {@link
  * CompressedHeaderlessChannelWriterOutputView}.
  */
-public class CompressedHeaderlessChannelTest {
+class CompressedHeaderlessChannelTest {
     private static final int BUFFER_SIZE = 256;
 
     private IOManager ioManager;
 
-    private BlockCompressionFactory compressionFactory = new Lz4BlockCompressionFactory();
+    static Collection<Arguments> compressionFactory() {
+        return Arrays.asList(
+                Arguments.of(
+                        CompressionCodec.LZ4,
+                        BlockCompressionFactory.createBlockCompressionFactory(
+                                CompressionCodec.LZ4)),
+                Arguments.of(
+                        CompressionCodec.LZO,
+                        BlockCompressionFactory.createBlockCompressionFactory(
+                                CompressionCodec.LZO)),
+                Arguments.of(
+                        CompressionCodec.ZSTD,
+                        BlockCompressionFactory.createBlockCompressionFactory(
+                                CompressionCodec.ZSTD)));
+    }
 
-    public CompressedHeaderlessChannelTest() {
+    CompressedHeaderlessChannelTest() {
         ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         this.ioManager.close();
     }
 
-    @Test
-    public void testCompressedView() throws IOException {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("compressionFactory")
+    void testCompressedView(
+            final CompressionCodec codec, final BlockCompressionFactory compressionFactory)
+            throws IOException {
         for (int testTime = 0; testTime < 10; testTime++) {
             int testRounds = new Random().nextInt(20000);
             FileIOChannel.ID channel = ioManager.createChannel();

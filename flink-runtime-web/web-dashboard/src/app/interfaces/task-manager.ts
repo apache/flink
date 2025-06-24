@@ -17,7 +17,7 @@
  */
 
 export interface TaskManagerList {
-  taskmanagers: TaskmanagersItem[];
+  taskmanagers: TaskManagersItem[];
 }
 
 export interface TaskManagerDetail {
@@ -30,6 +30,23 @@ export interface TaskManagerDetail {
   hardware: Hardware;
   metrics: Metrics;
   memoryConfiguration: MemoryConfiguration;
+  blocked?: boolean;
+  freeResource: Resources;
+  totalResource: Resources;
+  allocatedSlots: AllocatedSlot[];
+}
+
+export interface AllocatedSlot {
+  jobId: string;
+  resource: Resources;
+}
+
+export interface Resources {
+  cpuCores: number;
+  taskHeapMemory: number;
+  taskOffHeapMemory: number;
+  managedMemory: number;
+  networkMemory: number;
 }
 
 export interface TaskManagerLogItem {
@@ -38,7 +55,12 @@ export interface TaskManagerLogItem {
   mtime: number;
 }
 
-export interface TaskmanagersItem {
+export interface TaskManagerLogDetail {
+  data: string;
+  url: string;
+}
+
+export interface TaskManagersItem {
   id: string;
   path: string;
   dataPort: number;
@@ -46,6 +68,7 @@ export interface TaskmanagersItem {
   slotsNumber: number;
   freeSlots: number;
   hardware: Hardware;
+  blocked?: boolean;
 }
 
 interface Hardware {
@@ -68,8 +91,6 @@ interface Metrics {
   mappedCount: number;
   mappedUsed: number;
   mappedMax: number;
-  memorySegmentsAvailable: number;
-  memorySegmentsTotal: number;
   garbageCollectors: GarbageCollectorsItem[];
 }
 

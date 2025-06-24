@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.{DefaultOpenContext, MapFunction, OpenContext, RichMapFunction}
 import org.apache.flink.api.common.functions.util.ListCollector
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.api.{TableConfig, TableException}
@@ -80,6 +80,7 @@ object PartitionPruner {
    */
   def prunePartitions(
       tableConfig: TableConfig,
+      classLoader: ClassLoader,
       partitionFieldNames: Array[String],
       partitionFieldTypes: Array[LogicalType],
       allPartitions: JList[JMap[String, String]],
@@ -92,7 +93,7 @@ object PartitionPruner {
     val inputType = InternalTypeInfo.ofFields(partitionFieldTypes, partitionFieldNames).toRowType
     val returnType: LogicalType = new BooleanType(false)
 
-    val ctx = new ConstantCodeGeneratorContext(tableConfig)
+    val ctx = new ConstantCodeGeneratorContext(tableConfig, classLoader)
     val collectorTerm = DEFAULT_COLLECTOR_TERM
 
     val exprGenerator = new ExprCodeGenerator(ctx, false)
@@ -115,7 +116,7 @@ object PartitionPruner {
       inputType,
       collectorTerm = collectorTerm)
 
-    val function = genFunction.newInstance(Thread.currentThread().getContextClassLoader)
+    val function = genFunction.newInstance(classLoader)
     val richMapFunction = function match {
       case r: RichMapFunction[GenericRowData, Boolean] => r
       case _ => throw new TableException("RichMapFunction[GenericRowData, Boolean] required here")
@@ -125,7 +126,7 @@ object PartitionPruner {
     val collector = new ListCollector[Boolean](results)
 
     try {
-      richMapFunction.open(new Configuration)
+      richMapFunction.open(DefaultOpenContext.INSTANCE)
       // do filter against all partitions
       allPartitions.foreach {
         partition =>

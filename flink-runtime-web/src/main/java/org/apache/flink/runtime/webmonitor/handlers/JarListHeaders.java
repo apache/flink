@@ -21,13 +21,13 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** Message headers for the {@link JarListHandler}. */
 public class JarListHeaders
-        implements MessageHeaders<EmptyRequestBody, JarListInfo, EmptyMessageParameters> {
+        implements RuntimeMessageHeaders<EmptyRequestBody, JarListInfo, EmptyMessageParameters> {
 
     public static final String URL = "/jars";
 

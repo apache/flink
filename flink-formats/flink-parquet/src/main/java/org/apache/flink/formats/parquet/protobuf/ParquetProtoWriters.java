@@ -45,12 +45,12 @@ public class ParquetProtoWriters {
     // ------------------------------------------------------------------------
 
     /** The builder for Protobuf {@link ParquetWriter}. */
-    private static class ParquetProtoWriterBuilder<T extends Message>
+    public static class ParquetProtoWriterBuilder<T extends Message>
             extends ParquetWriter.Builder<T, ParquetProtoWriterBuilder<T>> {
 
         private final Class<T> clazz;
 
-        protected ParquetProtoWriterBuilder(OutputFile outputFile, Class<T> clazz) {
+        public ParquetProtoWriterBuilder(OutputFile outputFile, Class<T> clazz) {
             super(outputFile);
             this.clazz = clazz;
         }

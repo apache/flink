@@ -28,7 +28,6 @@ import org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.util.concurrent.Executors;
 
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.junit.jupiter.api.AfterEach;
@@ -38,8 +37,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executors;
 
 /** Base test class for Kubernetes. */
 public class KubernetesTestBase {
@@ -69,14 +70,21 @@ public class KubernetesTestBase {
     protected FlinkKubeClient flinkKubeClient;
 
     protected void setupFlinkConfig() {
-        flinkConfig.setString(KubernetesConfigOptions.NAMESPACE, NAMESPACE);
-        flinkConfig.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
-        flinkConfig.setString(KubernetesConfigOptions.CONTAINER_IMAGE, CONTAINER_IMAGE);
+        flinkConfig.set(KubernetesConfigOptions.NAMESPACE, NAMESPACE);
+        flinkConfig.set(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
+        flinkConfig.set(KubernetesConfigOptions.CONTAINER_IMAGE, CONTAINER_IMAGE);
         flinkConfig.set(
                 KubernetesConfigOptions.CONTAINER_IMAGE_PULL_POLICY, CONTAINER_IMAGE_PULL_POLICY);
         flinkConfig.set(
                 JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(JOB_MANAGER_MEMORY));
         flinkConfig.set(DeploymentOptionsInternal.CONF_DIR, flinkConfDir.toString());
+        flinkConfig.set(
+                KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_INITIAL_RETRY_DEALY,
+                Duration.ofMillis(10));
+        flinkConfig.set(
+                KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRY_DEALY,
+                Duration.ofMillis(10));
+        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES, 2);
     }
 
     protected void onSetup() throws Exception {}
@@ -91,11 +99,10 @@ public class KubernetesTestBase {
         setupFlinkConfig();
         writeFlinkConfiguration();
 
-        kubeClient = server.getClient().inNamespace(NAMESPACE);
+        kubeClient = server.createClient().inNamespace(NAMESPACE);
         flinkKubeClient =
                 new Fabric8FlinkKubeClient(
-                        flinkConfig, kubeClient, Executors.newDirectExecutorService());
-
+                        flinkConfig, kubeClient, Executors.newSingleThreadScheduledExecutor());
         onSetup();
     }
 
@@ -105,8 +112,7 @@ public class KubernetesTestBase {
     }
 
     protected void writeFlinkConfiguration() throws IOException {
-        BootstrapTools.writeConfiguration(
-                this.flinkConfig, new File(flinkConfDir, "flink-conf.yaml"));
+        BootstrapTools.writeConfiguration(this.flinkConfig, new File(flinkConfDir, "config.yaml"));
     }
 
     protected Map<String, String> getCommonLabels() {

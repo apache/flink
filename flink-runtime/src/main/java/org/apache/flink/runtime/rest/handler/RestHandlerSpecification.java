@@ -22,7 +22,6 @@ import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 
 import java.util.Collection;
-import java.util.Collections;
 
 /** Rest handler interface which all rest handler implementation have to implement. */
 public interface RestHandlerSpecification {
@@ -47,7 +46,5 @@ public interface RestHandlerSpecification {
      *
      * @return Collection of supported API versions
      */
-    default Collection<RestAPIVersion> getSupportedAPIVersions() {
-        return Collections.singleton(RestAPIVersion.V1);
-    }
+    Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions();
 }

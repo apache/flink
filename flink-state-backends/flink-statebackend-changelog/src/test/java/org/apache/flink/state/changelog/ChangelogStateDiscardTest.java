@@ -21,6 +21,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.changelog.fs.FsStateChangelogStorage;
 import org.apache.flink.changelog.fs.StateChangeSet;
 import org.apache.flink.changelog.fs.StateChangeUploadScheduler;
@@ -32,12 +33,14 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
@@ -47,6 +50,7 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.TriConsumerWithException;
@@ -66,9 +70,10 @@ import java.util.stream.Collectors;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.summingLong;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
-import static java.util.stream.Collectors.toSet;
 import static org.apache.flink.changelog.fs.StateChangeUploadScheduler.directScheduler;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.state.SnapshotResult.empty;
@@ -127,7 +132,8 @@ public class ChangelogStateDiscardTest {
                 TaskChangelogRegistry.defaultChangelogRegistry(directExecutor());
         final TestingUploadScheduler scheduler = new TestingUploadScheduler(registry);
         singleBackendTest(
-                new FsStateChangelogStorage(scheduler, 0L, registry),
+                new FsStateChangelogStorage(
+                        scheduler, 0L, registry, TestLocalRecoveryConfig.disabled()),
                 (backend, writer) -> {
                     changeAndLogRandomState(backend, scheduler.uploads::size);
                     truncate(writer, backend);
@@ -184,7 +190,8 @@ public class ChangelogStateDiscardTest {
                 TaskChangelogRegistry.defaultChangelogRegistry(directExecutor());
         final TestingUploadScheduler scheduler = new TestingUploadScheduler(registry);
         final StateChangelogStorage<?> storage =
-                new FsStateChangelogStorage(scheduler, 0, registry);
+                new FsStateChangelogStorage(
+                        scheduler, 0, registry, TestLocalRecoveryConfig.disabled());
         final StateChangelogWriter<?>
                 w1 = storage.createWriter("test-operator-1", kgRange, new SyncMailboxExecutor()),
                 w2 = storage.createWriter("test-operator-2", kgRange, new SyncMailboxExecutor());
@@ -221,7 +228,10 @@ public class ChangelogStateDiscardTest {
         long preEmptivePersistThresholdInBytes = 0L; // flush ASAP
         singleBackendTest(
                 new FsStateChangelogStorage(
-                        directScheduler(uploader), preEmptivePersistThresholdInBytes, registry),
+                        directScheduler(uploader),
+                        preEmptivePersistThresholdInBytes,
+                        registry,
+                        TestLocalRecoveryConfig.disabled()),
                 (backend, writer) -> testCase.accept(backend, writer, uploader));
     }
 
@@ -263,9 +273,10 @@ public class ChangelogStateDiscardTest {
                                 executionConfig,
                                 TtlTimeProvider.DEFAULT,
                                 LatencyTrackingStateConfig.disabled(),
+                                SizeTrackingStateConfig.disabled(),
                                 emptyList(),
                                 UncompressedStreamCompressionDecorator.INSTANCE,
-                                new LocalRecoveryConfig(null),
+                                LocalRecoveryConfig.BACKUP_AND_RECOVERY_DISABLED,
                                 new HeapPriorityQueueSetFactory(
                                         kgRange, kgRange.getNumberOfKeyGroups(), 128),
                                 true,
@@ -276,10 +287,11 @@ public class ChangelogStateDiscardTest {
                 "test-subtask",
                 executionConfig,
                 TtlTimeProvider.DEFAULT,
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup(),
                 writer,
                 emptyList(),
                 new MemoryBackendCheckpointStorageAccess(
-                        jobId, null, null, 1 /* don't expect any materialization */));
+                        jobId, null, null, true, 1 /* don't expect any materialization */));
     }
 
     private static String randomString() {
@@ -364,14 +376,18 @@ public class ChangelogStateDiscardTest {
             results.add(handle);
             // todo: avoid making StateChangeSet and its internals public?
             // todo: make the contract more explicit or extract common code
-            Map<UploadTask, Map<StateChangeSet, Long>> taskOffsets =
+            Map<UploadTask, Map<StateChangeSet, Tuple2<Long, Long>>> taskOffsets =
                     tasks.stream().collect(toMap(identity(), this::mapOffsets));
-            tasks.forEach(task -> startTracking(registry, handle, task));
+
+            long refCount = tasks.stream().flatMap(t -> t.getChangeSets().stream()).count();
+            registry.startTracking(handle, refCount);
+
             return new UploadTasksResult(taskOffsets, handle);
         }
 
-        private Map<StateChangeSet, Long> mapOffsets(UploadTask task) {
-            return task.getChangeSets().stream().collect(Collectors.toMap(identity(), ign -> 0L));
+        private Map<StateChangeSet, Tuple2<Long, Long>> mapOffsets(UploadTask task) {
+            return task.getChangeSets().stream()
+                    .collect(Collectors.toMap(identity(), ign -> Tuple2.of(0L, 0L)));
         }
 
         @Override
@@ -409,17 +425,33 @@ public class ChangelogStateDiscardTest {
          */
         public List<UploadResult> completeUploads(
                 Function<UploadTask, List<UploadResult>> resultsProvider) {
+
             List<UploadResult> allResults = new ArrayList<>();
+            List<Tuple2<UploadTask, List<UploadResult>>> taskResults = new ArrayList<>();
             uploads.forEach(
                     task -> {
                         List<UploadResult> results = resultsProvider.apply(task);
-                        for (UploadResult result : results) {
-                            startTracking(registry, result.getStreamStateHandle(), task);
-                        }
+                        taskResults.add(Tuple2.of(task, results));
                         allResults.addAll(results);
+                    });
+
+            Map<StreamStateHandle, Long> stateHandleAndRefCounts =
+                    allResults.stream()
+                            .collect(
+                                    groupingBy(
+                                            UploadResult::getStreamStateHandle,
+                                            summingLong(x -> 1L)));
+            stateHandleAndRefCounts.forEach(
+                    (handle, refCount) -> registry.startTracking(handle, refCount));
+
+            taskResults.forEach(
+                    taskResult -> {
+                        UploadTask task = taskResult.f0;
+                        List<UploadResult> results = taskResult.f1;
                         task.complete(results);
                         checkState(task.isFinished());
                     });
+
             uploads.clear();
             return allResults;
         }
@@ -428,18 +460,9 @@ public class ChangelogStateDiscardTest {
         public void close() {}
     }
 
-    private static void startTracking(
-            TaskChangelogRegistry registry,
-            StreamStateHandle streamStateHandle,
-            UploadTask upload) {
-        registry.startTracking(
-                streamStateHandle,
-                upload.getChangeSets().stream().map(StateChangeSet::getLogId).collect(toSet()));
-    }
-
     private static void materialize(
             ChangelogKeyedStateBackend<String> backend, StateChangelogWriter<?> writer) {
-        backend.updateChangelogSnapshotState(empty(), 0L, writer.nextSequenceNumber());
+        backend.handleMaterializationResult(empty(), 0L, writer.nextSequenceNumber());
     }
 
     private static void truncate(

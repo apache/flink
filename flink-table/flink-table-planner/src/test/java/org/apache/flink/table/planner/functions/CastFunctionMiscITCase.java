@@ -28,8 +28,10 @@ import org.apache.flink.types.Row;
 import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Objects;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BINARY;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
@@ -123,8 +125,7 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 DataTypes.of(
                                         "ROW<r ROW<s STRING NOT NULL, b BOOLEAN, i INT>, s STRING>")),
                 TestSetSpec.forFunction(
-                                BuiltInFunctionDefinitions.CAST,
-                                "implicit between structured type and row")
+                                BuiltInFunctionDefinitions.CAST, "implicit from ROW to STRUCTURED")
                         .onFieldsWithData(12, "Ingo")
                         .withFunction(StructuredTypeConstructor.class)
                         .withFunction(RowToFirstField.class)
@@ -137,7 +138,32 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 INT()),
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
-                                "explicit between structured type and row")
+                                "explicit from ROW to resolvable STRUCTURED")
+                        .onFieldsWithData(12, "Ingo")
+                        .testSqlResult(
+                                "CAST((f0, f1) AS STRUCTURED<'"
+                                        + UserPojo.class.getName()
+                                        + "', i INT, s STRING>)",
+                                new UserPojo(12, "Ingo"),
+                                DataTypes.STRUCTURED(
+                                                UserPojo.class,
+                                                FIELD("i", INT()),
+                                                FIELD("s", STRING()))
+                                        .notNull()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST,
+                                "explicit from ROW to unresolvable STRUCTURED")
+                        .onFieldsWithData(12, "Ingo")
+                        .testSqlResult(
+                                "CAST((f0, f1) AS STRUCTURED<'MyUserPojo', i INT, s STRING>)",
+                                Row.of(12, "Ingo"),
+                                DataTypes.STRUCTURED(
+                                                "MyUserPojo",
+                                                FIELD("i", INT()),
+                                                FIELD("s", STRING()))
+                                        .notNull()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST, "explicit from STRUCTURED to ROW")
                         .onFieldsWithData(12, "Ingo")
                         .withFunction(StructuredTypeConstructor.class)
                         .testTableApiResult(
@@ -268,7 +294,46 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 $("f1").tryCast(ROW(TINYINT(), TIME())),
                                 "TRY_CAST(f1 AS ROW(f0 TINYINT, f1 TIME))",
                                 Row.of((byte) 1, LocalTime.of(12, 34, 56, 0)),
-                                ROW(TINYINT(), TIME()).nullable()));
+                                ROW(TINYINT(), TIME()).nullable()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.TRY_CAST, "try cast from ARRAY to ARRAY")
+                        .onFieldsWithData(
+                                new String[] {"a"},
+                                new Object[] {map(entry(new String[] {"b"}, 2))},
+                                new String[][] {{"c"}})
+                        .andDataTypes(
+                                ARRAY(STRING()),
+                                ARRAY(MAP(STRING(), STRING())),
+                                ARRAY(ARRAY(STRING())))
+                        .testResult(
+                                $("f0").tryCast(ARRAY(INT())),
+                                "TRY_CAST(f0 AS ARRAY<INT>)",
+                                null,
+                                ARRAY(INT()).nullable())
+                        .testResult(
+                                $("f1").tryCast(ARRAY(MAP(INT(), INT()))),
+                                "TRY_CAST(f1 AS ARRAY<MAP<INT, INT>>)",
+                                null,
+                                ARRAY(MAP(INT(), INT())).nullable())
+                        .testResult(
+                                $("f2").tryCast(ARRAY(ARRAY(INT()))),
+                                "TRY_CAST(f2 AS ARRAY<ARRAY<INT>>)",
+                                null,
+                                ARRAY(ARRAY(INT())).nullable()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.TRY_CAST, "try cast from MAP to MAP")
+                        .onFieldsWithData(map(entry("a", 2)), map(entry(1, new String[] {"a"})))
+                        .andDataTypes(MAP(STRING(), INT()), MAP(INT(), ARRAY(STRING())))
+                        .testResult(
+                                $("f0").tryCast(MAP(INT(), INT())),
+                                "TRY_CAST(f0 AS MAP<INT, INT>)",
+                                null,
+                                MAP(INT(), INT()).nullable())
+                        .testResult(
+                                $("f1").tryCast(MAP(INT(), ARRAY(INT()))),
+                                "TRY_CAST(f1 AS MAP<INT, ARRAY<INT>>)",
+                                null,
+                                MAP(INT(), ARRAY(INT())).nullable()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -308,6 +373,23 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
         public UserPojo(Integer i, String s) {
             this.i = i;
             this.s = s;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            final UserPojo userPojo = (UserPojo) o;
+            return Objects.equals(i, userPojo.i) && Objects.equals(s, userPojo.s);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(i, s);
         }
     }
 

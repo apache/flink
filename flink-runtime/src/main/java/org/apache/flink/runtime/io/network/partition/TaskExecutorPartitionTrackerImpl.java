@@ -19,18 +19,23 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 /**
  * Utility for tracking partitions and issuing release calls to task executors and shuffle masters.
@@ -38,6 +43,9 @@ import java.util.stream.Collectors;
 public class TaskExecutorPartitionTrackerImpl
         extends AbstractPartitionTracker<JobID, TaskExecutorPartitionInfo>
         implements TaskExecutorPartitionTracker {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(TaskExecutorPartitionTrackerImpl.class);
 
     private final Map<IntermediateDataSetID, DataSetEntry> clusterPartitions = new HashMap<>();
     private final ShuffleEnvironment<?, ?> shuffleEnvironment;
@@ -58,6 +66,7 @@ public class TaskExecutorPartitionTrackerImpl
     @Override
     public void stopTrackingAndReleaseJobPartitions(
             Collection<ResultPartitionID> partitionsToRelease) {
+        LOG.debug("Releasing Job Partitions {}", partitionsToRelease);
         if (partitionsToRelease.isEmpty()) {
             return;
         }
@@ -72,11 +81,27 @@ public class TaskExecutorPartitionTrackerImpl
                 CollectionUtil.project(
                         stopTrackingPartitionsFor(producingJobId),
                         PartitionTrackerEntry::getResultPartitionId);
+        LOG.debug("Releasing Job Partitions {} for job {}", partitionsForJob, producingJobId);
         shuffleEnvironment.releasePartitionsLocally(partitionsForJob);
     }
 
     @Override
+    public Collection<TaskExecutorPartitionInfo> getTrackedPartitionsFor(JobID producingJobId) {
+        return partitionTable.getTrackedPartitions(producingJobId).stream()
+                .map(
+                        partitionId -> {
+                            final PartitionInfo<JobID, TaskExecutorPartitionInfo> partitionInfo =
+                                    partitionInfos.get(partitionId);
+                            Preconditions.checkNotNull(partitionInfo);
+                            return partitionInfo.getMetaInfo();
+                        })
+                .collect(toList());
+    }
+
+    @Override
     public void promoteJobPartitions(Collection<ResultPartitionID> partitionsToPromote) {
+        LOG.debug("Promoting Job Partitions {}", partitionsToPromote);
+
         if (partitionsToPromote.isEmpty()) {
             return;
         }
@@ -91,7 +116,7 @@ public class TaskExecutorPartitionTrackerImpl
                     clusterPartitions.computeIfAbsent(
                             dataSetMetaInfo.getIntermediateDataSetId(),
                             ignored -> new DataSetEntry(dataSetMetaInfo.getNumberOfPartitions()));
-            dataSetEntry.addPartition(partitionTrackerEntry.getResultPartitionId());
+            dataSetEntry.addPartition(partitionTrackerEntry.getMetaInfo().getShuffleDescriptor());
         }
     }
 
@@ -121,8 +146,8 @@ public class TaskExecutorPartitionTrackerImpl
                                 entry ->
                                         new ClusterPartitionReport.ClusterPartitionReportEntry(
                                                 entry.getKey(),
-                                                entry.getValue().getPartitionIds(),
-                                                entry.getValue().getTotalNumberOfPartitions()))
+                                                entry.getValue().getTotalNumberOfPartitions(),
+                                                entry.getValue().getShuffleDescriptors()))
                         .collect(Collectors.toList());
 
         return new ClusterPartitionReport(reportEntries);
@@ -130,23 +155,28 @@ public class TaskExecutorPartitionTrackerImpl
 
     private static class DataSetEntry {
 
-        private final Set<ResultPartitionID> partitionIds = new HashSet<>();
+        private final Map<ResultPartitionID, ShuffleDescriptor> shuffleDescriptors =
+                new HashMap<>();
         private final int totalNumberOfPartitions;
 
         private DataSetEntry(int totalNumberOfPartitions) {
             this.totalNumberOfPartitions = totalNumberOfPartitions;
         }
 
-        void addPartition(ResultPartitionID resultPartitionId) {
-            partitionIds.add(resultPartitionId);
+        void addPartition(ShuffleDescriptor shuffleDescriptor) {
+            shuffleDescriptors.put(shuffleDescriptor.getResultPartitionID(), shuffleDescriptor);
         }
 
         public Set<ResultPartitionID> getPartitionIds() {
-            return partitionIds;
+            return shuffleDescriptors.keySet();
         }
 
         public int getTotalNumberOfPartitions() {
             return totalNumberOfPartitions;
+        }
+
+        public Map<ResultPartitionID, ShuffleDescriptor> getShuffleDescriptors() {
+            return shuffleDescriptors;
         }
     }
 }

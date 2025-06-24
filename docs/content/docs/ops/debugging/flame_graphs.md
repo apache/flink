@@ -48,7 +48,7 @@ Operator's On-CPU Flame Graph
 
 {{< hint warning >}}
 
-Any measurement process in and of itself inevitably affects the subject of measurement (see the [double-split experiment](https://en.wikipedia.org/wiki/Double-slit_experiment#Relational_interpretation)). Sampling CPU stack traces is no exception. In order to prevent unintended impacts on production environments, Flame Graphs are currently available as an opt-in feature. To enable it, you'll need to set [`rest.flamegraph.enabled: true`]({{< ref "docs/deployment/config">}}#rest-flamegraph-enabled) in `conf/flink-conf.yaml`. We recommend enabling it in development and pre-production environments, but you should treat it as an experimental feature in production.
+Any measurement process in and of itself inevitably affects the subject of measurement (see the [double-split experiment](https://en.wikipedia.org/wiki/Double-slit_experiment#Relational_interpretation)). Sampling CPU stack traces is no exception. In order to prevent unintended impacts on production environments, Flame Graphs are currently available as an opt-in feature. To enable it, you'll need to set [`rest.flamegraph.enabled: true`]({{< ref "docs/deployment/config">}}#rest-flamegraph-enabled) in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}). We recommend enabling it in development and pre-production environments, but you should treat it as an experimental feature in production.
 
 {{< /hint >}}
 
@@ -76,13 +76,15 @@ Flame Graph in Mixed Mode
 
 The collection of stack traces is done purely within the JVM, so only method calls within the Java runtime are visible (no system calls).
 
-Flame Graph construction is performed at the level of an individual [operator]({{< ref "docs/concepts/glossary" >}}#operator), i.e. all [task]({{< ref "docs/concepts/glossary" >}}#task) threads of that operator are sampled in parallel and their stack traces are combined. 
+Flame Graph construction is performed at the level of an individual [operator]({{< ref "docs/concepts/glossary" >}}#operator) by default,
+i.e. all [task]({{< ref "docs/concepts/glossary" >}}#task) threads of that operator are sampled in parallel and their stack traces are combined.
+If a method call consumes 100% of the resources in one of the parallel tasks but none in the others,
+the bottleneck might be obscured by being averaged out.
 
+Starting with Flink 1.17, Flame Graph provides "drill down" visualizations to the task level.
+Select a subtask of interest, and you can see the flame graph of the corresponding subtask.
 
-
-{{< hint info >}}
-**Note:** 
-Stack trace samples from all threads of an operator are combined together. If a method call consumes 100% of the resources in one of the parallel tasks but none in the others, the bottleneck might be obscured by being averaged out.   
-
-There are plans to address this limitation in the future by providing "drill down" visualizations to the task level.
-{{< /hint >}}
+{{< img src="/fig/flame_graph_subtask.png" class="img-fluid" width="90%" >}}
+{{% center %}}
+Flame Graph to the subtask level
+{{% /center %}}

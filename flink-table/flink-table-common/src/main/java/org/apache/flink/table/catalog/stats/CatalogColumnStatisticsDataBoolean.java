@@ -18,10 +18,14 @@
 
 package org.apache.flink.table.catalog.stats;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /** Column statistics value of boolean type. */
+@PublicEvolving
 public class CatalogColumnStatisticsDataBoolean extends CatalogColumnStatisticsDataBase {
     /** number of "true" values. */
     private final Long trueCount;
@@ -53,5 +57,36 @@ public class CatalogColumnStatisticsDataBoolean extends CatalogColumnStatisticsD
     public CatalogColumnStatisticsDataBoolean copy() {
         return new CatalogColumnStatisticsDataBoolean(
                 trueCount, falseCount, getNullCount(), new HashMap<>(getProperties()));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CatalogColumnStatisticsDataBoolean that = (CatalogColumnStatisticsDataBoolean) o;
+        return Objects.equals(trueCount, that.trueCount)
+                && Objects.equals(falseCount, that.falseCount)
+                && Objects.equals(getNullCount(), that.getNullCount());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(trueCount, falseCount, getNullCount());
+    }
+
+    @Override
+    public String toString() {
+        return "CatalogColumnStatisticsDataBoolean{"
+                + "trueCount="
+                + trueCount
+                + ", falseCount="
+                + falseCount
+                + ", nullCount="
+                + getNullCount()
+                + '}';
     }
 }

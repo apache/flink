@@ -33,7 +33,7 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 
 /** A test for the {@link ArrayDataSerializer}. */
-public class ArrayDataSerializerTest extends SerializerTestBase<ArrayData> {
+class ArrayDataSerializerTest extends SerializerTestBase<ArrayData> {
 
     public ArrayDataSerializerTest() {
         super(
@@ -90,6 +90,7 @@ public class ArrayDataSerializerTest extends SerializerTestBase<ArrayData> {
             createArray("11", "lele", "haa", "ke"),
             createColumnarArray("11", "lele", "haa", "ke"),
             createCustomTypeArray("11", "lele", "haa", "ke"),
+            createCustomTypeArray("111", "lelele", "haaa", "kee")
         };
     }
 

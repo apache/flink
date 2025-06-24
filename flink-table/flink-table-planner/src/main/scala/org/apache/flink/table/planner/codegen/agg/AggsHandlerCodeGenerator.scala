@@ -18,23 +18,24 @@
 package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.ImperativeAggregateFunction
+import org.apache.flink.table.functions.{DeclarativeAggregateFunction, ImperativeAggregateFunction, TableAggregateFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.TableAggregateFunction.RetractableCollector
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
-import org.apache.flink.table.runtime.dataview.{DataViewSpec, ListViewSpec, MapViewSpec, StateListView, StateMapView}
+import org.apache.flink.table.runtime.dataview._
 import org.apache.flink.table.runtime.generated._
 import org.apache.flink.table.runtime.groupwindow._
-import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, RowType}
@@ -70,7 +71,7 @@ class AggsHandlerCodeGenerator(
   private var namespaceClassName: String = _
   private var windowProperties: Seq[WindowProperty] = Seq()
   private var hasNamespace: Boolean = false
-  private var sliceAssignerTerm: String = _
+  private var windowAssignerTerm: String = _
   private var shiftTimeZone: ZoneId = _
 
   /** Aggregates informations */
@@ -86,6 +87,8 @@ class AggsHandlerCodeGenerator(
   private var isAccumulateNeeded = false
   private var isRetractNeeded = false
   private var isMergeNeeded = false
+  private var isWindowSizeNeeded = false
+  private var isIncrementalUpdateNeeded = false
 
   var valueType: RowType = _
 
@@ -167,6 +170,14 @@ class AggsHandlerCodeGenerator(
   }
 
   /**
+   * Whether to update acc result incrementally. The value is true only for TableAggregateFunction
+   * with emitUpdateWithRetract method implemented.
+   */
+  def isIncrementalUpdate: Boolean = {
+    isIncrementalUpdateNeeded
+  }
+
+  /**
    * Tells the generator to generate `merge(..)` method with the merged accumulator information for
    * the [[AggsHandleFunction]] and [[NamespaceAggsHandleFunction]]. Default not generate
    * `merge(..)` method.
@@ -186,6 +197,11 @@ class AggsHandlerCodeGenerator(
     this.mergedAccOnHeap = mergedAccOnHeap
     this.mergedAccExternalTypes = mergedAccExternalTypes
     this.isMergeNeeded = true
+    this
+  }
+
+  def needWindowSize(): AggsHandlerCodeGenerator = {
+    this.isWindowSizeNeeded = true
     this
   }
 
@@ -229,6 +245,20 @@ class AggsHandlerCodeGenerator(
               constants,
               relBuilder)
           case _: ImperativeAggregateFunction[_, _] =>
+            aggInfo.function match {
+              case tableAggFunc: TableAggregateFunction[_, _] =>
+                // If the user implements both the emitValue and emitUpdateWithRetract methods,
+                // the emitUpdateWithRetract method will be called with priority.
+                if (
+                  UserDefinedFunctionUtils.ifMethodExistInFunction(
+                    UserDefinedFunctionHelper.TABLE_AGGREGATE_EMIT_RETRACT,
+                    tableAggFunc)
+                ) {
+                  this.isIncrementalUpdateNeeded = true
+                }
+
+              case _ =>
+            }
             new ImperativeAggCodeGen(
               ctx,
               aggInfo,
@@ -242,7 +272,8 @@ class AggsHandlerCodeGenerator(
               hasNamespace,
               mergedAccOnHeap,
               mergedAccExternalTypes(aggBufferOffset),
-              copyInputField)
+              copyInputField,
+              isIncrementalUpdateNeeded)
         }
         aggBufferOffset = aggBufferOffset + aggInfo.externalAccTypes.length
         codegen
@@ -299,7 +330,7 @@ class AggsHandlerCodeGenerator(
       aggIndex: Int,
       aggName: String): Option[Expression] = {
 
-    if (filterArg > 0) {
+    if (filterArg >= 0) {
       val filterType = inputFieldTypes(filterArg)
       if (!filterType.isInstanceOf[BooleanType]) {
         throw new TableException(
@@ -320,6 +351,7 @@ class AggsHandlerCodeGenerator(
     initialAggregateInformation(aggInfoList)
 
     // generates all methods body first to add necessary reuse code to context
+    val setWindowSizeCode = genSetWindowSize()
     val createAccumulatorsCode = genCreateAccumulators()
     val getAccumulatorsCode = genGetAccumulators()
     val setAccumulatorsCode = genSetAccumulators()
@@ -329,7 +361,7 @@ class AggsHandlerCodeGenerator(
     val mergeCode = genMerge()
     val getValueCode = genGetValue()
 
-    val functionName = newName(name)
+    val functionName = newName(ctx, name)
 
     val functionCode =
       j"""
@@ -351,6 +383,11 @@ class AggsHandlerCodeGenerator(
           public void open($STATE_DATA_VIEW_STORE store) throws Exception {
             this.store = store;
             ${ctx.reuseOpenCode()}
+          }
+
+          @Override
+          public void setWindowSize(int $WINDOWS_SIZE) {
+            $setWindowSizeCode
           }
 
           @Override
@@ -433,10 +470,27 @@ class AggsHandlerCodeGenerator(
 
     // gen converter
     val aggExternalType = aggInfoList.getActualAggregateInfos(0).externalResultType
-    val recordInputName = newName("recordInput")
+    val recordInputName = newName(ctx, "recordInput")
     val recordToRowDataCode = genRecordToRowData(aggExternalType, recordInputName)
 
-    val functionName = newName(name)
+    // for emitUpdateWithRetract, the collector needs to implement RetractableCollector
+    // and override retract method
+    val (collectorClassName, collectorRetractCode) =
+      if (isIncrementalUpdateNeeded)
+        (
+          RETRACTABLE_COLLECTOR,
+          s"""
+             |@Override
+             |public void retract(Object $recordInputName) throws Exception {
+             |  $ROW_DATA tempRowData = convertToRowData($recordInputName);
+             |  result.replace(key, tempRowData);
+             |  result.setRowKind($ROW_KIND.DELETE);
+             |  $COLLECTOR_TERM.collect(result);
+             |}
+             |""".stripMargin)
+      else (COLLECTOR, "")
+
+    val functionName = newName(ctx, name)
     val functionCode =
       j"""
         public final class $functionName implements ${className[TableAggsHandleFunction]} {
@@ -516,7 +570,7 @@ class AggsHandlerCodeGenerator(
             ${ctx.reuseCloseCode()}
           }
 
-          private class $CONVERT_COLLECTOR_TYPE_TERM implements $COLLECTOR {
+          private class $CONVERT_COLLECTOR_TYPE_TERM implements $collectorClassName {
             private $COLLECTOR<$ROW_DATA> $COLLECTOR_TERM;
             private $ROW_DATA key;
             private $JOINED_ROW result;
@@ -551,6 +605,8 @@ class AggsHandlerCodeGenerator(
               $COLLECTOR_TERM.collect(result);
             }
 
+            $collectorRetractCode
+
             @Override
             public void close() {
               $COLLECTOR_TERM.close();
@@ -570,16 +626,16 @@ class AggsHandlerCodeGenerator(
    * Generate [[NamespaceAggsHandleFunction]] with the given function name and aggregate infos and
    * window properties.
    */
-  def generateNamespaceAggsHandler(
+  def generateNamespaceAggsHandler[N](
       name: String,
       aggInfoList: AggregateInfoList,
       windowProperties: Seq[WindowProperty],
-      sliceAssigner: SliceAssigner,
-      shiftTimeZone: ZoneId): GeneratedNamespaceAggsHandleFunction[JLong] = {
-    this.sliceAssignerTerm = newName("sliceAssigner")
-    ctx.addReusableObjectWithName(sliceAssigner, sliceAssignerTerm)
-    // we use window end timestamp to indicate a window, see SliceAssigner
-    generateNamespaceAggsHandler(name, aggInfoList, windowProperties, classOf[JLong], shiftTimeZone)
+      windowAssigner: WindowAssigner,
+      windowClass: Class[N],
+      shiftTimeZone: ZoneId): GeneratedNamespaceAggsHandleFunction[N] = {
+    this.windowAssignerTerm = newName(ctx, "windowAssigner")
+    ctx.addReusableObjectWithName(windowAssigner, windowAssignerTerm)
+    generateNamespaceAggsHandler(name, aggInfoList, windowProperties, windowClass, shiftTimeZone)
   }
 
   /**
@@ -605,7 +661,7 @@ class AggsHandlerCodeGenerator(
     val mergeCode = genMerge()
     val getValueCode = genGetValue()
 
-    val functionName = newName(name)
+    val functionName = newName(ctx, name)
 
     val functionCode =
       j"""
@@ -716,10 +772,10 @@ class AggsHandlerCodeGenerator(
 
     // gen converter
     val aggExternalType = aggInfoList.getActualAggregateInfos(0).externalResultType
-    val recordInputName = newName("recordInput")
+    val recordInputName = newName(ctx, "recordInput")
     val recordToRowDataCode = genRecordToRowData(aggExternalType, recordInputName)
 
-    val functionName = newName(name)
+    val functionName = newName(ctx, name)
     val functionCode =
       j"""
         public final class $functionName
@@ -847,6 +903,35 @@ class AggsHandlerCodeGenerator(
       ctx.tableConfig)
   }
 
+  private def genSetWindowSize(): String = {
+    // The generated method 'setWindowSize' in OverWindowFrame#prepare will always be called
+    // no matter window size is needed or not. If window size is not needed,
+    // the method 'setWindowSize' will do nothing.
+    // So, please make sure to set the variable 'isWindowSizeNeeded' = true
+    // if window size is needed.
+    if (isWindowSizeNeeded) {
+      val methodName = "setWindowSize"
+      ctx.startNewLocalVariableStatement(methodName)
+
+      val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
+        .bindInput(DataTypes.INT().getLogicalType, WINDOWS_SIZE)
+      val body = aggBufferCodeGens
+        // ignore distinct agg codegen
+        .filter(agg => !agg.isInstanceOf[DistinctAggCodeGen])
+        .map(_.setWindowSize(exprGenerator))
+        .mkString("\n")
+
+      s"""
+         |${ctx.reuseLocalVariableCode(methodName)}
+         |${ctx.reuseInputUnboxingCode(WINDOWS_SIZE)}
+         |${ctx.reusePerRecordCode()}
+         |$body
+         |""".stripMargin
+    } else {
+      ""
+    }
+  }
+
   private def genCreateAccumulators(): String = {
     val methodName = "createAccumulators"
     ctx.startNewLocalVariableStatement(methodName)
@@ -854,7 +939,7 @@ class AggsHandlerCodeGenerator(
     // not need to bind input for ExprCodeGenerator
     val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
     val initAccExprs = aggBufferCodeGens.flatMap(_.createAccumulator(exprGenerator))
-    val accTerm = newName("acc")
+    val accTerm = newName(ctx, "acc")
     val resultExpr = exprGenerator.generateResultExpression(
       initAccExprs,
       accTypeInfo,
@@ -877,7 +962,7 @@ class AggsHandlerCodeGenerator(
     // no need to bind input
     val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
     val accExprs = aggBufferCodeGens.flatMap(_.getAccumulator(exprGenerator))
-    val accTerm = newName("acc")
+    val accTerm = newName(ctx, "acc")
     // always create a new accumulator row
     val resultExpr = exprGenerator.generateResultExpression(
       accExprs,
@@ -1012,7 +1097,7 @@ class AggsHandlerCodeGenerator(
         case w: WindowStart =>
           // return a Timestamp(Internal is TimestampData)
           GeneratedExpression(
-            s"$TIMESTAMP_DATA.fromEpochMillis($sliceAssignerTerm.getWindowStart($NAMESPACE_TERM))",
+            s"$TIMESTAMP_DATA.fromEpochMillis($windowAssignerTerm.getWindowStart($NAMESPACE_TERM))",
             "false",
             "",
             w.getResultType)
@@ -1107,7 +1192,7 @@ class AggsHandlerCodeGenerator(
       valueExprs = valueExprs ++ windowExprs
     }
 
-    val aggValueTerm = newName("aggValue")
+    val aggValueTerm = newName(ctx, "aggValue")
     valueType = RowType.of(valueExprs.map(_.resultType): _*)
 
     // always create a new result row
@@ -1137,7 +1222,7 @@ class AggsHandlerCodeGenerator(
         val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
         val valueExprs = getWindowExpressions(windowProperties)
 
-        val aggValueTerm = newName("windowProperties")
+        val aggValueTerm = newName(ctx, "windowProperties")
         valueType = RowType.of(valueExprs.map(_.resultType): _*)
 
         // always create a new result row
@@ -1164,7 +1249,7 @@ class AggsHandlerCodeGenerator(
     val resultType = fromDataTypeToLogicalType(aggExternalType)
     val resultRowType = LogicalTypeUtils.toRowType(resultType)
 
-    val newCtx = CodeGeneratorContext(ctx.tableConfig)
+    val newCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
     val exprGenerator = new ExprCodeGenerator(newCtx, false).bindInput(resultType)
     val resultExpr = exprGenerator.generateConverterResultExpression(
       resultRowType,
@@ -1208,12 +1293,14 @@ object AggsHandlerCodeGenerator {
   val MERGED_ACC_TERM = "otherAcc"
   val ACCUMULATE_INPUT_TERM = "accInput"
   val RETRACT_INPUT_TERM = "retractInput"
+  val WINDOWS_SIZE = "windowSize"
   val DISTINCT_KEY_TERM = "distinctKey"
 
   val NAMESPACE_TERM = "namespace"
   val STORE_TERM = "store"
 
   val COLLECTOR: String = className[Collector[_]]
+  val RETRACTABLE_COLLECTOR: String = className[RetractableCollector[_]]
   val COLLECTOR_TERM = "out"
   val MEMBER_COLLECTOR_TERM = "convertCollector"
   val CONVERT_COLLECTOR_TYPE_TERM = "ConvertCollector"

@@ -27,7 +27,7 @@ export interface JobException {
 export interface JobExceptionItem {
   'attempt-num': number;
   exception: string;
-  location: string;
+  endpoint: string;
   'subtask-index': number;
   task: string;
   timestamp: number;
@@ -43,8 +43,10 @@ export interface ExceptionInfo {
   exceptionName: string;
   stacktrace: string;
   timestamp: number;
+  failureLabels: Map<string, string>;
   taskName: string;
-  location: string;
+  endpoint: string;
+  taskManagerId: string;
 }
 
 export interface RootExceptionInfo extends ExceptionInfo {

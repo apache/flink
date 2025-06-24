@@ -25,6 +25,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 public class SyncMailboxExecutor implements MailboxExecutor {
     @Override
     public void execute(
+            MailOptions mailOptions,
             ThrowingRunnable<? extends Exception> command,
             String descriptionFormat,
             Object... descriptionArgs) {
@@ -41,6 +42,11 @@ public class SyncMailboxExecutor implements MailboxExecutor {
 
     @Override
     public boolean tryYield() throws FlinkRuntimeException {
+        return false;
+    }
+
+    @Override
+    public boolean shouldInterrupt() {
         return false;
     }
 }

@@ -26,7 +26,7 @@
     </appender>
 
     <!-- This affects logging for both user code and Flink -->
-    <root level="INFO">
+    <root level="${ROOT_LOG_LEVEL:-INFO}">
         <appender-ref ref="file"/>
     </root>
 
@@ -38,7 +38,7 @@
     <!-- The following lines keep the log level of common libraries/connectors on
          log level INFO. The root logger does not override this. You have to manually
          change the log levels here. -->
-    <logger name="akka" level="INFO">
+    <logger name="org.apache.pekko" level="INFO">
         <appender-ref ref="file"/>
     </logger>
     <logger name="org.apache.kafka" level="INFO">

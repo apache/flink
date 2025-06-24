@@ -44,7 +44,7 @@ public class SourceReaderOptions {
     public final int elementQueueCapacity;
 
     public SourceReaderOptions(Configuration config) {
-        this.sourceReaderCloseTimeout = config.getLong(SOURCE_READER_CLOSE_TIMEOUT);
-        this.elementQueueCapacity = config.getInteger(ELEMENT_QUEUE_CAPACITY);
+        this.sourceReaderCloseTimeout = config.get(SOURCE_READER_CLOSE_TIMEOUT);
+        this.elementQueueCapacity = config.get(ELEMENT_QUEUE_CAPACITY);
     }
 }

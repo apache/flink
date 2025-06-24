@@ -19,6 +19,7 @@
 package org.apache.flink.cep;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFunction;
 
 import java.util.List;
@@ -27,8 +28,7 @@ import java.util.Map;
 /**
  * Rich variant of the {@link PatternSelectFunction}. As a {@link RichFunction}, it gives access to
  * the {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown
- * methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
- * RichFunction#close()}.
+ * methods: {@link RichFunction#open(OpenContext)} and {@link RichFunction#close()}.
  *
  * @param <IN> Type of the input elements
  * @param <OUT> Type of the output element

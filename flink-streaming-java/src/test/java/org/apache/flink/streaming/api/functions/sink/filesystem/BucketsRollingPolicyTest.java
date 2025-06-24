@@ -24,25 +24,26 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 
-/** Tests for different {@link RollingPolicy rolling policies}. */
-public class BucketsRollingPolicyTest {
+import static org.assertj.core.api.Assertions.assertThat;
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+/** Tests for different {@link RollingPolicy rolling policies}. */
+class BucketsRollingPolicyTest {
+
+    @TempDir private static java.nio.file.Path tempDir;
 
     @Test
-    public void testDefaultRollingPolicy() throws Exception {
-        final File outDir = TEMP_FOLDER.newFolder();
+    void testDefaultRollingPolicy() throws Exception {
+        final File outDir = TempDirUtils.newFolder(tempDir);
         final Path path = new Path(outDir.toURI());
 
         final RollingPolicy<String, String> originalRollingPolicy =
@@ -87,7 +88,7 @@ public class BucketsRollingPolicyTest {
     }
 
     @Test
-    public void testDefaultRollingPolicyDeprecatedCreate() throws Exception {
+    void testDefaultRollingPolicyDeprecatedCreate() {
         DefaultRollingPolicy policy =
                 DefaultRollingPolicy.builder()
                         .withInactivityInterval(Duration.ofMillis(10))
@@ -95,14 +96,14 @@ public class BucketsRollingPolicyTest {
                         .withRolloverInterval(Duration.ofMillis(30))
                         .build();
 
-        Assert.assertEquals(10, policy.getInactivityInterval());
-        Assert.assertEquals(20, policy.getMaxPartSize());
-        Assert.assertEquals(30, policy.getRolloverInterval());
+        assertThat(policy.getInactivityInterval()).isEqualTo(10);
+        assertThat(policy.getMaxPartSize()).isEqualTo(20);
+        assertThat(policy.getRolloverInterval()).isEqualTo(30);
     }
 
     @Test
-    public void testRollOnCheckpointPolicy() throws Exception {
-        final File outDir = TEMP_FOLDER.newFolder();
+    void testRollOnCheckpointPolicy() throws Exception {
+        final File outDir = TempDirUtils.newFolder(tempDir);
         final Path path = new Path(outDir.toURI());
 
         final MethodCallCountingPolicyWrapper<String, String> rollingPolicy =
@@ -131,8 +132,8 @@ public class BucketsRollingPolicyTest {
     }
 
     @Test
-    public void testCustomRollingPolicy() throws Exception {
-        final File outDir = TEMP_FOLDER.newFolder();
+    void testCustomRollingPolicy() throws Exception {
+        final File outDir = TempDirUtils.newFolder(tempDir);
         final Path path = new Path(outDir.toURI());
 
         final MethodCallCountingPolicyWrapper<String, String> rollingPolicy =
@@ -289,12 +290,12 @@ public class BucketsRollingPolicyTest {
                 final long onEventRolls,
                 final long onProcessingTimeCalls,
                 final long onProcessingTimeRolls) {
-            Assert.assertEquals(onCheckpointCalls, onCheckpointCallCounter);
-            Assert.assertEquals(onCheckpointRolls, onCheckpointRollCounter);
-            Assert.assertEquals(onEventCalls, onEventCallCounter);
-            Assert.assertEquals(onEventRolls, onEventRollCounter);
-            Assert.assertEquals(onProcessingTimeCalls, onProcessingTimeCallCounter);
-            Assert.assertEquals(onProcessingTimeRolls, onProcessingTimeRollCounter);
+            assertThat(onCheckpointCallCounter).isEqualTo(onCheckpointCalls);
+            assertThat(onCheckpointRollCounter).isEqualTo(onCheckpointRolls);
+            assertThat(onEventCallCounter).isEqualTo(onEventCalls);
+            assertThat(onEventRollCounter).isEqualTo(onEventRolls);
+            assertThat(onProcessingTimeCallCounter).isEqualTo(onProcessingTimeCalls);
+            assertThat(onProcessingTimeRollCounter).isEqualTo(onProcessingTimeRolls);
         }
     }
 }

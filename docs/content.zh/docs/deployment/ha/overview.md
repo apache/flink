@@ -74,18 +74,9 @@ Flink 提供了两种高可用服务实现：
 
 {{< top >}}
 
-## JobResultStore
+## 作业结果存储
 
-The JobResultStore is used to archive the final result of a job that reached a globally-terminal
-state (i.e. finished, cancelled or failed). The data is stored on a file system (see
-[job-result-store.storage-path]({{< ref "docs/deployment/config#job-result-store-storage-path" >}})).
-Entries in this store are marked as dirty as long as the corresponding job wasn't cleaned up properly
-(artifacts are found in the job's subfolder in [high-availability.storageDir]({{< ref "docs/deployment/config#high-availability-storagedir" >}})).
-
-Dirty entries are subject to cleanup, i.e. the corresponding job is either cleaned up by Flink at
-the moment or will be picked up for cleanup as part of a recovery. The entries will be deleted as
-soon as the cleanup succeeds. Check the JobResultStore configuration parameters under
-[HA configuration options]({{< ref "docs/deployment/config#high-availability" >}}) for further
-details on how to adapt the behavior.
-
+作业结果存储用于归档达到全局结束状态作业（即完成、取消或失败）的最终结果，其数据存储在文件系统上 (请参阅[job-result-store.storage-path]({{< ref "docs/deployment/config#job-result-store-storage-path" >}}))。
+只要没有正确清理相应的作业，此数据条目就是脏数据 (数据位于作业的子文件夹中 [high-availability.storageDir]({{< ref "docs/deployment/config#high-availability-storagedir" >}}))。
+脏数据将被清理，即相应的作业要么在当前时刻被清理，要么在作业恢复过程中被清理。一旦清理成功，这些脏数据条目将被删除。请参阅 [HA configuration options]({{< ref "docs/deployment/config#high-availability" >}}) 下作业结果存储的配置参数以获取有关如何调整行为的更多详细信息。
 {{< top >}}

@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.json.canal;
 
+import org.apache.flink.connector.testutils.formats.DummyInitializationContext;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.formats.json.JsonFormatOptions;
 import org.apache.flink.formats.json.canal.CanalJsonDecodingFormat.ReadableMetadata;
@@ -44,12 +45,15 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.connector.testutils.formats.SchemaTestUtils.open;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CanalJsonSerializationSchema} and {@link CanalJsonDeserializationSchema}. */
 class CanalJsonSerDeSchemaTest {
@@ -76,10 +80,37 @@ class CanalJsonSerDeSchemaTest {
     }
 
     @Test
+    void testIgnoreParseErrors() throws Exception {
+        List<String> lines = readLines("canal-data.txt");
+        CanalJsonDeserializationSchema deserializationSchema =
+                CanalJsonDeserializationSchema.builder(
+                                PHYSICAL_DATA_TYPE,
+                                Collections.emptyList(),
+                                InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()))
+                        .setIgnoreParseErrors(true)
+                        .build();
+        open(deserializationSchema);
+        ThrowingExceptionCollector collector = new ThrowingExceptionCollector();
+        assertThatThrownBy(
+                        () -> {
+                            for (String line : lines) {
+                                deserializationSchema.deserialize(
+                                        line.getBytes(StandardCharsets.UTF_8), collector);
+                            }
+                        })
+                .isInstanceOf(RuntimeException.class)
+                .satisfies(
+                        anyCauseMatches(
+                                RuntimeException.class,
+                                "An error occurred while collecting data."));
+    }
+
+    @Test
     void testDeserializeNullRow() throws Exception {
         final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
         final CanalJsonDeserializationSchema deserializationSchema =
                 createCanalJsonDeserializationSchema(null, null, requestedMetadata);
+        open(deserializationSchema);
         final SimpleCollector collector = new SimpleCollector();
 
         deserializationSchema.deserialize(null, collector);
@@ -139,6 +170,7 @@ class CanalJsonSerDeSchemaTest {
 
     public void runTest(List<String> lines, CanalJsonDeserializationSchema deserializationSchema)
             throws Exception {
+        open(deserializationSchema);
         SimpleCollector collector = new SimpleCollector();
         for (String line : lines) {
             deserializationSchema.deserialize(line.getBytes(StandardCharsets.UTF_8), collector);
@@ -214,8 +246,9 @@ class CanalJsonSerDeSchemaTest {
                         TimestampFormat.ISO_8601,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
-                        true);
-        serializationSchema.open(null);
+                        true,
+                        false);
+        serializationSchema.open(new DummyInitializationContext());
 
         List<String> result = new ArrayList<>();
         for (RowData rowData : collector.list) {
@@ -262,6 +295,7 @@ class CanalJsonSerDeSchemaTest {
         final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
         final CanalJsonDeserializationSchema deserializationSchema =
                 createCanalJsonDeserializationSchema(database, table, requestedMetadata);
+        open(deserializationSchema);
         final SimpleCollector collector = new SimpleCollector();
 
         deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
@@ -306,6 +340,19 @@ class CanalJsonSerDeSchemaTest {
         @Override
         public void collect(RowData record) {
             list.add(record);
+        }
+
+        @Override
+        public void close() {
+            // do nothing
+        }
+    }
+
+    private static class ThrowingExceptionCollector implements Collector<RowData> {
+
+        @Override
+        public void collect(RowData record) {
+            throw new RuntimeException("An error occurred while collecting data.");
         }
 
         @Override

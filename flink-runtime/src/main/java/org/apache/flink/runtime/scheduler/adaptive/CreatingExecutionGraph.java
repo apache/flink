@@ -21,14 +21,19 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobType;
+import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.scheduler.DefaultOperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -50,20 +55,22 @@ import java.util.concurrent.ScheduledFuture;
  * If there are enough slots for the {@link ExecutionGraph} to run, the state transitions to {@link
  * Executing}.
  */
-public class CreatingExecutionGraph implements State {
+public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
 
     private final Context context;
-    private final Logger logger;
     private final OperatorCoordinatorHandlerFactory operatorCoordinatorHandlerFactory;
+
+    private final @Nullable ExecutionGraph previousExecutionGraph;
 
     public CreatingExecutionGraph(
             Context context,
             CompletableFuture<ExecutionGraphWithVertexParallelism>
                     executionGraphWithParallelismFuture,
             Logger logger,
-            OperatorCoordinatorHandlerFactory operatorCoordinatorFactory) {
+            OperatorCoordinatorHandlerFactory operatorCoordinatorFactory,
+            @Nullable ExecutionGraph previousExecutionGraph) {
+        super(context, logger);
         this.context = context;
-        this.logger = logger;
         this.operatorCoordinatorHandlerFactory = operatorCoordinatorFactory;
 
         FutureUtils.assertNoException(
@@ -77,17 +84,19 @@ public class CreatingExecutionGraph implements State {
                                     Duration.ZERO);
                             return null;
                         }));
+        this.previousExecutionGraph = previousExecutionGraph;
     }
 
     private void handleExecutionGraphCreation(
             @Nullable ExecutionGraphWithVertexParallelism executionGraphWithVertexParallelism,
             @Nullable Throwable throwable) {
         if (throwable != null) {
-            logger.info(
-                    "Failed to go from {} to {} because the ExecutionGraph creation failed.",
-                    CreatingExecutionGraph.class.getSimpleName(),
-                    Executing.class.getSimpleName(),
-                    throwable);
+            getLogger()
+                    .info(
+                            "Failed to go from {} to {} because the ExecutionGraph creation failed.",
+                            CreatingExecutionGraph.class.getSimpleName(),
+                            Executing.class.getSimpleName(),
+                            throwable);
             context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, throwable));
         } else {
             for (ExecutionVertex vertex :
@@ -99,8 +108,9 @@ public class CreatingExecutionGraph implements State {
                     context.tryToAssignSlots(executionGraphWithVertexParallelism);
 
             if (result.isSuccess()) {
-                logger.debug(
-                        "Successfully reserved and assigned the required slots for the ExecutionGraph.");
+                getLogger()
+                        .debug(
+                                "Successfully reserved and assigned the required slots for the ExecutionGraph.");
                 final ExecutionGraph executionGraph = result.getExecutionGraph();
                 final ExecutionGraphHandler executionGraphHandler =
                         new ExecutionGraphHandler(
@@ -114,28 +124,35 @@ public class CreatingExecutionGraph implements State {
                         operatorCoordinatorHandlerFactory.create(executionGraph, context);
                 operatorCoordinatorHandler.initializeOperatorCoordinators(
                         context.getMainThreadExecutor());
+                final JobPlanInfo.Plan updatedPlan =
+                        JsonPlanGenerator.generatePlan(
+                                executionGraph.getJobID(),
+                                executionGraph.getJobName(),
+                                JobType.STREAMING, // Adaptive scheduler works only with STREAMING
+                                // jobs
+                                () ->
+                                        IterableUtils.toStream(
+                                                        executionGraph.getVerticesTopologically())
+                                                .map(ExecutionJobVertex::getJobVertex)
+                                                .iterator(),
+                                executionGraphWithVertexParallelism.getVertexParallelism());
+                executionGraph.setPlan(updatedPlan);
+
+                executionGraph.transitionToRunning();
                 operatorCoordinatorHandler.startAllOperatorCoordinators();
+
                 context.goToExecuting(
                         result.getExecutionGraph(),
                         executionGraphHandler,
                         operatorCoordinatorHandler,
                         Collections.emptyList());
             } else {
-                logger.debug(
-                        "Failed to reserve and assign the required slots. Waiting for new resources.");
-                context.goToWaitingForResources();
+                getLogger()
+                        .debug(
+                                "Failed to reserve and assign the required slots. Waiting for new resources.");
+                context.goToWaitingForResources(previousExecutionGraph);
             }
         }
-    }
-
-    @Override
-    public void cancel() {
-        context.goToFinished(context.getArchivedExecutionGraph(JobStatus.CANCELED, null));
-    }
-
-    @Override
-    public void suspend(Throwable cause) {
-        context.goToFinished(context.getArchivedExecutionGraph(JobStatus.SUSPENDED, cause));
     }
 
     @Override
@@ -143,38 +160,12 @@ public class CreatingExecutionGraph implements State {
         return JobStatus.CREATED;
     }
 
-    @Override
-    public ArchivedExecutionGraph getJob() {
-        return context.getArchivedExecutionGraph(getJobStatus(), null);
-    }
-
-    @Override
-    public void handleGlobalFailure(Throwable cause) {
-        context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, cause));
-    }
-
-    @Override
-    public Logger getLogger() {
-        return logger;
-    }
-
     /** Context for the {@link CreatingExecutionGraph} state. */
     interface Context
-            extends GlobalFailureHandler,
+            extends StateWithoutExecutionGraph.Context,
+                    GlobalFailureHandler,
                     StateTransitions.ToExecuting,
-                    StateTransitions.ToFinished,
                     StateTransitions.ToWaitingForResources {
-
-        /**
-         * Creates the {@link ArchivedExecutionGraph} for the given job status and cause. Cause can
-         * be null if there is no failure.
-         *
-         * @param jobStatus jobStatus to initialize the {@link ArchivedExecutionGraph} with
-         * @param cause cause describing a failure cause; {@code null} if there is none
-         * @return the created {@link ArchivedExecutionGraph}
-         */
-        ArchivedExecutionGraph getArchivedExecutionGraph(
-                JobStatus jobStatus, @Nullable Throwable cause);
 
         /**
          * Runs the given action after a delay if the state at this time equals the expected state.
@@ -212,6 +203,13 @@ public class CreatingExecutionGraph implements State {
          * @return the main thread executor
          */
         ComponentMainThreadExecutor getMainThreadExecutor();
+
+        /**
+         * Gets the {@link JobManagerJobMetricGroup}.
+         *
+         * @return the metric group
+         */
+        JobManagerJobMetricGroup getMetricGroup();
     }
 
     @FunctionalInterface
@@ -275,16 +273,20 @@ public class CreatingExecutionGraph implements State {
         private final CompletableFuture<ExecutionGraphWithVertexParallelism>
                 executionGraphWithParallelismFuture;
 
+        private final @Nullable ExecutionGraph previousExecutionGraph;
+
         private final Logger log;
 
         Factory(
                 Context context,
                 CompletableFuture<ExecutionGraphWithVertexParallelism>
                         executionGraphWithParallelismFuture,
-                Logger log) {
+                Logger log,
+                @Nullable ExecutionGraph previousExecutionGraph) {
             this.context = context;
             this.executionGraphWithParallelismFuture = executionGraphWithParallelismFuture;
             this.log = log;
+            this.previousExecutionGraph = previousExecutionGraph;
         }
 
         @Override
@@ -298,23 +300,24 @@ public class CreatingExecutionGraph implements State {
                     context,
                     executionGraphWithParallelismFuture,
                     log,
-                    DefaultOperatorCoordinatorHandler::new);
+                    DefaultOperatorCoordinatorHandler::new,
+                    previousExecutionGraph);
         }
     }
 
     static class ExecutionGraphWithVertexParallelism {
         private final ExecutionGraph executionGraph;
 
-        private final VertexParallelism vertexParallelism;
+        private final JobSchedulingPlan jobSchedulingPlan;
 
         private ExecutionGraphWithVertexParallelism(
-                ExecutionGraph executionGraph, VertexParallelism vertexParallelism) {
+                ExecutionGraph executionGraph, JobSchedulingPlan jobSchedulingPlan) {
             this.executionGraph = executionGraph;
-            this.vertexParallelism = vertexParallelism;
+            this.jobSchedulingPlan = jobSchedulingPlan;
         }
 
         public static ExecutionGraphWithVertexParallelism create(
-                ExecutionGraph executionGraph, VertexParallelism vertexParallelism) {
+                ExecutionGraph executionGraph, JobSchedulingPlan vertexParallelism) {
             return new ExecutionGraphWithVertexParallelism(executionGraph, vertexParallelism);
         }
 
@@ -323,7 +326,11 @@ public class CreatingExecutionGraph implements State {
         }
 
         public VertexParallelism getVertexParallelism() {
-            return vertexParallelism;
+            return jobSchedulingPlan.getVertexParallelism();
+        }
+
+        public JobSchedulingPlan getJobSchedulingPlan() {
+            return jobSchedulingPlan;
         }
     }
 }

@@ -26,40 +26,36 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.annotation.Nonnull;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link Execution}. */
-public class ExecutionTest extends TestLogger {
+class ExecutionTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
-    @ClassRule
-    public static final TestingComponentMainThreadExecutor.Resource MAIN_EXECUTOR_RESOURCE =
-            new TestingComponentMainThreadExecutor.Resource();
+    @RegisterExtension
+    static final TestingComponentMainThreadExecutor.Extension MAIN_EXECUTOR_RESOURCE =
+            new TestingComponentMainThreadExecutor.Extension();
 
     private final TestingComponentMainThreadExecutor testMainThreadUtil =
             MAIN_EXECUTOR_RESOURCE.getComponentMainThreadTestExecutor();
@@ -72,14 +68,14 @@ public class ExecutionTest extends TestLogger {
      * execute this test multiple times to see the failure.
      */
     @Test
-    public void testTerminationFutureIsCompletedAfterSlotRelease() throws Exception {
+    void testTerminationFutureIsCompletedAfterSlotRelease() throws Exception {
         final JobVertex jobVertex = createNoOpJobVertex();
         final JobVertexID jobVertexId = jobVertex.getID();
 
         final TestingPhysicalSlotProvider physicalSlotProvider =
                 TestingPhysicalSlotProvider.createWithLimitedAmountOfPhysicalSlots(1);
         final SchedulerBase scheduler =
-                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 JobGraphTestUtils.streamingJobGraph(jobVertex),
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                                 EXECUTOR_RESOURCE.getExecutor())
@@ -105,7 +101,7 @@ public class ExecutionTest extends TestLogger {
         CompletableFuture<Boolean> restartFuture =
                 terminationFuture.thenApply(
                         ignored -> {
-                            assertTrue(returnedSlotFuture.isDone());
+                            assertThat(returnedSlotFuture).isDone();
                             return true;
                         });
 
@@ -118,12 +114,12 @@ public class ExecutionTest extends TestLogger {
      * See FLINK-9693.
      */
     @Test
-    public void testTaskRestoreStateIsNulledAfterDeployment() throws Exception {
+    void testTaskRestoreStateIsNulledAfterDeployment() throws Exception {
         final JobVertex jobVertex = createNoOpJobVertex();
         final JobVertexID jobVertexId = jobVertex.getID();
 
         final SchedulerBase scheduler =
-                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 JobGraphTestUtils.streamingJobGraph(jobVertex),
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                                 EXECUTOR_RESOURCE.getExecutor())
@@ -143,16 +139,16 @@ public class ExecutionTest extends TestLogger {
                 new JobManagerTaskRestore(1L, new TaskStateSnapshot());
         execution.setInitialState(taskRestoreState);
 
-        assertThat(execution.getTaskRestore(), is(notNullValue()));
+        assertThat(execution.getTaskRestore()).isNotNull();
 
         // schedule the execution vertex and wait for its deployment
         scheduler.startScheduling();
 
-        assertThat(execution.getTaskRestore(), is(nullValue()));
+        assertThat(execution.getTaskRestore()).isNull();
     }
 
     @Test
-    public void testCanceledExecutionReturnsSlot() throws Exception {
+    void testCanceledExecutionReturnsSlot() throws Exception {
 
         final JobVertex jobVertex = createNoOpJobVertex();
         final JobVertexID jobVertexId = jobVertex.getID();
@@ -168,7 +164,7 @@ public class ExecutionTest extends TestLogger {
                                                 .withTaskManagerGateway(taskManagerGateway)
                                                 .build()));
         final SchedulerBase scheduler =
-                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 JobGraphTestUtils.streamingJobGraph(jobVertex),
                                 testMainThreadUtil.getMainThreadExecutor(),
                                 EXECUTOR_RESOURCE.getExecutor())
@@ -195,20 +191,19 @@ public class ExecutionTest extends TestLogger {
         // cancel the execution in case we could schedule the execution
         testMainThreadUtil.execute(execution::cancel);
 
-        assertThat(
-                physicalSlotProvider.getRequests().keySet(),
-                is(physicalSlotProvider.getCancellations().keySet()));
+        assertThat(physicalSlotProvider.getRequests().keySet())
+                .isEqualTo(physicalSlotProvider.getCancellations().keySet());
     }
 
     /** Tests that a slot release will atomically release the assigned {@link Execution}. */
     @Test
-    public void testSlotReleaseAtomicallyReleasesExecution() throws Exception {
+    void testSlotReleaseAtomicallyReleasesExecution() throws Exception {
         final JobVertex jobVertex = createNoOpJobVertex();
 
         final TestingPhysicalSlotProvider physicalSlotProvider =
                 TestingPhysicalSlotProvider.createWithLimitedAmountOfPhysicalSlots(1);
         final SchedulerBase scheduler =
-                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 JobGraphTestUtils.streamingJobGraph(jobVertex),
                                 testMainThreadUtil.getMainThreadExecutor(),
                                 EXECUTOR_RESOURCE.getExecutor())
@@ -231,13 +226,12 @@ public class ExecutionTest extends TestLogger {
         TestingPhysicalSlot physicalSlot = physicalSlotProvider.getFirstResponseOrFail().get();
         testMainThreadUtil.execute(
                 () -> {
-                    assertThat(
-                            execution.getAssignedAllocationID(),
-                            is(physicalSlot.getAllocationId()));
+                    assertThat(execution.getAssignedAllocationID())
+                            .isEqualTo(physicalSlot.getAllocationId());
 
                     physicalSlot.releasePayload(new FlinkException("Test exception"));
 
-                    assertThat(execution.getReleaseFuture().isDone(), is(true));
+                    assertThat(execution.getReleaseFuture()).isDone();
                 });
     }
 

@@ -40,4 +40,28 @@ public interface PriorityQueueSetFactory {
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer);
+
+    /**
+     * Creates a {@link KeyGroupedInternalPriorityQueue}.
+     *
+     * @param stateName unique name for associated with this queue.
+     * @param byteOrderedElementSerializer a serializer that with a format that is lexicographically
+     *     ordered in alignment with elementPriorityComparator.
+     * @param allowFutureMetadataUpdates whether allow metadata to update in the future or not.
+     * @param <T> type of the stored elements.
+     * @return the queue with the specified unique name.
+     */
+    default <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
+            KeyGroupedInternalPriorityQueue<T> create(
+                    @Nonnull String stateName,
+                    @Nonnull TypeSerializer<T> byteOrderedElementSerializer,
+                    boolean allowFutureMetadataUpdates) {
+        if (allowFutureMetadataUpdates) {
+            throw new UnsupportedOperationException(
+                    this.getClass().getName()
+                            + " doesn't support to allow to update future metadata.");
+        } else {
+            return create(stateName, byteOrderedElementSerializer);
+        }
+    }
 }

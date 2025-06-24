@@ -22,14 +22,18 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsListener;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
 import org.apache.flink.util.Preconditions;
@@ -40,13 +44,25 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** State which represents a running job with an {@link ExecutionGraph} and assigned slots. */
-class Executing extends StateWithExecutionGraph implements ResourceConsumer {
+class Executing extends StateWithExecutionGraph
+        implements ResourceListener, StateTransitionManager.Context, CheckpointStatsListener {
 
     private final Context context;
+
+    private final StateTransitionManager stateTransitionManager;
+    private final int rescaleOnFailedCheckpointCount;
+    // null indicates that there was no change event observed, yet
+    @Nullable private AtomicInteger failedCheckpointCountdown;
 
     Executing(
             ExecutionGraph executionGraph,
@@ -55,7 +71,10 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
             Logger logger,
             Context context,
             ClassLoader userCodeClassLoader,
-            List<ExceptionHistoryEntry> failureCollection) {
+            List<ExceptionHistoryEntry> failureCollection,
+            Function<StateTransitionManager.Context, StateTransitionManager>
+                    stateTransitionManagerFactory,
+            int rescaleOnFailedCheckpointCount) {
         super(
                 context,
                 executionGraph,
@@ -68,10 +87,79 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         Preconditions.checkState(
                 executionGraph.getState() == JobStatus.RUNNING, "Assuming running execution graph");
 
+        this.stateTransitionManager = stateTransitionManagerFactory.apply(this);
+
+        Preconditions.checkArgument(
+                rescaleOnFailedCheckpointCount > 0,
+                "The rescaleOnFailedCheckpointCount should be larger than 0.");
+        this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
+        this.failedCheckpointCountdown = null;
+
         deploy();
 
         // check if new resources have come available in the meantime
-        context.runIfState(this, this::notifyNewResourcesAvailable, Duration.ZERO);
+        context.runIfState(
+                this,
+                () -> {
+                    stateTransitionManager.onChange();
+                    stateTransitionManager.onTrigger();
+                },
+                Duration.ZERO);
+    }
+
+    @Override
+    public boolean hasSufficientResources() {
+        return parallelismChanged() && context.hasSufficientResources();
+    }
+
+    @Override
+    public boolean hasDesiredResources() {
+        return parallelismChanged() && context.hasDesiredResources();
+    }
+
+    private boolean parallelismChanged() {
+        final VertexParallelism currentParallelism =
+                extractCurrentVertexParallelism(getExecutionGraph());
+        return context.getAvailableVertexParallelism()
+                .map(
+                        availableParallelism ->
+                                availableParallelism.getVertices().stream()
+                                        .anyMatch(
+                                                vertex ->
+                                                        currentParallelism.getParallelism(vertex)
+                                                                != availableParallelism
+                                                                        .getParallelism(vertex)))
+                .orElse(false);
+    }
+
+    private static VertexParallelism extractCurrentVertexParallelism(
+            AccessExecutionGraph executionGraph) {
+        return new VertexParallelism(
+                executionGraph.getAllVertices().values().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        AccessExecutionJobVertex::getJobVertexId,
+                                        AccessExecutionJobVertex::getParallelism)));
+    }
+
+    @Override
+    public ScheduledFuture<?> scheduleOperation(Runnable callback, Duration delay) {
+        return context.runIfState(this, callback, delay);
+    }
+
+    @Override
+    public void transitionToSubsequentState() {
+        context.goToRestarting(
+                getExecutionGraph(),
+                getExecutionGraphHandler(),
+                getOperatorCoordinatorHandler(),
+                Duration.ofMillis(0L),
+                context.getAvailableVertexParallelism()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "Resources must be available when rescaling.")),
+                getFailures());
     }
 
     @Override
@@ -89,13 +177,20 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
     }
 
     @Override
-    void onFailure(Throwable cause) {
-        FailureResultUtil.restartOrFail(context.howToHandleFailure(cause), context, this);
+    void onFailure(Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
+        FailureResultUtil.restartOrFail(
+                context.howToHandleFailure(cause, failureLabels), context, this);
     }
 
     @Override
     void onGloballyTerminalState(JobStatus globallyTerminalState) {
         context.goToFinished(ArchivedExecutionGraph.createFrom(getExecutionGraph()));
+    }
+
+    @Override
+    public void onLeave(Class<? extends State> newState) {
+        stateTransitionManager.close();
+        super.onLeave(newState);
     }
 
     private void deploy() {
@@ -123,15 +218,38 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
     }
 
     @Override
-    public void notifyNewResourcesAvailable() {
-        if (context.canScaleUp(getExecutionGraph())) {
-            getLogger().info("New resources are available. Restarting job to scale up.");
-            context.goToRestarting(
-                    getExecutionGraph(),
-                    getExecutionGraphHandler(),
-                    getOperatorCoordinatorHandler(),
-                    Duration.ofMillis(0L),
-                    getFailures());
+    public void onNewResourcesAvailable() {
+        stateTransitionManager.onChange();
+        initializeFailedCheckpointCountdownIfUnset();
+    }
+
+    @Override
+    public void onNewResourceRequirements() {
+        stateTransitionManager.onChange();
+        initializeFailedCheckpointCountdownIfUnset();
+    }
+
+    @Override
+    public void onCompletedCheckpoint() {
+        triggerPotentialRescale();
+    }
+
+    @Override
+    public void onFailedCheckpoint() {
+        if (this.failedCheckpointCountdown != null
+                && this.failedCheckpointCountdown.decrementAndGet() <= 0) {
+            triggerPotentialRescale();
+        }
+    }
+
+    private void triggerPotentialRescale() {
+        stateTransitionManager.onTrigger();
+        this.failedCheckpointCountdown = null;
+    }
+
+    private void initializeFailedCheckpointCountdownIfUnset() {
+        if (failedCheckpointCountdown == null) {
+            this.failedCheckpointCountdown = new AtomicInteger(this.rescaleOnFailedCheckpointCount);
         }
     }
 
@@ -154,8 +272,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         schedulingProvider.stopCheckpointScheduler();
 
         final CompletableFuture<String> savepointFuture =
-                executionGraph
-                        .getCheckpointCoordinator()
+                Objects.requireNonNull(executionGraph.getCheckpointCoordinator())
                         .triggerSynchronousSavepoint(terminate, targetDirectory, formatType)
                         .thenApply(CompletedCheckpoint::getExternalPointer);
         return context.goToStopWithSavepoint(
@@ -179,17 +296,17 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
          * Asks how to handle the failure.
          *
          * @param failure failure describing the failure cause
+         * @param failureLabels future of labels from error classification.
          * @return {@link FailureResult} which describes how to handle the failure
          */
-        FailureResult howToHandleFailure(Throwable failure);
+        FailureResult howToHandleFailure(
+                Throwable failure, CompletableFuture<Map<String, String>> failureLabels);
 
         /**
-         * Asks if we can scale up the currently executing job.
-         *
-         * @param executionGraph executionGraph for making the scaling decision.
-         * @return true, if we can scale up
+         * Returns the {@link VertexParallelism} that can be provided by the currently available
+         * slots.
          */
-        boolean canScaleUp(ExecutionGraph executionGraph);
+        Optional<VertexParallelism> getAvailableVertexParallelism();
 
         /**
          * Runs the given action after a delay if the state at this time equals the expected state.
@@ -201,6 +318,20 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
          * @return a ScheduledFuture representing pending completion of the task
          */
         ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);
+
+        /**
+         * Checks whether we have the desired resources.
+         *
+         * @return {@code true} if we have enough resources; otherwise {@code false}
+         */
+        boolean hasDesiredResources();
+
+        /**
+         * Checks if we currently have sufficient resources for executing the job.
+         *
+         * @return {@code true} if we have sufficient resources; otherwise {@code false}
+         */
+        boolean hasSufficientResources();
     }
 
     static class Factory implements StateFactory<Executing> {
@@ -212,6 +343,9 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
         private final ClassLoader userCodeClassLoader;
         private final List<ExceptionHistoryEntry> failureCollection;
+        private final Function<StateTransitionManager.Context, StateTransitionManager>
+                stateTransitionManagerFactory;
+        private final int rescaleOnFailedCheckpointCount;
 
         Factory(
                 ExecutionGraph executionGraph,
@@ -220,7 +354,10 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
                 Logger log,
                 Context context,
                 ClassLoader userCodeClassLoader,
-                List<ExceptionHistoryEntry> failureCollection) {
+                List<ExceptionHistoryEntry> failureCollection,
+                Function<StateTransitionManager.Context, StateTransitionManager>
+                        stateTransitionManagerFactory,
+                int rescaleOnFailedCheckpointCount) {
             this.context = context;
             this.log = log;
             this.executionGraph = executionGraph;
@@ -228,6 +365,8 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
             this.operatorCoordinatorHandler = operatorCoordinatorHandler;
             this.userCodeClassLoader = userCodeClassLoader;
             this.failureCollection = failureCollection;
+            this.stateTransitionManagerFactory = stateTransitionManagerFactory;
+            this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
         }
 
         public Class<Executing> getStateClass() {
@@ -242,7 +381,9 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
                     log,
                     context,
                     userCodeClassLoader,
-                    failureCollection);
+                    failureCollection,
+                    stateTransitionManagerFactory,
+                    rescaleOnFailedCheckpointCount);
         }
     }
 }

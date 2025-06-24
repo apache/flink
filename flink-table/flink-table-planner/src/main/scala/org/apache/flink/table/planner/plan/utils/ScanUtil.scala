@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.{GenericRowData, RowData}
+import org.apache.flink.table.legacy.sources.TableSource
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, ExprCodeGenerator, OperatorCodeGenerator}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{DEFAULT_INPUT1_TERM, GENERIC_ROW}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
@@ -27,7 +28,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
-import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -129,7 +129,8 @@ object ScanUtil {
       substituteStreamOperator,
       InternalTypeInfo.of(outputRowType),
       input.getParallelism,
-      0)
+      0,
+      false)
   }
 
   /** @param qualifiedName qualified name for table */

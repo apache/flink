@@ -19,11 +19,11 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.util.HashMap;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -57,7 +57,7 @@ public class DefaultJobLeaderIdService implements JobLeaderIdService {
 
     private final ScheduledExecutor scheduledExecutor;
 
-    private final Time jobTimeout;
+    private final Duration jobTimeout;
 
     /** Map of currently monitored jobs. */
     private final Map<JobID, JobLeaderIdListener> jobLeaderIdListeners;
@@ -68,13 +68,13 @@ public class DefaultJobLeaderIdService implements JobLeaderIdService {
     public DefaultJobLeaderIdService(
             HighAvailabilityServices highAvailabilityServices,
             ScheduledExecutor scheduledExecutor,
-            Time jobTimeout) {
+            Duration jobTimeout) {
         this.highAvailabilityServices =
                 Preconditions.checkNotNull(highAvailabilityServices, "highAvailabilityServices");
         this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor, "scheduledExecutor");
         this.jobTimeout = Preconditions.checkNotNull(jobTimeout, "jobTimeout");
 
-        jobLeaderIdListeners = new HashMap<>(4);
+        jobLeaderIdListeners = CollectionUtil.newHashMapWithExpectedSize(4);
 
         jobLeaderIdActions = null;
     }
@@ -333,7 +333,7 @@ public class DefaultJobLeaderIdService implements JobLeaderIdService {
                                                 jobId, newTimeoutId);
                                     }
                                 },
-                                jobTimeout.toMilliseconds(),
+                                jobTimeout.toMillis(),
                                 TimeUnit.MILLISECONDS);
             }
         }

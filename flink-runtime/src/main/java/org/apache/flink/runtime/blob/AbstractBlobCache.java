@@ -93,7 +93,7 @@ public abstract class AbstractBlobCache implements Closeable {
         log.info("Created BLOB cache storage directory " + storageDir);
 
         // configure the number of fetch retries
-        final int fetchRetries = blobClientConfig.getInteger(BlobServerOptions.FETCH_RETRIES);
+        final int fetchRetries = blobClientConfig.get(BlobServerOptions.FETCH_RETRIES);
         if (fetchRetries >= 0) {
             this.numFetchRetries = fetchRetries;
         } else {

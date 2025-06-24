@@ -18,18 +18,16 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.util.TestLogger;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Assert;
-import org.junit.Test;
-
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-public class SnapshotResultTest extends TestLogger {
+class SnapshotResultTest {
 
     @Test
-    public void discardState() throws Exception {
+    void discardState() throws Exception {
         SnapshotResult<StateObject> result =
                 SnapshotResult.withLocalState(mock(StateObject.class), mock(StateObject.class));
         result.discardState();
@@ -38,13 +36,13 @@ public class SnapshotResultTest extends TestLogger {
     }
 
     @Test
-    public void getStateSize() {
+    void getStateSize() {
         long size = 42L;
 
         SnapshotResult<StateObject> result =
                 SnapshotResult.withLocalState(
                         new DummyStateObject(size), new DummyStateObject(size));
-        Assert.assertEquals(size, result.getStateSize());
+        assertThat(result.getStateSize()).isEqualTo(size);
     }
 
     static class DummyStateObject implements StateObject {

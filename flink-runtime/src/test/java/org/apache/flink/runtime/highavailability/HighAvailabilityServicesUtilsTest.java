@@ -54,7 +54,7 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
 
         Executor executor = Executors.directExecutor();
 
-        config.setString(HighAvailabilityOptions.HA_MODE, TestHAFactory.class.getName());
+        config.set(HighAvailabilityOptions.HA_MODE, TestHAFactory.class.getName());
 
         // when
         HighAvailabilityServices actualHaServices =
@@ -85,7 +85,7 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
                 TestingClientHAServices.createClientHAServices();
         TestHAFactory.clientHAServices = clientHAServices;
 
-        config.setString(HighAvailabilityOptions.HA_MODE, TestHAFactory.class.getName());
+        config.set(HighAvailabilityOptions.HA_MODE, TestHAFactory.class.getName());
 
         // when
         ClientHighAvailabilityServices actualClientHAServices =
@@ -102,7 +102,7 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
 
         Executor executor = Executors.directExecutor();
 
-        config.setString(
+        config.set(
                 HighAvailabilityOptions.HA_MODE,
                 HighAvailabilityMode.FACTORY_CLASS.name().toLowerCase());
 
@@ -117,8 +117,8 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
         final String clusterId = UUID.randomUUID().toString();
         final Configuration configuration = new Configuration();
 
-        configuration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haStorageRootDirectory);
-        configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
+        configuration.set(HighAvailabilityOptions.HA_STORAGE_PATH, haStorageRootDirectory);
+        configuration.set(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
 
         final Path clusterHighAvailableStoragePath =
                 HighAvailabilityServicesUtils.getClusterHighAvailableStoragePath(configuration);

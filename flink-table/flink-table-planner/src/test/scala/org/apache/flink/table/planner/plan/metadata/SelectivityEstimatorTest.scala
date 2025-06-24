@@ -35,8 +35,8 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.{DateString, TimestampString, TimeString}
-import org.junit.{Before, BeforeClass, Test}
-import org.junit.Assert._
+import org.junit.jupiter.api.{BeforeAll, BeforeEach, Test}
+import org.junit.jupiter.api.Assertions._
 
 import java.math.BigDecimal
 import java.sql.{Date, Time, Timestamp}
@@ -59,7 +59,8 @@ class SelectivityEstimatorTest {
     time_idx,
     timestamp_idx) = (0, 1, 2, 3, 4, 5, 6, 7)
 
-  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory()
+  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(
+    Thread.currentThread().getContextClassLoader)
   var rexBuilder = new FlinkRexBuilder(typeFactory)
   val relDataType: RelDataType = typeFactory.createStructType(
     allFieldTypes.map(typeFactory.createSqlType).asJava,
@@ -68,7 +69,7 @@ class SelectivityEstimatorTest {
   val mq: FlinkRelMetadataQuery = FlinkRelMetadataQuery.instance()
   var scan: TableScan = _
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     scan = mockScan()
   }
@@ -1354,7 +1355,7 @@ class SelectivityEstimatorTest {
 
 object SelectivityEstimatorTest {
 
-  @BeforeClass
+  @BeforeAll
   def beforeAll(): Unit = {
     RelMetadataQueryBase.THREAD_PROVIDERS
       .set(JaninoRelMetadataProvider.of(FlinkDefaultRelMetadataProvider.INSTANCE))

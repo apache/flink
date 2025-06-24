@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -28,7 +27,9 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import javax.annotation.Nullable;
 
@@ -39,6 +40,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Testing implementation of {@link TaskSlotTable}. This class wraps a given {@link TaskSlotTable},
@@ -98,22 +100,44 @@ public class ThreadSafeTaskSlotTable<T extends TaskSlotPayload> implements TaskS
     }
 
     @Override
-    public boolean allocateSlot(
-            int index, JobID jobId, AllocationID allocationId, Time slotTimeout) {
-        return callAsync(() -> taskSlotTable.allocateSlot(index, jobId, allocationId, slotTimeout));
+    public void allocateSlot(
+            int index, JobID jobId, AllocationID allocationId, Duration slotTimeout)
+            throws SlotAllocationException {
+        runSlotAllocationInMainThread(
+                () -> taskSlotTable.allocateSlot(index, jobId, allocationId, slotTimeout));
     }
 
     @Override
-    public boolean allocateSlot(
+    public void allocateSlot(
             int index,
             JobID jobId,
             AllocationID allocationId,
             ResourceProfile resourceProfile,
-            Time slotTimeout) {
-        return callAsync(
+            Duration slotTimeout)
+            throws SlotAllocationException {
+        runSlotAllocationInMainThread(
                 () ->
                         taskSlotTable.allocateSlot(
                                 index, jobId, allocationId, resourceProfile, slotTimeout));
+    }
+
+    private void runSlotAllocationInMainThread(ThrowingRunnable<SlotAllocationException> runnable)
+            throws SlotAllocationException {
+        final AtomicReference<SlotAllocationException> future = new AtomicReference<>();
+        callAsync(
+                () -> {
+                    try {
+                        runnable.run();
+                    } catch (SlotAllocationException e) {
+                        future.set(e);
+                    }
+
+                    return null;
+                });
+
+        if (future.get() != null) {
+            throw future.get();
+        }
     }
 
     @Override
@@ -122,7 +146,7 @@ public class ThreadSafeTaskSlotTable<T extends TaskSlotPayload> implements TaskS
     }
 
     @Override
-    public boolean markSlotInactive(AllocationID allocationId, Time slotTimeout)
+    public boolean markSlotInactive(AllocationID allocationId, Duration slotTimeout)
             throws SlotNotFoundException {
         return callAsync(() -> taskSlotTable.markSlotInactive(allocationId, slotTimeout));
     }

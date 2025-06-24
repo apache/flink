@@ -21,59 +21,52 @@ package org.apache.flink.connector.file.sink;
 import org.apache.flink.connector.file.sink.utils.FileSinkTestUtils;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the serialization and deserialization for {@link FileSinkCommittable}. */
-public class FileCommittableSerializerTest {
-
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+class FileCommittableSerializerTest {
 
     @Test
-    public void testCommittableWithPendingFile() throws IOException {
+    void testCommittableWithPendingFile() throws IOException {
         FileSinkCommittable committable =
                 new FileSinkCommittable("0", new FileSinkTestUtils.TestPendingFileRecoverable());
         FileSinkCommittable deserialized = serializeAndDeserialize(committable);
-        assertEquals(committable.getBucketId(), deserialized.getBucketId());
-        assertEquals(committable.getPendingFile(), deserialized.getPendingFile());
-        assertEquals(
-                committable.getInProgressFileToCleanup(),
-                deserialized.getInProgressFileToCleanup());
-        assertEquals(
-                committable.getCompactedFileToCleanup(), deserialized.getCompactedFileToCleanup());
+        assertThat(committable.getBucketId()).isEqualTo(deserialized.getBucketId());
+        assertThat(committable.getPendingFile()).isEqualTo(deserialized.getPendingFile());
+        assertThat(committable.getInProgressFileToCleanup())
+                .isEqualTo(deserialized.getInProgressFileToCleanup());
+        assertThat(committable.getCompactedFileToCleanup())
+                .isEqualTo(deserialized.getCompactedFileToCleanup());
     }
 
     @Test
-    public void testCommittableWithInProgressFileToCleanup() throws IOException {
+    void testCommittableWithInProgressFileToCleanup() throws IOException {
         FileSinkCommittable committable =
                 new FileSinkCommittable("0", new FileSinkTestUtils.TestInProgressFileRecoverable());
         FileSinkCommittable deserialized = serializeAndDeserialize(committable);
-        assertEquals(committable.getBucketId(), deserialized.getBucketId());
-        assertEquals(committable.getPendingFile(), deserialized.getPendingFile());
-        assertEquals(
-                committable.getInProgressFileToCleanup(),
-                deserialized.getInProgressFileToCleanup());
-        assertEquals(
-                committable.getCompactedFileToCleanup(), deserialized.getCompactedFileToCleanup());
+        assertThat(committable.getBucketId()).isEqualTo(deserialized.getBucketId());
+        assertThat(committable.getPendingFile()).isEqualTo(deserialized.getPendingFile());
+        assertThat(committable.getInProgressFileToCleanup())
+                .isEqualTo(deserialized.getInProgressFileToCleanup());
+        assertThat(committable.getCompactedFileToCleanup())
+                .isEqualTo(deserialized.getCompactedFileToCleanup());
     }
 
     @Test
-    public void testCommittableWithCompactedFileToCleanup() throws IOException {
+    void testCommittableWithCompactedFileToCleanup() throws IOException {
         FileSinkCommittable committable =
                 new FileSinkCommittable("0", new Path("/tmp/mock_path_to_cleanup"));
         FileSinkCommittable deserialized = serializeAndDeserialize(committable);
-        assertEquals(committable.getBucketId(), deserialized.getBucketId());
-        assertEquals(committable.getPendingFile(), deserialized.getPendingFile());
-        assertEquals(
-                committable.getInProgressFileToCleanup(),
-                deserialized.getInProgressFileToCleanup());
-        assertEquals(
-                committable.getCompactedFileToCleanup(), deserialized.getCompactedFileToCleanup());
+        assertThat(committable.getBucketId()).isEqualTo(deserialized.getBucketId());
+        assertThat(committable.getPendingFile()).isEqualTo(deserialized.getPendingFile());
+        assertThat(committable.getInProgressFileToCleanup())
+                .isEqualTo(deserialized.getInProgressFileToCleanup());
+        assertThat(committable.getCompactedFileToCleanup())
+                .isEqualTo(deserialized.getCompactedFileToCleanup());
     }
 
     private FileSinkCommittable serializeAndDeserialize(FileSinkCommittable committable)

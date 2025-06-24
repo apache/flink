@@ -51,7 +51,9 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 public class RelDataTypeJsonSerdeTest {
 
-    private static final FlinkTypeFactory FACTORY = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
+    private static final FlinkTypeFactory FACTORY =
+            new FlinkTypeFactory(
+                    RelDataTypeJsonSerdeTest.class.getClassLoader(), FlinkTypeSystem.INSTANCE);
 
     @ParameterizedTest
     @MethodSource("testRelDataTypeSerde")

@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,46 +21,42 @@ package org.apache.flink.kubernetes.highavailability;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
+import org.apache.flink.runtime.leaderelection.LeaderElectionDriver;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
-import org.apache.flink.runtime.leaderelection.LeaderElectionEventHandler;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.util.Preconditions;
 
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 
-/**
- * {@link LeaderElectionDriverFactory} implementation for Kubernetes.
- *
- * @deprecated in favour of {@link KubernetesMultipleComponentLeaderElectionDriverFactory}
- */
+/** Factory that instantiates a {@link KubernetesLeaderElectionDriver}. */
 public class KubernetesLeaderElectionDriverFactory implements LeaderElectionDriverFactory {
-
     private final FlinkKubeClient kubeClient;
+
+    private final KubernetesLeaderElectionConfiguration kubernetesLeaderElectionConfiguration;
+
     private final KubernetesConfigMapSharedWatcher configMapSharedWatcher;
-    private final ExecutorService watchExecutorService;
-    private final KubernetesLeaderElectionConfiguration leaderConfig;
+
+    private final Executor watchExecutor;
 
     public KubernetesLeaderElectionDriverFactory(
             FlinkKubeClient kubeClient,
+            KubernetesLeaderElectionConfiguration kubernetesLeaderElectionConfiguration,
             KubernetesConfigMapSharedWatcher configMapSharedWatcher,
-            ExecutorService watchExecutorService,
-            KubernetesLeaderElectionConfiguration leaderConfig) {
-        this.kubeClient = kubeClient;
-        this.configMapSharedWatcher = configMapSharedWatcher;
-        this.watchExecutorService = watchExecutorService;
-        this.leaderConfig = leaderConfig;
+            Executor watchExecutor) {
+        this.kubeClient = Preconditions.checkNotNull(kubeClient);
+        this.kubernetesLeaderElectionConfiguration =
+                Preconditions.checkNotNull(kubernetesLeaderElectionConfiguration);
+        this.configMapSharedWatcher = Preconditions.checkNotNull(configMapSharedWatcher);
+        this.watchExecutor = Preconditions.checkNotNull(watchExecutor);
     }
 
     @Override
-    public KubernetesLeaderElectionDriver createLeaderElectionDriver(
-            LeaderElectionEventHandler leaderEventHandler,
-            FatalErrorHandler fatalErrorHandler,
-            String leaderContenderDescription) {
+    public KubernetesLeaderElectionDriver create(
+            LeaderElectionDriver.Listener leaderElectionListener) throws Exception {
         return new KubernetesLeaderElectionDriver(
+                kubernetesLeaderElectionConfiguration,
                 kubeClient,
+                leaderElectionListener,
                 configMapSharedWatcher,
-                watchExecutorService,
-                leaderConfig,
-                leaderEventHandler,
-                fatalErrorHandler);
+                watchExecutor);
     }
 }

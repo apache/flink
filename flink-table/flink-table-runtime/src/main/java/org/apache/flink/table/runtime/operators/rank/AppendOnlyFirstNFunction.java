@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -31,12 +31,14 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
+import java.io.IOException;
+
 /**
  * A variant of {@link AppendOnlyTopNFunction} to handle first-n case.
  *
  * <p>The input stream should only contain INSERT messages.
  */
-public class AppendOnlyFirstNFunction extends AbstractTopNFunction {
+public class AppendOnlyFirstNFunction extends AbstractSyncStateTopNFunction {
 
     private static final long serialVersionUID = -889227691088906247L;
 
@@ -64,8 +66,8 @@ public class AppendOnlyFirstNFunction extends AbstractTopNFunction {
     }
 
     @Override
-    public void open(Configuration configure) throws Exception {
-        super.open(configure);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         ValueStateDescriptor<Integer> stateDesc =
                 new ValueStateDescriptor<>("counterState", Types.INT);
         if (ttlConfig.isEnabled()) {
@@ -79,14 +81,14 @@ public class AppendOnlyFirstNFunction extends AbstractTopNFunction {
             throws Exception {
         initRankEnd(input);
 
-        // check message should be insert only.
+        // Ensure the message is an insert-only operation.
         Preconditions.checkArgument(input.getRowKind() == RowKind.INSERT);
-        int currentRank = state.value() == null ? 0 : state.value();
-        // ignore record if it does not belong to the first-n rows
+        int currentRank = getCurrentRank();
+        // Ignore record if it does not belong to the first-n rows
         if (currentRank >= rankEnd) {
             return;
         }
-        currentRank += 1;
+        currentRank++;
         state.update(currentRank);
 
         if (outputRankNumber || hasOffset()) {
@@ -94,5 +96,10 @@ public class AppendOnlyFirstNFunction extends AbstractTopNFunction {
         } else {
             collectInsert(out, input);
         }
+    }
+
+    private int getCurrentRank() throws IOException {
+        Integer value = state.value();
+        return value == null ? 0 : value;
     }
 }

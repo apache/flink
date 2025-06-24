@@ -65,7 +65,9 @@ public class RecordWiseFileCompactor<IN> implements FileCompactor {
      */
     public interface Reader<T> extends AutoCloseable {
 
-        /** @return The next record, or null if no more available. */
+        /**
+         * @return The next record, or null if no more available.
+         */
         T read() throws IOException;
 
         /**

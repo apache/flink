@@ -21,7 +21,7 @@ package org.apache.flink.formats.avro;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.testutils.FilteredClassLoader;
 import org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 
 import com.esotericsoftware.kryo.Kryo;
 import org.junit.jupiter.api.Test;

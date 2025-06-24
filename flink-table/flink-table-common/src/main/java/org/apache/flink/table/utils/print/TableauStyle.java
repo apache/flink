@@ -118,11 +118,24 @@ public final class TableauStyle implements PrintStyle {
     @Override
     public void print(Iterator<RowData> it, PrintWriter printWriter) {
         if (!it.hasNext()) {
-            printWriter.println("Empty set");
-            printWriter.flush();
+            printEmptyResult(it, printWriter);
             return;
         }
+        long numRows = printTable(it, printWriter);
+        printFooter(printWriter, numRows);
+    }
 
+    public void printEmptyResult(Iterator<RowData> it, PrintWriter printWriter) {
+        printWriter.println("Empty set");
+        printWriter.flush();
+    }
+
+    /**
+     * Print table with column names and borders.
+     *
+     * @return the row number printed in the table
+     */
+    public long printTable(Iterator<RowData> it, PrintWriter printWriter) {
         if (columnWidths == null) {
             final List<RowData> rows = new ArrayList<>();
             final List<String[]> content = new ArrayList<>();
@@ -132,7 +145,7 @@ public final class TableauStyle implements PrintStyle {
                 rows.add(row);
                 content.add(rowFieldsToString(row));
             }
-            this.columnWidths = columnWidthsByContent(columnNames, content, maxColumnWidth);
+            inferColumnWidth(content);
             it = rows.iterator();
         }
 
@@ -154,9 +167,20 @@ public final class TableauStyle implements PrintStyle {
 
         // print border line
         printBorderLine(printWriter);
+        return numRows;
+    }
+
+    public void printFooter(PrintWriter printWriter, long numRows) {
         final String rowTerm = numRows > 1 ? "rows" : "row";
         printWriter.println(numRows + " " + rowTerm + " in set");
         printWriter.flush();
+    }
+
+    public void inferColumnWidth(List<String[]> rowData) {
+        if (columnWidths != null) {
+            throw new IllegalStateException("Column widths have already been initialized.");
+        }
+        columnWidths = columnWidthsByContent(columnNames, rowData, maxColumnWidth);
     }
 
     public String[] rowFieldsToString(RowData row) {

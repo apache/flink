@@ -29,7 +29,6 @@ import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.g
 import org.apache.flink.table.planner.plan.schema.FlinkTableFunction
 import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType
@@ -115,8 +114,8 @@ class TableFunctionCallGen(rexCall: RexCall, tableFunction: TableFunction[_])
     val externalType = fromDataTypeToLogicalType(externalDataType)
     val wrappedInternalType = LogicalTypeUtils.toRowType(externalType)
 
-    val collectorCtx = CodeGeneratorContext(ctx.tableConfig)
-    val externalTerm = newName("externalRecord")
+    val collectorCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
+    val externalTerm = newName(ctx, "externalRecord")
 
     // code for wrapping atomic types
     val collectorCode = if (!isCompositeType(externalType)) {
@@ -145,7 +144,7 @@ class TableFunctionCallGen(rexCall: RexCall, tableFunction: TableFunction[_])
       CodeGenUtils.genToInternalConverter(ctx, externalDataType),
       collectorCode
     )
-    val resultCollectorTerm = newName("resultConverterCollector")
+    val resultCollectorTerm = newName(ctx, "resultConverterCollector")
     CollectorCodeGenerator.addToContext(ctx, resultCollectorTerm, resultCollector)
     resultCollectorTerm
   }

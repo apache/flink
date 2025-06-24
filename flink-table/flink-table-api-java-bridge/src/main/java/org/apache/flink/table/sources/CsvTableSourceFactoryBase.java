@@ -19,14 +19,14 @@
 package org.apache.flink.table.sources;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.legacy.table.descriptors.SchemaValidator;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FileSystemValidator;
 import org.apache.flink.table.descriptors.OldCsvValidator;
-import org.apache.flink.table.descriptors.SchemaValidator;
-import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableFactoryService;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.factories.TableFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.TableSchemaUtils;
@@ -41,6 +41,9 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.DescriptorProperties.COMMENT;
+import static org.apache.flink.table.descriptors.DescriptorProperties.INDEX;
+import static org.apache.flink.table.descriptors.DescriptorProperties.INDEX_COLUMNS;
+import static org.apache.flink.table.descriptors.DescriptorProperties.INDEX_NAME;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
@@ -55,7 +58,7 @@ import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_IGNORE_P
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_LINE_DELIMITER;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_QUOTE_CHARACTER;
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_TYPE_VALUE;
-import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.legacy.descriptors.Schema.SCHEMA;
 
 /**
  * Factory base for creating configured instances of {@link CsvTableSource}.
@@ -102,6 +105,9 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
         properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_ROWTIME);
         properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_EXPR);
         properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_DATA_TYPE);
+        // index
+        properties.add(SCHEMA + "." + INDEX + ".#." + INDEX_NAME);
+        properties.add(SCHEMA + "." + INDEX + ".#." + INDEX_COLUMNS);
         // table constraint
         properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
         properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);

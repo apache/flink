@@ -23,11 +23,15 @@ import org.apache.flink.runtime.rest.messages.LogInfo;
 import org.apache.flink.runtime.rest.messages.LogListInfo;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 
 /** Tests for (un)marshalling of {@link LogListInfo}. */
-public class LogListInfoTest extends RestResponseMarshallingTestBase {
+@ExtendWith(NoOpTestExtension.class)
+class LogListInfoTest extends RestResponseMarshallingTestBase {
 
     @Override
     protected Class getTestResponseClass() {

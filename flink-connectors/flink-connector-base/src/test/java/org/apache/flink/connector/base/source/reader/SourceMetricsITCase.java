@@ -34,38 +34,30 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.testutils.InMemoryReporter;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
-import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.Matcher;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CyclicBarrier;
 
-import static org.apache.flink.metrics.testutils.MetricMatchers.isCounter;
-import static org.apache.flink.metrics.testutils.MetricMatchers.isGauge;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.Matchers.both;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertThat;
+import static org.apache.flink.metrics.testutils.MetricAssertions.assertThatCounter;
+import static org.apache.flink.metrics.testutils.MetricAssertions.assertThatGauge;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests whether all provided metrics of a {@link Source} are of the expected values (FLIP-33). */
-public class SourceMetricsITCase extends TestLogger {
+class SourceMetricsITCase {
     private static final int DEFAULT_PARALLELISM = 4;
     // since integration tests depend on wall clock time, use huge lags
     private static final long EVENTTIME_LAG = Duration.ofDays(100).toMillis();
@@ -73,12 +65,12 @@ public class SourceMetricsITCase extends TestLogger {
     private static final long EVENTTIME_EPSILON = Duration.ofDays(20).toMillis();
     // this basically is the time a build is allowed to be frozen before the test fails
     private static final long WATERMARK_EPSILON = Duration.ofHours(6).toMillis();
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+    @RegisterExtension SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
     private static final InMemoryReporter reporter = InMemoryReporter.createWithRetainedMetrics();
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
@@ -86,7 +78,7 @@ public class SourceMetricsITCase extends TestLogger {
                             .build());
 
     @Test
-    public void testMetricsWithTimestamp() throws Exception {
+    void testMetricsWithTimestamp() throws Exception {
         long baseTime = System.currentTimeMillis() - EVENTTIME_LAG;
         WatermarkStrategy<Integer> strategy =
                 WatermarkStrategy.forGenerator(
@@ -97,7 +89,7 @@ public class SourceMetricsITCase extends TestLogger {
     }
 
     @Test
-    public void testMetricsWithoutTimestamp() throws Exception {
+    void testMetricsWithoutTimestamp() throws Exception {
         testMetrics(WatermarkStrategy.noWatermarks(), false);
     }
 
@@ -130,7 +122,7 @@ public class SourceMetricsITCase extends TestLogger {
                                     }
                                     return i;
                                 });
-        stream.addSink(new DiscardingSink<>());
+        stream.sinkTo(new DiscardingSink<>());
         JobClient jobClient = env.executeAsync();
         final JobID jobId = jobClient.getJobID();
 
@@ -169,7 +161,7 @@ public class SourceMetricsITCase extends TestLogger {
             boolean hasTimestamps) {
         List<OperatorMetricGroup> groups =
                 reporter.findOperatorMetricGroups(jobId, "MetricTestingSource");
-        assertThat(groups, hasSize(parallelism));
+        assertThat(groups).hasSize(parallelism);
 
         int subtaskWithMetrics = 0;
         for (OperatorMetricGroup group : groups) {
@@ -177,37 +169,33 @@ public class SourceMetricsITCase extends TestLogger {
             // there are only 2 splits assigned; so two groups will not update metrics
             if (group.getIOMetricGroup().getNumRecordsInCounter().getCount() == 0) {
                 // assert that optional metrics are not initialized when no split assigned
-                assertThat(
-                        metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG),
-                        isGauge(equalTo(InternalSourceReaderMetricGroup.UNDEFINED)));
-                assertThat(metrics.get(MetricNames.WATERMARK_LAG), nullValue());
+                assertThatGauge(metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG))
+                        .isEqualTo(InternalSourceReaderMetricGroup.UNDEFINED);
+                assertThat(metrics.get(MetricNames.WATERMARK_LAG)).isNull();
                 continue;
             }
             subtaskWithMetrics++;
             // I/O metrics
-            assertThat(
-                    group.getIOMetricGroup().getNumRecordsInCounter(),
-                    isCounter(equalTo(processedRecordsPerSubtask)));
-            assertThat(
-                    group.getIOMetricGroup().getNumBytesInCounter(),
-                    isCounter(
-                            equalTo(
-                                    processedRecordsPerSubtask
-                                            * MockRecordEmitter.RECORD_SIZE_IN_BYTES)));
+
+            assertThatCounter(group.getIOMetricGroup().getNumRecordsInCounter())
+                    .isEqualTo(processedRecordsPerSubtask);
+            assertThatCounter(group.getIOMetricGroup().getNumBytesInCounter())
+                    .isEqualTo(processedRecordsPerSubtask * MockRecordEmitter.RECORD_SIZE_IN_BYTES);
+            assertThatCounter(group.getIOMetricGroup().getNumRecordsOutCounter())
+                    .isEqualTo(processedRecordsPerSubtask);
+            assertThatCounter(group.getIOMetricGroup().getNumBytesOutCounter())
+                    .isEqualTo(processedRecordsPerSubtask * MockRecordEmitter.RECORD_SIZE_IN_BYTES);
             // MockRecordEmitter is just incrementing errors every even record
-            assertThat(
-                    metrics.get(MetricNames.NUM_RECORDS_IN_ERRORS),
-                    isCounter(equalTo(processedRecordsPerSubtask / 2)));
+            assertThatCounter(metrics.get(MetricNames.NUM_RECORDS_IN_ERRORS))
+                    .isEqualTo(processedRecordsPerSubtask / 2);
             if (hasTimestamps) {
                 // Timestamp assigner subtracting EVENTTIME_LAG from wall clock
-                assertThat(
-                        metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG),
-                        isGauge(isCloseTo(EVENTTIME_LAG, EVENTTIME_EPSILON)));
+                assertThatGauge(metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG))
+                        .isCloseTo(EVENTTIME_LAG, EVENTTIME_EPSILON);
                 // Watermark is derived from timestamp, so it has to be in the same order of
                 // magnitude
-                assertThat(
-                        metrics.get(MetricNames.WATERMARK_LAG),
-                        isGauge(isCloseTo(EVENTTIME_LAG, EVENTTIME_EPSILON)));
+                assertThatGauge(metrics.get(MetricNames.WATERMARK_LAG))
+                        .isCloseTo(EVENTTIME_LAG, EVENTTIME_EPSILON);
                 // Calculate the additional watermark lag (on top of event time lag)
                 Long watermarkLag =
                         ((Gauge<Long>) metrics.get(MetricNames.WATERMARK_LAG)).getValue()
@@ -216,28 +204,44 @@ public class SourceMetricsITCase extends TestLogger {
                                                         MetricNames.CURRENT_EMIT_EVENT_TIME_LAG))
                                         .getValue();
                 // That should correspond to the out-of-order boundedness
-                assertThat(watermarkLag, isCloseTo(WATERMARK_LAG, WATERMARK_EPSILON));
+                assertThat(watermarkLag)
+                        .isGreaterThan(WATERMARK_LAG - WATERMARK_EPSILON)
+                        .isLessThan(WATERMARK_LAG + WATERMARK_EPSILON);
             } else {
                 // assert that optional metrics are not initialized when no timestamp assigned
-                assertThat(
-                        metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG),
-                        isGauge(equalTo(InternalSourceReaderMetricGroup.UNDEFINED)));
-                assertThat(metrics.get(MetricNames.WATERMARK_LAG), nullValue());
+                assertThatGauge(metrics.get(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG))
+                        .isEqualTo(InternalSourceReaderMetricGroup.UNDEFINED);
+                assertThat(metrics.get(MetricNames.WATERMARK_LAG)).isNull();
             }
 
             long pendingRecords = numTotalPerSubtask - processedRecordsPerSubtask;
-            assertThat(metrics.get(MetricNames.PENDING_RECORDS), isGauge(equalTo(pendingRecords)));
-            assertThat(
-                    metrics.get(MetricNames.PENDING_BYTES),
-                    isGauge(equalTo(pendingRecords * MockRecordEmitter.RECORD_SIZE_IN_BYTES)));
+            assertThatGauge(metrics.get(MetricNames.PENDING_RECORDS)).isEqualTo(pendingRecords);
+            assertThatGauge(metrics.get(MetricNames.PENDING_BYTES))
+                    .isEqualTo(pendingRecords * MockRecordEmitter.RECORD_SIZE_IN_BYTES);
             // test is keeping source idle time metric busy with the barrier
-            assertThat(metrics.get(MetricNames.SOURCE_IDLE_TIME), isGauge(equalTo(0L)));
+            assertThatGauge(metrics.get(MetricNames.SOURCE_IDLE_TIME)).isEqualTo(0L);
         }
-        assertThat(subtaskWithMetrics, equalTo(numSplits));
-    }
+        assertThat(subtaskWithMetrics).isEqualTo(numSplits);
 
-    private Matcher<Long> isCloseTo(long value, long epsilon) {
-        return both(greaterThan(value - epsilon)).and(lessThan(value + epsilon));
+        // Test operator I/O metrics are reused by task metrics
+        List<TaskMetricGroup> taskMetricGroups =
+                reporter.findTaskMetricGroups(jobId, "MetricTestingSource");
+        assertThat(taskMetricGroups).hasSize(parallelism);
+
+        int subtaskWithTaskMetrics = 0;
+        for (TaskMetricGroup taskMetricGroup : taskMetricGroups) {
+            // there are only 2 splits assigned; so two groups will not update metrics
+            if (taskMetricGroup.getIOMetricGroup().getNumRecordsInCounter().getCount() == 0) {
+                continue;
+            }
+
+            subtaskWithTaskMetrics++;
+            assertThatCounter(taskMetricGroup.getIOMetricGroup().getNumRecordsInCounter())
+                    .isEqualTo(processedRecordsPerSubtask);
+            assertThatCounter(taskMetricGroup.getIOMetricGroup().getNumBytesInCounter())
+                    .isEqualTo(processedRecordsPerSubtask * MockRecordEmitter.RECORD_SIZE_IN_BYTES);
+        }
+        assertThat(subtaskWithTaskMetrics).isEqualTo(numSplits);
     }
 
     private static class LaggingTimestampAssigner

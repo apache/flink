@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.StringValue;
 
-public class StringValueComparatorTest extends ComparatorTestBase<StringValue> {
+class StringValueComparatorTest extends ComparatorTestBase<StringValue> {
 
     @Override
     protected TypeComparator<StringValue> createComparator(boolean ascending) {

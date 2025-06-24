@@ -20,14 +20,12 @@ import getpass
 import glob
 import os
 import platform
-import re
 import signal
 import socket
 import sys
-import time
 from collections import namedtuple
 from string import Template
-from subprocess import Popen, PIPE, check_output, CalledProcessError
+from subprocess import Popen, PIPE
 
 from pyflink.find_flink_home import _find_flink_home, _find_flink_source_root
 
@@ -36,36 +34,46 @@ KEY_ENV_YARN_CONF_DIR = "env.yarn.conf.dir"
 KEY_ENV_HADOOP_CONF_DIR = "env.hadoop.conf.dir"
 KEY_ENV_HBASE_CONF_DIR = "env.hbase.conf.dir"
 KEY_ENV_JAVA_HOME = "env.java.home"
-KEY_ENV_JAVA_OPTS = "env.java.opts"
+KEY_ENV_JAVA_OPTS = "env.java.opts.all"
+KEY_ENV_JAVA_OPTS_DEPRECATED = "env.java.opts"
+KEY_ENV_JAVA_DEFAULT_OPTS = "env.java.default-opts.all"
 
 
 def on_windows():
     return platform.system() == "Windows"
 
 
-def read_from_config(key, default_value, flink_conf_file):
-    value = default_value
-    # get the realpath of tainted path value to avoid CWE22 problem that constructs a path or URI
-    # using the tainted value and might allow an attacker to access, modify, or test the existence
-    # of critical or sensitive files.
-    with open(os.path.realpath(flink_conf_file), "r") as f:
-        while True:
-            line = f.readline()
-            if not line:
-                break
-            if line.startswith("#") or len(line.strip()) == 0:
-                continue
-            k, v = line.split(":", 1)
-            if k.strip() == key:
-                value = v.strip()
-    return value
+def read_from_config(key, default_value, flink_conf_directory):
+    from ruamel.yaml import YAML
+    yaml = YAML(typ='safe')
+    config_file = os.path.join(flink_conf_directory, "config.yaml")
+    if os.path.isfile(config_file):
+        # If config.yaml exists, use YAML parser to read the value
+        with open(os.path.realpath(config_file), "r") as f:
+            config = yaml.load(f)
+            flat_config = flatten_config(config)
+            return flat_config.get(key, default_value)
+
+    return default_value
+
+
+def flatten_config(config, parent_key=''):
+    items = []
+    sep = '.'
+    for k, v in config.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_config(v, new_key).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
 
 def find_java_executable():
     java_executable = "java.exe" if on_windows() else "java"
     flink_home = _find_flink_home()
-    flink_conf_file = os.path.join(flink_home, "conf", "flink-conf.yaml")
-    java_home = read_from_config(KEY_ENV_JAVA_HOME, None, flink_conf_file)
+    flink_conf_directory = os.path.join(flink_home, "conf")
+    java_home = read_from_config(KEY_ENV_JAVA_HOME, None, flink_conf_directory)
 
     if java_home is None and "JAVA_HOME" in os.environ:
         java_home = os.environ["JAVA_HOME"]
@@ -120,13 +128,12 @@ def construct_log_settings(env):
 
     flink_home = os.path.realpath(_find_flink_home())
     flink_conf_dir = env['FLINK_CONF_DIR']
-    flink_conf_file = os.path.join(env['FLINK_CONF_DIR'], "flink-conf.yaml")
 
     if "FLINK_LOG_DIR" in env:
         flink_log_dir = env["FLINK_LOG_DIR"]
     else:
         flink_log_dir = read_from_config(
-            KEY_ENV_LOG_DIR, os.path.join(flink_home, "log"), flink_conf_file)
+            KEY_ENV_LOG_DIR, os.path.join(flink_home, "log"), env['FLINK_CONF_DIR'])
 
     if "LOG4J_PROPERTIES" in env:
         log4j_properties = env["LOG4J_PROPERTIES"]
@@ -156,13 +163,18 @@ def construct_log_settings(env):
 
 
 def get_jvm_opts(env):
-    flink_conf_file = os.path.join(env['FLINK_CONF_DIR'], "flink-conf.yaml")
-    jvm_opts = env.get(
-        'FLINK_ENV_JAVA_OPTS', read_from_config(KEY_ENV_JAVA_OPTS, "", flink_conf_file))
+    jvm_opts = env.get("FLINK_ENV_JAVA_OPTS")
+    if jvm_opts is None:
+        default_jvm_opts = read_from_config(KEY_ENV_JAVA_DEFAULT_OPTS, "", env['FLINK_CONF_DIR'])
+        extra_jvm_opts = read_from_config(
+            KEY_ENV_JAVA_OPTS,
+            read_from_config(KEY_ENV_JAVA_OPTS_DEPRECATED, "", env['FLINK_CONF_DIR']),
+            env['FLINK_CONF_DIR'])
+        jvm_opts = default_jvm_opts + " " + extra_jvm_opts
 
-    # Remove leading and ending double quotes (if present) of value
-    jvm_opts = jvm_opts.strip("\"")
-    return jvm_opts
+    # Remove leading and trailing double quotes (if present) of value
+    jvm_opts = jvm_opts.strip('"')
+    return jvm_opts.split()
 
 
 def construct_flink_classpath(env):
@@ -188,8 +200,6 @@ def construct_flink_classpath(env):
 
 
 def construct_hadoop_classpath(env):
-    flink_conf_file = os.path.join(env['FLINK_CONF_DIR'], "flink-conf.yaml")
-
     hadoop_conf_dir = ""
     if 'HADOOP_CONF_DIR' not in env and 'HADOOP_CLASSPATH' not in env:
         if os.path.isdir("/etc/hadoop/conf"):
@@ -206,65 +216,29 @@ def construct_hadoop_classpath(env):
     return os.pathsep.join(
         [env.get("HADOOP_CLASSPATH", ""),
          env.get("YARN_CONF_DIR",
-                 read_from_config(KEY_ENV_YARN_CONF_DIR, "", flink_conf_file)),
+                 read_from_config(KEY_ENV_YARN_CONF_DIR, "", env['FLINK_CONF_DIR'])),
          env.get("HADOOP_CONF_DIR",
-                 read_from_config(KEY_ENV_HADOOP_CONF_DIR, hadoop_conf_dir, flink_conf_file)),
+                 read_from_config(KEY_ENV_HADOOP_CONF_DIR, hadoop_conf_dir, env['FLINK_CONF_DIR'])),
          env.get("HBASE_CONF_DIR",
-                 read_from_config(KEY_ENV_HBASE_CONF_DIR, hbase_conf_dir, flink_conf_file))])
+                 read_from_config(KEY_ENV_HBASE_CONF_DIR, hbase_conf_dir, env['FLINK_CONF_DIR']))])
 
 
-def download_apache_avro():
-    """
-    Currently we need to download the Apache Avro manually to avoid test failure caused by the avro
-    format sql jar. See https://issues.apache.org/jira/browse/FLINK-17417. If the issue is fixed,
-    this method could be removed. Using maven command copy the jars in repository to avoid accessing
-    external network.
-    """
-    flink_source_root = _find_flink_source_root()
-    avro_jar_pattern = os.path.join(
-        flink_source_root, "flink-formats", "flink-avro", "target", "avro*.jar")
-    if len(glob.glob(avro_jar_pattern)) > 0:
-        # the avro jar already existed, just return.
-        return
-    mvn = "mvn.cmd" if on_windows() else "mvn"
-    avro_version_output = check_output(
-        [mvn, "help:evaluate", "-Dexpression=avro.version"],
-        cwd=flink_source_root).decode("utf-8")
-    lines = avro_version_output.replace("\r", "").split("\n")
-    avro_version = None
-    for line in lines:
-        if line.strip() != "" and re.match(r'^[0-9]+\.[0-9]+(\.[0-9]+)?$', line.strip()):
-            avro_version = line
-            break
-    if avro_version is None:
-        raise Exception("The Apache Avro version is not found in the maven command output:\n %s" %
-                        avro_version_output)
-    check_output(
-        [mvn,
-         "org.apache.maven.plugins:maven-dependency-plugin:3.2.0:copy",
-         "-Dartifact=org.apache.avro:avro:%s:jar" % avro_version,
-         "-DoutputDirectory=%s/flink-formats/flink-avro/target" % flink_source_root],
-        cwd=flink_source_root)
-
-
-def construct_test_classpath():
+def construct_test_classpath(env):
     test_jar_patterns = [
-        "flink-runtime/target/flink-runtime*tests.jar",
-        "flink-streaming-java/target/flink-streaming-java*tests.jar",
-        "flink-formats/flink-csv/target/flink-csv*.jar",
-        "flink-formats/flink-avro/target/flink-avro*.jar",
-        "flink-formats/flink-avro/target/avro*.jar",
-        "flink-formats/flink-json/target/flink-json*.jar",
+        "flink-python/target/test-dependencies/*",
         "flink-python/target/artifacts/testDataStream.jar",
         "flink-python/target/flink-python*-tests.jar",
-        ("flink-state-backends/flink-statebackend-rocksdb/target/"
-         "flink-statebackend-rocksdb*tests.jar"),
     ]
     test_jars = []
-    flink_source_root = _find_flink_source_root()
-    for pattern in test_jar_patterns:
-        pattern = pattern.replace("/", os.path.sep)
-        test_jars += glob.glob(os.path.join(flink_source_root, pattern))
+
+    # Connector tests need to add specific jars to the gateway classpath
+    if 'FLINK_TEST_LIBS' in env:
+        test_jars += glob.glob(env['FLINK_TEST_LIBS'])
+    else:
+        flink_source_root = _find_flink_source_root()
+        for pattern in test_jar_patterns:
+            pattern = pattern.replace("/", os.path.sep)
+            test_jars += glob.glob(os.path.join(flink_source_root, pattern))
     return os.path.pathsep.join(test_jars)
 
 
@@ -286,36 +260,32 @@ def launch_gateway_server_process(env, args):
     if program_args.cluster_type == "local":
         java_executable = find_java_executable()
         log_settings = construct_log_settings(env)
-        jvm_args = env.get('JVM_ARGS', '')
+        jvm_args = env.get('JVM_ARGS', '').split()
         jvm_opts = get_jvm_opts(env)
         classpath = os.pathsep.join(
             [construct_flink_classpath(env), construct_hadoop_classpath(env)])
         if "FLINK_TESTING" in env:
-            total_retry_times = 3
-            retry_times = 0
-            status = 0
-            error = None
-            while retry_times < total_retry_times and not status:
-                retry_times += 1
-                try:
-                    download_apache_avro()
-                    status = 1
-                except CalledProcessError as e:
-                    status = 0
-                    error = e
-                    print("{0} retry download, {1} retries remaining".format(
-                        retry_times, total_retry_times - retry_times))
-                    # sleep 3 seconds and then re-download.
-                    time.sleep(3)
-            if retry_times == total_retry_times and not status:
-                raise error
-
-            classpath = os.pathsep.join([classpath, construct_test_classpath()])
-        command = [java_executable, jvm_args, jvm_opts] + log_settings \
-            + ["-cp", classpath, program_args.main_class] + program_args.other_args
+            classpath = os.pathsep.join([classpath, construct_test_classpath(env)])
+        command = [
+            java_executable,
+            *jvm_args,
+            "-XX:+IgnoreUnrecognizedVMOptions",
+            "--add-opens=jdk.proxy2/jdk.proxy2=ALL-UNNAMED",
+            *jvm_opts,
+            *log_settings,
+            "-cp",
+            classpath,
+            program_args.main_class,
+            *program_args.other_args,
+        ]
     else:
-        command = [os.path.join(env["FLINK_BIN_DIR"], "flink"), "run"] + program_args.other_args \
-            + ["-c", program_args.main_class]
+        command = [
+            os.path.join(env["FLINK_BIN_DIR"], "flink"),
+            "run",
+            *program_args.other_args,
+            "-c",
+            program_args.main_class,
+        ]
     preexec_fn = None
     if not on_windows():
         def preexec_func():
@@ -323,7 +293,7 @@ def launch_gateway_server_process(env, args):
             signal.signal(signal.SIGINT, signal.SIG_IGN)
         preexec_fn = preexec_func
     return Popen(list(filter(lambda c: len(c) != 0, command)),
-                 stdin=PIPE, preexec_fn=preexec_fn, env=env)
+                 stdin=PIPE, stderr=PIPE, preexec_fn=preexec_fn, env=env)
 
 
 if __name__ == "__main__":

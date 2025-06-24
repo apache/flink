@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.CopyingListCollector;
@@ -116,8 +117,10 @@ public class OuterJoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN
         TypeComparator<IN2> rightComparator =
                 buildComparatorFor(1, executionConfig, rightInformation);
 
-        TypeSerializer<IN1> leftSerializer = leftInformation.createSerializer(executionConfig);
-        TypeSerializer<IN2> rightSerializer = rightInformation.createSerializer(executionConfig);
+        TypeSerializer<IN1> leftSerializer =
+                leftInformation.createSerializer(executionConfig.getSerializerConfig());
+        TypeSerializer<IN2> rightSerializer =
+                rightInformation.createSerializer(executionConfig.getSerializerConfig());
 
         OuterJoinListIterator<IN1, IN2> outerJoinIterator =
                 new OuterJoinListIterator<>(
@@ -135,12 +138,13 @@ public class OuterJoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN
         FlatJoinFunction<IN1, IN2, OUT> function = userFunction.getUserCodeObject();
 
         FunctionUtils.setFunctionRuntimeContext(function, runtimeContext);
-        FunctionUtils.openFunction(function, this.parameters);
+        FunctionUtils.openFunction(function, DefaultOpenContext.INSTANCE);
 
         List<OUT> result = new ArrayList<>();
         Collector<OUT> collector =
                 new CopyingListCollector<>(
-                        result, outInformation.createSerializer(executionConfig));
+                        result,
+                        outInformation.createSerializer(executionConfig.getSerializerConfig()));
 
         while (outerJoinIterator.next()) {
             IN1 left = outerJoinIterator.getLeft();

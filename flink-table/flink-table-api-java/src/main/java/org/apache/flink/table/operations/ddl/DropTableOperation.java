@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
@@ -27,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Operation to describe a DROP TABLE statement. */
+@Internal
 public class DropTableOperation implements DropOperation {
     private final ObjectIdentifier tableIdentifier;
     private final boolean ifExists;
@@ -60,5 +64,15 @@ public class DropTableOperation implements DropOperation {
 
         return OperationUtils.formatWithChildren(
                 "DROP TABLE", params, Collections.emptyList(), Operation::asSummaryString);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        if (isTemporary()) {
+            ctx.getCatalogManager().dropTemporaryTable(getTableIdentifier(), isIfExists());
+        } else {
+            ctx.getCatalogManager().dropTable(getTableIdentifier(), isIfExists());
+        }
+        return TableResultImpl.TABLE_RESULT_OK;
     }
 }

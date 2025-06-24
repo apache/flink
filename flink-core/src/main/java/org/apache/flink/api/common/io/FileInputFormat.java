@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.compression.Bzip2InputStreamFactory;
 import org.apache.flink.api.common.io.compression.DeflateInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.GzipInflaterInputStreamFactory;
@@ -26,7 +27,6 @@ import org.apache.flink.api.common.io.compression.InflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.XZInputStreamFactory;
 import org.apache.flink.api.common.io.compression.ZStandardInputStreamFactory;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.BlockLocation;
@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.configuration.TaskManagerOptions.FS_STREAM_OPENING_TIME_OUT;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -97,17 +98,14 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
      * @param configuration The configuration to load defaults from
      */
     private static void initDefaultsFromConfiguration(Configuration configuration) {
-        final long to =
-                configuration.getLong(
-                        ConfigConstants.FS_STREAM_OPENING_TIMEOUT_KEY,
-                        ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
+        final long to = configuration.get(FS_STREAM_OPENING_TIME_OUT).toMillis();
         if (to < 0) {
             LOG.error(
                     "Invalid timeout value for filesystem stream opening: "
                             + to
                             + ". Using default value of "
-                            + ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT);
-            DEFAULT_OPENING_TIMEOUT = ConfigConstants.DEFAULT_FS_STREAM_OPENING_TIMEOUT;
+                            + FS_STREAM_OPENING_TIME_OUT.defaultValue().toMillis());
+            DEFAULT_OPENING_TIMEOUT = FS_STREAM_OPENING_TIME_OUT.defaultValue().toMillis();
         } else if (to == 0) {
             DEFAULT_OPENING_TIMEOUT = 300000; // 5 minutes
         } else {
@@ -157,6 +155,11 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
         }
     }
 
+    @VisibleForTesting
+    public static Set<String> getSupportedCompressionFormats() {
+        return INFLATER_INPUT_STREAM_FACTORIES.keySet();
+    }
+
     /**
      * Returns the extension of a file name (!= a path).
      *
@@ -192,14 +195,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
     // --------------------------------------------------------------------------------------------
     //  The configuration parameters. Configured on the instance and serialized to be shipped.
     // --------------------------------------------------------------------------------------------
-
-    /**
-     * The path to the file that contains the input.
-     *
-     * @deprecated Please override {@link FileInputFormat#supportsMultiPaths()} and use {@link
-     *     FileInputFormat#getFilePaths()} and {@link FileInputFormat#setFilePaths(Path...)}.
-     */
-    @Deprecated protected Path filePath;
 
     /** The list of paths to files and directories that contain the input. */
     private Path[] filePaths;
@@ -244,44 +239,15 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
     // --------------------------------------------------------------------------------------------
 
     /**
-     * @return The path of the file to read.
-     * @deprecated Please use getFilePaths() instead.
-     */
-    @Deprecated
-    public Path getFilePath() {
-
-        if (supportsMultiPaths()) {
-            if (this.filePaths == null || this.filePaths.length == 0) {
-                return null;
-            } else if (this.filePaths.length == 1) {
-                return this.filePaths[0];
-            } else {
-                throw new UnsupportedOperationException(
-                        "FileInputFormat is configured with multiple paths. Use getFilePaths() instead.");
-            }
-        } else {
-            return filePath;
-        }
-    }
-
-    /**
      * Returns the paths of all files to be read by the FileInputFormat.
      *
      * @return The list of all paths to read.
      */
     public Path[] getFilePaths() {
-
-        if (supportsMultiPaths()) {
-            if (this.filePaths == null) {
-                return new Path[0];
-            }
-            return this.filePaths;
-        } else {
-            if (this.filePath == null) {
-                return new Path[0];
-            }
-            return new Path[] {filePath};
+        if (this.filePaths == null) {
+            return new Path[0];
         }
+        return this.filePaths;
     }
 
     public void setFilePath(String filePath) {
@@ -341,21 +307,9 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
      * @param filePaths The paths of the files to read.
      */
     public void setFilePaths(Path... filePaths) {
-        if (!supportsMultiPaths() && filePaths.length > 1) {
-            throw new UnsupportedOperationException(
-                    "Multiple paths are not supported by this FileInputFormat.");
-        }
         if (filePaths.length < 1) {
             throw new IllegalArgumentException("At least one file path must be specified.");
         }
-        if (filePaths.length == 1) {
-            // set for backwards compatibility
-            this.filePath = filePaths[0];
-        } else {
-            // clear file path in case it had been set before
-            this.filePath = null;
-        }
-
         this.filePaths = filePaths;
     }
 
@@ -453,10 +407,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
             } else {
                 setFilePath(filePath);
             }
-        }
-
-        if (!this.enumerateNestedFiles) {
-            this.enumerateNestedFiles = parameters.getBoolean(ENUMERATE_NESTED_FILES_FLAG, false);
         }
     }
 
@@ -841,8 +791,11 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
         this.currentSplit = fileSplit;
         this.splitStart = fileSplit.getStart();
-        this.splitLength = fileSplit.getLength();
-
+        final Path path = fileSplit.getPath();
+        this.splitLength =
+                testForUnsplittable(path.getFileSystem().getFileStatus(path))
+                        ? READ_WHOLE_SPLIT_FLAG
+                        : fileSplit.getLength();
         if (LOG.isDebugEnabled()) {
             LOG.debug(
                     "Opening input split "
@@ -913,18 +866,6 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
             this.stream.close();
             stream = null;
         }
-    }
-
-    /**
-     * Override this method to supports multiple paths. When this method will be removed, all
-     * FileInputFormats have to support multiple paths.
-     *
-     * @return True if the FileInputFormat supports multiple paths, false otherwise.
-     * @deprecated Will be removed for Flink 2.0.
-     */
-    @Deprecated
-    public boolean supportsMultiPaths() {
-        return false;
     }
 
     public String toString() {
@@ -1129,7 +1070,4 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
     /** The config parameter which defines the input file path. */
     private static final String FILE_PARAMETER_KEY = "input.file.path";
-
-    /** The config parameter which defines whether input directories are recursively traversed. */
-    public static final String ENUMERATE_NESTED_FILES_FLAG = "recursive.file.enumeration";
 }

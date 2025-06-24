@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
@@ -69,10 +70,23 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
 
     private DynamicTableSource getTableSource(FlinkContext context, FlinkTypeFactory typeFactory) {
         if (tableSource == null) {
-            final DynamicTableSourceFactory factory =
+            DynamicTableSourceFactory factory =
                     context.getModuleManager()
                             .getFactory(Module::getTableSourceFactory)
                             .orElse(null);
+
+            if (factory == null) {
+                // try to get DynamicTableSourceFactory from Catalog,
+                // we need it for we can only get DynamicTableSourceFactory from catalog in Hive
+                // table
+                Catalog catalog =
+                        context.getCatalogManager()
+                                .getCatalog(contextResolvedTable.getIdentifier().getCatalogName())
+                                .orElse(null);
+                factory =
+                        FactoryUtil.getDynamicTableFactory(DynamicTableSourceFactory.class, catalog)
+                                .orElse(null);
+            }
 
             tableSource =
                     FactoryUtil.createDynamicTableSource(
@@ -89,7 +103,7 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
                         (RowType)
                                 contextResolvedTable
                                         .getResolvedSchema()
-                                        .toSourceRowDataType()
+                                        .toPhysicalRowDataType()
                                         .getLogicalType();
                 for (SourceAbilitySpec spec : sourceAbilities) {
                     SourceAbilityContext sourceAbilityContext =

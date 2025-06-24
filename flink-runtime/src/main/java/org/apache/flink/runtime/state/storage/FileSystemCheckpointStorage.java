@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.ConfigurableCheckpointStorage;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.util.MathUtils;
+import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +41,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Objects;
 
 import static org.apache.flink.configuration.CheckpointingOptions.FS_SMALL_FILE_THRESHOLD;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -104,6 +106,12 @@ public class FileSystemCheckpointStorage
      * value of '-1' means not yet configured, in which case the default will be used.
      */
     private final int writeBufferSize;
+
+    /**
+     * Switch to create checkpoint sub-directory with name of jobId. A value of 'undefined' means
+     * not yet configured, in which case the default will be used.
+     */
+    private TernaryBoolean createCheckpointSubDirs = TernaryBoolean.UNDEFINED;
 
     /**
      * Creates a new checkpoint storage that stores its checkpoint data in the file system and
@@ -262,6 +270,9 @@ public class FileSystemCheckpointStorage
                         .withSavepointPath(original.location.getBaseSavepointPath())
                         .withConfiguration(configuration)
                         .build();
+        this.createCheckpointSubDirs =
+                original.createCheckpointSubDirs.resolveUndefined(
+                        configuration.get(CheckpointingOptions.CREATE_CHECKPOINT_SUB_DIR));
     }
 
     private int getValidFileStateThreshold(long fileStateThreshold) {
@@ -318,6 +329,8 @@ public class FileSystemCheckpointStorage
         return new FsCheckpointStorageAccess(
                 location.getBaseCheckpointPath(),
                 location.getBaseSavepointPath(),
+                createCheckpointSubDirs.getOrDefault(
+                        CheckpointingOptions.CREATE_CHECKPOINT_SUB_DIR.defaultValue()),
                 jobId,
                 getMinFileSizeThreshold(),
                 getWriteBufferSize());
@@ -336,7 +349,9 @@ public class FileSystemCheckpointStorage
         return location.getBaseCheckpointPath();
     }
 
-    /** @return The default location where savepoints will be externalized if set. */
+    /**
+     * @return The default location where savepoints will be externalized if set.
+     */
     @Nullable
     public Path getSavepointPath() {
         return location.getBaseSavepointPath();
@@ -370,5 +385,24 @@ public class FileSystemCheckpointStorage
         return writeBufferSize >= 0
                 ? writeBufferSize
                 : CheckpointingOptions.FS_WRITE_BUFFER_SIZE.defaultValue();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(location, fileStateThreshold, writeBufferSize);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (other == null || getClass() != other.getClass()) {
+            return false;
+        }
+        FileSystemCheckpointStorage that = (FileSystemCheckpointStorage) other;
+        return Objects.equals(location, that.location)
+                && Objects.equals(fileStateThreshold, that.fileStateThreshold)
+                && Objects.equals(writeBufferSize, that.writeBufferSize);
     }
 }

@@ -20,49 +20,51 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
-import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionState;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionStateListener;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
 import java.util.UUID;
 
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test behaviors of {@link ZooKeeperLeaderElectionDriver} when losing the connection to ZooKeeper.
  */
-public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
+class ZooKeeperLeaderElectionConnectionHandlingTest {
 
-    private static final String PATH = "/path";
+    @RegisterExtension
+    private static final EachCallbackWrapper<ZooKeeperExtension> zooKeeperResource =
+            new EachCallbackWrapper<>(new ZooKeeperExtension());
 
-    @Rule public final ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
-
-    @Rule
-    public final TestingFatalErrorHandlerResource fatalErrorHandlerResource =
-            new TestingFatalErrorHandlerResource();
+    @RegisterExtension
+    private final TestingFatalErrorHandlerExtension testingFatalErrorHandlerResource =
+            new TestingFatalErrorHandlerExtension();
 
     private final Configuration configuration = new Configuration();
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         configuration.set(
-                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
+                zooKeeperResource.getCustomExtension().getConnectString());
     }
 
     @Test
-    public void testLoseLeadershipOnConnectionSuspended() throws Exception {
+    void testLoseLeadershipOnConnectionSuspended() throws Exception {
         runTestWithBrieflySuspendedZooKeeperConnection(
                 configuration,
                 (connectionStateListener, contender) -> {
@@ -72,7 +74,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
     }
 
     @Test
-    public void testKeepLeadershipOnSuspendedConnectionIfTolerateSuspendedConnectionsIsEnabled()
+    void testKeepLeadershipOnSuspendedConnectionIfTolerateSuspendedConnectionsIsEnabled()
             throws Exception {
         configuration.set(HighAvailabilityOptions.ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS, true);
         runTestWithBrieflySuspendedZooKeeperConnection(
@@ -80,15 +82,17 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
                 (connectionStateListener, contender) -> {
                     connectionStateListener.awaitSuspendedConnection();
                     connectionStateListener.awaitReconnectedConnection();
-                    assertFalse(contender.hasRevokeLeadershipBeenTriggered());
+                    assertThat(contender.hasRevokeLeadershipBeenTriggered()).isFalse();
                 });
     }
 
     @Test
-    public void testLoseLeadershipOnLostConnectionIfTolerateSuspendedConnectionsIsEnabled()
+    void testLoseLeadershipOnLostConnectionIfTolerateSuspendedConnectionsIsEnabled()
             throws Exception {
-        configuration.set(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, 1000);
-        configuration.set(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT, 1000);
+        configuration.set(
+                HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT, Duration.ofMillis(1000));
+        configuration.set(
+                HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT, Duration.ofMillis(1000));
         configuration.set(HighAvailabilityOptions.ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS, true);
         runTestWithLostZooKeeperConnection(
                 configuration,
@@ -129,29 +133,33 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
             throws Exception {
         CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
                 ZooKeeperUtils.startCuratorFramework(
-                        configuration, fatalErrorHandlerResource.getFatalErrorHandler());
+                        configuration,
+                        testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
         CuratorFramework client = curatorFrameworkWrapper.asCuratorFramework();
         LeaderElectionDriverFactory leaderElectionDriverFactory =
-                new ZooKeeperLeaderElectionDriverFactory(client, PATH);
+                new ZooKeeperLeaderElectionDriverFactory(client);
         DefaultLeaderElectionService leaderElectionService =
-                new DefaultLeaderElectionService(leaderElectionDriverFactory);
+                new DefaultLeaderElectionService(
+                        leaderElectionDriverFactory,
+                        testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
 
-        try {
-            final TestingConnectionStateListener connectionStateListener =
-                    new TestingConnectionStateListener();
-            client.getConnectionStateListenable().addListener(connectionStateListener);
+        final TestingConnectionStateListener connectionStateListener =
+                new TestingConnectionStateListener();
+        client.getConnectionStateListenable().addListener(connectionStateListener);
 
-            final TestingContender contender = new TestingContender();
-            leaderElectionService.start(contender);
+        final TestingContender contender = new TestingContender();
+        try (LeaderElection leaderElection =
+                leaderElectionService.createLeaderElection("random-component-id")) {
+            leaderElection.startLeaderElection(contender);
 
             contender.awaitGrantLeadership();
 
             switch (problem) {
                 case SUSPENDED_CONNECTION:
-                    zooKeeperResource.restart();
+                    zooKeeperResource.getCustomExtension().restart();
                     break;
                 case LOST_CONNECTION:
-                    zooKeeperResource.stop();
+                    zooKeeperResource.getCustomExtension().stop();
                     break;
                 default:
                     throw new IllegalArgumentException(
@@ -160,12 +168,12 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
             validationLogic.accept(connectionStateListener, contender);
         } finally {
-            leaderElectionService.stop();
+            leaderElectionService.close();
             curatorFrameworkWrapper.close();
 
             if (problem == Problem.LOST_CONNECTION) {
                 // in case of lost connections we accept that some unhandled error can occur
-                fatalErrorHandlerResource.getFatalErrorHandler().clearError();
+                testingFatalErrorHandlerResource.getTestingFatalErrorHandler().clearError();
             }
         }
     }
@@ -192,7 +200,10 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
         @Override
         public void handleError(Exception exception) {
-            fatalErrorHandlerResource.getFatalErrorHandler().onFatalError(exception);
+            ZooKeeperLeaderElectionConnectionHandlingTest.this
+                    .testingFatalErrorHandlerResource
+                    .getTestingFatalErrorHandler()
+                    .onFatalError(exception);
         }
 
         public void awaitGrantLeadership() throws InterruptedException {

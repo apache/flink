@@ -62,6 +62,11 @@ public class OperatorStreamStateHandle implements OperatorStateHandle {
     }
 
     @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        delegateStateHandle.collectSizeStats(collector);
+    }
+
+    @Override
     public FSDataInputStream openInputStream() throws IOException {
         return delegateStateHandle.openInputStream();
     }
@@ -69,6 +74,11 @@ public class OperatorStreamStateHandle implements OperatorStateHandle {
     @Override
     public Optional<byte[]> asBytesIfInMemory() {
         return delegateStateHandle.asBytesIfInMemory();
+    }
+
+    @Override
+    public Optional<org.apache.flink.core.fs.Path> maybeGetPath() {
+        return delegateStateHandle.maybeGetPath();
     }
 
     @Override

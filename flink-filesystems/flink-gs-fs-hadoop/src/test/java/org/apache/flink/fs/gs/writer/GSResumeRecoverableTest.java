@@ -19,11 +19,13 @@
 package org.apache.flink.fs.gs.writer;
 
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,27 +33,26 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link GSResumeRecoverable}. */
-@RunWith(Parameterized.class)
-public class GSResumeRecoverableTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class GSResumeRecoverableTest {
 
-    @Parameterized.Parameter(value = 0)
-    public int position;
+    @Parameter private int position;
 
-    @Parameterized.Parameter(value = 1)
-    public boolean closed;
+    @Parameter(value = 1)
+    private boolean closed;
 
-    @Parameterized.Parameter(value = 2)
-    public List<UUID> componentObjectIds;
+    @Parameter(value = 2)
+    private List<UUID> componentObjectIds;
 
-    @Parameterized.Parameter(value = 3)
-    public String temporaryBucketName;
+    @Parameter(value = 3)
+    private String temporaryBucketName;
 
-    @Parameterized.Parameters(
-            name = "position={0}, closed={1}, componentObjectIds={2}, temporaryBucketName={3}")
-    public static Collection<Object[]> data() {
+    @Parameters(name = "position={0}, closed={1}, componentObjectIds={2}, temporaryBucketName={3}")
+    private static Collection<Object[]> data() {
 
         ArrayList<UUID> emptyComponentObjectIds = new ArrayList<>();
         ArrayList<UUID> populatedComponentObjectIds = new ArrayList<>();
@@ -83,34 +84,38 @@ public class GSResumeRecoverableTest {
 
     private GSBlobIdentifier blobIdentifier;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         blobIdentifier = new GSBlobIdentifier("foo", "bar");
     }
 
-    @Test
-    public void shouldConstructProperly() {
+    @TestTemplate
+    void shouldConstructProperly() {
         GSResumeRecoverable resumeRecoverable =
                 new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
-        assertEquals(blobIdentifier, resumeRecoverable.finalBlobIdentifier);
-        assertEquals(position, resumeRecoverable.position);
-        assertEquals(closed, resumeRecoverable.closed);
-        assertEquals(componentObjectIds, resumeRecoverable.componentObjectIds);
+        assertThat(resumeRecoverable.finalBlobIdentifier).isEqualTo(blobIdentifier);
+        assertThat(resumeRecoverable.position).isEqualTo(position);
+        assertThat(resumeRecoverable.closed).isEqualTo(closed);
+        assertThat(resumeRecoverable.componentObjectIds).isEqualTo(componentObjectIds);
     }
 
     /** Ensure that the list of component object ids cannot be added to. */
-    @Test(expected = UnsupportedOperationException.class)
-    public void shouldNotAddComponentId() {
+    @TestTemplate
+    void shouldNotAddComponentId() {
         GSResumeRecoverable resumeRecoverable =
                 new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
-        resumeRecoverable.componentObjectIds.add(UUID.randomUUID());
+
+        assertThatThrownBy(() -> resumeRecoverable.componentObjectIds.add(UUID.randomUUID()))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     /** Ensure that component object ids can't be updated. */
-    @Test(expected = UnsupportedOperationException.class)
-    public void shouldNotModifyComponentId() {
+    @TestTemplate
+    void shouldNotModifyComponentId() {
         GSResumeRecoverable resumeRecoverable =
                 new GSResumeRecoverable(blobIdentifier, componentObjectIds, position, closed);
-        resumeRecoverable.componentObjectIds.set(0, UUID.randomUUID());
+
+        assertThatThrownBy(() -> resumeRecoverable.componentObjectIds.set(0, UUID.randomUUID()))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 }

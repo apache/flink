@@ -37,6 +37,9 @@ for the rest of the page.
 
 **Keyed Windows**
 
+{{< tabs "Keyed Windows" >}}
+
+{{< tab "Java" >}}
     stream
            .keyBy(...)               <-  keyed versus non-keyed windows
            .window(...)              <-  required: "assigner"
@@ -47,8 +50,26 @@ for the rest of the page.
            .reduce/aggregate/apply()      <-  required: "function"
           [.getSideOutput(...)]      <-  optional: "output tag"
 
+{{< /tab >}}
+
+{{< tab "Python" >}}
+    stream
+           .key_by(...)
+           .window(...)                 <-  required: "assigner"
+          [.trigger(...)]               <-  optional: "trigger" (else default trigger)
+          [.allowed_lateness(...)]      <-  optional: "lateness" (else zero)
+          [.side_output_late_data(...)] <-  optional: "output tag" (else no side output for late data)
+           .reduce/aggregate/apply()    <-  required: "function"
+          [.get_side_output(...)]       <-  optional: "output tag"
+
+{{< /tab >}}
+{{< /tabs >}}
+
 **Non-Keyed Windows**
 
+{{< tabs "Non-Keyed Windows" >}}
+
+{{< tab "Java" >}}
     stream
            .windowAll(...)           <-  required: "assigner"
           [.trigger(...)]            <-  optional: "trigger" (else default trigger)
@@ -58,10 +79,24 @@ for the rest of the page.
            .reduce/aggregate/apply()      <-  required: "function"
           [.getSideOutput(...)]      <-  optional: "output tag"
 
+{{< /tab >}}
+
+{{< tab "Python" >}}
+    stream
+           .window_all(...)             <-  required: "assigner"
+          [.trigger(...)]               <-  optional: "trigger" (else default trigger)
+          [.allowed_lateness(...)]      <-  optional: "lateness" (else zero)
+          [.side_output_late_data(...)] <-  optional: "output tag" (else no side output for late data)
+           .reduce/aggregate/apply()    <-  required: "function"
+          [.get_side_output(...)]       <-  optional: "output tag"
+
+{{< /tab >}}
+
+{{< /tabs >}}
+
 In the above, the commands in square brackets ([...]) are optional. This reveals that Flink allows you to customize your
 windowing logic in many different ways so that it best fits your needs.
-{{< hint info >}} Note: Non-Keyed windows is still not supported in Python DataStream API. {{< /hint >}}
-
+{{< hint info >}} Note: `Evictor` is still not supported in Python DataStream API. {{< /hint >}}
 
 
 ## Window Lifecycle
@@ -147,43 +182,20 @@ DataStream<T> input = ...;
 // tumbling event-time windows
 input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // tumbling processing-time windows
 input
     .keyBy(<key selector>)
-    .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+    .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // daily tumbling event-time windows offset by -8 hours.
 input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8)))
+    .window(TumblingEventTimeWindows.of(Duration.ofDays(1), Duration.ofHours(-8)))
     .<windowed transformation>(<window function>);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[T] = ...
-
-// tumbling event-time windows
-input
-    .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
-    .<windowed transformation>(<window function>)
-
-// tumbling processing-time windows
-input
-    .keyBy(<key selector>)
-    .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
-    .<windowed transformation>(<window function>)
-
-// daily tumbling event-time windows offset by -8 hours.
-input
-    .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8)))
-    .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -193,26 +205,26 @@ input = ...  # type: DataStream
 # tumbling event-time windows
 input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # tumbling processing-time windows
 input \
     .key_by(<key selector>) \
-    .window(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # daily tumbling event-time windows offset by -8 hours.
 input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofDays(1), Duration.ofHours(-8))) \
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-Time intervals can be specified by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
-`Time.minutes(x)`, and so on.
+Time intervals can be specified by using one of `Duration.ofMillis(x)`, `Duration.ofSeconds(x)`,
+`Duration.ofMinutes(x)`, and so on.
 
 As shown in the last example, tumbling window assigners also take an optional `offset`
 parameter that can be used to change the alignment of windows. For example, without offsets
@@ -221,7 +233,7 @@ hourly tumbling windows are aligned with epoch, that is you will get windows suc
 that you can give an offset. With an offset of 15 minutes you would, for example, get
 `1:15:00.000 - 2:14:59.999`, `2:15:00.000 - 3:14:59.999` etc.
 An important use case for offsets is to adjust windows to timezones other than UTC-0.
-For example, in China you would have to specify an offset of `Time.hours(-8)`.
+For example, in China you would have to specify an offset of `Duration.ofHours(-8)`.
 
 ### Sliding Windows
 
@@ -247,43 +259,20 @@ DataStream<T> input = ...;
 // sliding event-time windows
 input
     .keyBy(<key selector>)
-    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .window(SlidingEventTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // sliding processing-time windows
 input
     .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .window(SlidingProcessingTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // sliding processing-time windows offset by -8 hours
 input
     .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8)))
+    .window(SlidingProcessingTimeWindows.of(Duration.ofHours(12), Duration.ofHours(1), Duration.ofHours(-8)))
     .<windowed transformation>(<window function>);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[T] = ...
-
-// sliding event-time windows
-input
-    .keyBy(<key selector>)
-    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5)))
-    .<windowed transformation>(<window function>)
-
-// sliding processing-time windows
-input
-    .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5)))
-    .<windowed transformation>(<window function>)
-
-// sliding processing-time windows offset by -8 hours
-input
-    .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8)))
-    .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -293,26 +282,26 @@ input = ...  # type: DataStream
 # sliding event-time windows
 input \
     .key_by(<key selector>) \
-    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5))) \
+    .window(SlidingEventTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # sliding processing-time windows
 input \
     .key_by(<key selector>) \
-    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5))) \
+    .window(SlidingProcessingTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # sliding processing-time windows offset by -8 hours
 input \
     .key_by(<key selector>) \
-    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8))) \
+    .window(SlidingProcessingTimeWindows.of(Duration.ofHours(12), Duration.ofHours(1), Duration.ofHours(-8))) \
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-Time intervals can be specified by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
-`Time.minutes(x)`, and so on.
+Time intervals can be specified by using one of `Duration.ofMillis(x)`, `Duration.ofSeconds(x)`,
+`Duration.ofMinutes(x)`, and so on.
 
 As shown in the last example, sliding window assigners also take an optional `offset` parameter
 that can be used to change the alignment of windows. For example, without offsets hourly windows
@@ -321,7 +310,7 @@ sliding by 30 minutes are aligned with epoch, that is you will get windows such 
 you can give an offset. With an offset of 15 minutes you would, for example, get
 `1:15:00.000 - 2:14:59.999`, `1:45:00.000 - 2:44:59.999` etc.
 An important use case for offsets is to adjust windows to timezones other than UTC-0.
-For example, in China you would have to specify an offset of `Time.hours(-8)`.
+For example, in China you would have to specify an offset of `Duration.ofHours(-8)`.
 
 ### Session Windows
 
@@ -344,7 +333,7 @@ DataStream<T> input = ...;
 // event-time session windows with static gap
 input
     .keyBy(<key selector>)
-    .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
+    .window(EventTimeSessionWindows.withGap(Duration.ofMinutes(10)))
     .<windowed transformation>(<window function>);
     
 // event-time session windows with dynamic gap
@@ -358,7 +347,7 @@ input
 // processing-time session windows with static gap
 input
     .keyBy(<key selector>)
-    .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
+    .window(ProcessingTimeSessionWindows.withGap(Duration.ofMinutes(10)))
     .<windowed transformation>(<window function>);
     
 // processing-time session windows with dynamic gap
@@ -368,44 +357,6 @@ input
         // determine and return session gap
     }))
     .<windowed transformation>(<window function>);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[T] = ...
-
-// event-time session windows with static gap
-input
-    .keyBy(<key selector>)
-    .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
-    .<windowed transformation>(<window function>)
-
-// event-time session windows with dynamic gap
-input
-    .keyBy(<key selector>)
-    .window(EventTimeSessionWindows.withDynamicGap(new SessionWindowTimeGapExtractor[String] {
-      override def extract(element: String): Long = {
-        // determine and return session gap
-      }
-    }))
-    .<windowed transformation>(<window function>)
-
-// processing-time session windows with static gap
-input
-    .keyBy(<key selector>)
-    .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
-    .<windowed transformation>(<window function>)
-
-
-// processing-time session windows with dynamic gap
-input
-    .keyBy(<key selector>)
-    .window(DynamicProcessingTimeSessionWindows.withDynamicGap(new SessionWindowTimeGapExtractor[String] {
-      override def extract(element: String): Long = {
-        // determine and return session gap
-      }
-    }))
-    .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -420,7 +371,7 @@ class MySessionWindowTimeGapExtractor(SessionWindowTimeGapExtractor):
 # event-time session windows with static gap
 input \
     .key_by(<key selector>) \
-    .window(EventTimeSessionWindows.with_gap(Time.minutes(10))) \
+    .window(EventTimeSessionWindows.with_gap(Duration.ofMinutes(10))) \
     .<windowed transformation>(<window function>)
 
 # event-time session windows with dynamic gap
@@ -432,7 +383,7 @@ input \
 # processing-time session windows with static gap
 input \
     .key_by(<key selector>) \
-    .window(ProcessingTimeSessionWindows.with_gap(Time.minutes(10))) \
+    .window(ProcessingTimeSessionWindows.with_gap(Duration.ofMinutes(10))) \
     .<windowed transformation>(<window function>)
 
 # processing-time session windows with dynamic gap
@@ -444,8 +395,8 @@ input \
 {{< /tab >}}
 {{< /tabs >}}
 
-Static gaps can be specified by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
-`Time.minutes(x)`, and so on.
+Static gaps can be specified by using one of `Duration.ofMillis(x)`, `Duration.ofSeconds(x)`,
+`Duration.ofMinutes(x)`, and so on.
 
 Dynamic gaps are specified by implementing the `SessionWindowTimeGapExtractor` interface.
 
@@ -480,13 +431,13 @@ input
     .<windowed transformation>(<window function>);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[T] = ...
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
 
-input
-    .keyBy(<key selector>)
-    .window(GlobalWindows.create())
+input \
+    .key_by(<key selector>) \
+    .window(GlobalWindows.create()) \
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
@@ -531,27 +482,6 @@ input
         return new Tuple2<>(v1.f0, v1.f1 + v2.f1);
       }
     });
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[(String, Long)] = ...
-
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .reduce { (v1, v2) => (v1._1, v1._2 + v2._2) }
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-```python
-input = ...  # type: DataStream
-
-input \
-    .key_by(<key selector>) \
-    .window(<window assigner>) \
-    .reduce(lambda v1, v2: (v1[0], v1[1] + v2[1]),
-            output_type=Types.TUPLE([Types.STRING(), Types.LONG()]))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -609,33 +539,6 @@ input
     .keyBy(<key selector>)
     .window(<window assigner>)
     .aggregate(new AverageAggregate());
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-/**
- * The accumulator is used to keep a running sum and a count. The [getResult] method
- * computes the average.
- */
-class AverageAggregate extends AggregateFunction[(String, Long), (Long, Long), Double] {
-  override def createAccumulator() = (0L, 0L)
-
-  override def add(value: (String, Long), accumulator: (Long, Long)) =
-    (accumulator._1 + value._2, accumulator._2 + 1L)
-
-  override def getResult(accumulator: (Long, Long)) = accumulator._1 / accumulator._2
-
-  override def merge(a: (Long, Long), b: (Long, Long)) =
-    (a._1 + b._1, a._2 + b._2)
-}
-
-val input: DataStream[(String, Long)] = ...
-
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .aggregate(new AverageAggregate)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -735,69 +638,15 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> impl
          * State accessor for per-key global state.
          */
         public abstract KeyedStateStore globalState();
+
+        /**
+         * Emits a record to the side output identified by the {@code OutputTag}.
+         *
+         * @param outputTag the {@code OutputTag} that identifies the side output to emit to.
+         * @param value The record to emit.
+         */
+        public abstract <X> void output(OutputTag<X> outputTag, X value);
     }
-
-}
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window] extends Function {
-
-  /**
-    * Evaluates the window and outputs none or several elements.
-    *
-    * @param key      The key for which this window is evaluated.
-    * @param context  The context in which the window is being evaluated.
-    * @param elements The elements in the window being evaluated.
-    * @param out      A collector for emitting elements.
-    * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
-    */
-  def process(
-      key: KEY,
-      context: Context,
-      elements: Iterable[IN],
-      out: Collector[OUT])
- 
-  /**
-   * Deletes any state in the [[Context]] when the Window expires
-   * (the watermark passes its `maxTimestamp` + `allowedLateness`).
-   *
-   * @param context The context to which the window is being evaluated
-   * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
-   */
-  @throws[Exception]
-  def clear(context: Context) {}
-
-  /**
-    * The context holding window metadata
-    */
-  abstract class Context {
-    /**
-      * Returns the window that is being evaluated.
-      */
-    def window: W
-
-    /**
-      * Returns the current processing time.
-      */
-    def currentProcessingTime: Long
-
-    /**
-      * Returns the current event-time watermark.
-      */
-    def currentWatermark: Long
-
-    /**
-      * State accessor for per-key and per-window state.
-      */
-    def windowState: KeyedStateStore
-
-    /**
-      * State accessor for per-key global state.
-      */
-    def globalState: KeyedStateStore
-  }
 
 }
 ```
@@ -831,51 +680,51 @@ class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
         """
         pass
 
-class Context(ABC, Generic[W2]):
-    """
-    The context holding window metadata.
-    """
-
-    @abstractmethod
-    def window(self) -> W2:
+    class Context(ABC, Generic[W2]):
         """
-        :return: The window that is being evaluated.
+        The context holding window metadata.
         """
-        pass
-
-    @abstractmethod
-    def current_processing_time(self) -> int:
-        """
-        :return: The current processing time.
-        """
-        pass
-
-    @abstractmethod
-    def current_watermark(self) -> int:
-        """
-        :return: The current event-time watermark.
-        """
-        pass
-
-    @abstractmethod
-    def window_state(self) -> KeyedStateStore:
-        """
-        State accessor for per-key and per-window state.
-  
-        .. note::
-            If you use per-window state you have to ensure that you clean it up by implementing
-            :func:`~ProcessWindowFunction.clear`.
-  
-        :return: The :class:`KeyedStateStore` used to access per-key and per-window states.
-        """
-        pass
-
-    @abstractmethod
-    def global_state(self) -> KeyedStateStore:
-        """
-        State accessor for per-key global state.
-        """
-        pass
+    
+        @abstractmethod
+        def window(self) -> W2:
+            """
+            :return: The window that is being evaluated.
+            """
+            pass
+    
+        @abstractmethod
+        def current_processing_time(self) -> int:
+            """
+            :return: The current processing time.
+            """
+            pass
+    
+        @abstractmethod
+        def current_watermark(self) -> int:
+            """
+            :return: The current event-time watermark.
+            """
+            pass
+    
+        @abstractmethod
+        def window_state(self) -> KeyedStateStore:
+            """
+            State accessor for per-key and per-window state.
+      
+            .. note::
+                If you use per-window state you have to ensure that you clean it up by implementing
+                :func:`~ProcessWindowFunction.clear`.
+      
+            :return: The :class:`KeyedStateStore` used to access per-key and per-window states.
+            """
+            pass
+    
+        @abstractmethod
+        def global_state(self) -> KeyedStateStore:
+            """
+            State accessor for per-key global state.
+            """
+            pass
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -894,7 +743,7 @@ DataStream<Tuple2<String, Long>> input = ...;
 
 input
   .keyBy(t -> t.f0)
-  .window(TumblingEventTimeWindows.of(Time.minutes(5)))
+  .window(TumblingEventTimeWindows.of(Duration.ofMinutes(5)))
   .process(new MyProcessWindowFunction());
 
 /* ... */
@@ -914,36 +763,13 @@ public class MyProcessWindowFunction
 
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[(String, Long)] = ...
-
-input
-  .keyBy(_._1)
-  .window(TumblingEventTimeWindows.of(Time.minutes(5)))
-  .process(new MyProcessWindowFunction())
-
-/* ... */
-
-class MyProcessWindowFunction extends ProcessWindowFunction[(String, Long), String, String, TimeWindow] {
-
-  def process(key: String, context: Context, input: Iterable[(String, Long)], out: Collector[String]) = {
-    var count = 0L
-    for (in <- input) {
-      count = count + 1
-    }
-    out.collect(s"Window ${context.window} count: $count")
-  }
-}
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 input = ...  # type: DataStream
 
 input \
     .key_by(lambda v: v[0]) \
-    .window(TumblingEventTimeWindows.of(Time.minutes(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(5))) \
     .process(MyProcessWindowFunction())
 
 # ...
@@ -1012,28 +838,6 @@ private static class MyProcessWindowFunction
       out.collect(new Tuple2<Long, SensorReading>(context.window().getStart(), min));
   }
 }
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-val input: DataStream[SensorReading] = ...
-
-input
-  .keyBy(<key selector>)
-  .window(<window assigner>)
-  .reduce(
-    (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
-    ( key: String,
-      context: ProcessWindowFunction[_, _, _, TimeWindow]#Context,
-      minReadings: Iterable[SensorReading],
-      out: Collector[(Long, SensorReading)] ) =>
-      {
-        val min = minReadings.iterator.next()
-        out.collect((context.window.getStart, min))
-      }
-  )
 
 ```
 {{< /tab >}}
@@ -1114,44 +918,6 @@ private static class MyProcessWindowFunction
                     Collector<Tuple2<String, Double>> out) {
       Double average = averages.iterator().next();
       out.collect(new Tuple2<>(key, average));
-  }
-}
-
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-val input: DataStream[(String, Long)] = ...
-
-input
-  .keyBy(<key selector>)
-  .window(<window assigner>)
-  .aggregate(new AverageAggregate(), new MyProcessWindowFunction())
-
-// Function definitions
-
-/**
- * The accumulator is used to keep a running sum and a count. The [getResult] method
- * computes the average.
- */
-class AverageAggregate extends AggregateFunction[(String, Long), (Long, Long), Double] {
-  override def createAccumulator() = (0L, 0L)
-
-  override def add(value: (String, Long), accumulator: (Long, Long)) =
-    (accumulator._1 + value._2, accumulator._2 + 1L)
-
-  override def getResult(accumulator: (Long, Long)) = accumulator._1 / accumulator._2
-
-  override def merge(a: (Long, Long), b: (Long, Long)) =
-    (a._1 + b._1, a._2 + b._2)
-}
-
-class MyProcessWindowFunction extends ProcessWindowFunction[Double, (String, Double), String, TimeWindow] {
-
-  def process(key: String, context: Context, averages: Iterable[Double], out: Collector[(String, Double)]) = {
-    val average = averages.iterator.next()
-    out.collect((key, average))
   }
 }
 
@@ -1260,23 +1026,6 @@ public interface WindowFunction<IN, OUT, KEY, W extends Window> extends Function
 }
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-trait WindowFunction[IN, OUT, KEY, W <: Window] extends Function with Serializable {
-
-  /**
-    * Evaluates the window and outputs none or several elements.
-    *
-    * @param key    The key for which this window is evaluated.
-    * @param window The window that is being evaluated.
-    * @param input  The elements in the window being evaluated.
-    * @param out    A collector for emitting elements.
-    * @throws Exception The function may throw exceptions to fail the program and trigger recovery.
-    */
-  def apply(key: KEY, window: W, input: Iterable[IN], out: Collector[OUT])
-}
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 class WindowFunction(Function, Generic[IN, OUT, KEY, W]):
@@ -1306,16 +1055,6 @@ input
     .keyBy(<key selector>)
     .window(<window assigner>)
     .apply(new MyWindowFunction());
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[(String, Long)] = ...
-
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .apply(new MyWindowFunction())
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1445,6 +1184,8 @@ elements of a window have to be passed to the evictor before applying the comput
 This means windows with evictors will create significantly more state.
 {{< /hint >}}
 
+{{< hint info >}} Note: `Evictor` is still not supported in Python DataStream API. {{< /hint >}}
+
 Flink provides no guarantees about the order of the elements within
 a window. This implies that although an evictor may remove elements from the beginning of the window, these are not
 necessarily the ones that arrive first or last.
@@ -1481,17 +1222,6 @@ input
     .window(<window assigner>)
     .allowedLateness(<time>)
     .<windowed transformation>(<window function>);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[T] = ...
-
-input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .allowedLateness(<time>)
-    .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1534,22 +1264,6 @@ SingleOutputStreamOperator<T> result = input
     .<windowed transformation>(<window function>);
 
 DataStream<T> lateStream = result.getSideOutput(lateOutputTag);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val lateOutputTag = OutputTag[T]("late-data")
-
-val input: DataStream[T] = ...
-
-val result = input
-    .keyBy(<key selector>)
-    .window(<window assigner>)
-    .allowedLateness(<time>)
-    .sideOutputLateData(lateOutputTag)
-    .<windowed transformation>(<window function>)
-
-val lateStream = result.getSideOutput(lateOutputTag)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1626,27 +1340,27 @@ DataStream<Integer> input = ...;
 
 DataStream<Integer> resultsPerKey = input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .reduce(new Summer());
 
 DataStream<Integer> globalResults = resultsPerKey
-    .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .process(new TopKWindowFunction());
 
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val input: DataStream[Int] = ...
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
 
-val resultsPerKey = input
-    .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
-    .reduce(new Summer())
+results_per_key = input \
+    .key_by(<key selector>) \
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
+    .reduce(Summer())
 
-val globalResults = resultsPerKey
-    .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
-    .process(new TopKWindowFunction())
+global_results = results_per_key \
+    .window_all(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5))) \
+    .process(TopKWindowFunction())
 ```
 {{< /tab >}}
 {{< /tabs >}}

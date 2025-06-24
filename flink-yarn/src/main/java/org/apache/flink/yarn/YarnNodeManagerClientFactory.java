@@ -29,5 +29,5 @@ public interface YarnNodeManagerClientFactory {
      * @param callbackHandler which handles the events from YARN NodeManager.
      * @return a {@link NMClientAsync} instance.
      */
-    NMClientAsync createNodeManagerClient(NMClientAsync.CallbackHandler callbackHandler);
+    NMClientAsync createNodeManagerClient(NMClientAsync.AbstractCallbackHandler callbackHandler);
 }

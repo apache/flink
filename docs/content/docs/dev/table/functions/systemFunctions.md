@@ -121,27 +121,28 @@ Time Interval and Point Unit Specifiers
 The following table lists specifiers for time interval and time point units. 
 
 For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
+Plural works for SQL only. 
 
 | Time Interval Unit       | Time Point Unit                |
 |:-------------------------|:-------------------------------|
 | `MILLENNIUM`             |                                |
 | `CENTURY`                |                                |
 | `DECADE`                 |                                |
-| `YEAR`                   | `YEAR`                         |
-| `YEAR TO MONTH`          |                                |
-| `QUARTER`                | `QUARTER`                      |
-| `MONTH`                  | `MONTH`                        |
-| `WEEK`                   | `WEEK`                         |
-| `DAY`                    | `DAY`                          |
-| `DAY TO HOUR`            |                                |
-| `DAY TO MINUTE`          |                                |
-| `DAY TO SECOND`          |                                |
-| `HOUR`                   | `HOUR`                         |
-| `HOUR TO MINUTE`         |                                |
-| `HOUR TO SECOND`         |                                |
-| `MINUTE`                 | `MINUTE`                       |
-| `MINUTE TO SECOND`       |                                |
-| `SECOND`                 | `SECOND`                       |
+| `YEAR(S)`                | `YEAR`                         |
+| `YEAR(S) TO MONTH(S)`    |                                |
+| `QUARTER(S)`             | `QUARTER`                      |
+| `MONTH(S)`               | `MONTH`                        |
+| `WEEK(S)`                | `WEEK`                         |
+| `DAY(S)`                 | `DAY`                          |
+| `DAY(S) TO HOUR(S)`      |                                |
+| `DAY(S) TO MINUTE(S)`    |                                |
+| `DAY(S) TO SECOND(S)`    |                                |
+| `HOUR(S)`                | `HOUR`                         |
+| `HOUR(S) TO MINUTE(S)`   |                                |
+| `HOUR(S) TO SECOND(S)`   |                                |
+| `MINUTE(S)`              | `MINUTE`                       |
+| `MINUTE(S) TO SECOND(S)` |                                |
+| `SECOND(S)`              | `SECOND`                       |
 | `MILLISECOND`            | `MILLISECOND`                  |
 | `MICROSECOND`            | `MICROSECOND`                  |
 | `NANOSECOND`             |                                |
@@ -175,6 +176,7 @@ Column functions are only used in Table API.
 | :--------------------- | :-------------------------- |
 | withColumns(...)         | select the specified columns                  |
 | withoutColumns(...)        | deselect the columns specified                  |
+| withAllColumns()    | select all columns (like `SELECT *` in SQL) |
 
 The detailed syntax is as follows:
 
@@ -182,6 +184,7 @@ The detailed syntax is as follows:
 columnFunction:
     withColumns(columnExprs)
     withoutColumns(columnExprs)
+    withAllColumns()
 
 columnExprs:
     columnExpr [, columnExpr]*
@@ -227,6 +230,45 @@ table
 table \
     .group_by(with_columns(range_(1, 3))) \
     .select(with_columns(range_('a', 'b')), myUDAgg(myUDF(with_columns(range_(5, 20)))))
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< top >}}
+
+Named Arguments
+---------------------------------------
+
+By default, values and expressions are mapped to a function's arguments based on the position in the function call,
+for example `f(42, true)`. All functions in both SQL and Table API support position-based arguments.
+
+If the function declares a static signature, named arguments are available as a convenient alternative.
+The framework is able to reorder named arguments and consider optional arguments accordingly, before passing them
+into the function call. Thus, the order of arguments doesn't matter when calling a function and optional arguments
+don't have to be provided.
+
+In `DESCRIBE FUNCTION` and documentation a static signature is indicated by the `=>` assignment operator,
+for example `f(left => INT, right => BOOLEAN)`. Note that not every function supports named arguments. Named
+arguments are not available for signatures that are overloaded, use varargs, or any other kind of input type strategy.
+User-defined functions with a single `eval()` method usually qualify for named arguments.
+
+Named arguments can be used as shown below:
+
+{{< tabs "902fe991-5fb9-4b17-ae99-f05cbd48b4dd" >}}
+{{< tab "SQL" >}}
+```text
+SELECT MyUdf(input => my_column, threshold => 42)
+```
+{{< /tab >}}
+{{< tab "Table API" >}}
+```java
+table.select(
+  call(
+    MyUdf.class,
+    $("my_column").asArgument("input"),
+    lit(42).asArgument("threshold")
+  )
+);
 ```
 {{< /tab >}}
 {{< /tabs >}}

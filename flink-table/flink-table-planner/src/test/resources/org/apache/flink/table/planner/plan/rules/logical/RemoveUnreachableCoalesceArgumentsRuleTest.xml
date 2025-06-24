@@ -108,11 +108,12 @@ Calc(select=[f0, f1, f2], where=[=(COALESCE(f0, f1), 'abc')])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1], f2=[$2], f00=[$4], f10=[$5], f20=[$6])
-+- LogicalJoin(condition=[=($3, $4)], joinType=[left])
-   :- LogicalProject(f0=[$0], f1=[$1], f2=[$2], $f3=[COALESCE($0, _UTF-16LE'-', $2)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, T]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+LogicalProject(f0=[$0], f1=[$1], f2=[$2], f00=[$3], f10=[$4], f20=[$5])
++- LogicalProject(f0=[$0], f1=[$1], f2=[$2], f00=[$4], f10=[$5], f20=[$6])
+   +- LogicalJoin(condition=[=($3, $4)], joinType=[left])
+      :- LogicalProject(f0=[$0], f1=[$1], f2=[$2], $f3=[COALESCE($0, _UTF-16LE'-', $2)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">

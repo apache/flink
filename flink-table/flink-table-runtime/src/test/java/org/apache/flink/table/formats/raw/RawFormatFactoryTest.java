@@ -34,9 +34,8 @@ import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -49,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link RawFormatFactory}. */
-public class RawFormatFactoryTest extends TestLogger {
+class RawFormatFactoryTest {
 
     private static final ResolvedSchema SCHEMA =
             ResolvedSchema.of(Column.physical("field1", DataTypes.STRING()));
@@ -58,7 +57,7 @@ public class RawFormatFactoryTest extends TestLogger {
             (RowType) SCHEMA.toPhysicalRowDataType().getLogicalType();
 
     @Test
-    public void testSeDeSchema() {
+    void testSeDeSchema() {
         final Map<String, String> tableOptions = getBasicOptions();
 
         // test deserialization
@@ -77,7 +76,7 @@ public class RawFormatFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testCharsetAndEndiannessOption() {
+    void testCharsetAndEndiannessOption() {
         final Map<String, String> tableOptions =
                 getModifiedOptions(
                         options -> {
@@ -101,7 +100,7 @@ public class RawFormatFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testInvalidSchema() {
+    void testInvalidSchema() {
         ResolvedSchema invalidSchema =
                 ResolvedSchema.of(
                         Column.physical("f0", DataTypes.STRING()),
@@ -118,7 +117,7 @@ public class RawFormatFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testInvalidCharset() {
+    void testInvalidCharset() {
         final Map<String, String> tableOptions =
                 getModifiedOptions(
                         options -> {
@@ -135,7 +134,7 @@ public class RawFormatFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testInvalidEndianness() {
+    void testInvalidEndianness() {
         final Map<String, String> tableOptions =
                 getModifiedOptions(
                         options -> {
@@ -154,7 +153,7 @@ public class RawFormatFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testInvalidFieldTypes() {
+    void testInvalidFieldTypes() {
         assertThatThrownBy(
                         () ->
                                 createDeserializationSchema(

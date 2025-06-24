@@ -17,18 +17,19 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.join
 
-import org.apache.flink.table.api.{ExplainDetail, ValidationException}
+import org.apache.flink.table.api.{ExplainDetail, TableException, ValidationException}
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
-import org.junit.{Before, Test}
-import org.junit.Assert.{assertTrue, fail}
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test temporal join in stream mode. */
 class TemporalJoinTest extends TableTestBase {
 
   val util: StreamTableTestUtil = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.addTable("""
                     |CREATE TABLE Orders (
@@ -93,6 +94,21 @@ class TemporalJoinTest extends TableTestBase {
                     |) WITH (
                     | 'connector' = 'values',
                     | 'changelog-mode' = 'I,UB,UA,D',
+                    | 'disable-lookup' = 'true'
+                    |)
+      """.stripMargin)
+
+    util.addTable("""
+                    |CREATE TABLE UpsertRates (
+                    | currency STRING,
+                    | rate INT,
+                    | valid VARCHAR,
+                    | rowtime TIMESTAMP(3),
+                    | WATERMARK FOR rowtime AS rowtime,
+                    | PRIMARY KEY(currency) NOT ENFORCED
+                    |) WITH (
+                    | 'connector' = 'values',
+                    | 'changelog-mode' = 'I,UA,D',
                     | 'disable-lookup' = 'true'
                     |)
       """.stripMargin)
@@ -479,24 +495,6 @@ class TemporalJoinTest extends TableTestBase {
       classOf[ValidationException]
     )
 
-    val sqlQuery6 = "SELECT * FROM RatesHistory " +
-      "FOR SYSTEM_TIME AS OF TIMESTAMP '2020-11-11 13:12:13'"
-    expectExceptionThrown(
-      sqlQuery6,
-      "Querying a temporal table using 'FOR SYSTEM TIME AS OF' syntax with a constant timestamp " +
-        "'2020-11-11 13:12:13' is not supported yet.",
-      classOf[AssertionError]
-    )
-
-    val sqlQuery7 = "SELECT * FROM RatesHistory FOR SYSTEM_TIME AS OF " +
-      "TO_TIMESTAMP(FROM_UNIXTIME(1))"
-    expectExceptionThrown(
-      sqlQuery7,
-      "Querying a temporal table using 'FOR SYSTEM TIME AS OF' syntax with an expression call " +
-        "'TO_TIMESTAMP(FROM_UNIXTIME(1))' is not supported yet.",
-      classOf[AssertionError]
-    )
-
     val sqlQuery8 =
       s"""
          |SELECT *
@@ -508,6 +506,27 @@ class TemporalJoinTest extends TableTestBase {
       sqlQuery8,
       "Event-Time Temporal Table Join requires same rowtime type in left table and versioned" +
         " table, but the rowtime types are TIMESTAMP_LTZ(3) *ROWTIME* and TIMESTAMP(3) *ROWTIME*.",
+      classOf[ValidationException]
+    )
+
+    val sqlQuery9 = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF 'o.rowtime' AS r " +
+      "ON o.currency = r.currency"
+    expectExceptionThrown(
+      sqlQuery9,
+      "The system time period specification expects Timestamp type but is 'CHAR'",
+      classOf[ValidationException]
+    )
+
+    val sqlQuery10 = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime + INTERVAL '1' SECOND AS r " +
+      "ON o.currency = r.currency"
+    expectExceptionThrown(
+      sqlQuery10,
+      "Temporal table join currently only supports 'FOR SYSTEM_TIME AS OF' left table's time" +
+        " attribute field'",
       classOf[ValidationException]
     )
   }
@@ -570,24 +589,65 @@ class TemporalJoinTest extends TableTestBase {
     util.verifyExplainInsert(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
+  @Test
+  def testTemporalJoinUpsertSourceWithPostFilter(): Unit = {
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "UpsertRates FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency WHERE valid = 'true'"
+
+    util.verifyExplain(sqlQuery, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testTemporalJoinUpsertSourceWithPreFilter(): Unit = {
+    util.tableEnv.executeSql(s"""
+                                |CREATE TEMPORARY VIEW V1 AS
+                                |SELECT * FROM UpsertRates WHERE valid = 'true'
+                                |""".stripMargin)
+
+    /**
+     * The problem is: there's exists a filter on an upsert changelog input(changelogMode=[I,UA,D]),
+     * the UB message must exists for correctness.
+     *
+     * Intermediate plan with modify kind:
+     * {{{
+     * +- TemporalJoin(joinType=[InnerJoin], ..., changelogMode=[I])
+     *    :- Exchange(distribution=[hash[currency]], changelogMode=[I])
+     *      : +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I])
+     *        : +- Calc(select=[amount, currency, rowtime, ... changelogMode=[I])
+     *          : +- TableSourceScan(table= Orders ... changelogMode=[I])
+     *    +- Exchange(distribution=[hash[currency]], changelogMode=[I,UA,D])
+     *      +- Calc(select=[currency, ... where=[=(valid, _UTF-16LE'true')], changelogMode=[I,UA,D])
+     *        +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime], changelogMode=[I,UA,D])
+     *          +- TableSourceScan(table= UpsertRates, ... changelogMode=[I,UA,D])
+     * }}}
+     */
+
+    val sqlQuery = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "V1 FOR SYSTEM_TIME AS OF o.rowtime AS r " +
+      "ON o.currency = r.currency"
+
+    expectExceptionThrown(
+      sqlQuery,
+      "Filter is not allowed for right changelog input of event time temporal join, it will corrupt the versioning of data.",
+      classOf[TableException]
+    )
+  }
+
   private def expectExceptionThrown(
       sql: String,
       keywords: String,
       clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
-    try {
-      verifyTranslationSuccess(sql)
-      fail(s"Expected a $clazz, but no exception is thrown.")
-    } catch {
-      case e if e.getClass == clazz =>
-        if (keywords != null) {
-          assertTrue(
-            s"The actual exception message \n${e.getMessage}\n" +
-              s"doesn't contain expected keyword \n$keywords\n",
-            e.getMessage.contains(keywords))
-        }
-      case e: Throwable =>
-        e.printStackTrace()
-        fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
+    val callable: ThrowingCallable = () => verifyTranslationSuccess(sql)
+    if (keywords != null) {
+      assertThatExceptionOfType(clazz)
+        .isThrownBy(callable)
+        .withMessageContaining(keywords)
+    } else {
+      assertThatExceptionOfType(clazz)
+        .isThrownBy(callable)
     }
   }
 

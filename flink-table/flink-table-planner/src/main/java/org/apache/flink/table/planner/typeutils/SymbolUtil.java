@@ -33,6 +33,7 @@ import org.apache.flink.table.utils.DateTimeUtils;
 import com.google.common.collect.BoundType;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.avatica.util.TimeUnitRange;
+import org.apache.calcite.rex.RexUnknownAs;
 import org.apache.calcite.sql.SqlJsonConstructorNullClause;
 import org.apache.calcite.sql.SqlJsonEmptyOrError;
 import org.apache.calcite.sql.SqlJsonExistsErrorBehavior;
@@ -473,6 +474,11 @@ public final class SymbolUtil {
         // BOUND
         addSymbolMapping(null, null, BoundType.OPEN, "BOUND", "OPEN");
         addSymbolMapping(null, null, BoundType.CLOSED, "BOUND", "CLOSED");
+
+        // UNKNOWN_AS
+        addSymbolMapping(null, null, RexUnknownAs.TRUE, "UNKNOWN_AS", "TRUE");
+        addSymbolMapping(null, null, RexUnknownAs.FALSE, "UNKNOWN_AS", "FALSE");
+        addSymbolMapping(null, null, RexUnknownAs.UNKNOWN, "UNKNOWN_AS", "UNKNOWN");
     }
 
     /**

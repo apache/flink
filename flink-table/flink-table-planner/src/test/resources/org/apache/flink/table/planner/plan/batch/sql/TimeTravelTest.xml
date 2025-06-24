@@ -1,0 +1,170 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testTimeTravel">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 02:00:00']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1])
++- LogicalSnapshot(period=[2023-01-01 02:00:00])
+   +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[TimeTravelCatalog, default, t1]], fields=[f1, f2], version=[1672538400000])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTimeTravelOneTableMultiTimes">
+    <Resource name="sql">
+      <![CDATA[SELECT
+    f1
+FROM
+    t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 01:00:00'
+UNION ALL
+SELECT
+    f2
+FROM
+    t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 02:00:00']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(f1=[$0])
+:  +- LogicalSnapshot(period=[2023-01-01 01:00:00])
+:     +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
++- LogicalProject(f2=[$1])
+   +- LogicalSnapshot(period=[2023-01-01 02:00:00])
+      +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Union(all=[true], union=[f1])
+:- TableSourceScan(table=[[TimeTravelCatalog, default, t1]], fields=[f1], version=[1672534800000])
++- TableSourceScan(table=[[TimeTravelCatalog, default, t1, project=[f2], metadata=[]]], fields=[f2], version=[1672538400000])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTimeTravelWithDifferentTimezone">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 10:00:00']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1])
++- LogicalSnapshot(period=[2023-01-01 10:00:00])
+   +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[TimeTravelCatalog, default, t1]], fields=[f1, f2], version=[1672538400000])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTimeTravelWithAsExpression">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 02:00:00' AS t2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1])
++- LogicalSnapshot(period=[2023-01-01 02:00:00])
+   +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[TimeTravelCatalog, default, t1, project=[f1, f2], metadata=[]]], fields=[f1, f2], version=[1672542000000])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTimeTravelWithHints">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t1 /*+ options('bounded'='true') */ FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 02:00:00' AS t2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1])
++- LogicalSnapshot(period=[2023-01-01 02:00:00])
+   +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[TimeTravelCatalog, default, t1]], fields=[f1, f2], version=[1672538400000])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTimeTravelWithLookupJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT
+    l.f2,
+    r.f3
+FROM
+    (
+        SELECT
+            *,
+            proctime () as p
+        FROM
+            t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 02:00:00'
+    ) l
+    LEFT JOIN t1 FOR SYSTEM_TIME AS OF l.p r ON l.f1=r.f1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f2=[$1], f3=[$5])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 2}])
+   :- LogicalProject(f1=[$0], f2=[$1], p=[PROCTIME()])
+   :  +- LogicalSnapshot(period=[2023-01-01 02:00:00])
+   :     +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
+   +- LogicalFilter(condition=[=($cor0.f1, $0)])
+      +- LogicalSnapshot(period=[$cor0.p])
+         +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[f2, f3])
++- LookupJoin(table=[TimeTravelCatalog.default.t1], joinType=[LeftOuterJoin], lookup=[f1=f1], select=[f1, f2, f10, f3])
+   +- TableSourceScan(table=[[TimeTravelCatalog, default, t1]], fields=[f1, f2], version=[1672538400000])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTimeTravelWithSimpleExpression">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 00:00:00'+INTERVAL '60' DAY]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1], f3=[$2])
++- LogicalSnapshot(period=[2023-03-02 00:00:00])
+   +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[TimeTravelCatalog, default, t1]], fields=[f1, f2, f3], version=[1672542000000])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -19,22 +19,30 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.state.ChannelState;
 import org.apache.flink.runtime.state.CompositeStateHandle;
-import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl.EmptyDiscardStateObjectForRegister;
+import org.apache.flink.runtime.state.SharedStateRegistryKey;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
+import org.apache.flink.runtime.state.filemerging.FileMergingOperatorStreamStateHandle;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import static org.apache.flink.runtime.state.AbstractChannelStateHandle.collectUniqueDelegates;
+import static org.apache.flink.runtime.state.ChannelStateHelper.collectUniqueDisposableInChannelState;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -79,9 +87,9 @@ public class OperatorSubtaskState implements CompositeStateHandle {
      */
     private final StateObjectCollection<KeyedStateHandle> rawKeyedState;
 
-    private final StateObjectCollection<InputChannelStateHandle> inputChannelState;
+    private final StateObjectCollection<InputStateHandle> inputChannelState;
 
-    private final StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState;
+    private final StateObjectCollection<OutputStateHandle> resultSubpartitionState;
 
     /**
      * The subpartitions mappings per partition set when the output operator for a partition was
@@ -114,8 +122,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
             StateObjectCollection<OperatorStateHandle> rawOperatorState,
             StateObjectCollection<KeyedStateHandle> managedKeyedState,
             StateObjectCollection<KeyedStateHandle> rawKeyedState,
-            StateObjectCollection<InputChannelStateHandle> inputChannelState,
-            StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState,
+            StateObjectCollection<InputStateHandle> inputChannelState,
+            StateObjectCollection<OutputStateHandle> resultSubpartitionState,
             InflightDataRescalingDescriptor inputRescalingDescriptor,
             InflightDataRescalingDescriptor outputRescalingDescriptor) {
 
@@ -128,21 +136,23 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         this.inputRescalingDescriptor = checkNotNull(inputRescalingDescriptor);
         this.outputRescalingDescriptor = checkNotNull(outputRescalingDescriptor);
 
-        long calculateStateSize = managedOperatorState.getStateSize();
-        calculateStateSize += rawOperatorState.getStateSize();
-        calculateStateSize += managedKeyedState.getStateSize();
-        calculateStateSize += rawKeyedState.getStateSize();
-        calculateStateSize += inputChannelState.getStateSize();
-        calculateStateSize += resultSubpartitionState.getStateSize();
-        stateSize = calculateStateSize;
+        this.stateSize = streamSubCollections().mapToLong(StateObject::getStateSize).sum();
+        this.checkpointedSize =
+                streamSubCollections().mapToLong(StateObjectCollection::getCheckpointedSize).sum();
+    }
 
-        long calculateCheckpointedSize = managedOperatorState.getCheckpointedSize();
-        calculateCheckpointedSize += rawOperatorState.getCheckpointedSize();
-        calculateCheckpointedSize += managedKeyedState.getCheckpointedSize();
-        calculateCheckpointedSize += rawKeyedState.getCheckpointedSize();
-        calculateCheckpointedSize += inputChannelState.getCheckpointedSize();
-        calculateCheckpointedSize += resultSubpartitionState.getCheckpointedSize();
-        this.checkpointedSize = calculateCheckpointedSize;
+    private Stream<StateObjectCollection<?>> streamSubCollections() {
+        return Stream.of(streamOperatorAndKeyedStates(), streamChannelStates())
+                .flatMap(Function.identity());
+    }
+
+    private Stream<StateObjectCollection<? extends StateObject>> streamOperatorAndKeyedStates() {
+        return Stream.of(managedOperatorState, rawOperatorState, managedKeyedState, rawKeyedState)
+                .filter(Objects::nonNull);
+    }
+
+    private Stream<StateObjectCollection<? extends ChannelState>> streamChannelStates() {
+        return Stream.of(inputChannelState, resultSubpartitionState).filter(Objects::nonNull);
     }
 
     @VisibleForTesting
@@ -176,11 +186,11 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         return rawKeyedState;
     }
 
-    public StateObjectCollection<InputChannelStateHandle> getInputChannelState() {
+    public StateObjectCollection<InputStateHandle> getInputChannelState() {
         return inputChannelState;
     }
 
-    public StateObjectCollection<ResultSubpartitionStateHandle> getResultSubpartitionState() {
+    public StateObjectCollection<OutputStateHandle> getResultSubpartitionState() {
         return resultSubpartitionState;
     }
 
@@ -192,22 +202,17 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         return outputRescalingDescriptor;
     }
 
+    public List<StateObject> getDiscardables() {
+        return Stream.concat(
+                        streamOperatorAndKeyedStates().flatMap(Collection::stream),
+                        collectUniqueDisposableInChannelState(streamChannelStates()))
+                .collect(Collectors.toList());
+    }
+
     @Override
     public void discardState() {
         try {
-            List<StateObject> toDispose =
-                    new ArrayList<>(
-                            managedOperatorState.size()
-                                    + rawOperatorState.size()
-                                    + managedKeyedState.size()
-                                    + rawKeyedState.size()
-                                    + inputChannelState.size()
-                                    + resultSubpartitionState.size());
-            toDispose.addAll(managedOperatorState);
-            toDispose.addAll(rawOperatorState);
-            toDispose.addAll(managedKeyedState);
-            toDispose.addAll(rawKeyedState);
-            toDispose.addAll(collectUniqueDelegates(inputChannelState, resultSubpartitionState));
+            List<StateObject> toDispose = getDiscardables();
             StateUtil.bestEffortDiscardAllStateObjects(toDispose);
         } catch (Exception e) {
             LOG.warn("Error while discarding operator states.", e);
@@ -218,6 +223,13 @@ public class OperatorSubtaskState implements CompositeStateHandle {
     public void registerSharedStates(SharedStateRegistry sharedStateRegistry, long checkpointID) {
         registerSharedState(sharedStateRegistry, managedKeyedState, checkpointID);
         registerSharedState(sharedStateRegistry, rawKeyedState, checkpointID);
+        registerFileMergingDirectoryHandle(
+                sharedStateRegistry,
+                managedOperatorState.stream()
+                        .filter(e -> e instanceof FileMergingOperatorStreamStateHandle)
+                        .map(e -> (FileMergingOperatorStreamStateHandle) e)
+                        .collect(Collectors.toList()),
+                checkpointID);
     }
 
     private static void registerSharedState(
@@ -225,6 +237,24 @@ public class OperatorSubtaskState implements CompositeStateHandle {
             Iterable<KeyedStateHandle> stateHandles,
             long checkpointID) {
         for (KeyedStateHandle stateHandle : stateHandles) {
+            if (stateHandle != null) {
+                // Registering state handle to the given sharedStateRegistry serves one purpose:
+                // update the status of the checkpoint in sharedStateRegistry to which the state
+                // handle belongs.
+                sharedStateRegistry.registerReference(
+                        new SharedStateRegistryKey(stateHandle.getStateHandleId().getKeyString()),
+                        new EmptyDiscardStateObjectForRegister(stateHandle.getStateHandleId()),
+                        checkpointID);
+                stateHandle.registerSharedStates(sharedStateRegistry, checkpointID);
+            }
+        }
+    }
+
+    private static void registerFileMergingDirectoryHandle(
+            SharedStateRegistry sharedStateRegistry,
+            Iterable<FileMergingOperatorStreamStateHandle> stateHandles,
+            long checkpointID) {
+        for (FileMergingOperatorStreamStateHandle stateHandle : stateHandles) {
             if (stateHandle != null) {
                 stateHandle.registerSharedStates(sharedStateRegistry, checkpointID);
             }
@@ -360,9 +390,9 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                 StateObjectCollection.empty();
         private StateObjectCollection<KeyedStateHandle> rawKeyedState =
                 StateObjectCollection.empty();
-        private StateObjectCollection<InputChannelStateHandle> inputChannelState =
+        private StateObjectCollection<InputStateHandle> inputChannelState =
                 StateObjectCollection.empty();
-        private StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState =
+        private StateObjectCollection<OutputStateHandle> resultSubpartitionState =
                 StateObjectCollection.empty();
         private InflightDataRescalingDescriptor inputRescalingDescriptor =
                 InflightDataRescalingDescriptor.NO_RESCALE;
@@ -414,13 +444,13 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         }
 
         public Builder setInputChannelState(
-                StateObjectCollection<InputChannelStateHandle> inputChannelState) {
+                StateObjectCollection<InputStateHandle> inputChannelState) {
             this.inputChannelState = checkNotNull(inputChannelState);
             return this;
         }
 
         public Builder setResultSubpartitionState(
-                StateObjectCollection<ResultSubpartitionStateHandle> resultSubpartitionState) {
+                StateObjectCollection<OutputStateHandle> resultSubpartitionState) {
             this.resultSubpartitionState = checkNotNull(resultSubpartitionState);
             return this;
         }

@@ -81,6 +81,7 @@ class DebeziumJsonFormatFactoryTest {
                         TimestampFormat.ISO_8601,
                         JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
+                        true,
                         true);
 
         final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
@@ -200,6 +201,7 @@ class DebeziumJsonFormatFactoryTest {
         options.put("debezium-json.map-null-key.mode", "LITERAL");
         options.put("debezium-json.map-null-key.literal", "null");
         options.put("debezium-json.encode.decimal-as-plain-number", "true");
+        options.put("debezium-json.encode.ignore-null-fields", "true");
         return options;
     }
 }

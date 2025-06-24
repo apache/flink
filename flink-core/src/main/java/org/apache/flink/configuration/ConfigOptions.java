@@ -62,7 +62,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * ConfigOption<Double> threshold = ConfigOptions
  *     .key("cpu.utilization.threshold")
  *     .doubleType()
- *     .defaultValue(0.9).
+ *     .defaultValue(0.9)
  *     .withDeprecatedKeys("cpu.threshold");
  * }</pre>
  */
@@ -162,39 +162,6 @@ public class ConfigOptions {
          */
         public TypedConfigOptionBuilder<Map<String, String>> mapType() {
             return new TypedConfigOptionBuilder<>(key, PROPERTIES_MAP_CLASS);
-        }
-
-        /**
-         * Creates a ConfigOption with the given default value.
-         *
-         * <p>This method does not accept "null". For options with no default value, choose one of
-         * the {@code noDefaultValue} methods.
-         *
-         * @param value The default value for the config option
-         * @param <T> The type of the default value.
-         * @return The config option with the default value.
-         * @deprecated define the type explicitly first with one of the intType(), stringType(),
-         *     etc.
-         */
-        @Deprecated
-        public <T> ConfigOption<T> defaultValue(T value) {
-            checkNotNull(value);
-            return new ConfigOption<>(
-                    key, value.getClass(), ConfigOption.EMPTY_DESCRIPTION, value, false);
-        }
-
-        /**
-         * Creates a string-valued option with no default value. String-valued options are the only
-         * ones that can have no default value.
-         *
-         * @return The created ConfigOption.
-         * @deprecated define the type explicitly first with one of the intType(), stringType(),
-         *     etc.
-         */
-        @Deprecated
-        public ConfigOption<String> noDefaultValue() {
-            return new ConfigOption<>(
-                    key, String.class, ConfigOption.EMPTY_DESCRIPTION, null, false);
         }
     }
 

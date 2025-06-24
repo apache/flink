@@ -19,12 +19,19 @@
 package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import org.apache.flink.shaded.asm9.org.objectweb.asm.ClassReader;
 import org.apache.flink.shaded.asm9.org.objectweb.asm.ClassVisitor;
@@ -37,12 +44,13 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -56,6 +64,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -87,7 +96,8 @@ public final class ExtractionUtils {
      * <p>E.g., {@code (int.class, int.class)} matches {@code f(Object...), f(int, int), f(Integer,
      * Object)} and so forth.
      */
-    public static boolean isInvokable(Executable executable, Class<?>... classes) {
+    public static boolean isInvokable(
+            Autoboxing autoboxing, Executable executable, Class<?>... classes) {
         final int m = executable.getModifiers();
         if (!Modifier.isPublic(m)) {
             return false;
@@ -106,21 +116,21 @@ public final class ExtractionUtils {
             if (currentParam == paramCount - 1 && executable.isVarArgs()) {
                 final Class<?> paramComponent =
                         executable.getParameterTypes()[currentParam].getComponentType();
-                // we have more than 1 classes left so the vararg needs to consume them all
+                // we have more than one class left so the vararg needs to consume them all
                 if (classCount - currentClass > 1) {
                     while (currentClass < classCount
-                            && ExtractionUtils.isAssignable(
-                                    classes[currentClass], paramComponent, true)) {
+                            && isAssignable(classes[currentClass], paramComponent, autoboxing)) {
                         currentClass++;
                     }
                 } else if (currentClass < classCount
-                        && (parameterMatches(classes[currentClass], param)
-                                || parameterMatches(classes[currentClass], paramComponent))) {
+                        && (parameterMatches(autoboxing, classes[currentClass], param)
+                                || parameterMatches(
+                                        autoboxing, classes[currentClass], paramComponent))) {
                     currentClass++;
                 }
             }
             // entire parameter matches
-            else if (parameterMatches(classes[currentClass], param)) {
+            else if (parameterMatches(autoboxing, classes[currentClass], param)) {
                 currentClass++;
             }
         }
@@ -128,8 +138,8 @@ public final class ExtractionUtils {
         return currentClass == classCount;
     }
 
-    private static boolean parameterMatches(Class<?> clz, Class<?> param) {
-        return clz == null || ExtractionUtils.isAssignable(clz, param, true);
+    private static boolean parameterMatches(Autoboxing autoboxing, Class<?> clz, Class<?> param) {
+        return clz == null || isAssignable(clz, param, autoboxing);
     }
 
     /** Creates a method signature string like {@code int eval(Integer, String)}. */
@@ -294,11 +304,11 @@ public final class ExtractionUtils {
     /**
      * Checks for an invokable constructor matching the given arguments.
      *
-     * @see #isInvokable(Executable, Class[])
+     * @see #isInvokable(Autoboxing, Executable, Class[])
      */
     public static boolean hasInvokableConstructor(Class<?> clazz, Class<?>... classes) {
         for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
-            if (isInvokable(constructor, classes)) {
+            if (isInvokable(Autoboxing.JVM, constructor, classes)) {
                 return true;
             }
         }
@@ -336,7 +346,7 @@ public final class ExtractionUtils {
     public static Optional<Class<?>> extractSimpleGeneric(
             Class<?> baseClass, Class<?> clazz, int pos) {
         try {
-            if (clazz.getSuperclass() != baseClass) {
+            if (!baseClass.isAssignableFrom(clazz)) {
                 return Optional.empty();
             }
             final Type t =
@@ -345,6 +355,75 @@ public final class ExtractionUtils {
             return Optional.ofNullable(toClass(t));
         } catch (Exception unused) {
             return Optional.empty();
+        }
+    }
+
+    /** Resolves a variable type while accepting a context for resolution. */
+    public static Type resolveVariableWithClassContext(@Nullable Type contextType, Type type) {
+        final List<Type> typeHierarchy;
+        if (contextType != null) {
+            typeHierarchy = collectTypeHierarchy(contextType);
+        } else {
+            typeHierarchy = Collections.emptyList();
+        }
+        if (!containsTypeVariable(type)) {
+            return type;
+        }
+        if (type instanceof TypeVariable) {
+            return resolveVariable(typeHierarchy, (TypeVariable<?>) type);
+        } else if (type instanceof ParameterizedType) {
+            ParameterizedType parameterizedType = (ParameterizedType) type;
+            List<Type> paramTypes = new ArrayList<>();
+            for (Type paramType : parameterizedType.getActualTypeArguments()) {
+                paramType = resolveVariableWithClassContext(contextType, paramType);
+                paramTypes.add(paramType);
+            }
+            return new ParameterizedTypeImpl(
+                    paramTypes.toArray(paramTypes.toArray(new Type[0])),
+                    parameterizedType.getRawType(),
+                    parameterizedType.getOwnerType());
+        } else if (type instanceof GenericArrayType) {
+            Type componentType =
+                    resolveVariableWithClassContext(
+                            contextType, ((GenericArrayType) type).getGenericComponentType());
+            return new GenericArrayTypeImpl(componentType);
+        } else {
+            return type;
+        }
+    }
+
+    /** Gets the associated class type from a Type parameter. */
+    public static Class<?> getClassFromType(Type type) {
+        if (type instanceof ParameterizedType) {
+            return (Class<?>) ((ParameterizedType) type).getRawType();
+        } else if (type instanceof GenericArrayType) {
+            return Array.newInstance(
+                            (Class<?>) ((GenericArrayType) type).getGenericComponentType(), 0)
+                    .getClass();
+        }
+        // Otherwise assume it's a basic type that can be cast.
+        return (Class<?>) type;
+    }
+
+    /**
+     * Checks whether the given data type can be used as a state entry for {@link
+     * ProcessTableFunction}.
+     */
+    public static void checkStateDataType(DataType dataType) {
+        final LogicalType type = dataType.getLogicalType();
+        if (!LogicalTypeChecks.isCompositeType(type)) {
+            throw extractionError(
+                    "State entries must use a mutable, composite data type. But was: %s", dataType);
+        }
+        if (type.is(LogicalTypeRoot.ROW)) {
+            return;
+        }
+        if (!hasInvokableConstructor(dataType.getConversionClass())) {
+            throw extractionError(
+                    "Class '%s' cannot be used as state because a default constructor is missing. "
+                            + "State entries must provide an argument-less constructor so that all "
+                            + "fields are mutable.",
+                    dataType.getConversionClass().getName());
         }
     }
 
@@ -613,6 +692,7 @@ public final class ExtractionUtils {
     // --------------------------------------------------------------------------------------------
 
     /** Result of the extraction in {@link #extractAssigningConstructor(Class, List)}. */
+    @Internal
     public static class AssigningConstructor {
         public final Constructor<?> constructor;
         public final List<String> parameterNames;
@@ -633,7 +713,7 @@ public final class ExtractionUtils {
         for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
             final boolean qualifyingConstructor =
                     Modifier.isPublic(constructor.getModifiers())
-                            && constructor.getParameterTypes().length == fields.size();
+                            && constructor.getParameterCount() == fields.size();
             if (!qualifyingConstructor) {
                 continue;
             }
@@ -697,7 +777,8 @@ public final class ExtractionUtils {
         return fieldNames;
     }
 
-    private static @Nullable List<String> extractExecutableNames(Executable executable) {
+    @VisibleForTesting
+    static @Nullable List<String> extractExecutableNames(Executable executable) {
         final int offset;
         if (!Modifier.isStatic(executable.getModifiers())) {
             // remove "this" as first parameter
@@ -705,11 +786,24 @@ public final class ExtractionUtils {
         } else {
             offset = 0;
         }
-        // by default parameter names are "arg0, arg1, arg2, ..." if compiler flag is not set
-        // so we need to extract them manually if possible
+        // by default parameter names are "arg0, arg1, arg2, ..." if compiler flag is not set,
+        // we need to extract them manually if possible
         List<String> parameterNames =
                 Stream.of(executable.getParameters())
-                        .map(Parameter::getName)
+                        .map(
+                                parameter -> {
+                                    final StateHint stateHint =
+                                            parameter.getAnnotation(StateHint.class);
+                                    final ArgumentHint argHint =
+                                            parameter.getAnnotation(ArgumentHint.class);
+                                    if (stateHint != null && !stateHint.name().isEmpty()) {
+                                        return stateHint.name();
+                                    } else if (argHint != null && !argHint.name().isEmpty()) {
+                                        return argHint.name();
+                                    } else {
+                                        return parameter.getName();
+                                    }
+                                })
                         .collect(Collectors.toList());
         if (parameterNames.stream().allMatch(n -> n.startsWith("arg"))) {
             final ParameterExtractor extractor;
@@ -721,11 +815,11 @@ public final class ExtractionUtils {
             getClassReader(executable.getDeclaringClass()).accept(extractor, 0);
 
             final List<String> extractedNames = extractor.getParameterNames();
-            if (extractedNames.size() == 0) {
+            if (extractedNames.isEmpty()) {
                 return null;
             }
             // remove "this" and additional local variables
-            // select less names if class file has not the required information
+            // select fewer names if class file has not the required information
             parameterNames =
                     extractedNames.subList(
                             offset,
@@ -765,6 +859,40 @@ public final class ExtractionUtils {
      *   <localVar:index=2 , name=otherLocal2 , desc=J, sig=null, start=L1, end=L2>
      * }
      * }</pre>
+     *
+     * <p>If a constructor or method has multiple identical local variables that are not initialized
+     * like:
+     *
+     * <pre>{@code
+     * String localVariable;
+     * if (generic == null) {
+     *     localVariable = "null";
+     * } else if (generic < 0) {
+     *     localVariable = "negative";
+     * } else if (generic > 0) {
+     *     localVariable = "positive";
+     * } else {
+     *     localVariable = "zero";
+     * }
+     * }</pre>
+     *
+     * <p>Its local variable table is as follows:
+     *
+     * <pre>{@code
+     * Start  Length  Slot     Name           Signature
+     * 7       3       2     localVariable   Ljava/lang/String;
+     * 22      3       2     localVariable   Ljava/lang/String;
+     * 37      3       2     localVariable   Ljava/lang/String;
+     * 0      69       0     this            ...;
+     * 0      69       1     generic         Ljava/lang/Long;
+     * 43     26       2     localVariable   Ljava/lang/String;
+     * }</pre>
+     *
+     * <p>The method parameters are always at the head in the 'slot' list.
+     *
+     * <p>NOTE: the first parameter may be "this" if the function is not static. See more at <a
+     * href="https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-3.html">3.6. Receiving
+     * Arguments</a>
      */
     private static class ParameterExtractor extends ClassVisitor {
 
@@ -772,7 +900,7 @@ public final class ExtractionUtils {
 
         private final String methodDescriptor;
 
-        private final List<String> parameterNames = new ArrayList<>();
+        private final Map<Integer, String> parameterNamesWithIndex = new TreeMap<>();
 
         ParameterExtractor(Constructor<?> constructor) {
             super(OPCODE);
@@ -785,7 +913,11 @@ public final class ExtractionUtils {
         }
 
         List<String> getParameterNames() {
-            return parameterNames;
+            // method parameters are always at the head in the 'index' list
+            // NOTE: the first parameter may be "this" if the function is not static
+            // See more at Chapter "3.6. Receiving Arguments" in
+            // https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-3.html
+            return new ArrayList<>(parameterNamesWithIndex.values());
         }
 
         @Override
@@ -801,7 +933,7 @@ public final class ExtractionUtils {
                             Label start,
                             Label end,
                             int index) {
-                        parameterNames.add(name);
+                        parameterNamesWithIndex.put(index, name);
                     }
                 };
             }
@@ -812,8 +944,30 @@ public final class ExtractionUtils {
     // --------------------------------------------------------------------------------------------
     // Class Assignment and Boxing
     //
-    // copied from o.a.commons.lang3.ClassUtils (commons-lang3:3.3.2)
+    // inspired by o.a.commons.lang3.ClassUtils (commons-lang3:3.3.2)
     // --------------------------------------------------------------------------------------------
+
+    /** Checks the relation between primitive and boxed types. */
+    @Internal
+    public enum Autoboxing {
+        /**
+         * int.class cannot be passed into f(Integer.class). Integer.class cannot be passed into
+         * f(int.class).
+         */
+        NONE,
+
+        /**
+         * int.class can be passed into f(Integer.class). Integer.class can be passed into
+         * f(int.class). The latter could cause a {@link NullPointerException}.
+         */
+        JVM,
+
+        /**
+         * int.class can be passed into f(Integer.class). Integer.class cannot be passed into
+         * f(int.class).
+         */
+        STRICT
+    }
 
     /**
      * Checks if one {@code Class} can be assigned to a variable of another {@code Class}.
@@ -836,10 +990,10 @@ public final class ExtractionUtils {
      * @param cls the Class to check, may be null
      * @param toClass the Class to try to assign into, returns false if null
      * @param autoboxing whether to use implicit autoboxing/unboxing between primitives and wrappers
+     * @param autoboxing checks whether null would end up in a primitive type and forbids it
      * @return {@code true} if assignment possible
      */
-    public static boolean isAssignable(
-            Class<?> cls, final Class<?> toClass, final boolean autoboxing) {
+    public static boolean isAssignable(Class<?> cls, Class<?> toClass, Autoboxing autoboxing) {
         if (toClass == null) {
             return false;
         }
@@ -848,17 +1002,19 @@ public final class ExtractionUtils {
             return !toClass.isPrimitive();
         }
         // autoboxing:
-        if (autoboxing) {
+        if (autoboxing != Autoboxing.NONE) {
             if (cls.isPrimitive() && !toClass.isPrimitive()) {
                 cls = primitiveToWrapper(cls);
                 if (cls == null) {
                     return false;
                 }
             }
-            if (toClass.isPrimitive() && !cls.isPrimitive()) {
-                cls = wrapperToPrimitive(cls);
-                if (cls == null) {
-                    return false;
+            if (autoboxing == Autoboxing.JVM) {
+                if (toClass.isPrimitive() && !cls.isPrimitive()) {
+                    cls = wrapperToPrimitive(cls);
+                    if (cls == null) {
+                        return false;
+                    }
                 }
             }
         }
@@ -948,7 +1104,7 @@ public final class ExtractionUtils {
      *     {@code null} if null input.
      * @since 2.1
      */
-    public static Class<?> primitiveToWrapper(final Class<?> cls) {
+    public static Class<?> primitiveToWrapper(Class<?> cls) {
         Class<?> convertedClass = cls;
         if (cls != null && cls.isPrimitive()) {
             convertedClass = primitiveWrapperMap.get(cls);
@@ -970,7 +1126,7 @@ public final class ExtractionUtils {
      * @see #primitiveToWrapper(Class)
      * @since 2.4
      */
-    public static Class<?> wrapperToPrimitive(final Class<?> cls) {
+    public static Class<?> wrapperToPrimitive(Class<?> cls) {
         return wrapperPrimitiveMap.get(cls);
     }
 
@@ -999,6 +1155,85 @@ public final class ExtractionUtils {
             return primitiveNameMap.get(name);
         }
         return Class.forName(name, initialize, classLoader);
+    }
+
+    /** Utility to know if the type contains a type variable that needs to be resolved. */
+    private static boolean containsTypeVariable(Type type) {
+        if (type instanceof TypeVariable) {
+            return true;
+        } else if (type instanceof ParameterizedType) {
+            return Arrays.stream(((ParameterizedType) type).getActualTypeArguments())
+                    .anyMatch(ExtractionUtils::containsTypeVariable);
+        } else if (type instanceof GenericArrayType) {
+            return containsTypeVariable(((GenericArrayType) type).getGenericComponentType());
+        }
+        // WildcardType does not contain a type variable, and we don't consider it resolvable.
+        return false;
+    }
+
+    /**
+     * {@link ParameterizedType} we use for resolving types, so that if you resolve the type
+     * CompletableFuture&lt;T&gt;, we can create resolve the parameter and return
+     * CompletableFuture&lt;Long&gt;.
+     */
+    private static class ParameterizedTypeImpl implements ParameterizedType {
+
+        private final Type[] actualTypeArguments;
+        private final Type rawType;
+        private final Type ownerType;
+
+        public ParameterizedTypeImpl(Type[] actualTypeArguments, Type rawType, Type ownerType) {
+            this.actualTypeArguments = actualTypeArguments;
+            this.rawType = rawType;
+            this.ownerType = ownerType;
+        }
+
+        @Override
+        public Type[] getActualTypeArguments() {
+            return actualTypeArguments;
+        }
+
+        @Override
+        public Type getRawType() {
+            return rawType;
+        }
+
+        @Override
+        public Type getOwnerType() {
+            return ownerType;
+        }
+
+        @Override
+        public String toString() {
+            List<String> actualTypes =
+                    Arrays.stream(getActualTypeArguments())
+                            .map(Type::getTypeName)
+                            .collect(Collectors.toList());
+            return getRawType().getTypeName() + "<" + String.join(", ", actualTypes) + ">";
+        }
+    }
+
+    /**
+     * {@link GenericArrayType} we use for resolving types, so that if you resolve the type
+     * List&lt;T[]&gt;, we can create resolve the parameter and return List&lt;Long[]&gt;.
+     */
+    private static class GenericArrayTypeImpl implements GenericArrayType {
+
+        private final Type genericComponentType;
+
+        public GenericArrayTypeImpl(Type genericComponentType) {
+            this.genericComponentType = genericComponentType;
+        }
+
+        @Override
+        public Type getGenericComponentType() {
+            return genericComponentType;
+        }
+
+        @Override
+        public String getTypeName() {
+            return getGenericComponentType().getTypeName() + "[]";
+        }
     }
 
     // --------------------------------------------------------------------------------------------

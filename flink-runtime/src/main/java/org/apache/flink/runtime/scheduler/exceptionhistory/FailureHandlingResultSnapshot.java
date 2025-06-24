@@ -22,16 +22,18 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailureHandlingResult;
+import org.apache.flink.runtime.executiongraph.failover.FailureHandlingResult;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.Collections;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -43,8 +45,10 @@ public class FailureHandlingResultSnapshot {
 
     @Nullable private final Execution rootCauseExecution;
     private final Throwable rootCause;
+    private final CompletableFuture<Map<String, String>> failureLabels;
     private final long timestamp;
     private final Set<Execution> concurrentlyFailedExecutions;
+    private final boolean isRootCause;
 
     /**
      * Creates a {@code FailureHandlingResultSnapshot} based on the passed {@link
@@ -52,38 +56,27 @@ public class FailureHandlingResultSnapshot {
      *
      * @param failureHandlingResult The {@code FailureHandlingResult} that is used for extracting
      *     the failure information.
-     * @param latestExecutionLookup The look-up function for retrieving the latest {@link Execution}
-     *     instance for a given {@link ExecutionVertexID}.
+     * @param currentExecutionsLookup The look-up function for retrieving all the current {@link
+     *     Execution} instances for a given {@link ExecutionVertexID}.
      * @return The {@code FailureHandlingResultSnapshot}.
      */
     public static FailureHandlingResultSnapshot create(
             FailureHandlingResult failureHandlingResult,
-            Function<ExecutionVertexID, Execution> latestExecutionLookup) {
+            Function<ExecutionVertexID, Collection<Execution>> currentExecutionsLookup) {
         final Execution rootCauseExecution =
-                failureHandlingResult
-                        .getExecutionVertexIdOfFailedTask()
-                        .map(latestExecutionLookup)
-                        .orElse(null);
-        Preconditions.checkArgument(
-                rootCauseExecution == null || rootCauseExecution.getFailureInfo().isPresent(),
-                String.format(
-                        "The execution %s didn't provide a failure info even though the corresponding ExecutionVertex %s is marked as having handled the root cause of this failure.",
-                        // the "(null)" values should never be used due to the condition - it's just
-                        // added to make the compiler happy
-                        rootCauseExecution != null ? rootCauseExecution.getAttemptId() : "(null)",
-                        failureHandlingResult
-                                .getExecutionVertexIdOfFailedTask()
-                                .map(Objects::toString)
-                                .orElse("(null)")));
+                failureHandlingResult.getFailedExecution().orElse(null);
 
-        final ExecutionVertexID rootCauseExecutionVertexId =
-                failureHandlingResult.getExecutionVertexIdOfFailedTask().orElse(null);
+        if (rootCauseExecution != null && !rootCauseExecution.getFailureInfo().isPresent()) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "The failed execution %s didn't provide a failure info.",
+                            rootCauseExecution.getAttemptId()));
+        }
+
         final Set<Execution> concurrentlyFailedExecutions =
                 failureHandlingResult.getVerticesToRestart().stream()
-                        .filter(
-                                executionVertexId ->
-                                        !executionVertexId.equals(rootCauseExecutionVertexId))
-                        .map(latestExecutionLookup)
+                        .flatMap(id -> currentExecutionsLookup.apply(id).stream())
+                        .filter(execution -> execution != rootCauseExecution)
                         .filter(execution -> execution.getFailureInfo().isPresent())
                         .collect(Collectors.toSet());
 
@@ -91,7 +84,9 @@ public class FailureHandlingResultSnapshot {
                 rootCauseExecution,
                 ErrorInfo.handleMissingThrowable(failureHandlingResult.getError()),
                 failureHandlingResult.getTimestamp(),
-                concurrentlyFailedExecutions);
+                failureHandlingResult.getFailureLabels(),
+                concurrentlyFailedExecutions,
+                failureHandlingResult.isRootCause());
     }
 
     @VisibleForTesting
@@ -99,17 +94,21 @@ public class FailureHandlingResultSnapshot {
             @Nullable Execution rootCauseExecution,
             Throwable rootCause,
             long timestamp,
-            Set<Execution> concurrentlyFailedExecutions) {
+            CompletableFuture<Map<String, String>> failureLabels,
+            Set<Execution> concurrentlyFailedExecutions,
+            boolean isRootCause) {
         Preconditions.checkArgument(
                 rootCauseExecution == null
                         || !concurrentlyFailedExecutions.contains(rootCauseExecution),
                 "The rootCauseExecution should not be part of the concurrentlyFailedExecutions map.");
 
         this.rootCauseExecution = rootCauseExecution;
+        this.failureLabels = failureLabels;
         this.rootCause = Preconditions.checkNotNull(rootCause);
         this.timestamp = timestamp;
         this.concurrentlyFailedExecutions =
                 Preconditions.checkNotNull(concurrentlyFailedExecutions);
+        this.isRootCause = isRootCause;
     }
 
     /**
@@ -132,6 +131,15 @@ public class FailureHandlingResultSnapshot {
     }
 
     /**
+     * Returns the labels future associated with the failure.
+     *
+     * @return the CompletableFuture map of String labels
+     */
+    public CompletableFuture<Map<String, String>> getFailureLabels() {
+        return failureLabels;
+    }
+
+    /**
      * The time the failure occurred.
      *
      * @return The time of the failure.
@@ -146,7 +154,17 @@ public class FailureHandlingResultSnapshot {
      *
      * @return The concurrently failed {@code Executions}.
      */
-    public Iterable<Execution> getConcurrentlyFailedExecution() {
+    public Set<Execution> getConcurrentlyFailedExecution() {
         return Collections.unmodifiableSet(concurrentlyFailedExecutions);
+    }
+
+    /**
+     * @return True means that the current failure is a new attempt, false means that there has been
+     *     a failure before and has not been tried yet, and the current failure will be merged into
+     *     the previous attempt, and these merged exceptions will be considered as the concurrent
+     *     exceptions.
+     */
+    public boolean isRootCause() {
+        return isRootCause;
     }
 }

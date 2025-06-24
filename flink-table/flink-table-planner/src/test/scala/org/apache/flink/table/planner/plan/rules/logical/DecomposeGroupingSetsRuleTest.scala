@@ -17,13 +17,13 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.types.AbstractDataType
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 /** Test for [[DecomposeGroupingSetsRule]]. */
 class DecomposeGroupingSetsRuleTest extends TableTestBase {
@@ -126,16 +126,17 @@ class DecomposeGroupingSetsRuleTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testTooManyGroupingFields(): Unit = {
     // max group count must be less than 64
     val fieldNames = (0 until 64).map(i => s"f$i").toArray
-    val fieldTypes: Array[TypeInformation[_]] = Array.fill(fieldNames.length)(Types.INT)
+    val fieldTypes: Array[AbstractDataType[_]] = Array.fill(fieldNames.length)(DataTypes.INT)
     util.addTableSource("MyTable64", fieldTypes, fieldNames)
 
     val fields = fieldNames.mkString(",")
     val sqlQuery = s"SELECT $fields FROM MyTable64 GROUP BY GROUPING SETS ($fields)"
 
-    util.verifyRelPlan(sqlQuery)
+    assertThatExceptionOfType(classOf[RuntimeException])
+      .isThrownBy(() => util.verifyRelPlan(sqlQuery))
   }
 }

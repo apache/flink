@@ -27,8 +27,6 @@ import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -37,12 +35,13 @@ import java.util.Map.Entry;
 
 import static org.apache.flink.runtime.operators.hash.NonReusingHashJoinIteratorITCase.collectTupleData;
 import static org.apache.flink.runtime.operators.hash.NonReusingHashJoinIteratorITCase.joinTuples;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test specialized hash join that keeps the build side data (in memory and on hard disk) This is
  * used for iterative tasks.
  */
-public class NonReusingReOpenableHashTableITCase extends ReOpenableHashTableTestBase {
+class NonReusingReOpenableHashTableITCase extends ReOpenableHashTableTestBase {
 
     protected void doTest(
             TestData.TupleGeneratorIterator buildInput,
@@ -95,13 +94,14 @@ public class NonReusingReOpenableHashTableITCase extends ReOpenableHashTableTest
 
         iterator.open();
         // do first join with both inputs
-        while (iterator.callWithNextKey(firstMatcher, collector)) ;
+        while (iterator.callWithNextKey(firstMatcher, collector))
+            ;
 
         // assert that each expected match was seen for the first input
         for (Entry<Integer, Collection<TupleMatch>> entry : expectedFirstMatchesMap.entrySet()) {
-            if (!entry.getValue().isEmpty()) {
-                Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-            }
+            assertThat(entry.getValue())
+                    .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                    .isEmpty();
         }
 
         for (int i = 0; i < NUM_PROBES; i++) {
@@ -110,14 +110,15 @@ public class NonReusingReOpenableHashTableITCase extends ReOpenableHashTableTest
             // prepare ..
             iterator.reopenProbe(probeInput);
             // .. and do second join
-            while (iterator.callWithNextKey(nMatcher[i], collector)) ;
+            while (iterator.callWithNextKey(nMatcher[i], collector))
+                ;
 
             // assert that each expected match was seen for the second input
             for (Entry<Integer, Collection<TupleMatch>> entry :
                     expectedNMatchesMapList.get(i).entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         }
 

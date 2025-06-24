@@ -59,6 +59,7 @@ public class MetricsAggregationParameter
         MIN,
         MAX,
         SUM,
-        AVG
+        AVG,
+        SKEW,
     }
 }

@@ -27,9 +27,7 @@ public final class SharedBufferNodeSerializerSnapshotV2
 
     private static final int VERSION = 1;
 
-    public SharedBufferNodeSerializerSnapshotV2() {
-        super(SharedBufferNodeSerializer.class);
-    }
+    public SharedBufferNodeSerializerSnapshotV2() {}
 
     public SharedBufferNodeSerializerSnapshotV2(
             SharedBufferNodeSerializer sharedBufferNodeSerializer) {

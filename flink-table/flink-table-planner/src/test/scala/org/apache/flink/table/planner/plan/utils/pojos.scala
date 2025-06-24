@@ -41,7 +41,7 @@ class MyPojo() {
 }
 
 class NonPojo {
-  val x = new java.util.HashMap[String, String]()
+  var x = new java.util.HashMap[String, String]()
 
   override def toString: String = x.toString
 

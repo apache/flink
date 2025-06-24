@@ -26,7 +26,10 @@ import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.logical.SymbolType;
+import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.BinaryVariant;
+import org.apache.flink.types.variant.Variant;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -74,6 +77,9 @@ public final class ClassDataTypeConverter {
         addDefaultDataType(java.time.Duration.class, DataTypes.INTERVAL(DataTypes.SECOND(9)));
         addDefaultDataType(
                 java.time.Period.class, DataTypes.INTERVAL(DataTypes.YEAR(4), DataTypes.MONTH()));
+        addDefaultDataType(ColumnList.class, DataTypes.DESCRIPTOR());
+        addDefaultDataType(BinaryVariant.class, DataTypes.VARIANT());
+        addDefaultDataType(Variant.class, DataTypes.VARIANT());
     }
 
     private static void addDefaultDataType(Class<?> clazz, DataType rootType) {
@@ -92,7 +98,6 @@ public final class ClassDataTypeConverter {
      * extracted as information about the fields is missing. Or {@link BigDecimal} needs to be
      * mapped from a variable precision/scale to constant ones.
      */
-    @SuppressWarnings("unchecked")
     public static Optional<DataType> extractDataType(Class<?> clazz) {
         // prefer BYTES over ARRAY<TINYINT> for byte[]
         if (clazz == byte[].class) {

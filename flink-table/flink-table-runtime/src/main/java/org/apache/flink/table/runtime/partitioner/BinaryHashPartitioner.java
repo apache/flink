@@ -77,6 +77,26 @@ public class BinaryHashPartitioner extends StreamPartitioner<RowData> {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final BinaryHashPartitioner that = (BinaryHashPartitioner) o;
+        return numberOfChannels == that.numberOfChannels
+                && Arrays.equals(hashFieldNames, that.hashFieldNames);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + Arrays.hashCode(hashFieldNames);
+        return result;
+    }
+
+    @Override
     public String toString() {
         return "HASH" + Arrays.toString(hashFieldNames);
     }

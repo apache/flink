@@ -24,20 +24,22 @@ import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link StateWithExecutionGraph} state. */
-public class StateWithExecutionGraphTest extends TestLogger {
+class StateWithExecutionGraphTest {
+
+    private static final Logger log = LoggerFactory.getLogger(StateWithExecutionGraphTest.class);
 
     /**
      * Since we execute the {@link StateWithExecutionGraph#onGloballyTerminalState} callback
@@ -45,7 +47,7 @@ public class StateWithExecutionGraphTest extends TestLogger {
      * when the ExecutionGraph has already reached a globally terminal state.
      */
     @Test
-    public void testSuspendCanBeCalledWhenExecutionGraphHasReachedGloballyTerminalState()
+    void testSuspendCanBeCalledWhenExecutionGraphHasReachedGloballyTerminalState()
             throws Exception {
         try (MockStateWithExecutionGraphContext context =
                 new MockStateWithExecutionGraphContext()) {
@@ -58,7 +60,8 @@ public class StateWithExecutionGraphTest extends TestLogger {
 
             context.setExpectFinished(
                     archivedExecutionGraph ->
-                            assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
+                            assertThat(archivedExecutionGraph.getState())
+                                    .isEqualTo(JobStatus.FAILED));
 
             // transition to FAILED
             testingExecutionGraph.failJob(
@@ -66,19 +69,19 @@ public class StateWithExecutionGraphTest extends TestLogger {
                     System.currentTimeMillis());
             testingExecutionGraph.completeTerminationFuture(JobStatus.FAILED);
 
-            assertThat(testingExecutionGraph.getState(), is(JobStatus.FAILED));
+            assertThat(testingExecutionGraph.getState()).isEqualTo(JobStatus.FAILED);
 
             // As long as we don't execute StateWithExecutionGraph#onGloballyTerminalState
             // immediately when reaching a globally terminal state or if don't immediately leave
             // this state when reaching a globally terminal state, this test is still valid because
             // the suspend call can happen asynchronously.
-            assertFalse(stateWithExecutionGraph.getGloballyTerminalStateFuture().isDone());
+            assertThatFuture(stateWithExecutionGraph.getGloballyTerminalStateFuture()).isNotDone();
             stateWithExecutionGraph.suspend(new FlinkException("Test exception"));
         }
     }
 
     @Test
-    public void testOperatorCoordinatorShutdownOnLeave() throws Exception {
+    void testOperatorCoordinatorShutdownOnLeave() throws Exception {
         try (MockStateWithExecutionGraphContext context =
                 new MockStateWithExecutionGraphContext()) {
 
@@ -89,26 +92,27 @@ public class StateWithExecutionGraphTest extends TestLogger {
 
             stateWithExecutionGraph.onLeave(AdaptiveSchedulerTest.DummyState.class);
 
-            assertThat(testingOperatorCoordinatorHandler.isDisposed(), is(true));
+            assertThat(testingOperatorCoordinatorHandler.isDisposed()).isTrue();
         }
     }
 
     @Test
-    public void testSuspendToFinished() throws Exception {
+    void testSuspendToFinished() throws Exception {
         try (MockStateWithExecutionGraphContext context =
                 new MockStateWithExecutionGraphContext()) {
 
             final TestingStateWithExecutionGraph stateWithExecutionGraph =
                     createStateWithExecutionGraph(context);
 
-            context.setExpectFinished(aeg -> assertThat(aeg.getState(), is(JobStatus.SUSPENDED)));
+            context.setExpectFinished(
+                    aeg -> assertThat(aeg.getState()).isEqualTo(JobStatus.SUSPENDED));
 
             stateWithExecutionGraph.suspend(new RuntimeException());
         }
     }
 
     @Test
-    public void testOnGloballyTerminalStateCalled() throws Exception {
+    void testOnGloballyTerminalStateCalled() throws Exception {
         MockStateWithExecutionGraphContext context = new MockStateWithExecutionGraphContext();
 
         StateTrackingMockExecutionGraph mockExecutionGraph = new StateTrackingMockExecutionGraph();
@@ -119,13 +123,12 @@ public class StateWithExecutionGraphTest extends TestLogger {
 
         context.close();
 
-        assertThat(
-                stateWithExecutionGraph.getGloballyTerminalStateFuture().get(),
-                is(JobStatus.FINISHED));
+        assertThatFuture(stateWithExecutionGraph.getGloballyTerminalStateFuture())
+                .isCompletedWithValue(JobStatus.FINISHED);
     }
 
     @Test
-    public void testOnGloballyTerminalStateNotCalledOnNonGloballyTerminalState() throws Exception {
+    void testOnGloballyTerminalStateNotCalledOnNonGloballyTerminalState() throws Exception {
         MockStateWithExecutionGraphContext context = new MockStateWithExecutionGraphContext();
 
         StateTrackingMockExecutionGraph mockExecutionGraph = new StateTrackingMockExecutionGraph();
@@ -136,7 +139,7 @@ public class StateWithExecutionGraphTest extends TestLogger {
 
         context.close();
 
-        assertThat(stateWithExecutionGraph.getGloballyTerminalStateFuture().isDone(), is(false));
+        assertThatFuture(stateWithExecutionGraph.getGloballyTerminalStateFuture()).isNotDone();
     }
 
     private TestingStateWithExecutionGraph createStateWithExecutionGraph(
@@ -217,7 +220,7 @@ public class StateWithExecutionGraphTest extends TestLogger {
         }
 
         @Override
-        void onFailure(Throwable cause) {}
+        void onFailure(Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {}
 
         @Override
         void onGloballyTerminalState(JobStatus globallyTerminalState) {
@@ -225,11 +228,13 @@ public class StateWithExecutionGraphTest extends TestLogger {
         }
 
         @Override
-        public void handleGlobalFailure(Throwable cause) {}
+        public void handleGlobalFailure(
+                Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {}
 
         @Override
         boolean updateTaskExecutionState(
-                TaskExecutionStateTransition taskExecutionStateTransition) {
+                TaskExecutionStateTransition taskExecutionStateTransition,
+                CompletableFuture<Map<String, String>> failureLabels) {
             return false;
         }
     }

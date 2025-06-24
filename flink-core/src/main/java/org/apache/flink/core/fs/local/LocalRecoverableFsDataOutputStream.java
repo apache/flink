@@ -19,9 +19,10 @@
 package org.apache.flink.core.fs.local;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.fs.CommitterFromPersistRecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter.CommitRecoverable;
-import org.apache.flink.core.fs.RecoverableWriter.ResumeRecoverable;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -40,7 +41,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A {@link RecoverableFsDataOutputStream} for the {@link LocalFileSystem}. */
 @Internal
-public class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
+public class LocalRecoverableFsDataOutputStream
+        extends CommitterFromPersistRecoverableFsDataOutputStream<LocalRecoverable> {
 
     private final File targetFile;
 
@@ -78,6 +80,15 @@ public class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputS
         this.fos = Channels.newOutputStream(fileChannel);
     }
 
+    @VisibleForTesting
+    LocalRecoverableFsDataOutputStream(
+            File targetFile, File tempFile, FileChannel fileChannel, OutputStream fos) {
+        this.targetFile = checkNotNull(targetFile);
+        this.tempFile = checkNotNull(tempFile);
+        this.fileChannel = fileChannel;
+        this.fos = fos;
+    }
+
     @Override
     public void write(int b) throws IOException {
         fos.write(b);
@@ -104,7 +115,7 @@ public class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputS
     }
 
     @Override
-    public ResumeRecoverable persist() throws IOException {
+    public LocalRecoverable persist() throws IOException {
         // we call both flush and sync in order to ensure persistence on mounted
         // file systems, like NFS, EBS, EFS, ...
         flush();
@@ -114,10 +125,8 @@ public class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputS
     }
 
     @Override
-    public Committer closeForCommit() throws IOException {
-        final long pos = getPos();
-        close();
-        return new LocalCommitter(new LocalRecoverable(targetFile, tempFile, pos));
+    protected Committer createCommitterFromResumeRecoverable(LocalRecoverable recoverable) {
+        return new LocalCommitter(recoverable);
     }
 
     @Override

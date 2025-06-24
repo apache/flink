@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
@@ -29,12 +28,33 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleExecNodeMetadata;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCalc;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCorrelate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExpand;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLimit;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLookupJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMatch;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNestedLoopJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecOverAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecRank;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSink;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSort;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortLimit;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecUnion;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecValues;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecWindowTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecAsyncCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDataStreamScan;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeduplicate;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeltaJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExpand;
@@ -52,11 +72,14 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLimit;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalGroupAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMiniBatchAssigner;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultiJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultipleInput;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecProcessTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupAggregate;
@@ -79,8 +102,12 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowJoi
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowRank;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowTableFunction;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+
 import javax.annotation.Nullable;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -101,7 +128,7 @@ public final class ExecNodeMetadataUtil {
     }
 
     private static final Set<Class<? extends ExecNode<?>>> EXEC_NODES =
-            new HashSet<Class<? extends ExecNode<?>>>() {
+            new HashSet<>() {
                 {
                     add(StreamExecCalc.class);
                     add(StreamExecChangelogNormalize.class);
@@ -123,10 +150,12 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecLookupJoin.class);
                     add(StreamExecMatch.class);
                     add(StreamExecMiniBatchAssigner.class);
+                    add(StreamExecMultiJoin.class);
                     add(StreamExecOverAggregate.class);
                     add(StreamExecRank.class);
                     add(StreamExecSink.class);
                     add(StreamExecSortLimit.class);
+                    add(StreamExecSort.class);
                     add(StreamExecTableSourceScan.class);
                     add(StreamExecTemporalJoin.class);
                     add(StreamExecTemporalSort.class);
@@ -138,6 +167,36 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecWindowJoin.class);
                     add(StreamExecWindowRank.class);
                     add(StreamExecWindowTableFunction.class);
+                    add(StreamExecPythonCalc.class);
+                    add(StreamExecAsyncCalc.class);
+                    add(StreamExecProcessTableFunction.class);
+                    add(StreamExecPythonCorrelate.class);
+                    add(StreamExecPythonGroupAggregate.class);
+                    add(StreamExecPythonGroupWindowAggregate.class);
+                    add(StreamExecPythonOverAggregate.class);
+                    add(StreamExecMLPredictTableFunction.class);
+                    add(StreamExecDeltaJoin.class);
+                    // Batch execution mode
+                    add(BatchExecSink.class);
+                    add(BatchExecTableSourceScan.class);
+                    add(BatchExecCalc.class);
+                    add(BatchExecExchange.class);
+                    add(BatchExecSort.class);
+                    add(BatchExecValues.class);
+                    add(BatchExecCorrelate.class);
+                    add(BatchExecHashJoin.class);
+                    add(BatchExecNestedLoopJoin.class);
+                    add(BatchExecLimit.class);
+                    add(BatchExecUnion.class);
+                    add(BatchExecHashAggregate.class);
+                    add(BatchExecExpand.class);
+                    add(BatchExecSortAggregate.class);
+                    add(BatchExecSortLimit.class);
+                    add(BatchExecWindowTableFunction.class);
+                    add(BatchExecLookupJoin.class);
+                    add(BatchExecMatch.class);
+                    add(BatchExecOverAggregate.class);
+                    add(BatchExecRank.class);
                 }
             };
 
@@ -158,13 +217,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecLegacyTableSourceScan.class);
                     add(StreamExecLegacySink.class);
                     add(StreamExecGroupTableAggregate.class);
-                    add(StreamExecPythonCalc.class);
-                    add(StreamExecPythonCorrelate.class);
-                    add(StreamExecPythonGroupAggregate.class);
-                    add(StreamExecPythonGroupWindowAggregate.class);
-                    add(StreamExecPythonOverAggregate.class);
                     add(StreamExecPythonGroupTableAggregate.class);
-                    add(StreamExecSort.class);
                     add(StreamExecMultipleInput.class);
                 }
             };
@@ -185,21 +238,25 @@ public final class ExecNodeMetadataUtil {
         return EXEC_NODES;
     }
 
+    public static Map<ExecNodeNameVersion, Class<? extends ExecNode<?>>> getVersionedExecNodes() {
+        return LOOKUP_MAP;
+    }
+
     public static Class<? extends ExecNode<?>> retrieveExecNode(String name, int version) {
         return LOOKUP_MAP.get(new ExecNodeNameVersion(name, version));
     }
 
     public static <T extends ExecNode<?>> boolean isUnsupported(Class<T> execNode) {
-        return !StreamExecNode.class.isAssignableFrom(execNode)
-                || UNSUPPORTED_JSON_SERDE_CLASSES.contains(execNode);
+        boolean streamOrKnownExecNode =
+                StreamExecNode.class.isAssignableFrom(execNode) || execNodes().contains(execNode);
+        return !streamOrKnownExecNode || UNSUPPORTED_JSON_SERDE_CLASSES.contains(execNode);
     }
 
-    @VisibleForTesting
-    static void addTestNode(Class<? extends ExecNode<?>> execNodeClass) {
+    public static void addTestNode(Class<? extends ExecNode<?>> execNodeClass) {
         addToLookupMap(execNodeClass);
     }
 
-    private static <T extends ExecNode<?>> List<ExecNodeMetadata> extractMetadataFromAnnotation(
+    public static <T extends ExecNode<?>> List<ExecNodeMetadata> extractMetadataFromAnnotation(
             Class<T> execNodeClass) {
         List<ExecNodeMetadata> metadata = new ArrayList<>();
         ExecNodeMetadata annotation = execNodeClass.getDeclaredAnnotation(ExecNodeMetadata.class);
@@ -232,7 +289,7 @@ public final class ExecNodeMetadataUtil {
     }
 
     private static void addToLookupMap(Class<? extends ExecNode<?>> execNodeClass) {
-        if (!JsonSerdeUtil.hasJsonCreatorAnnotation(execNodeClass)) {
+        if (!hasJsonCreatorAnnotation(execNodeClass)) {
             throw new IllegalStateException(
                     String.format(
                             "ExecNode: %s does not implement @JsonCreator annotation on "
@@ -334,7 +391,7 @@ public final class ExecNodeMetadataUtil {
     }
 
     /** Helper Pojo used as a tuple for the {@link #LOOKUP_MAP}. */
-    private static final class ExecNodeNameVersion {
+    public static final class ExecNodeNameVersion {
 
         private final String name;
         private final int version;
@@ -365,5 +422,17 @@ public final class ExecNodeMetadataUtil {
         public int hashCode() {
             return Objects.hash(name, version);
         }
+    }
+
+    /** Return true if the given class's constructors have @JsonCreator annotation, else false. */
+    static boolean hasJsonCreatorAnnotation(Class<?> clazz) {
+        for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
+            for (Annotation annotation : constructor.getAnnotations()) {
+                if (annotation instanceof JsonCreator) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

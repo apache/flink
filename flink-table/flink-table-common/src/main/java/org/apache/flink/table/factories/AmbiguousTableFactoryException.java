@@ -19,6 +19,7 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.legacy.factories.TableFactory;
 
 import java.util.List;
 import java.util.Map;

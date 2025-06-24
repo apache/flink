@@ -166,8 +166,9 @@ class AggCallSelectivityEstimator(agg: RelNode, mq: FlinkRelMetadataQuery)
         Some(1.0)
       } else {
         val rexSimplify =
-          new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, true, RexUtil.EXECUTOR)
-        val simplifiedPredicate = rexSimplify.simplify(predicate)
+          new RexSimplify(rexBuilder, RelOptPredicateList.EMPTY, RexUtil.EXECUTOR)
+        val simplifiedPredicate =
+          rexSimplify.simplifyUnknownAs(predicate, RexUnknownAs.falseIf(true))
         if (simplifiedPredicate.isAlwaysTrue) {
           Some(1.0)
         } else if (simplifiedPredicate.isAlwaysFalse) {

@@ -53,6 +53,7 @@ cdef class FunctionOperation(Operation):
     cdef object process_element
     cdef object operation
     cdef object operation_cls
+    cdef object operator_state_backend
     cdef object _profiler
     cdef object generate_operation(self)
 

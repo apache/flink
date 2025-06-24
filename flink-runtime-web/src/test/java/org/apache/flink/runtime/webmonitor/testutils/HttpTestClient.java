@@ -34,12 +34,14 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHtt
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpClientCodec;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpContent;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpContentDecompressor;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderValues;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObject;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpUtil;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
 import org.apache.flink.shaded.netty4.io.netty.util.CharsetUtil;
@@ -120,12 +122,12 @@ public class HttpTestClient implements AutoCloseable {
     }
 
     /**
-     * Sends a request to to the server.
+     * Sends a request to the server.
      *
      * <pre>
      * HttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/overview");
-     * request.headers().set(HttpHeaders.Names.HOST, host);
-     * request.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+     * request.headers().set(HttpHeaderNames.HOST, host);
+     * request.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
      *
      * sendRequest(request);
      * </pre>
@@ -163,8 +165,8 @@ public class HttpTestClient implements AutoCloseable {
 
         HttpRequest getRequest =
                 new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, path);
-        getRequest.headers().set(HttpHeaders.Names.HOST, host);
-        getRequest.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+        getRequest.headers().set(HttpHeaderNames.HOST, host);
+        getRequest.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
 
         sendRequest(getRequest, timeout);
     }
@@ -183,8 +185,8 @@ public class HttpTestClient implements AutoCloseable {
 
         HttpRequest getRequest =
                 new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.DELETE, path);
-        getRequest.headers().set(HttpHeaders.Names.HOST, host);
-        getRequest.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+        getRequest.headers().set(HttpHeaderNames.HOST, host);
+        getRequest.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
 
         sendRequest(getRequest, timeout);
     }
@@ -203,8 +205,8 @@ public class HttpTestClient implements AutoCloseable {
 
         HttpRequest getRequest =
                 new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.PATCH, path);
-        getRequest.headers().set(HttpHeaders.Names.HOST, host);
-        getRequest.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+        getRequest.headers().set(HttpHeaderNames.HOST, host);
+        getRequest.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
 
         sendRequest(getRequest, timeout);
     }
@@ -323,11 +325,11 @@ public class HttpTestClient implements AutoCloseable {
             if (msg instanceof HttpResponse) {
                 HttpResponse response = (HttpResponse) msg;
 
-                currentStatus = response.getStatus();
-                currentType = response.headers().get(HttpHeaders.Names.CONTENT_TYPE);
-                currentLocation = response.headers().get(HttpHeaders.Names.LOCATION);
+                currentStatus = response.status();
+                currentType = response.headers().get(HttpHeaderNames.CONTENT_TYPE);
+                currentLocation = response.headers().get(HttpHeaderNames.LOCATION);
 
-                if (HttpHeaders.isTransferEncodingChunked(response)) {
+                if (HttpUtil.isTransferEncodingChunked(response)) {
                     LOG.debug("Content is chunked");
                 }
             }

@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction, WithConfigurationOpenContext}
 import org.apache.flink.configuration.{Configuration, PipelineOptions, ReadableConfig}
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.{DecimalData, GenericRowData, TimestampData}
@@ -25,10 +25,12 @@ import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUti
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
+import org.apache.flink.table.planner.codegen.JsonGenerateUtils.isJsonFunctionOperand
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.{JSON_ARRAY, JSON_OBJECT}
+import org.apache.flink.table.planner.plan.utils.{AsyncScalarUtil, ConstantFoldingUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
-import org.apache.flink.table.planner.utils.{JavaScalaConversionUtil, Logging}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
+import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.planner.utils.TimestampStringUtils.fromLocalDateTime
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
@@ -37,8 +39,6 @@ import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.SqlKind
-
-import java.util
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -50,7 +50,10 @@ import scala.collection.mutable.ListBuffer
  *   If the reduced expr's nullability can be changed, e.g. a null literal is definitely nullable
  *   and the other literals are not null.
  */
-class ExpressionReducer(tableConfig: TableConfig, allowChangeNullability: Boolean = false)
+class ExpressionReducer(
+    tableConfig: TableConfig,
+    classLoader: ClassLoader,
+    allowChangeNullability: Boolean = false)
   extends RexExecutor
   with Logging {
 
@@ -64,15 +67,15 @@ class ExpressionReducer(tableConfig: TableConfig, allowChangeNullability: Boolea
       constExprs: java.util.List[RexNode],
       reducedValues: java.util.List[RexNode]): Unit = {
 
-    val pythonUDFExprs = new ListBuffer[RexNode]()
+    val nonReducibleExprs = new ListBuffer[RexNode]()
 
-    val literals = skipAndValidateExprs(rexBuilder, constExprs, pythonUDFExprs)
+    val literals = skipAndValidateExprs(rexBuilder, constExprs, nonReducibleExprs)
 
     val literalTypes = literals.map(e => FlinkTypeFactory.toLogicalType(e.getType))
     val resultType = RowType.of(literalTypes: _*)
 
     // generate MapFunction
-    val ctx = new ConstantCodeGeneratorContext(tableConfig)
+    val ctx = new ConstantCodeGeneratorContext(tableConfig, classLoader)
 
     val exprGenerator = new ExprCodeGenerator(ctx, false)
       .bindInput(EMPTY_ROW_TYPE)
@@ -93,7 +96,7 @@ class ExpressionReducer(tableConfig: TableConfig, allowChangeNullability: Boolea
       EMPTY_ROW_TYPE
     )
 
-    val function = generatedFunction.newInstance(Thread.currentThread().getContextClassLoader)
+    val function = generatedFunction.newInstance(classLoader)
     val richMapFunction = function match {
       case r: RichMapFunction[GenericRowData, GenericRowData] => r
       case _ =>
@@ -105,7 +108,7 @@ class ExpressionReducer(tableConfig: TableConfig, allowChangeNullability: Boolea
       .getOrElse(new Configuration)
     val reduced =
       try {
-        richMapFunction.open(parameters)
+        richMapFunction.open(new WithConfigurationOpenContext(parameters))
         // execute
         richMapFunction.map(EMPTY_ROW)
       } catch {
@@ -130,18 +133,21 @@ class ExpressionReducer(tableConfig: TableConfig, allowChangeNullability: Boolea
     while (i < constExprs.size()) {
       val unreduced = constExprs.get(i)
       // use eq to compare reference
-      if (pythonUDFExprs.exists(_ eq unreduced)) {
-        // if contains python function then just insert the original expression.
+      if (nonReducibleExprs.exists(_ eq unreduced)) {
+        // if contains non reducible function calls then just insert the original expression.
         reducedValues.add(unreduced)
       } else
         unreduced match {
-          case call: RexCall if nonReducibleJsonFunctions.contains(call.getOperator) =>
+          case call: RexCall
+              if (nonReducibleJsonFunctions.contains(call.getOperator) || isJsonFunctionOperand(
+                call)) =>
             reducedValues.add(unreduced)
           case _ =>
             unreduced.getType.getSqlTypeName match {
               // we insert the original expression for object literals
               case SqlTypeName.ANY | SqlTypeName.OTHER | SqlTypeName.ROW | SqlTypeName.STRUCTURED |
-                  SqlTypeName.ARRAY | SqlTypeName.MAP | SqlTypeName.MULTISET =>
+                  SqlTypeName.ARRAY | SqlTypeName.MAP | SqlTypeName.MULTISET |
+                  SqlTypeName.VARIANT =>
                 reducedValues.add(unreduced)
               case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
                 val escapeVarchar = BinaryStringDataUtil.safeToString(
@@ -189,17 +195,23 @@ class ExpressionReducer(tableConfig: TableConfig, allowChangeNullability: Boolea
               case _ =>
                 val reducedValue = reduced.getField(reducedIdx)
                 // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually
-                val value =
-                  if (
-                    reducedValue != null &&
-                    unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE
-                  ) {
-                    new java.math.BigDecimal(reducedValue.asInstanceOf[Number].doubleValue())
+                if (
+                  reducedValue != null &&
+                  unreduced.getType.getSqlTypeName == SqlTypeName.DOUBLE
+                ) {
+                  val doubleVal = reducedValue.asInstanceOf[Number].doubleValue()
+                  if (doubleVal.isInfinity || doubleVal.isNaN) {
+                    reducedValues.add(unreduced)
                   } else {
-                    reducedValue
+                    reducedValues.add(
+                      maySkipNullLiteralReduce(
+                        rexBuilder,
+                        new java.math.BigDecimal(doubleVal),
+                        unreduced))
                   }
-
-                reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
+                } else {
+                  reducedValues.add(maySkipNullLiteralReduce(rexBuilder, reducedValue, unreduced))
+                }
                 reducedIdx += 1
             }
         }
@@ -246,15 +258,17 @@ class ExpressionReducer(tableConfig: TableConfig, allowChangeNullability: Boolea
   private def skipAndValidateExprs(
       rexBuilder: RexBuilder,
       constExprs: java.util.List[RexNode],
-      pythonUDFExprs: ListBuffer[RexNode]): List[RexNode] = {
+      nonReducibleExprs: ListBuffer[RexNode]): List[RexNode] = {
     constExprs.asScala
       .map(e => (e.getType.getSqlTypeName, e))
       .flatMap {
 
-        // Skip expressions that contain python functions because it's quite expensive to
-        // call Python UDFs during optimization phase. They will be optimized during the runtime.
-        case (_, e) if containsPythonCall(e) =>
-          pythonUDFExprs += e
+        // Skip expressions that contain python or async functions because it's quite expensive to
+        // call async UDFs during optimization phase. They will be optimized during the runtime.
+        case (_, e)
+            if containsPythonCall(e) || AsyncScalarUtil.containsAsyncCall(e) ||
+              !ConstantFoldingUtil.supportsConstantFolding(e) =>
+          nonReducibleExprs += e
           None
 
         // we don't support object literals yet, we skip those constant expressions
@@ -283,7 +297,7 @@ class ExpressionReducer(tableConfig: TableConfig, allowChangeNullability: Boolea
           }
           // Exclude some JSON functions which behave differently
           // when called as an argument of another call of one of these functions.
-          if (nonReducibleJsonFunctions.contains(call.getOperator)) {
+          if (nonReducibleJsonFunctions.contains(call.getOperator) || isJsonFunctionOperand(call)) {
             None
           } else {
             Some(call)
@@ -296,8 +310,8 @@ class ExpressionReducer(tableConfig: TableConfig, allowChangeNullability: Boolea
 }
 
 /** Constant expression code generator context. */
-class ConstantCodeGeneratorContext(tableConfig: ReadableConfig)
-  extends CodeGeneratorContext(tableConfig) {
+class ConstantCodeGeneratorContext(tableConfig: ReadableConfig, classLoader: ClassLoader)
+  extends CodeGeneratorContext(tableConfig, classLoader) {
   override def addReusableFunction(
       function: UserDefinedFunction,
       functionContextClass: Class[_ <: FunctionContext] = classOf[FunctionContext],
@@ -305,7 +319,7 @@ class ConstantCodeGeneratorContext(tableConfig: ReadableConfig)
     super.addReusableFunction(
       function,
       classOf[FunctionContext],
-      Seq("null", "this.getClass().getClassLoader()", "parameters"))
+      Seq("null", "this.getClass().getClassLoader()", "openContext"))
   }
 
   override def addReusableConverter(dataType: DataType, classLoaderTerm: String = null): String = {

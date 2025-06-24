@@ -31,6 +31,7 @@ final class CircularQueues<E> implements StageRunner.StageMessageDispatcher<E> {
     private final BlockingQueue<CircularElement<E>> empty;
     private final BlockingQueue<CircularElement<E>> sort;
     private final BlockingQueue<CircularElement<E>> spill;
+
     /**
      * The close and take methods might be called from multiple threads (reading, sorting, spilling,
      * ...), therefore it must be volatile.

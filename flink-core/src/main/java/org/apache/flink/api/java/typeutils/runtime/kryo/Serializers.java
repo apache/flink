@@ -19,7 +19,8 @@
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.typeutils.AvroUtils;
@@ -31,16 +32,13 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.serializers.CollectionSerializer;
 
-import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -57,7 +55,7 @@ import java.util.Set;
 public class Serializers {
 
     public static void recursivelyRegisterType(
-            TypeInformation<?> typeInfo, ExecutionConfig config, Set<Class<?>> alreadySeen) {
+            TypeInformation<?> typeInfo, SerializerConfig config, Set<Class<?>> alreadySeen) {
         if (typeInfo instanceof GenericTypeInfo) {
             GenericTypeInfo<?> genericTypeInfo = (GenericTypeInfo<?>) typeInfo;
             Serializers.recursivelyRegisterType(
@@ -75,7 +73,7 @@ public class Serializers {
     }
 
     public static void recursivelyRegisterType(
-            Class<?> type, ExecutionConfig config, Set<Class<?>> alreadySeen) {
+            Class<?> type, SerializerConfig config, Set<Class<?>> alreadySeen) {
         // don't register or remember primitives
         if (type == null || type.isPrimitive() || type == Object.class) {
             return;
@@ -89,7 +87,7 @@ public class Serializers {
         if (type.isArray()) {
             recursivelyRegisterType(type.getComponentType(), config, alreadySeen);
         } else {
-            config.registerKryoType(type);
+            ((SerializerConfigImpl) config).registerKryoType(type);
             // add serializers for Avro type if necessary
             AvroUtils.getAvroUtils().addAvroSerializersIfRequired(config, type);
 
@@ -106,7 +104,7 @@ public class Serializers {
     }
 
     private static void recursivelyRegisterGenericType(
-            Type fieldType, ExecutionConfig config, Set<Class<?>> alreadySeen) {
+            Type fieldType, SerializerConfig config, Set<Class<?>> alreadySeen) {
         if (fieldType instanceof ParameterizedType) {
             // field has generics
             ParameterizedType parameterizedFieldType = (ParameterizedType) fieldType;
@@ -170,50 +168,8 @@ public class Serializers {
         }
 
         @Override
-        public T read(Kryo kryo, Input input, Class<T> aClass) {
+        public T read(Kryo kryo, Input input, Class<? extends T> aClass) {
             throw new UnsupportedOperationException("Could not find required Avro dependency.");
-        }
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // Custom Serializers
-    // --------------------------------------------------------------------------------------------
-
-    /** Special serializer for Java's {@link ArrayList} used for Avro's GenericData.Array. */
-    @SuppressWarnings("rawtypes")
-    public static class SpecificInstanceCollectionSerializerForArrayList
-            extends SpecificInstanceCollectionSerializer<ArrayList> {
-        private static final long serialVersionUID = 1L;
-
-        public SpecificInstanceCollectionSerializerForArrayList() {
-            super(ArrayList.class);
-        }
-    }
-
-    /**
-     * Special serializer for Java collections enforcing certain instance types. Avro is serializing
-     * collections with an "GenericData.Array" type. Kryo is not able to handle this type, so we use
-     * ArrayLists.
-     */
-    @SuppressWarnings("rawtypes")
-    public static class SpecificInstanceCollectionSerializer<T extends Collection>
-            extends CollectionSerializer implements Serializable {
-        private static final long serialVersionUID = 1L;
-
-        private Class<T> type;
-
-        public SpecificInstanceCollectionSerializer(Class<T> type) {
-            this.type = type;
-        }
-
-        @Override
-        protected Collection create(Kryo kryo, Input input, Class<Collection> type) {
-            return kryo.newInstance(this.type);
-        }
-
-        @Override
-        protected Collection createCopy(Kryo kryo, Collection original) {
-            return kryo.newInstance(this.type);
         }
     }
 }

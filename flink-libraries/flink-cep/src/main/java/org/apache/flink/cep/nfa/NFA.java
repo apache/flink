@@ -19,15 +19,9 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
@@ -38,13 +32,11 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -56,8 +48,6 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Stack;
-
-import static org.apache.flink.cep.nfa.MigrationUtils.deserializeComputationStates;
 
 /**
  * Non-deterministic finite automaton implementation.
@@ -92,8 +82,15 @@ public class NFA<T> {
     private final Map<String, State<T>> states;
 
     /**
+     * The lengths of a windowed pattern, as specified using the {@link
+     * org.apache.flink.cep.pattern.Pattern#within(Duration, WithinType)} Pattern.within(Time,
+     * WithinType)} method with {@code WithinType.PREVIOUS_AND_CURRENT}.
+     */
+    private final Map<String, Long> windowTimes;
+
+    /**
      * The length of a windowed pattern, as specified using the {@link
-     * org.apache.flink.cep.pattern.Pattern#within(Time)} Pattern.within(Time)} method.
+     * org.apache.flink.cep.pattern.Pattern#within(Duration) Pattern.within(Duration)} method.
      */
     private final long windowTime;
 
@@ -105,19 +102,25 @@ public class NFA<T> {
 
     public NFA(
             final Collection<State<T>> validStates,
+            final Map<String, Long> windowTimes,
             final long windowTime,
             final boolean handleTimeout) {
         this.windowTime = windowTime;
         this.handleTimeout = handleTimeout;
         this.states = loadStates(validStates);
+        this.windowTimes = windowTimes;
     }
 
     private Map<String, State<T>> loadStates(final Collection<State<T>> validStates) {
-        Map<String, State<T>> tmp = new HashMap<>(4);
+        Map<String, State<T>> tmp = CollectionUtil.newHashMapWithExpectedSize(4);
         for (State<T> state : validStates) {
             tmp.put(state.getName(), state);
         }
         return Collections.unmodifiableMap(tmp);
+    }
+
+    public long getWindowTime() {
+        return windowTime;
     }
 
     @VisibleForTesting
@@ -190,7 +193,7 @@ public class NFA<T> {
             for (StateTransition<T> transition : state.getStateTransitions()) {
                 IterativeCondition condition = transition.getCondition();
                 FunctionUtils.setFunctionRuntimeContext(condition, cepRuntimeContext);
-                FunctionUtils.openFunction(condition, conf);
+                FunctionUtils.openFunction(condition, DefaultOpenContext.INSTANCE);
             }
         }
     }
@@ -253,21 +256,48 @@ public class NFA<T> {
      * @param nfaState The NFAState object that we need to affect while processing
      * @param timestamp timestamp that indicates that there will be no more events with lower
      *     timestamp
-     * @return all timed outed partial matches
+     * @return all pending matches and timed outed partial matches
      * @throws Exception Thrown if the system cannot access the state.
      */
-    public Collection<Tuple2<Map<String, List<T>>, Long>> advanceTime(
-            final SharedBufferAccessor<T> sharedBufferAccessor,
-            final NFAState nfaState,
-            final long timestamp)
-            throws Exception {
+    public Tuple2<Collection<Map<String, List<T>>>, Collection<Tuple2<Map<String, List<T>>, Long>>>
+            advanceTime(
+                    final SharedBufferAccessor<T> sharedBufferAccessor,
+                    final NFAState nfaState,
+                    final long timestamp,
+                    final AfterMatchSkipStrategy afterMatchSkipStrategy)
+                    throws Exception {
 
+        final List<Map<String, List<T>>> result = new ArrayList<>();
         final Collection<Tuple2<Map<String, List<T>>, Long>> timeoutResult = new ArrayList<>();
         final PriorityQueue<ComputationState> newPartialMatches =
                 new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
+        final PriorityQueue<ComputationState> potentialMatches =
+                new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
 
         for (ComputationState computationState : nfaState.getPartialMatches()) {
-            if (isStateTimedOut(computationState, timestamp)) {
+            String currentStateName = computationState.getCurrentStateName();
+            boolean isTimeoutForPreviousEvent =
+                    windowTimes.containsKey(currentStateName)
+                            && isStateTimedOut(
+                                    computationState,
+                                    timestamp,
+                                    computationState.getPreviousTimestamp(),
+                                    windowTimes.get(currentStateName));
+            boolean isTimeoutForFirstEvent =
+                    isStateTimedOut(
+                            computationState,
+                            timestamp,
+                            computationState.getStartTimestamp(),
+                            windowTime);
+            if (isTimeoutForPreviousEvent || isTimeoutForFirstEvent) {
+                nfaState.setStateChanged();
+
+                if (getState(computationState).isPending()) {
+                    // save pending states for after-match pruning, where those states will be
+                    // released
+                    potentialMatches.add(computationState);
+                    continue;
+                }
 
                 if (handleTimeout) {
                     // extract the timed out event pattern
@@ -277,29 +307,44 @@ public class NFA<T> {
                     timeoutResult.add(
                             Tuple2.of(
                                     timedOutPattern,
-                                    computationState.getStartTimestamp() + windowTime));
+                                    isTimeoutForPreviousEvent
+                                            ? computationState.getPreviousTimestamp()
+                                                    + windowTimes.get(
+                                                            computationState.getCurrentStateName())
+                                            : computationState.getStartTimestamp() + windowTime));
                 }
 
+                // release timeout states
                 sharedBufferAccessor.releaseNode(
                         computationState.getPreviousBufferEntry(), computationState.getVersion());
-
-                nfaState.setStateChanged();
             } else {
                 newPartialMatches.add(computationState);
             }
         }
 
+        // If a timeout partial match "frees" some completed matches
+        // Or if completed not-followed-by matches need pruning
+        processMatchesAccordingToSkipStrategy(
+                sharedBufferAccessor,
+                nfaState,
+                afterMatchSkipStrategy,
+                potentialMatches,
+                newPartialMatches,
+                result);
+
         nfaState.setNewPartialMatches(newPartialMatches);
 
         sharedBufferAccessor.advanceTime(timestamp);
 
-        return timeoutResult;
+        return Tuple2.of(result, timeoutResult);
     }
 
-    private boolean isStateTimedOut(final ComputationState state, final long timestamp) {
-        return !isStartState(state)
-                && windowTime > 0L
-                && timestamp - state.getStartTimestamp() >= windowTime;
+    private boolean isStateTimedOut(
+            final ComputationState state,
+            final long timestamp,
+            final long startTimestamp,
+            final long windowTime) {
+        return !isStartState(state) && windowTime > 0L && timestamp - startTimestamp >= windowTime;
     }
 
     private Collection<Map<String, List<T>>> doProcess(
@@ -312,7 +357,7 @@ public class NFA<T> {
 
         final PriorityQueue<ComputationState> newPartialMatches =
                 new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
-        final PriorityQueue<ComputationState> potentialMatches =
+        PriorityQueue<ComputationState> potentialMatches =
                 new PriorityQueue<>(NFAState.COMPUTATION_STATE_COMPARATOR);
 
         // iterate over all current computations
@@ -332,6 +377,10 @@ public class NFA<T> {
             // if stop state reached in this path
             boolean shouldDiscardPath = false;
             for (final ComputationState newComputationState : newComputationStates) {
+
+                if (isStartState(computationState) && newComputationState.getStartTimestamp() > 0) {
+                    nfaState.setNewStartPartiailMatch();
+                }
 
                 if (isFinalState(newComputationState)) {
                     potentialMatches.add(newComputationState);
@@ -365,28 +414,13 @@ public class NFA<T> {
         }
 
         List<Map<String, List<T>>> result = new ArrayList<>();
-        if (afterMatchSkipStrategy.isSkipStrategy()) {
-            processMatchesAccordingToSkipStrategy(
-                    sharedBufferAccessor,
-                    nfaState,
-                    afterMatchSkipStrategy,
-                    potentialMatches,
-                    newPartialMatches,
-                    result);
-        } else {
-            for (ComputationState match : potentialMatches) {
-                Map<String, List<T>> materializedMatch =
-                        sharedBufferAccessor.materializeMatch(
-                                sharedBufferAccessor
-                                        .extractPatterns(
-                                                match.getPreviousBufferEntry(), match.getVersion())
-                                        .get(0));
-
-                result.add(materializedMatch);
-                sharedBufferAccessor.releaseNode(
-                        match.getPreviousBufferEntry(), match.getVersion());
-            }
-        }
+        processMatchesAccordingToSkipStrategy(
+                sharedBufferAccessor,
+                nfaState,
+                afterMatchSkipStrategy,
+                potentialMatches,
+                newPartialMatches,
+                result);
 
         nfaState.setNewPartialMatches(newPartialMatches);
 
@@ -404,35 +438,36 @@ public class NFA<T> {
 
         nfaState.getCompletedMatches().addAll(potentialMatches);
 
-        ComputationState earliestMatch = nfaState.getCompletedMatches().peek();
+        ComputationState earliestMatch;
+        while ((earliestMatch = nfaState.getCompletedMatches().peek()) != null) {
 
-        if (earliestMatch != null) {
-
-            ComputationState earliestPartialMatch;
-            while (earliestMatch != null
-                    && ((earliestPartialMatch = partialMatches.peek()) == null
-                            || isEarlier(earliestMatch, earliestPartialMatch))) {
-
-                nfaState.setStateChanged();
-                nfaState.getCompletedMatches().poll();
-                List<Map<String, List<EventId>>> matchedResult =
-                        sharedBufferAccessor.extractPatterns(
-                                earliestMatch.getPreviousBufferEntry(), earliestMatch.getVersion());
-
-                afterMatchSkipStrategy.prune(partialMatches, matchedResult, sharedBufferAccessor);
-
-                afterMatchSkipStrategy.prune(
-                        nfaState.getCompletedMatches(), matchedResult, sharedBufferAccessor);
-
-                result.add(sharedBufferAccessor.materializeMatch(matchedResult.get(0)));
-                sharedBufferAccessor.releaseNode(
-                        earliestMatch.getPreviousBufferEntry(), earliestMatch.getVersion());
-                earliestMatch = nfaState.getCompletedMatches().peek();
+            // Care for ordering when it's not NO_SKIP
+            if (afterMatchSkipStrategy.isSkipStrategy()) {
+                ComputationState earliestPartialMatch = partialMatches.peek();
+                if (earliestPartialMatch != null
+                        && !isEarlier(earliestMatch, earliestPartialMatch)) {
+                    break;
+                }
             }
 
-            nfaState.getPartialMatches()
-                    .removeIf(pm -> pm.getStartEventID() != null && !partialMatches.contains(pm));
+            nfaState.setStateChanged();
+            nfaState.getCompletedMatches().poll();
+            List<Map<String, List<EventId>>> matchedResult =
+                    sharedBufferAccessor.extractPatterns(
+                            earliestMatch.getPreviousBufferEntry(), earliestMatch.getVersion());
+
+            afterMatchSkipStrategy.prune(partialMatches, matchedResult, sharedBufferAccessor);
+
+            afterMatchSkipStrategy.prune(
+                    nfaState.getCompletedMatches(), matchedResult, sharedBufferAccessor);
+
+            result.add(sharedBufferAccessor.materializeMatch(matchedResult.get(0)));
+            sharedBufferAccessor.releaseNode(
+                    earliestMatch.getPreviousBufferEntry(), earliestMatch.getVersion());
         }
+
+        nfaState.getPartialMatches()
+                .removeIf(pm -> pm.getStartEventID() != null && !partialMatches.contains(pm));
     }
 
     private boolean isEarlier(
@@ -631,6 +666,7 @@ public class NFA<T> {
                                     computationState.getPreviousBufferEntry(),
                                     version,
                                     computationState.getStartTimestamp(),
+                                    computationState.getPreviousTimestamp(),
                                     computationState.getStartEventID());
                         }
                     }
@@ -662,6 +698,7 @@ public class NFA<T> {
                         startTimestamp = computationState.getStartTimestamp();
                         startEventId = computationState.getStartEventID();
                     }
+                    final long previousTimestamp = event.getTimestamp();
 
                     addComputationState(
                             sharedBufferAccessor,
@@ -670,6 +707,7 @@ public class NFA<T> {
                             newEntry,
                             nextVersion,
                             startTimestamp,
+                            previousTimestamp,
                             startEventId);
 
                     // check if newly created state is optional (have a PROCEED path to Final state)
@@ -683,6 +721,7 @@ public class NFA<T> {
                                 newEntry,
                                 nextVersion,
                                 startTimestamp,
+                                previousTimestamp,
                                 startEventId);
                     }
                     break;
@@ -718,6 +757,7 @@ public class NFA<T> {
             NodeId previousEntry,
             DeweyNumber version,
             long startTimestamp,
+            long previousTimestamp,
             EventId startEventId)
             throws Exception {
         ComputationState computationState =
@@ -726,6 +766,7 @@ public class NFA<T> {
                         previousEntry,
                         version,
                         startTimestamp,
+                        previousTimestamp,
                         startEventId);
         computationStates.add(computationState);
 
@@ -900,212 +941,6 @@ public class NFA<T> {
         @Override
         public long currentProcessingTime() {
             return timerService.currentProcessingTime();
-        }
-    }
-
-    ////////////////////				DEPRECATED/MIGRATION UTILS
-
-    /** Wrapper for migrated state. */
-    public static class MigratedNFA<T> {
-
-        private final Queue<ComputationState> computationStates;
-        private final org.apache.flink.cep.nfa.SharedBuffer<T> sharedBuffer;
-
-        public org.apache.flink.cep.nfa.SharedBuffer<T> getSharedBuffer() {
-            return sharedBuffer;
-        }
-
-        public Queue<ComputationState> getComputationStates() {
-            return computationStates;
-        }
-
-        MigratedNFA(
-                final Queue<ComputationState> computationStates,
-                final org.apache.flink.cep.nfa.SharedBuffer<T> sharedBuffer) {
-            this.sharedBuffer = sharedBuffer;
-            this.computationStates = computationStates;
-        }
-    }
-
-    /**
-     * @deprecated This snapshot class is no longer in use, and only maintained for backwards
-     *     compatibility purposes. It is fully replaced by {@link MigratedNFASerializerSnapshot}.
-     */
-    @Deprecated
-    public static final class NFASerializerConfigSnapshot<T>
-            extends CompositeTypeSerializerConfigSnapshot<MigratedNFA<T>> {
-
-        private static final int VERSION = 1;
-
-        /** This empty constructor is required for deserializing the configuration. */
-        public NFASerializerConfigSnapshot() {}
-
-        public NFASerializerConfigSnapshot(
-                TypeSerializer<T> eventSerializer,
-                TypeSerializer<org.apache.flink.cep.nfa.SharedBuffer<T>> sharedBufferSerializer) {
-
-            super(eventSerializer, sharedBufferSerializer);
-        }
-
-        @Override
-        public int getVersion() {
-            return VERSION;
-        }
-
-        @Override
-        public TypeSerializerSchemaCompatibility<MigratedNFA<T>> resolveSchemaCompatibility(
-                TypeSerializer<MigratedNFA<T>> newSerializer) {
-            return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                    newSerializer,
-                    new MigratedNFASerializerSnapshot<>(),
-                    getNestedSerializerSnapshots());
-        }
-    }
-
-    /** A {@link TypeSerializerSnapshot} for the legacy {@link NFASerializer}. */
-    @SuppressWarnings("deprecation")
-    public static final class MigratedNFASerializerSnapshot<T>
-            extends CompositeTypeSerializerSnapshot<MigratedNFA<T>, NFASerializer<T>> {
-
-        private static final int VERSION = 2;
-
-        public MigratedNFASerializerSnapshot() {
-            super(NFASerializer.class);
-        }
-
-        MigratedNFASerializerSnapshot(NFASerializer<T> legacyNfaSerializer) {
-            super(legacyNfaSerializer);
-        }
-
-        @Override
-        protected int getCurrentOuterSnapshotVersion() {
-            return VERSION;
-        }
-
-        @Override
-        protected TypeSerializer<?>[] getNestedSerializers(NFASerializer<T> outerSerializer) {
-            return new TypeSerializer<?>[] {
-                outerSerializer.eventSerializer, outerSerializer.sharedBufferSerializer
-            };
-        }
-
-        @Override
-        protected NFASerializer<T> createOuterSerializerWithNestedSerializers(
-                TypeSerializer<?>[] nestedSerializers) {
-            @SuppressWarnings("unchecked")
-            TypeSerializer<T> eventSerializer = (TypeSerializer<T>) nestedSerializers[0];
-
-            @SuppressWarnings("unchecked")
-            TypeSerializer<org.apache.flink.cep.nfa.SharedBuffer<T>> sharedBufferSerializer =
-                    (TypeSerializer<org.apache.flink.cep.nfa.SharedBuffer<T>>) nestedSerializers[1];
-
-            return new NFASerializer<>(eventSerializer, sharedBufferSerializer);
-        }
-    }
-
-    /** Only for backward compatibility with <=1.5. */
-    @Deprecated
-    public static class NFASerializer<T> extends TypeSerializer<MigratedNFA<T>> {
-
-        private static final long serialVersionUID = 2098282423980597010L;
-
-        private final TypeSerializer<org.apache.flink.cep.nfa.SharedBuffer<T>>
-                sharedBufferSerializer;
-
-        private final TypeSerializer<T> eventSerializer;
-
-        public NFASerializer(TypeSerializer<T> typeSerializer) {
-            this(
-                    typeSerializer,
-                    new org.apache.flink.cep.nfa.SharedBuffer.SharedBufferSerializer<>(
-                            StringSerializer.INSTANCE, typeSerializer));
-        }
-
-        NFASerializer(
-                TypeSerializer<T> typeSerializer,
-                TypeSerializer<org.apache.flink.cep.nfa.SharedBuffer<T>> sharedBufferSerializer) {
-            this.eventSerializer = typeSerializer;
-            this.sharedBufferSerializer = sharedBufferSerializer;
-        }
-
-        @Override
-        public boolean isImmutableType() {
-            return false;
-        }
-
-        @Override
-        public NFASerializer<T> duplicate() {
-            return new NFASerializer<>(eventSerializer.duplicate());
-        }
-
-        @Override
-        public MigratedNFA<T> createInstance() {
-            return null;
-        }
-
-        @Override
-        public MigratedNFA<T> copy(MigratedNFA<T> from) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public MigratedNFA<T> copy(MigratedNFA<T> from, MigratedNFA<T> reuse) {
-            return copy(from);
-        }
-
-        @Override
-        public int getLength() {
-            return -1;
-        }
-
-        @Override
-        public void serialize(MigratedNFA<T> record, DataOutputView target) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public MigratedNFA<T> deserialize(DataInputView source) throws IOException {
-            MigrationUtils.skipSerializedStates(source);
-            source.readLong();
-            source.readBoolean();
-
-            org.apache.flink.cep.nfa.SharedBuffer<T> sharedBuffer =
-                    sharedBufferSerializer.deserialize(source);
-            Queue<ComputationState> computationStates =
-                    deserializeComputationStates(sharedBuffer, eventSerializer, source);
-
-            return new MigratedNFA<>(computationStates, sharedBuffer);
-        }
-
-        @Override
-        public MigratedNFA<T> deserialize(MigratedNFA<T> reuse, DataInputView source)
-                throws IOException {
-            return deserialize(source);
-        }
-
-        @Override
-        public void copy(DataInputView source, DataOutputView target) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            return obj == this
-                    || (obj != null
-                            && obj.getClass().equals(getClass())
-                            && sharedBufferSerializer.equals(
-                                    ((NFASerializer) obj).sharedBufferSerializer)
-                            && eventSerializer.equals(((NFASerializer) obj).eventSerializer));
-        }
-
-        @Override
-        public int hashCode() {
-            return 37 * sharedBufferSerializer.hashCode() + eventSerializer.hashCode();
-        }
-
-        @Override
-        public MigratedNFASerializerSnapshot<T> snapshotConfiguration() {
-            return new MigratedNFASerializerSnapshot<>(this);
         }
     }
 }

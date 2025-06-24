@@ -68,13 +68,17 @@ WatermarkStrategy
         .withTimestampAssigner((event, timestamp) -> event.f0);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-WatermarkStrategy
-  .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
-  .withTimestampAssigner(new SerializableTimestampAssigner[(Long, String)] {
-    override def extractTimestamp(element: (Long, String), recordTimestamp: Long): Long = element._1
-  })
+{{< tab "Python" >}}
+```python
+class FirstElementTimestampAssigner(TimestampAssigner):
+   
+    def extract_timestamp(self, value, record_timestamp):
+       return value[0]
+
+
+WatermarkStrategy \
+    .for_bounded_out_of_orderness(Duration.of_seconds(20)) \
+    .with_timestamp_assigner(FirstElementTimestampAssigner())
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -112,28 +116,29 @@ DataStream<MyEvent> withTimestampsAndWatermarks = stream
 
 withTimestampsAndWatermarks
         .keyBy( (event) -> event.getGroup() )
-        .window(TumblingEventTimeWindows.of(Time.seconds(10)))
+        .window(TumblingEventTimeWindows.of(Duration.ofSeconds(10)))
         .reduce( (a, b) -> a.add(b) )
         .addSink(...);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
 
-val stream: DataStream[MyEvent] = env.readFile(
-         myFormat, myFilePath, FileProcessingMode.PROCESS_CONTINUOUSLY, 100,
-         FilePathFilter.createDefaultFilter())
+# currently read_file is not supported in PyFlink
+stream = env \
+    .read_text_file(my_file_path, charset) \
+    .map(lambda s: MyEvent.from_string(s))
 
-val withTimestampsAndWatermarks: DataStream[MyEvent] = stream
-        .filter( _.severity == WARNING )
-        .assignTimestampsAndWatermarks(<watermark strategy>)
+with_timestamp_and_watermarks = stream \
+    .filter(lambda e: e.severity() == WARNING) \
+    .assign_timestamp_and_watermarks(<watermark strategy>)
 
-withTimestampsAndWatermarks
-        .keyBy( _.getGroup )
-        .window(TumblingEventTimeWindows.of(Time.seconds(10)))
-        .reduce( (a, b) => a.add(b) )
-        .addSink(...)
+with_timestamp_and_watermarks \
+    .key_by(lambda e: e.get_group()) \
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(10))) \
+    .reduce(lambda a, b: a.add(b)) \
+    .add_sink(...)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -156,16 +161,16 @@ WatermarkStrategy
         .withIdleness(Duration.ofMinutes(1));
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-WatermarkStrategy
-  .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
-  .withIdleness(Duration.ofMinutes(1))
+{{< tab "Python" >}}
+```python
+WatermarkStrategy \
+    .for_bounded_out_of_orderness(Duration.of_seconds(20)) \
+    .with_idleness(Duration.of_minutes(1))
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-## Watermark alignment _`Beta`_
+## Watermark alignment
 
 In the previous paragraph we discussed a situation when splits/partitions/shards or sources are idle
 and can stall increasing watermarks. On the other side of the spectrum, a split/partition/shard or
@@ -193,11 +198,11 @@ WatermarkStrategy
         .withWatermarkAlignment("alignment-group-1", Duration.ofSeconds(20), Duration.ofSeconds(1));
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-WatermarkStrategy
-  .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
-  .withWatermarkAlignment("alignment-group-1", Duration.ofSeconds(20), Duration.ofSeconds(1))
+{{< tab "Python" >}}
+```python
+WatermarkStrategy \
+    .for_bounded_out_of_orderness(Duration.of_seconds(20)) \
+    .with_watermark_alignment("alignment-group-1", Duration.of_seconds(20), Duration.of_seconds(1))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -221,19 +226,21 @@ other sources/tasks which can move the combined watermark forward and that way u
 one.
 
 {{< hint warning >}}
-**Note:** As of 1.15, Flink supports aligning across tasks of the same source and/or different
-sources. It does not support aligning splits/partitions/shards in the same task.
+**Note:** As of Flink 1.17, split level watermark alignment is supported by the FLIP-27 source framework.
+Source connectors have to implement an interface to resume and pause splits so that splits/partitions/shards
+can be aligned in the same task. More detail on the pause and resume interfaces can found in the [Source API]({{< ref "docs/dev/datastream/sources" >}}#split-level-watermark-alignment).
 
-In a case where there are e.g. two Kafka partitions that produce watermarks at different pace, that
-get assigned to the same task watermark might not behave as expected. Fortunately, worst case it
-should not perform worse than without alignment.
+If you are upgrading from a Flink version between 1.15.x and 1.16.x inclusive, you can disable split level alignment by setting
+`pipeline.watermark-alignment.allow-unaligned-source-splits` to true. Moreover, you can tell if your source supports split level alignment
+by checking if it throws an `UnsupportedOperationException` at runtime or by reading the javadocs. In this case, it would be desirable to
+to disable split level watermark alignment to avoid fatal exceptions.
 
-Given the limitation above, we suggest applying watermark alignment in two situations:
+When setting the flag to true, watermark alignment will be only working properly when the number of splits/shards/partitions is equal to the
+parallelism of the source operator. This results in every subtask being assigned a single unit of work. On the other hand, if there are two Kafka partitions, which produce watermarks at different paces and
+get assigned to the same task, then watermarks might not behave as expected. Fortunately, even in the worst case, the basic alignment should not perform worse than having no alignment at all.
 
-1. You have two different sources (e.g. Kafka and File) that produce watermarks at different speeds
-2. You run your source with parallelism equal to the number of splits/shards/partitions, which
-   results in every subtask being assigned a single unit of work.
-
+Furthermore, Flink also supports aligning across tasks of the same sources and/or different
+sources, which is useful when you have two different sources (e.g. Kafka and File) that produce watermarks at different speeds.
 {{< /hint >}}
 
 <a name="writing-watermarkgenerators"></a>
@@ -329,43 +336,9 @@ public class TimeLagWatermarkGenerator implements WatermarkGenerator<MyEvent> {
 }
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-/**
- * 该 watermark 生成器可以覆盖的场景是：数据源在一定程度上乱序。
- * 即某个最新到达的时间戳为 t 的元素将在最早到达的时间戳为 t 的元素之后最多 n 毫秒到达。
- */
-class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermarks[MyEvent] {
-
-    val maxOutOfOrderness = 3500L // 3.5 秒
-
-    var currentMaxTimestamp: Long = _
-
-    override def onEvent(element: MyEvent, eventTimestamp: Long): Unit = {
-        currentMaxTimestamp = max(eventTimestamp, currentMaxTimestamp)
-    }
-
-    override def onPeriodicEmit(): Unit = {
-        // 发出的 watermark = 当前最大时间戳 - 最大乱序时间
-        output.emitWatermark(new Watermark(currentMaxTimestamp - maxOutOfOrderness - 1))
-    }
-}
-
-/**
- * 该生成器生成的 watermark 滞后于处理时间固定量。它假定元素会在有限延迟后到达 Flink。
- */
-class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks[MyEvent] {
-
-    val maxTimeLag = 5000L // 5 秒
-
-    override def onEvent(element: MyEvent, eventTimestamp: Long): Unit = {
-        // 处理时间场景下不需要实现
-    }
-
-    override def onPeriodicEmit(): Unit = {
-        output.emitWatermark(new Watermark(System.currentTimeMillis() - maxTimeLag))
-    }
-}
+{{< tab "Python" >}}
+```python
+目前在python中不支持该api
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -397,20 +370,9 @@ public class PunctuatedAssigner implements WatermarkGenerator<MyEvent> {
 }
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks[MyEvent] {
-
-    override def onEvent(element: MyEvent, eventTimestamp: Long): Unit = {
-        if (event.hasWatermarkMarker()) {
-            output.emitWatermark(new Watermark(event.getWatermarkTimestamp()))
-        }
-    }
-
-    override def onPeriodicEmit(): Unit = {
-        // onEvent 中已经实现
-    }
-}
+{{< tab "Python" >}}
+```python
+Python API 中尚不支持该特性。
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -434,22 +396,32 @@ class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks[MyEvent] {
 {{< tabs "bd763159-5532-4f69-ae15-a4836886e4fe" >}}
 {{< tab "Java" >}}
 ```java
-FlinkKafkaConsumer<MyType> kafkaSource = new FlinkKafkaConsumer<>("myTopic", schema, props);
-kafkaSource.assignTimestampsAndWatermarks(
-        WatermarkStrategy
-                .forBoundedOutOfOrderness(Duration.ofSeconds(20)));
+KafkaSource<String> kafkaSource = KafkaSource.<String>builder()
+    .setBootstrapServers(brokers)
+    .setTopics("my-topic")
+    .setGroupId("my-group")
+    .setStartingOffsets(OffsetsInitializer.earliest())
+    .setValueOnlyDeserializer(new SimpleStringSchema())
+    .build();
 
-DataStream<MyType> stream = env.addSource(kafkaSource);
+DataStream<String> stream = env.fromSource(
+    kafkaSource, WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(20)), "mySource");
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val kafkaSource = new FlinkKafkaConsumer[MyType]("myTopic", schema, props)
-kafkaSource.assignTimestampsAndWatermarks(
-  WatermarkStrategy
-    .forBoundedOutOfOrderness(Duration.ofSeconds(20)))
+{{< tab "Python" >}}
+```python
+kafka_source = KafkaSource.builder()
+    .set_bootstrap_servers(brokers)
+    .set_topics("my-topic")
+    .set_group_id("my-group")
+    .set_starting_offsets(KafkaOffsetsInitializer.earliest())
+    .set_value_only_deserializer(SimpleStringSchema())
+    .build()
 
-val stream: DataStream[MyType] = env.addSource(kafkaSource)
+stream = env.from_source(
+    source=kafka_source,
+    watermark_strategy=WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(20)),
+    source_name="kafka_source")
 ```
 {{< /tab >}}
 {{< /tabs >}}

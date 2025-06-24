@@ -19,65 +19,139 @@
 package org.apache.flink.testutils.junit;
 
 import org.apache.flink.testutils.junit.extensions.retry.RetryExtension;
+import org.apache.flink.testutils.junit.extensions.retry.strategy.RetryOnExceptionStrategy;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.opentest4j.TestAbortedException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
-/** Tests for the RetryOnException annotation. */
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/** Tests for the {@link RetryOnException} annotation on JUnit5 {@link RetryExtension}. */
 @ExtendWith(RetryExtension.class)
-public class RetryOnExceptionExtensionTest {
+class RetryOnExceptionExtensionTest {
 
-    private static final int NUMBER_OF_RUNS = 3;
+    private static final int NUMBER_OF_RETRIES = 3;
 
-    private static int runsForSuccessfulTest = 0;
+    private static final Map<String, Integer> methodRunCount = new HashMap<>();
 
-    private static int runsForTestWithMatchingException = 0;
+    private static final Map<String, Runnable> verificationCallbackRegistry = new HashMap<>();
 
-    private static int runsForTestWithSubclassException = 0;
+    @BeforeEach
+    void incrementMethodRunCount(TestInfo testInfo) {
+        // Set or increment the run count for the unit test method, by the method short name.
+        // This starts at 1 and is incremented before the test starts.
+        testInfo.getTestMethod()
+                .ifPresent(
+                        method ->
+                                methodRunCount.compute(
+                                        method.getName(), (k, v) -> (v == null) ? 1 : v + 1));
+    }
 
-    private static int runsForPassAfterOneFailure = 0;
+    private static int assertAndReturnRunCount(TestInfo testInfo) {
+        return methodRunCount.get(assertAndReturnTestMethodName(testInfo));
+    }
+
+    private static void registerCallbackForTest(TestInfo testInfo, Consumer<Integer> verification) {
+        verificationCallbackRegistry.putIfAbsent(
+                assertAndReturnTestMethodName(testInfo),
+                () -> verification.accept(assertAndReturnRunCount(testInfo)));
+    }
+
+    private static String assertAndReturnTestMethodName(TestInfo testInfo) {
+        return testInfo.getTestMethod()
+                .orElseThrow(() -> new AssertionError("No test method is provided."))
+                .getName();
+    }
 
     @AfterAll
-    public static void verify() {
-        assertEquals(NUMBER_OF_RUNS + 1, runsForTestWithMatchingException);
-        assertEquals(NUMBER_OF_RUNS + 1, runsForTestWithSubclassException);
-        assertEquals(1, runsForSuccessfulTest);
-        assertEquals(2, runsForPassAfterOneFailure);
+    static void verify() {
+        for (Runnable verificationCallback : verificationCallbackRegistry.values()) {
+            verificationCallback.run();
+        }
     }
 
     @TestTemplate
-    @RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
-    public void testSuccessfulTest() {
-        runsForSuccessfulTest++;
+    @RetryOnException(times = NUMBER_OF_RETRIES, exception = IllegalArgumentException.class)
+    void testSuccessfulTest(TestInfo testInfo) {
+        registerCallbackForTest(testInfo, total -> assertThat(total).isOne());
     }
 
     @TestTemplate
-    @RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
-    public void testMatchingException() {
-        runsForTestWithMatchingException++;
-        if (runsForTestWithMatchingException <= NUMBER_OF_RUNS) {
+    @RetryOnException(times = NUMBER_OF_RETRIES, exception = IllegalArgumentException.class)
+    void testMatchingException(TestInfo testInfo) {
+        registerCallbackForTest(
+                testInfo, total -> assertThat(total).isEqualTo(NUMBER_OF_RETRIES + 1));
+        if (assertAndReturnRunCount(testInfo) <= NUMBER_OF_RETRIES) {
             throw new IllegalArgumentException();
         }
     }
 
     @TestTemplate
-    @RetryOnException(times = NUMBER_OF_RUNS, exception = RuntimeException.class)
-    public void testSubclassException() {
-        runsForTestWithSubclassException++;
-        if (runsForTestWithSubclassException <= NUMBER_OF_RUNS) {
+    @RetryOnException(times = NUMBER_OF_RETRIES, exception = RuntimeException.class)
+    void testSubclassException(TestInfo testInfo) {
+        registerCallbackForTest(
+                testInfo, total -> assertThat(total).isEqualTo(NUMBER_OF_RETRIES + 1));
+        if (assertAndReturnRunCount(testInfo) <= NUMBER_OF_RETRIES) {
             throw new IllegalArgumentException();
         }
     }
 
     @TestTemplate
-    @RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
-    public void testPassAfterOneFailure() {
-        runsForPassAfterOneFailure++;
-        if (runsForPassAfterOneFailure == 1) {
+    @RetryOnException(times = NUMBER_OF_RETRIES, exception = IllegalArgumentException.class)
+    void testPassAfterOneFailure(TestInfo testInfo) {
+        registerCallbackForTest(testInfo, total -> assertThat(total).isEqualTo(2));
+        if (assertAndReturnRunCount(testInfo) == 1) {
             throw new IllegalArgumentException();
         }
+    }
+
+    @ParameterizedTest(name = "Retrying with {0}")
+    @MethodSource("retryTestProvider")
+    void testRetryFailsWithExpectedExceptionAfterNumberOfRetries(
+            final Throwable expectedException) {
+        final int numberOfRetries = 1;
+        RetryOnExceptionStrategy retryOnExceptionStrategy =
+                new RetryOnExceptionStrategy(numberOfRetries, expectedException.getClass());
+        // All attempts that permit a retry should be a TestAbortedException.  When retries are no
+        // longer permitted, the handled exception should be propagated.
+        for (int j = 0; j <= numberOfRetries; j++) {
+            final int attemptIndex = j;
+            assertThatThrownBy(
+                            () ->
+                                    retryOnExceptionStrategy.handleException(
+                                            "Any test name", attemptIndex, expectedException))
+                    .isInstanceOf(
+                            j == numberOfRetries
+                                    ? expectedException.getClass()
+                                    : TestAbortedException.class);
+        }
+    }
+
+    static class RetryTestError extends Error {}
+
+    static class RetryTestException extends Exception {}
+
+    static class RetryTestRuntimeException extends RuntimeException {}
+
+    static class RetryTestThrowable extends Throwable {}
+
+    static Stream<Throwable> retryTestProvider() {
+        return Stream.of(
+                new RetryTestError(),
+                new RetryTestException(),
+                new RetryTestRuntimeException(),
+                new RetryTestThrowable());
     }
 }

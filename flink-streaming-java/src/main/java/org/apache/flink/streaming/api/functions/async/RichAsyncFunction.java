@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.api.functions.async;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -32,6 +32,7 @@ import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingState;
@@ -44,19 +45,21 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
  * Rich variant of the {@link AsyncFunction}. As a {@link RichFunction}, it gives access to the
  * {@link RuntimeContext} and provides setup and teardown methods: {@link
- * RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
- * RichFunction#close()}.
+ * RichFunction#open(OpenContext)} and {@link RichFunction#close()}.
  *
  * <p>State related apis in {@link RuntimeContext} are not supported yet because the key may get
  * changed while accessing states in the working thread.
@@ -106,48 +109,23 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         }
 
         @Override
-        public JobID getJobId() {
-            return runtimeContext.getJobId();
-        }
-
-        @Override
-        public String getTaskName() {
-            return runtimeContext.getTaskName();
-        }
-
-        @Override
         public OperatorMetricGroup getMetricGroup() {
             return runtimeContext.getMetricGroup();
         }
 
         @Override
-        public int getNumberOfParallelSubtasks() {
-            return runtimeContext.getNumberOfParallelSubtasks();
+        public <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation) {
+            return runtimeContext.createSerializer(typeInformation);
         }
 
         @Override
-        public int getMaxNumberOfParallelSubtasks() {
-            return runtimeContext.getMaxNumberOfParallelSubtasks();
+        public Map<String, String> getGlobalJobParameters() {
+            return runtimeContext.getGlobalJobParameters();
         }
 
         @Override
-        public int getIndexOfThisSubtask() {
-            return runtimeContext.getIndexOfThisSubtask();
-        }
-
-        @Override
-        public int getAttemptNumber() {
-            return runtimeContext.getAttemptNumber();
-        }
-
-        @Override
-        public String getTaskNameWithSubtasks() {
-            return runtimeContext.getTaskNameWithSubtasks();
-        }
-
-        @Override
-        public ExecutionConfig getExecutionConfig() {
-            return runtimeContext.getExecutionConfig();
+        public boolean isObjectReuseEnabled() {
+            return runtimeContext.isObjectReuseEnabled();
         }
 
         @Override
@@ -209,6 +187,44 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         }
 
         @Override
+        public <T> org.apache.flink.api.common.state.v2.ValueState<T> getState(
+                org.apache.flink.api.common.state.v2.ValueStateDescriptor<T> stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
+        public <T> org.apache.flink.api.common.state.v2.ListState<T> getListState(
+                org.apache.flink.api.common.state.v2.ListStateDescriptor<T> stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
+        public <T> org.apache.flink.api.common.state.v2.ReducingState<T> getReducingState(
+                org.apache.flink.api.common.state.v2.ReducingStateDescriptor<T> stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
+        public <IN, ACC, OUT>
+                org.apache.flink.api.common.state.v2.AggregatingState<IN, OUT> getAggregatingState(
+                        org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<
+                                        IN, ACC, OUT>
+                                stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
+        public <UK, UV> org.apache.flink.api.common.state.v2.MapState<UK, UV> getMapState(
+                org.apache.flink.api.common.state.v2.MapStateDescriptor<UK, UV> stateProperties) {
+            throw new UnsupportedOperationException(
+                    "State is not supported in rich async functions.");
+        }
+
+        @Override
         public <V, A extends Serializable> void addAccumulator(
                 String name, Accumulator<V, A> accumulator) {
             throw new UnsupportedOperationException(
@@ -263,6 +279,16 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
             throw new UnsupportedOperationException(
                     "Broadcast variables are not supported in rich async functions.");
         }
+
+        @Override
+        public JobInfo getJobInfo() {
+            return runtimeContext.getJobInfo();
+        }
+
+        @Override
+        public TaskInfo getTaskInfo() {
+            return runtimeContext.getTaskInfo();
+        }
     }
 
     private static class RichAsyncFunctionIterationRuntimeContext
@@ -295,11 +321,6 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         public <T extends Value> T getPreviousIterationAggregate(String name) {
             throw new UnsupportedOperationException(
                     "Iteration aggregators are not supported in rich async functions.");
-        }
-
-        @Override
-        public JobID getJobId() {
-            return iterationRuntimeContext.getJobId();
         }
     }
 }

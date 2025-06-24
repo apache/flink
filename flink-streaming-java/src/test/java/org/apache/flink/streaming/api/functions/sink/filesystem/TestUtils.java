@@ -25,14 +25,14 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.Assert;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy.build;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Utilities for the {@link StreamingFileSink} tests. */
 public class TestUtils {
@@ -245,8 +246,8 @@ public class TestUtils {
             }
         }
 
-        Assert.assertEquals(expectedInProgress, inProgress);
-        Assert.assertEquals(expectedCompleted, finished);
+        assertThat(inProgress).isEqualTo(expectedInProgress);
+        assertThat(finished).isEqualTo(expectedCompleted);
     }
 
     static Map<File, String> getFileContentByPath(File directory) throws IOException {
@@ -324,9 +325,9 @@ public class TestUtils {
             return bytes;
         }
 
-        public Integer deserialize(int version, byte[] serialized) throws IOException {
-            Assert.assertEquals(1L, (long) version);
-            Assert.assertEquals(4L, serialized.length);
+        public Integer deserialize(int version, byte[] serialized) {
+            assertThat(version).isOne();
+            assertThat(serialized.length).isEqualTo(4);
             return ByteBuffer.wrap(serialized).order(ByteOrder.LITTLE_ENDIAN).getInt();
         }
     }

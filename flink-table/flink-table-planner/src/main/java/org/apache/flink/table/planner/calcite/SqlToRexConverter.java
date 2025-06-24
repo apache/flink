@@ -76,6 +76,11 @@ public class SqlToRexConverter {
         return planner.rex(parser.parseExpression(expr), inputRowType, outputType);
     }
 
+    /** Converts a {@link SqlNode} to a {@link RexNode} expression. */
+    public RexNode convertToRexNode(SqlNode sqlNode) {
+        return planner.rex(sqlNode, inputRowType, outputType);
+    }
+
     /**
      * Converts an array of SQL expressions to an array of {@link RexNode} expressions.
      *

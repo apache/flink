@@ -18,25 +18,28 @@
 
 package org.apache.flink.queryablestate.itcases;
 
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
-/** Several integration tests for queryable state using the {@link FsStateBackend}. */
+import java.nio.file.Path;
+
+/** Several integration tests for queryable state. */
 public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTestBase {
 
     // NUM_TMS * NUM_SLOTS_PER_TM must match the parallelism of the pipelines so that
@@ -48,50 +51,56 @@ public class NonHAQueryableStateFsBackendITCase extends AbstractQueryableStateTe
     private static final int QS_PROXY_PORT_RANGE_START = 9084;
     private static final int QS_SERVER_PORT_RANGE_START = 9089;
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir static Path tmpStateBackendDir;
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
-                    new MiniClusterResourceConfiguration.Builder()
-                            .setConfiguration(getConfig())
-                            .setNumberTaskManagers(NUM_TMS)
-                            .setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
-                            .build());
+    @RegisterExtension
+    static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    () ->
+                            new MiniClusterResourceConfiguration.Builder()
+                                    .setConfiguration(getConfig())
+                                    .setNumberTaskManagers(NUM_TMS)
+                                    .setNumberSlotsPerTaskManager(NUM_SLOTS_PER_TM)
+                                    .build());
 
     @Override
-    protected StateBackend createStateBackend() throws Exception {
-        return new FsStateBackend(temporaryFolder.newFolder().toURI().toString());
+    protected StreamExecutionEnvironment createEnv() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StateBackendUtils.configureHashMapStateBackend(env);
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(
+                env, tmpStateBackendDir.toUri().toString());
+        return env;
     }
 
-    @BeforeClass
-    public static void setup() throws Exception {
+    @BeforeAll
+    static void setup(@InjectClusterClient RestClusterClient<?> injectedClusterClient)
+            throws Exception {
         client = new QueryableStateClient("localhost", QS_PROXY_PORT_RANGE_START);
 
-        clusterClient = MINI_CLUSTER_RESOURCE.getClusterClient();
+        clusterClient = injectedClusterClient;
     }
 
-    @AfterClass
-    public static void tearDown() {
+    @AfterAll
+    static void tearDown() {
         client.shutdownAndWait();
     }
 
     private static Configuration getConfig() {
         Configuration config = new Configuration();
-        config.setBoolean(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER, true);
+        config.set(QueryableStateOptions.ENABLE_QUERYABLE_STATE_PROXY_SERVER, true);
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
-        config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
-        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
-        config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS, 1);
-        config.setInteger(QueryableStateOptions.PROXY_NETWORK_THREADS, 1);
-        config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 1);
-        config.setString(
+        config.set(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS, NUM_TMS);
+        config.set(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
+        config.set(QueryableStateOptions.CLIENT_NETWORK_THREADS, 1);
+        config.set(QueryableStateOptions.PROXY_NETWORK_THREADS, 1);
+        config.set(QueryableStateOptions.SERVER_NETWORK_THREADS, 1);
+        config.set(
                 QueryableStateOptions.PROXY_PORT_RANGE,
                 QS_PROXY_PORT_RANGE_START + "-" + (QS_PROXY_PORT_RANGE_START + NUM_PORT_COUNT));
-        config.setString(
+        config.set(
                 QueryableStateOptions.SERVER_PORT_RANGE,
                 QS_SERVER_PORT_RANGE_START + "-" + (QS_SERVER_PORT_RANGE_START + NUM_PORT_COUNT));
-        config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
+        config.set(WebOptions.SUBMIT_ENABLE, false);
         return config;
     }
 }

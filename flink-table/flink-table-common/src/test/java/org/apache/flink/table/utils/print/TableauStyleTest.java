@@ -30,7 +30,7 @@ import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
@@ -45,11 +45,11 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TableauStyle}. */
-public class TableauStyleTest {
+class TableauStyleTest {
     private final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
 
     @Test
-    public void testCharFullWidth() {
+    void testCharFullWidth() {
         char[] chars = new char[] {'A', 'a', ',', '中', '，', 'こ'};
         boolean[] expected = new boolean[] {false, false, false, true, true, true};
 
@@ -60,7 +60,7 @@ public class TableauStyleTest {
     }
 
     @Test
-    public void testStringDisplayWidth() {
+    void testStringDisplayWidth() {
         List<String> data =
                 Arrays.asList(
                         "abcdefg,12345,ABC",
@@ -75,7 +75,7 @@ public class TableauStyleTest {
     }
 
     @Test
-    public void testPrintWithEmptyResult() {
+    void testPrintWithEmptyResult() {
         PrintStyle.tableauWithDataInferredColumnWidths(getSchema(), getConverter())
                 .print(Collections.emptyIterator(), new PrintWriter(outContent));
 
@@ -83,7 +83,7 @@ public class TableauStyleTest {
     }
 
     @Test
-    public void testPrintWithEmptyResultAndRowKind() {
+    void testPrintWithEmptyResultAndRowKind() {
         PrintStyle.tableauWithTypeInferredColumnWidths(
                         getSchema(),
                         getConverter(),
@@ -96,7 +96,7 @@ public class TableauStyleTest {
     }
 
     @Test
-    public void testPrintWithEmptyResultAndDeriveColumnWidthByContent() {
+    void testPrintWithEmptyResultAndDeriveColumnWidthByContent() {
         PrintStyle.tableauWithTypeInferredColumnWidths(
                         getSchema(),
                         getConverter(),
@@ -109,7 +109,7 @@ public class TableauStyleTest {
     }
 
     @Test
-    public void testPrintWithMultipleRows() {
+    void testPrintWithMultipleRows() {
         PrintStyle.tableauWithDataInferredColumnWidths(getSchema(), getConverter())
                 .print(getData().iterator(), new PrintWriter(outContent));
 
@@ -152,7 +152,7 @@ public class TableauStyleTest {
     }
 
     @Test
-    public void testPrintWithMultipleRowsAndRowKind() {
+    void testPrintWithMultipleRowsAndRowKind() {
         PrintStyle.tableauWithTypeInferredColumnWidths(
                         getSchema(),
                         getConverter(),
@@ -200,7 +200,7 @@ public class TableauStyleTest {
     }
 
     @Test
-    public void testPrintWithMultipleRowsAndDeriveColumnWidthByContent() {
+    void testPrintWithMultipleRowsAndDeriveColumnWidthByContent() {
         PrintStyle.tableauWithDataInferredColumnWidths(
                         getSchema(),
                         getConverter(),

@@ -74,19 +74,10 @@ public class LoadBalancerService extends ServiceType {
         }
 
         LoadBalancerStatus loadBalancer = service.getStatus().getLoadBalancer();
-        boolean hasExternalIP =
-                service.getSpec() != null
-                        && service.getSpec().getExternalIPs() != null
-                        && !service.getSpec().getExternalIPs().isEmpty();
 
         if (loadBalancer != null) {
             return getLoadBalancerRestEndpoint(
                     internalClient, nodePortAddressType, loadBalancer, restPort);
-        } else if (hasExternalIP) {
-            final String address = service.getSpec().getExternalIPs().get(0);
-            if (address != null && !address.isEmpty()) {
-                return Optional.of(new Endpoint(address, restPort));
-            }
         }
         return Optional.empty();
     }
@@ -110,6 +101,10 @@ public class LoadBalancerService extends ServiceType {
             // only consider IPs with the configured address type.
             address =
                     internalClient.nodes().list().getItems().stream()
+                            .filter(
+                                    node ->
+                                            node.getSpec().getUnschedulable() == null
+                                                    || !node.getSpec().getUnschedulable())
                             .flatMap(node -> node.getStatus().getAddresses().stream())
                             .filter(
                                     nodeAddress ->

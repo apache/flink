@@ -280,6 +280,20 @@ public final class MemorySegment {
     }
 
     /**
+     * Returns the off-heap buffer of memory segments.
+     *
+     * @return underlying off-heap buffer
+     * @throws IllegalStateException if the memory segment does not represent off-heap buffer
+     */
+    public ByteBuffer getOffHeapBuffer() {
+        if (offHeapBuffer != null) {
+            return offHeapBuffer;
+        } else {
+            throw new IllegalStateException("Memory segment does not represent off-heap buffer");
+        }
+    }
+
+    /**
      * Returns the memory address of off-heap memory segments.
      *
      * @return absolute memory address outside the heap

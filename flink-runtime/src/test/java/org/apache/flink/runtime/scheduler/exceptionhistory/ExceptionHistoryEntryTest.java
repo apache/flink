@@ -20,22 +20,25 @@ package org.apache.flink.runtime.scheduler.exceptionhistory;
 
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.scheduler.exceptionhistory.ArchivedTaskManagerLocationMatcher.isArchivedTaskManagerLocation;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** {@code ExceptionHistoryEntryTest} tests the creation of {@link ExceptionHistoryEntry}. */
-public class ExceptionHistoryEntryTest extends TestLogger {
+class ExceptionHistoryEntryTest {
 
     @Test
-    public void testCreate() {
+    void testCreate() {
         final Throwable failure = new RuntimeException("Expected exception");
         final long timestamp = System.currentTimeMillis();
         final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
@@ -45,48 +48,67 @@ public class ExceptionHistoryEntryTest extends TestLogger {
                         .withTaskManagerLocation(taskManagerLocation)
                         .build();
         final String taskName = "task name";
+        final Map<String, String> failureLabels = Collections.singletonMap("key", "value");
 
-        final ExceptionHistoryEntry entry = ExceptionHistoryEntry.create(execution, taskName);
+        final ExceptionHistoryEntry entry =
+                ExceptionHistoryEntry.create(
+                        execution, taskName, CompletableFuture.completedFuture(failureLabels));
 
-        assertThat(
-                entry.getException().deserializeError(ClassLoader.getSystemClassLoader()),
-                is(failure));
-        assertThat(entry.getTimestamp(), is(timestamp));
-        assertThat(entry.getFailingTaskName(), is(taskName));
-        assertThat(
-                entry.getTaskManagerLocation(), isArchivedTaskManagerLocation(taskManagerLocation));
-        assertThat(entry.isGlobal(), is(false));
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testCreationFailure() {
-        ExceptionHistoryEntry.create(
-                TestingAccessExecution.newBuilder()
-                        .withTaskManagerLocation(new LocalTaskManagerLocation())
-                        .build(),
-                "task name");
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void testNullExecution() {
-        ExceptionHistoryEntry.create(null, "task name");
-    }
-
-    @Test(expected = NullPointerException.class)
-    public void testNullTaskName() {
-        ExceptionHistoryEntry.create(
-                TestingAccessExecution.newBuilder()
-                        .withErrorInfo(
-                                new ErrorInfo(
-                                        new Exception("Expected failure"),
-                                        System.currentTimeMillis()))
-                        .withTaskManagerLocation(new LocalTaskManagerLocation())
-                        .build(),
-                null);
+        assertThat(entry.getException().deserializeError(ClassLoader.getSystemClassLoader()))
+                .isEqualTo(failure);
+        assertThat(entry.getTimestamp()).isEqualTo(timestamp);
+        assertThat(entry.getFailingTaskName()).isEqualTo(taskName);
+        assertThat(entry.getTaskManagerLocation())
+                .matches(isArchivedTaskManagerLocation(taskManagerLocation));
+        assertThat(entry.isGlobal()).isFalse();
+        assertThat(entry.getFailureLabels()).isEqualTo(failureLabels);
     }
 
     @Test
-    public void testWithMissingTaskManagerLocation() {
+    void testCreationFailure() {
+        assertThatThrownBy(
+                        () ->
+                                ExceptionHistoryEntry.create(
+                                        TestingAccessExecution.newBuilder()
+                                                .withTaskManagerLocation(
+                                                        new LocalTaskManagerLocation())
+                                                .build(),
+                                        "task name",
+                                        FailureEnricherUtils.EMPTY_FAILURE_LABELS))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testNullExecution() {
+        assertThatThrownBy(
+                        () ->
+                                ExceptionHistoryEntry.create(
+                                        null,
+                                        "task name",
+                                        FailureEnricherUtils.EMPTY_FAILURE_LABELS))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void testNullTaskName() {
+        assertThatThrownBy(
+                        () ->
+                                ExceptionHistoryEntry.create(
+                                        TestingAccessExecution.newBuilder()
+                                                .withErrorInfo(
+                                                        new ErrorInfo(
+                                                                new Exception("Expected failure"),
+                                                                System.currentTimeMillis()))
+                                                .withTaskManagerLocation(
+                                                        new LocalTaskManagerLocation())
+                                                .build(),
+                                        null,
+                                        FailureEnricherUtils.EMPTY_FAILURE_LABELS))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void testWithMissingTaskManagerLocation() {
         final Exception failure = new Exception("Expected failure");
         final long timestamp = System.currentTimeMillis();
         final String taskName = "task name";
@@ -97,14 +119,14 @@ public class ExceptionHistoryEntryTest extends TestLogger {
                                 .withTaskManagerLocation(null)
                                 .withErrorInfo(new ErrorInfo(failure, timestamp))
                                 .build(),
-                        taskName);
+                        taskName,
+                        FailureEnricherUtils.EMPTY_FAILURE_LABELS);
 
-        assertThat(
-                entry.getException().deserializeError(ClassLoader.getSystemClassLoader()),
-                is(failure));
-        assertThat(entry.getTimestamp(), is(timestamp));
-        assertThat(entry.getFailingTaskName(), is(taskName));
-        assertThat(entry.getTaskManagerLocation(), is(nullValue()));
-        assertThat(entry.isGlobal(), is(false));
+        assertThat(entry.getException().deserializeError(ClassLoader.getSystemClassLoader()))
+                .isEqualTo(failure);
+        assertThat(entry.getTimestamp()).isEqualTo(timestamp);
+        assertThat(entry.getFailingTaskName()).isEqualTo(taskName);
+        assertThat(entry.getTaskManagerLocation()).isNull();
+        assertThat(entry.isGlobal()).isFalse();
     }
 }

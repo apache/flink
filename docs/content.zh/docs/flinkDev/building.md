@@ -35,9 +35,7 @@ under the License.
 
 首先需要准备源码。可以[从发布版本下载源码]({{< downloads >}}) 或者[从 Git 库克隆 Flink 源码]({{< github_repo >}})。
 
-还需要准备 **Maven 3** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 11** 或更新的版本来进行构建。
-
-*注意：Maven 3.3.x 可以构建 Flink，但是不能正确地屏蔽掉指定的依赖。Maven 3.2.5 可以正确地构建库文件。
+还需要准备 **Maven 3.8.6** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 11** 来进行构建。
 
 输入以下命令从 Git 克隆代码
 
@@ -75,11 +73,11 @@ mvn clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
 
     如果想构建一个可用于 pip 安装的 PyFlink 包，需要先构建 Flink 工程，如 [构建 Flink](#build-flink) 中所述。
 
-2. Python 的版本为 3.6, 3.7 或者 3.8.
+2. Python 的版本为 3.9, 3.10, 3.11 或者 3.12.
 
     ```shell
     $ python --version
-    # the version printed here must be 3.6, 3.7 or 3.8
+    # the version printed here must be 3.9, 3.10, 3.11 or 3.12
     ```
 
 3. 构建 PyFlink 的 Cython 扩展模块（可选的）
@@ -117,29 +115,6 @@ python -m pip install apache-flink-libraries/dist/*.tar.gz
 python -m pip install dist/*.whl
 ```
 
-## 依赖屏蔽
-
-Flink [屏蔽](https://maven.apache.org/plugins/maven-shade-plugin/)了一些它使用的包，这样做是为了避免与程序员自己引入的包的存在的可能的版本冲突。屏蔽掉的包包括 *Google Guava*,*Asm*,*Apache Curator*,*Apache HTTP Components*,*Netty* 等。
-
-这种依赖屏蔽机制最近在 Maven 中有所改变。需要用户根据 Maven 的的不同版本来执行不同的命令。
-
-**对于Maven 3.1.x and 3.2.x**
-直接在 Flink 源码根目录执行命令 `mvn clean install -DskipTests` 就足够了。
-
-**Maven 3.3.x**
-如下的构建需要两步走：第一步需要在基础目录下执行编译构建；第二步需要在编译后的 flink-dist 目录下执行：
-
-```bash
-mvn clean install -DskipTests
-cd flink-dist
-mvn clean install
-```
-
-*注意:* 运行 `mvn --version` 以查看Maven的版本。
-
-{{< top >}}
-
-
 ## Scala 版本
 
 {{< hint info >}}
@@ -149,16 +124,11 @@ mvn clean install
 Flink 有使用 [Scala](http://scala-lang.org) 来写的 API，库和运行时模块。使用 Scala API 和库的同学必须配置 Flink 的 Scala 版本和自己的 Flink 版本（因为 Scala 
 并不严格的向后兼容）。
 
-从 1.7 版本开始，Flink 可以使用 Scala 2.11（默认）和 2.12 来构建。
-
-如果使用 Scala 2.12 来进行构建，执行如下命令：
-```bash
-mvn clean install -DskipTests -Dscala-2.12
-```
+从 1.15 版本开始，Flink 已经不再支持使用Scala 2.11编译，默认使用 2.12 来构建。
 
 要针对特定的二进制 Scala 版本进行构建，可以使用
 ```bash
-mvn clean install -DskipTests -Dscala-2.12 -Dscala.version=<scala version>
+mvn clean install -DskipTests -Dscala.version=<scala version>
 ```
 
 {{< top >}}

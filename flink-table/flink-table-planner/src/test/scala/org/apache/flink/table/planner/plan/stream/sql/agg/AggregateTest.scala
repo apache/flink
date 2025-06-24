@@ -17,14 +17,13 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
-import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
+import org.apache.flink.table.types.AbstractDataType
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
+import org.junit.jupiter.api.Test
 
 import java.time.Duration
 
@@ -43,20 +42,20 @@ class AggregateTest extends TableTestBase {
   util.addTableSource[(Long, Int, String)]("T2", 'a, 'b, 'c)
   util.addTableSource(
     "MyTable1",
-    Array[TypeInformation[_]](
-      Types.BYTE,
-      Types.SHORT,
-      Types.INT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.BOOLEAN,
-      Types.STRING,
-      Types.LOCAL_DATE,
-      Types.LOCAL_TIME,
-      Types.LOCAL_DATE_TIME,
-      DecimalDataTypeInfo.of(30, 20),
-      DecimalDataTypeInfo.of(10, 5)
+    Array[AbstractDataType[_]](
+      DataTypes.TINYINT,
+      DataTypes.SMALLINT,
+      DataTypes.INT,
+      DataTypes.BIGINT,
+      DataTypes.FLOAT,
+      DataTypes.DOUBLE,
+      DataTypes.BOOLEAN,
+      DataTypes.STRING,
+      DataTypes.DATE,
+      DataTypes.TIME(0),
+      DataTypes.TIMESTAMP(3),
+      DataTypes.DECIMAL(30, 20),
+      DataTypes.DECIMAL(10, 5)
     ),
     Array(
       "byte",
@@ -74,21 +73,23 @@ class AggregateTest extends TableTestBase {
       "decimal105")
   )
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingOnNonExistentField(): Unit = {
-    util.verifyExecPlan("SELECT COUNT(*) FROM MyTable GROUP BY foo")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT COUNT(*) FROM MyTable GROUP BY foo"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingInvalidSelection(): Unit = {
-    util.verifyExecPlan("SELECT b FROM MyTable GROUP BY a")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT b FROM MyTable GROUP BY a"))
   }
 
   @Test
   def testCannotCountOnMultiFields(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("We now only support the count of one field")
-    util.verifyExecPlan("SELECT b, COUNT(a, c) FROM MyTable GROUP BY b")
+    assertThatThrownBy(() => util.verifyExecPlan("SELECT COUNT(a, c) FROM MyTable GROUP BY b"))
+      .hasMessageContaining("We now only support the count of one field")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -97,7 +98,32 @@ class AggregateTest extends TableTestBase {
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
-    util.verifyExecPlan("SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c)  FROM MyTable GROUP BY b")
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(5000L))
+    util.verifyExplain("SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyTable GROUP BY b")
+  }
+
+  @Test
+  def testMiniBatchAggWithNegativeMiniBatchSize(): Unit = {
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
+
+    val sql = "SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyTable GROUP BY b";
+    // without setting mini-batch size
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessage(
+        "Key: 'table.exec.mini-batch.size' , default: -1 (fallback keys: []) must be > 0.")
+      .isInstanceOf[IllegalArgumentException]
+
+    // set negative mini-batch size
+    util.tableEnv.getConfig.getConfiguration
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(-500L))
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessage(
+        "Key: 'table.exec.mini-batch.size' , default: -1 (fallback keys: []) must be > 0.")
+      .isInstanceOf[IllegalArgumentException]
   }
 
   @Test
@@ -389,5 +415,70 @@ class AggregateTest extends TableTestBase {
         |SELECT c, COUNT(*) cnt FROM T GROUP BY a, c
         |""".stripMargin,
       ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testApproximateCountDistinct(): Unit = {
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT APPROX_COUNT_DISTINCT(b) FROM MyTable"))
+  }
+
+  @Test
+  def testCountStart(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE src (
+                               | id VARCHAR,
+                               | cnt BIGINT
+                               |) WITH (
+                               | 'connector' = 'values'
+                               |)
+                               |""".stripMargin)
+    util.verifyExecPlan("SELECT COUNT(*) FROM src")
+  }
+
+  @Test
+  def testCountStartWithMetadata(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE src (
+                               | sys_col VARCHAR METADATA,
+                               | id VARCHAR,
+                               | cnt BIGINT
+                               |) WITH (
+                               | 'connector' = 'values',
+                               | 'readable-metadata' = 'sys_col:STRING'
+                               |)
+                               |""".stripMargin)
+    util.verifyExecPlan("SELECT COUNT(*) FROM src")
+  }
+
+  @Test
+  def testCountStartWithMetadataOnly(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE src (
+                               | sys_col VARCHAR METADATA,
+                               | id VARCHAR METADATA,
+                               | cnt BIGINT METADATA
+                               |) WITH (
+                               | 'connector' = 'values',
+                               | 'readable-metadata' = 'sys_col:STRING,id:STRING,cnt:BIGINT'
+                               |)
+                               |""".stripMargin)
+    util.verifyExecPlan("SELECT COUNT(*) FROM src")
+  }
+
+  @Test
+  def testCountStartWithNestedRow(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE src (
+                               | nested row<name string, `value` int>,
+                               | sys_col VARCHAR METADATA,
+                               | id VARCHAR,
+                               | cnt BIGINT
+                               |) WITH (
+                               | 'connector' = 'values',
+                               | 'readable-metadata' = 'sys_col:STRING'
+                               |)
+                               |""".stripMargin)
+    util.verifyExecPlan("SELECT COUNT(*) FROM src")
   }
 }

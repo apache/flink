@@ -18,14 +18,13 @@
 
 package org.apache.flink.connector.file.sink;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -34,13 +33,15 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.util.ParameterTool;
 
 import java.io.PrintStream;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
+import java.util.Collections;
 
 /**
  * Test program for the {@link StreamingFileSink} and {@link FileSink}.
@@ -65,9 +66,14 @@ public enum FileSinkProgram {
 
         env.setParallelism(4);
         env.enableCheckpointing(5000L);
-        env.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(
-                        Integer.MAX_VALUE, Time.of(10L, TimeUnit.SECONDS)));
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Integer.MAX_VALUE);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofSeconds(10L));
+
+        env.configure(configuration);
 
         // generate data, shuffle, sink
         DataStream<Tuple2<Integer, Integer>> source = env.addSource(new Generator(10, 10, 60));
@@ -85,7 +91,7 @@ public enum FileSinkProgram {
                             .withRollingPolicy(OnCheckpointRollingPolicy.build())
                             .build();
 
-            source.keyBy(0).addSink(sink);
+            source.keyBy(x -> x.f0).addSink(sink);
         } else if (sinkToTest.equalsIgnoreCase("FileSink")) {
             FileSink<Tuple2<Integer, Integer>> sink =
                     FileSink.forRowFormat(
@@ -98,7 +104,7 @@ public enum FileSinkProgram {
                             .withBucketAssigner(new KeyBucketAssigner())
                             .withRollingPolicy(OnCheckpointRollingPolicy.build())
                             .build();
-            source.keyBy(0).sinkTo(sink);
+            source.keyBy(x -> x.f0).sinkTo(sink);
         } else {
             throw new UnsupportedOperationException("Unsupported sink type: " + sinkToTest);
         }
@@ -124,7 +130,7 @@ public enum FileSinkProgram {
     }
 
     /** Data-generating source function. */
-    public static final class Generator
+    static final class Generator
             implements SourceFunction<Tuple2<Integer, Integer>>, CheckpointedFunction {
 
         private static final long serialVersionUID = -2819385275681175792L;
@@ -182,8 +188,7 @@ public enum FileSinkProgram {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            state.clear();
-            state.add(numRecordsEmitted);
+            state.update(Collections.singletonList(numRecordsEmitted));
         }
     }
 }

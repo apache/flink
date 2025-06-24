@@ -146,6 +146,22 @@ Format Options
       <td>Boolean</td>
       <td>Encode all decimals as plain numbers instead of possible scientific notations. By default, decimals may be written using scientific notation. For example, <code>0.000000027</code> is encoded as <code>2.7E-8</code> by default, and will be written as <code>0.000000027</code> if set this option to true.</td>
     </tr>
+    <tr>
+      <td><h5>json.encode.ignore-null-fields</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Encode only non-null fields. By default, all fields will be included.</td>
+    </tr>
+    <tr>
+      <td><h5>decode.json-parser.enabled</h5></td>
+      <td>optional</td>
+      <td></td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>Whether to use the Jackson <code>JsonParser</code> to decode json. <code>JsonParser</code> is the Jackson JSON streaming API to read JSON data. This is much faster and consumes less memory compared to the previous <code>JsonNode</code> approach. Meanwhile, <code>JsonParser</code> also supports nested projection pushdown when reading data. This option is enabled by default. You can disable and fallback to the previous <code>JsonNode</code> approach when encountering any incompatibility issues.</td>
+    </tr>
     </tbody>
 </table>
 
@@ -241,6 +257,35 @@ The following table lists the type mapping from Flink type to JSON type.
     </tbody>
 </table>
 
+Features
+--------
 
+### Allow top-level JSON Arrays
+
+Usually, we assume the top-level of JSON string is a stringified JSON object. Then this stringified JSON object can be converted into one SQL row.
+
+There are some cases that, the top-level of JSON string is a stringified JSON array, and we want to explode the array into multiple records. Each element within the array is a JSON object, the schema of every such JSON object is the same as defined in SQL, and each of these JSON objects can be converted into one row. Flink JSON Format supports reading such data.
+
+For example, for the following SQL DDL:
+```sql
+CREATE TABLE user_behavior (
+  col1 BIGINT,
+  col2 VARCHAR
+) WITH (
+ 'format' = 'json',
+ ...
+)
+```
+
+Flink JSON Format will produce 2 rows `(123, "a")` and `(456, "b")` with both of following two JSON string.
+The top-level is JSON Array:
+```json lines
+[{"col1": 123, "col2": "a"}, {"col1": 456, "col2": "b"}]
+```
+The top-level is JSON Object:
+```json lines
+{"col1": 123, "col2": "a"}
+{"col1": 456, "col2": "b"}
+```
 
 

@@ -45,13 +45,10 @@ public class DeploymentOptions {
                                     .list(
                                             text("remote"),
                                             text("local"),
-                                            text("yarn-per-job (deprecated)"),
+                                            text("yarn-application"),
                                             text("yarn-session"),
+                                            text("kubernetes-application"),
                                             text("kubernetes-session"))
-                                    .text(
-                                            "And one of the following values when calling %s:",
-                                            TextElement.code("bin/flink run-application"))
-                                    .list(text("yarn-application"), text("kubernetes-application"))
                                     .build());
 
     public static final ConfigOption<Boolean> ATTACHED =
@@ -77,6 +74,14 @@ public class DeploymentOptions {
                     .withDescription(
                             "Custom JobListeners to be registered with the execution environment."
                                     + " The registered listeners cannot have constructors with arguments.");
+
+    public static final ConfigOption<List<String>> JOB_STATUS_CHANGED_LISTENERS =
+            key("execution.job-status-changed-listeners")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription(
+                            "When job is created or its status is changed, Flink will generate job event and notify job status changed listener.");
 
     public static final ConfigOption<Boolean> SHUTDOWN_ON_APPLICATION_FINISH =
             ConfigOptions.key("execution.shutdown-on-application-finish")
@@ -106,15 +111,48 @@ public class DeploymentOptions {
                                     .build());
 
     @Experimental
-    public static final ConfigOption<Boolean> ALLOW_CLIENT_JOB_CONFIGURATIONS =
-            ConfigOptions.key("execution.allow-client-job-configurations")
+    public static final ConfigOption<List<String>> PROGRAM_CONFIG_WILDCARDS =
+            ConfigOptions.key("execution.program-config.wildcards")
+                    .stringType()
+                    .asList()
+                    .defaultValues()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "List of configuration keys that are allowed to be set in a user program "
+                                                    + "regardless whether program configuration is enabled or not.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "Currently changes that are not backed by the Configuration class are always allowed.")
+                                    .build());
+
+    @Experimental
+    public static final ConfigOption<Boolean> PROGRAM_CONFIG_ENABLED =
+            ConfigOptions.key("execution.program-config.enabled")
                     .booleanType()
                     .defaultValue(true)
+                    .withDeprecatedKeys("execution.allow-client-job-configurations")
                     .withDescription(
-                            "Determines whether configurations in the user program are "
-                                    + "allowed. Depending on your deployment mode failing the job "
-                                    + "might have different affects. Either your client that is "
-                                    + "trying to submit the job to an external cluster (session "
-                                    + "cluster deployment) throws the exception or the Job "
-                                    + "manager (application mode deployment).");
+                            Description.builder()
+                                    .text(
+                                            "Determines whether configurations in the user program are allowed. By default, "
+                                                    + "configuration can be set both on a cluster-level (via options) or "
+                                                    + "within the user program (i.e. programmatic via environment setters). "
+                                                    + "If disabled, all configuration must be defined on a cluster-level and "
+                                                    + "programmatic setters in the user program are prohibited.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "Depending on your deployment mode failing the job might have different implications. "
+                                                    + "Either your client that is trying to submit the job to an external "
+                                                    + "cluster (session cluster deployment) throws the exception or the "
+                                                    + "job manager (application mode deployment).")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "The '%s' option lists configuration keys that are allowed to be set in user programs "
+                                                    + "regardless of this setting.",
+                                            TextElement.text(PROGRAM_CONFIG_WILDCARDS.key()))
+                                    .build());
 }

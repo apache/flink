@@ -20,16 +20,17 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST), _UTF-16LE'_c1')])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, w0$o0 AS _c1])
 +- PythonOverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[PandasAggregateFunction(a, c) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, rowtime, w0$o0])
-   +- Sort(orderBy=[b ASC, rowtime ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, rowtime ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -37,16 +38,17 @@ Calc(select=[b, w0$o0 AS _c1])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 10 PRECEDING), _UTF-16LE'_c1')])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, w0$o0 AS _c1])
 +- PythonOverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[PandasAggregateFunction(a, c) AS w0$o0 ROWS BETWEEN 10 PRECEDING AND CURRENT ROW], select=[a, b, c, rowtime, w0$o0])
-   +- Sort(orderBy=[b ASC, rowtime ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[b ASC, rowtime ASC])
+         +- Exchange(distribution=[hash[b]])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>

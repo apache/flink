@@ -25,7 +25,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 /** Message headers for the {@link JobIdsWithStatusOverview}. */
 public class JobIdsWithStatusesOverviewHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 EmptyRequestBody, JobIdsWithStatusOverview, EmptyMessageParameters> {
 
     public static final String CURRENT_JOB_IDS_REST_PATH = "/jobs";

@@ -45,7 +45,7 @@ public class YarnSessionClusterExecutorFactory implements PipelineExecutorFactor
     @Override
     public PipelineExecutor getExecutor(@Nonnull final Configuration configuration) {
         try {
-            return new YarnSessionClusterExecutor();
+            return new YarnSessionClusterExecutor(configuration);
         } catch (NoClassDefFoundError e) {
             throw new IllegalStateException(YarnDeploymentTarget.ERROR_MESSAGE);
         }

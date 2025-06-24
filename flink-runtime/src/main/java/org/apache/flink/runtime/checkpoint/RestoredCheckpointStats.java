@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -41,6 +42,8 @@ public class RestoredCheckpointStats implements Serializable {
     /** Optional external path. */
     @Nullable private final String externalPath;
 
+    private final long stateSize;
+
     /**
      * Creates a new restored checkpoint stats.
      *
@@ -48,17 +51,20 @@ public class RestoredCheckpointStats implements Serializable {
      * @param props Checkpoint properties of the checkpoint.
      * @param restoreTimestamp Timestamp when the checkpoint was restored.
      * @param externalPath Optional external path if persisted externally.
+     * @param stateSize
      */
     RestoredCheckpointStats(
             long checkpointId,
             CheckpointProperties props,
             long restoreTimestamp,
-            @Nullable String externalPath) {
+            @Nullable String externalPath,
+            long stateSize) {
 
         this.checkpointId = checkpointId;
         this.props = checkNotNull(props, "Checkpoint Properties");
         this.restoreTimestamp = restoreTimestamp;
         this.externalPath = externalPath;
+        this.stateSize = stateSize;
     }
 
     /**
@@ -96,5 +102,49 @@ public class RestoredCheckpointStats implements Serializable {
     @Nullable
     public String getExternalPath() {
         return externalPath;
+    }
+
+    public long getStateSize() {
+        return stateSize;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(checkpointId, props, restoreTimestamp, externalPath, stateSize);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        RestoredCheckpointStats that = (RestoredCheckpointStats) o;
+
+        return checkpointId == that.checkpointId
+                && props == that.props
+                && restoreTimestamp == that.restoreTimestamp
+                && externalPath == that.externalPath
+                && stateSize == that.stateSize;
+    }
+
+    @Override
+    public String toString() {
+        return this.getClass().getSimpleName()
+                + "{"
+                + "checkpointId="
+                + checkpointId
+                + "props="
+                + props
+                + "restoreTimestamp="
+                + restoreTimestamp
+                + "externalPath="
+                + externalPath
+                + "stateSize="
+                + stateSize
+                + '}';
     }
 }

@@ -104,6 +104,11 @@ public class TestingSplitEnumeratorContext<SplitT extends SourceSplit>
     }
 
     @Override
+    public void sendEventToSourceReader(int subtaskId, int attemptNumber, SourceEvent event) {
+        sendEventToSourceReader(subtaskId, event);
+    }
+
+    @Override
     public int currentParallelism() {
         return parallelism;
     }
@@ -153,6 +158,11 @@ public class TestingSplitEnumeratorContext<SplitT extends SourceSplit>
     @Override
     public void runInCoordinatorThread(Runnable runnable) {
         executor.execute(runnable);
+    }
+
+    @Override
+    public void setIsProcessingBacklog(boolean isProcessingBacklog) {
+        throw new UnsupportedOperationException();
     }
 
     private static <T> Runnable callableWithResultHandler(

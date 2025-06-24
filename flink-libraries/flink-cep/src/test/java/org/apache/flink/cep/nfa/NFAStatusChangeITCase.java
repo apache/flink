@@ -29,12 +29,12 @@ import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.cep.utils.TestSharedBuffer;
 import org.apache.flink.cep.utils.TestTimerService;
-import org.apache.flink.streaming.api.windowing.time.Time;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -66,16 +66,7 @@ public class NFAStatusChangeITCase {
     public void testNFAChange() throws Exception {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            1858562682635302605L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .followedByAny("middle")
                         .where(
                                 new IterativeCondition<Event>() {
@@ -115,7 +106,7 @@ public class NFAStatusChangeITCase {
                                         return value.getName().equals("e");
                                     }
                                 })
-                        .within(Time.milliseconds(10));
+                        .within(Duration.ofMillis(10));
 
         NFA<Event> nfa = compile(pattern, true);
 
@@ -200,7 +191,7 @@ public class NFAStatusChangeITCase {
         // both the queue of ComputationStatus and eventSharedBuffer have not changed
         // as the timestamp is within the window
         nfaState.resetStateChanged();
-        nfa.advanceTime(sharedBufferAccessor, nfaState, 8L);
+        nfa.advanceTime(sharedBufferAccessor, nfaState, 8L, skipStrategy);
         assertFalse(
                 "NFA status should not change as the timestamp is within the window",
                 nfaState.isStateChanged());
@@ -210,7 +201,7 @@ public class NFAStatusChangeITCase {
         // be removed from eventSharedBuffer as the timeout happens
         nfaState.resetStateChanged();
         Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutResults =
-                nfa.advanceTime(sharedBufferAccessor, nfaState, 12L);
+                nfa.advanceTime(sharedBufferAccessor, nfaState, 12L, skipStrategy).f1;
         assertTrue(
                 "NFA status should change as timeout happens",
                 nfaState.isStateChanged() && !timeoutResults.isEmpty());
@@ -220,24 +211,9 @@ public class NFAStatusChangeITCase {
     public void testNFAChangedOnOneNewComputationState() throws Exception {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("start");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("start")))
                         .followedBy("a*")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            1858562682635302605L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("a");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("a")))
                         .oneOrMore()
                         .optional()
                         .next("end")
@@ -252,7 +228,7 @@ public class NFAStatusChangeITCase {
                                         return value.getName().equals("b");
                                     }
                                 })
-                        .within(Time.milliseconds(10));
+                        .within(Duration.ofMillis(10));
 
         NFA<Event> nfa = compile(pattern, true);
 
@@ -302,14 +278,14 @@ public class NFAStatusChangeITCase {
                                         return value.getName().equals("end");
                                     }
                                 })
-                        .within(Time.milliseconds(10));
+                        .within(Duration.ofMillis(10));
 
         NFA<Event> nfa = compile(pattern, true);
 
         NFAState nfaState = nfa.createInitialNFAState();
 
         nfaState.resetStateChanged();
-        nfa.advanceTime(sharedBufferAccessor, nfaState, 6L);
+        nfa.advanceTime(sharedBufferAccessor, nfaState, 6L, skipStrategy);
         nfa.process(
                 sharedBufferAccessor,
                 nfaState,
@@ -319,7 +295,7 @@ public class NFAStatusChangeITCase {
                 timerService);
 
         nfaState.resetStateChanged();
-        nfa.advanceTime(sharedBufferAccessor, nfaState, 17L);
+        nfa.advanceTime(sharedBufferAccessor, nfaState, 17L, skipStrategy);
         assertTrue(nfaState.isStateChanged());
     }
 }

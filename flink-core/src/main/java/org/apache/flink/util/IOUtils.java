@@ -20,6 +20,7 @@ package org.apache.flink.util;
 
 import org.slf4j.Logger;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -217,7 +218,9 @@ public final class IOUtils {
         }
     }
 
-    /** @see #closeAll(Iterable) */
+    /**
+     * @see #closeAll(Iterable)
+     */
     public static void closeAll(AutoCloseable... closeables) throws Exception {
         closeAll(asList(closeables));
     }
@@ -294,6 +297,22 @@ public final class IOUtils {
                 closeable.close();
             }
         } catch (Throwable ignored) {
+        }
+    }
+
+    /** Delete the given directory or file recursively. */
+    public static void deleteFilesRecursively(Path path) throws Exception {
+        File[] files = path.toFile().listFiles();
+        if (files == null || files.length == 0) {
+            return;
+        }
+
+        for (File file : files) {
+            if (!file.isDirectory()) {
+                Files.deleteIfExists(file.toPath());
+            } else {
+                deleteFilesRecursively(file.toPath());
+            }
         }
     }
 

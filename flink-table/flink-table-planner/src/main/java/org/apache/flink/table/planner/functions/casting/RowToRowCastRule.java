@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.functions.casting;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
@@ -159,10 +160,11 @@ class RowToRowCastRule extends AbstractNullAwareCodeGeneratorCastRule<RowData, R
             LogicalType targetLogicalType) {
         final List<LogicalType> inputFields = LogicalTypeChecks.getFieldTypes(inputLogicalType);
         final List<LogicalType> targetFields = LogicalTypeChecks.getFieldTypes(targetLogicalType);
+        CodeGeneratorContext codeGeneratorContext = context.getCodeGeneratorContext();
 
         // Declare the row and row data
-        final String rowTerm = newName("row");
-        final String writerTerm = newName("writer");
+        final String rowTerm = newName(codeGeneratorContext, "row");
+        final String writerTerm = newName(codeGeneratorContext, "writer");
         context.declareClassField(
                 className(BinaryRowData.class),
                 rowTerm,
@@ -180,8 +182,9 @@ class RowToRowCastRule extends AbstractNullAwareCodeGeneratorCastRule<RowData, R
             final LogicalType targetFieldType = targetFields.get(i);
             final String indexTerm = String.valueOf(i);
 
-            final String fieldTerm = newName("f" + indexTerm + "Value");
-            final String fieldIsNullTerm = newName("f" + indexTerm + "IsNull");
+            final String fieldTerm = newName(codeGeneratorContext, "f" + indexTerm + "Value");
+            final String fieldIsNullTerm =
+                    newName(codeGeneratorContext, "f" + indexTerm + "IsNull");
 
             final CastCodeBlock codeBlock =
                     // Null check is done at the row access level
@@ -221,7 +224,8 @@ class RowToRowCastRule extends AbstractNullAwareCodeGeneratorCastRule<RowData, R
                                     elseBodyWriter.stmt(writeNull));
         }
 
-        writer.stmt(methodCall(writerTerm, "complete")).assignStmt(returnVariable, rowTerm);
+        writer.stmt(methodCall(writerTerm, "complete"))
+                .assignStmt(returnVariable, methodCall(rowTerm, "copy"));
         return writer.toString();
     }
 

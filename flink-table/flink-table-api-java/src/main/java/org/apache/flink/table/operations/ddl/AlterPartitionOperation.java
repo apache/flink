@@ -18,19 +18,21 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 /**
  * Abstract Operation to describe all ALTER TABLE statements that should be applied to partitions.
  */
+@Internal
 public abstract class AlterPartitionOperation extends AlterTableOperation {
 
     protected final CatalogPartitionSpec partitionSpec;
 
     public AlterPartitionOperation(
             ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
-        super(tableIdentifier);
+        super(tableIdentifier, false);
         this.partitionSpec = partitionSpec;
     }
 

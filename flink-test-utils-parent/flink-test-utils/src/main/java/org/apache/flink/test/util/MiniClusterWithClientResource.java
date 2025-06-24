@@ -26,16 +26,13 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.ExceptionUtils;
 
-/**
- * Starts a Flink mini cluster as a resource and registers the respective ExecutionEnvironment and
- * StreamExecutionEnvironment.
- */
+/** Starts a Flink mini cluster as a resource and registers the StreamExecutionEnvironment. */
 public class MiniClusterWithClientResource extends MiniClusterResource {
 
     private ClusterClient<?> clusterClient;
     private RestClusterClient<MiniClusterClient.MiniClusterId> restClusterClient;
 
-    private TestEnvironment executionEnvironment;
+    private TestStreamEnvironment streamExecutionEnvironment;
 
     public MiniClusterWithClientResource(
             final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
@@ -55,8 +52,8 @@ public class MiniClusterWithClientResource extends MiniClusterResource {
         return restClusterClient;
     }
 
-    public TestEnvironment getTestEnvironment() {
-        return executionEnvironment;
+    public TestStreamEnvironment getTestStreamEnvironment() {
+        return streamExecutionEnvironment;
     }
 
     @Override
@@ -66,16 +63,14 @@ public class MiniClusterWithClientResource extends MiniClusterResource {
         clusterClient = createMiniClusterClient();
         restClusterClient = createRestClusterClient();
 
-        executionEnvironment = new TestEnvironment(getMiniCluster(), getNumberSlots(), false);
-        executionEnvironment.setAsContext();
         TestStreamEnvironment.setAsContext(getMiniCluster(), getNumberSlots());
+        streamExecutionEnvironment = new TestStreamEnvironment(getMiniCluster(), getNumberSlots());
     }
 
     @Override
     public void after() {
         log.info("Finalization triggered: Cluster shutdown is going to be initiated.");
         TestStreamEnvironment.unsetAsContext();
-        TestEnvironment.unsetAsContext();
 
         Exception exception = null;
 

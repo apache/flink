@@ -20,62 +20,61 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
 
-import org.junit.Test;
-
-import javax.annotation.Nullable;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 import java.util.ArrayList;
 
 import static org.apache.flink.core.memory.MemorySegmentFactory.allocateUnpooledSegment;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.assertContent;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createEmptyBufferBuilder;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.toByteBuffer;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link BufferBuilder}. */
-public class BufferBuilderAndConsumerTest {
+class BufferBuilderAndConsumerTest {
     private static final int BUFFER_INT_SIZE = 10;
     private static final int BUFFER_SIZE = BUFFER_INT_SIZE * Integer.BYTES;
 
     @Test
-    public void referenceCounting() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
+    void referenceCounting() {
+        BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
         BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 
-        assertEquals(3 * Integer.BYTES, bufferBuilder.appendAndCommit(toByteBuffer(1, 2, 3)));
+        assertThat(bufferBuilder.appendAndCommit(toByteBuffer(1, 2, 3)))
+                .isEqualTo(3 * Integer.BYTES);
 
         bufferBuilder.close();
 
         Buffer buffer = bufferConsumer.build();
-        assertFalse(buffer.isRecycled());
+        assertThat(buffer.isRecycled()).isFalse();
         buffer.recycleBuffer();
-        assertFalse(buffer.isRecycled());
+        assertThat(buffer.isRecycled()).isFalse();
         bufferConsumer.close();
-        assertTrue(buffer.isRecycled());
+        assertThat(buffer.isRecycled()).isTrue();
     }
 
     @Test
-    public void append() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
+    void append() {
+        BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
         BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 
         int[] intsToWrite = new int[] {0, 1, 2, 3, 42};
         ByteBuffer bytesToWrite = toByteBuffer(intsToWrite);
 
-        assertEquals(bytesToWrite.limit(), bufferBuilder.appendAndCommit(bytesToWrite));
+        assertThat(bufferBuilder.appendAndCommit(bytesToWrite)).isEqualTo(bytesToWrite.limit());
 
-        assertEquals(bytesToWrite.limit(), bytesToWrite.position());
-        assertFalse(bufferBuilder.isFull());
+        assertThat(bytesToWrite.position()).isEqualTo(bytesToWrite.limit());
+        assertThat(bufferBuilder.isFull()).isFalse();
 
         assertContent(bufferConsumer, intsToWrite);
     }
 
     @Test
-    public void multipleAppends() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
+    void multipleAppends() {
+        BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
         BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 
         bufferBuilder.appendAndCommit(toByteBuffer(0, 1));
@@ -86,8 +85,8 @@ public class BufferBuilderAndConsumerTest {
     }
 
     @Test
-    public void multipleNotCommittedAppends() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
+    void multipleNotCommittedAppends() {
+        BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
         BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 
         bufferBuilder.append(toByteBuffer(0, 1));
@@ -102,34 +101,35 @@ public class BufferBuilderAndConsumerTest {
     }
 
     @Test
-    public void appendOverSize() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
+    void appendOverSize() {
+        BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
         BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
         ByteBuffer bytesToWrite = toByteBuffer(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 42);
 
-        assertEquals(BUFFER_SIZE, bufferBuilder.appendAndCommit(bytesToWrite));
+        assertThat(bufferBuilder.appendAndCommit(bytesToWrite)).isEqualTo(BUFFER_SIZE);
 
-        assertTrue(bufferBuilder.isFull());
+        assertThat(bufferBuilder.isFull()).isTrue();
         assertContent(bufferConsumer, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 
-        bufferBuilder = createBufferBuilder();
+        bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
         bufferConsumer = bufferBuilder.createBufferConsumer();
-        assertEquals(Integer.BYTES, bufferBuilder.appendAndCommit(bytesToWrite));
+        assertThat(bufferBuilder.appendAndCommit(bytesToWrite)).isEqualTo(Integer.BYTES);
 
-        assertFalse(bufferBuilder.isFull());
+        assertThat(bufferBuilder.isFull()).isFalse();
         assertContent(bufferConsumer, 42);
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void creatingBufferConsumerTwice() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
+    @Test
+    void creatingBufferConsumerTwice() {
+        BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
         bufferBuilder.createBufferConsumer();
-        bufferBuilder.createBufferConsumer();
+        assertThatThrownBy(bufferBuilder::createBufferConsumer)
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void copy() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
+    void copy() {
+        BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
         BufferConsumer bufferConsumer1 = bufferBuilder.createBufferConsumer();
 
         bufferBuilder.appendAndCommit(toByteBuffer(0, 1));
@@ -154,17 +154,17 @@ public class BufferBuilderAndConsumerTest {
     }
 
     @Test
-    public void buildEmptyBuffer() {
-        try (BufferBuilder bufferBuilder = createBufferBuilder()) {
+    void buildEmptyBuffer() {
+        try (BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE)) {
             Buffer buffer = buildSingleBuffer(bufferBuilder);
-            assertEquals(0, buffer.getSize());
+            assertThat(buffer.getSize()).isZero();
             assertContent(buffer, FreeingBufferRecycler.INSTANCE);
         }
     }
 
     @Test
-    public void buildingBufferMultipleTimes() {
-        try (BufferBuilder bufferBuilder = createBufferBuilder()) {
+    void buildingBufferMultipleTimes() {
+        try (BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE)) {
             try (BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer()) {
                 bufferBuilder.appendAndCommit(toByteBuffer(0, 1));
                 bufferBuilder.appendAndCommit(toByteBuffer(2));
@@ -190,45 +190,43 @@ public class BufferBuilderAndConsumerTest {
     }
 
     @Test
-    public void emptyIsFinished() {
+    void emptyIsFinished() {
         testIsFinished(0);
     }
 
     @Test
-    public void partiallyFullIsFinished() {
+    void partiallyFullIsFinished() {
         testIsFinished(BUFFER_INT_SIZE / 2);
     }
 
     @Test
-    public void fullIsFinished() {
+    void fullIsFinished() {
         testIsFinished(BUFFER_INT_SIZE);
     }
 
     @Test
-    public void testWritableBytes() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
-        assertEquals(bufferBuilder.getMaxCapacity(), bufferBuilder.getWritableBytes());
+    void testWritableBytes() {
+        BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
+        assertThat(bufferBuilder.getWritableBytes()).isEqualTo(bufferBuilder.getMaxCapacity());
 
         ByteBuffer byteBuffer = toByteBuffer(1, 2, 3);
         bufferBuilder.append(byteBuffer);
-        assertEquals(
-                bufferBuilder.getMaxCapacity() - byteBuffer.position(),
-                bufferBuilder.getWritableBytes());
+        assertThat(bufferBuilder.getWritableBytes())
+                .isEqualTo(bufferBuilder.getMaxCapacity() - byteBuffer.position());
 
-        assertEquals(
-                bufferBuilder.getMaxCapacity() - byteBuffer.position(),
-                bufferBuilder.getWritableBytes());
+        assertThat(bufferBuilder.getWritableBytes())
+                .isEqualTo(bufferBuilder.getMaxCapacity() - byteBuffer.position());
     }
 
     @Test
-    public void testWritableBytesWhenFull() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
+    void testWritableBytesWhenFull() {
+        BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
         bufferBuilder.append(toByteBuffer(new int[bufferBuilder.getMaxCapacity()]));
-        assertEquals(0, bufferBuilder.getWritableBytes());
+        assertThat(bufferBuilder.getWritableBytes()).isZero();
     }
 
     @Test
-    public void recycleWithoutConsumer() {
+    void recycleWithoutConsumer() {
         // given: Recycler with the counter of recycle invocation.
         CountedRecycler recycler = new CountedRecycler();
         BufferBuilder bufferBuilder =
@@ -238,11 +236,11 @@ public class BufferBuilderAndConsumerTest {
         bufferBuilder.close();
 
         // then: Recycling successfully finished.
-        assertEquals(1, recycler.recycleInvocationCounter);
+        assertThat(recycler.recycleInvocationCounter).isOne();
     }
 
     @Test
-    public void recycleConsumerAndBufferBuilder() {
+    void recycleConsumerAndBufferBuilder() {
         // given: Recycler with the counter of recycling invocation.
         CountedRecycler recycler = new CountedRecycler();
         BufferBuilder bufferBuilder =
@@ -255,121 +253,89 @@ public class BufferBuilderAndConsumerTest {
         bufferBuilder.close();
 
         // then: Nothing happened because BufferBuilder has already consumer.
-        assertEquals(0, recycler.recycleInvocationCounter);
+        assertThat(recycler.recycleInvocationCounter).isZero();
 
         // when: Close the consumer.
         bufferConsumer.close();
 
         // then: Recycling successfully finished.
-        assertEquals(1, recycler.recycleInvocationCounter);
+        assertThat(recycler.recycleInvocationCounter).isOne();
     }
 
     @Test
-    public void trimToAvailableSize() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
-        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
+    void trimToAvailableSize() {
+        BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
+        assertThat(bufferBuilder.getMaxCapacity()).isEqualTo(BUFFER_SIZE);
 
         bufferBuilder.trim(BUFFER_SIZE / 2);
-        assertEquals(BUFFER_SIZE / 2, bufferBuilder.getMaxCapacity());
+        assertThat(bufferBuilder.getMaxCapacity()).isEqualTo(BUFFER_SIZE / 2);
 
         bufferBuilder.trim(0);
-        assertEquals(0, bufferBuilder.getMaxCapacity());
+        assertThat(bufferBuilder.getMaxCapacity()).isZero();
     }
 
     @Test
-    public void trimToNegativeSize() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
-        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
+    void trimToNegativeSize() {
+        BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
+        assertThat(bufferBuilder.getMaxCapacity()).isEqualTo(BUFFER_SIZE);
 
         bufferBuilder.trim(-1);
-        assertEquals(0, bufferBuilder.getMaxCapacity());
+        assertThat(bufferBuilder.getMaxCapacity()).isZero();
     }
 
     @Test
-    public void trimToSizeLessThanWritten() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
-        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
+    void trimToSizeLessThanWritten() {
+        BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
+        assertThat(bufferBuilder.getMaxCapacity()).isEqualTo(BUFFER_SIZE);
 
         bufferBuilder.append(toByteBuffer(1, 2, 3));
 
         bufferBuilder.trim(4);
         // Should be minimum possible size = 3 * int == 12.
-        assertEquals(12, bufferBuilder.getMaxCapacity());
+        assertThat(bufferBuilder.getMaxCapacity()).isEqualTo(12);
     }
 
     @Test
-    public void trimToSizeGreaterThanMax() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
-        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
+    void trimToSizeGreaterThanMax() {
+        BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
+        assertThat(bufferBuilder.getMaxCapacity()).isEqualTo(BUFFER_SIZE);
 
         bufferBuilder.trim(BUFFER_SIZE + 1);
-        assertEquals(BUFFER_SIZE, bufferBuilder.getMaxCapacity());
+        assertThat(bufferBuilder.getMaxCapacity()).isEqualTo(BUFFER_SIZE);
     }
 
     private static void testIsFinished(int writes) {
-        BufferBuilder bufferBuilder = createBufferBuilder();
+        BufferBuilder bufferBuilder = createEmptyBufferBuilder(BUFFER_SIZE);
         BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 
         for (int i = 0; i < writes; i++) {
-            assertEquals(Integer.BYTES, bufferBuilder.appendAndCommit(toByteBuffer(42)));
+            assertThat(bufferBuilder.appendAndCommit(toByteBuffer(42))).isEqualTo(Integer.BYTES);
         }
         int expectedWrittenBytes = writes * Integer.BYTES;
 
-        assertFalse(bufferBuilder.isFinished());
-        assertFalse(bufferConsumer.isFinished());
-        assertEquals(0, bufferConsumer.getWrittenBytes());
+        assertThat(bufferBuilder.isFinished()).isFalse();
+        assertThat(bufferConsumer.isFinished()).isFalse();
+        assertThat(bufferConsumer.getWrittenBytes()).isZero();
 
         bufferConsumer.build();
-        assertFalse(bufferBuilder.isFinished());
-        assertFalse(bufferConsumer.isFinished());
-        assertEquals(expectedWrittenBytes, bufferConsumer.getWrittenBytes());
+        assertThat(bufferBuilder.isFinished()).isFalse();
+        assertThat(bufferConsumer.isFinished()).isFalse();
+        assertThat(bufferConsumer.getWrittenBytes()).isEqualTo(expectedWrittenBytes);
 
         int actualWrittenBytes = bufferBuilder.finish();
-        assertEquals(expectedWrittenBytes, actualWrittenBytes);
-        assertTrue(bufferBuilder.isFinished());
-        assertFalse(bufferConsumer.isFinished());
-        assertEquals(expectedWrittenBytes, bufferConsumer.getWrittenBytes());
+        assertThat(actualWrittenBytes).isEqualTo(expectedWrittenBytes);
+        assertThat(bufferBuilder.isFinished()).isTrue();
+        assertThat(bufferConsumer.isFinished()).isFalse();
+        assertThat(bufferConsumer.getWrittenBytes()).isEqualTo(expectedWrittenBytes);
 
         actualWrittenBytes = bufferBuilder.finish();
-        assertEquals(expectedWrittenBytes, actualWrittenBytes);
-        assertTrue(bufferBuilder.isFinished());
-        assertFalse(bufferConsumer.isFinished());
-        assertEquals(expectedWrittenBytes, bufferConsumer.getWrittenBytes());
+        assertThat(actualWrittenBytes).isEqualTo(expectedWrittenBytes);
+        assertThat(bufferBuilder.isFinished()).isTrue();
+        assertThat(bufferConsumer.isFinished()).isFalse();
+        assertThat(bufferConsumer.getWrittenBytes()).isEqualTo(expectedWrittenBytes);
 
-        assertEquals(0, bufferConsumer.build().getSize());
-        assertTrue(bufferConsumer.isFinished());
-    }
-
-    public static ByteBuffer toByteBuffer(int... data) {
-        ByteBuffer byteBuffer = ByteBuffer.allocate(data.length * Integer.BYTES);
-        byteBuffer.asIntBuffer().put(data);
-        return byteBuffer;
-    }
-
-    private static void assertContent(BufferConsumer actualConsumer, int... expected) {
-        assertFalse(actualConsumer.isFinished());
-        Buffer buffer = actualConsumer.build();
-        assertFalse(buffer.isRecycled());
-        assertContent(buffer, FreeingBufferRecycler.INSTANCE, expected);
-        assertEquals(expected.length * Integer.BYTES, buffer.getSize());
-        buffer.recycleBuffer();
-    }
-
-    public static void assertContent(
-            Buffer actualBuffer, @Nullable BufferRecycler recycler, int... expected) {
-        IntBuffer actualIntBuffer = actualBuffer.getNioBufferReadable().asIntBuffer();
-        int[] actual = new int[actualIntBuffer.limit()];
-        actualIntBuffer.get(actual);
-        assertArrayEquals(expected, actual);
-
-        if (recycler != null) {
-            assertEquals(recycler, actualBuffer.getRecycler());
-        }
-    }
-
-    private static BufferBuilder createBufferBuilder() {
-        return new BufferBuilder(
-                allocateUnpooledSegment(BUFFER_SIZE), FreeingBufferRecycler.INSTANCE);
+        assertThat(bufferConsumer.build().getSize()).isZero();
+        assertThat(bufferBuilder.isFinished()).isTrue();
     }
 
     private static class CountedRecycler implements BufferRecycler {

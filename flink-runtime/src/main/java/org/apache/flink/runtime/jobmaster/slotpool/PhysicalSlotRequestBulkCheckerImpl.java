@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -28,10 +27,12 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.util.clock.Clock;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -64,7 +65,7 @@ public class PhysicalSlotRequestBulkCheckerImpl implements PhysicalSlotRequestBu
 
     @Override
     public void schedulePendingRequestBulkTimeoutCheck(
-            final PhysicalSlotRequestBulk bulk, Time timeout) {
+            final PhysicalSlotRequestBulk bulk, Duration timeout) {
         PhysicalSlotRequestBulkWithTimestamp bulkWithTimestamp =
                 new PhysicalSlotRequestBulkWithTimestamp(bulk);
         bulkWithTimestamp.markUnfulfillable(clock.relativeTimeMillis());
@@ -72,7 +73,7 @@ public class PhysicalSlotRequestBulkCheckerImpl implements PhysicalSlotRequestBu
     }
 
     private void schedulePendingRequestBulkWithTimestampCheck(
-            final PhysicalSlotRequestBulkWithTimestamp bulk, final Time timeout) {
+            final PhysicalSlotRequestBulkWithTimestamp bulk, final Duration timeout) {
         componentMainThreadExecutor.schedule(
                 () -> {
                     TimeoutCheckResult result = checkPhysicalSlotRequestBulkTimeout(bulk, timeout);
@@ -96,8 +97,8 @@ public class PhysicalSlotRequestBulkCheckerImpl implements PhysicalSlotRequestBu
                             break;
                     }
                 },
-                timeout.getSize(),
-                timeout.getUnit());
+                timeout.toMillis(),
+                TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -111,7 +112,7 @@ public class PhysicalSlotRequestBulkCheckerImpl implements PhysicalSlotRequestBu
     @VisibleForTesting
     TimeoutCheckResult checkPhysicalSlotRequestBulkTimeout(
             final PhysicalSlotRequestBulkWithTimestamp slotRequestBulk,
-            final Time slotRequestTimeout) {
+            final Duration slotRequestTimeout) {
 
         if (slotRequestBulk.getPendingRequests().isEmpty()) {
             return TimeoutCheckResult.FULFILLED;
@@ -126,7 +127,7 @@ public class PhysicalSlotRequestBulkCheckerImpl implements PhysicalSlotRequestBu
             slotRequestBulk.markUnfulfillable(currentTimestamp);
 
             final long unfulfillableSince = slotRequestBulk.getUnfulfillableSince();
-            if (unfulfillableSince + slotRequestTimeout.toMilliseconds() <= currentTimestamp) {
+            if (unfulfillableSince + slotRequestTimeout.toMillis() <= currentTimestamp) {
                 return TimeoutCheckResult.TIMEOUT;
             }
         }
@@ -200,7 +201,7 @@ public class PhysicalSlotRequestBulkCheckerImpl implements PhysicalSlotRequestBu
 
     private static Set<SlotInfo> getAllSlotInfos(SlotPool slotPool) {
         return Stream.concat(
-                        slotPool.getAvailableSlotsInformation().stream(),
+                        slotPool.getFreeSlotTracker().getFreeSlotsInformation().stream(),
                         slotPool.getAllocatedSlotsInformation().stream())
                 .collect(Collectors.toSet());
     }

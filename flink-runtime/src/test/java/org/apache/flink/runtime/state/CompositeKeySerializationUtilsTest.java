@@ -27,25 +27,28 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for guarding {@link CompositeKeySerializationUtils}. */
-public class CompositeKeySerializationUtilsTest {
+class CompositeKeySerializationUtilsTest {
 
     @Test
-    public void testIsAmbiguousKeyPossible() {
-        Assert.assertFalse(
-                CompositeKeySerializationUtils.isAmbiguousKeyPossible(
-                        IntSerializer.INSTANCE, StringSerializer.INSTANCE));
+    void testIsAmbiguousKeyPossible() {
+        assertThat(
+                        CompositeKeySerializationUtils.isAmbiguousKeyPossible(
+                                IntSerializer.INSTANCE, IntSerializer.INSTANCE))
+                .isFalse();
 
-        Assert.assertTrue(
-                CompositeKeySerializationUtils.isAmbiguousKeyPossible(
-                        StringSerializer.INSTANCE, StringSerializer.INSTANCE));
+        assertThat(
+                        CompositeKeySerializationUtils.isAmbiguousKeyPossible(
+                                StringSerializer.INSTANCE, StringSerializer.INSTANCE))
+                .isTrue();
     }
 
     @Test
-    public void testKeyGroupSerializationAndDeserialization() throws Exception {
+    void testKeyGroupSerializationAndDeserialization() throws Exception {
         ByteArrayOutputStreamWithPos outputStream = new ByteArrayOutputStreamWithPos(8);
         DataOutputView outputView = new DataOutputViewStreamWrapper(outputStream);
 
@@ -60,13 +63,13 @@ public class CompositeKeySerializationUtilsTest {
                                 new DataInputViewStreamWrapper(
                                         new ByteArrayInputStreamWithPos(
                                                 outputStream.toByteArray())));
-                Assert.assertEquals(orgKeyGroup, deserializedKeyGroup);
+                assertThat(deserializedKeyGroup).isEqualTo(orgKeyGroup);
             }
         }
     }
 
     @Test
-    public void testKeySerializationAndDeserialization() throws Exception {
+    void testKeySerializationAndDeserialization() throws Exception {
         final DataOutputSerializer outputView = new DataOutputSerializer(8);
         final DataInputDeserializer inputView = new DataInputDeserializer();
 
@@ -79,19 +82,19 @@ public class CompositeKeySerializationUtilsTest {
             int deserializedKey =
                     CompositeKeySerializationUtils.readKey(
                             IntSerializer.INSTANCE, inputView, false);
-            Assert.assertEquals(orgKey, deserializedKey);
+            assertThat(deserializedKey).isEqualTo(orgKey);
 
             CompositeKeySerializationUtils.writeKey(
                     orgKey, IntSerializer.INSTANCE, outputView, true);
             inputView.setBuffer(outputView.getCopyOfBuffer());
             deserializedKey =
                     CompositeKeySerializationUtils.readKey(IntSerializer.INSTANCE, inputView, true);
-            Assert.assertEquals(orgKey, deserializedKey);
+            assertThat(deserializedKey).isEqualTo(orgKey);
         }
     }
 
     @Test
-    public void testNamespaceSerializationAndDeserialization() throws Exception {
+    void testNamespaceSerializationAndDeserialization() throws Exception {
         final DataOutputSerializer outputView = new DataOutputSerializer(8);
         final DataInputDeserializer inputView = new DataInputDeserializer();
 
@@ -103,7 +106,7 @@ public class CompositeKeySerializationUtilsTest {
             int deserializedNamepsace =
                     CompositeKeySerializationUtils.readNamespace(
                             IntSerializer.INSTANCE, inputView, false);
-            Assert.assertEquals(orgNamespace, deserializedNamepsace);
+            assertThat(deserializedNamepsace).isEqualTo(orgNamespace);
 
             CompositeKeySerializationUtils.writeNameSpace(
                     orgNamespace, IntSerializer.INSTANCE, outputView, true);
@@ -111,7 +114,7 @@ public class CompositeKeySerializationUtilsTest {
             deserializedNamepsace =
                     CompositeKeySerializationUtils.readNamespace(
                             IntSerializer.INSTANCE, inputView, true);
-            Assert.assertEquals(orgNamespace, deserializedNamepsace);
+            assertThat(deserializedNamepsace).isEqualTo(orgNamespace);
         }
     }
 }

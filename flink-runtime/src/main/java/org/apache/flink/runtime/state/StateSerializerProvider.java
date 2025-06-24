@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializerSnapshotWrapper;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -214,9 +216,9 @@ public abstract class StateSerializerProvider<T> {
      * <ul>
      *   <li>{@link TypeSerializerSchemaCompatibility#isCompatibleAsIs()}: nothing needs to be done.
      *       {@link #currentSchemaSerializer()} now returns the newly registered serializer.
-     *   <li>{@link TypeSerializerSchemaCompatibility#isCompatibleAfterMigration()} ()}: state needs
-     *       to be migrated before the serializer returned by {@link #currentSchemaSerializer()} can
-     *       be used. The migration should be performed by reading the state with {@link
+     *   <li>{@link TypeSerializerSchemaCompatibility#isCompatibleAfterMigration()}: state needs to
+     *       be migrated before the serializer returned by {@link #currentSchemaSerializer()} can be
+     *       used. The migration should be performed by reading the state with {@link
      *       #previousSchemaSerializer()}, and then writing it again with {@link
      *       #currentSchemaSerializer()}.
      *   <li>{@link TypeSerializerSchemaCompatibility#isIncompatible()}: the registered serializer
@@ -247,9 +249,9 @@ public abstract class StateSerializerProvider<T> {
      *   <li>{@link TypeSerializerSchemaCompatibility#isCompatibleAsIs()}: nothing needs to be done.
      *       {@link #currentSchemaSerializer()} remains to return the initially registered
      *       serializer.
-     *   <li>{@link TypeSerializerSchemaCompatibility#isCompatibleAfterMigration()} ()}: state needs
-     *       to be migrated before the serializer returned by {@link #currentSchemaSerializer()} can
-     *       be used. The migration should be performed by reading the state with {@link
+     *   <li>{@link TypeSerializerSchemaCompatibility#isCompatibleAfterMigration()}: state needs to
+     *       be migrated before the serializer returned by {@link #currentSchemaSerializer()} can be
+     *       used. The migration should be performed by reading the state with {@link
      *       #previousSchemaSerializer()}, and then writing it again with {@link
      *       #currentSchemaSerializer()}.
      *   <li>{@link TypeSerializerSchemaCompatibility#isIncompatible()}: the registered serializer
@@ -294,7 +296,7 @@ public abstract class StateSerializerProvider<T> {
 
         @Nonnull
         @Override
-        @SuppressWarnings("ConstantConditions")
+        @SuppressWarnings({"ConstantConditions", "unchecked", "rawtypes"})
         public TypeSerializerSchemaCompatibility<T> registerNewSerializerForRestoredState(
                 TypeSerializer<T> newSerializer) {
             checkNotNull(newSerializer);
@@ -303,8 +305,14 @@ public abstract class StateSerializerProvider<T> {
                         "A serializer has already been registered for the state; re-registration is not allowed.");
             }
 
+            // Use wrapped ttl serializer for compatibility check
             TypeSerializerSchemaCompatibility<T> result =
-                    previousSerializerSnapshot.resolveSchemaCompatibility(newSerializer);
+                    TtlAwareSerializer.wrapTtlAwareSerializer(newSerializer)
+                            .snapshotConfiguration()
+                            .resolveSchemaCompatibility(
+                                    new TtlAwareSerializerSnapshotWrapper(
+                                                    previousSerializerSnapshot)
+                                            .getTtlAwareSerializerSnapshot());
             if (result.isIncompatible()) {
                 invalidateCurrentSchemaSerializerAccess();
             }
@@ -347,6 +355,7 @@ public abstract class StateSerializerProvider<T> {
 
         @Nonnull
         @Override
+        @SuppressWarnings({"unchecked", "rawtypes"})
         public TypeSerializerSchemaCompatibility<T> setPreviousSerializerSnapshotForRestoredState(
                 TypeSerializerSnapshot<T> previousSerializerSnapshot) {
             checkNotNull(previousSerializerSnapshot);
@@ -357,8 +366,15 @@ public abstract class StateSerializerProvider<T> {
 
             this.previousSerializerSnapshot = previousSerializerSnapshot;
 
+            // Use wrapped ttl serializer for compatibility check
             TypeSerializerSchemaCompatibility<T> result =
-                    previousSerializerSnapshot.resolveSchemaCompatibility(registeredSerializer);
+                    TtlAwareSerializer.wrapTtlAwareSerializer(
+                                    Preconditions.checkNotNull(registeredSerializer))
+                            .snapshotConfiguration()
+                            .resolveSchemaCompatibility(
+                                    new TtlAwareSerializerSnapshotWrapper(
+                                                    previousSerializerSnapshot)
+                                            .getTtlAwareSerializerSnapshot());
             if (result.isIncompatible()) {
                 invalidateCurrentSchemaSerializerAccess();
             }

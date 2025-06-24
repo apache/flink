@@ -20,6 +20,9 @@ package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Budget manager for {@link ResourceProfile}.
  *
@@ -29,6 +32,8 @@ import org.apache.flink.util.Preconditions;
  * <p>Both the total budget and the reservations are in the form of {@link ResourceProfile}.
  */
 public class ResourceBudgetManager {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ResourceBudgetManager.class);
 
     private final ResourceProfile totalBudget;
 
@@ -55,6 +60,7 @@ public class ResourceBudgetManager {
         }
 
         availableBudget = availableBudget.subtract(reservation);
+        LOG.debug("Resource budget reduced to {}.", availableBudget);
         return true;
     }
 
@@ -66,6 +72,7 @@ public class ResourceBudgetManager {
         }
 
         availableBudget = newAvailableBudget;
+        LOG.debug("Resource budget increased to {}.", availableBudget);
         return true;
     }
 

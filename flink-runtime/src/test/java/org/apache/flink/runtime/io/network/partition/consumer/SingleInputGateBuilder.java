@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
-import org.apache.flink.runtime.deployment.SubpartitionIndexRange;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -29,6 +28,8 @@ import org.apache.flink.runtime.io.network.buffer.NoOpBufferPool;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerClient;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
@@ -56,7 +57,7 @@ public class SingleInputGateBuilder {
 
     private ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
 
-    private SubpartitionIndexRange subpartitionIndexRange = new SubpartitionIndexRange(0, 0);
+    private ResultSubpartitionIndexSet subpartitionIndexSet = new ResultSubpartitionIndexSet(0);
 
     private int gateIndex = 0;
 
@@ -80,6 +81,8 @@ public class SingleInputGateBuilder {
     private Function<BufferDebloatConfiguration, ThroughputCalculator> createThroughputCalculator =
             config -> new ThroughputCalculator(SystemClock.getInstance());
 
+    private TieredStorageConsumerClient tieredStorageConsumerClient = null;
+
     public SingleInputGateBuilder setPartitionProducerStateProvider(
             PartitionProducerStateProvider partitionProducerStateProvider) {
 
@@ -92,9 +95,9 @@ public class SingleInputGateBuilder {
         return this;
     }
 
-    public SingleInputGateBuilder setSubpartitionIndexRange(
-            SubpartitionIndexRange subpartitionIndexRange) {
-        this.subpartitionIndexRange = subpartitionIndexRange;
+    public SingleInputGateBuilder setSubpartitionIndexSet(
+            ResultSubpartitionIndexSet subpartitionIndexSet) {
+        this.subpartitionIndexSet = subpartitionIndexSet;
         return this;
     }
 
@@ -112,7 +115,9 @@ public class SingleInputGateBuilder {
         NettyShuffleEnvironmentConfiguration config = environment.getConfiguration();
         this.bufferPoolFactory =
                 SingleInputGateFactory.createBufferPoolFactory(
-                        environment.getNetworkBufferPool(), config.floatingNetworkBuffersPerGate());
+                        environment.getNetworkBufferPool(),
+                        1,
+                        config.floatingNetworkBuffersPerGate());
         this.segmentProvider = environment.getNetworkBufferPool();
         return this;
     }
@@ -156,6 +161,12 @@ public class SingleInputGateBuilder {
         return this;
     }
 
+    public SingleInputGateBuilder setTieredStorageConsumerClient(
+            TieredStorageConsumerClient tieredStorageConsumerClient) {
+        this.tieredStorageConsumerClient = tieredStorageConsumerClient;
+        return this;
+    }
+
     public SingleInputGate build() {
         SingleInputGate gate =
                 new SingleInputGate(
@@ -163,7 +174,6 @@ public class SingleInputGateBuilder {
                         gateIndex,
                         intermediateDataSetID,
                         partitionType,
-                        subpartitionIndexRange,
                         numberOfChannels,
                         partitionProducerStateProvider,
                         bufferPoolFactory,
@@ -184,6 +194,7 @@ public class SingleInputGateBuilder {
                                                     gate))
                             .toArray(InputChannel[]::new));
         }
+        gate.setTieredStorageService(null, tieredStorageConsumerClient, null);
         return gate;
     }
 
@@ -192,7 +203,7 @@ public class SingleInputGateBuilder {
             return new BufferDebloater(
                     "Unknown task name in test",
                     gateIndex,
-                    bufferDebloatConfiguration.getTargetTotalBufferSize().toMillis(),
+                    bufferDebloatConfiguration.getTargetTotalTime().toMillis(),
                     bufferDebloatConfiguration.getMaxBufferSize(),
                     bufferDebloatConfiguration.getMinBufferSize(),
                     bufferDebloatConfiguration.getBufferDebloatThresholdPercentages(),

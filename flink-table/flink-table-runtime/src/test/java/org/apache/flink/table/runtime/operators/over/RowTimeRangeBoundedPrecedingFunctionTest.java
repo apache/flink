@@ -25,16 +25,16 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link RowTimeRangeBoundedPrecedingFunction}. */
-public class RowTimeRangeBoundedPrecedingFunctionTest extends RowTimeOverWindowTestBase {
+class RowTimeRangeBoundedPrecedingFunctionTest extends RowTimeOverWindowTestBase {
 
     @Test
-    public void testStateCleanup() throws Exception {
+    void testStateCleanup() throws Exception {
         RowTimeRangeBoundedPrecedingFunction<RowData> function =
                 new RowTimeRangeBoundedPrecedingFunction<>(
                         aggsHandleFunction, accTypes, inputFieldTypes, 2000, 2);
@@ -70,7 +70,7 @@ public class RowTimeRangeBoundedPrecedingFunctionTest extends RowTimeOverWindowT
     }
 
     @Test
-    public void testLateRecordMetrics() throws Exception {
+    void testLateRecordMetrics() throws Exception {
         RowTimeRangeBoundedPrecedingFunction<RowData> function =
                 new RowTimeRangeBoundedPrecedingFunction<>(
                         aggsHandleFunction, accTypes, inputFieldTypes, 2000, 2);

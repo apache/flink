@@ -24,6 +24,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeType;
 
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.core.AggregateCall;
@@ -61,7 +62,8 @@ final class AggregateCallJsonDeserializer extends StdDeserializer<AggregateCall>
         final JsonNode jsonNode = jsonParser.readValueAsTree();
         final SerdeContext serdeContext = SerdeContext.get(ctx);
 
-        final String name = jsonNode.required(FIELD_NAME_NAME).asText();
+        JsonNode nameNode = jsonNode.required(FIELD_NAME_NAME);
+        final String name = nameNode.getNodeType() == JsonNodeType.NULL ? null : nameNode.asText();
         final SqlAggFunction aggFunction =
                 (SqlAggFunction)
                         RexNodeJsonDeserializer.deserializeSqlOperator(jsonNode, serdeContext);
@@ -85,6 +87,7 @@ final class AggregateCallJsonDeserializer extends StdDeserializer<AggregateCall>
                 ignoreNulls,
                 argList,
                 filterArg,
+                null,
                 RelCollations.EMPTY,
                 relDataType,
                 name);

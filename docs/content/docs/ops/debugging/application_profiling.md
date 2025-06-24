@@ -31,7 +31,7 @@ under the License.
 
 Each standalone JobManager, TaskManager, HistoryServer, and ZooKeeper daemon redirects `stdout` and `stderr` to a file
 with a `.out` filename suffix and writes internal logging to a file with a `.log` suffix. Java options configured by the
-user in `env.java.opts`, `env.java.opts.jobmanager`, `env.java.opts.taskmanager`, `env.java.opts.historyserver` and 
+user in `env.java.opts.all`, `env.java.opts.jobmanager`, `env.java.opts.taskmanager`, `env.java.opts.historyserver` and 
 `env.java.opts.client` can likewise define log files with
 use of the script variable `FLINK_LOG_PREFIX` and by enclosing the options in double quotes for late evaluation. Log files
 using `FLINK_LOG_PREFIX` are rotated along with the default `.out` and `.log` files.
@@ -44,7 +44,7 @@ is an advanced set of tools that enables efficient and detailed analysis of the 
 Flight Recorder. Example configuration:
 
 ```yaml
-env.java.opts: "-XX:+UnlockCommercialFeatures -XX:+UnlockDiagnosticVMOptions -XX:+FlightRecorder -XX:+DebugNonSafepoints -XX:FlightRecorderOptions=defaultrecording=true,dumponexit=true,dumponexitpath=${FLINK_LOG_PREFIX}.jfr"
+env.java.opts.all: "-XX:+UnlockCommercialFeatures -XX:+UnlockDiagnosticVMOptions -XX:+FlightRecorder -XX:+DebugNonSafepoints -XX:FlightRecorderOptions=defaultrecording=true,dumponexit=true,dumponexitpath=${FLINK_LOG_PREFIX}.jfr"
 ```
 
 ## Profiling with JITWatch
@@ -53,7 +53,7 @@ env.java.opts: "-XX:+UnlockCommercialFeatures -XX:+UnlockDiagnosticVMOptions -XX
 compiler used to inspect inlining decisions, hot methods, bytecode, and assembly. Example configuration:
 
 ```yaml
-env.java.opts: "-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCompilation -XX:LogFile=${FLINK_LOG_PREFIX}.jit -XX:+PrintAssembly"
+env.java.opts.all: "-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCompilation -XX:LogFile=${FLINK_LOG_PREFIX}.jit -XX:+PrintAssembly"
 ```
 
 ## Analyzing Out of Memory Problems
@@ -61,7 +61,7 @@ env.java.opts: "-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCo
 If you encounter `OutOfMemoryExceptions` with your Flink application, then it is a good idea to enable heap dumps on out of memory errors.
 
 ```yaml
-env.java.opts: "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${FLINK_LOG_PREFIX}.hprof"
+env.java.opts.all: "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${FLINK_LOG_PREFIX}.hprof"
 ```
 
 The heap dump will allow you to analyze potential memory leaks in your user code.
@@ -81,7 +81,7 @@ taskmanager.debug.memory.log-interval: 10000 // 10s interval
 If you are interested in more detailed GC statistics, then you can activate the JVM's GC logging via:
 
 ```yaml
-env.java.opts: "-Xloggc:${FLINK_LOG_PREFIX}.gc.log -XX:+PrintGCApplicationStoppedTime -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=10M -XX:+PrintPromotionFailure -XX:+PrintGCCause"
+env.java.opts.all: "-Xloggc:${FLINK_LOG_PREFIX}.gc.log -XX:+PrintGCApplicationStoppedTime -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=10M -XX:+PrintPromotionFailure -XX:+PrintGCCause"
 ```
 
 {{< top >}}

@@ -25,6 +25,8 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
+import org.apache.flink.test.util.JobSubmission;
+import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.concurrent.Executors;
@@ -111,6 +113,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
     private void shutdownCluster() {
         try {
             distribution.stopFlinkCluster();
+            distribution.stopSqlGateway();
         } catch (IOException e) {
             LOG.warn("Error while shutting down Flink cluster.", e);
         }
@@ -182,9 +185,40 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
     }
 
     @Override
+    public GatewayController startSqlGateway() throws IOException {
+        distribution.startSqlGateway();
+
+        return new GatewayClusterControllerImpl(distribution);
+    }
+
+    @Override
     public Stream<String> searchAllLogs(Pattern pattern, Function<Matcher, String> matchProcessor)
             throws IOException {
         return distribution.searchAllLogs(pattern, matchProcessor);
+    }
+
+    private static class GatewayClusterControllerImpl implements GatewayController {
+
+        private final FlinkDistribution distribution;
+
+        public GatewayClusterControllerImpl(FlinkDistribution distribution) {
+            this.distribution = distribution;
+        }
+
+        @Override
+        public CompletableFuture<Void> closeAsync() {
+            try {
+                distribution.stopSqlGateway();
+                return CompletableFuture.completedFuture(null);
+            } catch (IOException e) {
+                return FutureUtils.completedExceptionally(e);
+            }
+        }
+
+        @Override
+        public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws Exception {
+            distribution.submitSQLJob(job, timeout);
+        }
     }
 
     private static class StandaloneClusterController implements ClusterController {
@@ -203,7 +237,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
         }
 
         @Override
-        public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws IOException {
+        public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws Exception {
             distribution.submitSQLJob(job, timeout);
         }
 

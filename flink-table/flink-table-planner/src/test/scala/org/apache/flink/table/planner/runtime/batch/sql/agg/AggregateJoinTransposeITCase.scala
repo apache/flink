@@ -18,8 +18,9 @@
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{TableException, Types}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram, FlinkGroupProgramBuilder, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.plan.rules.logical.{AggregateReduceGroupingRule, FlinkAggregateJoinTransposeRule}
@@ -32,14 +33,13 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import scala.collection.JavaConverters._
-import scala.collection.Seq
 
 class AggregateJoinTransposeITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     val programs = FlinkBatchProgram.buildProgram(tEnv.getConfig)

@@ -17,9 +17,8 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionGroupReleaseStrategy;
+import org.apache.flink.runtime.executiongraph.failover.partitionrelease.PartitionGroupReleaseStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -28,54 +27,57 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayDeque;
 import java.util.Queue;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.core.IsEqual.equalTo;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for the interactions of the {@link ExecutionGraph} and {@link
  * PartitionGroupReleaseStrategy}.
  */
-public class ExecutionGraphPartitionReleaseTest extends TestLogger {
+class ExecutionGraphPartitionReleaseTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    public static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
-    private static final ScheduledExecutorService scheduledExecutorService =
-            Executors.newSingleThreadScheduledExecutor();
-    private static final TestingComponentMainThreadExecutor mainThreadExecutor =
-            new TestingComponentMainThreadExecutor(
-                    ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
-                            scheduledExecutorService));
+    @RegisterExtension
+    public static final TestingComponentMainThreadExecutor.Extension MAIN_THREAD_EXTENSION =
+            new TestingComponentMainThreadExecutor.Extension();
+
+    private final TestingComponentMainThreadExecutor mainThreadExecutor =
+            MAIN_THREAD_EXTENSION.getComponentMainThreadTestExecutor();
 
     @Test
-    public void testStrategyNotifiedOfFinishedVerticesAndResultsRespected() throws Exception {
+    void testStrategyNotifiedOfFinishedVerticesAndResultsRespected() throws Exception {
         // setup a simple pipeline of 3 operators with blocking partitions
         final JobVertex sourceVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
         final JobVertex operatorVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
         final JobVertex sinkVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
-        operatorVertex.connectNewDataSetAsInput(
-                sourceVertex, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        sinkVertex.connectNewDataSetAsInput(
-                operatorVertex, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                operatorVertex,
+                sourceVertex,
+                DistributionPattern.POINTWISE,
+                ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                sinkVertex,
+                operatorVertex,
+                DistributionPattern.POINTWISE,
+                ResultPartitionType.BLOCKING);
 
         // setup partition tracker to intercept partition release calls
         final TestingJobMasterPartitionTracker partitionTracker =
@@ -97,7 +99,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(
                                     sourceExecution.getAttemptId(), ExecutionState.FINISHED));
-                    assertThat(releasedPartitions, empty());
+                    assertThat(releasedPartitions).isEmpty();
                 });
 
         mainThreadExecutor.execute(
@@ -109,10 +111,9 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(
                                     operatorExecution.getAttemptId(), ExecutionState.FINISHED));
-                    assertThat(releasedPartitions, hasSize(1));
-                    assertThat(
-                            releasedPartitions.remove(),
-                            equalTo(
+                    assertThat(releasedPartitions).hasSize(1);
+                    assertThat(releasedPartitions.remove())
+                            .isEqualTo(
                                     new ResultPartitionID(
                                             sourceExecution
                                                     .getVertex()
@@ -120,7 +121,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                                                     .keySet()
                                                     .iterator()
                                                     .next(),
-                                            sourceExecution.getAttemptId())));
+                                            sourceExecution.getAttemptId()));
                 });
 
         mainThreadExecutor.execute(
@@ -132,10 +133,9 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                             new TaskExecutionState(
                                     sinkExecution.getAttemptId(), ExecutionState.FINISHED));
 
-                    assertThat(releasedPartitions, hasSize(1));
-                    assertThat(
-                            releasedPartitions.remove(),
-                            equalTo(
+                    assertThat(releasedPartitions).hasSize(1);
+                    assertThat(releasedPartitions.remove())
+                            .isEqualTo(
                                     new ResultPartitionID(
                                             operatorExecution
                                                     .getVertex()
@@ -143,12 +143,12 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                                                     .keySet()
                                                     .iterator()
                                                     .next(),
-                                            operatorExecution.getAttemptId())));
+                                            operatorExecution.getAttemptId()));
                 });
     }
 
     @Test
-    public void testStrategyNotifiedOfUnFinishedVertices() throws Exception {
+    void testStrategyNotifiedOfUnFinishedVertices() throws Exception {
         // setup a pipeline of 2 failover regions (f1 -> f2), where
         // f1 is just a source
         // f2 consists of 3 operators (o1,o2,o3), where o1 consumes f1, and o2/o3 consume o1
@@ -157,12 +157,21 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
         final JobVertex operator2Vertex = ExecutionGraphTestUtils.createNoOpVertex("operator2", 1);
         final JobVertex operator3Vertex = ExecutionGraphTestUtils.createNoOpVertex("operator3", 1);
 
-        operator1Vertex.connectNewDataSetAsInput(
-                sourceVertex, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        operator2Vertex.connectNewDataSetAsInput(
-                operator1Vertex, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        operator3Vertex.connectNewDataSetAsInput(
-                operator1Vertex, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                operator1Vertex,
+                sourceVertex,
+                DistributionPattern.POINTWISE,
+                ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                operator2Vertex,
+                operator1Vertex,
+                DistributionPattern.ALL_TO_ALL,
+                ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                operator3Vertex,
+                operator1Vertex,
+                DistributionPattern.ALL_TO_ALL,
+                ResultPartitionType.PIPELINED);
 
         // setup partition tracker to intercept partition release calls
         final TestingJobMasterPartitionTracker partitionTracker =
@@ -189,7 +198,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(
                                     sourceExecution.getAttemptId(), ExecutionState.FINISHED));
-                    assertThat(releasedPartitions, empty());
+                    assertThat(releasedPartitions).isEmpty();
                 });
 
         mainThreadExecutor.execute(
@@ -201,7 +210,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(
                                     operator1Execution.getAttemptId(), ExecutionState.FINISHED));
-                    assertThat(releasedPartitions, empty());
+                    assertThat(releasedPartitions).isEmpty();
                 });
 
         mainThreadExecutor.execute(
@@ -213,7 +222,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(
                                     operator2Execution.getAttemptId(), ExecutionState.FINISHED));
-                    assertThat(releasedPartitions, empty());
+                    assertThat(releasedPartitions).isEmpty();
                 });
 
         mainThreadExecutor.execute(
@@ -222,7 +231,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                             getCurrentExecution(operator2Vertex, executionGraph);
                     // reset o2
                     operator2Execution.getVertex().resetForNewExecution();
-                    assertThat(releasedPartitions, empty());
+                    assertThat(releasedPartitions).isEmpty();
                 });
 
         mainThreadExecutor.execute(
@@ -233,7 +242,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionState(
                                     operator3Execution.getAttemptId(), ExecutionState.FINISHED));
-                    assertThat(releasedPartitions, empty());
+                    assertThat(releasedPartitions).isEmpty();
                 });
     }
 
@@ -251,10 +260,10 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
 
         final JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(vertices);
         final SchedulerBase scheduler =
-                new SchedulerTestingUtils.DefaultSchedulerBuilder(
+                new DefaultSchedulerBuilder(
                                 jobGraph,
                                 mainThreadExecutor.getMainThreadExecutor(),
-                                EXECUTOR_RESOURCE.getExecutor())
+                                EXECUTOR_EXTENSION.getExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory())
                         .setPartitionTracker(partitionTracker)

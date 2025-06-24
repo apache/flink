@@ -18,23 +18,23 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -69,7 +69,7 @@ import static org.junit.Assert.fail;
  * completed checkpoint.
  */
 @SuppressWarnings("serial")
-public class StreamCheckpointNotifierITCase extends AbstractTestBase {
+public class StreamCheckpointNotifierITCase extends AbstractTestBaseJUnit4 {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamCheckpointNotifierITCase.class);
 
@@ -90,7 +90,7 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
             assertEquals("test setup broken", PARALLELISM, env.getParallelism());
 
             env.enableCheckpointing(500);
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
 
             final int numElements = 10000;
             final int numTaskTotal = PARALLELISM * 5;
@@ -112,9 +112,9 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
                     .startNewChain()
 
                     // -------------- fourth vertex - reducer and the sink ----------------
-                    .keyBy(0)
+                    .keyBy(x -> x.f0)
                     .reduce(new OnceFailingReducer(numElements))
-                    .addSink(new DiscardingSink<Tuple1<Long>>());
+                    .sinkTo(new DiscardingSink<>());
 
             env.execute();
 
@@ -196,12 +196,12 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws IOException {
-            step = getRuntimeContext().getNumberOfParallelSubtasks();
+        public void open(OpenContext openContext) throws IOException {
+            step = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
 
             // if index has been restored, it is not 0 any more
             if (index == 0) {
-                index = getRuntimeContext().getIndexOfThisSubtask();
+                index = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             }
         }
 
@@ -247,7 +247,7 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
         @Override
         public void notifyCheckpointComplete(long checkpointId) {
             // record the ID of the completed checkpoint
-            int partition = getRuntimeContext().getIndexOfThisSubtask();
+            int partition = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             COMPLETED_CHECKPOINTS[partition].add(checkpointId);
 
             // if this is the first time we get a notification since the failure,
@@ -282,7 +282,7 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
         @Override
         public void notifyCheckpointComplete(long checkpointId) {
             // record the ID of the completed checkpoint
-            int partition = getRuntimeContext().getIndexOfThisSubtask();
+            int partition = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             COMPLETED_CHECKPOINTS[partition].add(checkpointId);
 
             // if this is the first time we get a notification since the failure,
@@ -317,7 +317,7 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
         @Override
         public void notifyCheckpointComplete(long checkpointId) {
             // record the ID of the completed checkpoint
-            int partition = getRuntimeContext().getIndexOfThisSubtask();
+            int partition = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             COMPLETED_CHECKPOINTS[partition].add(checkpointId);
 
             // if this is the first time we get a notification since the failure,
@@ -357,7 +357,7 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
         @Override
         public void notifyCheckpointComplete(long checkpointId) {
             // record the ID of the completed checkpoint
-            int partition = getRuntimeContext().getIndexOfThisSubtask();
+            int partition = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             COMPLETED_CHECKPOINTS[partition].add(checkpointId);
 
             // if this is the first time we get a notification since the failure,
@@ -393,7 +393,8 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
         @Override
         public Tuple1<Long> reduce(Tuple1<Long> value1, Tuple1<Long> value2) {
             count++;
-            if (count >= failurePos && getRuntimeContext().getIndexOfThisSubtask() == 0) {
+            if (count >= failurePos
+                    && getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                 LOG.info(">>>>>>>>>>>>>>>>> Reached failing position <<<<<<<<<<<<<<<<<<<<<");
             }
 
@@ -405,7 +406,7 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
         public List<Long> snapshotState(long checkpointId, long timestamp) throws Exception {
             if (!hasFailed
                     && count >= failurePos
-                    && getRuntimeContext().getIndexOfThisSubtask() == 0) {
+                    && getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                 LOG.info(">>>>>>>>>>>>>>>>> Throwing Exception <<<<<<<<<<<<<<<<<<<<<");
                 hasFailed = true;
                 failureCheckpointID = checkpointId;
@@ -426,7 +427,7 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
         @Override
         public void notifyCheckpointComplete(long checkpointId) {
             // record the ID of the completed checkpoint
-            int partition = getRuntimeContext().getIndexOfThisSubtask();
+            int partition = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             COMPLETED_CHECKPOINTS[partition].add(checkpointId);
 
             // if this is the first time we get a notification since the failure,

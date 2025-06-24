@@ -260,6 +260,13 @@ Format 参数
             <td>Password for SSL truststore</td>
         </tr>
         <tr>
+            <td><h5>avro-confluent.schema</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The schema registered or to be registered in the Confluent Schema Registry. If no schema is provided Flink converts the table schema to avro schema. The schema provided must match the table schema.</td>
+        </tr>
+        <tr>
             <td><h5>avro-confluent.subject</h5></td>
             <td>optional</td>
             <td style="word-wrap: break-word;">(none)</td>
@@ -284,4 +291,4 @@ Format 参数
 
 除了此处列出的类型之外，Flink 还支持读取/写入可为空（nullable）的类型。 Flink 将可为空的类型映射到 Avro `union(something, null)`, 其中 `something` 是从 Flink 类型转换的 Avro 类型。
 
-您可以参考 [Avro Specification](https://avro.apache.org/docs/current/spec.html) 以获取有关 Avro 类型的更多信息。
+您可以参考 [Avro 规范](https://avro.apache.org/docs/++version++/specification/) 以获取有关 Avro 类型的更多信息。

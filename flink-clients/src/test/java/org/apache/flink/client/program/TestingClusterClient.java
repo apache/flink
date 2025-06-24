@@ -21,14 +21,15 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.runtime.rest.messages.TriggerId;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.function.QuadFunction;
 import org.apache.flink.util.function.TriFunction;
 
@@ -38,6 +39,7 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /** Settable implementation of ClusterClient used for testing. */
@@ -53,10 +55,22 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
             stopWithSavepointFunction =
                     (ignore1, ignore2, savepointPath, formatType) ->
                             CompletableFuture.completedFuture(savepointPath);
+    private QuadFunction<JobID, Boolean, String, SavepointFormatType, CompletableFuture<String>>
+            stopWithDetachedSavepointFunction =
+                    (ignore1, ignore2, savepointPath, formatType) ->
+                            CompletableFuture.completedFuture(new TriggerId().toString());
+
     private TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
             triggerSavepointFunction =
                     (ignore, savepointPath, formatType) ->
                             CompletableFuture.completedFuture(savepointPath);
+    private TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
+            triggerDetachedSavepointFunction =
+                    (ignore, savepointPath, formatType) ->
+                            CompletableFuture.completedFuture(new TriggerId().toString());
+
+    private BiFunction<JobID, CheckpointType, CompletableFuture<Long>> triggerCheckpointFunction =
+            (ignore, checkpointType) -> CompletableFuture.completedFuture(1L);
 
     public void setCancelFunction(Function<JobID, CompletableFuture<Acknowledge>> cancelFunction) {
         this.cancelFunction = cancelFunction;
@@ -74,15 +88,32 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
         this.stopWithSavepointFunction = stopWithSavepointFunction;
     }
 
+    public void setStopWithDetachedSavepointFunction(
+            QuadFunction<JobID, Boolean, String, SavepointFormatType, CompletableFuture<String>>
+                    stopWithDetachedSavepointFunction) {
+        this.stopWithDetachedSavepointFunction = stopWithDetachedSavepointFunction;
+    }
+
     public void setTriggerSavepointFunction(
             TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
                     triggerSavepointFunction) {
         this.triggerSavepointFunction = triggerSavepointFunction;
     }
 
+    public void setTriggerDetachedSavepointFunction(
+            TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
+                    triggerDetachedSavepointFunction) {
+        this.triggerDetachedSavepointFunction = triggerDetachedSavepointFunction;
+    }
+
+    public void setTriggerCheckpointFunction(
+            BiFunction<JobID, CheckpointType, CompletableFuture<Long>> triggerCheckpointFunction) {
+        this.triggerCheckpointFunction = triggerCheckpointFunction;
+    }
+
     @Override
     public T getClusterId() {
-        throw new UnsupportedOperationException();
+        return (T) "test-cluster";
     }
 
     @Override
@@ -111,7 +142,7 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
     }
 
     @Override
-    public CompletableFuture<JobID> submitJob(@Nonnull JobGraph jobGraph) {
+    public CompletableFuture<JobID> submitJob(@Nonnull ExecutionPlan executionPlan) {
         throw new UnsupportedOperationException();
     }
 
@@ -152,14 +183,37 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
     }
 
     @Override
+    public CompletableFuture<String> stopWithDetachedSavepoint(
+            JobID jobId,
+            boolean advanceToEndOfEventTime,
+            @org.jetbrains.annotations.Nullable String savepointDirectory,
+            SavepointFormatType formatType) {
+        return stopWithDetachedSavepointFunction.apply(
+                jobId, advanceToEndOfEventTime, savepointDirectory, formatType);
+    }
+
+    @Override
     public CompletableFuture<String> triggerSavepoint(
             JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
         return triggerSavepointFunction.apply(jobId, savepointDirectory, formatType);
     }
 
     @Override
+    public CompletableFuture<Long> triggerCheckpoint(JobID jobId, CheckpointType checkpointType) {
+        return triggerCheckpointFunction.apply(jobId, checkpointType);
+    }
+
+    @Override
+    public CompletableFuture<String> triggerDetachedSavepoint(
+            JobID jobId,
+            @org.jetbrains.annotations.Nullable String savepointDirectory,
+            SavepointFormatType formatType) {
+        return triggerDetachedSavepointFunction.apply(jobId, savepointDirectory, formatType);
+    }
+
+    @Override
     public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
-            JobID jobId, OperatorID operatorId, CoordinationRequest request) {
+            JobID jobId, String operatorUid, CoordinationRequest request) {
         throw new UnsupportedOperationException();
     }
 

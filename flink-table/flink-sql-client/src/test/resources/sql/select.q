@@ -18,11 +18,11 @@
 # set default streaming mode and tableau result mode
 
 SET 'execution.runtime-mode' = 'streaming';
-[INFO] Session property has been set.
+[INFO] Execute statement succeeded.
 !info
 
 SET 'sql-client.execution.result-mode' = 'tableau';
-[INFO] Session property has been set.
+[INFO] Execute statement succeeded.
 !info
 
 # ==========================================================================
@@ -37,7 +37,7 @@ create table src (
   'data-id' = 'non-exist',
   'failing-source' = 'true'
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT UPPER(str), id FROM src;
@@ -72,7 +72,7 @@ Received a total of 4 rows
 # ==========================================================================
 
 SET 'table.local-time-zone' = 'Asia/Shanghai';
-[INFO] Session property has been set.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT TIME '20:12:11' as time0,
@@ -94,7 +94,7 @@ Received a total of 2 rows
 !ok
 
 SET 'table.local-time-zone' = 'UTC';
-[INFO] Session property has been set.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT TIME '20:12:11' as time0,
@@ -116,7 +116,7 @@ Received a total of 2 rows
 !ok
 
 # ==========================================================================
-# Testing behavior of sql-client.display.max-column-width
+# Testing behavior of table.display.max-column-width
 # Only variable width columns are impacted at the moment => STRING, but not TIMESTAMP nor BOOLEAN
 # ==========================================================================
 
@@ -128,7 +128,7 @@ AS (VALUES
   ('8b012d93-6ece-48ad-a2ea-aa75ef7b1d60', TIMESTAMP '1979-03-15 22:13:11.123', false),
   ('09969d9e-d584-11eb-b8bc-0242ac130003', TIMESTAMP '1985-04-16 23:14:11.123', true)
 );
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from testUserData;
@@ -143,8 +143,10 @@ SELECT * from testUserData;
 Received a total of 4 rows
 !ok
 
-SET 'sql-client.display.max-column-width' = '10';
-[INFO] Session property has been set.
+# test fallback config option key
+
+SET 'table.display.max-column-width' = '10';
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from testUserData;
@@ -159,8 +161,43 @@ SELECT * from testUserData;
 Received a total of 4 rows
 !ok
 
-SET 'sql-client.display.max-column-width' = '40';
-[INFO] Session property has been set.
+SET 'table.display.max-column-width' = '40';
+[INFO] Execute statement succeeded.
+!info
+
+SELECT * from testUserData;
++----+------------------------------------------+-------------------------+---------+
+| op |                                     name |                     dob | isHappy |
++----+------------------------------------------+-------------------------+---------+
+| +I |     30b5c1bb-0ac0-43d3-b812-fcb649fd2b07 | 2001-01-13 20:11:11.123 |    TRUE |
+| +I |     91170c98-2cc5-4935-9ea6-12b72d32fb3c | 1994-02-14 21:12:11.123 |    TRUE |
+| +I |     8b012d93-6ece-48ad-a2ea-aa75ef7b1d60 | 1979-03-15 22:13:11.123 |   FALSE |
+| +I |     09969d9e-d584-11eb-b8bc-0242ac130003 | 1985-04-16 23:14:11.123 |    TRUE |
++----+------------------------------------------+-------------------------+---------+
+Received a total of 4 rows
+!ok
+
+# test original config option key
+
+SET 'table.display.max-column-width' = '10';
+[INFO] Execute statement succeeded.
+!info
+
+SELECT * from testUserData;
++----+------------+-------------------------+---------+
+| op |       name |                     dob | isHappy |
++----+------------+-------------------------+---------+
+| +I | 30b5c1b... | 2001-01-13 20:11:11.123 |    TRUE |
+| +I | 91170c9... | 1994-02-14 21:12:11.123 |    TRUE |
+| +I | 8b012d9... | 1979-03-15 22:13:11.123 |   FALSE |
+| +I | 09969d9... | 1985-04-16 23:14:11.123 |    TRUE |
++----+------------+-------------------------+---------+
+Received a total of 4 rows
+!ok
+
+
+SET 'table.display.max-column-width' = '40';
+[INFO] Execute statement succeeded.
 !info
 
 SELECT * from testUserData;
@@ -177,11 +214,11 @@ Received a total of 4 rows
 
 -- post-test cleanup + setting back default max width value
 DROP TEMPORARY VIEW testUserData;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
-SET 'sql-client.display.max-column-width' = '30';
-[INFO] Session property has been set.
+SET 'table.display.max-column-width' = '30';
+[INFO] Execute statement succeeded.
 !info
 
 # ==========================================================================
@@ -189,7 +226,7 @@ SET 'sql-client.display.max-column-width' = '30';
 # ==========================================================================
 
 SET 'execution.runtime-mode' = 'batch';
-[INFO] Session property has been set.
+[INFO] Execute statement succeeded.
 !info
 
 SELECT id, COUNT(*) as cnt, COUNT(DISTINCT str) as uv
@@ -220,4 +257,113 @@ FROM (VALUES
 | 20:12:11 | 2021-04-13 21:12:11 | 2021-04-13 21:12:11.001 | 2021-04-13 21:12:11.100000000 | 1970-01-01 00:00:01.000 | 1970-01-01 00:00:00.001 | 2021-04-13 21:12:11.100000000 |
 +----------+---------------------+-------------------------+-------------------------------+-------------------------+-------------------------+-------------------------------+
 2 rows in set
+!ok
+
+# ==========================================================================
+# Testing behavior of table.display.max-column-width
+# Only variable width columns are impacted at the moment => STRING, but not TIMESTAMP nor BOOLEAN
+# ==========================================================================
+
+CREATE TEMPORARY VIEW
+  testUserData(name, dob, isHappy)
+AS (VALUES
+  ('30b5c1bb-0ac0-43d3-b812-fcb649fd2b07', TIMESTAMP '2001-01-13 20:11:11.123', true),
+  ('91170c98-2cc5-4935-9ea6-12b72d32fb3c', TIMESTAMP '1994-02-14 21:12:11.123', true),
+  ('8b012d93-6ece-48ad-a2ea-aa75ef7b1d60', TIMESTAMP '1979-03-15 22:13:11.123', false),
+  ('09969d9e-d584-11eb-b8bc-0242ac130003', TIMESTAMP '1985-04-16 23:14:11.123', true)
+);
+[INFO] Execute statement succeeded.
+!info
+
+SELECT * from testUserData;
++--------------------------------+-------------------------+---------+
+|                           name |                     dob | isHappy |
++--------------------------------+-------------------------+---------+
+| 30b5c1bb-0ac0-43d3-b812-fcb... | 2001-01-13 20:11:11.123 |    TRUE |
+| 91170c98-2cc5-4935-9ea6-12b... | 1994-02-14 21:12:11.123 |    TRUE |
+| 8b012d93-6ece-48ad-a2ea-aa7... | 1979-03-15 22:13:11.123 |   FALSE |
+| 09969d9e-d584-11eb-b8bc-024... | 1985-04-16 23:14:11.123 |    TRUE |
++--------------------------------+-------------------------+---------+
+4 rows in set
+!ok
+
+SET 'table.display.max-column-width' = '10';
+[INFO] Execute statement succeeded.
+!info
+
+SELECT * from testUserData;
++------------+------------+---------+
+|       name |        dob | isHappy |
++------------+------------+---------+
+| 30b5c1b... | 2001-01... |    TRUE |
+| 91170c9... | 1994-02... |    TRUE |
+| 8b012d9... | 1979-03... |   FALSE |
+| 09969d9... | 1985-04... |    TRUE |
++------------+------------+---------+
+4 rows in set
+!ok
+
+SET 'table.display.max-column-width' = '40';
+[INFO] Execute statement succeeded.
+!info
+
+SELECT * from testUserData;
++--------------------------------------+-------------------------+---------+
+|                                 name |                     dob | isHappy |
++--------------------------------------+-------------------------+---------+
+| 30b5c1bb-0ac0-43d3-b812-fcb649fd2b07 | 2001-01-13 20:11:11.123 |    TRUE |
+| 91170c98-2cc5-4935-9ea6-12b72d32fb3c | 1994-02-14 21:12:11.123 |    TRUE |
+| 8b012d93-6ece-48ad-a2ea-aa75ef7b1d60 | 1979-03-15 22:13:11.123 |   FALSE |
+| 09969d9e-d584-11eb-b8bc-0242ac130003 | 1985-04-16 23:14:11.123 |    TRUE |
++--------------------------------------+-------------------------+---------+
+4 rows in set
+!ok
+
+-- post-test cleanup + setting back default max width value
+DROP TEMPORARY VIEW testUserData;
+[INFO] Execute statement succeeded.
+!info
+
+SET 'table.display.max-column-width' = '30';
+[INFO] Execute statement succeeded.
+!info
+
+SELECT INTERVAL '1' DAY as dayInterval, INTERVAL '1' YEAR as yearInterval;
++-----------------+--------------+
+|     dayInterval | yearInterval |
++-----------------+--------------+
+| +1 00:00:00.000 |        +1-00 |
++-----------------+--------------+
+1 row in set
+!ok
+
+SELECT ';
+';
++--------+
+| EXPR$0 |
++--------+
+|     ;
+ |
++--------+
+1 row in set
+!ok
+
+SELECT /*;
+'*/ 1;
++--------+
+| EXPR$0 |
++--------+
+|      1 |
++--------+
+1 row in set
+!ok
+
+SELECT --;
+1;
++--------+
+| EXPR$0 |
++--------+
+|      1 |
++--------+
+1 row in set
 !ok

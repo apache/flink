@@ -17,34 +17,33 @@
  */
 package org.apache.flink.table.planner.plan.batch.sql.agg
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableException, Types, _}
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{VarSum1AggFunction, VarSum2AggFunction}
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
-import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
+import org.apache.flink.table.types.AbstractDataType
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.TestTemplate
 
 abstract class AggregateTestBase extends TableTestBase {
 
   protected val util: BatchTableTestUtil = batchTestUtil()
   util.addTableSource(
     "MyTable",
-    Array[TypeInformation[_]](
-      Types.BYTE,
-      Types.SHORT,
-      Types.INT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.BOOLEAN,
-      Types.STRING,
-      Types.LOCAL_DATE,
-      Types.LOCAL_TIME,
-      Types.LOCAL_DATE_TIME,
-      DecimalDataTypeInfo.of(30, 20),
-      DecimalDataTypeInfo.of(10, 5)
+    Array[AbstractDataType[_]](
+      DataTypes.TINYINT(),
+      DataTypes.SMALLINT,
+      DataTypes.INT,
+      DataTypes.BIGINT,
+      DataTypes.FLOAT,
+      DataTypes.DOUBLE,
+      DataTypes.BOOLEAN,
+      DataTypes.STRING,
+      DataTypes.DATE,
+      DataTypes.TIME,
+      DataTypes.TIMESTAMP(3),
+      DataTypes.DECIMAL(30, 20),
+      DataTypes.DECIMAL(10, 5)
     ),
     Array(
       "byte",
@@ -63,7 +62,7 @@ abstract class AggregateTestBase extends TableTestBase {
   )
   util.addTableSource[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
 
-  @Test
+  @TestTemplate
   def testAvg(): Unit = {
     util.verifyRelPlanWithType("""
                                  |SELECT AVG(`byte`),
@@ -78,7 +77,7 @@ abstract class AggregateTestBase extends TableTestBase {
       """.stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testSum(): Unit = {
     util.verifyRelPlanWithType("""
                                  |SELECT SUM(`byte`),
@@ -93,7 +92,7 @@ abstract class AggregateTestBase extends TableTestBase {
       """.stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testCount(): Unit = {
     util.verifyRelPlanWithType("""
                                  |SELECT COUNT(`byte`),
@@ -113,20 +112,36 @@ abstract class AggregateTestBase extends TableTestBase {
       """.stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testCountStart(): Unit = {
     util.verifyRelPlanWithType("SELECT COUNT(*) FROM MyTable")
   }
 
-  @Test
-  def testCannotCountOnMultiFields(): Unit = {
-    val sql = "SELECT b, COUNT(a, c) FROM MyTable1 GROUP BY b"
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("We now only support the count of one field")
-    util.verifyExecPlan(sql)
+  @TestTemplate
+  def testCountStartWithProjectPushDown(): Unit = {
+    // the test values table source supports projection push down by default
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE src (
+                               | id VARCHAR,
+                               | cnt BIGINT
+                               |) WITH (
+                               | 'connector' = 'values'
+                               | ,'bounded' = 'true'
+                               |)
+                               |""".stripMargin)
+    util.verifyRelPlanWithType("SELECT COUNT(*) FROM src")
   }
 
-  @Test
+  @TestTemplate
+  def testCannotCountOnMultiFields(): Unit = {
+    val sql = "SELECT b, COUNT(a, c) FROM MyTable1 GROUP BY b"
+
+    assertThatThrownBy(() => util.verifyExecPlan(sql))
+      .hasMessageContaining("We now only support the count of one field")
+      .isInstanceOf[TableException]
+  }
+
+  @TestTemplate
   def testMinWithFixLengthType(): Unit = {
     util.verifyRelPlanWithType("""
                                  |SELECT MIN(`byte`),
@@ -145,12 +160,12 @@ abstract class AggregateTestBase extends TableTestBase {
       """.stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testMinWithVariableLengthType(): Unit = {
     util.verifyRelPlanWithType("SELECT MIN(`string`) FROM MyTable")
   }
 
-  @Test
+  @TestTemplate
   def testMaxWithFixLengthType(): Unit = {
     util.verifyRelPlanWithType("""
                                  |SELECT MAX(`byte`),
@@ -169,55 +184,55 @@ abstract class AggregateTestBase extends TableTestBase {
       """.stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testMaxWithVariableLengthType(): Unit = {
     util.verifyRelPlanWithType("SELECT MAX(`string`) FROM MyTable")
   }
 
-  @Test
+  @TestTemplate
   def testAggregateWithoutFunction(): Unit = {
     util.verifyExecPlan("SELECT a, b FROM MyTable1 GROUP BY a, b")
   }
 
-  @Test
+  @TestTemplate
   def testAggregateWithoutGroupBy(): Unit = {
     util.verifyExecPlan("SELECT AVG(a), SUM(b), COUNT(c) FROM MyTable1")
   }
 
-  @Test
+  @TestTemplate
   def testAggregateWithFilter(): Unit = {
     util.verifyExecPlan("SELECT AVG(a), SUM(b), COUNT(c) FROM MyTable1 WHERE a = 1")
   }
 
-  @Test
+  @TestTemplate
   def testAggregateWithFilterOnNestedFields(): Unit = {
     util.addTableSource[(Int, Long, (Int, Long))]("MyTable2", 'a, 'b, 'c)
     util.verifyExecPlan("SELECT AVG(a), SUM(b), COUNT(c), SUM(c._1) FROM MyTable2 WHERE a = 1")
   }
 
-  @Test
+  @TestTemplate
   def testGroupAggregate(): Unit = {
     util.verifyExecPlan("SELECT a, SUM(b), COUNT(c) FROM MyTable1 GROUP BY a")
   }
 
-  @Test
+  @TestTemplate
   def testGroupAggregateWithFilter(): Unit = {
     util.verifyExecPlan("SELECT a, SUM(b), count(c) FROM MyTable1 WHERE a = 1 GROUP BY a")
   }
 
-  @Test
+  @TestTemplate
   def testAggNotSupportMerge(): Unit = {
-    util.addFunction("var_sum", new VarSum2AggFunction)
+    util.addTemporarySystemFunction("var_sum", new VarSum2AggFunction)
     util.verifyExecPlan("SELECT b, var_sum(a) FROM MyTable1 GROUP BY b")
   }
 
-  @Test
+  @TestTemplate
   def testPojoAccumulator(): Unit = {
-    util.addFunction("var_sum", new VarSum1AggFunction)
+    util.addTemporarySystemFunction("var_sum", new VarSum1AggFunction)
     util.verifyExecPlan("SELECT b, var_sum(a) FROM MyTable1 GROUP BY b")
   }
 
-  @Test
+  @TestTemplate
   def testGroupByWithConstantKey(): Unit = {
     val sql =
       """

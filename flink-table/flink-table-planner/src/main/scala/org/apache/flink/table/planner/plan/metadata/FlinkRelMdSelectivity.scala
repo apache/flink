@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.{JArrayList, JDouble}
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalWindowTableFunction
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 
@@ -254,6 +255,13 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
         if (sumRows < 1.0) sumSelectedRows else sumSelectedRows / sumRows
       }
     }
+  }
+
+  def getSelectivity(
+      rel: CommonPhysicalWindowTableFunction,
+      mq: RelMetadataQuery,
+      predicate: RexNode): JDouble = {
+    estimateSelectivity(rel, mq, predicate)
   }
 
   def getSelectivity(subset: RelSubset, mq: RelMetadataQuery, predicate: RexNode): JDouble = {

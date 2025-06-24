@@ -29,15 +29,15 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.tools.RuleSets;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test for {@link ProjectWatermarkAssignerTransposeRule}. */
-public class ProjectWatermarkAssignerTransposeRuleTest extends TableTestBase {
+class ProjectWatermarkAssignerTransposeRuleTest extends TableTestBase {
     private final StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         FlinkChainedProgram<StreamOptimizeContext> program = new FlinkChainedProgram<>();
 
         program.addLast(
@@ -106,57 +106,57 @@ public class ProjectWatermarkAssignerTransposeRuleTest extends TableTestBase {
     }
 
     @Test
-    public void simpleTranspose() {
+    void simpleTranspose() {
         util.verifyRelPlan("SELECT a, c FROM SimpleTable");
     }
 
     @Test
-    public void transposeWithReorder() {
+    void transposeWithReorder() {
         util.verifyRelPlan("SELECT b, a FROM SimpleTable");
     }
 
     @Test
-    public void transposeWithNestedField() {
+    void transposeWithNestedField() {
         util.verifyRelPlan("SELECT b, d.d1, d.d2 FROM SimpleTable");
     }
 
     @Test
-    public void complicatedTranspose() {
+    void complicatedTranspose() {
         util.verifyRelPlan("SELECT d.d1, d.d2 + b FROM SimpleTable");
     }
 
     @Test
-    public void transposeExcludeRowTime() {
+    void transposeExcludeRowTime() {
         util.verifyRelPlan("SELECT SECOND(c) FROM SimpleTable");
     }
 
     @Test
-    public void transposeWithIncludeComputedRowTime() {
+    void transposeWithIncludeComputedRowTime() {
         util.verifyRelPlan("SELECT a, b, d FROM VirtualTable");
     }
 
     @Test
-    public void transposeWithExcludeComputedRowTime() {
+    void transposeWithExcludeComputedRowTime() {
         util.verifyRelPlan("SELECT a, b FROM VirtualTable");
     }
 
     @Test
-    public void transposeWithExcludeComputedRowTime2() {
+    void transposeWithExcludeComputedRowTime2() {
         util.verifyRelPlan("SELECT a, b, SECOND(d) FROM VirtualTable");
     }
 
     @Test
-    public void transposeWithExcludeComputedRowTime3() {
+    void transposeWithExcludeComputedRowTime3() {
         util.verifyRelPlan("SELECT a, SECOND(d) FROM NestedTable");
     }
 
     @Test
-    public void transposeWithDuplicateColumns() {
+    void transposeWithDuplicateColumns() {
         util.verifyRelPlan("SELECT a, b, b as e FROM VirtualTable");
     }
 
     @Test
-    public void transposeWithWatermarkWithMultipleInput() {
+    void transposeWithWatermarkWithMultipleInput() {
         util.verifyRelPlan("SELECT a FROM UdfTable");
     }
 }

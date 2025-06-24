@@ -17,8 +17,12 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -39,4 +43,23 @@ public interface ClusterPartitionManager {
      * @return future that is completed once all partitions have been released
      */
     CompletableFuture<Void> releaseClusterPartitions(IntermediateDataSetID dataSetToRelease);
+
+    /**
+     * Report the cluster partitions status in the task executor.
+     *
+     * @param taskExecutorId The id of the task executor.
+     * @param clusterPartitionReport The status of the cluster partitions.
+     * @return future that is completed once the report have been processed.
+     */
+    CompletableFuture<Void> reportClusterPartitions(
+            ResourceID taskExecutorId, ClusterPartitionReport clusterPartitionReport);
+
+    /**
+     * Get the shuffle descriptors of the cluster partitions ordered by partition number.
+     *
+     * @param intermediateDataSetID The id of the dataset.
+     * @return shuffle descriptors of the cluster partitions.
+     */
+    CompletableFuture<List<ShuffleDescriptor>> getClusterPartitionsShuffleDescriptors(
+            IntermediateDataSetID intermediateDataSetID);
 }

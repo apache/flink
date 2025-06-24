@@ -17,17 +17,16 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
-import org.apache.flink.table.planner.utils.TestDataTypeTableSourceWithTime
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.sql.Timestamp
 import java.time.{Instant, ZoneId}
@@ -36,25 +35,9 @@ import scala.collection.mutable
 
 class TimestampITCase extends StreamingTestBase {
 
+  @BeforeEach
   override def before(): Unit = {
     super.before()
-
-    val tableSchema = TableSchema
-      .builder()
-      .fields(
-        Array("a", "b", "c", "d", "e"),
-        Array(
-          DataTypes.INT(),
-          DataTypes.BIGINT(),
-          DataTypes.TIMESTAMP(9),
-          // TODO: support high precision TIMESTAMP as timeAttributes
-          //  LegacyTypeInfoDataTypeConverter does not support TIMESTAMP(p) where p > 3
-          //  see TableSourceValidation::validateTimestampExtractorArguments
-          DataTypes.TIMESTAMP(3),
-          DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)
-        )
-      )
-      .build()
 
     val ints = List(1, 2, 3, 4, null)
 
@@ -93,7 +76,24 @@ class TimestampITCase extends StreamingTestBase {
       data += row(ints(i), longs(i), datetimes(i), timestamps(i), instants(i))
     }
 
-    TestDataTypeTableSourceWithTime.createTemporaryTable(tEnv, tableSchema, "T", data.seq, "d")
+    val dataId = TestValuesTableFactory.registerData(data.seq)
+    // TODO: support high precision TIMESTAMP as timeAttributes
+    //  LegacyTypeInfoDataTypeConverter does not support TIMESTAMP(p) where p > 3
+    //  see TableSourceValidation::validateTimestampExtractorArguments
+    tEnv.executeSql(s"""
+                       |create table T (
+                       |  a int,
+                       |  b bigint,
+                       |  c timestamp(9),
+                       |  d timestamp(3),
+                       |  e timestamp_ltz(9),
+                       |  watermark for d as d
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'true',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
   }
 
   @Test
@@ -110,7 +110,7 @@ class TimestampITCase extends StreamingTestBase {
       "1,1970-01-01T00:00:00.123",
       "2,1970-01-01T00:00:00.123456"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -127,7 +127,7 @@ class TimestampITCase extends StreamingTestBase {
       "1,1970-01-01T00:00:00.123Z",
       "2,1970-01-01T00:00:00.123456Z"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -144,7 +144,7 @@ class TimestampITCase extends StreamingTestBase {
       "1,2",
       "1,4"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -161,7 +161,7 @@ class TimestampITCase extends StreamingTestBase {
       "1,2",
       "1,4"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -178,7 +178,7 @@ class TimestampITCase extends StreamingTestBase {
       "1970-01-01T00:00:00.123456,1970-01-01T00:00:00.123456,2",
       "1970-01-01T00:00:00.123,1970-01-01T00:00:00.123,4"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -200,6 +200,6 @@ class TimestampITCase extends StreamingTestBase {
       "1970-01-01T00:00:00.123456,1970-01-01T00:00:00.123456",
       "null,null"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 }

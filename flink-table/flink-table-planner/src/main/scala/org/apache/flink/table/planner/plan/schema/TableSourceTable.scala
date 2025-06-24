@@ -72,7 +72,12 @@ class TableSourceTable(
     val builder = ImmutableList
       .builder[String]()
       .addAll(super.getQualifiedName)
+    builder.addAll(getSpecDigests)
+    builder.build()
+  }
 
+  def getSpecDigests: util.List[String] = {
+    val builder = ImmutableList.builder[String]()
     if (abilitySpecs != null && abilitySpecs.length != 0) {
       var newProducedType =
         DynamicSourceUtils.createProducedType(contextResolvedTable.getResolvedSchema, tableSource)
@@ -86,6 +91,13 @@ class TableSourceTable(
       }
     }
     builder.build()
+  }
+
+  /** Adds the newSpec replacing any spec of the same class from existing ones. */
+  private def mergeSpecs(
+      original: Array[SourceAbilitySpec],
+      newSpec: Array[SourceAbilitySpec]): Array[SourceAbilitySpec] = {
+    original.filter(old => !newSpec.exists(n => old.getClass == n.getClass)) ++ newSpec
   }
 
   /**
@@ -111,7 +123,62 @@ class TableSourceTable(
       contextResolvedTable,
       flinkContext,
       flinkTypeFactory,
-      abilitySpecs ++ newAbilitySpecs
+      mergeSpecs(abilitySpecs, newAbilitySpecs)
+    )
+  }
+
+  /**
+   * Creates a copy of this table with specified digest and context resolved table
+   *
+   * @param newTableSource
+   *   tableSource to replace
+   * @param newResolveTable
+   *   resolved table to replace
+   * @param newRowType
+   *   new row type
+   * @return
+   *   added TableSourceTable instance with specified digest
+   */
+  def copy(
+      newTableSource: DynamicTableSource,
+      newResolveTable: ContextResolvedTable,
+      newRowType: RelDataType,
+      newAbilitySpecs: Array[SourceAbilitySpec]): TableSourceTable = {
+    new TableSourceTable(
+      relOptSchema,
+      newRowType,
+      statistic,
+      newTableSource,
+      isStreamingMode,
+      newResolveTable,
+      flinkContext,
+      flinkTypeFactory,
+      mergeSpecs(abilitySpecs, newAbilitySpecs)
+    )
+  }
+
+  /**
+   * Creates a copy of this table with replaced ability specs.
+   *
+   * @param newTableSource
+   *   tableSource to replace
+   * @param newRowType
+   *   new row type
+   */
+  def replace(
+      newTableSource: DynamicTableSource,
+      newRowType: RelDataType,
+      newAbilitySpecs: Array[SourceAbilitySpec]): TableSourceTable = {
+    new TableSourceTable(
+      relOptSchema,
+      newRowType,
+      statistic,
+      newTableSource,
+      isStreamingMode,
+      contextResolvedTable,
+      flinkContext,
+      flinkTypeFactory,
+      newAbilitySpecs
     )
   }
 
@@ -138,7 +205,7 @@ class TableSourceTable(
       contextResolvedTable,
       flinkContext,
       flinkTypeFactory,
-      abilitySpecs ++ newAbilitySpecs)
+      mergeSpecs(abilitySpecs, newAbilitySpecs))
   }
 
   /**

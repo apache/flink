@@ -51,11 +51,6 @@ dataStream.map(new MapFunction<Integer, Integer>() {
 });
 ```
 {{< /tab >}}
-{{< tab "Scala">}}
-```scala
-dataStream.map { x => x * 2 }
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=[1, 2, 3, 4, 5])
@@ -83,11 +78,6 @@ dataStream.flatMap(new FlatMapFunction<String, String>() {
 });
 ```
 {{< /tab >}}
-{{< tab "Scala">}}
-```scala
-dataStream.flatMap { str => str.split(" ") }
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=['hello apache flink', 'streaming compute'])
@@ -112,11 +102,6 @@ dataStream.filter(new FilterFunction<Integer>() {
 });
 ```
 {{< /tab >}}
-{{< tab "Scala">}}
-```scala
-dataStream.filter { _ != 0 }
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=[0, 1, 2, 3, 4, 5])
@@ -135,12 +120,6 @@ Logically partitions a stream into disjoint partitions. All records with the sam
 ```java
 dataStream.keyBy(value -> value.getSomeKey());
 dataStream.keyBy(value -> value.f0);
-```
-{{< /tab >}}
-{{< tab "Scala">}}
-```scala
-dataStream.keyBy(_.someKey)
-dataStream.keyBy(_._1)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -177,11 +156,6 @@ keyedStream.reduce(new ReduceFunction<Integer>() {
 });
 ```
 {{< /tab >}}
-{{< tab "Scala">}}
-```scala
-keyedStream.reduce { _ + _ }
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 data_stream = env.from_collection(collection=[(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')], type_info=Types.TUPLE([Types.INT(), Types.STRING()]))
@@ -201,18 +175,13 @@ See [windows]({{< ref "docs/dev/datastream/operators/windows" >}}) for a complet
 ```java
 dataStream
   .keyBy(value -> value.f0)
-  .window(TumblingEventTimeWindows.of(Time.seconds(5))); 
-```
-{{< /tab >}}
-{{< tab "Scala">}}
-```scala
-dataStream
-  .keyBy(_._1)
-  .window(TumblingEventTimeWindows.of(Time.seconds(5))) 
+  .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))); 
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+```python
+data_stream.key_by(lambda x: x[1]).window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
+```
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -229,17 +198,13 @@ This is in many cases a non-parallel transformation. All records will be gathere
 {{< tab "Java">}}
 ```java
 dataStream
-  .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)));
-```
-{{< /tab >}}
-{{< tab "Scala">}}
-```scala
-dataStream
-  .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
+  .windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(5)));
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+```python
+data_stream.window_all(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
+```
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -283,16 +248,31 @@ allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, 
 });
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-windowedStream.apply { WindowFunction }
-
-// applying an AllWindowFunction on non-keyed window stream
-allWindowedStream.apply { AllWindowFunction }
-```
-{{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+```python
+class MyWindowFunction(WindowFunction[tuple, int, int, TimeWindow]):
+
+    def apply(self, key: int, window: TimeWindow, inputs: Iterable[tuple]) -> Iterable[int]:
+        sum = 0
+        for input in inputs:
+            sum += input[1]
+        yield sum
+
+
+class MyAllWindowFunction(AllWindowFunction[tuple, int, TimeWindow]):
+
+    def apply(self, window: TimeWindow, inputs: Iterable[tuple]) -> Iterable[int]:
+        sum = 0
+        for input in inputs:
+            sum += input[1]
+        yield sum
+
+
+windowed_stream.apply(MyWindowFunction())
+
+# applying an AllWindowFunction on non-keyed window stream
+all_windowed_stream.apply(MyAllWindowFunction())
+```
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -311,13 +291,16 @@ windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>>() {
 });
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-windowedStream.reduce { _ + _ }
-```
-{{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+```python
+class MyReduceFunction(ReduceFunction):
+
+    def reduce(self, value1, value2):
+        return value1[0], value1[1] + value2[1]
+
+
+windowed_stream.reduce(MyReduceFunction())
+```
 {{< /tab >}}
 {{< /tabs>}}
 
@@ -330,11 +313,6 @@ Union of two or more data streams creating a new stream containing all the eleme
 {{< tab "Java" >}}
 ```java
 dataStream.union(otherStream1, otherStream2, ...);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-dataStream.union(otherStream1, otherStream2, ...)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -354,16 +332,8 @@ Join two data streams on a given key and a common window.
 ```java
 dataStream.join(otherStream)
     .where(<key selector>).equalTo(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply (new JoinFunction () {...});
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-dataStream.join(otherStream)
-    .where(<key selector>).equalTo(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
-    .apply { ... }
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -382,22 +352,10 @@ Join two elements e1 and e2 of two keyed streams with a common key over a given 
 // this will join the two streams so that
 // key1 == key2 && leftTs - 2 < rightTs < leftTs + 2
 keyedStream.intervalJoin(otherKeyedStream)
-    .between(Time.milliseconds(-2), Time.milliseconds(2)) // lower and upper bound
+    .between(Duration.ofMillis(-2), Duration.ofMillis(2)) // lower and upper bound
     .upperBoundExclusive(true) // optional
     .lowerBoundExclusive(true) // optional
     .process(new IntervalJoinFunction() {...});
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-// this will join the two streams so that
-// key1 == key2 && leftTs - 2 < rightTs < leftTs + 2
-keyedStream.intervalJoin(otherKeyedStream)
-    .between(Time.milliseconds(-2), Time.milliseconds(2)) 
-    // lower and upper bound
-    .upperBoundExclusive(true) // optional
-    .lowerBoundExclusive(true) // optional
-    .process(new IntervalJoinFunction() {...})
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -415,16 +373,8 @@ Cogroups two data streams on a given key and a common window.
 ```java
 dataStream.coGroup(otherStream)
     .where(0).equalTo(1)
-    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply (new CoGroupFunction () {...});
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-dataStream.coGroup(otherStream)
-    .where(0).equalTo(1)
-    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
-    .apply {}
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -444,14 +394,6 @@ DataStream<Integer> someStream = //...
 DataStream<String> otherStream = //...
 
 ConnectedStreams<Integer, String> connectedStreams = someStream.connect(otherStream);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-someStream : DataStream[Int] = ...
-otherStream : DataStream[String] = ...
-
-val connectedStreams = someStream.connect(otherStream)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -498,18 +440,6 @@ connectedStreams.flatMap(new CoFlatMapFunction<Integer, String, String>() {
 });
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-connectedStreams.map(
-    (_ : Int) => true,
-    (_ : String) => false
-)
-connectedStreams.flatMap(
-    (_ : Int) => true,
-    (_ : String) => false
-)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 class MyCoMapFunction(CoMapFunction):
@@ -535,45 +465,68 @@ connectedStreams.flat_map(MyCoFlatMapFunction())
 {{< /tab >}}
 {{< /tabs>}}
 
-### Iterate
-#### DataStream &rarr; IterativeStream &rarr; ConnectedStream
+### Cache
+#### DataStream &rarr; CachedDataStream
 
-Creates a "feedback" loop in the flow, by redirecting the output of one operator to some previous operator. This is especially useful for defining algorithms that continuously update a model. The following code starts with a stream and applies the iteration body continuously. Elements that are greater than 0 are sent back to the feedback channel, and the rest of the elements are forwarded downstream.
+Cache the intermediate result of the transformation. Currently, only jobs that run with batch 
+execution mode are supported. The cache intermediate result is generated lazily at the first time 
+the intermediate result is computed so that the result can be reused by later jobs. If the cache is 
+lost, it will be recomputed using the original transformations.
 
-{{< tabs iterate >}}
+{{< tabs cache >}}
 {{< tab "Java" >}}
 ```java
-IterativeStream<Long> iteration = initialStream.iterate();
-DataStream<Long> iterationBody = iteration.map (/*do something*/);
-DataStream<Long> feedback = iterationBody.filter(new FilterFunction<Long>(){
-    @Override
-    public boolean filter(Long value) throws Exception {
-        return value > 0;
-    }
-});
-iteration.closeWith(feedback);
-DataStream<Long> output = iterationBody.filter(new FilterFunction<Long>(){
-    @Override
-    public boolean filter(Long value) throws Exception {
-        return value <= 0;
-    }
-});
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-initialStream.iterate {
-  iteration => {
-    val iterationBody = iteration.map {/*do something*/}
-    (iterationBody.filter(_ > 0), iterationBody.filter(_ <= 0))
-  }
-}
+DataStream<Integer> dataStream = //...
+CachedDataStream<Integer> cachedDataStream = dataStream.cache();
+cachedDataStream.print(); // Do anything with the cachedDataStream
+...
+env.execute(); // Execute and create cache.
+        
+cachedDataStream.print(); // Consume cached result.
+env.execute();
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-This feature is not yet supported in Python
+```python
+data_stream = ... # DataStream
+cached_data_stream = data_stream.cache()
+cached_data_stream.print()
+# ...
+env.execute() # Execute and create cache.
+
+cached_data_stream.print() # Consume cached result.
+env.execute()
+```
 {{< /tab >}}
 {{< /tabs>}}
+
+### Full Window Partition
+#### DataStream &rarr; PartitionWindowedStream
+
+Collects all records of each partition separately into a full window and processes them. The window 
+emission will be triggered at the end of inputs. 
+This approach is primarily applicable to batch processing scenarios.
+For non-keyed DataStream, a partition contains all records of a subtask. 
+For KeyedStream, a partition contains all records of a key. 
+
+```java
+DataStream<Integer> dataStream = //...
+PartitionWindowedStream<Integer> partitionWindowedDataStream = dataStream.fullWindowPartition();
+// do full window partition processing with PartitionWindowedStream
+DataStream<Integer> resultStream = partitionWindowedDataStream.mapPartition(
+    new MapPartitionFunction<Integer, Integer>() {
+        @Override
+        public void mapPartition(
+                Iterable<Integer> values, Collector<Integer> out) {
+            int result = 0;
+            for (Integer value : values) {
+                result += value;
+            }
+            out.collect(result);
+        }
+    }
+);
+```
 
 ## Physical Partitioning
 
@@ -589,12 +542,6 @@ Uses a user-defined Partitioner to select the target task for each element.
 ```java
 dataStream.partitionCustom(partitioner, "someKey");
 dataStream.partitionCustom(partitioner, 0);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-dataStream.partitionCustom(partitioner, "someKey")
-dataStream.partitionCustom(partitioner, 0)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -614,11 +561,6 @@ Partitions elements randomly according to a uniform distribution.
 {{< tab "Java" >}}
 ```java
 dataStream.shuffle();
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-dataStream.shuffle()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -648,11 +590,6 @@ Please see this figure for a visualization of the connection pattern in the abov
 dataStream.rescale();
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-dataStream.rescale()
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 data_stream.rescale()
@@ -669,11 +606,6 @@ Broadcasts elements to every partition.
 {{< tab "Java" >}}
 ```java
 dataStream.broadcast();
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-dataStream.broadcast()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -702,11 +634,6 @@ The two mappers will be chained, and filter will not be chained to the first map
 someStream.filter(...).map(...).startNewChain().map(...);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-someStream.filter(...).map(...).startNewChain().map(...)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 some_stream.filter(...).map(...).start_new_chain().map(...)
@@ -724,11 +651,6 @@ Do not chain the map operator.
 someStream.map(...).disableChaining();
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-someStream.map(...).disableChaining()
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 some_stream.map(...).disable_chaining()
@@ -744,11 +666,6 @@ Set the slot sharing group of an operation. Flink will put operations with the s
 {{< tab "Java" >}}
 ```java
 someStream.filter(...).slotSharingGroup("name");
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-someStream.filter(...).slotSharingGroup("name")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -773,12 +690,7 @@ The description can contain detail information about operators to facilitate deb
 {{< tabs namedescription >}}
 {{< tab "Java" >}}
 ```java
-someStream.filter(...).setName("filter").setDescription("x in (1, 2, 3, 4) and y > 1");
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-someStream.filter(...).setName("filter").setDescription("x in (1, 2, 3, 4) and y > 1")
+someStream.filter(...).name("filter").setDescription("x in (1, 2, 3, 4) and y > 1");
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -792,7 +704,7 @@ The format of description of a job vertex is a tree format string by default.
 Users can set `pipeline.vertex-description-mode` to `CASCADING`, if they want to set description to be the cascading format as in former versions.
 
 Operators generated by Flink SQL will have a name consisted by type of operator and id, and a detailed description, by default.
-Users can set `table.optimizer.simplify-operator-name-enabled` to `false`, if they want to set name to be the detailed description as in former versions.
+Users can set `table.exec.simplify-operator-name-enabled` to `false`, if they want to set name to be the detailed description as in former versions.
 
 When the topology of the pipeline is complex, users can add a topological index in the name of vertex by set `pipeline.vertex-name-include-index-prefix` to `true`,
 so that we can easily find the vertex in the graph according to logs or metrics tags.

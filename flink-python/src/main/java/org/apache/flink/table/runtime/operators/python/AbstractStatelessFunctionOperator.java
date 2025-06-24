@@ -105,15 +105,17 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
         return BeamTablePythonFunctionRunner.stateless(
-                getRuntimeContext().getTaskName(),
+                getContainingTask().getEnvironment(),
+                getRuntimeContext().getTaskInfo().getTaskName(),
                 createPythonEnvironmentManager(),
                 getFunctionUrn(),
-                getUserDefinedFunctionsProto(),
+                createUserDefinedFunctionsProto(),
                 getFlinkMetricContainer(),
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
                                 ManagedMemoryUseCase.PYTHON,
+                                getContainingTask().getJobConfiguration(),
                                 getContainingTask()
                                         .getEnvironment()
                                         .getTaskManagerInfo()
@@ -135,7 +137,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
     public abstract UDFIN getFunctionInput(IN element);
 
     /** Gets the proto representation of the Python user-defined functions to be executed. */
-    public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
+    public abstract FlinkFnApi.UserDefinedFunctions createUserDefinedFunctionsProto();
 
     public abstract String getFunctionUrn();
 

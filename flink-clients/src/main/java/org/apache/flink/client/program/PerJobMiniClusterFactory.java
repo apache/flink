@@ -18,22 +18,23 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.MiniClusterJobClient;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -68,14 +69,14 @@ public final class PerJobMiniClusterFactory {
 
     /** Starts a {@link MiniCluster} and submits a job. */
     public CompletableFuture<JobClient> submitJob(
-            JobGraph jobGraph, ClassLoader userCodeClassloader) throws Exception {
+            ExecutionPlan executionPlan, ClassLoader userCodeClassloader) throws Exception {
         MiniClusterConfiguration miniClusterConfig =
-                getMiniClusterConfig(jobGraph.getMaximumParallelism());
+                getMiniClusterConfig(executionPlan.getMaximumParallelism());
         MiniCluster miniCluster = miniClusterFactory.apply(miniClusterConfig);
         miniCluster.start();
 
         return miniCluster
-                .submitJob(jobGraph)
+                .submitJob(executionPlan)
                 .thenApplyAsync(
                         FunctionUtils.uncheckedFunction(
                                 submissionResult -> {
@@ -119,22 +120,29 @@ public final class PerJobMiniClusterFactory {
         Configuration configuration = new Configuration(this.configuration);
 
         if (!configuration.contains(RestOptions.BIND_PORT)) {
-            configuration.setString(RestOptions.BIND_PORT, "0");
+            configuration.set(RestOptions.BIND_PORT, "0");
         }
 
-        int numTaskManagers =
-                configuration.getInteger(
-                        ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
-                        ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER);
+        int numTaskManagers = configuration.get(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS);
 
+        Map<String, String> overwriteParallelisms =
+                configuration.get(PipelineOptions.PARALLELISM_OVERRIDES);
+        if (overwriteParallelisms != null) {
+            for (String overrideParallelism : overwriteParallelisms.values()) {
+                maximumParallelism =
+                        Math.max(maximumParallelism, Integer.parseInt(overrideParallelism));
+            }
+        }
+
+        int finalMaximumParallelism = maximumParallelism;
         int numSlotsPerTaskManager =
                 configuration
                         .getOptional(TaskManagerOptions.NUM_TASK_SLOTS)
                         .orElseGet(
                                 () ->
-                                        maximumParallelism > 0
+                                        finalMaximumParallelism > 0
                                                 ? MathUtils.divideRoundUp(
-                                                        maximumParallelism, numTaskManagers)
+                                                        finalMaximumParallelism, numTaskManagers)
                                                 : TaskManagerOptions.NUM_TASK_SLOTS.defaultValue());
 
         return new MiniClusterConfiguration.Builder()

@@ -19,7 +19,8 @@
 package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.time.Time;
+
+import java.time.Duration;
 
 /** Utility to create a {@link StateTtlConfig} object. */
 public class StateConfigUtil {
@@ -30,7 +31,7 @@ public class StateConfigUtil {
      */
     public static StateTtlConfig createTtlConfig(long retentionTime) {
         if (retentionTime > 0) {
-            return StateTtlConfig.newBuilder(Time.milliseconds(retentionTime))
+            return StateTtlConfig.newBuilder(Duration.ofMillis(retentionTime))
                     .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
                     .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
                     .build();

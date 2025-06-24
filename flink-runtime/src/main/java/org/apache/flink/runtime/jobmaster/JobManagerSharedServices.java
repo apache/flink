@@ -24,7 +24,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import javax.annotation.Nonnull;
@@ -144,16 +144,14 @@ public class JobManagerSharedServices {
         checkNotNull(config);
         checkNotNull(blobServer);
 
-        final String classLoaderResolveOrder =
-                config.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+        final String classLoaderResolveOrder = config.get(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
 
         final String[] alwaysParentFirstLoaderPatterns =
                 CoreOptions.getParentFirstLoaderPatterns(config);
 
         final boolean failOnJvmMetaspaceOomError =
-                config.getBoolean(CoreOptions.FAIL_ON_USER_CLASS_LOADING_METASPACE_OOM);
-        final boolean checkClassLoaderLeak =
-                config.getBoolean(CoreOptions.CHECK_LEAKED_CLASSLOADER);
+                config.get(CoreOptions.FAIL_ON_USER_CLASS_LOADING_METASPACE_OOM);
+        final boolean checkClassLoaderLeak = config.get(CoreOptions.CHECK_LEAKED_CLASSLOADER);
         final BlobLibraryCacheManager libraryCacheManager =
                 new BlobLibraryCacheManager(
                         blobServer,
@@ -162,17 +160,18 @@ public class JobManagerSharedServices {
                                         classLoaderResolveOrder),
                                 alwaysParentFirstLoaderPatterns,
                                 failOnJvmMetaspaceOomError ? fatalErrorHandler : null,
-                                checkClassLoaderLeak));
+                                checkClassLoaderLeak),
+                        true);
 
         final int numberCPUCores = Hardware.getNumberCPUCores();
         final int jobManagerFuturePoolSize =
-                config.getInteger(JobManagerOptions.JOB_MANAGER_FUTURE_POOL_SIZE, numberCPUCores);
+                config.get(JobManagerOptions.JOB_MANAGER_FUTURE_POOL_SIZE, numberCPUCores);
         final ScheduledExecutorService futureExecutor =
                 Executors.newScheduledThreadPool(
                         jobManagerFuturePoolSize, new ExecutorThreadFactory("jobmanager-future"));
 
         final int jobManagerIoPoolSize =
-                config.getInteger(JobManagerOptions.JOB_MANAGER_IO_POOL_SIZE, numberCPUCores);
+                config.get(JobManagerOptions.JOB_MANAGER_IO_POOL_SIZE, numberCPUCores);
         final ExecutorService ioExecutor =
                 Executors.newFixedThreadPool(
                         jobManagerIoPoolSize, new ExecutorThreadFactory("jobmanager-io"));

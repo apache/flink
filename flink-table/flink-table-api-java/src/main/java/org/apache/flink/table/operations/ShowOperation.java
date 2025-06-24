@@ -25,4 +25,4 @@ import org.apache.flink.annotation.Internal;
  * TABLES, SHOW FUNCTIONS, SHOW PARTITIONS.
  */
 @Internal
-public interface ShowOperation extends Operation {}
+public interface ShowOperation extends Operation, ExecutableOperation {}

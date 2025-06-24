@@ -44,6 +44,14 @@ public interface TaskExecutorPartitionTracker
      */
     void stopTrackingAndReleaseJobPartitionsFor(JobID producingJobId);
 
+    /**
+     * Get all partitions tracked for the given job.
+     *
+     * @param producingJobId the job id
+     * @return the tracked partitions
+     */
+    Collection<TaskExecutorPartitionInfo> getTrackedPartitionsFor(JobID producingJobId);
+
     /** Promotes the given partitions. */
     void promoteJobPartitions(Collection<ResultPartitionID> partitionsToPromote);
 

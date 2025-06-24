@@ -17,18 +17,18 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
-import org.apache.flink.table.utils.LegacyRowResource
-import org.apache.flink.types.Row
+import org.apache.flink.table.utils.LegacyRowExtension
 
-import org.junit.{Rule, Test}
-import org.junit.Assert.assertEquals
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import java.sql.Timestamp
 import java.time.{Instant, LocalDateTime, ZoneId}
@@ -37,8 +37,8 @@ import scala.collection.JavaConverters._
 
 class SourceWatermarkITCase extends StreamingTestBase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   @Test
   def testSimpleWatermarkPushDown(): Unit = {
@@ -75,7 +75,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
     )
 
     val query = "SELECT a, b, c FROM VirtualTable"
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -86,8 +86,8 @@ class SourceWatermarkITCase extends StreamingTestBase {
       .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
       .toList
 
-    assertEquals(expectedWatermarkOutput, actualWatermark)
-    assertEquals(expectedData.sorted, sink.getAppendResults.sorted)
+    assertThat(actualWatermark).isEqualTo(expectedWatermarkOutput)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expectedData.sorted)
   }
 
   @Test
@@ -127,7 +127,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
     )
 
     val query = "SELECT a, b, c FROM VirtualTable1"
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -138,8 +138,8 @@ class SourceWatermarkITCase extends StreamingTestBase {
       .map(x => LocalDateTime.ofInstant(Instant.ofEpochMilli(x.getTimestamp), zoneId).toString)
       .toList
 
-    assertEquals(expectedWatermarkOutput, actualWatermark)
-    assertEquals(expectedData.sorted, sink.getAppendResults.sorted)
+    assertThat(actualWatermark).isEqualTo(expectedWatermarkOutput)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expectedData.sorted)
   }
 
   @Test
@@ -185,7 +185,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
     )
 
     val query = "SELECT a, b, c.d FROM NestedTable"
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -196,8 +196,8 @@ class SourceWatermarkITCase extends StreamingTestBase {
       .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
       .toList
 
-    assertEquals(expectedWatermarkOutput, actualWatermark)
-    assertEquals(expectedData.sorted, sink.getAppendResults.sorted)
+    assertThat(actualWatermark).isEqualTo(expectedWatermarkOutput)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expectedData.sorted)
   }
 
   @Test
@@ -240,7 +240,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
     )
 
     val query = "SELECT a, b, d FROM UdfTable WHERE b > 2"
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -251,8 +251,8 @@ class SourceWatermarkITCase extends StreamingTestBase {
       .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
       .toList
 
-    assertEquals(expectedWatermarkOutput, actualWatermark)
-    assertEquals(expectedData.sorted, sink.getAppendResults.sorted)
+    assertThat(actualWatermark).isEqualTo(expectedWatermarkOutput)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expectedData.sorted)
   }
 
   @Test
@@ -291,7 +291,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
     val expectedData = Seq("1")
 
     val query = "SELECT a FROM MetadataTable WHERE b > 2"
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -302,7 +302,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
       .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
       .toList
 
-    assertEquals(expectedWatermarkOutput, actualWatermark)
-    assertEquals(expectedData.sorted, sink.getAppendResults.sorted)
+    assertThat(actualWatermark).isEqualTo(expectedWatermarkOutput)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expectedData.sorted)
   }
 }

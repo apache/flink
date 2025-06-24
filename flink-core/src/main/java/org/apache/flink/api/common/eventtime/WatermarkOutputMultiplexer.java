@@ -48,6 +48,15 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class WatermarkOutputMultiplexer {
+    /** A callback for propagating changes to split based watermarks. */
+    @Internal
+    public interface WatermarkUpdateListener {
+        /** Called when the watermark increases. */
+        void onWatermarkUpdate(long watermark);
+
+        /** Called when the idle state changes. */
+        void onIdleUpdate(boolean idle);
+    }
 
     /**
      * The {@link WatermarkOutput} that we use to emit our multiplexed watermark updates. We assume
@@ -78,14 +87,19 @@ public class WatermarkOutputMultiplexer {
      * an output ID that can be used to get a deferred or immediate {@link WatermarkOutput} for that
      * output.
      */
-    public void registerNewOutput(String id) {
-        final PartialWatermark outputState = new PartialWatermark();
+    public void registerNewOutput(String id, WatermarkUpdateListener onWatermarkUpdate) {
+        final PartialWatermark outputState = new PartialWatermark(onWatermarkUpdate);
 
         final PartialWatermark previouslyRegistered =
                 watermarkPerOutputId.putIfAbsent(id, outputState);
         checkState(previouslyRegistered == null, "Already contains an output for ID %s", id);
 
         combinedWatermarkStatus.add(outputState);
+    }
+
+    /** Registers a new multiplexed output with a no-op listener. */
+    public void registerNewOutput(String id) {
+        registerNewOutput(id, new NoOpWatermarkUpdateListener());
     }
 
     public boolean unregisterOutput(String id) {
@@ -215,5 +229,15 @@ public class WatermarkOutputMultiplexer {
         public void markActive() {
             state.setIdle(false);
         }
+    }
+
+    /** A No-op implementation of {@link WatermarkUpdateListener}. */
+    @Internal
+    public static class NoOpWatermarkUpdateListener implements WatermarkUpdateListener {
+        @Override
+        public void onWatermarkUpdate(long watermark) {}
+
+        @Override
+        public void onIdleUpdate(boolean idle) {}
     }
 }

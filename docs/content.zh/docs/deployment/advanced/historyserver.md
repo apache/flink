@@ -58,7 +58,7 @@ bin/historyserver.sh (start|start-foreground|stop)
 
 **JobManager**
 
-已完成作业的存档在 JobManager 上进行，将已存档的作业信息上传到文件系统目录中。你可以在 `flink-conf.yaml` 文件中通过 `jobmanager.archive.fs.dir` 设置一个目录存档已完成的作业。
+已完成作业的存档在 JobManager 上进行，将已存档的作业信息上传到文件系统目录中。你可以在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}})中通过 `jobmanager.archive.fs.dir` 设置一个目录存档已完成的作业。
 
 ```yaml
 # 上传已完成作业信息的目录
@@ -80,6 +80,22 @@ historyserver.archive.fs.refresh-interval: 10000
 所包含的存档被下载缓存在本地文件系统中。本地目录通过 `historyserver.web.tmpdir` 配置。
 
 请查看配置页面以获取[配置选项的完整列表]({{< ref "docs/deployment/config" >}}#history-server)。
+
+## 日志集成
+
+Flink 本身并不提供已完成作业的日志收集功能。
+但是，如果你已经有了日志收集与浏览服务，可以配置 HistoryServer 与其集成。
+（通过[`historyserver.log.jobmanager.url-pattern`]({{< ref "docs/deployment/config" >}}#historyserver-log-jobmanager-url-pattern)
+和 [`historyserver.log.taskmanager.url-pattern`]({{< ref "docs/deployment/config" >}}#historyserver-log-taskmanager-url-pattern)）。
+如此一来，你可以从 HistoryServer 的 WebUI 直接链接到相关 JobManager / TaskManager 的日志。
+
+```yaml
+# HistoryServer 会将 <jobid> 替换为对应作业的 ID
+historyserver.log.jobmanager.url-pattern: http://my.log-browsing.url/<jobid>
+
+# HistoryServer 会将 <jobid> 和 <tmid> 替换为对应作业和 TaskManager 的 ID
+historyserver.log.taskmanager.url-pattern: http://my.log-browsing.url/<jobid>/<tmid>
+```
 
 <a name="available-requests"></a>
 
@@ -105,5 +121,9 @@ historyserver.archive.fs.refresh-interval: 10000
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>/attempts/<attempt>`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>/attempts/<attempt>/accumulators`
   - `/jobs/<jobid>/plan`
+  - `/jobs/<jobid>/jobmanager/config`
+  - `/jobs/<jobid>/jobmanager/environment`
+  - `/jobs/<jobid>/jobmanager/log-url`
+  - `/jobs/<jobid>/taskmanagers/<taskmanagerid>/log-url`
 
 {{< top >}}

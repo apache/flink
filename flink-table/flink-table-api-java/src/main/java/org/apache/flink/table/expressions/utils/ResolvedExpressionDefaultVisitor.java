@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
+import org.apache.flink.table.expressions.NestedFieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ResolvedExpressionVisitor;
 import org.apache.flink.table.expressions.TableReferenceExpression;
@@ -68,6 +69,11 @@ public abstract class ResolvedExpressionDefaultVisitor<T> extends ResolvedExpres
     @Override
     public T visit(ResolvedExpression other) {
         return defaultMethod(other);
+    }
+
+    @Override
+    public T visit(NestedFieldReferenceExpression nestedFieldReference) {
+        return defaultMethod(nestedFieldReference);
     }
 
     protected abstract T defaultMethod(ResolvedExpression expression);

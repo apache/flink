@@ -18,15 +18,13 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
+import org.apache.flink.runtime.leaderelection.LeaderElectionDriver;
+
 /**
  * A {@link LeaderRetrievalDriver} is responsible for retrieves the current leader which has been
- * elected by the {@link org.apache.flink.runtime.leaderelection.LeaderElectionDriver}.
+ * elected by the {@link LeaderElectionDriver}.
  *
  * <p><strong>Important</strong>: The {@link LeaderRetrievalDriver} could not guarantee that there
  * is no {@link LeaderRetrievalEventHandler} callbacks happen after {@link #close()}.
  */
-public interface LeaderRetrievalDriver {
-
-    /** Close the services used for leader retrieval. */
-    void close() throws Exception;
-}
+public interface LeaderRetrievalDriver extends AutoCloseable {}

@@ -35,24 +35,24 @@ import java.util.List;
 /** ALTER TABLE DDL to add partitions to a table. */
 public class SqlAddPartitions extends SqlAlterTable {
 
-    private final boolean ifNotExists;
+    private final boolean ifPartitionNotExists;
     private final List<SqlNodeList> partSpecs;
     private final List<SqlNodeList> partProps;
 
     public SqlAddPartitions(
             SqlParserPos pos,
             SqlIdentifier tableName,
-            boolean ifNotExists,
+            boolean ifPartitionNotExists,
             List<SqlNodeList> partSpecs,
             List<SqlNodeList> partProps) {
-        super(pos, tableName);
-        this.ifNotExists = ifNotExists;
+        super(pos, tableName, false);
+        this.ifPartitionNotExists = ifPartitionNotExists;
         this.partSpecs = partSpecs;
         this.partProps = partProps;
     }
 
-    public boolean ifNotExists() {
-        return ifNotExists;
+    public boolean ifPartitionNotExists() {
+        return ifPartitionNotExists;
     }
 
     public List<SqlNodeList> getPartSpecs() {
@@ -82,7 +82,7 @@ public class SqlAddPartitions extends SqlAlterTable {
         super.unparse(writer, leftPrec, rightPrec);
         writer.newlineAndIndent();
         writer.keyword("ADD");
-        if (ifNotExists) {
+        if (ifPartitionNotExists) {
             writer.keyword("IF NOT EXISTS");
         }
         int opLeftPrec = getOperator().getLeftPrec();
@@ -98,5 +98,12 @@ public class SqlAddPartitions extends SqlAlterTable {
                 partProp.unparse(writer, opLeftPrec, opRightPrec);
             }
         }
+    }
+
+    /** Alter table add partition context. */
+    public static class AlterTableAddPartitionContext {
+        public boolean ifNotExists;
+        public List<SqlNodeList> partSpecs;
+        public List<SqlNodeList> partProps;
     }
 }

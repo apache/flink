@@ -17,7 +17,7 @@
 
 package org.apache.flink.table.codesplit;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
@@ -25,15 +25,14 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AddBoolBeforeReturnRewriter}. */
-public class AddBooleanBeforeReturnRewriterTest
-        extends CodeRewriterTestBase<AddBoolBeforeReturnRewriter> {
+class AddBooleanBeforeReturnRewriterTest extends CodeRewriterTestBase<AddBoolBeforeReturnRewriter> {
 
     public AddBooleanBeforeReturnRewriterTest() {
         super("add-boolean", code -> new AddBoolBeforeReturnRewriter(code, 50));
     }
 
     @Test
-    public void testAddBooleanBeforeReturn() {
+    void testAddBooleanBeforeReturn() {
         AddBoolBeforeReturnRewriter rewriter = runTest("TestAddBooleanBeforeReturn");
         List<Map<String, String>> result = rewriter.getBoolVarNames();
         assertThat(result).hasSize(1);
@@ -43,7 +42,7 @@ public class AddBooleanBeforeReturnRewriterTest
     }
 
     @Test
-    public void testRewriteInnerClass() {
+    void testRewriteInnerClass() {
         AddBoolBeforeReturnRewriter rewriter = runTest("TestRewriteInnerClass");
         List<Map<String, String>> result = rewriter.getBoolVarNames();
         assertThat(result).hasSize(3);
@@ -56,7 +55,7 @@ public class AddBooleanBeforeReturnRewriterTest
     }
 
     @Test
-    public void testNotRewrite() {
+    void testNotRewrite() {
         AddBoolBeforeReturnRewriter rewriter = runTest("TestNotRewrite");
         List<Map<String, String>> result = rewriter.getBoolVarNames();
         assertThat(result).hasSize(1);
@@ -64,7 +63,7 @@ public class AddBooleanBeforeReturnRewriterTest
     }
 
     @Test
-    public void testSkipAnonymousClassAndLambda() {
+    void testSkipAnonymousClassAndLambda() {
         AddBoolBeforeReturnRewriter rewriter = runTest("TestSkipAnonymousClassAndLambda");
         List<Map<String, String>> result = rewriter.getBoolVarNames();
         assertThat(result).hasSize(2);

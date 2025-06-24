@@ -24,8 +24,7 @@ import org.apache.flink.util.Collector;
 /**
  * Rich variant of the {@link GroupReduceFunction}. As a {@link RichFunction}, it gives access to
  * the {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown
- * methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
- * RichFunction#close()}.
+ * methods: {@link RichFunction#open(OpenContext)} and {@link RichFunction#close()}.
  *
  * <p>Partial computation can significantly improve the performance of a {@link
  * RichGroupReduceFunction}. This technique is also known as applying a Combiner. Implement the

@@ -25,6 +25,7 @@ import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.core.Aggregate.Group
 import org.apache.calcite.rel.metadata.RelMetadataQuery
@@ -74,12 +75,7 @@ class FlinkLogicalWindowAggregate(
 
 }
 
-class FlinkLogicalWindowAggregateConverter
-  extends ConverterRule(
-    classOf[LogicalWindowAggregate],
-    Convention.NONE,
-    FlinkConventions.LOGICAL,
-    "FlinkLogicalWindowAggregateConverter") {
+class FlinkLogicalWindowAggregateConverter(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg = call.rel(0).asInstanceOf[LogicalWindowAggregate]
@@ -114,5 +110,10 @@ class FlinkLogicalWindowAggregateConverter
 }
 
 object FlinkLogicalWindowAggregate {
-  val CONVERTER = new FlinkLogicalWindowAggregateConverter
+  val CONVERTER: ConverterRule = new FlinkLogicalWindowAggregateConverter(
+    Config.INSTANCE.withConversion(
+      classOf[LogicalWindowAggregate],
+      Convention.NONE,
+      FlinkConventions.LOGICAL,
+      "FlinkLogicalWindowAggregateConverter"))
 }

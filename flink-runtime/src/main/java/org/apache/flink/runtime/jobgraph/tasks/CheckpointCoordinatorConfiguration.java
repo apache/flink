@@ -35,9 +35,14 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     public static final long MINIMAL_CHECKPOINT_TIME = 10;
 
+    // interval of max value means disable periodic checkpoint
+    public static final long DISABLED_CHECKPOINT_INTERVAL = Long.MAX_VALUE;
+
     private static final long serialVersionUID = 2L;
 
     private final long checkpointInterval;
+
+    private final long checkpointIntervalDuringBacklog;
 
     private final long checkpointTimeout;
 
@@ -66,7 +71,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     private final boolean enableCheckpointsAfterTasksFinish;
 
-    /** @deprecated use {@link #builder()}. */
+    /**
+     * @deprecated use {@link #builder()}.
+     */
     @Deprecated
     @VisibleForTesting
     public CheckpointCoordinatorConfiguration(
@@ -80,6 +87,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
             int tolerableCpFailureNumber,
             long checkpointIdOfIgnoredInFlightData) {
         this(
+                checkpointInterval,
                 checkpointInterval,
                 checkpointTimeout,
                 minPauseBetweenCheckpoints,
@@ -95,6 +103,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     private CheckpointCoordinatorConfiguration(
             long checkpointInterval,
+            long checkpointIntervalDuringBacklog,
             long checkpointTimeout,
             long minPauseBetweenCheckpoints,
             int maxConcurrentCheckpoints,
@@ -105,6 +114,11 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
             long alignedCheckpointTimeout,
             long checkpointIdOfIgnoredInFlightData,
             boolean enableCheckpointsAfterTasksFinish) {
+
+        if (checkpointIntervalDuringBacklog < MINIMAL_CHECKPOINT_TIME) {
+            // interval of max value means disable periodic checkpoint
+            checkpointIntervalDuringBacklog = DISABLED_CHECKPOINT_INTERVAL;
+        }
 
         // sanity checks
         if (checkpointInterval < MINIMAL_CHECKPOINT_TIME
@@ -119,6 +133,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 "maxConcurrentCheckpoints can't be > 1 if UnalignedCheckpoints enabled");
 
         this.checkpointInterval = checkpointInterval;
+        this.checkpointIntervalDuringBacklog = checkpointIntervalDuringBacklog;
         this.checkpointTimeout = checkpointTimeout;
         this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
         this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
@@ -133,6 +148,14 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     public long getCheckpointInterval() {
         return checkpointInterval;
+    }
+
+    public boolean isCheckpointingEnabled() {
+        return checkpointInterval > 0 && checkpointInterval < DISABLED_CHECKPOINT_INTERVAL;
+    }
+
+    public long getCheckpointIntervalDuringBacklog() {
+        return checkpointIntervalDuringBacklog;
     }
 
     public long getCheckpointTimeout() {
@@ -248,6 +271,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
     /** {@link CheckpointCoordinatorConfiguration} builder. */
     public static class CheckpointCoordinatorConfigurationBuilder {
         private long checkpointInterval = MINIMAL_CHECKPOINT_TIME;
+        private long checkpointIntervalDuringBacklog = MINIMAL_CHECKPOINT_TIME;
         private long checkpointTimeout = MINIMAL_CHECKPOINT_TIME;
         private long minPauseBetweenCheckpoints;
         private int maxConcurrentCheckpoints = 1;
@@ -263,6 +287,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         public CheckpointCoordinatorConfiguration build() {
             return new CheckpointCoordinatorConfiguration(
                     checkpointInterval,
+                    checkpointIntervalDuringBacklog,
                     checkpointTimeout,
                     minPauseBetweenCheckpoints,
                     maxConcurrentCheckpoints,
@@ -278,6 +303,12 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         public CheckpointCoordinatorConfigurationBuilder setCheckpointInterval(
                 long checkpointInterval) {
             this.checkpointInterval = checkpointInterval;
+            return this;
+        }
+
+        public CheckpointCoordinatorConfigurationBuilder setCheckpointIntervalDuringBacklog(
+                long checkpointIntervalDuringBacklog) {
+            this.checkpointIntervalDuringBacklog = checkpointIntervalDuringBacklog;
             return this;
         }
 

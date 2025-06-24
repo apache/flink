@@ -17,42 +17,42 @@
 
 package org.apache.flink.table.codesplit;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link MemberFieldRewriter}. */
-public class MemberFieldRewriterTest extends CodeRewriterTestBase<MemberFieldRewriter> {
+class MemberFieldRewriterTest extends CodeRewriterTestBase<MemberFieldRewriter> {
 
     public MemberFieldRewriterTest() {
         super("member", code -> new MemberFieldRewriter(code, 3));
     }
 
     @Test
-    public void testRewriteMemberField() {
+    void testRewriteMemberField() {
         runTest("TestRewriteMemberField");
     }
 
     @Test
-    public void testRewriteGenericType() {
+    void testRewriteGenericType() {
         runTest("TestRewriteGenericType");
     }
 
     @Test
-    public void testNotRewriteFunctionParameter() {
+    void testNotRewriteFunctionParameter() {
         runTest("TestNotRewriteFunctionParameter");
     }
 
     @Test
-    public void testNotRewriteLocalVariable() {
+    void testNotRewriteLocalVariable() {
         runTest("TestNotRewriteLocalVariable");
     }
 
     @Test
-    public void testNotRewriteMember() {
+    void testNotRewriteMember() {
         runTest("TestNotRewriteMember");
     }
 
     @Test
-    public void testRewriteInnerClass() {
+    void testRewriteInnerClass() {
         runTest("TestRewriteInnerClass");
     }
 }

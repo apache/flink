@@ -26,6 +26,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -42,10 +43,11 @@ import org.apache.flink.table.runtime.operators.sort.StringNormalizedKeyComputer
 import org.apache.flink.table.runtime.operators.sort.StringRecordComparator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,8 +57,8 @@ import static org.apache.flink.table.runtime.operators.join.String2HashJoinOpera
 import static org.apache.flink.table.runtime.operators.join.String2HashJoinOperatorTest.transformToBinary;
 
 /** Test for {@link SortMergeJoinOperator}. */
-@RunWith(Parameterized.class)
-public class String2SortMergeJoinOperatorTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class String2SortMergeJoinOperatorTest {
 
     private boolean leftIsSmall;
     InternalTypeInfo<RowData> typeInfo =
@@ -68,17 +70,17 @@ public class String2SortMergeJoinOperatorTest {
                     VarCharType.STRING_TYPE,
                     VarCharType.STRING_TYPE);
 
-    public String2SortMergeJoinOperatorTest(boolean leftIsSmall) {
+    String2SortMergeJoinOperatorTest(boolean leftIsSmall) {
         this.leftIsSmall = leftIsSmall;
     }
 
-    @Parameterized.Parameters
-    public static Collection<Boolean> parameters() {
+    @Parameters(name = "leftIsSmall = {0}")
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 
-    @Test
-    public void testInnerJoin() throws Exception {
+    @TestTemplate
+    void testInnerJoin() throws Exception {
         StreamOperator joinOperator = newOperator(FlinkJoinType.INNER, leftIsSmall);
         TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
                 buildSortMergeJoin(joinOperator);
@@ -93,8 +95,8 @@ public class String2SortMergeJoinOperatorTest {
                 transformToBinary(testHarness.getOutput()));
     }
 
-    @Test
-    public void testLeftOuterJoin() throws Exception {
+    @TestTemplate
+    void testLeftOuterJoin() throws Exception {
         StreamOperator joinOperator = newOperator(FlinkJoinType.LEFT, leftIsSmall);
         TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
                 buildSortMergeJoin(joinOperator);
@@ -110,8 +112,8 @@ public class String2SortMergeJoinOperatorTest {
                 transformToBinary(testHarness.getOutput()));
     }
 
-    @Test
-    public void testRightOuterJoin() throws Exception {
+    @TestTemplate
+    void testRightOuterJoin() throws Exception {
         StreamOperator joinOperator = newOperator(FlinkJoinType.RIGHT, leftIsSmall);
         TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
                 buildSortMergeJoin(joinOperator);
@@ -127,8 +129,8 @@ public class String2SortMergeJoinOperatorTest {
                 transformToBinary(testHarness.getOutput()));
     }
 
-    @Test
-    public void testFullJoin() throws Exception {
+    @TestTemplate
+    void testFullJoin() throws Exception {
         StreamOperator joinOperator = newOperator(FlinkJoinType.FULL, leftIsSmall);
         TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData> testHarness =
                 buildSortMergeJoin(joinOperator);
@@ -185,58 +187,75 @@ public class String2SortMergeJoinOperatorTest {
     }
 
     static StreamOperator newOperator(FlinkJoinType type, boolean leftIsSmaller) {
-        return new SortMergeJoinOperator(
-                0,
-                type,
-                leftIsSmaller,
-                new GeneratedJoinCondition("", "", new Object[0]) {
-                    @Override
-                    public JoinCondition newInstance(ClassLoader classLoader) {
-                        return new Int2HashJoinOperatorTest.TrueCondition();
-                    }
-                },
-                new GeneratedProjection("", "", new Object[0]) {
-                    @Override
-                    public Projection newInstance(ClassLoader classLoader) {
-                        return new MyProjection();
-                    }
-                },
-                new GeneratedProjection("", "", new Object[0]) {
-                    @Override
-                    public Projection newInstance(ClassLoader classLoader) {
-                        return new MyProjection();
-                    }
-                },
-                new GeneratedNormalizedKeyComputer("", "") {
-                    @Override
-                    public NormalizedKeyComputer newInstance(ClassLoader classLoader) {
-                        return new StringNormalizedKeyComputer();
-                    }
-                },
-                new GeneratedRecordComparator("", "", new Object[0]) {
-                    @Override
-                    public RecordComparator newInstance(ClassLoader classLoader) {
-                        return new StringRecordComparator();
-                    }
-                },
-                new GeneratedNormalizedKeyComputer("", "") {
-                    @Override
-                    public NormalizedKeyComputer newInstance(ClassLoader classLoader) {
-                        return new StringNormalizedKeyComputer();
-                    }
-                },
-                new GeneratedRecordComparator("", "", new Object[0]) {
-                    @Override
-                    public RecordComparator newInstance(ClassLoader classLoader) {
-                        return new StringRecordComparator();
-                    }
-                },
-                new GeneratedRecordComparator("", "", new Object[0]) {
-                    @Override
-                    public RecordComparator newInstance(ClassLoader classLoader) {
-                        return new StringRecordComparator();
-                    }
-                },
-                new boolean[] {true});
+        int maxNumFileHandles =
+                ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES.defaultValue();
+        boolean compressionEnable =
+                ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED.defaultValue();
+        int compressionBlockSize =
+                (int)
+                        ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE
+                                .defaultValue()
+                                .getBytes();
+        boolean asyncMergeEnable =
+                ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED.defaultValue();
+        SortMergeJoinFunction sortMergeJoinFunction =
+                new SortMergeJoinFunction(
+                        0,
+                        type,
+                        leftIsSmaller,
+                        maxNumFileHandles,
+                        compressionEnable,
+                        compressionBlockSize,
+                        asyncMergeEnable,
+                        new GeneratedJoinCondition("", "", new Object[0]) {
+                            @Override
+                            public JoinCondition newInstance(ClassLoader classLoader) {
+                                return new Int2HashJoinOperatorTest.TrueCondition();
+                            }
+                        },
+                        new GeneratedProjection("", "", new Object[0]) {
+                            @Override
+                            public Projection newInstance(ClassLoader classLoader) {
+                                return new MyProjection();
+                            }
+                        },
+                        new GeneratedProjection("", "", new Object[0]) {
+                            @Override
+                            public Projection newInstance(ClassLoader classLoader) {
+                                return new MyProjection();
+                            }
+                        },
+                        new GeneratedNormalizedKeyComputer("", "") {
+                            @Override
+                            public NormalizedKeyComputer newInstance(ClassLoader classLoader) {
+                                return new StringNormalizedKeyComputer();
+                            }
+                        },
+                        new GeneratedRecordComparator("", "", new Object[0]) {
+                            @Override
+                            public RecordComparator newInstance(ClassLoader classLoader) {
+                                return new StringRecordComparator();
+                            }
+                        },
+                        new GeneratedNormalizedKeyComputer("", "") {
+                            @Override
+                            public NormalizedKeyComputer newInstance(ClassLoader classLoader) {
+                                return new StringNormalizedKeyComputer();
+                            }
+                        },
+                        new GeneratedRecordComparator("", "", new Object[0]) {
+                            @Override
+                            public RecordComparator newInstance(ClassLoader classLoader) {
+                                return new StringRecordComparator();
+                            }
+                        },
+                        new GeneratedRecordComparator("", "", new Object[0]) {
+                            @Override
+                            public RecordComparator newInstance(ClassLoader classLoader) {
+                                return new StringRecordComparator();
+                            }
+                        },
+                        new boolean[] {true});
+        return new SortMergeJoinOperator(sortMergeJoinFunction);
     }
 }

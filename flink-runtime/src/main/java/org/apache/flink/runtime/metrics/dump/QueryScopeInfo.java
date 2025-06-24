@@ -29,6 +29,7 @@ public abstract class QueryScopeInfo {
     public static final byte INFO_CATEGORY_JOB = 2;
     public static final byte INFO_CATEGORY_TASK = 3;
     public static final byte INFO_CATEGORY_OPERATOR = 4;
+    public static final byte INFO_CATEGORY_JM_OPERATOR = 5;
 
     /** The remaining scope not covered by specific fields. */
     public final String scope;
@@ -142,22 +143,30 @@ public abstract class QueryScopeInfo {
         public final String jobID;
         public final String vertexID;
         public final int subtaskIndex;
+        public final int attemptNumber;
 
-        public TaskQueryScopeInfo(String jobID, String vertexid, int subtaskIndex) {
-            this(jobID, vertexid, subtaskIndex, "");
+        public TaskQueryScopeInfo(
+                String jobID, String vertexid, int subtaskIndex, int attemptNumber) {
+            this(jobID, vertexid, subtaskIndex, attemptNumber, "");
         }
 
-        public TaskQueryScopeInfo(String jobID, String vertexid, int subtaskIndex, String scope) {
+        public TaskQueryScopeInfo(
+                String jobID, String vertexid, int subtaskIndex, int attemptNumber, String scope) {
             super(scope);
             this.jobID = jobID;
             this.vertexID = vertexid;
             this.subtaskIndex = subtaskIndex;
+            this.attemptNumber = attemptNumber;
         }
 
         @Override
         public TaskQueryScopeInfo copy(String additionalScope) {
             return new TaskQueryScopeInfo(
-                    this.jobID, this.vertexID, this.subtaskIndex, concatScopes(additionalScope));
+                    this.jobID,
+                    this.vertexID,
+                    this.subtaskIndex,
+                    this.attemptNumber,
+                    concatScopes(additionalScope));
         }
 
         @Override
@@ -174,23 +183,30 @@ public abstract class QueryScopeInfo {
         public final String jobID;
         public final String vertexID;
         public final int subtaskIndex;
+        public final int attemptNumber;
         public final String operatorName;
 
         public OperatorQueryScopeInfo(
-                String jobID, String vertexid, int subtaskIndex, String operatorName) {
-            this(jobID, vertexid, subtaskIndex, operatorName, "");
+                String jobID,
+                String vertexid,
+                int subtaskIndex,
+                int attemptNumber,
+                String operatorName) {
+            this(jobID, vertexid, subtaskIndex, attemptNumber, operatorName, "");
         }
 
         public OperatorQueryScopeInfo(
                 String jobID,
                 String vertexid,
                 int subtaskIndex,
+                int attemptNumber,
                 String operatorName,
                 String scope) {
             super(scope);
             this.jobID = jobID;
             this.vertexID = vertexid;
             this.subtaskIndex = subtaskIndex;
+            this.attemptNumber = attemptNumber;
             this.operatorName = operatorName;
         }
 
@@ -200,6 +216,7 @@ public abstract class QueryScopeInfo {
                     this.jobID,
                     this.vertexID,
                     this.subtaskIndex,
+                    this.attemptNumber,
                     this.operatorName,
                     concatScopes(additionalScope));
         }
@@ -207,6 +224,40 @@ public abstract class QueryScopeInfo {
         @Override
         public byte getCategory() {
             return INFO_CATEGORY_OPERATOR;
+        }
+    }
+
+    /**
+     * Container for the job manager operator scope. Stores the ID of the job/vertex and the name of
+     * the operator.
+     */
+    public static class JobManagerOperatorQueryScopeInfo extends QueryScopeInfo {
+        public final String jobID;
+        public final String vertexID;
+        public final String operatorName;
+
+        public JobManagerOperatorQueryScopeInfo(
+                String jobID, String vertexID, String operatorName) {
+            this(jobID, vertexID, operatorName, "");
+        }
+
+        public JobManagerOperatorQueryScopeInfo(
+                String jobID, String vertexID, String operatorName, String scope) {
+            super(scope);
+            this.jobID = jobID;
+            this.vertexID = vertexID;
+            this.operatorName = operatorName;
+        }
+
+        @Override
+        public JobManagerOperatorQueryScopeInfo copy(String additionalScope) {
+            return new JobManagerOperatorQueryScopeInfo(
+                    this.jobID, this.vertexID, this.operatorName, concatScopes(additionalScope));
+        }
+
+        @Override
+        public byte getCategory() {
+            return INFO_CATEGORY_JM_OPERATOR;
         }
     }
 }

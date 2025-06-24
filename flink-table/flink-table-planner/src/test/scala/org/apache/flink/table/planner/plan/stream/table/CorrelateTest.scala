@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.stream.table
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.Func13
 import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
@@ -26,7 +25,7 @@ import org.apache.flink.table.planner.utils._
 
 import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class CorrelateTest extends TableTestBase {
 

@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.client.config;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.table.client.cli.parser.SyntaxHighlightStyle;
 
 /** Options used in sql client. */
+@PublicEvolving
 public class SqlClientOptions {
     private SqlClientOptions() {}
 
@@ -54,13 +57,27 @@ public class SqlClientOptions {
 
     // Display options
 
-    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
-    public static final ConfigOption<Integer> DISPLAY_MAX_COLUMN_WIDTH =
-            ConfigOptions.key("sql-client.display.max-column-width")
-                    .intType()
-                    .defaultValue(30)
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<Boolean> DISPLAY_QUERY_TIME_COST =
+            ConfigOptions.key("sql-client.display.print-time-cost")
+                    .booleanType()
+                    .defaultValue(true)
                     .withDescription(
-                            "When printing the query results, this parameter determines the number of characters shown on screen before truncating."
-                                    + "This only applies to columns with variable-length types (e.g. STRING) in streaming mode."
-                                    + "Fixed-length types and all types in batch mode are printed using a deterministic column width");
+                            "Determine whether to display the time consumption of the query. By default, no query time cost will be displayed.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<String> DISPLAY_DEFAULT_COLOR_SCHEMA =
+            ConfigOptions.key("sql-client.display.color-schema")
+                    .stringType()
+                    .defaultValue(SyntaxHighlightStyle.BuiltInStyle.DEFAULT.name())
+                    .withDescription(
+                            "SQL highlight color schema to be used at SQL client. Possible values: 'default', 'dark', 'light', 'chester', 'vs2010', 'solarized', 'obsidian', 'geshi'");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> DISPLAY_SHOW_LINE_NUMBERS =
+            ConfigOptions.key("sql-client.display.show-line-numbers")
+                    .booleanType()
+                    .defaultValue(Boolean.FALSE)
+                    .withDescription(
+                            "Determines whether there should be shown line numbers in multiline SQL or not.");
 }

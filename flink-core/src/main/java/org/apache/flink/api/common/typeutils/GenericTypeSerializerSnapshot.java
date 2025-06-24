@@ -81,13 +81,16 @@ public abstract class GenericTypeSerializerSnapshot<T, S extends TypeSerializer>
 
     @Override
     public final TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-            TypeSerializer<T> newSerializer) {
-        if (!serializerClass().isInstance(newSerializer)) {
+            TypeSerializerSnapshot<T> oldSerializerSnapshot) {
+        if (!(oldSerializerSnapshot instanceof GenericTypeSerializerSnapshot)) {
             return TypeSerializerSchemaCompatibility.incompatible();
         }
-        @SuppressWarnings("unchecked")
-        S casted = (S) newSerializer;
-        if (typeClass == getTypeClass(casted)) {
+        GenericTypeSerializerSnapshot<T, S> previousGenericTypeSerializerSnapshot =
+                (GenericTypeSerializerSnapshot<T, S>) oldSerializerSnapshot;
+        if (serializerClass() != previousGenericTypeSerializerSnapshot.serializerClass()) {
+            return TypeSerializerSchemaCompatibility.incompatible();
+        }
+        if (typeClass == previousGenericTypeSerializerSnapshot.typeClass) {
             return TypeSerializerSchemaCompatibility.compatibleAsIs();
         } else {
             return TypeSerializerSchemaCompatibility.incompatible();

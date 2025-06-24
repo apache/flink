@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -112,7 +113,9 @@ public class CompactCoordinator extends AbstractStreamOperator<CoordinatorOutput
                                         StringSerializer.INSTANCE,
                                         new ListSerializer<>(
                                                 new KryoSerializer<>(
-                                                        Path.class, getExecutionConfig())))));
+                                                        Path.class,
+                                                        getExecutionConfig()
+                                                                .getSerializerConfig())))));
         inputFilesState = context.getOperatorStateStore().getListState(filesDescriptor);
         inputFiles = new TreeMap<>();
         currentInputFiles = new HashMap<>();
@@ -151,6 +154,10 @@ public class CompactCoordinator extends AbstractStreamOperator<CoordinatorOutput
         Map<Long, Map<String, List<Path>>> headMap = inputFiles.headMap(checkpointId, true);
         for (Map.Entry<Long, Map<String, List<Path>>> entry : headMap.entrySet()) {
             coordinate(entry.getKey(), entry.getValue());
+        }
+        if (checkpointId == Long.MAX_VALUE) {
+            coordinate(checkpointId, currentInputFiles);
+            currentInputFiles.clear();
         }
         headMap.clear();
     }
@@ -197,9 +204,8 @@ public class CompactCoordinator extends AbstractStreamOperator<CoordinatorOutput
     public void snapshotState(StateSnapshotContext context) throws Exception {
         super.snapshotState(context);
 
-        inputFilesState.clear();
         inputFiles.put(context.getCheckpointId(), new HashMap<>(currentInputFiles));
-        inputFilesState.add(inputFiles);
+        inputFilesState.update(Collections.singletonList(inputFiles));
         currentInputFiles.clear();
     }
 }

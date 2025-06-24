@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
@@ -30,27 +31,34 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalogFactoryOptions;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.utils.CatalogManagerMocks;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.ClassLoaderUtils;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.net.URLClassLoader;
-import java.util.ArrayList;
+import java.nio.file.Path;
 import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** IT Case for catalog ddl. */
-public class CatalogITCase {
+class CatalogITCase {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE = new MiniClusterExtension();
+
+    @TempDir Path temporaryFolder;
 
     @Test
-    public void testCreateCatalog() {
+    void testCreateCatalog() {
         String name = "c1";
         TableEnvironment tableEnv = getTableEnvironment();
         String ddl =
@@ -65,74 +73,35 @@ public class CatalogITCase {
     }
 
     @Test
-    public void testDropCatalog() {
+    void testDropCatalog() {
         String name = "c1";
         TableEnvironment tableEnv = getTableEnvironment();
 
-        String ddl =
+        String createDdl =
                 String.format(
                         "create catalog %s with('type'='%s')",
                         name, GenericInMemoryCatalogFactoryOptions.IDENTIFIER);
-        tableEnv.executeSql(ddl);
+        tableEnv.executeSql(createDdl);
         assertThat(tableEnv.getCatalog(name)).isPresent();
 
-        ddl = String.format("drop catalog %s", name);
-        tableEnv.executeSql(ddl);
+        String dropDdl = String.format("drop catalog %s", name);
+        tableEnv.executeSql(String.format("use catalog %s", name));
+        assertThatThrownBy(() -> tableEnv.executeSql(dropDdl))
+                .isInstanceOf(ValidationException.class)
+                .hasRootCauseExactlyInstanceOf(CatalogException.class)
+                .hasRootCauseMessage("Cannot drop a catalog which is currently in use.");
+        assertThat(tableEnv.getCatalog(name)).isPresent();
+
+        tableEnv.executeSql("use catalog default_catalog");
+        tableEnv.executeSql(dropDdl);
         assertThat(tableEnv.getCatalog(name)).isNotPresent();
     }
 
     @Test
-    public void testCreateLegacyCatalogFromUserClassLoader() throws Exception {
+    void testCreateCatalogFromUserClassLoader() throws Exception {
         final String className = "UserCatalogFactory";
         URLClassLoader classLoader =
-                ClassLoaderUtils.withRoot(temporaryFolder.newFolder())
-                        .addResource(
-                                "META-INF/services/org.apache.flink.table.factories.TableFactory",
-                                "UserCatalogFactory")
-                        .addClass(
-                                className,
-                                "import org.apache.flink.table.catalog.GenericInMemoryCatalog;\n"
-                                        + "import org.apache.flink.table.factories.CatalogFactory;\n"
-                                        + "import java.util.Collections;\n"
-                                        + "import org.apache.flink.table.catalog.Catalog;\n"
-                                        + "import java.util.HashMap;\n"
-                                        + "import java.util.List;\n"
-                                        + "import java.util.Map;\n"
-                                        + "\tpublic class UserCatalogFactory implements CatalogFactory {\n"
-                                        + "\t\t@Override\n"
-                                        + "\t\tpublic Catalog createCatalog(\n"
-                                        + "\t\t\t\tString name,\n"
-                                        + "\t\t\t\tMap<String, String> properties) {\n"
-                                        + "\t\t\treturn new GenericInMemoryCatalog(name);\n"
-                                        + "\t\t}\n"
-                                        + "\n"
-                                        + "\t\t@Override\n"
-                                        + "\t\tpublic Map<String, String> requiredContext() {\n"
-                                        + "\t\t\tHashMap<String, String> hashMap = new HashMap<>();\n"
-                                        + "\t\t\thashMap.put(\"type\", \"userCatalog\");\n"
-                                        + "\t\t\treturn hashMap;\n"
-                                        + "\t\t}\n"
-                                        + "\n"
-                                        + "\t\t@Override\n"
-                                        + "\t\tpublic List<String> supportedProperties() {\n"
-                                        + "\t\t\treturn Collections.emptyList();\n"
-                                        + "\t\t}\n"
-                                        + "\t}")
-                        .build();
-
-        try (TemporaryClassLoaderContext context = TemporaryClassLoaderContext.of(classLoader)) {
-            TableEnvironment tableEnvironment = getTableEnvironment();
-            tableEnvironment.executeSql("CREATE CATALOG cat WITH ('type'='userCatalog')");
-
-            assertThat(tableEnvironment.getCatalog("cat")).isPresent();
-        }
-    }
-
-    @Test
-    public void testCreateCatalogFromUserClassLoader() throws Exception {
-        final String className = "UserCatalogFactory";
-        URLClassLoader classLoader =
-                ClassLoaderUtils.withRoot(temporaryFolder.newFolder())
+                ClassLoaderUtils.withRoot(TempDirUtils.newFolder(temporaryFolder))
                         .addResource(
                                 "META-INF/services/org.apache.flink.table.factories.Factory",
                                 "UserCatalogFactory")
@@ -178,7 +147,7 @@ public class CatalogITCase {
     }
 
     @Test
-    public void testGetTablesFromGivenCatalogDatabase() throws Exception {
+    void testGetTablesFromGivenCatalogDatabase() throws Exception {
         final Catalog c1 = new GenericInMemoryCatalog("c1", "default");
         final Catalog c2 = new GenericInMemoryCatalog("c2", "d2");
 
@@ -187,8 +156,7 @@ public class CatalogITCase {
         catalogManager.registerCatalog("c1", c1);
 
         final CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder().build(), null, new ArrayList<>(), new HashMap<>());
+                CatalogTable.newBuilder().schema(Schema.newBuilder().build()).build();
 
         c1.createDatabase("d1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
         c1.createTable(new ObjectPath("d1", "t1"), catalogTable, true);

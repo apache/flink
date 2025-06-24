@@ -18,25 +18,33 @@
 from typing import List, Optional, Union
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import _to_java_type, _from_java_type, DataType, RowType
+from pyflink.table.types import DataType, RowType, _to_java_data_type, _from_java_data_type
+from pyflink.util.api_stability_decorators import Deprecated
 from pyflink.util.java_utils import to_jarray
 
 __all__ = ['TableSchema']
 
 
+@Deprecated(since="2.1.0", detail="""
+This class has been deprecated as part of FLIP-164. It has been replaced by two more dedicated
+classes :class:`~pyflink.table.Schema` and :class:`~pyflink.table.catalog.ResolvedSchema`.
+Use :class:`~pyflink.table.Schema` for declaration in APIs.
+:class:`~pyflink.table.catalog.ResolvedSchema` is offered by the framework after resolution and
+validation.
+""")
 class TableSchema(object):
     """
     A table schema that represents a table's structure with field names and data types.
     """
-
     def __init__(self, field_names: List[str] = None, data_types: List[DataType] = None,
                  j_table_schema=None):
         if j_table_schema is None:
             gateway = get_gateway()
             j_field_names = to_jarray(gateway.jvm.String, field_names)
-            j_data_types = to_jarray(gateway.jvm.TypeInformation,
-                                     [_to_java_type(item) for item in data_types])
-            self._j_table_schema = gateway.jvm.TableSchema(j_field_names, j_data_types)
+            j_data_types = to_jarray(gateway.jvm.DataType,
+                                     [_to_java_data_type(item) for item in data_types])
+            self._j_table_schema = gateway.jvm.TableSchema.builder()\
+                .fields(j_field_names, j_data_types).build()
         else:
             self._j_table_schema = j_table_schema
 
@@ -54,7 +62,7 @@ class TableSchema(object):
 
         :return: A list of all field data types.
         """
-        return [_from_java_type(item) for item in self._j_table_schema.getFieldDataTypes()]
+        return [_from_java_data_type(item) for item in self._j_table_schema.getFieldDataTypes()]
 
     def get_field_data_type(self, field: Union[int, str]) -> Optional[DataType]:
         """
@@ -67,7 +75,7 @@ class TableSchema(object):
             raise TypeError("Expected field index or field name, got %s" % type(field))
         optional_result = self._j_table_schema.getFieldDataType(field)
         if optional_result.isPresent():
-            return _from_java_type(optional_result.get())
+            return _from_java_data_type(optional_result.get())
         else:
             return None
 
@@ -107,7 +115,7 @@ class TableSchema(object):
 
         :return: The row data type.
         """
-        return _from_java_type(self._j_table_schema.toRowDataType())
+        return _from_java_data_type(self._j_table_schema.toRowDataType())
 
     def __repr__(self):
         return self._j_table_schema.toString()

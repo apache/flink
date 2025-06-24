@@ -23,7 +23,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -256,10 +258,9 @@ public class Buckets<IN, BucketID> {
                 maxPartCounter);
 
         bucketStatesContainer.clear();
-        partCounterStateContainer.clear();
 
         snapshotActiveBuckets(checkpointId, bucketStatesContainer);
-        partCounterStateContainer.add(maxPartCounter);
+        partCounterStateContainer.update(Collections.singletonList(maxPartCounter));
     }
 
     private void snapshotActiveBuckets(

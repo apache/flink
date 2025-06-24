@@ -26,8 +26,8 @@ import org.apache.calcite.rex.RexUtil
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{DateString, TimestampString, TimeString}
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 import java.math.BigDecimal
 import java.time.ZoneOffset
@@ -69,6 +69,7 @@ class PartitionPrunerTest extends RexNodeTestBase {
     val tableConfig = TableConfig.getDefault
     val prunedPartitions = PartitionPruner.prunePartitions(
       tableConfig,
+      Thread.currentThread().getContextClassLoader,
       partitionFieldNames,
       partitionFieldTypes,
       allPartitions,
@@ -105,6 +106,7 @@ class PartitionPrunerTest extends RexNodeTestBase {
     val tableConfig = TableConfig.getDefault
     val prunedPartitions = PartitionPruner.prunePartitions(
       tableConfig,
+      Thread.currentThread().getContextClassLoader,
       partitionFieldNames,
       partitionFieldTypes,
       allPartitions,
@@ -179,6 +181,7 @@ class PartitionPrunerTest extends RexNodeTestBase {
     tableConfig.setLocalTimeZone(ZoneOffset.ofHours(0))
     val prunedPartitions = PartitionPruner.prunePartitions(
       tableConfig,
+      Thread.currentThread().getContextClassLoader,
       partitionFieldNames,
       partitionFieldTypes,
       allPartitions,

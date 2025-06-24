@@ -19,9 +19,8 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.{FlinkRelFactories, FlinkTypeFactory}
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -85,7 +84,7 @@ class BatchPhysicalWindowAggregateRule
 
     // check if we have grouping sets
     val groupSets = agg.getGroupType != Group.SIMPLE
-    if (groupSets || agg.indicator) {
+    if (groupSets) {
       throw new TableException("GROUPING SETS are currently not supported.")
     }
 
@@ -161,8 +160,7 @@ class BatchPhysicalWindowAggregateRule
     // TODO aggregate include projection now, so do not provide new trait will be safe
     val aggProvidedTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
 
-    val inputTimeFieldIndex =
-      AggregateUtil.timeFieldIndex(input.getRowType, call.builder(), window.timeAttribute)
+    val inputTimeFieldIndex = window.timeAttribute.getFieldIndex
     val inputTimeFieldType = agg.getInput.getRowType.getFieldList.get(inputTimeFieldIndex).getType
     val inputTimeIsDate = inputTimeFieldType.getSqlTypeName == SqlTypeName.DATE
     // local-agg output order: groupSet | assignTs | auxGroupSet | aggCalls

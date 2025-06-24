@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.KeyedStateStore;
@@ -35,7 +35,11 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Default implementation of KeyedStateStore that currently forwards state registration to a {@link
@@ -43,20 +47,45 @@ import static java.util.Objects.requireNonNull;
  */
 public class DefaultKeyedStateStore implements KeyedStateStore {
 
-    protected final KeyedStateBackend<?> keyedStateBackend;
-    protected final ExecutionConfig executionConfig;
+    @Nullable protected final KeyedStateBackend<?> keyedStateBackend;
+
+    @Nullable protected final AsyncKeyedStateBackend<?> asyncKeyedStateBackend;
+    protected final SerializerFactory serializerFactory;
+
+    protected SupportKeyedStateApiSet supportKeyedStateApiSet;
 
     public DefaultKeyedStateStore(
-            KeyedStateBackend<?> keyedStateBackend, ExecutionConfig executionConfig) {
-        this.keyedStateBackend = Preconditions.checkNotNull(keyedStateBackend);
-        this.executionConfig = Preconditions.checkNotNull(executionConfig);
+            KeyedStateBackend<?> keyedStateBackend, SerializerFactory serializerFactory) {
+        this(keyedStateBackend, null, serializerFactory);
+    }
+
+    public DefaultKeyedStateStore(
+            AsyncKeyedStateBackend<?> asyncKeyedStateBackend, SerializerFactory serializerFactory) {
+        this(null, asyncKeyedStateBackend, serializerFactory);
+    }
+
+    public DefaultKeyedStateStore(
+            @Nullable KeyedStateBackend<?> keyedStateBackend,
+            @Nullable AsyncKeyedStateBackend<?> asyncKeyedStateBackend,
+            SerializerFactory serializerFactory) {
+        this.keyedStateBackend = keyedStateBackend;
+        this.asyncKeyedStateBackend = asyncKeyedStateBackend;
+        this.serializerFactory = Preconditions.checkNotNull(serializerFactory);
+        if (keyedStateBackend != null) {
+            // By default, we support state v1
+            this.supportKeyedStateApiSet = SupportKeyedStateApiSet.STATE_V1;
+        } else if (asyncKeyedStateBackend != null) {
+            this.supportKeyedStateApiSet = SupportKeyedStateApiSet.STATE_V2;
+        } else {
+            throw new IllegalArgumentException("The state backend must not be null.");
+        }
     }
 
     @Override
     public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(executionConfig);
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             return getPartitionedState(stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
@@ -67,7 +96,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
     public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(executionConfig);
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             ListState<T> originalState = getPartitionedState(stateProperties);
             return new UserFacingListState<>(originalState);
         } catch (Exception e) {
@@ -79,7 +108,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
     public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(executionConfig);
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             return getPartitionedState(stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
@@ -91,7 +120,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
             AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(executionConfig);
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             return getPartitionedState(stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
@@ -102,7 +131,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
     public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(executionConfig);
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             MapState<UK, UV> originalState = getPartitionedState(stateProperties);
             return new UserFacingMapState<>(originalState);
         } catch (Exception e) {
@@ -112,7 +141,112 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
 
     protected <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor)
             throws Exception {
+        checkState(
+                keyedStateBackend != null
+                        && supportKeyedStateApiSet == SupportKeyedStateApiSet.STATE_V1,
+                "Current operator does not integrate the async processing logic, "
+                        + "thus only supports state v1 APIs. Please use StateDescriptor under "
+                        + "'org.apache.flink.runtime.state'.");
         return keyedStateBackend.getPartitionedState(
                 VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
+    }
+
+    @Override
+    public <T> org.apache.flink.api.common.state.v2.ValueState<T> getValueState(
+            @Nonnull org.apache.flink.api.common.state.v2.ValueStateDescriptor<T> stateProperties) {
+        requireNonNull(stateProperties, "The state properties must not be null");
+        try {
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
+            return getPartitionedState(stateProperties);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while getting state", e);
+        }
+    }
+
+    @Override
+    public <T> org.apache.flink.api.common.state.v2.ListState<T> getListState(
+            @Nonnull org.apache.flink.api.common.state.v2.ListStateDescriptor<T> stateProperties) {
+        requireNonNull(stateProperties, "The state properties must not be null");
+        try {
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
+            return getPartitionedState(stateProperties);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while getting state", e);
+        }
+    }
+
+    @Override
+    public <UK, UV> org.apache.flink.api.common.state.v2.MapState<UK, UV> getMapState(
+            @Nonnull
+                    org.apache.flink.api.common.state.v2.MapStateDescriptor<UK, UV>
+                            stateProperties) {
+        requireNonNull(stateProperties, "The state properties must not be null");
+        try {
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
+            return getPartitionedState(stateProperties);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while getting state", e);
+        }
+    }
+
+    @Override
+    public <T> org.apache.flink.api.common.state.v2.ReducingState<T> getReducingState(
+            @Nonnull
+                    org.apache.flink.api.common.state.v2.ReducingStateDescriptor<T>
+                            stateProperties) {
+        requireNonNull(stateProperties, "The state properties must not be null");
+        try {
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
+            return getPartitionedState(stateProperties);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while getting state", e);
+        }
+    }
+
+    @Override
+    public <IN, ACC, OUT>
+            org.apache.flink.api.common.state.v2.AggregatingState<IN, OUT> getAggregatingState(
+                    @Nonnull
+                            org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<
+                                            IN, ACC, OUT>
+                                    stateProperties) {
+        requireNonNull(stateProperties, "The state properties must not be null");
+        try {
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
+            return getPartitionedState(stateProperties);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while getting state", e);
+        }
+    }
+
+    protected <S extends org.apache.flink.api.common.state.v2.State, SV> S getPartitionedState(
+            org.apache.flink.api.common.state.v2.StateDescriptor<SV> stateDescriptor)
+            throws Exception {
+        checkState(
+                asyncKeyedStateBackend != null
+                        && supportKeyedStateApiSet == SupportKeyedStateApiSet.STATE_V2,
+                "Current operator integrates the async processing logic, "
+                        + "thus only supports state v2 APIs. Please use StateDescriptor under "
+                        + "'org.apache.flink.runtime.state.v2'.");
+        return asyncKeyedStateBackend.getOrCreateKeyedState(
+                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
+    }
+
+    public void setSupportKeyedStateApiSetV2() {
+        requireNonNull(
+                asyncKeyedStateBackend,
+                "Current operator integrates the logic of async processing, "
+                        + "thus only support state v2 APIs. Please use StateDescriptor under "
+                        + "'org.apache.flink.runtime.state.v2'.");
+        supportKeyedStateApiSet = SupportKeyedStateApiSet.STATE_V2;
+    }
+
+    /**
+     * Currently, we only support one keyed state api set. This is determined by the stream
+     * operator.
+     */
+    private enum SupportKeyedStateApiSet {
+        STATE_V1,
+        STATE_V2
     }
 }

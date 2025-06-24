@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.ProviderContext;
+import org.apache.flink.table.connector.sink.legacy.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
 
 import java.util.Optional;
@@ -34,9 +35,9 @@ import java.util.Optional;
  * DynamicTableSink}.
  *
  * <p>Note: This provider is only meant for advanced connector developers. Usually, a sink should
- * consist of a single entity expressed via {@link SinkProvider}, {@link SinkFunctionProvider}, or
- * {@link OutputFormatProvider}. When using a {@link DataStream} an implementer needs to pay
- * attention to how changes are shuffled to not mess up the changelog per parallel subtask.
+ * consist of a single entity expressed via {@link SinkFunctionProvider}, or {@link
+ * OutputFormatProvider}. When using a {@link DataStream} an implementer needs to pay attention to
+ * how changes are shuffled to not mess up the changelog per parallel subtask.
  */
 @PublicEvolving
 public interface DataStreamSinkProvider
@@ -56,20 +57,6 @@ public interface DataStreamSinkProvider
      */
     DataStreamSink<?> consumeDataStream(
             ProviderContext providerContext, DataStream<RowData> dataStream);
-
-    /**
-     * Consumes the given Java {@link DataStream} and returns the sink transformation {@link
-     * DataStreamSink}.
-     *
-     * @deprecated Use {@link DataStreamSinkProvider#consumeDataStream(ProviderContext, DataStream)}
-     *     and correctly set a unique identifier for each data stream transformation.
-     */
-    @Deprecated
-    default DataStreamSink<?> consumeDataStream(DataStream<RowData> dataStream) {
-        throw new UnsupportedOperationException(
-                "This method is deprecated. "
-                        + "Use consumeDataStream(ProviderContext, DataStream<RowData>) instead");
-    }
 
     /**
      * {@inheritDoc}

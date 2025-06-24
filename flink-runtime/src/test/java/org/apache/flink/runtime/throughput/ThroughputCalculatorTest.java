@@ -20,19 +20,17 @@ package org.apache.flink.runtime.throughput;
 
 import org.apache.flink.util.clock.ManualClock;
 
-import junit.framework.TestCase;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ThroughputCalculator}. */
-public class ThroughputCalculatorTest extends TestCase {
+class ThroughputCalculatorTest {
 
     @Test
-    public void testCorrectThroughputCalculation() {
+    void testCorrectThroughputCalculation() {
         ManualClock clock = new ManualClock();
         ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock);
 
@@ -43,27 +41,27 @@ public class ThroughputCalculatorTest extends TestCase {
         throughputCalculator.incomingDataSize(1);
         clock.advanceTime(Duration.ofMillis(66));
 
-        assertThat(throughputCalculator.calculateThroughput(), is(10_000L * 1_000 / 100));
+        assertThat(throughputCalculator.calculateThroughput()).isEqualTo(10_000L * 1_000 / 100);
     }
 
     @Test
-    public void testResetValueAfterCalculation() {
+    void testResetValueAfterCalculation() {
         ManualClock clock = new ManualClock();
         ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock);
 
         throughputCalculator.incomingDataSize(666);
         clock.advanceTime(Duration.ofMillis(100));
 
-        assertThat(throughputCalculator.calculateThroughput(), is(6660L));
+        assertThat(throughputCalculator.calculateThroughput()).isEqualTo(6660L);
         // It should be the same as previous time.
-        assertThat(throughputCalculator.calculateThroughput(), is(6660L));
+        assertThat(throughputCalculator.calculateThroughput()).isEqualTo(6660L);
 
         clock.advanceTime(Duration.ofMillis(1));
-        assertThat(throughputCalculator.calculateThroughput(), is(0L));
+        assertThat(throughputCalculator.calculateThroughput()).isZero();
     }
 
     @Test
-    public void testIgnoringIdleTime() {
+    void testIgnoringIdleTime() {
         ManualClock clock = new ManualClock();
         ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock);
 
@@ -76,11 +74,11 @@ public class ThroughputCalculatorTest extends TestCase {
         throughputCalculator.incomingDataSize(3);
         clock.advanceTime(Duration.ofMillis(1));
 
-        assertThat(throughputCalculator.calculateThroughput(), is(5L * 1_000));
+        assertThat(throughputCalculator.calculateThroughput()).isEqualTo(5L * 1_000);
     }
 
     @Test
-    public void testCalculationDuringIdleTime() {
+    void testCalculationDuringIdleTime() {
         ManualClock clock = new ManualClock();
         ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock);
 
@@ -90,11 +88,11 @@ public class ThroughputCalculatorTest extends TestCase {
         // This will be ignored because it is in idle now.
         clock.advanceTime(Duration.ofMillis(9));
 
-        assertThat(throughputCalculator.calculateThroughput(), is(10L * 1_000));
+        assertThat(throughputCalculator.calculateThroughput()).isEqualTo(10L * 1_000);
     }
 
     @Test
-    public void testMultiplyIdleEnd() {
+    void testMultiplyIdleEnd() {
         ManualClock clock = new ManualClock();
         ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock);
 
@@ -112,11 +110,11 @@ public class ThroughputCalculatorTest extends TestCase {
         clock.advanceTime(Duration.ofMillis(1));
 
         // resumeMeasurement should not reset the time because pauseMeasurement was not called.
-        assertThat(throughputCalculator.calculateThroughput(), is(1_000L));
+        assertThat(throughputCalculator.calculateThroughput()).isEqualTo(1_000L);
     }
 
     @Test
-    public void testNotRestartTimerOnCalculationDuringIdleTime() {
+    void testNotRestartTimerOnCalculationDuringIdleTime() {
         ManualClock clock = new ManualClock();
         ThroughputCalculator throughputCalculator = new ThroughputCalculator(clock);
 
@@ -132,6 +130,6 @@ public class ThroughputCalculatorTest extends TestCase {
         throughputCalculator.incomingDataSize(10);
         clock.advanceTime(Duration.ofMillis(1));
 
-        assertThat(throughputCalculator.calculateThroughput(), is(10L * 1_000));
+        assertThat(throughputCalculator.calculateThroughput()).isEqualTo(10L * 1_000);
     }
 }

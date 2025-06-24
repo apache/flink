@@ -18,13 +18,19 @@ limitations under the License.
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorCoordinatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 
 import java.util.concurrent.CompletableFuture;
 
 /** A simple implementation of {@link OperatorCoordinator.Context} for testing purposes. */
 public class MockOperatorCoordinatorContext implements OperatorCoordinator.Context {
 
+    private final JobID jobID = new JobID();
     private final OperatorID operatorID;
     private final ClassLoader userCodeClassLoader;
     private final int numSubtasks;
@@ -52,8 +58,19 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
     }
 
     @Override
+    public JobID getJobID() {
+        return jobID;
+    }
+
+    @Override
     public OperatorID getOperatorId() {
         return operatorID;
+    }
+
+    @Override
+    public OperatorCoordinatorMetricGroup metricGroup() {
+        return new InternalOperatorCoordinatorMetricGroup(
+                UnregisteredMetricGroups.createUnregisteredJobManagerOperatorMetricGroup());
     }
 
     @Override
@@ -76,6 +93,16 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
     @Override
     public CoordinatorStore getCoordinatorStore() {
         return coordinatorStore;
+    }
+
+    @Override
+    public boolean isConcurrentExecutionAttemptsSupported() {
+        return false;
+    }
+
+    @Override
+    public CheckpointCoordinator getCheckpointCoordinator() {
+        return null;
     }
 
     // -------------------------------

@@ -81,27 +81,9 @@ public class PatternTest extends TestLogger {
         Pattern<Event, ?> pattern =
                 Pattern.<Event>begin("start")
                         .next("next")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            -7657256242101104925L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().equals("foobar");
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> value.getName().equals("foobar")))
                         .next("end")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            -7597452389191504189L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getId() == 42;
-                                    }
-                                });
+                        .where(SimpleCondition.of(value -> value.getId() == 42));
 
         Pattern<Event, ?> previous;
         Pattern<Event, ?> previous2;
@@ -148,16 +130,7 @@ public class PatternTest extends TestLogger {
                 Pattern.<Event>begin("start")
                         .next("subevent")
                         .subtype(SubEvent.class)
-                        .where(
-                                new SimpleCondition<SubEvent>() {
-                                    private static final long serialVersionUID =
-                                            -4118591291880230304L;
-
-                                    @Override
-                                    public boolean filter(SubEvent value) throws Exception {
-                                        return false;
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> false))
                         .followedBy("end");
 
         Pattern<Event, ?> previous;
@@ -180,37 +153,10 @@ public class PatternTest extends TestLogger {
     public void testPatternWithOrFilter() {
         Pattern<Event, Event> pattern =
                 Pattern.<Event>begin("start")
-                        .where(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            3518061453394250543L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return false;
-                                    }
-                                })
-                        .or(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            947463545810023841L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return false;
-                                    }
-                                })
+                        .where(SimpleCondition.of(value -> false))
+                        .or(SimpleCondition.of(value -> false))
                         .next("or")
-                        .or(
-                                new SimpleCondition<Event>() {
-                                    private static final long serialVersionUID =
-                                            -2775487887505922250L;
-
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return false;
-                                    }
-                                })
+                        .or(SimpleCondition.of(value -> false))
                         .followedBy("end");
 
         Pattern<Event, ?> previous;
@@ -361,13 +307,6 @@ public class PatternTest extends TestLogger {
     }
 
     private SimpleCondition<Object> dummyCondition() {
-        return new SimpleCondition<Object>() {
-            private static final long serialVersionUID = -2205071036073867531L;
-
-            @Override
-            public boolean filter(Object value) throws Exception {
-                return true;
-            }
-        };
+        return SimpleCondition.of(value -> true);
     }
 }

@@ -17,14 +17,12 @@
  */
 package org.apache.flink.table.planner.plan.batch.table
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.NonPojo
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.types.AbstractDataType
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 
@@ -67,10 +65,11 @@ class SetOperatorsTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTableSource(
       "A",
-      Array[TypeInformation[_]](
-        new GenericTypeInfo(classOf[NonPojo]),
-        new GenericTypeInfo(classOf[NonPojo])),
-      Array("a", "b"))
+      Array[AbstractDataType[_]](
+        DataTypes.STRUCTURED(classOf[NonPojo]),
+        DataTypes.STRUCTURED(classOf[NonPojo])),
+      Array("a", "b")
+    )
     val in = t.select('a).unionAll(t.select('b))
     util.verifyExecPlan(in)
   }

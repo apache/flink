@@ -20,7 +20,7 @@ package org.apache.flink.types;
 
 import org.apache.flink.util.StringUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -33,226 +33,166 @@ import java.util.Random;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the serialization of Strings through the StringValue class. */
-public class StringSerializationTest {
+class StringSerializationTest {
 
     private final Random rnd = new Random(2093486528937460234L);
 
     @Test
-    public void testNonNullValues() {
-        try {
-            String[] testStrings =
-                    new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
+    void testNonNullValues() throws IOException {
+        String[] testStrings =
+                new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
 
-            testSerialization(testStrings);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
-        }
+        testSerialization(testStrings);
     }
 
     @Test
-    public void testUnicodeValues() {
-        try {
-            String[] testStrings =
-                    new String[] {
-                        StringUtils.getRandomString(
-                                rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 127),
-                        StringUtils.getRandomString(
-                                rnd, 10000, 1024 * 1024 * 2, (char) 128, (char) 16383),
-                        StringUtils.getRandomString(
-                                rnd, 10000, 1024 * 1024 * 2, (char) 16384, (char) 65535),
-                        StringUtils.getRandomString(
-                                rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 16383),
-                        StringUtils.getRandomString(
-                                rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 65535),
-                        StringUtils.getRandomString(
-                                rnd, 10000, 1024 * 1024 * 2, (char) 128, (char) 65535)
-                    };
-            testSerialization(testStrings);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
-        }
+    void testUnicodeValues() throws IOException {
+        String[] testStrings =
+                new String[] {
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 127),
+                    StringUtils.getRandomString(
+                            rnd, 10000, 1024 * 1024 * 2, (char) 128, (char) 16383),
+                    StringUtils.getRandomString(
+                            rnd, 10000, 1024 * 1024 * 2, (char) 16384, (char) 65535),
+                    StringUtils.getRandomString(
+                            rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 16383),
+                    StringUtils.getRandomString(
+                            rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 65535),
+                    StringUtils.getRandomString(
+                            rnd, 10000, 1024 * 1024 * 2, (char) 128, (char) 65535)
+                };
+        testSerialization(testStrings);
     }
 
     @Test
-    public void testUnicodeSurrogatePairs() {
-        try {
-            String[] symbols =
-                    new String[] {
-                        "\uD800\uDF30", "\uD800\uDF31", "\uD800\uDF32", "\uD834\uDF08",
-                                "\uD834\uDF56",
-                        "\uD834\uDD20", "\uD802\uDC01", "\uD800\uDC09", "\uD87E\uDC9E",
-                                "\uD864\uDDF8",
-                        "\uD840\uDC0E", "\uD801\uDC80", "\uD801\uDC56", "\uD801\uDC05",
-                                "\uD800\uDF01"
-                    };
-            String[] buffer = new String[100];
-            Random random = new Random();
-            for (int i = 0; i < 100; i++) {
-                StringBuilder builder = new StringBuilder();
-                for (int j = 0; j < 100; j++) {
-                    builder.append(symbols[random.nextInt(symbols.length)]);
-                }
-                buffer[i] = builder.toString();
+    void testUnicodeSurrogatePairs() throws IOException {
+        String[] symbols =
+                new String[] {
+                    "\uD800\uDF30", "\uD800\uDF31", "\uD800\uDF32", "\uD834\uDF08", "\uD834\uDF56",
+                    "\uD834\uDD20", "\uD802\uDC01", "\uD800\uDC09", "\uD87E\uDC9E", "\uD864\uDDF8",
+                    "\uD840\uDC0E", "\uD801\uDC80", "\uD801\uDC56", "\uD801\uDC05", "\uD800\uDF01"
+                };
+        String[] buffer = new String[100];
+        Random random = new Random();
+        for (int i = 0; i < 100; i++) {
+            StringBuilder builder = new StringBuilder();
+            for (int j = 0; j < 100; j++) {
+                builder.append(symbols[random.nextInt(symbols.length)]);
             }
-            testSerialization(buffer);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
+            buffer[i] = builder.toString();
+        }
+        testSerialization(buffer);
+    }
+
+    @Test
+    void testStringBinaryCompatibility() throws IOException {
+        String[] testStrings =
+                new String[] {
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 127),
+                    StringUtils.getRandomString(
+                            rnd, 10000, 1024 * 1024 * 2, (char) 128, (char) 16383),
+                    StringUtils.getRandomString(
+                            rnd, 10000, 1024 * 1024 * 2, (char) 16384, (char) 65535),
+                    StringUtils.getRandomString(
+                            rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 16383),
+                    StringUtils.getRandomString(
+                            rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 65535),
+                    StringUtils.getRandomString(
+                            rnd, 10000, 1024 * 1024 * 2, (char) 128, (char) 65535)
+                };
+
+        for (String testString : testStrings) {
+            // new and old impl should produce the same binary result
+            byte[] oldBytes = serializeBytes(testString, StringSerializationTest::oldWriteString);
+            byte[] newBytes = serializeBytes(testString, StringSerializationTest::newWriteString);
+            assertThat(newBytes).isEqualTo(oldBytes);
+            // old impl should read bytes from new one
+            String oldString = deserializeBytes(newBytes, StringSerializationTest::oldReadString);
+            assertThat(testString).isEqualTo(oldString);
+            // new impl should read bytes from old one
+            String newString = deserializeBytes(oldBytes, StringSerializationTest::newReadString);
+            assertThat(testString).isEqualTo(newString);
+            // it should roundtrip over new impl
+            String roundtrip = deserializeBytes(newBytes, StringSerializationTest::newReadString);
+            assertThat(testString).isEqualTo(roundtrip);
         }
     }
 
     @Test
-    public void testStringBinaryCompatibility() {
-        try {
-            String[] testStrings =
-                    new String[] {
-                        StringUtils.getRandomString(
-                                rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 127),
-                        StringUtils.getRandomString(
-                                rnd, 10000, 1024 * 1024 * 2, (char) 128, (char) 16383),
-                        StringUtils.getRandomString(
-                                rnd, 10000, 1024 * 1024 * 2, (char) 16384, (char) 65535),
-                        StringUtils.getRandomString(
-                                rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 16383),
-                        StringUtils.getRandomString(
-                                rnd, 10000, 1024 * 1024 * 2, (char) 1, (char) 65535),
-                        StringUtils.getRandomString(
-                                rnd, 10000, 1024 * 1024 * 2, (char) 128, (char) 65535)
-                    };
+    void testNullValues() throws IOException {
+        String[] testStrings =
+                new String[] {
+                    "a",
+                    null,
+                    "",
+                    null,
+                    "bcd",
+                    null,
+                    "jbmbmner8 jhk hj \n \t üäßß@µ",
+                    null,
+                    "",
+                    null,
+                    "non-empty"
+                };
 
-            for (String testString : testStrings) {
-                // new and old impl should produce the same binary result
-                byte[] oldBytes =
-                        serializeBytes(testString, StringSerializationTest::oldWriteString);
-                byte[] newBytes =
-                        serializeBytes(testString, StringSerializationTest::newWriteString);
-                assertArrayEquals(oldBytes, newBytes);
-                // old impl should read bytes from new one
-                String oldString =
-                        deserializeBytes(newBytes, StringSerializationTest::oldReadString);
-                assertEquals(oldString, testString);
-                // new impl should read bytes from old one
-                String newString =
-                        deserializeBytes(oldBytes, StringSerializationTest::newReadString);
-                assertEquals(newString, testString);
-                // it should roundtrip over new impl
-                String roundtrip =
-                        deserializeBytes(newBytes, StringSerializationTest::newReadString);
-                assertEquals(roundtrip, testString);
-            }
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
-        }
+        testSerialization(testStrings);
     }
 
     @Test
-    public void testNullValues() {
-        try {
-            String[] testStrings =
-                    new String[] {
-                        "a",
-                        null,
-                        "",
-                        null,
-                        "bcd",
-                        null,
-                        "jbmbmner8 jhk hj \n \t üäßß@µ",
-                        null,
-                        "",
-                        null,
-                        "non-empty"
-                    };
+    void testLongValues() throws IOException {
+        String[] testStrings =
+                new String[] {
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2)
+                };
 
-            testSerialization(testStrings);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
-        }
+        testSerialization(testStrings);
     }
 
     @Test
-    public void testLongValues() {
-        try {
-            String[] testStrings =
-                    new String[] {
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2)
-                    };
+    void testMixedValues() throws IOException {
+        String[] testStrings =
+                new String[] {
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    "",
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    null,
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    null,
+                    "",
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    "",
+                    null
+                };
 
-            testSerialization(testStrings);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
-        }
+        testSerialization(testStrings);
     }
 
     @Test
-    public void testMixedValues() {
-        try {
-            String[] testStrings =
-                    new String[] {
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        "",
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        null,
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        null,
-                        "",
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        "",
-                        null
-                    };
+    void testBinaryCopyOfLongStrings() throws IOException {
+        String[] testStrings =
+                new String[] {
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    "",
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    null,
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    null,
+                    "",
+                    StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
+                    "",
+                    null
+                };
 
-            testSerialization(testStrings);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
-        }
+        testCopy(testStrings);
     }
 
-    @Test
-    public void testBinaryCopyOfLongStrings() {
-        try {
-            String[] testStrings =
-                    new String[] {
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        "",
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        null,
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        null,
-                        "",
-                        StringUtils.getRandomString(rnd, 10000, 1024 * 1024 * 2),
-                        "",
-                        null
-                    };
-
-            testCopy(testStrings);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
-        }
-    }
-
-    public static final byte[] serializeBytes(String value, BiConsumer<String, DataOutput> writer)
+    public static byte[] serializeBytes(String value, BiConsumer<String, DataOutput> writer)
             throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         DataOutputStream stream = new DataOutputStream(buffer);
@@ -261,7 +201,7 @@ public class StringSerializationTest {
         return buffer.toByteArray();
     }
 
-    public static final String deserializeBytes(byte[] value, Function<DataInput, String> reader)
+    public static String deserializeBytes(byte[] value, Function<DataInput, String> reader)
             throws IOException {
         ByteArrayInputStream buffer = new ByteArrayInputStream(value);
         DataInputStream stream = new DataInputStream(buffer);
@@ -270,7 +210,7 @@ public class StringSerializationTest {
         return result;
     }
 
-    public static final void testSerialization(String[] values) throws IOException {
+    public static void testSerialization(String[] values) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream(4096);
         DataOutputStream serializer = new DataOutputStream(baos);
 
@@ -287,15 +227,14 @@ public class StringSerializationTest {
         int num = 0;
         while (deserializer.available() > 0) {
             String deser = StringValue.readString(deserializer);
-
-            assertEquals("DeserializedString differs from original string.", values[num], deser);
+            assertThat(values[num]).isEqualTo(deser);
             num++;
         }
 
-        assertEquals("Wrong number of deserialized values", values.length, num);
+        assertThat(values).hasSize(num);
     }
 
-    public static final void testCopy(String[] values) throws IOException {
+    public static void testCopy(String[] values) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream(4096);
         DataOutputStream serializer = new DataOutputStream(baos);
 
@@ -322,11 +261,11 @@ public class StringSerializationTest {
         while (validate.available() > 0) {
             String deser = StringValue.readString(validate);
 
-            assertEquals("DeserializedString differs from original string.", values[num], deser);
+            assertThat(values[num]).isEqualTo(deser);
             num++;
         }
 
-        assertEquals("Wrong number of deserialized values", values.length, num);
+        assertThat(values).hasSize(num);
     }
 
     // needed to test the binary compatibility for new/old string serialization code
@@ -380,7 +319,7 @@ public class StringSerializationTest {
         }
     }
 
-    private static final void oldWriteString(CharSequence cs, DataOutput out) {
+    private static void oldWriteString(CharSequence cs, DataOutput out) {
         try {
             if (cs != null) {
                 // the length we write is offset by one, because a length of zero indicates a null

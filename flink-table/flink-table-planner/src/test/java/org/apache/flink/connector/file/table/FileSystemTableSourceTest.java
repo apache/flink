@@ -23,16 +23,16 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test for {@link FileSystemTableSource}. */
-public class FileSystemTableSourceTest extends TableTestBase {
+class FileSystemTableSourceTest extends TableTestBase {
 
     private StreamTableTestUtil util;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         TableEnvironment tEnv = util.getTableEnv();
 
@@ -71,12 +71,12 @@ public class FileSystemTableSourceTest extends TableTestBase {
     }
 
     @Test
-    public void testFilterPushDown() {
+    void testFilterPushDown() {
         util.verifyRelPlanInsert("insert into MySink select * from MyTable where a > 10");
     }
 
     @Test
-    public void testMetadataReading() {
+    void testMetadataReading() {
         util.verifyRelPlanInsert(
                 "insert into MySink(a, b, c) select a, b, filemeta from MyTableWithMeta");
     }

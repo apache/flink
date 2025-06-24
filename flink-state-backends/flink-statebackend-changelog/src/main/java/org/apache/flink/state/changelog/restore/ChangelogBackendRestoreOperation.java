@@ -18,14 +18,16 @@
 package org.apache.flink.state.changelog.restore;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
-import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageView;
 import org.apache.flink.state.changelog.ChangelogKeyedStateBackend;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
@@ -37,6 +39,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * Restores {@link ChangelogKeyedStateBackend} from the provided {@link ChangelogStateBackendHandle
@@ -60,7 +64,9 @@ public class ChangelogBackendRestoreOperation {
                     Exception> {}
 
     public static <K> CheckpointableKeyedStateBackend<K> restore(
+            Configuration configuration,
             ClassLoader classLoader,
+            TaskStateManager taskStateManager,
             Collection<ChangelogStateBackendHandle> stateHandles,
             BaseBackendBuilder<K> baseBackendBuilder,
             ChangelogRestoreTargetBuilder<K> changelogRestoreTargetBuilder)
@@ -72,7 +78,12 @@ public class ChangelogBackendRestoreOperation {
 
         for (ChangelogStateBackendHandle handle : stateHandles) {
             if (handle != null) { // null is empty state (no change)
-                readBackendHandle(changelogRestoreTarget, handle, classLoader);
+                readBackendHandle(
+                        configuration,
+                        taskStateManager,
+                        changelogRestoreTarget,
+                        handle,
+                        classLoader);
             }
         }
         return changelogRestoreTarget.getRestoredKeyedStateBackend();
@@ -80,6 +91,8 @@ public class ChangelogBackendRestoreOperation {
 
     @SuppressWarnings("unchecked")
     private static <T extends ChangelogStateHandle> void readBackendHandle(
+            Configuration configuration,
+            TaskStateManager taskStateManager,
             ChangelogRestoreTarget<?> changelogRestoreTarget,
             ChangelogStateBackendHandle backendHandle,
             ClassLoader classLoader)
@@ -87,10 +100,11 @@ public class ChangelogBackendRestoreOperation {
         Map<Short, StateID> stateIds = new HashMap<>();
         for (ChangelogStateHandle changelogHandle :
                 backendHandle.getNonMaterializedStateHandles()) {
+            StateChangelogStorageView<?> stateChangelogStorageView =
+                    taskStateManager.getStateChangelogStorageView(configuration, changelogHandle);
+            requireNonNull(stateChangelogStorageView, "Changelog storage view must not be null.");
             StateChangelogHandleReader<T> changelogHandleReader =
-                    (StateChangelogHandleReader<T>)
-                            StateChangelogStorageLoader.loadFromStateHandle(changelogHandle)
-                                    .createReader();
+                    (StateChangelogHandleReader<T>) stateChangelogStorageView.createReader();
             try (CloseableIterator<StateChange> changes =
                     changelogHandleReader.getChanges((T) changelogHandle)) {
                 while (changes.hasNext()) {

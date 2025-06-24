@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -42,8 +41,11 @@ import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingRes
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DoneFuture;
@@ -51,6 +53,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.TestCheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -67,11 +70,12 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -79,22 +83,25 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
-import static org.apache.flink.shaded.guava30.com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.shaded.guava33.com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
+import static org.apache.flink.streaming.api.operators.StreamOperatorUtils.setProcessingTimeService;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link SubtaskCheckpointCoordinator}. */
-public class SubtaskCheckpointCoordinatorTest {
+class SubtaskCheckpointCoordinatorTest {
+    private static final CheckpointStorage CHECKPOINT_STORAGE = new JobManagerCheckpointStorage();
 
     @Test
-    public void testInitCheckpoint() throws IOException, CheckpointException {
-        assertTrue(initCheckpoint(true, CHECKPOINT));
-        assertFalse(initCheckpoint(false, CHECKPOINT));
-        assertFalse(initCheckpoint(false, SavepointType.savepoint(SavepointFormatType.CANONICAL)));
+    void testInitCheckpoint() throws IOException, CheckpointException {
+        assertThat(initCheckpoint(true, CHECKPOINT)).isTrue();
+        assertThat(initCheckpoint(false, CHECKPOINT)).isFalse();
+        assertThat(initCheckpoint(false, SavepointType.savepoint(SavepointFormatType.CANONICAL)))
+                .isFalse();
     }
 
     private boolean initCheckpoint(boolean unalignedCheckpointEnabled, SnapshotType checkpointType)
@@ -109,7 +116,7 @@ public class SubtaskCheckpointCoordinatorTest {
         }
 
         MockWriter writer = new MockWriter();
-        SubtaskCheckpointCoordinator coordinator = coordinator(unalignedCheckpointEnabled, writer);
+        SubtaskCheckpointCoordinator coordinator = coordinator(writer);
         CheckpointStorageLocationReference locationReference =
                 CheckpointStorageLocationReference.getDefault();
         coordinator.initInputsCheckpoint(
@@ -121,7 +128,7 @@ public class SubtaskCheckpointCoordinatorTest {
     }
 
     @Test
-    public void testNotifyCheckpointComplete() throws Exception {
+    void testNotifyCheckpointComplete() throws Exception {
         TestTaskStateManager stateManager = new TestTaskStateManager();
         MockEnvironment mockEnvironment =
                 MockEnvironment.builder().setTaskStateManager(stateManager).build();
@@ -136,7 +143,7 @@ public class SubtaskCheckpointCoordinatorTest {
             {
                 subtaskCheckpointCoordinator.notifyCheckpointComplete(
                         checkpointId, operatorChain, () -> true);
-                assertEquals(checkpointId, stateManager.getNotifiedCompletedCheckpointId());
+                assertThat(stateManager.getNotifiedCompletedCheckpointId()).isEqualTo(checkpointId);
             }
 
             long newCheckpointId = checkpointId + 1;
@@ -144,13 +151,14 @@ public class SubtaskCheckpointCoordinatorTest {
                 subtaskCheckpointCoordinator.notifyCheckpointComplete(
                         newCheckpointId, operatorChain, () -> false);
                 // even task is not running, state manager could still receive the notification.
-                assertEquals(newCheckpointId, stateManager.getNotifiedCompletedCheckpointId());
+                assertThat(stateManager.getNotifiedCompletedCheckpointId())
+                        .isEqualTo(newCheckpointId);
             }
         }
     }
 
     @Test
-    public void testSavepointNotResultingInPriorityEvents() throws Exception {
+    void testSavepointNotResultingInPriorityEvents() throws Exception {
         MockEnvironment mockEnvironment = MockEnvironment.builder().build();
 
         try (SubtaskCheckpointCoordinator coordinator =
@@ -181,14 +189,16 @@ public class SubtaskCheckpointCoordinatorTest {
                     false,
                     () -> true);
 
-            assertEquals(false, broadcastedPriorityEvent.get());
+            assertThat(broadcastedPriorityEvent.get()).isFalse();
         }
     }
 
     @Test
-    public void testForceAlignedCheckpointResultingInPriorityEvents() throws Exception {
+    void testForceAlignedCheckpointResultingInPriorityEvents() throws Exception {
         final long checkpointId = 42L;
         MockEnvironment mockEnvironment = MockEnvironment.builder().build();
+        mockEnvironment.setCheckpointStorageAccess(
+                CHECKPOINT_STORAGE.createCheckpointStorage(mockEnvironment.getJobID()));
 
         try (SubtaskCheckpointCoordinator coordinator =
                 new MockSubtaskCheckpointCoordinatorBuilder()
@@ -230,12 +240,12 @@ public class SubtaskCheckpointCoordinatorTest {
                     false,
                     () -> true);
 
-            assertEquals(true, broadcastedPriorityEvent.get());
+            assertThat(broadcastedPriorityEvent.get()).isTrue();
         }
     }
 
     @Test
-    public void testSkipChannelStateForSavepoints() throws Exception {
+    void testSkipChannelStateForSavepoints() throws Exception {
         try (SubtaskCheckpointCoordinator coordinator =
                 new MockSubtaskCheckpointCoordinatorBuilder()
                         .setUnalignedCheckpointEnabled(true)
@@ -259,7 +269,7 @@ public class SubtaskCheckpointCoordinatorTest {
     }
 
     @Test
-    public void testNotifyCheckpointSubsumed() throws Exception {
+    void testNotifyCheckpointSubsumed() throws Exception {
         TestTaskStateManager stateManager = new TestTaskStateManager();
         MockEnvironment mockEnvironment =
                 MockEnvironment.builder().setTaskStateManager(stateManager).build();
@@ -273,7 +283,7 @@ public class SubtaskCheckpointCoordinatorTest {
 
             StreamMap<String, String> streamMap =
                     new StreamMap<>((MapFunction<String, String>) value -> value);
-            streamMap.setProcessingTimeService(new TestProcessingTimeService());
+            setProcessingTimeService(streamMap, new TestProcessingTimeService());
             final OperatorChain<String, AbstractStreamOperator<String>> operatorChain =
                     operatorChain(streamMap);
             StreamTaskStateInitializerImpl stateInitializer =
@@ -297,15 +307,16 @@ public class SubtaskCheckpointCoordinatorTest {
             // notify checkpoint aborted before execution.
             subtaskCheckpointCoordinator.notifyCheckpointSubsumed(
                     notifySubsumeCheckpointId, operatorChain, () -> true);
-            assertEquals(
-                    notifySubsumeCheckpointId,
-                    ((TestStateBackend.TestKeyedStateBackend<?>) streamMap.getKeyedStateBackend())
-                            .getSubsumeCheckpointId());
+            assertThat(
+                            ((TestStateBackend.TestKeyedStateBackend<?>)
+                                            streamMap.getKeyedStateBackend())
+                                    .getSubsumeCheckpointId())
+                    .isEqualTo(notifySubsumeCheckpointId);
         }
     }
 
     @Test
-    public void testNotifyCheckpointAbortedManyTimes() throws Exception {
+    void testNotifyCheckpointAbortedManyTimes() throws Exception {
         MockEnvironment mockEnvironment = MockEnvironment.builder().build();
         int maxRecordAbortedCheckpoints = 256;
 
@@ -320,15 +331,14 @@ public class SubtaskCheckpointCoordinatorTest {
             long notifyAbortedTimes = maxRecordAbortedCheckpoints + 42;
             for (int i = 1; i < notifyAbortedTimes; i++) {
                 subtaskCheckpointCoordinator.notifyCheckpointAborted(i, operatorChain, () -> true);
-                assertEquals(
-                        Math.min(maxRecordAbortedCheckpoints, i),
-                        subtaskCheckpointCoordinator.getAbortedCheckpointSize());
+                assertThat(subtaskCheckpointCoordinator.getAbortedCheckpointSize())
+                        .isEqualTo(Math.min(maxRecordAbortedCheckpoints, i));
             }
         }
     }
 
     @Test
-    public void testNotifyCheckpointAbortedBeforeAsyncPhase() throws Exception {
+    void testNotifyCheckpointAbortedBeforeAsyncPhase() throws Exception {
         TestTaskStateManager stateManager = new TestTaskStateManager();
         MockEnvironment mockEnvironment =
                 MockEnvironment.builder().setTaskStateManager(stateManager).build();
@@ -349,7 +359,7 @@ public class SubtaskCheckpointCoordinatorTest {
             // notify checkpoint aborted before execution.
             subtaskCheckpointCoordinator.notifyCheckpointAborted(
                     checkpointId, operatorChain, () -> true);
-            assertEquals(1, subtaskCheckpointCoordinator.getAbortedCheckpointSize());
+            assertThat(subtaskCheckpointCoordinator.getAbortedCheckpointSize()).isOne();
 
             subtaskCheckpointCoordinator
                     .getChannelStateWriter()
@@ -361,15 +371,15 @@ public class SubtaskCheckpointCoordinatorTest {
                     operatorChain,
                     false,
                     () -> false);
-            assertFalse(checkpointOperator.isCheckpointed());
-            assertEquals(-1, stateManager.getReportedCheckpointId());
-            assertEquals(0, subtaskCheckpointCoordinator.getAbortedCheckpointSize());
-            assertEquals(0, subtaskCheckpointCoordinator.getAsyncCheckpointRunnableSize());
+            assertThat(checkpointOperator.isCheckpointed()).isFalse();
+            assertThat(stateManager.getReportedCheckpointId()).isEqualTo(-1);
+            assertThat(subtaskCheckpointCoordinator.getAbortedCheckpointSize()).isZero();
+            assertThat(subtaskCheckpointCoordinator.getAsyncCheckpointRunnableSize()).isZero();
         }
     }
 
     @Test
-    public void testBroadcastCancelCheckpointMarkerOnAbortingFromCoordinator() throws Exception {
+    void testBroadcastCancelCheckpointMarkerOnAbortingFromCoordinator() throws Exception {
         OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
                         OneInputStreamTask::new,
@@ -382,10 +392,15 @@ public class SubtaskCheckpointCoordinatorTest {
         StreamConfig streamConfig = testHarness.getStreamConfig();
         streamConfig.setStreamOperator(new MapOperator());
 
-        testHarness.invoke();
-        testHarness.waitForTaskRunning();
-
-        MockEnvironment mockEnvironment = MockEnvironment.builder().build();
+        StreamMockEnvironment mockEnvironment =
+                new StreamMockEnvironment(
+                        testHarness.jobConfig,
+                        testHarness.taskConfig,
+                        testHarness.executionConfig,
+                        testHarness.memorySize,
+                        new MockInputSplitProvider(),
+                        testHarness.bufferSize,
+                        testHarness.taskStateManager);
 
         try (SubtaskCheckpointCoordinator subtaskCheckpointCoordinator =
                 new MockSubtaskCheckpointCoordinatorBuilder()
@@ -397,13 +412,14 @@ public class SubtaskCheckpointCoordinatorTest {
             ResultPartitionWriter resultPartitionWriter =
                     new RecordOrEventCollectingResultPartitionWriter<>(
                             recordOrEvents, stringStreamElementSerializer);
-            mockEnvironment.addOutputs(Collections.singletonList(resultPartitionWriter));
+            mockEnvironment.addOutput(resultPartitionWriter);
+
+            testHarness.invoke(mockEnvironment);
+            testHarness.waitForTaskRunning();
 
             OneInputStreamTask<String, String> task = testHarness.getTask();
             OperatorChain<String, OneInputStreamOperator<String, String>> operatorChain =
-                    new RegularOperatorChain<>(
-                            task,
-                            StreamTask.createRecordWriterDelegate(streamConfig, mockEnvironment));
+                    task.operatorChain;
             long checkpointId = 42L;
             // notify checkpoint aborted before execution.
             subtaskCheckpointCoordinator.notifyCheckpointAborted(
@@ -416,11 +432,12 @@ public class SubtaskCheckpointCoordinatorTest {
                     false,
                     () -> false);
 
-            assertEquals(1, recordOrEvents.size());
+            assertThat(recordOrEvents).hasSize(1);
             Object recordOrEvent = recordOrEvents.get(0);
             // ensure CancelCheckpointMarker is broadcast downstream.
-            assertTrue(recordOrEvent instanceof CancelCheckpointMarker);
-            assertEquals(checkpointId, ((CancelCheckpointMarker) recordOrEvent).getCheckpointId());
+            assertThat(recordOrEvent).isInstanceOf(CancelCheckpointMarker.class);
+            assertThat(((CancelCheckpointMarker) recordOrEvent).getCheckpointId())
+                    .isEqualTo(checkpointId);
             testHarness.endInput();
             testHarness.waitForTaskCompletion();
         }
@@ -438,14 +455,14 @@ public class SubtaskCheckpointCoordinatorTest {
     }
 
     @Test
-    public void testNotifyCheckpointAbortedDuringAsyncPhase() throws Exception {
+    void testNotifyCheckpointAbortedDuringAsyncPhase() throws Exception {
         MockEnvironment mockEnvironment = MockEnvironment.builder().build();
 
         try (SubtaskCheckpointCoordinatorImpl subtaskCheckpointCoordinator =
                 (SubtaskCheckpointCoordinatorImpl)
                         new MockSubtaskCheckpointCoordinatorBuilder()
                                 .setEnvironment(mockEnvironment)
-                                .setExecutor(Executors.newSingleThreadExecutor())
+                                .setExecutor(Executors.newFixedThreadPool(2))
                                 .setUnalignedCheckpointEnabled(true)
                                 .build()) {
             final BlockingRunnableFuture rawKeyedStateHandleFuture = new BlockingRunnableFuture();
@@ -473,18 +490,21 @@ public class SubtaskCheckpointCoordinatorTest {
                     false,
                     () -> false);
             rawKeyedStateHandleFuture.awaitRun();
-            assertEquals(1, subtaskCheckpointCoordinator.getAsyncCheckpointRunnableSize());
-            assertFalse(rawKeyedStateHandleFuture.isCancelled());
+            assertThat(subtaskCheckpointCoordinator.getAsyncCheckpointRunnableSize()).isOne();
+            assertThat(rawKeyedStateHandleFuture.isCancelled()).isFalse();
 
             subtaskCheckpointCoordinator.notifyCheckpointAborted(
                     checkpointId, operatorChain, () -> true);
-            assertTrue(rawKeyedStateHandleFuture.isCancelled());
-            assertEquals(0, subtaskCheckpointCoordinator.getAsyncCheckpointRunnableSize());
+            while (!rawKeyedStateHandleFuture.isDone()) {
+                Thread.sleep(10L);
+            }
+            assertThat(rawKeyedStateHandleFuture.isCancelled()).isTrue();
+            assertThat(subtaskCheckpointCoordinator.getAbortedCheckpointSize()).isZero();
         }
     }
 
     @Test
-    public void testNotifyCheckpointAbortedAfterAsyncPhase() throws Exception {
+    void testNotifyCheckpointAbortedAfterAsyncPhase() throws Exception {
         TestTaskStateManager stateManager = new TestTaskStateManager();
         MockEnvironment mockEnvironment =
                 MockEnvironment.builder().setTaskStateManager(stateManager).build();
@@ -506,8 +526,189 @@ public class SubtaskCheckpointCoordinatorTest {
                     () -> false);
             subtaskCheckpointCoordinator.notifyCheckpointAborted(
                     checkpointId, operatorChain, () -> true);
-            assertEquals(0, subtaskCheckpointCoordinator.getAbortedCheckpointSize());
-            assertEquals(checkpointId, stateManager.getNotifiedAbortedCheckpointId());
+            assertThat(subtaskCheckpointCoordinator.getAbortedCheckpointSize()).isZero();
+            assertThat(stateManager.getNotifiedAbortedCheckpointId()).isEqualTo(checkpointId);
+        }
+    }
+
+    @Test
+    void testTimeoutableAlignedBarrierNotPriorityAndChannelStateResult() throws Exception {
+        long checkpointId = 66;
+        MockEnvironment mockEnvironment = MockEnvironment.builder().build();
+
+        try (SubtaskCheckpointCoordinator coordinator =
+                new MockSubtaskCheckpointCoordinatorBuilder()
+                        .setUnalignedCheckpointEnabled(true)
+                        .setEnvironment(mockEnvironment)
+                        .build()) {
+            AtomicReference<Boolean> broadcastedPriorityEvent = new AtomicReference<>(null);
+            AtomicReference<ChannelStateWriter.ChannelStateWriteResult> channelStateResult =
+                    new AtomicReference<>(null);
+            final OperatorChain<?, ?> operatorChain =
+                    new RegularOperatorChain(
+                            new NoOpStreamTask<>(new DummyEnvironment()), new NonRecordWriter<>()) {
+                        @Override
+                        public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent)
+                                throws IOException {
+                            super.broadcastEvent(event, isPriorityEvent);
+                            broadcastedPriorityEvent.set(isPriorityEvent);
+                        }
+
+                        @Override
+                        public void snapshotState(
+                                Map operatorSnapshotsInProgress,
+                                CheckpointMetaData checkpointMetaData,
+                                CheckpointOptions checkpointOptions,
+                                Supplier isRunning,
+                                ChannelStateWriter.ChannelStateWriteResult channelStateWriteResult,
+                                CheckpointStreamFactory storage) {
+                            channelStateResult.set(channelStateWriteResult);
+                            sendAcknowledgeCheckpointEvent(checkpointMetaData.getCheckpointId());
+                        }
+                    };
+
+            CheckpointOptions checkpointOptions =
+                    new CheckpointOptions(
+                            CHECKPOINT,
+                            CheckpointStorageLocationReference.getDefault(),
+                            CheckpointOptions.AlignmentType.ALIGNED,
+                            200);
+            coordinator.initInputsCheckpoint(checkpointId, checkpointOptions);
+            coordinator.checkpointState(
+                    new CheckpointMetaData(checkpointId, System.currentTimeMillis()),
+                    checkpointOptions,
+                    new CheckpointMetricsBuilder(),
+                    operatorChain,
+                    false,
+                    () -> true);
+
+            assertThat(broadcastedPriorityEvent.get()).isFalse();
+            assertThat(channelStateResult.get()).isNotNull();
+        }
+    }
+
+    @Test
+    void testChannelStateWriteResultLeakAndNotFailAfterCheckpointAborted() throws Exception {
+        String taskName = "test";
+        DummyEnvironment env = new DummyEnvironment();
+        env.setCheckpointStorageAccess(CHECKPOINT_STORAGE.createCheckpointStorage(env.getJobID()));
+        ChannelStateWriterImpl writer =
+                new ChannelStateWriterImpl(
+                        env.getJobVertexId(),
+                        taskName,
+                        0,
+                        () -> env.getCheckpointStorageAccess(),
+                        env.getChannelStateExecutorFactory(),
+                        5);
+        try (MockEnvironment mockEnvironment = MockEnvironment.builder().build();
+                SubtaskCheckpointCoordinator coordinator =
+                        new SubtaskCheckpointCoordinatorImpl(
+                                new TestCheckpointStorageWorkerView(100),
+                                taskName,
+                                StreamTaskActionExecutor.IMMEDIATE,
+                                newDirectExecutorService(),
+                                env,
+                                (unused1, unused2) -> {},
+                                (unused1, unused2) -> CompletableFuture.completedFuture(null),
+                                1,
+                                writer,
+                                true,
+                                (callable, duration) -> () -> {})) {
+            final OperatorChain<?, ?> operatorChain = getOperatorChain(mockEnvironment);
+            int checkpointId = 1;
+            // Abort checkpoint 1
+            coordinator.notifyCheckpointAborted(checkpointId, operatorChain, () -> true);
+
+            coordinator.initInputsCheckpoint(
+                    checkpointId,
+                    CheckpointOptions.unaligned(
+                            CheckpointType.CHECKPOINT,
+                            CheckpointStorageLocationReference.getDefault()));
+            ChannelStateWriter.ChannelStateWriteResult writeResult =
+                    writer.getWriteResult(checkpointId);
+            assertThat(writeResult).isNotNull();
+
+            coordinator.checkpointState(
+                    new CheckpointMetaData(checkpointId, System.currentTimeMillis()),
+                    CheckpointOptions.forCheckpointWithDefaultLocation(),
+                    new CheckpointMetricsBuilder(),
+                    operatorChain,
+                    false,
+                    () -> true);
+            assertThat(writer.getWriteResult(checkpointId)).isNull();
+            writeResult.waitForDone();
+            assertThat(writeResult.isDone()).isTrue();
+            assertThat(writeResult.getInputChannelStateHandles().isCompletedExceptionally())
+                    .isTrue();
+            assertThat(writeResult.getResultSubpartitionStateHandles().isCompletedExceptionally())
+                    .isTrue();
+        }
+    }
+
+    @Test
+    void testAbortOldAndStartNewCheckpoint() throws Exception {
+        String taskName = "test";
+        CheckpointOptions unalignedOptions =
+                CheckpointOptions.unaligned(
+                        CHECKPOINT, CheckpointStorageLocationReference.getDefault());
+        DummyEnvironment env = new DummyEnvironment();
+        env.setCheckpointStorageAccess(CHECKPOINT_STORAGE.createCheckpointStorage(env.getJobID()));
+        ChannelStateWriterImpl writer =
+                new ChannelStateWriterImpl(
+                        env.getJobVertexId(),
+                        taskName,
+                        0,
+                        () -> env.getCheckpointStorageAccess(),
+                        env.getChannelStateExecutorFactory(),
+                        5);
+        try (MockEnvironment mockEnvironment = MockEnvironment.builder().build();
+                SubtaskCheckpointCoordinator coordinator =
+                        new SubtaskCheckpointCoordinatorImpl(
+                                new TestCheckpointStorageWorkerView(100),
+                                taskName,
+                                StreamTaskActionExecutor.IMMEDIATE,
+                                newDirectExecutorService(),
+                                env,
+                                (unused1, unused2) -> {},
+                                (unused1, unused2) -> CompletableFuture.completedFuture(null),
+                                1,
+                                writer,
+                                true,
+                                (callable, duration) -> () -> {})) {
+            final OperatorChain<?, ?> operatorChain = getOperatorChain(mockEnvironment);
+            int checkpoint42 = 42;
+            int checkpoint43 = 43;
+
+            coordinator.initInputsCheckpoint(checkpoint42, unalignedOptions);
+            ChannelStateWriter.ChannelStateWriteResult result42 =
+                    writer.getWriteResult(checkpoint42);
+            assertThat(result42).isNotNull();
+
+            coordinator.notifyCheckpointAborted(checkpoint42, operatorChain, () -> true);
+            coordinator.initInputsCheckpoint(checkpoint43, unalignedOptions);
+            ChannelStateWriter.ChannelStateWriteResult result43 =
+                    writer.getWriteResult(checkpoint43);
+
+            result42.waitForDone();
+            assertThat(result42.isDone()).isTrue();
+
+            assertThatThrownBy(() -> result42.getInputChannelStateHandles().get())
+                    .isInstanceOf(CancellationException.class);
+
+            // test the new checkpoint can be completed
+            coordinator.checkpointState(
+                    new CheckpointMetaData(checkpoint43, System.currentTimeMillis()),
+                    unalignedOptions,
+                    new CheckpointMetricsBuilder(),
+                    operatorChain,
+                    false,
+                    () -> true);
+            result43.waitForDone();
+            assertThat(result43).isNotNull();
+            assertThat(result43.isDone()).isTrue();
+            assertThat(result43.getInputChannelStateHandles().isCompletedExceptionally()).isFalse();
+            assertThat(result43.getResultSubpartitionStateHandles().isCompletedExceptionally())
+                    .isFalse();
         }
     }
 
@@ -637,7 +838,7 @@ public class SubtaskCheckpointCoordinatorTest {
 
         @Override
         public OperatorMetricGroup getMetricGroup() {
-            return null;
+            return UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
         }
 
         @Override
@@ -672,20 +873,19 @@ public class SubtaskCheckpointCoordinatorTest {
         public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {}
     }
 
-    private static SubtaskCheckpointCoordinator coordinator(
-            boolean unalignedCheckpointEnabled, ChannelStateWriter channelStateWriter)
+    private static SubtaskCheckpointCoordinator coordinator(ChannelStateWriter channelStateWriter)
             throws IOException {
         return new SubtaskCheckpointCoordinatorImpl(
                 new TestCheckpointStorageWorkerView(100),
                 "test",
                 StreamTaskActionExecutor.IMMEDIATE,
-                new CloseableRegistry(),
                 newDirectExecutorService(),
                 new DummyEnvironment(),
                 (message, unused) -> fail(message),
                 (unused1, unused2) -> CompletableFuture.completedFuture(null),
                 0,
                 channelStateWriter,
-                true);
+                true,
+                (callable, duration) -> () -> {});
     }
 }

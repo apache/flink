@@ -106,6 +106,8 @@ public class ExpressionResolver {
 
     private final ReadableConfig config;
 
+    private final ClassLoader userClassLoader;
+
     private final FieldReferenceLookup fieldLookup;
 
     private final TableReferenceLookup tableLookup;
@@ -128,6 +130,7 @@ public class ExpressionResolver {
 
     private ExpressionResolver(
             TableConfig tableConfig,
+            ClassLoader userClassLoader,
             TableReferenceLookup tableLookup,
             FunctionLookup functionLookup,
             DataTypeFactory typeFactory,
@@ -138,6 +141,7 @@ public class ExpressionResolver {
             @Nullable DataType outputDataType,
             boolean isGroupedAggregation) {
         this.config = Preconditions.checkNotNull(tableConfig);
+        this.userClassLoader = Preconditions.checkNotNull(userClassLoader);
         this.tableLookup = Preconditions.checkNotNull(tableLookup);
         this.fieldLookup = Preconditions.checkNotNull(fieldLookup);
         this.functionLookup = Preconditions.checkNotNull(functionLookup);
@@ -174,6 +178,7 @@ public class ExpressionResolver {
      */
     public static ExpressionResolverBuilder resolverFor(
             TableConfig tableConfig,
+            ClassLoader userClassLoader,
             TableReferenceLookup tableCatalog,
             FunctionLookup functionLookup,
             DataTypeFactory typeFactory,
@@ -182,6 +187,7 @@ public class ExpressionResolver {
         return new ExpressionResolverBuilder(
                 inputs,
                 tableConfig,
+                userClassLoader,
                 tableCatalog,
                 functionLookup,
                 typeFactory,
@@ -297,6 +303,11 @@ public class ExpressionResolver {
         }
 
         @Override
+        public ClassLoader userClassLoader() {
+            return userClassLoader;
+        }
+
+        @Override
         public FieldReferenceLookup referenceLookup() {
             return fieldLookup;
         }
@@ -356,7 +367,7 @@ public class ExpressionResolver {
                 overWindow.getAlias(),
                 prepareExpressions(overWindow.getPartitioning()),
                 resolveFieldsInSingleExpression(overWindow.getOrder()),
-                resolveFieldsInSingleExpression(overWindow.getPreceding()),
+                overWindow.getPreceding().map(this::resolveFieldsInSingleExpression).orElse(null),
                 overWindow.getFollowing().map(this::resolveFieldsInSingleExpression).orElse(null));
     }
 
@@ -367,6 +378,7 @@ public class ExpressionResolver {
      * <p>Note: Further resolution or validation will not happen anymore, therefore the created
      * expressions must be valid.
      */
+    @Internal
     public class PostResolverFactory {
 
         public CallExpression as(ResolvedExpression expression, String alias) {
@@ -423,9 +435,11 @@ public class ExpressionResolver {
     }
 
     /** Builder for creating {@link ExpressionResolver}. */
+    @Internal
     public static class ExpressionResolverBuilder {
 
         private final TableConfig tableConfig;
+        private final ClassLoader userClassLoader;
         private final List<QueryOperation> queryOperations;
         private final TableReferenceLookup tableCatalog;
         private final FunctionLookup functionLookup;
@@ -439,11 +453,13 @@ public class ExpressionResolver {
         private ExpressionResolverBuilder(
                 QueryOperation[] queryOperations,
                 TableConfig tableConfig,
+                ClassLoader userClassLoader,
                 TableReferenceLookup tableCatalog,
                 FunctionLookup functionLookup,
                 DataTypeFactory typeFactory,
                 SqlExpressionResolver sqlExpressionResolver) {
             this.tableConfig = tableConfig;
+            this.userClassLoader = userClassLoader;
             this.queryOperations = Arrays.asList(queryOperations);
             this.tableCatalog = tableCatalog;
             this.functionLookup = functionLookup;
@@ -475,6 +491,7 @@ public class ExpressionResolver {
         public ExpressionResolver build() {
             return new ExpressionResolver(
                     tableConfig,
+                    userClassLoader,
                     tableCatalog,
                     functionLookup,
                     typeFactory,

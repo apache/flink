@@ -56,12 +56,10 @@ When performing a tumbling window join, all elements with a common key and a com
 
 As illustrated in the figure, we define a tumbling window with the size of 2 milliseconds, which results in windows of the form `[0,1], [2,3], ...`. The image shows the pairwise combinations of all elements in each window which will be passed on to the `JoinFunction`. Note that in the tumbling window `[6,7]` nothing is emitted because no elements exist in the green stream to be joined with the orange elements ⑥ and ⑦.
 
-{{< tabs "a8e08868-40d6-4719-b554-e2cabf2e1f6f" >}}
-{{< tab "Java" >}}
 ```java
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import java.time.Duration;
  
 ...
 
@@ -71,7 +69,7 @@ DataStream<Integer> greenStream = ...;
 orangeStream.join(greenStream)
     .where(<KeySelector>)
     .equalTo(<KeySelector>)
-    .window(TumblingEventTimeWindows.of(Time.milliseconds(2)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMillis(2)))
     .apply (new JoinFunction<Integer, Integer, String> (){
         @Override
         public String join(Integer first, Integer second) {
@@ -79,27 +77,6 @@ orangeStream.join(greenStream)
         }
     });
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
-import org.apache.flink.streaming.api.windowing.time.Time
-
-...
-
-val orangeStream: DataStream[Integer] = ...
-val greenStream: DataStream[Integer] = ...
-
-orangeStream.join(greenStream)
-    .where(elem => /* select key */)
-    .equalTo(elem => /* select key */)
-    .window(TumblingEventTimeWindows.of(Time.milliseconds(2)))
-    .apply { (e1, e2) => e1 + "," + e2 }
-```
-
-{{< /tab >}}
-{{< /tabs >}}
 
 ### Sliding Window Join
 
@@ -109,13 +86,10 @@ When performing a sliding window join, all elements with a common key and common
 
 In this example we are using sliding windows with a size of two milliseconds and slide them by one millisecond, resulting in the sliding windows `[-1, 0],[0,1],[1,2],[2,3], …`.<!-- TODO: Can -1 actually exist?--> The joined elements below the x-axis are the ones that are passed to the `JoinFunction` for each sliding window. Here you can also see how for example the orange ② is joined with the green ③ in the window `[2,3]`, but is not joined with anything in the window `[1,2]`.
 
-{{< tabs "a3d3218b-dd25-4428-bfbb-d02522d95661" >}}
-{{< tab "Java" >}}
-
 ```java
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import java.time.Duration;
 
 ...
 
@@ -125,7 +99,7 @@ DataStream<Integer> greenStream = ...;
 orangeStream.join(greenStream)
     .where(<KeySelector>)
     .equalTo(<KeySelector>)
-    .window(SlidingEventTimeWindows.of(Time.milliseconds(2) /* size */, Time.milliseconds(1) /* slide */))
+    .window(SlidingEventTimeWindows.of(Duration.ofMillis(2) /* size */, Duration.ofMillis(1) /* slide */))
     .apply (new JoinFunction<Integer, Integer, String> (){
         @Override
         public String join(Integer first, Integer second) {
@@ -133,26 +107,6 @@ orangeStream.join(greenStream)
         }
     });
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows
-import org.apache.flink.streaming.api.windowing.time.Time
-
-...
-
-val orangeStream: DataStream[Integer] = ...
-val greenStream: DataStream[Integer] = ...
-
-orangeStream.join(greenStream)
-    .where(elem => /* select key */)
-    .equalTo(elem => /* select key */)
-    .window(SlidingEventTimeWindows.of(Time.milliseconds(2) /* size */, Time.milliseconds(1) /* slide */))
-    .apply { (e1, e2) => e1 + "," + e2 }
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 ### Session Window Join
 
@@ -162,13 +116,10 @@ When performing a session window join, all elements with the same key that when 
 
 Here we define a session window join where each session is divided by a gap of at least 1ms. There are three sessions, and in the first two sessions the joined elements from both streams are passed to the `JoinFunction`. In the third session there are no elements in the green stream, so ⑧ and ⑨ are not joined!
 
-{{< tabs "0e75f447-e1f7-4f38-b68c-de42ddd33512" >}}
-{{< tab "Java" >}}
-
 ```java
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import java.time.Duration;
  
 ...
 
@@ -178,7 +129,7 @@ DataStream<Integer> greenStream = ...;
 orangeStream.join(greenStream)
     .where(<KeySelector>)
     .equalTo(<KeySelector>)
-    .window(EventTimeSessionWindows.withGap(Time.milliseconds(1)))
+    .window(EventTimeSessionWindows.withGap(Duration.ofMillis(1)))
     .apply (new JoinFunction<Integer, Integer, String> (){
         @Override
         public String join(Integer first, Integer second) {
@@ -186,27 +137,6 @@ orangeStream.join(greenStream)
         }
     });
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows
-import org.apache.flink.streaming.api.windowing.time.Time
-
-...
-
-val orangeStream: DataStream[Integer] = ...
-val greenStream: DataStream[Integer] = ...
-
-orangeStream.join(greenStream)
-    .where(elem => /* select key */)
-    .equalTo(elem => /* select key */)
-    .window(EventTimeSessionWindows.withGap(Time.milliseconds(1)))
-    .apply { (e1, e2) => e1 + "," + e2 }
-```
-
-{{< /tab >}}
-{{< /tabs >}}
 
 ## Interval Join
 
@@ -234,13 +164,10 @@ Using the more formal notation again this will translate to
 
 as indicated by the triangles.
 
-{{< tabs "63cebeb2-5869-4d2e-998d-d77fb466e2e6" >}}
-{{< tab "Java" >}}
-
 ```java
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import java.time.Duration;
 
 ...
 
@@ -250,8 +177,8 @@ DataStream<Integer> greenStream = ...;
 orangeStream
     .keyBy(<KeySelector>)
     .intervalJoin(greenStream.keyBy(<KeySelector>))
-    .between(Time.milliseconds(-2), Time.milliseconds(1))
-    .process (new ProcessJoinFunction<Integer, Integer, String(){
+    .between(Duration.ofMillis(-2), Duration.ofMillis(1))
+    .process (new ProcessJoinFunction<Integer, Integer, String>(){
 
         @Override
         public void processElement(Integer left, Integer right, Context ctx, Collector<String> out) {
@@ -259,32 +186,5 @@ orangeStream
         }
     });
 ```
-
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
-import org.apache.flink.streaming.api.windowing.time.Time
-
-...
-
-val orangeStream: DataStream[Integer] = ...
-val greenStream: DataStream[Integer] = ...
-
-orangeStream
-    .keyBy(elem => /* select key */)
-    .intervalJoin(greenStream.keyBy(elem => /* select key */))
-    .between(Time.milliseconds(-2), Time.milliseconds(1))
-    .process(new ProcessJoinFunction[Integer, Integer, String] {
-        override def processElement(left: Integer, right: Integer, ctx: ProcessJoinFunction[Integer, Integer, String]#Context, out: Collector[String]): Unit = {
-            out.collect(left + "," + right)
-        }
-    })
-
-```
-
-{{< /tab >}}
-{{< /tabs >}}
 
 {{< top >}}

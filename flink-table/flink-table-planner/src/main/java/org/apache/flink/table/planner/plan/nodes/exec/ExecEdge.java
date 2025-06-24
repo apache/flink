@@ -22,6 +22,8 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecGenerator;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.Arrays;
@@ -40,10 +42,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ExecEdge {
     /** The source node of this edge. */
     private final ExecNode<?> source;
+
     /** The target node of this edge. */
     private final ExecNode<?> target;
+
     /** The {@link Shuffle} on this edge from source to target. */
     private final Shuffle shuffle;
+
     /** The {@link StreamExchangeMode} defines the data exchange mode on this edge. */
     private final StreamExchangeMode exchangeMode;
 
@@ -112,6 +117,14 @@ public class ExecEdge {
         private ExecNode<?> target;
         private Shuffle shuffle = FORWARD_SHUFFLE;
         private StreamExchangeMode exchangeMode = StreamExchangeMode.PIPELINED;
+
+        public Builder from(ExecEdge original) {
+            this.source = original.source;
+            this.target = original.target;
+            this.shuffle = original.shuffle;
+            this.exchangeMode = original.exchangeMode;
+            return this;
+        }
 
         public Builder source(ExecNode<?> source) {
             this.source = source;
@@ -247,5 +260,16 @@ public class ExecEdge {
      */
     public Transformation<?> translateToPlan(Planner planner) {
         return source.translateToPlan(planner);
+    }
+
+    /**
+     * Translates this edge into operator fusion codegen spec generator.
+     *
+     * @param planner The {@link Planner} of the translated Table.
+     * @param parentCtx Parent CodeGeneratorContext.
+     */
+    public OpFusionCodegenSpecGenerator translateToFusionCodegenSpec(
+            Planner planner, CodeGeneratorContext parentCtx) {
+        return source.translateToFusionCodegenSpec(planner, parentCtx);
     }
 }

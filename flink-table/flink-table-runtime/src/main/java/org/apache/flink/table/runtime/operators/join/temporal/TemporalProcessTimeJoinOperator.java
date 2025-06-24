@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.join.temporal;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -78,7 +78,7 @@ public class TemporalProcessTimeJoinOperator extends BaseTwoInputStreamOperatorW
         this.joinCondition =
                 generatedJoinCondition.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(joinCondition, getRuntimeContext());
-        FunctionUtils.openFunction(joinCondition, new Configuration());
+        FunctionUtils.openFunction(joinCondition, DefaultOpenContext.INSTANCE);
 
         ValueStateDescriptor<RowData> rightStateDesc =
                 new ValueStateDescriptor<>("right", rightType);

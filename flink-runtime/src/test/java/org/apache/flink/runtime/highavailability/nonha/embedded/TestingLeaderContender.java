@@ -56,11 +56,6 @@ final class TestingLeaderContender implements LeaderContender {
     }
 
     @Override
-    public String getDescription() {
-        return "foobar";
-    }
-
-    @Override
     public void handleError(Exception exception) {
         synchronized (lock) {
             if (!(leaderSessionFuture.isCompletedExceptionally()

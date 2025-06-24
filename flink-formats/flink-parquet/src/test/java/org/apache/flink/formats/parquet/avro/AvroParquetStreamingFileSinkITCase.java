@@ -18,16 +18,17 @@
 
 package org.apache.flink.formats.parquet.avro;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.formats.parquet.generated.Address;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
-import org.apache.flink.streaming.util.FiniteTestSource;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -39,9 +40,9 @@ import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.InputFile;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -53,23 +54,17 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
  * with Parquet.
  */
-@SuppressWarnings("serial")
-public class AvroParquetStreamingFileSinkITCase extends AbstractTestBase {
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
+@ExtendWith(MiniClusterExtension.class)
+class AvroParquetStreamingFileSinkITCase {
 
     @Test
-    public void testWriteParquetAvroSpecific() throws Exception {
-
-        final File folder = TEMPORARY_FOLDER.newFolder();
+    void testWriteParquetAvroSpecific(@TempDir File folder) throws Exception {
 
         final List<Address> data =
                 Arrays.asList(
@@ -82,7 +77,11 @@ public class AvroParquetStreamingFileSinkITCase extends AbstractTestBase {
         env.enableCheckpointing(100);
 
         DataStream<Address> stream =
-                env.addSource(new FiniteTestSource<>(data), TypeInformation.of(Address.class));
+                env.fromSource(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
+                                data, TypeInformation.of(Address.class)),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
 
         stream.addSink(
                 StreamingFileSink.forBulkFormat(
@@ -97,9 +96,7 @@ public class AvroParquetStreamingFileSinkITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testWriteParquetAvroGeneric() throws Exception {
-
-        final File folder = TEMPORARY_FOLDER.newFolder();
+    void testWriteParquetAvroGeneric(@TempDir File folder) throws Exception {
 
         final Schema schema = Address.getClassSchema();
 
@@ -110,7 +107,11 @@ public class AvroParquetStreamingFileSinkITCase extends AbstractTestBase {
         env.enableCheckpointing(100);
 
         DataStream<GenericRecord> stream =
-                env.addSource(new FiniteTestSource<>(data), new GenericRecordAvroTypeInfo(schema));
+                env.fromSource(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
+                                data, new GenericRecordAvroTypeInfo(schema)),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
 
         stream.addSink(
                 StreamingFileSink.forBulkFormat(
@@ -130,9 +131,7 @@ public class AvroParquetStreamingFileSinkITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testWriteParquetAvroReflect() throws Exception {
-
-        final File folder = TEMPORARY_FOLDER.newFolder();
+    void testWriteParquetAvroReflect(@TempDir File folder) throws Exception {
 
         final List<Datum> data =
                 Arrays.asList(new Datum("a", 1), new Datum("b", 2), new Datum("c", 3));
@@ -142,7 +141,11 @@ public class AvroParquetStreamingFileSinkITCase extends AbstractTestBase {
         env.enableCheckpointing(100);
 
         DataStream<Datum> stream =
-                env.addSource(new FiniteTestSource<>(data), TypeInformation.of(Datum.class));
+                env.fromSource(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
+                                data, TypeInformation.of(Datum.class)),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
 
         stream.addSink(
                 StreamingFileSink.forBulkFormat(
@@ -161,18 +164,16 @@ public class AvroParquetStreamingFileSinkITCase extends AbstractTestBase {
     private static <T> void validateResults(File folder, GenericData dataModel, List<T> expected)
             throws Exception {
         File[] buckets = folder.listFiles();
-        assertNotNull(buckets);
-        assertEquals(1, buckets.length);
+        assertThat(buckets).hasSize(1);
 
         File[] partFiles = buckets[0].listFiles();
-        assertNotNull(partFiles);
-        assertEquals(2, partFiles.length);
+        assertThat(partFiles).hasSize(2);
 
         for (File partFile : partFiles) {
-            assertTrue(partFile.length() > 0);
+            assertThat(partFile.length()).isGreaterThan(0);
 
             final List<T> fileContent = readParquetFile(partFile, dataModel);
-            assertEquals(expected, fileContent);
+            assertThat(fileContent).isEqualTo(expected);
         }
     }
 

@@ -21,14 +21,15 @@ package org.apache.flink.table.types.inference;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.utils.TypeConversions;
 
-import org.junit.runners.Parameterized.Parameters;
+import java.math.BigDecimal;
+import java.util.stream.Stream;
 
-import java.util.List;
-
-import static java.util.Arrays.asList;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.ANY;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL_OR_NULL;
@@ -42,13 +43,16 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.logical
 import static org.apache.flink.table.types.inference.InputTypeStrategies.or;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.sequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentage;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentageArray;
 
 /** Tests for built-in {@link InputTypeStrategies}. */
-public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
+class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
 
-    @Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        return asList(
+    @Override
+    protected Stream<TestSpec> testData() {
+        return Stream.of(
                 // wildcard with 2 arguments
                 TestSpec.forStrategy(WILDCARD)
                         .calledWithArgumentTypes(DataTypes.INT(), DataTypes.INT())
@@ -419,7 +423,7 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                 TestSpec.forStrategy(WILDCARD)
                         .typedArguments(DataTypes.INT(), DataTypes.STRING())
                         .calledWithArgumentTypes(DataTypes.TINYINT(), DataTypes.STRING())
-                        .expectSignature("f(INT, STRING)")
+                        .expectSignature("f(arg0 => INT, arg1 => STRING)")
                         .expectArgumentTypes(DataTypes.INT(), DataTypes.STRING()),
 
                 // invalid typed arguments
@@ -627,7 +631,232 @@ public class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                                         InputTypeStrategies.COMMON_ARG))
                         .calledWithArgumentTypes(DataTypes.INT(), DataTypes.BIGINT())
                         .expectSignature("f(<COMMON>, <COMMON>)")
-                        .expectArgumentTypes(DataTypes.BIGINT(), DataTypes.BIGINT()));
+                        .expectArgumentTypes(DataTypes.BIGINT(), DataTypes.BIGINT()),
+                TestSpec.forStrategy(
+                                "ArrayElement argument type strategy",
+                                sequence(
+                                        logical(LogicalTypeRoot.ARRAY),
+                                        SpecificInputTypeStrategies.ARRAY_ELEMENT_ARG))
+                        .calledWithArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.INT().notNull()).notNull(),
+                                DataTypes.INT())
+                        .expectSignature("f(<ARRAY>, <ARRAY ELEMENT>)")
+                        .expectArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.INT().notNull()).notNull(),
+                                DataTypes.INT()),
+                TestSpec.forStrategy(sequence(SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE))
+                        .expectSignature("f(<ARRAY<COMPARABLE>>)")
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.ROW()))
+                        .expectErrorMessage(
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "f(<ARRAY<COMPARABLE>>)"),
+                TestSpec.forStrategy(
+                                "Strategy fails if input argument type is not ARRAY",
+                                sequence(SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE))
+                        .calledWithArgumentTypes(DataTypes.INT())
+                        .expectErrorMessage(
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "f(<ARRAY<COMPARABLE>>)"),
+                TestSpec.forStrategy(
+                                "PROCTIME type strategy",
+                                SpecificInputTypeStrategies.windowTimeIndicator(
+                                        TimestampKind.PROCTIME))
+                        .calledWithArgumentTypes(timeIndicatorType(TimestampKind.PROCTIME))
+                        .expectSignature("f(<WINDOW REFERENCE>)")
+                        .expectArgumentTypes(timeIndicatorType(TimestampKind.PROCTIME)),
+                TestSpec.forStrategy(
+                                "PROCTIME type strategy on non time indicator",
+                                SpecificInputTypeStrategies.windowTimeIndicator(
+                                        TimestampKind.PROCTIME))
+                        .calledWithArgumentTypes(DataTypes.BIGINT())
+                        .expectErrorMessage("Reference to a rowtime or proctime window required."),
+                TestSpec.forStrategy(
+                                "ROWTIME type strategy",
+                                SpecificInputTypeStrategies.windowTimeIndicator(
+                                        TimestampKind.ROWTIME))
+                        .calledWithArgumentTypes(timeIndicatorType(TimestampKind.ROWTIME))
+                        .expectSignature("f(<WINDOW REFERENCE>)")
+                        .expectArgumentTypes(timeIndicatorType(TimestampKind.ROWTIME)),
+                TestSpec.forStrategy(
+                                "ROWTIME type strategy on proctime indicator",
+                                SpecificInputTypeStrategies.windowTimeIndicator(
+                                        TimestampKind.ROWTIME))
+                        .calledWithArgumentTypes(timeIndicatorType(TimestampKind.PROCTIME))
+                        .expectErrorMessage(
+                                "A proctime window cannot provide a rowtime attribute."),
+                TestSpec.forStrategy(
+                                "PROCTIME type strategy on rowtime indicator",
+                                SpecificInputTypeStrategies.windowTimeIndicator(
+                                        TimestampKind.PROCTIME))
+                        .calledWithArgumentTypes(timeIndicatorType(TimestampKind.ROWTIME))
+                        .expectArgumentTypes(timeIndicatorType(TimestampKind.PROCTIME)),
+                TestSpec.forStrategy(
+                                "ROWTIME type strategy on long in batch mode",
+                                SpecificInputTypeStrategies.windowTimeIndicator(
+                                        TimestampKind.ROWTIME))
+                        .calledWithArgumentTypes(DataTypes.BIGINT())
+                        .expectArgumentTypes(DataTypes.BIGINT()),
+                TestSpec.forStrategy(
+                                "ROWTIME type strategy on non time attribute",
+                                SpecificInputTypeStrategies.windowTimeIndicator(
+                                        TimestampKind.ROWTIME))
+                        .calledWithArgumentTypes(DataTypes.SMALLINT())
+                        .expectErrorMessage("Reference to a rowtime or proctime window required."),
+                TestSpec.forStrategy(
+                                "PROCTIME type strategy on non time attribute",
+                                SpecificInputTypeStrategies.windowTimeIndicator(
+                                        TimestampKind.PROCTIME))
+                        .calledWithArgumentTypes(DataTypes.SMALLINT())
+                        .expectErrorMessage("Reference to a rowtime or proctime window required."),
+                TestSpec.forStrategy(
+                                "Reinterpret_cast strategy",
+                                SpecificInputTypeStrategies.REINTERPRET_CAST)
+                        .calledWithArgumentTypes(
+                                DataTypes.DATE(), DataTypes.BIGINT(), DataTypes.BOOLEAN().notNull())
+                        .calledWithLiteralAt(1, DataTypes.BIGINT())
+                        .calledWithLiteralAt(2, true)
+                        .expectSignature("f(<ANY>, <TYPE LITERAL>, <TRUE | FALSE>)")
+                        .expectArgumentTypes(
+                                DataTypes.DATE(),
+                                DataTypes.BIGINT(),
+                                DataTypes.BOOLEAN().notNull()),
+                TestSpec.forStrategy(
+                                "Reinterpret_cast strategy non literal overflow",
+                                SpecificInputTypeStrategies.REINTERPRET_CAST)
+                        .calledWithArgumentTypes(
+                                DataTypes.DATE(), DataTypes.BIGINT(), DataTypes.BOOLEAN().notNull())
+                        .calledWithLiteralAt(1, DataTypes.BIGINT())
+                        .expectErrorMessage("Not null boolean literal expected for overflow."),
+                TestSpec.forStrategy(
+                                "Reinterpret_cast strategy not supported cast",
+                                SpecificInputTypeStrategies.REINTERPRET_CAST)
+                        .calledWithArgumentTypes(
+                                DataTypes.INT(), DataTypes.BIGINT(), DataTypes.BOOLEAN().notNull())
+                        .calledWithLiteralAt(1, DataTypes.BIGINT())
+                        .calledWithLiteralAt(2, true)
+                        .expectErrorMessage("Unsupported reinterpret cast from 'INT' to 'BIGINT'"),
+                TestSpec.forStrategy("IndexArgumentTypeStrategy", sequence(INDEX))
+                        .calledWithArgumentTypes(DataTypes.TINYINT())
+                        .expectSignature("f(<INTEGER_NUMERIC>)")
+                        .expectArgumentTypes(DataTypes.TINYINT()),
+                TestSpec.forStrategy("IndexArgumentTypeStrategy", sequence(INDEX))
+                        .calledWithArgumentTypes(DataTypes.INT())
+                        .calledWithLiteralAt(0)
+                        .expectArgumentTypes(DataTypes.INT()),
+                TestSpec.forStrategy("IndexArgumentTypeStrategy BIGINT support", sequence(INDEX))
+                        .calledWithArgumentTypes(DataTypes.BIGINT().notNull())
+                        .calledWithLiteralAt(0, Long.MAX_VALUE)
+                        .expectArgumentTypes(DataTypes.BIGINT().notNull()),
+                TestSpec.forStrategy("IndexArgumentTypeStrategy index range", sequence(INDEX))
+                        .calledWithArgumentTypes(DataTypes.INT().notNull())
+                        .calledWithLiteralAt(0, -1)
+                        .expectErrorMessage(
+                                "Index must be an integer starting from '0', but was '-1'."),
+                TestSpec.forStrategy("IndexArgumentTypeStrategy index type", sequence(INDEX))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(10, 5))
+                        .expectErrorMessage("Index can only be an INTEGER NUMERIC type."),
+
+                // Percentage ArgumentStrategy
+                TestSpec.forStrategy("normal", sequence(percentage(true)))
+                        .calledWithArgumentTypes(DataTypes.DOUBLE())
+                        .expectSignature("f(<NUMERIC>)")
+                        .expectArgumentTypes(DataTypes.DOUBLE()),
+                TestSpec.forStrategy("implicit cast", sequence(percentage(false)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(5, 2).notNull())
+                        .expectSignature("f(<NUMERIC NOT NULL>)")
+                        .expectArgumentTypes(DataTypes.DOUBLE().notNull()),
+                TestSpec.forStrategy("literal", sequence(percentage(true)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(2, 2))
+                        .calledWithLiteralAt(0, BigDecimal.valueOf(45, 2))
+                        .expectArgumentTypes(DataTypes.DOUBLE()),
+                TestSpec.forStrategy("literal", sequence(percentage(false)))
+                        .calledWithArgumentTypes(DataTypes.INT().notNull())
+                        .calledWithLiteralAt(0, 1)
+                        .expectArgumentTypes(DataTypes.DOUBLE().notNull()),
+                TestSpec.forStrategy("invalid type", sequence(percentage(true)))
+                        .calledWithArgumentTypes(DataTypes.STRING())
+                        .expectErrorMessage("Percentage must be of NUMERIC type."),
+                TestSpec.forStrategy("invalid nullability", sequence(percentage(false)))
+                        .calledWithArgumentTypes(DataTypes.DOUBLE())
+                        .expectErrorMessage("Percentage must be of NOT NULL type."),
+                TestSpec.forStrategy("invalid literal value", sequence(percentage(false)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(2, 1).notNull())
+                        .calledWithLiteralAt(0, BigDecimal.valueOf(20, 1))
+                        .expectErrorMessage(
+                                "Percentage must be between [0.0, 1.0], but was '2.0'."),
+                TestSpec.forStrategy("invalid literal value", sequence(percentage(false)))
+                        .calledWithArgumentTypes(DataTypes.DECIMAL(2, 1).notNull())
+                        .calledWithLiteralAt(0, BigDecimal.valueOf(-5, 1))
+                        .expectErrorMessage(
+                                "Percentage must be between [0.0, 1.0], but was '-0.5'."),
+
+                // Percentage Array ArgumentStrategy
+                TestSpec.forStrategy("normal", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE()))
+                        .expectSignature("f(ARRAY<NUMERIC>)")
+                        .expectArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE())),
+                TestSpec.forStrategy("implicit cast", sequence(percentageArray(false)))
+                        .calledWithArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.DECIMAL(5, 2).notNull()).notNull())
+                        .expectSignature("f(ARRAY<NUMERIC NOT NULL> NOT NULL)")
+                        .expectArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.DOUBLE().notNull()).notNull()),
+                TestSpec.forStrategy("literal", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE()))
+                        .calledWithLiteralAt(0, new Double[] {0.45, 0.55})
+                        .expectArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE())),
+                TestSpec.forStrategy("literal", sequence(percentageArray(false)))
+                        .calledWithArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.DECIMAL(2, 2).notNull()).notNull())
+                        .calledWithLiteralAt(
+                                0,
+                                new BigDecimal[] {
+                                    BigDecimal.valueOf(45, 2), BigDecimal.valueOf(55, 2)
+                                })
+                        .expectArgumentTypes(
+                                DataTypes.ARRAY(DataTypes.DOUBLE().notNull()).notNull()),
+                TestSpec.forStrategy("literal", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.INT()))
+                        .calledWithLiteralAt(0, new Integer[] {0, 1})
+                        .expectArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE())),
+                TestSpec.forStrategy("empty literal array", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE()))
+                        .calledWithLiteralAt(0, new Double[0])
+                        .expectArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE())),
+                TestSpec.forStrategy("not array", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.DOUBLE())
+                        .expectErrorMessage("Percentage must be an array."),
+                TestSpec.forStrategy("invalid array nullability", sequence(percentageArray(false)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.STRING().notNull()))
+                        .expectErrorMessage("Percentage must be a non-null array."),
+                TestSpec.forStrategy("invalid element type", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.STRING()))
+                        .expectErrorMessage(
+                                "Value in the percentage array must be of NUMERIC type."),
+                TestSpec.forStrategy(
+                                "invalid element nullability", sequence(percentageArray(false)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE()).notNull())
+                        .expectErrorMessage(
+                                "Value in the percentage array must be of NOT NULL type."),
+                TestSpec.forStrategy("invalid literal", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.DOUBLE()))
+                        .calledWithLiteralAt(0, new Double[] {0.5, 1.5})
+                        .expectErrorMessage(
+                                "Value in the percentage array must be between [0.0, 1.0], but was '1.5'."),
+                TestSpec.forStrategy("invalid literal", sequence(percentageArray(true)))
+                        .calledWithArgumentTypes(DataTypes.ARRAY(DataTypes.DECIMAL(3, 2)))
+                        .calledWithLiteralAt(
+                                0,
+                                new BigDecimal[] {
+                                    BigDecimal.valueOf(-1, 1), BigDecimal.valueOf(5, 1)
+                                })
+                        .expectErrorMessage(
+                                "Value in the percentage array must be between [0.0, 1.0], but was '-0.1'."));
+    }
+
+    private static DataType timeIndicatorType(TimestampKind timestampKind) {
+        return TypeConversions.fromLogicalToDataType(
+                new LocalZonedTimestampType(false, timestampKind, 3));
     }
 
     /** Simple pojo that should be converted to a Structured type. */

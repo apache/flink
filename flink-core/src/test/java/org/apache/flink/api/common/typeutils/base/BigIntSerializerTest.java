@@ -25,7 +25,7 @@ import java.math.BigInteger;
 import java.util.Random;
 
 /** A test for the {@link BigIntSerializer}. */
-public class BigIntSerializerTest extends SerializerTestBase<BigInteger> {
+class BigIntSerializerTest extends SerializerTestBase<BigInteger> {
 
     @Override
     protected TypeSerializer<BigInteger> createSerializer() {

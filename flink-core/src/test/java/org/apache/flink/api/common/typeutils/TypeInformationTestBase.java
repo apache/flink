@@ -18,27 +18,23 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Abstract test base for type information. */
-public abstract class TypeInformationTestBase<T extends TypeInformation<?>> extends TestLogger {
+public abstract class TypeInformationTestBase<T extends TypeInformation<?>> {
 
     protected abstract T[] getTestData();
 
     @Test
-    public void testHashcodeAndEquals() throws Exception {
+    void testHashcodeAndEquals() throws Exception {
         final T[] testData = getTestData();
         final TypeInformation<?> unrelatedTypeInfo = new UnrelatedTypeInfo();
 
@@ -60,30 +56,31 @@ public abstract class TypeInformationTestBase<T extends TypeInformation<?>> exte
             for (T otherTypeInfo : testData) {
                 // test equality
                 if (typeInfo == otherTypeInfo) {
-                    assertTrue(
-                            "hashCode() returns inconsistent results.",
-                            typeInfo.hashCode() == otherTypeInfo.hashCode());
-                    assertEquals("equals() is false for same object.", typeInfo, otherTypeInfo);
+                    assertThat(typeInfo.hashCode())
+                            .as("hashCode() returns inconsistent results.")
+                            .isEqualTo(otherTypeInfo.hashCode());
+                    assertThat(typeInfo)
+                            .as("equals() is false for same object.")
+                            .isEqualTo(otherTypeInfo);
                 }
                 // test inequality
                 else {
-                    assertNotEquals(
-                            "equals() returned true for different objects.",
-                            typeInfo,
-                            otherTypeInfo);
+                    assertThat(typeInfo)
+                            .as("equals() returned true for different objects.")
+                            .isNotEqualTo(otherTypeInfo);
                 }
             }
 
             // compare with unrelated type
-            assertFalse(
-                    "Type information allows to compare with unrelated type.",
-                    typeInfo.canEqual(unrelatedTypeInfo));
-            assertNotEquals(typeInfo, unrelatedTypeInfo);
+            assertThat(typeInfo.canEqual(unrelatedTypeInfo))
+                    .as("Type information allows to compare with unrelated type.")
+                    .isFalse();
+            assertThat(typeInfo).isNotEqualTo(unrelatedTypeInfo);
         }
     }
 
     @Test
-    public void testSerialization() {
+    protected void testSerialization() {
         final T[] testData = getTestData();
 
         for (T typeInfo : testData) {
@@ -109,10 +106,12 @@ public abstract class TypeInformationTestBase<T extends TypeInformation<?>> exte
     }
 
     @Test
-    public void testGetTotalFields() {
+    protected void testGetTotalFields() {
         final T[] testData = getTestData();
         for (T typeInfo : testData) {
-            assertTrue("Number of total fields must be at least 1", typeInfo.getTotalFields() > 0);
+            assertThat(typeInfo.getTotalFields())
+                    .as("Number of total fields must be at least 1")
+                    .isPositive();
         }
     }
 
@@ -149,7 +148,7 @@ public abstract class TypeInformationTestBase<T extends TypeInformation<?>> exte
         }
 
         @Override
-        public TypeSerializer<Object> createSerializer(ExecutionConfig config) {
+        public TypeSerializer<Object> createSerializer(SerializerConfig config) {
             return null;
         }
 

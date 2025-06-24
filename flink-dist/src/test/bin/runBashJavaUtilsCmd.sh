@@ -31,13 +31,20 @@ fi
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
-
-FLINK_CONF_DIR=${bin}/../../main/resources
+  
+if [ "$COMMAND" = "MIGRATE_LEGACY_FLINK_CONFIGURATION_TO_STANDARD_YAML" ]; then
+  FLINK_CONF_DIR="${bin}/../resources"
+  FLINK_CONF="$FLINK_CONF_DIR/flink-conf.yaml"
+else
+  FLINK_CONF_DIR="${bin}/../../main/resources"
+  FLINK_CONF="$FLINK_CONF_DIR/config.yaml"
+fi
 FLINK_TARGET_DIR=${bin}/../../../target
 FLINK_DIST_JARS=(`find ${FLINK_TARGET_DIR} -maxdepth 1 -name 'flink-dist*.jar'`)
 FLINK_DIST_CLASSPATH=`echo ${FLINK_DIST_JARS[@]} | tr ' ' ':'`
 
-. ${bin}/../../main/flink-bin/bin/config.sh > /dev/null
+. ${bin}/../../main/flink-bin/bin/bash-java-utils.sh > /dev/null
+setJavaRun "$FLINK_CONF"
 
 output=$(runBashJavaUtilsCmd ${COMMAND} ${FLINK_CONF_DIR} "$FLINK_TARGET_DIR/bash-java-utils.jar:${FLINK_DIST_CLASSPATH}" $DYNAMIC_OPTS)
 extractExecutionResults "${output}" ${EXPECTED_LINES}

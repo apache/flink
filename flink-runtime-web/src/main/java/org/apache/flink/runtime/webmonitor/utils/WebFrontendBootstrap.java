@@ -171,8 +171,7 @@ public class WebFrontendBootstrap {
 
         if (inetAddress.isAnyLocalAddress()) {
             address =
-                    config.getString(
-                            JobManagerOptions.ADDRESS, InetAddress.getLocalHost().getHostName());
+                    config.get(JobManagerOptions.ADDRESS, InetAddress.getLocalHost().getHostName());
         } else {
             address = inetAddress.getHostAddress();
         }
@@ -212,11 +211,11 @@ public class WebFrontendBootstrap {
             this.serverChannel.close().awaitUninterruptibly();
         }
         if (bootstrap != null) {
-            if (bootstrap.group() != null) {
-                bootstrap.group().shutdownGracefully();
+            if (bootstrap.config().group() != null) {
+                bootstrap.config().group().shutdownGracefully();
             }
-            if (bootstrap.childGroup() != null) {
-                bootstrap.childGroup().shutdownGracefully();
+            if (bootstrap.config().childGroup() != null) {
+                bootstrap.config().childGroup().shutdownGracefully();
             }
         }
     }

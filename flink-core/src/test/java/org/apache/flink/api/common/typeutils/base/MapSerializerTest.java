@@ -28,7 +28,7 @@ import java.util.Random;
 import java.util.TreeMap;
 
 /** A test for the {@link MapSerializer}. */
-public class MapSerializerTest extends SerializerTestBase<Map<Long, String>> {
+class MapSerializerTest extends SerializerTestBase<Map<Long, String>> {
 
     @Override
     protected TypeSerializer<Map<Long, String>> createSerializer() {
@@ -46,7 +46,7 @@ public class MapSerializerTest extends SerializerTestBase<Map<Long, String>> {
         return (Class<Map<Long, String>>) (Class<?>) Map.class;
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({"unchecked"})
     @Override
     protected Map<Long, String>[] getTestData() {
         final Random rnd = new Random(123654789);

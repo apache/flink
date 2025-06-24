@@ -68,12 +68,25 @@ public final class ContextResolvedFunction {
 
     private final FunctionDefinition functionDefinition;
 
+    private final @Nullable CatalogFunction catalogFunction;
+
     public static ContextResolvedFunction permanent(
             FunctionIdentifier functionIdentifier, FunctionDefinition functionDefinition) {
         Preconditions.checkNotNull(
                 functionIdentifier,
                 "Function identifier should not be null for a permanent function.");
-        return new ContextResolvedFunction(false, functionIdentifier, functionDefinition);
+        return new ContextResolvedFunction(false, functionIdentifier, functionDefinition, null);
+    }
+
+    public static ContextResolvedFunction permanent(
+            FunctionIdentifier functionIdentifier,
+            FunctionDefinition functionDefinition,
+            CatalogFunction catalogFunction) {
+        Preconditions.checkNotNull(
+                functionIdentifier,
+                "Function identifier should not be null for a permanent function.");
+        return new ContextResolvedFunction(
+                false, functionIdentifier, functionDefinition, catalogFunction);
     }
 
     public static ContextResolvedFunction temporary(
@@ -81,36 +94,52 @@ public final class ContextResolvedFunction {
         Preconditions.checkNotNull(
                 functionIdentifier,
                 "Function identifier should not be null for a temporary function.");
-        return new ContextResolvedFunction(true, functionIdentifier, functionDefinition);
+        return new ContextResolvedFunction(true, functionIdentifier, functionDefinition, null);
+    }
+
+    public static ContextResolvedFunction temporary(
+            FunctionIdentifier functionIdentifier,
+            FunctionDefinition functionDefinition,
+            CatalogFunction catalogFunction) {
+        Preconditions.checkNotNull(
+                functionIdentifier,
+                "Function identifier should not be null for a temporary function.");
+        return new ContextResolvedFunction(
+                true, functionIdentifier, functionDefinition, catalogFunction);
     }
 
     public static ContextResolvedFunction anonymous(FunctionDefinition functionDefinition) {
-        return new ContextResolvedFunction(true, null, functionDefinition);
+        return new ContextResolvedFunction(true, null, functionDefinition, null);
     }
 
     public static ContextResolvedFunction fromCallExpression(CallExpression callExpression) {
         return new ContextResolvedFunction(
                 callExpression.isTemporary(),
                 callExpression.getFunctionIdentifier().orElse(null),
-                callExpression.getFunctionDefinition());
+                callExpression.getFunctionDefinition(),
+                null);
     }
 
     private ContextResolvedFunction(
             boolean isTemporary,
             @Nullable FunctionIdentifier functionIdentifier,
-            FunctionDefinition functionDefinition) {
+            FunctionDefinition functionDefinition,
+            @Nullable CatalogFunction catalogFunction) {
         this.isTemporary = isTemporary;
         this.functionIdentifier = functionIdentifier;
         this.functionDefinition =
                 Preconditions.checkNotNull(
                         functionDefinition, "Function definition must not be null.");
+        this.catalogFunction = catalogFunction;
     }
 
     public boolean isAnonymous() {
         return functionIdentifier == null;
     }
 
-    /** @return true if the function is temporary. An anonymous function is always temporary. */
+    /**
+     * @return true if the function is temporary. An anonymous function is always temporary.
+     */
     public boolean isTemporary() {
         return isTemporary;
     }
@@ -125,6 +154,10 @@ public final class ContextResolvedFunction {
 
     public FunctionDefinition getDefinition() {
         return functionDefinition;
+    }
+
+    public CatalogFunction getCatalogFunction() {
+        return catalogFunction;
     }
 
     public String asSummaryString() {

@@ -28,10 +28,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompositeSerializer;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -70,7 +67,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
                 ? new TtlStateFactory<K, N, SV, TTLSV, S, IS>(
                                 namespaceSerializer, stateDesc, stateBackend, timeProvider)
                         .createState()
-                : stateBackend.createInternalState(namespaceSerializer, stateDesc);
+                : stateBackend.createOrUpdateInternalState(namespaceSerializer, stateDesc);
     }
 
     private final Map<StateDescriptor.Type, SupplierWithException<IS, Exception>> stateFactories;
@@ -93,7 +90,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
         this.stateBackend = stateBackend;
         this.ttlConfig = stateDesc.getTtlConfig();
         this.timeProvider = timeProvider;
-        this.ttl = ttlConfig.getTtl().toMilliseconds();
+        this.ttl = ttlConfig.getTimeToLive().toMillis();
         this.stateFactories = createStateFactories();
         this.incrementalCleanup = getTtlIncrementalCleanup();
     }
@@ -222,7 +219,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
         // config
         OIS originalState =
                 (OIS)
-                        stateBackend.createInternalState(
+                        stateBackend.createOrUpdateInternalState(
                                 namespaceSerializer, ttlDescriptor, getSnapshotTransformFactory());
         return new TtlStateContext<>(
                 originalState,
@@ -274,8 +271,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
     /**
      * Serializer for user state value with TTL. Visibility is public for usage with external tools.
      */
-    public static class TtlSerializer<T> extends CompositeSerializer<TtlValue<T>>
-            implements TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer<TtlValue<T>> {
+    public static class TtlSerializer<T> extends CompositeSerializer<TtlValue<T>> {
         private static final long serialVersionUID = 131020282727167064L;
 
         @SuppressWarnings("WeakerAccess")
@@ -332,25 +328,6 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
             return new TtlSerializerSnapshot<>(this);
         }
 
-        @Override
-        public TypeSerializerSchemaCompatibility<TtlValue<T>>
-                resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
-                        TypeSerializerConfigSnapshot<TtlValue<T>> deprecatedConfigSnapshot) {
-
-            if (deprecatedConfigSnapshot instanceof ConfigSnapshot) {
-                ConfigSnapshot castedLegacyConfigSnapshot =
-                        (ConfigSnapshot) deprecatedConfigSnapshot;
-                TtlSerializerSnapshot<T> newSnapshot = new TtlSerializerSnapshot<>();
-
-                return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
-                        this,
-                        newSnapshot,
-                        castedLegacyConfigSnapshot.getNestedSerializerSnapshots());
-            }
-
-            return TypeSerializerSchemaCompatibility.incompatible();
-        }
-
         public static boolean isTtlStateSerializer(TypeSerializer<?> typeSerializer) {
             boolean ttlSerializer = typeSerializer instanceof TtlStateFactory.TtlSerializer;
             boolean ttlListSerializer =
@@ -372,9 +349,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
         private static final int VERSION = 2;
 
         @SuppressWarnings({"WeakerAccess", "unused"})
-        public TtlSerializerSnapshot() {
-            super(TtlSerializer.class);
-        }
+        public TtlSerializerSnapshot() {}
 
         TtlSerializerSnapshot(TtlSerializer<T> serializerInstance) {
             super(serializerInstance);
@@ -400,6 +375,11 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
             TypeSerializer<T> valueSerializer = (TypeSerializer<T>) nestedSerializers[1];
 
             return new TtlSerializer<>(timestampSerializer, valueSerializer);
+        }
+
+        @SuppressWarnings("unchecked")
+        public TypeSerializerSnapshot<T> getValueSerializerSnapshot() {
+            return (TypeSerializerSnapshot<T>) getNestedSerializerSnapshots()[1];
         }
     }
 }

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.metrics.ResultPartitionBytesCounter;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -112,13 +113,9 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 
     protected Counter numBuffersOut = new SimpleCounter();
 
-    /**
-     * The difference with {@link #numBytesOut} : numBytesProduced represents the number of bytes
-     * actually produced, and numBytesOut represents the number of bytes sent to downstream tasks.
-     * In unicast scenarios, these two values should be equal. In broadcast scenarios, numBytesOut
-     * should be (N * numBytesProduced), where N refers to the number of subpartitions.
-     */
-    protected Counter numBytesProduced = new SimpleCounter();
+    protected ResultPartitionBytesCounter resultPartitionBytes;
+
+    private boolean isNumberOfPartitionConsumerUndefined = false;
 
     public ResultPartition(
             String owningTaskName,
@@ -141,6 +138,7 @@ public abstract class ResultPartition implements ResultPartitionWriter {
         this.partitionManager = checkNotNull(partitionManager);
         this.bufferCompressor = bufferCompressor;
         this.bufferPoolFactory = bufferPoolFactory;
+        this.resultPartitionBytes = new ResultPartitionBytesCounter(numSubpartitions);
     }
 
     /**
@@ -158,8 +156,12 @@ public abstract class ResultPartition implements ResultPartitionWriter {
                 "Bug in result partition setup logic: Already registered buffer pool.");
 
         this.bufferPool = checkNotNull(bufferPoolFactory.get());
+        setupInternal();
         partitionManager.registerResultPartition(this);
     }
+
+    /** Do the subclass's own setup operation. */
+    protected abstract void setupInternal() throws IOException;
 
     public String getOwningTaskName() {
         return owningTaskName;
@@ -183,6 +185,14 @@ public abstract class ResultPartition implements ResultPartitionWriter {
         return bufferPool;
     }
 
+    public void isNumberOfPartitionConsumerUndefined(boolean isNumberOfPartitionConsumerUndefined) {
+        this.isNumberOfPartitionConsumerUndefined = isNumberOfPartitionConsumerUndefined;
+    }
+
+    public boolean isNumberOfPartitionConsumerUndefined() {
+        return isNumberOfPartitionConsumerUndefined;
+    }
+
     /** Returns the total number of queued buffers of all subpartitions. */
     public abstract int getNumberOfQueuedBuffers();
 
@@ -192,6 +202,10 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     /** Returns the number of queued buffers of the given target subpartition. */
     public abstract int getNumberOfQueuedBuffers(int targetSubpartition);
 
+    public void setMaxOverdraftBuffersPerGate(int maxOverdraftBuffersPerGate) {
+        this.bufferPool.setMaxOverdraftBuffersPerGate(maxOverdraftBuffersPerGate);
+    }
+
     /**
      * Returns the type of this result partition.
      *
@@ -199,6 +213,10 @@ public abstract class ResultPartition implements ResultPartitionWriter {
      */
     public ResultPartitionType getPartitionType() {
         return partitionType;
+    }
+
+    public ResultPartitionBytesCounter getResultPartitionBytes() {
+        return resultPartitionBytes;
     }
 
     // ------------------------------------------------------------------------
@@ -293,9 +311,42 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     public void setMetricGroup(TaskIOMetricGroup metrics) {
         numBytesOut = metrics.getNumBytesOutCounter();
         numBuffersOut = metrics.getNumBuffersOutCounter();
-        metrics.registerNumBytesProducedCounterForPartition(
-                partitionId.getPartitionId(), numBytesProduced);
+        metrics.registerResultPartitionBytesCounter(
+                partitionId.getPartitionId(), resultPartitionBytes);
     }
+
+    @Override
+    public ResultSubpartitionView createSubpartitionView(
+            ResultSubpartitionIndexSet indexSet, BufferAvailabilityListener availabilityListener)
+            throws IOException {
+        if (indexSet.size() == 1) {
+            return createSubpartitionView(
+                    indexSet.values().iterator().next(), availabilityListener);
+        } else {
+            UnionResultSubpartitionView unionView =
+                    new UnionResultSubpartitionView(availabilityListener, indexSet.size());
+            try {
+                for (int i : indexSet.values()) {
+                    ResultSubpartitionView view = createSubpartitionView(i, unionView);
+                    unionView.notifyViewCreated(i, view);
+                }
+                return unionView;
+            } catch (Exception e) {
+                unionView.releaseAllResources();
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Returns a reader for the subpartition with the given index.
+     *
+     * <p>Given that the function to merge outputs from multiple subpartition views is supported
+     * uniformly in {@link UnionResultSubpartitionView}, subclasses of {@link ResultPartition} only
+     * needs to take care of creating subpartition view for a single subpartition.
+     */
+    protected abstract ResultSubpartitionView createSubpartitionView(
+            int index, BufferAvailabilityListener availabilityListener) throws IOException;
 
     /**
      * Whether this partition is released.

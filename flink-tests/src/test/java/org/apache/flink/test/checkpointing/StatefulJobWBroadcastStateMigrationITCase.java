@@ -19,23 +19,22 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.FlinkVersion;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase;
+import org.apache.flink.test.util.MigrationTest;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -43,10 +42,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 /**
@@ -55,62 +57,77 @@ import java.util.stream.Collectors;
  * state backends.
  */
 @RunWith(Parameterized.class)
-public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigrationTestBase {
+public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigrationTestBase
+        implements MigrationTest {
 
     private static final int NUM_SOURCE_ELEMENTS = 4;
 
-    // TODO increase this to newer version to create and test snapshot migration for newer versions
-    private static final FlinkVersion currentVersion = FlinkVersion.v1_15;
-
-    // TODO change this to CREATE_SNAPSHOT to (re)create binary snapshots
-    // TODO Note: You should generate the snapshot based on the release branch instead of the
-    // master.
-    private static final ExecutionMode executionMode = ExecutionMode.VERIFY_SNAPSHOT;
-
     @Parameterized.Parameters(name = "Test snapshot: {0}")
-    public static Collection<SnapshotSpec> parameters() {
+    public static Collection<SnapshotSpec> createSpecsForTestRuns() {
+        return internalParameters(null);
+    }
+
+    public static Collection<SnapshotSpec> createSpecsForTestDataGeneration(
+            FlinkVersion targetVersion) {
+        return internalParameters(targetVersion);
+    }
+
+    private static Collection<SnapshotSpec> internalParameters(
+            @Nullable FlinkVersion targetGeneratingVersion) {
+        BiFunction<FlinkVersion, FlinkVersion, Collection<FlinkVersion>> getFlinkVersions =
+                (minInclVersion, maxInclVersion) -> {
+                    if (targetGeneratingVersion != null) {
+                        return FlinkVersion.rangeOf(minInclVersion, maxInclVersion).stream()
+                                .filter(v -> v.equals(targetGeneratingVersion))
+                                .collect(Collectors.toList());
+                    } else {
+                        return FlinkVersion.rangeOf(minInclVersion, maxInclVersion);
+                    }
+                };
+
         Collection<SnapshotSpec> parameters = new LinkedList<>();
         parameters.addAll(
                 SnapshotSpec.withVersions(
-                        StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
-                        SnapshotType.SAVEPOINT_CANONICAL,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_5, FlinkVersion.v1_14)));
-        parameters.addAll(
-                SnapshotSpec.withVersions(
                         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
                         SnapshotType.SAVEPOINT_CANONICAL,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+                        getFlinkVersions.apply(
+                                FlinkVersion.v1_15,
+                                MigrationTest.getMostRecentlyPublishedVersion())));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
                         SnapshotType.SAVEPOINT_CANONICAL,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_5, currentVersion)));
+                        getFlinkVersions.apply(
+                                FlinkVersion.v1_8,
+                                MigrationTest.getMostRecentlyPublishedVersion())));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
                         SnapshotType.SAVEPOINT_NATIVE,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+                        getFlinkVersions.apply(
+                                FlinkVersion.v1_15,
+                                MigrationTest.getMostRecentlyPublishedVersion())));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
                         SnapshotType.SAVEPOINT_NATIVE,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+                        getFlinkVersions.apply(
+                                FlinkVersion.v1_15,
+                                MigrationTest.getMostRecentlyPublishedVersion())));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
                         SnapshotType.CHECKPOINT,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+                        getFlinkVersions.apply(
+                                FlinkVersion.v1_15,
+                                MigrationTest.getMostRecentlyPublishedVersion())));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
                         SnapshotType.CHECKPOINT,
-                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
-        if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
-            parameters =
-                    parameters.stream()
-                            .filter(x -> x.getFlinkVersion().equals(currentVersion))
-                            .collect(Collectors.toList());
-        }
+                        getFlinkVersions.apply(
+                                FlinkVersion.v1_15,
+                                MigrationTest.getMostRecentlyPublishedVersion())));
         return parameters;
     }
 
@@ -120,28 +137,39 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         this.snapshotSpec = snapshotSpec;
     }
 
+    @ParameterizedSnapshotsGenerator("createSpecsForTestDataGeneration")
+    public void generateSnapshots(SnapshotSpec snapshotSpec) throws Exception {
+        testOrCreateSavepoint(ExecutionMode.CREATE_SNAPSHOT, snapshotSpec);
+    }
+
     @Test
     public void testSavepoint() throws Exception {
+        testOrCreateSavepoint(ExecutionMode.VERIFY_SNAPSHOT, snapshotSpec);
+    }
 
+    private void testOrCreateSavepoint(ExecutionMode executionMode, SnapshotSpec snapshotSpec)
+            throws Exception {
         final int parallelism = 4;
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
 
         switch (snapshotSpec.getStateBackendType()) {
             case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME:
-                env.setStateBackend(new EmbeddedRocksDBStateBackend());
-                break;
-            case StateBackendLoader.MEMORY_STATE_BACKEND_NAME:
-                env.setStateBackend(new MemoryStateBackend());
+                StateBackendUtils.configureRocksDBStateBackend(env);
+
+                if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
+                    // disable changelog backend for now to ensure determinism in test data
+                    // generation (see FLINK-31766)
+                    env.enableChangelogStateBackend(false);
+                }
                 break;
             case StateBackendLoader.HASHMAP_STATE_BACKEND_NAME:
-                env.setStateBackend(new HashMapStateBackend());
+                StateBackendUtils.configureHashMapStateBackend(env);
                 break;
             default:
                 throw new UnsupportedOperationException();
         }
-        env.enableChangelogStateBackend(false);
 
         env.enableCheckpointing(500);
         env.setParallelism(parallelism);
@@ -324,8 +352,8 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         private MapStateDescriptor<String, Long> secondStateDesc;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             firstStateDesc =
                     new MapStateDescriptor<>(
@@ -369,8 +397,8 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         private MapStateDescriptor<Long, String> stateDesc;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             stateDesc =
                     new MapStateDescriptor<>(
@@ -418,8 +446,8 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             firstStateDesc =
                     new MapStateDescriptor<>(
@@ -483,8 +511,8 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             stateDesc =
                     new MapStateDescriptor<>(

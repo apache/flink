@@ -45,6 +45,22 @@ trait FlinkPhysicalRel extends FlinkRelNode {
    * NOTE: This method only needs to create the corresponding ExecNode, the connection to its
    * input/output nodes will be done by ExecGraphGenerator. Because some physical rels need not be
    * translated to a real ExecNode, such as Exchange will be translated to edge in the future.
+   *
+   * @param isCompiled
+   *   Whether the translation happens as part of a plan compilation.
+   */
+  def translateToExecNode(isCompiled: Boolean): ExecNode[_] = {
+    val execNode = translateToExecNode()
+    execNode.setCompiled(isCompiled)
+    execNode
+  }
+
+  /**
+   * Translate this physical RelNode into an [[ExecNode]].
+   *
+   * NOTE: This method only needs to create the corresponding ExecNode, the connection to its
+   * input/output nodes will be done by ExecGraphGenerator. Because some physical rels need not be
+   * translated to a real ExecNode, such as Exchange will be translated to edge in the future.
    */
   def translateToExecNode(): ExecNode[_]
 }

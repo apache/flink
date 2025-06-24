@@ -20,16 +20,16 @@ package org.apache.flink.table.planner.runtime.batch.sql
 import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.configuration.{ExecutionOptions, JobManagerOptions}
+import org.apache.flink.configuration.JobManagerOptions.SchedulerType
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
+import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
-import org.junit.runners.Parameterized.Parameters
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import scala.collection.JavaConversions._
 import scala.util.Random
@@ -41,10 +41,15 @@ import scala.util.Random
  * IT cases are picked from
  * [[org.apache.flink.table.planner.plan.batch.sql.MultipleInputCreationTest]].
  */
-@RunWith(classOf[Parameterized])
-class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class MultipleInputITCase extends BatchTestBase {
 
-  @Before
+  @Parameter var shuffleMode: BatchShuffleMode = _
+
+  @Parameter(value = 1)
+  var schedulerType: SchedulerType = _
+
+  @BeforeEach
   override def before(): Unit = {
     super.before()
 
@@ -74,9 +79,10 @@ class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
       MultipleInputITCase.nullables)
 
     tEnv.getConfig.set(ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode)
+    tEnv.getConfig.set(JobManagerOptions.SCHEDULER, schedulerType)
   }
 
-  @Test
+  @TestTemplate
   def testBasicMultipleInput(): Unit = {
     checkMultipleInputResult("""
                                |SELECT * FROM
@@ -87,7 +93,7 @@ class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
                                |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testManyMultipleInputs(): Unit = {
     checkMultipleInputResult(
       """
@@ -113,7 +119,7 @@ class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
         |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithAggAsProbe(): Unit = {
     checkMultipleInputResult(
       """
@@ -127,7 +133,7 @@ class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testNoPriorityConstraint(): Unit = {
     checkMultipleInputResult(
       """
@@ -138,7 +144,7 @@ class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testRelatedInputs(): Unit = {
     checkMultipleInputResult(
       """
@@ -154,7 +160,7 @@ class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testRelatedInputsWithAgg(): Unit = {
     checkMultipleInputResult(
       """
@@ -170,7 +176,7 @@ class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testDeadlockCausedByExchangeInAncestor(): Unit = {
     checkMultipleInputResult(
       """
@@ -182,7 +188,7 @@ class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testMaxSupportedInputs(): Unit = {
     val rowType = new RowTypeInfo(INT_TYPE_INFO, STRING_TYPE_INFO)
     val data = Seq(BatchTestBase.row(1, "test"))
@@ -215,9 +221,14 @@ class MultipleInputITCase(shuffleMode: BatchShuffleMode) extends BatchTestBase {
 
 object MultipleInputITCase {
 
-  @Parameters(name = "shuffleMode: {0}")
-  def parameters: Array[BatchShuffleMode] =
-    Array(BatchShuffleMode.ALL_EXCHANGES_BLOCKING, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)
+  @Parameters(name = "shuffleMode: {0}, schedulerType: {1}")
+  def parameters(): Array[Array[java.lang.Object]] = {
+    Array(
+      Array(BatchShuffleMode.ALL_EXCHANGES_BLOCKING, SchedulerType.AdaptiveBatch),
+      Array(BatchShuffleMode.ALL_EXCHANGES_BLOCKING, SchedulerType.Default),
+      Array(BatchShuffleMode.ALL_EXCHANGES_PIPELINED, SchedulerType.Default)
+    )
+  }
 
   def generateRandomData(): Seq[Row] = {
     val data = new java.util.ArrayList[Row]()
@@ -226,10 +237,10 @@ object MultipleInputITCase {
     for (_ <- 0 until numRows) {
       data.add(
         BatchTestBase.row(
-          Random.nextInt(3),
-          Random.nextInt(3).longValue(),
+          Random.nextInt(30),
+          Random.nextInt(30).longValue(),
           strs(Random.nextInt(3)),
-          Random.nextInt(3)))
+          Random.nextInt(30)))
     }
     data
   }

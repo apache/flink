@@ -18,29 +18,68 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.InputFormatSourceFunction;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.Collections;
+import java.util.UUID;
 
 /**
  * Batch {@link ExecNode} to read data from an external source defined by a bounded {@link
  * ScanTableSource}.
  */
+@ExecNodeMetadata(
+        name = "batch-exec-table-source-scan",
+        version = 1,
+        producedTransformations = CommonExecTableSourceScan.SOURCE_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v2_0,
+        minStateVersion = FlinkVersion.v2_0)
 public class BatchExecTableSourceScan extends CommonExecTableSourceScan
         implements BatchExecNode<RowData> {
+
+    // Avoids creating different ids if translated multiple times
+    private final String dynamicFilteringDataListenerID = UUID.randomUUID().toString();
+    private final ReadableConfig tableConfig;
+
+    // This constructor can be used only when table source scan has
+    // BatchExecDynamicFilteringDataCollector input
+    public BatchExecTableSourceScan(
+            ReadableConfig tableConfig,
+            DynamicTableSourceSpec tableSourceSpec,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecTableSourceScan.class),
+                ExecNodeContext.newPersistedConfig(BatchExecTableSourceScan.class, tableConfig),
+                tableSourceSpec,
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+        this.tableConfig = tableConfig;
+    }
 
     public BatchExecTableSourceScan(
             ReadableConfig tableConfig,
@@ -52,8 +91,33 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
                 ExecNodeContext.newContext(BatchExecTableSourceScan.class),
                 ExecNodeContext.newPersistedConfig(BatchExecTableSourceScan.class, tableConfig),
                 tableSourceSpec,
+                Collections.emptyList(),
                 outputType,
                 description);
+        this.tableConfig = tableConfig;
+    }
+
+    @JsonCreator
+    public BatchExecTableSourceScan(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig tableConfig,
+            @JsonProperty(FIELD_NAME_SCAN_TABLE_SOURCE) DynamicTableSourceSpec tableSourceSpec,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(
+                id,
+                context,
+                tableConfig,
+                tableSourceSpec,
+                Collections.emptyList(),
+                outputType,
+                description);
+        this.tableConfig = tableConfig;
+    }
+
+    public String getDynamicFilteringDataListenerID() {
+        return dynamicFilteringDataListenerID;
     }
 
     @Override
@@ -65,6 +129,24 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
         // declare all legacy transformations as bounded to make the stream graph generator happy
         ExecNodeUtil.makeLegacySourceTransformationsBounded(transformation);
         return transformation;
+    }
+
+    public static BatchExecDynamicFilteringDataCollector getDynamicFilteringDataCollector(
+            BatchExecNode<?> node) {
+        Preconditions.checkState(
+                node.getInputEdges().size() == 1,
+                "The fact source must have one "
+                        + "input representing dynamic filtering data collector");
+        BatchExecNode<?> input = (BatchExecNode<?>) node.getInputEdges().get(0).getSource();
+        if (input instanceof BatchExecDynamicFilteringDataCollector) {
+            return (BatchExecDynamicFilteringDataCollector) input;
+        }
+
+        Preconditions.checkState(
+                input instanceof BatchExecExchange,
+                "There could only be BatchExecExchange "
+                        + "between fact source and dynamic filtering data collector");
+        return getDynamicFilteringDataCollector(input);
     }
 
     @Override
@@ -80,5 +162,16 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
         final InputFormatSourceFunction<RowData> function =
                 new InputFormatSourceFunction<>(inputFormat, outputTypeInfo);
         return env.addSource(function, operatorName, outputTypeInfo).getTransformation();
+    }
+
+    public BatchExecTableSourceScan copyAndRemoveInputs() {
+        BatchExecTableSourceScan tableSourceScan =
+                new BatchExecTableSourceScan(
+                        tableConfig,
+                        getTableSourceSpec(),
+                        (RowType) getOutputType(),
+                        getDescription());
+        tableSourceScan.setInputEdges(Collections.emptyList());
+        return tableSourceScan;
     }
 }

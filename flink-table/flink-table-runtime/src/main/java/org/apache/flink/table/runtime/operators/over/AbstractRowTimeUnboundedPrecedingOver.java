@@ -19,13 +19,13 @@
 package org.apache.flink.table.runtime.operators.over;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
@@ -50,6 +50,12 @@ import java.util.ListIterator;
 /** A basic implementation to support unbounded event-time over-window. */
 public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
         extends KeyedProcessFunctionWithCleanupState<K, RowData, RowData> {
+    public static final int FIRST_OVER_VERSION = 1;
+    public static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
+    public static final String ACCUMULATOR_STATE_NAME = "accState";
+    public static final String INPUT_STATE_NAME = "inputState";
+    public static final String CLEANUP_STATE_NAME = "RowTimeUnboundedOverCleanupTime";
+
     private static final long serialVersionUID = 1L;
 
     private static final Logger LOG =
@@ -70,10 +76,6 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
 
     protected transient AggsHandleFunction function;
 
-    // ------------------------------------------------------------------------
-    // Metrics
-    // ------------------------------------------------------------------------
-    private static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
     private transient Counter numLateRecordsDropped;
 
     @VisibleForTesting
@@ -96,7 +98,7 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
         function.open(new PerKeyStateDataViewStore(getRuntimeContext()));
 
@@ -107,7 +109,7 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
         // initialize accumulator state
         InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
         ValueStateDescriptor<RowData> accStateDesc =
-                new ValueStateDescriptor<RowData>("accState", accTypeInfo);
+                new ValueStateDescriptor<RowData>(ACCUMULATOR_STATE_NAME, accTypeInfo);
         accState = getRuntimeContext().getState(accStateDesc);
 
         // input element are all binary row as they are came from network
@@ -115,10 +117,10 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
         ListTypeInfo<RowData> rowListTypeInfo = new ListTypeInfo<RowData>(inputType);
         MapStateDescriptor<Long, List<RowData>> inputStateDesc =
                 new MapStateDescriptor<Long, List<RowData>>(
-                        "inputState", Types.LONG, rowListTypeInfo);
+                        INPUT_STATE_NAME, Types.LONG, rowListTypeInfo);
         inputState = getRuntimeContext().getMapState(inputStateDesc);
 
-        initCleanupTimeState("RowTimeUnboundedOverCleanupTime");
+        initCleanupTimeState(CLEANUP_STATE_NAME);
 
         // metrics
         this.numLateRecordsDropped =

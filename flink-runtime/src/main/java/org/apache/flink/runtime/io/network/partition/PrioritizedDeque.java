@@ -70,7 +70,7 @@ public final class PrioritizedDeque<T> implements Iterable<T> {
                 priorPriority.addFirst(deque.poll());
             }
             deque.addFirst(element);
-            // readd them before the newly added element
+            // read them before the newly added element
             for (final T priorityEvent : priorPriority) {
                 deque.addFirst(priorityEvent);
             }
@@ -215,12 +215,9 @@ public final class PrioritizedDeque<T> implements Iterable<T> {
         return deque.size();
     }
 
-    /** Returns the number of non-priority elements. */
-    public int getNumUnprioritizedElements() {
-        return size() - getNumPriorityElements();
-    }
-
-    /** @return read-only iterator */
+    /**
+     * @return read-only iterator
+     */
     public Iterator<T> iterator() {
         return Collections.unmodifiableCollection(deque).iterator();
     }

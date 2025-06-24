@@ -18,16 +18,19 @@
 
 package org.apache.flink.runtime.rest.messages.job;
 
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.runtime.rest.FileUploadHandler;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** These headers define the protocol for submitting a job to a flink cluster. */
+@Documentation.ExcludeFromDocumentation(
+        "This API is for Flink Client only and should not be exposed to users, as it relies on internal classes.")
 public class JobSubmitHeaders
-        implements MessageHeaders<
+        implements RuntimeMessageHeaders<
                 JobSubmitRequestBody, JobSubmitResponseBody, EmptyMessageParameters> {
 
     private static final String URL = "/jobs";
@@ -82,5 +85,10 @@ public class JobSubmitHeaders
     @Override
     public boolean acceptsFileUploads() {
         return true;
+    }
+
+    @Override
+    public String operationId() {
+        return "submitJob";
     }
 }

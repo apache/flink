@@ -43,14 +43,14 @@ kubectl create clusterrolebinding ${CLUSTER_ROLE_BINDING} --clusterrole=edit --s
 mkdir -p "$LOCAL_LOGS_PATH"
 
 # Set the memory and cpu smaller than default, so that the jobmanager and taskmanager pods could be allocated in minikube.
-"$FLINK_DIR"/bin/flink run-application -t kubernetes-application \
+"$FLINK_DIR"/bin/flink run -t kubernetes-application \
     -Dkubernetes.cluster-id=${CLUSTER_ID} \
-    -Dkubernetes.container.image=${FLINK_IMAGE_NAME} \
+    -Dkubernetes.container.image.ref=${FLINK_IMAGE_NAME} \
     -Djobmanager.memory.process.size=1088m \
     -Dkubernetes.jobmanager.cpu=0.5 \
     -Dkubernetes.taskmanager.cpu=0.5 \
     -Dkubernetes.rest-service.exposed.type=NodePort \
-    local:///opt/flink/examples/batch/WordCount.jar
+    local:///opt/flink/examples/streaming/WordCount.jar
 
 kubectl wait --for=condition=Available --timeout=30s deploy/${CLUSTER_ID} || exit 1
 jm_pod_name=$(kubectl get pods --selector="app=${CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')

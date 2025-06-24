@@ -25,7 +25,9 @@ import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.rules.ExternalResource;
+import org.junit.jupiter.api.extension.AfterAllCallback;
+import org.junit.jupiter.api.extension.BeforeAllCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 import javax.annotation.Nonnull;
 
@@ -69,23 +71,24 @@ public class TestingComponentMainThreadExecutor {
         return mainThreadExecutor;
     }
 
-    /** Test resource for convenience. */
-    public static class Resource extends ExternalResource {
+    /** Test extension for convenience. */
+    public static class Extension implements BeforeAllCallback, AfterAllCallback {
+        private final long shutdownTimeoutMillis;
 
-        private long shutdownTimeoutMillis;
         private TestingComponentMainThreadExecutor componentMainThreadTestExecutor;
+
         private ScheduledExecutorService innerExecutorService;
 
-        public Resource() {
+        public Extension() {
             this(500L);
         }
 
-        public Resource(long shutdownTimeoutMillis) {
+        public Extension(long shutdownTimeoutMillis) {
             this.shutdownTimeoutMillis = shutdownTimeoutMillis;
         }
 
         @Override
-        protected void before() {
+        public void beforeAll(ExtensionContext extensionContext) throws Exception {
             this.innerExecutorService = Executors.newSingleThreadScheduledExecutor();
             this.componentMainThreadTestExecutor =
                     new TestingComponentMainThreadExecutor(
@@ -94,7 +97,7 @@ public class TestingComponentMainThreadExecutor {
         }
 
         @Override
-        protected void after() {
+        public void afterAll(ExtensionContext extensionContext) throws Exception {
             ExecutorUtils.gracefulShutdown(
                     shutdownTimeoutMillis, TimeUnit.MILLISECONDS, innerExecutorService);
         }

@@ -21,9 +21,9 @@ package org.apache.flink.connector.file.sink.writer;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
+import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink2.SinkWriter;
-import org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.StatefulSinkWriter;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.core.fs.Path;
@@ -62,7 +62,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class FileWriter<IN>
         implements StatefulSinkWriter<IN, FileWriterBucketState>,
-                TwoPhaseCommittingSink.PrecommittingSinkWriter<IN, FileSinkCommittable>,
+                CommittingSinkWriter<IN, FileSinkCommittable>,
                 SinkWriter<IN>,
                 ProcessingTimeService.ProcessingTimeCallback {
 
@@ -92,7 +92,7 @@ public class FileWriter<IN>
 
     private final OutputFileConfig outputFileConfig;
 
-    private final Counter numRecordsSendCounter;
+    private final Counter numRecordsOutCounter;
 
     private boolean endOfInput;
 
@@ -128,7 +128,8 @@ public class FileWriter<IN>
         this.activeBuckets = new HashMap<>();
         this.bucketerContext = new BucketerContext();
 
-        this.numRecordsSendCounter = checkNotNull(metricGroup).getNumRecordsSendCounter();
+        this.numRecordsOutCounter =
+                checkNotNull(metricGroup).getIOMetricGroup().getNumRecordsOutCounter();
         this.processingTimeService = checkNotNull(processingTimeService);
         checkArgument(
                 bucketCheckInterval > 0,
@@ -195,7 +196,7 @@ public class FileWriter<IN>
         final String bucketId = bucketAssigner.getBucketId(element, bucketerContext);
         final FileWriterBucket<IN> bucket = getOrCreateBucketForBucketId(bucketId);
         bucket.write(element, processingTimeService.getCurrentProcessingTime());
-        numRecordsSendCounter.inc();
+        numRecordsOutCounter.inc();
     }
 
     @Override

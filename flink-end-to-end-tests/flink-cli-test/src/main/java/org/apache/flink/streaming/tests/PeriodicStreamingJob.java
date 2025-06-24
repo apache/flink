@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.tests;
 
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -26,16 +27,19 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.util.ParameterTool;
+
+import java.time.Duration;
+import java.util.Collections;
 
 /**
  * This is a periodic streaming job that runs for CLI testing purposes.
@@ -65,16 +69,22 @@ public class PeriodicStreamingJob {
         DataStream<Tuple> rows = sEnv.addSource(generator);
 
         DataStream<Tuple> result =
-                rows.keyBy(1).window(TumblingProcessingTimeWindows.of(Time.seconds(5))).sum(0);
+                rows.keyBy(tuple -> tuple.getField(1))
+                        .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
+                        .sum(0);
 
-        result.writeAsText(outputPath + "/result.txt", FileSystem.WriteMode.OVERWRITE)
+        result.sinkTo(
+                        FileSink.forRowFormat(
+                                        new Path(outputPath + "/result.txt"),
+                                        new SimpleStringEncoder<Tuple>())
+                                .build())
                 .setParallelism(1);
 
         sEnv.execute();
     }
 
     /** Data-generating source function. */
-    public static class PeriodicSourceGenerator
+    static class PeriodicSourceGenerator
             implements SourceFunction<Tuple>, ResultTypeQueryable<Tuple>, CheckpointedFunction {
         private final int sleepMs;
         private final int durationMs;
@@ -128,8 +138,7 @@ public class PeriodicStreamingJob {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            state.clear();
-            state.add(ms);
+            state.update(Collections.singletonList(ms));
         }
     }
 }

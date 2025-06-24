@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.sink2;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.eventtime.Watermark;
 
 import java.io.IOException;
@@ -28,7 +28,7 @@ import java.io.IOException;
  *
  * @param <InputT> The type of the sink writer's input
  */
-@PublicEvolving
+@Public
 public interface SinkWriter<InputT> extends AutoCloseable {
 
     /**
@@ -57,7 +57,7 @@ public interface SinkWriter<InputT> extends AutoCloseable {
     default void writeWatermark(Watermark watermark) throws IOException, InterruptedException {}
 
     /** Context that {@link #write} can use for getting additional data about an input record. */
-    @PublicEvolving
+    @Public
     interface Context {
 
         /** Returns the current event-time watermark. */

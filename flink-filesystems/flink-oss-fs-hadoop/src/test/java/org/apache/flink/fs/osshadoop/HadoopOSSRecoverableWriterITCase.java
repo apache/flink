@@ -27,7 +27,7 @@ import org.apache.flink.fs.osshadoop.writer.OSSRecoverable;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopRecoverableWriterITCase;
 import org.apache.flink.testutils.oss.OSSTestCredentials;
 
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -39,14 +39,14 @@ import static org.apache.flink.fs.osshadoop.OSSFileSystemFactory.PART_UPLOAD_MIN
  * Tests for the {@link org.apache.flink.fs.osshadoop.writer.OSSRecoverableWriter
  * OSSRecoverableWriter}.
  */
-public class HadoopOSSRecoverableWriterITCase extends AbstractHadoopRecoverableWriterITCase {
+class HadoopOSSRecoverableWriterITCase extends AbstractHadoopRecoverableWriterITCase {
 
     // ----------------------- OSS general configuration -----------------------
 
     private static final int MAX_CONCURRENT_UPLOADS_VALUE = 2;
 
-    @BeforeClass
-    public static void checkCredentialsAndSetup() throws IOException {
+    @BeforeAll
+    static void checkCredentialsAndSetup() throws IOException {
         // check whether credentials exist
         OSSTestCredentials.assumeCredentialsAvailable();
 
@@ -58,10 +58,10 @@ public class HadoopOSSRecoverableWriterITCase extends AbstractHadoopRecoverableW
         conf.setString("fs.oss.accessKeyId", OSSTestCredentials.getOSSAccessKey());
         conf.setString("fs.oss.accessKeySecret", OSSTestCredentials.getOSSSecretKey());
 
-        conf.setInteger(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
+        conf.set(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
 
-        final String defaultTmpDir = TEMP_FOLDER.getRoot().getAbsolutePath() + "/oss_tmp_dir";
-        conf.setString(CoreOptions.TMP_DIRS, defaultTmpDir);
+        final String defaultTmpDir = tempFolder.getAbsolutePath() + "/oss_tmp_dir";
+        conf.set(CoreOptions.TMP_DIRS, defaultTmpDir);
 
         FileSystem.initialize(conf);
         bigDataChunk =

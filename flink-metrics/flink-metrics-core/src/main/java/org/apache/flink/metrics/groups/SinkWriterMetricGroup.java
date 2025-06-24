@@ -29,11 +29,14 @@ import org.apache.flink.metrics.Gauge;
 @PublicEvolving
 public interface SinkWriterMetricGroup extends OperatorMetricGroup {
 
-    /** @deprecated use {@link #getNumRecordsSendErrorsCounter()} instead. */
-    @Deprecated
+    /** The total number of records failed to send. */
     Counter getNumRecordsOutErrorsCounter();
 
-    /** The total number of records failed to send. */
+    /**
+     * The total number of records failed to send.
+     *
+     * <p>This metric has the same value as {@code numRecordsOutError}.
+     */
     Counter getNumRecordsSendErrorsCounter();
 
     /**
@@ -44,10 +47,16 @@ public interface SinkWriterMetricGroup extends OperatorMetricGroup {
      * may have issue to perform the persistence action within its scope. Therefore, this count may
      * include the number of records that are failed to write by the downstream system, which should
      * be counted by {@link #getNumRecordsSendErrorsCounter()}.
+     *
+     * <p>This metric has the same value as {@code numRecordsOut} of the operator.
      */
     Counter getNumRecordsSendCounter();
 
-    /** The total number of output send bytes since the task started. */
+    /**
+     * The total number of output send bytes since the task started.
+     *
+     * <p>This metric has the same value as {@code numBytesOut} of the operator
+     */
     Counter getNumBytesSendCounter();
 
     /**

@@ -21,21 +21,19 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.mocks.MockSource;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
-import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Rule;
@@ -48,23 +46,24 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
+import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
 /** Tests for manually triggering checkpoints. */
 @RunWith(Parameterized.class)
-public class ManualCheckpointITCase extends AbstractTestBase {
+public class ManualCheckpointITCase extends AbstractTestBaseJUnit4 {
 
-    @Parameterized.Parameter public StorageSupplier storageSupplier;
+    @Parameterized.Parameter public StorageConfigurer storageConfigurer;
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    private interface StorageSupplier extends Function<String, CheckpointStorage> {}
+    private interface StorageConfigurer extends BiConsumer<String, StreamExecutionEnvironment> {}
 
     @Parameterized.Parameters
-    public static StorageSupplier[] parameters() throws IOException {
-        return new StorageSupplier[] {
-            path -> new JobManagerCheckpointStorage(), FileSystemCheckpointStorage::new
+    public static StorageConfigurer[] parameters() throws IOException {
+        return new StorageConfigurer[] {
+            (s, env) -> CheckpointStorageUtils.configureJobManagerCheckpointStorage(env),
+            (s, env) -> CheckpointStorageUtils.configureFileSystemCheckpointStorage(env, s)
         };
     }
 
@@ -73,9 +72,7 @@ public class ManualCheckpointITCase extends AbstractTestBase {
         int parallelism = MINI_CLUSTER_RESOURCE.getNumberSlots();
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(parallelism);
-        env.getCheckpointConfig()
-                .setCheckpointStorage(
-                        storageSupplier.apply(temporaryFolder.newFolder().toURI().toString()));
+        storageConfigurer.accept(temporaryFolder.newFolder().toURI().toString(), env);
 
         env.fromSource(
                         MockSource.continuous(parallelism).build(),
@@ -83,7 +80,7 @@ public class ManualCheckpointITCase extends AbstractTestBase {
                         "generator")
                 .keyBy(key -> key % parallelism)
                 .flatMap(new StatefulMapper())
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         final JobClient jobClient = env.executeAsync();
         final JobID jobID = jobClient.getJobID();
@@ -105,9 +102,7 @@ public class ManualCheckpointITCase extends AbstractTestBase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(parallelism);
         env.enableCheckpointing(checkpointingInterval);
-        env.getCheckpointConfig()
-                .setCheckpointStorage(
-                        storageSupplier.apply(temporaryFolder.newFolder().toURI().toString()));
+        storageConfigurer.accept(temporaryFolder.newFolder().toURI().toString(), env);
 
         env.fromSource(
                         MockSource.continuous(parallelism).build(),
@@ -115,7 +110,7 @@ public class ManualCheckpointITCase extends AbstractTestBase {
                         "generator")
                 .keyBy(key -> key % parallelism)
                 .flatMap(new StatefulMapper())
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         final JobClient jobClient = env.executeAsync();
         final JobID jobID = jobClient.getJobID();
@@ -158,7 +153,7 @@ public class ManualCheckpointITCase extends AbstractTestBase {
         private ValueState<Long> count;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             count =
                     getRuntimeContext()
                             .getState(

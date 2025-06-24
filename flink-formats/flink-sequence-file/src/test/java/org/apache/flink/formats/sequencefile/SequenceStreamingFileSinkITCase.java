@@ -18,25 +18,26 @@
 
 package org.apache.flink.formats.sequencefile;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.connector.datagen.source.TestDataGenerators;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
-import org.apache.flink.streaming.util.FiniteTestSource;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,26 +45,22 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration test case for writing bulk encoded files with the {@link StreamingFileSink} with
  * SequenceFile.
  */
-public class SequenceStreamingFileSinkITCase extends AbstractTestBase {
+@ExtendWith(MiniClusterExtension.class)
+class SequenceStreamingFileSinkITCase {
 
     private final Configuration configuration = new Configuration();
 
     private final List<Tuple2<Long, String>> testData =
             Arrays.asList(new Tuple2<>(1L, "a"), new Tuple2<>(2L, "b"), new Tuple2<>(3L, "c"));
 
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
-
     @Test
-    public void testWriteSequenceFile() throws Exception {
-        final File folder = TEMPORARY_FOLDER.newFolder();
+    void testWriteSequenceFile(@TempDir final File folder) throws Exception {
         final Path testPath = Path.fromLocalFile(folder);
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -71,9 +68,12 @@ public class SequenceStreamingFileSinkITCase extends AbstractTestBase {
         env.enableCheckpointing(100);
 
         DataStream<Tuple2<Long, String>> stream =
-                env.addSource(
-                        new FiniteTestSource<>(testData),
-                        TypeInformation.of(new TypeHint<Tuple2<Long, String>>() {}));
+                env.fromSource(
+                        TestDataGenerators.fromDataWithSnapshotsLatch(
+                                testData,
+                                TypeInformation.of(new TypeHint<Tuple2<Long, String>>() {})),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
 
         stream.map(
                         new MapFunction<Tuple2<Long, String>, Tuple2<LongWritable, Text>>() {
@@ -117,18 +117,18 @@ public class SequenceStreamingFileSinkITCase extends AbstractTestBase {
     private void validateResults(File folder, List<Tuple2<Long, String>> expected)
             throws Exception {
         File[] buckets = folder.listFiles();
-        assertNotNull(buckets);
-        assertEquals(1, buckets.length);
+        assertThat(buckets).isNotNull();
+        assertThat(buckets).hasSize(1);
 
         final File[] partFiles = buckets[0].listFiles();
-        assertNotNull(partFiles);
-        assertEquals(2, partFiles.length);
+        assertThat(partFiles).isNotNull();
+        assertThat(partFiles).hasSize(2);
 
         for (File partFile : partFiles) {
-            assertTrue(partFile.length() > 0);
+            assertThat(partFile.length()).isGreaterThan(0);
 
             final List<Tuple2<Long, String>> fileContent = readSequenceFile(partFile);
-            assertEquals(expected, fileContent);
+            assertThat(fileContent).isEqualTo(expected);
         }
     }
 }

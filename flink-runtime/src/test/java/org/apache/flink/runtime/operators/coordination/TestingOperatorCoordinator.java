@@ -31,6 +31,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.BiConsumer;
 
 /** A simple testing implementation of the {@link OperatorCoordinator}. */
 public class TestingOperatorCoordinator implements OperatorCoordinator {
@@ -47,13 +48,19 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
     @Nullable private byte[] lastRestoredCheckpointState;
     private long lastRestoredCheckpointId;
 
+    private long lastTriggeredCheckpointId;
+
     private final BlockingQueue<CompletableFuture<byte[]>> triggeredCheckpoints;
 
     private final BlockingQueue<Long> lastCheckpointComplete;
 
+    private final BlockingQueue<Long> lastCheckpointAborted;
+
     private final BlockingQueue<OperatorEvent> receivedOperatorEvents;
 
     private final Map<Integer, SubtaskGateway> subtaskGateways;
+
+    private BiConsumer<Long, byte[]> resetToCheckpointConsumer;
 
     private boolean started;
     private boolean closed;
@@ -67,6 +74,7 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
         this.context = context;
         this.triggeredCheckpoints = new LinkedBlockingQueue<>();
         this.lastCheckpointComplete = new LinkedBlockingQueue<>();
+        this.lastCheckpointAborted = new LinkedBlockingQueue<>();
         this.receivedOperatorEvents = new LinkedBlockingQueue<>();
         this.blockOnCloseLatch = blockOnCloseLatch;
         this.subtaskGateways = new HashMap<>();
@@ -88,12 +96,12 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
     }
 
     @Override
-    public void handleEventFromOperator(int subtask, OperatorEvent event) {
+    public void handleEventFromOperator(int subtask, int attemptNumber, OperatorEvent event) {
         receivedOperatorEvents.add(event);
     }
 
     @Override
-    public void subtaskFailed(int subtask, @Nullable Throwable reason) {
+    public void executionAttemptFailed(int subtask, int attemptNumber, @Nullable Throwable reason) {
         failedTasks.add(subtask);
         subtaskGateways.remove(subtask);
     }
@@ -104,12 +112,13 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
     }
 
     @Override
-    public void subtaskReady(int subtask, SubtaskGateway gateway) {
+    public void executionAttemptReady(int subtask, int attemptNumber, SubtaskGateway gateway) {
         subtaskGateways.put(subtask, gateway);
     }
 
     @Override
     public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) {
+        lastTriggeredCheckpointId = checkpointId;
         boolean added = triggeredCheckpoints.offer(result);
         assert added; // guard the test assumptions
     }
@@ -120,7 +129,15 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
     }
 
     @Override
+    public void notifyCheckpointAborted(long checkpointId) {
+        lastCheckpointAborted.offer(checkpointId);
+    }
+
+    @Override
     public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) {
+        if (resetToCheckpointConsumer != null) {
+            resetToCheckpointConsumer.accept(checkpointId, checkpointData);
+        }
         lastRestoredCheckpointId = checkpointId;
         lastRestoredCheckpointState = checkpointData == null ? NULL_RESTORE_VALUE : checkpointData;
     }
@@ -164,12 +181,20 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
         return triggeredCheckpoints.take();
     }
 
+    public long getLastTriggeredCheckpointId() {
+        return lastTriggeredCheckpointId;
+    }
+
     public boolean hasTriggeredCheckpoint() {
         return !triggeredCheckpoints.isEmpty();
     }
 
     public long getLastCheckpointComplete() throws InterruptedException {
         return lastCheckpointComplete.take();
+    }
+
+    public long getLastCheckpointAborted() throws InterruptedException {
+        return lastCheckpointAborted.take();
     }
 
     @Nullable
@@ -179,6 +204,10 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
 
     public boolean hasCompleteCheckpoint() throws InterruptedException {
         return !lastCheckpointComplete.isEmpty();
+    }
+
+    public void setResetToCheckpointConsumer(BiConsumer<Long, byte[]> resetToCheckpointConsumer) {
+        this.resetToCheckpointConsumer = resetToCheckpointConsumer;
     }
 
     // ------------------------------------------------------------------------

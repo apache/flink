@@ -23,12 +23,17 @@ import org.apache.calcite.schema.Function;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaVersion;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.Set;
 
 /** Base class for flink {@link Schema}, which provides some default implementations. */
 public abstract class FlinkSchema implements Schema {
+
+    private @Nullable SchemaVersion schemaVersion;
 
     @Override
     public RelProtoDataType getType(String name) {
@@ -50,8 +55,22 @@ public abstract class FlinkSchema implements Schema {
         return Collections.emptySet();
     }
 
+    public abstract CatalogSchemaModel getModel(String name);
+
+    public Set<String> getModelNames() {
+        return Collections.emptySet();
+    }
+
     @Override
     public Schema snapshot(SchemaVersion version) {
-        return this;
+        FlinkSchema schema = this.copy();
+        schema.schemaVersion = version;
+        return schema;
     }
+
+    public Optional<SchemaVersion> getSchemaVersion() {
+        return Optional.ofNullable(schemaVersion);
+    }
+
+    public abstract FlinkSchema copy();
 }

@@ -31,12 +31,9 @@ import org.apache.flink.util.StringUtils;
 import com.microsoft.azure.credentials.ApplicationTokenCredentials;
 import com.microsoft.azure.credentials.AzureTokenCredentials;
 import com.microsoft.azure.management.Azure;
-import org.junit.AfterClass;
-import org.junit.Assume;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -44,21 +41,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 
 import static org.apache.flink.core.fs.FileSystemTestUtils.checkPathEventualExistence;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** An implementation of the {@link FileSystemBehaviorTestSuite} for Azure based file system. */
-@RunWith(Parameterized.class)
-public class AzureFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
-
-    @Parameterized.Parameter public String scheme;
+class AzureFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
 
     private static final String CONTAINER = System.getenv("ARTIFACTS_AZURE_CONTAINER");
     private static final String ACCOUNT = System.getenv("ARTIFACTS_AZURE_STORAGE_ACCOUNT");
@@ -70,25 +60,40 @@ public class AzureFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
 
     private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-    // Azure Blob Storage defaults to https only storage accounts. We check if http support has been
-    // enabled on a best effort basis and test http if so.
-    @Parameterized.Parameters(name = "Scheme = {0}")
-    public static List<String> parameters() throws IOException {
-        boolean httpsOnly = isHttpsTrafficOnly();
-        return httpsOnly ? Arrays.asList("wasbs") : Arrays.asList("wasb", "wasbs");
+    /**
+     * Azure Blob Storage defaults to https only storage accounts, tested in the base class.
+     *
+     * <p>This nested class repeats the tests with http support, but only if a best effort check on
+     * https support succeeds.
+     */
+    static class HttpSupportAzureFileSystemBehaviorITCase extends AzureFileSystemBehaviorITCase {
+        @BeforeAll
+        static void onlyRunIfHttps() throws IOException {
+            // default to https only, as some fields are missing
+            assumeThat(RESOURCE_GROUP)
+                    .describedAs("Azure resource group not configured, skipping test...")
+                    .isNotBlank();
+            assumeThat(TOKEN_CREDENTIALS_FILE)
+                    .describedAs("Azure token credentials not configured, skipping test...")
+                    .isNotBlank();
+            assumeThat(isHttpsTrafficOnly()).isFalse();
+        }
+
+        @Override
+        protected Path getBasePath() {
+            // wasb://yourcontainer@youraccount.blob.core.windows.net/testDataDir
+            String uriString =
+                    "wasb://"
+                            + CONTAINER
+                            + '@'
+                            + ACCOUNT
+                            + ".blob.core.windows.net/"
+                            + TEST_DATA_DIR;
+            return new Path(uriString);
+        }
     }
 
     private static boolean isHttpsTrafficOnly() throws IOException {
-        if (StringUtils.isNullOrWhitespaceOnly(RESOURCE_GROUP)
-                || StringUtils.isNullOrWhitespaceOnly(TOKEN_CREDENTIALS_FILE)) {
-            // default to https only, as some fields are missing
-            return true;
-        }
-
-        Assume.assumeTrue(
-                "Azure storage account not configured, skipping test...",
-                !StringUtils.isNullOrWhitespaceOnly(ACCOUNT));
-
         AzureTokenCredentials credentials =
                 ApplicationTokenCredentials.fromFile(new File(TOKEN_CREDENTIALS_FILE));
         Azure azure =
@@ -102,49 +107,51 @@ public class AzureFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
                 .enableHttpsTrafficOnly();
     }
 
-    @BeforeClass
-    public static void checkCredentialsAndSetup() throws IOException {
+    @BeforeAll
+    static void checkCredentialsAndSetup() {
         // check whether credentials and container details exist
-        Assume.assumeTrue(
-                "Azure container not configured, skipping test...",
-                !StringUtils.isNullOrWhitespaceOnly(CONTAINER));
-        Assume.assumeTrue(
-                "Azure access key not configured, skipping test...",
-                !StringUtils.isNullOrWhitespaceOnly(ACCESS_KEY));
+        assumeThat(ACCOUNT)
+                .describedAs("Azure storage account not configured, skipping test...")
+                .isNotBlank();
+        assumeThat(CONTAINER)
+                .describedAs("Azure container not configured, skipping test...")
+                .isNotBlank();
+        assumeThat(ACCESS_KEY)
+                .describedAs("Azure access key not configured, skipping test...")
+                .isNotBlank();
 
         // initialize configuration with valid credentials
         final Configuration conf = new Configuration();
         // fs.azure.account.key.youraccount.blob.core.windows.net = ACCESS_KEY
         conf.setString("fs.azure.account.key." + ACCOUNT + ".blob.core.windows.net", ACCESS_KEY);
-        FileSystem.initialize(conf);
+        FileSystem.initialize(conf, null);
     }
 
-    @AfterClass
-    public static void clearFsConfig() throws IOException {
-        FileSystem.initialize(new Configuration());
+    @AfterAll
+    static void clearFsConfig() {
+        FileSystem.initialize(new Configuration(), null);
     }
 
     @Override
-    public FileSystem getFileSystem() throws Exception {
+    protected FileSystem getFileSystem() throws Exception {
         return getBasePath().getFileSystem();
     }
 
     @Override
-    public Path getBasePath() {
-        // wasb(s)://yourcontainer@youraccount.blob.core.windows.net/testDataDir
+    protected Path getBasePath() {
+        // wasbs://yourcontainer@youraccount.blob.core.windows.net/testDataDir
         String uriString =
-                scheme
-                        + "://"
-                        + CONTAINER
-                        + '@'
-                        + ACCOUNT
-                        + ".blob.core.windows.net/"
-                        + TEST_DATA_DIR;
+                "wasbs://" + CONTAINER + '@' + ACCOUNT + ".blob.core.windows.net/" + TEST_DATA_DIR;
         return new Path(uriString);
     }
 
+    @Override
+    protected FileSystemKind getFileSystemKind() {
+        return FileSystemKind.OBJECT_STORE;
+    }
+
     @Test
-    public void testSimpleFileWriteAndRead() throws Exception {
+    void testSimpleFileWriteAndRead() throws Exception {
         final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
 
         final String testLine = "Hello Upload!";
@@ -166,7 +173,7 @@ public class AzureFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
                     InputStreamReader ir = new InputStreamReader(in, StandardCharsets.UTF_8);
                     BufferedReader reader = new BufferedReader(ir)) {
                 String line = reader.readLine();
-                assertEquals(testLine, line);
+                assertThat(line).isEqualTo(testLine);
             }
         } finally {
             fs.delete(path, false);
@@ -177,23 +184,23 @@ public class AzureFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
     }
 
     @Test
-    public void testDirectoryListing() throws Exception {
+    void testDirectoryListing() throws Exception {
         final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs
 
         final Path directory = new Path(getBasePath() + "/testdir/");
         final FileSystem fs = directory.getFileSystem();
 
         // directory must not yet exist
-        assertFalse(fs.exists(directory));
+        assertThat(fs.exists(directory)).isFalse();
 
         try {
             // create directory
-            assertTrue(fs.mkdirs(directory));
+            assertThat(fs.mkdirs(directory)).isTrue();
 
             checkPathEventualExistence(fs, directory, true, deadline);
 
             // directory empty
-            assertEquals(0, fs.listStatus(directory).length);
+            assertThat(fs.listStatus(directory)).isEmpty();
 
             // create some files
             final int numFiles = 3;
@@ -210,15 +217,14 @@ public class AzureFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
             }
 
             FileStatus[] files = fs.listStatus(directory);
-            assertNotNull(files);
-            assertEquals(3, files.length);
+            assertThat(files).hasSize(3);
 
             for (FileStatus status : files) {
-                assertFalse(status.isDir());
+                assertThat(status.isDir()).isFalse();
             }
 
             // now that there are files, the directory must exist
-            assertTrue(fs.exists(directory));
+            assertThat(fs.exists(directory)).isTrue();
         } finally {
             // clean up
             fs.delete(directory, true);
@@ -226,10 +232,5 @@ public class AzureFileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
 
         // now directory must be gone
         checkPathEventualExistence(fs, directory, false, deadline);
-    }
-
-    @Override
-    public FileSystemKind getFileSystemKind() {
-        return FileSystemKind.OBJECT_STORE;
     }
 }

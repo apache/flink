@@ -23,24 +23,24 @@ import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.factories.TableFactoryHarness
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
-import org.apache.flink.test.util.AbstractTestBase
+import org.apache.flink.table.planner.utils.TableITCaseBase
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
 
 import com.google.common.collect.Lists
-import org.junit.{Before, Rule, Test}
-import org.junit.Assert.assertEquals
-import org.junit.rules.ExpectedException
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util
 
 import scala.collection.JavaConversions._
 
 /** Test cases for view related DDLs. */
-@RunWith(classOf[Parameterized])
-class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
   // ~ Instance fields --------------------------------------------------------
 
   private val settings = if (isStreamingMode) {
@@ -51,12 +51,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   private val tableEnv: TableEnvironment = TableEnvironmentImpl.create(settings)
 
-  var _expectedEx: ExpectedException = ExpectedException.none
-
-  @Rule
-  def expectedEx: ExpectedException = _expectedEx
-
-  @Before
+  @BeforeEach
   def before(): Unit = {
     tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
@@ -78,7 +73,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     row
   }
 
-  @Test
+  @TestTemplate
   def testCreateViewIfNotExistsTwice(): Unit = {
     val sourceData = List(
       toRow(1, "1000", 2),
@@ -132,7 +127,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testCreateViewWithoutFieldListAndWithStar(): Unit = {
     val sourceData = List(
       toRow(1, "1000", 2),
@@ -180,7 +175,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testCreateTemporaryView(): Unit = {
     val sourceData = List(
       toRow(1, "1000", 2),
@@ -228,7 +223,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTemporaryViewMaskPermanentViewWithSameName(): Unit = {
     val sourceData = List(
       toRow(1, "1000", 2),
@@ -325,18 +320,19 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     tableDescriptor
   }
 
-  @Test
+  @TestTemplate
   def testShowCreateQueryOperationCatalogView(): Unit = {
 
     val table: Table = tableEnv.from(buildTableDescriptor())
-    _expectedEx.expect(classOf[TableException])
-    _expectedEx.expectMessage(
-      "SHOW CREATE VIEW is not supported for views registered by Table API.")
+
     tableEnv.createTemporaryView("QueryOperationCatalogView", table)
-    tableEnv.executeSql("show create view QueryOperationCatalogView")
+
+    assertThatThrownBy(() => tableEnv.executeSql("show create view QueryOperationCatalogView"))
+      .hasMessageContaining("SHOW CREATE VIEW is not supported for views registered by Table API.")
+      .isInstanceOf[TableException]
   }
 
-  @Test
+  @TestTemplate
   def testShowCreateTemporaryView(): Unit = {
 
     tableEnv.createTable("T1", buildTableDescriptor())
@@ -352,9 +348,14 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       tView1ShowCreateResult,
       Lists.newArrayList(
         Row.of(
-          s"""CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`t_v1`(`a`, `b`, `c`) as
-             |SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-             |FROM `default_catalog`.`default_database`.`T1`""".stripMargin
+          s"""CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`t_v1` (
+             |  `a`,
+             |  `b`,
+             |  `c`
+             |)
+             |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+             |FROM `default_catalog`.`default_database`.`T1`
+             |""".stripMargin
         )
       )
     )
@@ -370,15 +371,20 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       tView2ShowCreateResult,
       Lists.newArrayList(
         Row.of(
-          s"""CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`t_v2`(`d`, `e`, `f`) as
-             |SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-             |FROM `default_catalog`.`default_database`.`T1`""".stripMargin
+          s"""CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`t_v2` (
+             |  `d`,
+             |  `e`,
+             |  `f`
+             |)
+             |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+             |FROM `default_catalog`.`default_database`.`T1`
+             |""".stripMargin
         )
       )
     )
   }
 
-  @Test
+  @TestTemplate
   def testShowCreateCatalogView(): Unit = {
 
     tableEnv.createTable("T1", buildTableDescriptor())
@@ -394,9 +400,14 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       view1ShowCreateResult,
       Lists.newArrayList(
         Row.of(
-          s"""CREATE VIEW `default_catalog`.`default_database`.`v1`(`a`, `b`, `c`) as
-             |SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-             |FROM `default_catalog`.`default_database`.`T1`""".stripMargin
+          s"""CREATE VIEW `default_catalog`.`default_database`.`v1` (
+             |  `a`,
+             |  `b`,
+             |  `c`
+             |)
+             |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+             |FROM `default_catalog`.`default_database`.`T1`
+             |""".stripMargin
         )
       )
     )
@@ -412,15 +423,20 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       view2ShowCreateResult,
       Lists.newArrayList(
         Row.of(
-          s"""CREATE VIEW `default_catalog`.`default_database`.`v2`(`x`, `y`, `z`) as
-             |SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-             |FROM `default_catalog`.`default_database`.`T1`""".stripMargin
+          s"""CREATE VIEW `default_catalog`.`default_database`.`v2` (
+             |  `x`,
+             |  `y`,
+             |  `z`
+             |)
+             |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+             |FROM `default_catalog`.`default_database`.`T1`
+             |""".stripMargin
         )
       )
     )
   }
 
-  @Test
+  @TestTemplate
   def testShowCreateViewWithLeftJoinGroupBy(): Unit = {
     tableEnv.createTable("t1", buildTableDescriptor())
     tableEnv.createTable("t2", buildTableDescriptor())
@@ -439,16 +455,19 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       showCreateLeftJoinGroupByViewResult,
       Lists.newArrayList(
         Row.of(
-          s"""CREATE VIEW `default_catalog`.`default_database`.`viewLeftJoinGroupBy`(`max_value`) as
-             |SELECT MAX(`t1`.`a`) AS `max_value`
+          s"""CREATE VIEW `default_catalog`.`default_database`.`viewLeftJoinGroupBy` (
+             |  `max_value`
+             |)
+             |AS SELECT MAX(`t1`.`a`) AS `max_value`
              |FROM `default_catalog`.`default_database`.`t1`
-             |LEFT JOIN `default_catalog`.`default_database`.`t2` ON `t1`.`c` = `t2`.`c`""".stripMargin
+             |LEFT JOIN `default_catalog`.`default_database`.`t2` ON `t1`.`c` = `t2`.`c`
+             |""".stripMargin
         )
       )
     )
   }
 
-  @Test
+  @TestTemplate
   def testShowCreateViewWithUDFOuterJoin(): Unit = {
     tableEnv.createTable("t1", buildTableDescriptor())
     tableEnv.createTable("t2", buildTableDescriptor())
@@ -472,16 +491,21 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       showCreateCrossJoinViewResult,
       Lists.newArrayList(
         Row.of(
-          s"""CREATE VIEW `default_catalog`.`default_database`.`viewWithCrossJoin`(`a`, `a1`, `b2`) as
-             |SELECT `udfEqualsOne`() AS `a`, `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
+          s"""CREATE VIEW `default_catalog`.`default_database`.`viewWithCrossJoin` (
+             |  `a`,
+             |  `a1`,
+             |  `b2`
+             |)
+             |AS SELECT `udfEqualsOne`() AS `a`, `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
              |FROM `default_catalog`.`default_database`.`t1`
-             |CROSS JOIN `default_catalog`.`default_database`.`t2`""".stripMargin
+             |CROSS JOIN `default_catalog`.`default_database`.`t2`
+             |""".stripMargin
         )
       )
     )
   }
 
-  @Test
+  @TestTemplate
   def testShowCreateViewWithInnerJoin(): Unit = {
 
     tableEnv.createTable("t1", buildTableDescriptor())
@@ -501,10 +525,14 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       showCreateInnerJoinViewResult,
       Lists.newArrayList(
         Row.of(
-          s"""CREATE VIEW `default_catalog`.`default_database`.`innerJoinView`(`a1`, `b2`) as
-             |SELECT `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
+          s"""CREATE VIEW `default_catalog`.`default_database`.`innerJoinView` (
+             |  `a1`,
+             |  `b2`
+             |)
+             |AS SELECT `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
              |FROM `default_catalog`.`default_database`.`t1`
-             |INNER JOIN `default_catalog`.`default_database`.`t2` ON `t1`.`c` = `t2`.`c`""".stripMargin
+             |INNER JOIN `default_catalog`.`default_database`.`t2` ON `t1`.`c` = `t2`.`c`
+             |""".stripMargin
         )
       )
     )
@@ -513,7 +541,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 }
 
 object CatalogViewITCase {
-  @Parameterized.Parameters(name = "{0}")
+  @Parameters(name = "{0}")
   def parameters(): java.util.Collection[Boolean] = {
     util.Arrays.asList(true, false)
   }

@@ -20,9 +20,10 @@ package org.apache.flink.core.classloading;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterators;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
@@ -187,6 +188,17 @@ public class ComponentClassLoader extends URLClassLoader {
             // mimics the behavior of the JDK
         }
         return null;
+    }
+
+    @Override
+    public InputStream getResourceAsStream(String name) {
+        if (isComponentFirstClass(name)) {
+            return super.getResourceAsStream(name);
+        }
+        if (isOwnerFirstClass(name)) {
+            return ownerClassLoader.getResourceAsStream(name);
+        }
+        return super.getResourceAsStream(name);
     }
 
     @Override

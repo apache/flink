@@ -25,6 +25,7 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.apache.logging.log4j.core.config.AppenderRef;
 import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.logging.log4j.core.config.Property;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 
 /**
  * Utility for auditing logged messages.(Junit5 extension)
@@ -46,26 +48,41 @@ public class LoggerAuditingExtension implements BeforeEachCallback, AfterEachCal
     private final String loggerName;
     private final org.slf4j.event.Level level;
 
-    private ConcurrentLinkedQueue<String> loggingEvents;
+    private volatile ConcurrentLinkedQueue<LogEvent> loggingEvents;
 
     public LoggerAuditingExtension(Class<?> clazz, org.slf4j.event.Level level) {
-        this.loggerName = clazz.getCanonicalName();
+        this(clazz.getCanonicalName(), level);
+    }
+
+    public LoggerAuditingExtension(String loggerName, org.slf4j.event.Level level) {
+        this.loggerName = loggerName;
         this.level = level;
     }
 
     public List<String> getMessages() {
+        return loggingEvents.stream()
+                .map(e -> e.getMessage().getFormattedMessage())
+                .collect(Collectors.toList());
+    }
+
+    public List<LogEvent> getEvents() {
         return new ArrayList<>(loggingEvents);
+    }
+
+    public String getLoggerName() {
+        return loggerName;
     }
 
     @Override
     public void beforeEach(ExtensionContext context) throws Exception {
         loggingEvents = new ConcurrentLinkedQueue<>();
 
+        final ConcurrentLinkedQueue<LogEvent> loggingEventsLocal = loggingEvents;
         Appender testAppender =
-                new AbstractAppender("test-appender", null, null, false) {
+                new AbstractAppender("test-appender", null, null, false, Property.EMPTY_ARRAY) {
                     @Override
                     public void append(LogEvent event) {
-                        loggingEvents.add(event.getMessage().getFormattedMessage());
+                        loggingEventsLocal.add(event.toImmutable());
                     }
                 };
         testAppender.start();

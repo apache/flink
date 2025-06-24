@@ -37,10 +37,10 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 ExecutionConfig executionConfig = env.getConfig();
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment
-var executionConfig = env.getConfig
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+execution_config = env.get_config()
 ```
 {{< /tab >}}
 {{< /tabs >}}

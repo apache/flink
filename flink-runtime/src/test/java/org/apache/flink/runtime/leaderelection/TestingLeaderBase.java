@@ -28,7 +28,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Base class which provides some convenience functions for testing purposes of {@link
- * LeaderContender} and {@link LeaderElectionEventHandler}.
+ * LeaderContender}.
  */
 public class TestingLeaderBase {
     // The queues will be offered by subclasses
@@ -66,6 +66,10 @@ public class TestingLeaderBase {
         error = errorQueue.take();
     }
 
+    public void clearError() {
+        error = null;
+    }
+
     public void handleError(Throwable ex) {
         errorQueue.offer(ex);
     }
@@ -78,6 +82,24 @@ public class TestingLeaderBase {
     @Nullable
     public Throwable getError() {
         return error == null ? errorQueue.poll() : error;
+    }
+
+    /**
+     * Method for exposing errors that were caught during the test execution and need to be exposed
+     * within the test.
+     *
+     * @throws AssertionError with the actual unhandled error as the cause if such an error was
+     *     caught during the test code execution.
+     */
+    public void throwErrorIfPresent() {
+        final String assertionErrorMessage = "An unhandled error was caught during test execution.";
+        if (error != null) {
+            throw new AssertionError(assertionErrorMessage, error);
+        }
+
+        if (!errorQueue.isEmpty()) {
+            throw new AssertionError(assertionErrorMessage, errorQueue.poll());
+        }
     }
 
     public boolean isLeader() {

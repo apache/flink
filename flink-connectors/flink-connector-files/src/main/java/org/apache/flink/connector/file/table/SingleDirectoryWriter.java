@@ -20,8 +20,8 @@ package org.apache.flink.connector.file.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.core.fs.Path;
 
-import java.io.IOException;
 import java.util.LinkedHashMap;
 
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
@@ -38,6 +38,7 @@ public class SingleDirectoryWriter<T> implements PartitionWriter<T> {
     private final PartitionTempFileManager manager;
     private final PartitionComputer<T> computer;
     private final LinkedHashMap<String, String> staticPartitions;
+    private final PartitionWriterListener writerListener;
 
     private OutputFormat<T> format;
 
@@ -46,25 +47,32 @@ public class SingleDirectoryWriter<T> implements PartitionWriter<T> {
             PartitionTempFileManager manager,
             PartitionComputer<T> computer,
             LinkedHashMap<String, String> staticPartitions) {
+        this(context, manager, computer, staticPartitions, new DefaultPartitionWriterListener());
+    }
+
+    public SingleDirectoryWriter(
+            Context<T> context,
+            PartitionTempFileManager manager,
+            PartitionComputer<T> computer,
+            LinkedHashMap<String, String> staticPartitions,
+            PartitionWriterListener writerListener) {
         this.context = context;
         this.manager = manager;
         this.computer = computer;
         this.staticPartitions = staticPartitions;
-    }
-
-    private void createFormat() throws IOException {
-        this.format =
-                context.createNewOutputFormat(
-                        staticPartitions.size() == 0
-                                ? manager.createPartitionDir()
-                                : manager.createPartitionDir(
-                                        generatePartitionPath(staticPartitions)));
+        this.writerListener = writerListener;
     }
 
     @Override
     public void write(T in) throws Exception {
         if (format == null) {
-            createFormat();
+            String partition = generatePartitionPath(staticPartitions);
+            Path path =
+                    staticPartitions.isEmpty()
+                            ? manager.createPartitionDir()
+                            : manager.createPartitionDir(partition);
+            format = context.createNewOutputFormat(path);
+            writerListener.onFileOpened(partition, path);
         }
         format.writeRecord(computer.projectColumnsToWrite(in));
     }

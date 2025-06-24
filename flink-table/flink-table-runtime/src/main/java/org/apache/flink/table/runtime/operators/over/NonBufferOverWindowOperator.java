@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.over;
 
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -59,6 +60,15 @@ public class NonBufferOverWindowOperator extends TableStreamOperator<RowData>
             GeneratedAggsHandleFunction[] aggsHandlers,
             GeneratedRecordComparator genComparator,
             boolean[] resetAccumulators) {
+        this(null, aggsHandlers, genComparator, resetAccumulators);
+    }
+
+    public NonBufferOverWindowOperator(
+            StreamOperatorParameters<RowData> parameters,
+            GeneratedAggsHandleFunction[] aggsHandlers,
+            GeneratedRecordComparator genComparator,
+            boolean[] resetAccumulators) {
+        super(parameters);
         this.aggsHandlers = aggsHandlers;
         this.genComparator = genComparator;
         this.resetAccumulators = resetAccumulators;

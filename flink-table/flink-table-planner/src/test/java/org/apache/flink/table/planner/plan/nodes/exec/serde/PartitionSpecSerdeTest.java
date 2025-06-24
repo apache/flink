@@ -19,31 +19,34 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test PartitionSpec json ser/de. */
-public class PartitionSpecSerdeTest {
+class PartitionSpecSerdeTest {
+
+    private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
     @Test
-    public void testPartitionSpec() throws JsonProcessingException {
+    void testPartitionSpec() throws JsonProcessingException {
         PartitionSpec spec = new PartitionSpec(new int[] {1, 2, 3});
-        ObjectMapper mapper = new ObjectMapper();
-        assertThat(mapper.readValue(mapper.writeValueAsString(spec), PartitionSpec.class))
+        assertThat(
+                        OBJECT_MAPPER.readValue(
+                                OBJECT_MAPPER.writeValueAsString(spec), PartitionSpec.class))
                 .isEqualTo(spec);
     }
 
     @Test
-    public void testAllInOne() throws JsonProcessingException {
-        ObjectMapper mapper = new ObjectMapper();
+    void testAllInOne() throws JsonProcessingException {
         assertThat(
-                        mapper.readValue(
-                                mapper.writeValueAsString(PartitionSpec.ALL_IN_ONE),
+                        OBJECT_MAPPER.readValue(
+                                OBJECT_MAPPER.writeValueAsString(PartitionSpec.ALL_IN_ONE),
                                 PartitionSpec.class))
                 .isEqualTo(PartitionSpec.ALL_IN_ONE);
     }

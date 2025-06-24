@@ -22,14 +22,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.python.util.CompressionUtils;
 import org.apache.flink.python.util.PythonEnvironmentManagerUtils;
+import org.apache.flink.util.CompressionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
+import org.apache.flink.shaded.guava33.com.google.common.base.Strings;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +43,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -122,9 +123,16 @@ public abstract class AbstractPythonEnvironmentManager implements PythonEnvironm
                                         "Could not create the base directory: " + baseDirectory);
                             }
 
-                            Map<String, String> env = constructEnvironmentVariables(baseDirectory);
-                            installRequirements(baseDirectory, env);
-                            return Tuple2.of(baseDirectory, env);
+                            try {
+                                Map<String, String> env =
+                                        constructEnvironmentVariables(baseDirectory);
+                                installRequirements(baseDirectory, env);
+                                return Tuple2.of(baseDirectory, env);
+                            } catch (Throwable e) {
+                                deleteBaseDirectory(baseDirectory);
+                                LOG.warn("Failed to create resource.", e);
+                                throw e;
+                            }
                         });
         shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
@@ -166,6 +174,13 @@ public abstract class AbstractPythonEnvironmentManager implements PythonEnvironm
 
         constructFilesDirectory(env, baseDirectory);
 
+        if (dependencyInfo.getPythonPath().isPresent()) {
+            appendToPythonPath(
+                    env, Collections.singletonList(dependencyInfo.getPythonPath().get()));
+        }
+
+        LOG.info("PYTHONPATH of python worker: {}", env.get("PYTHONPATH"));
+
         constructRequirementsDirectory(env, baseDirectory);
 
         constructArchivesDirectory(env, baseDirectory);
@@ -203,6 +218,32 @@ public abstract class AbstractPythonEnvironmentManager implements PythonEnvironm
                 "Could not find a unique directory name in '"
                         + Arrays.toString(tmpDirectories)
                         + "' for storing the generated files of python dependency.");
+    }
+
+    private static void deleteBaseDirectory(String baseDirectory) {
+        int retries = 0;
+        while (true) {
+            try {
+                FileUtils.deleteDirectory(new File(baseDirectory));
+                break;
+            } catch (Throwable t) {
+                retries++;
+                if (retries <= CHECK_TIMEOUT / CHECK_INTERVAL) {
+                    LOG.warn(
+                            String.format(
+                                    "Failed to delete the working directory %s of the Python UDF worker. Retrying...",
+                                    baseDirectory),
+                            t);
+                } else {
+                    LOG.warn(
+                            String.format(
+                                    "Failed to delete the working directory %s of the Python UDF worker.",
+                                    baseDirectory),
+                            t);
+                    break;
+                }
+            }
+        }
     }
 
     private void installRequirements(String baseDirectory, Map<String, String> env)
@@ -294,7 +335,6 @@ public abstract class AbstractPythonEnvironmentManager implements PythonEnvironm
             pythonFilePaths.add(pythonPath);
         }
         appendToPythonPath(env, pythonFilePaths);
-        LOG.info("PYTHONPATH of python worker: {}", env.get("PYTHONPATH"));
     }
 
     private void constructRequirementsDirectory(Map<String, String> env, String baseDirectory)
@@ -468,29 +508,7 @@ public abstract class AbstractPythonEnvironmentManager implements PythonEnvironm
 
         @Override
         public void close() throws Exception {
-            int retries = 0;
-            while (true) {
-                try {
-                    FileUtils.deleteDirectory(new File(baseDirectory));
-                    break;
-                } catch (Throwable t) {
-                    retries++;
-                    if (retries <= CHECK_TIMEOUT / CHECK_INTERVAL) {
-                        LOG.warn(
-                                String.format(
-                                        "Failed to delete the working directory %s of the Python UDF worker. Retrying...",
-                                        baseDirectory),
-                                t);
-                    } else {
-                        LOG.warn(
-                                String.format(
-                                        "Failed to delete the working directory %s of the Python UDF worker.",
-                                        baseDirectory),
-                                t);
-                        break;
-                    }
-                }
-            }
+            deleteBaseDirectory(baseDirectory);
         }
     }
 }

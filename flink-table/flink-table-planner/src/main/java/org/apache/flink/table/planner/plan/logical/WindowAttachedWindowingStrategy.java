@@ -77,7 +77,7 @@ public class WindowAttachedWindowingStrategy extends WindowingStrategy {
                             "win_start=[%s], win_end=[%s]",
                             inputFieldNames[windowStart], inputFieldNames[windowEnd]);
         }
-        return window.toSummaryString(windowing);
+        return window.toSummaryString(windowing, inputFieldNames);
     }
 
     public int getWindowStart() {

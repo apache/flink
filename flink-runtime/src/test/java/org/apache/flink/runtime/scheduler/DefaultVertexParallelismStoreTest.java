@@ -19,27 +19,25 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DefaultVertexParallelismStore}. */
-public class DefaultVertexParallelismStoreTest extends TestLogger {
+class DefaultVertexParallelismStoreTest {
     @Test
-    public void testNotSet() {
+    void testNotSet() {
         DefaultVertexParallelismStore store = new DefaultVertexParallelismStore();
 
-        assertThrows(
-                "No parallelism information set for vertex",
-                IllegalStateException.class,
-                () -> store.getParallelismInfo(new JobVertexID()));
+        assertThatThrownBy(() -> store.getParallelismInfo(new JobVertexID()))
+                .withFailMessage("No parallelism information set for vertex")
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testSetInfo() {
+    void testSetInfo() {
         JobVertexID id = new JobVertexID();
         VertexParallelismInformation info = new MockVertexParallelismInfo();
         DefaultVertexParallelismStore store = new DefaultVertexParallelismStore();
@@ -48,10 +46,51 @@ public class DefaultVertexParallelismStoreTest extends TestLogger {
 
         VertexParallelismInformation storedInfo = store.getParallelismInfo(id);
 
-        Assert.assertEquals(storedInfo, storedInfo);
+        assertThat(storedInfo).isEqualTo(info);
+    }
+
+    @Test
+    void testGetAllInfos() {
+        JobVertexID id = new JobVertexID();
+        JobVertexID id2 = new JobVertexID();
+        VertexParallelismInformation info = new MockVertexParallelismInfo();
+        VertexParallelismInformation info2 = new MockVertexParallelismInfo();
+        DefaultVertexParallelismStore store = new DefaultVertexParallelismStore();
+
+        store.setParallelismInfo(id, info);
+        store.setParallelismInfo(id2, info2);
+
+        assertThat(store.getParallelismInfo(id)).isEqualTo(info);
+        assertThat(store.getParallelismInfo(id2)).isEqualTo(info2);
+    }
+
+    @Test
+    void testMergeParallelismStore() {
+        JobVertexID id = new JobVertexID();
+        JobVertexID id2 = new JobVertexID();
+        VertexParallelismInformation info = new MockVertexParallelismInfo();
+        VertexParallelismInformation info2 = new MockVertexParallelismInfo();
+        DefaultVertexParallelismStore store = new DefaultVertexParallelismStore();
+        DefaultVertexParallelismStore store2 = new DefaultVertexParallelismStore();
+        store.setParallelismInfo(id, info);
+        store2.setParallelismInfo(id2, info2);
+
+        assertThat(store.getParallelismInfo(id)).isEqualTo(info);
+        assertThatThrownBy(() -> store.getParallelismInfo(id2))
+                .isInstanceOf(IllegalStateException.class);
+
+        store.mergeParallelismStore(store2);
+
+        assertThat(store.getParallelismInfo(id)).isEqualTo(info);
+        assertThat(store.getParallelismInfo(id2)).isEqualTo(info2);
     }
 
     private static final class MockVertexParallelismInfo implements VertexParallelismInformation {
+        @Override
+        public int getMinParallelism() {
+            return 0;
+        }
+
         @Override
         public int getParallelism() {
             return 0;

@@ -30,8 +30,6 @@ import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.util.config.memory.CommonProcessMemorySpec;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverhead;
 import org.apache.flink.runtime.util.config.memory.JvmMetaspaceAndOverheadOptions;
-import org.apache.flink.runtime.util.config.memory.LegacyMemoryOptions;
-import org.apache.flink.runtime.util.config.memory.MemoryBackwardsCompatibilityUtils;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryOptions;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.runtime.util.config.memory.taskmanager.TaskExecutorFlinkMemory;
@@ -64,18 +62,8 @@ public class TaskExecutorProcessUtils {
                             TaskManagerOptions.JVM_OVERHEAD_MAX,
                             TaskManagerOptions.JVM_OVERHEAD_FRACTION));
 
-    @SuppressWarnings("deprecation")
-    static final LegacyMemoryOptions TM_LEGACY_HEAP_OPTIONS =
-            new LegacyMemoryOptions(
-                    "FLINK_TM_HEAP",
-                    TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY,
-                    TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB);
-
     private static final ProcessMemoryUtils<TaskExecutorFlinkMemory> PROCESS_MEMORY_UTILS =
             new ProcessMemoryUtils<>(TM_PROCESS_MEMORY_OPTIONS, new TaskExecutorFlinkMemoryUtils());
-
-    private static final MemoryBackwardsCompatibilityUtils LEGACY_MEMORY_UTILS =
-            new MemoryBackwardsCompatibilityUtils(TM_LEGACY_HEAP_OPTIONS);
 
     private TaskExecutorProcessUtils() {}
 
@@ -215,23 +203,23 @@ public class TaskExecutorProcessUtils {
     }
 
     private static int getNumSlots(final Configuration config) {
-        return config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
+        return config.get(TaskManagerOptions.NUM_TASK_SLOTS);
     }
 
     public static double getCpuCoresWithFallbackConfigOption(
             final Configuration config, ConfigOption<Double> fallbackOption) {
-        double fallbackValue = config.getDouble(fallbackOption);
+        double fallbackValue = config.get(fallbackOption);
         return getCpuCoresWithFallback(config, fallbackValue).getValue().doubleValue();
     }
 
     public static CPUResource getCpuCoresWithFallback(final Configuration config, double fallback) {
         final double cpuCores;
         if (config.contains(TaskManagerOptions.CPU_CORES)) {
-            cpuCores = config.getDouble(TaskManagerOptions.CPU_CORES);
+            cpuCores = config.get(TaskManagerOptions.CPU_CORES);
         } else if (fallback > 0.0) {
             cpuCores = fallback;
         } else {
-            cpuCores = config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
+            cpuCores = config.get(TaskManagerOptions.NUM_TASK_SLOTS);
         }
 
         if (cpuCores <= 0) {
@@ -242,18 +230,5 @@ public class TaskExecutorProcessUtils {
         }
 
         return new CPUResource(cpuCores);
-    }
-
-    public static Configuration getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-            final Configuration configuration, final ConfigOption<MemorySize> configOption) {
-        try {
-            return LEGACY_MEMORY_UTILS.getConfWithLegacyHeapSizeMappedToNewConfigOption(
-                    configuration, configOption);
-        } catch (IllegalConfigurationException e) {
-            throw new IllegalConfigurationException(
-                    "TaskManager failed to map legacy JVM heap option to the new one: "
-                            + e.getMessage(),
-                    e);
-        }
     }
 }

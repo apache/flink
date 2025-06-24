@@ -20,49 +20,58 @@ package org.apache.flink.runtime.deployment;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.BatchTask;
+import org.apache.flink.runtime.util.DefaultGroupCache;
+import org.apache.flink.runtime.util.GroupCache;
+import org.apache.flink.runtime.util.NoOpGroupCache;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link TaskDeploymentDescriptor}. */
-public class TaskDeploymentDescriptorTest extends TestLogger {
+class TaskDeploymentDescriptorTest {
+
+    @TempDir Path temporaryFolder;
 
     private static final JobID jobID = new JobID();
     private static final JobVertexID vertexID = new JobVertexID();
-    private static final ExecutionAttemptID execId = new ExecutionAttemptID();
+    private static final ExecutionAttemptID execId = createExecutionAttemptId(vertexID);
     private static final AllocationID allocationId = new AllocationID();
     private static final String jobName = "job name";
     private static final String taskName = "task name";
     private static final int numberOfKeyGroups = 1;
-    private static final int indexInSubtaskGroup = 0;
     private static final int currentNumberOfSubtasks = 1;
-    private static final int attemptNumber = 0;
     private static final Configuration jobConfiguration = new Configuration();
     private static final Configuration taskConfiguration = new Configuration();
     private static final Class<? extends AbstractInvokable> invokableClass = BatchTask.class;
@@ -78,29 +87,34 @@ public class TaskDeploymentDescriptorTest extends TestLogger {
 
     private final SerializedValue<ExecutionConfig> executionConfig =
             new SerializedValue<>(new ExecutionConfig());
-    private final SerializedValue<JobInformation> serializedJobInformation =
-            new SerializedValue<>(
-                    new JobInformation(
-                            jobID,
-                            jobName,
-                            executionConfig,
-                            jobConfiguration,
-                            requiredJars,
-                            requiredClasspaths));
-    private final SerializedValue<TaskInformation> serializedJobVertexInformation =
-            new SerializedValue<>(
-                    new TaskInformation(
-                            vertexID,
-                            taskName,
-                            currentNumberOfSubtasks,
-                            numberOfKeyGroups,
-                            invokableClass.getName(),
-                            taskConfiguration));
 
-    public TaskDeploymentDescriptorTest() throws IOException {}
+    private final JobInformation jobInformation =
+            new JobInformation(
+                    jobID,
+                    JobType.STREAMING,
+                    jobName,
+                    executionConfig,
+                    jobConfiguration,
+                    requiredJars,
+                    requiredClasspaths);
+    private final SerializedValue<JobInformation> serializedJobInformation =
+            new SerializedValue<>(jobInformation);
+
+    private final TaskInformation taskInformation =
+            new TaskInformation(
+                    vertexID,
+                    taskName,
+                    currentNumberOfSubtasks,
+                    numberOfKeyGroups,
+                    invokableClass.getName(),
+                    taskConfiguration);
+    private final SerializedValue<TaskInformation> serializedJobVertexInformation =
+            new SerializedValue<>(taskInformation);
+
+    TaskDeploymentDescriptorTest() throws IOException {}
 
     @Test
-    public void testSerialization() throws Exception {
+    void testSerialization() throws Exception {
         final TaskDeploymentDescriptor orig =
                 createTaskDeploymentDescriptor(
                         new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobInformation),
@@ -109,46 +123,108 @@ public class TaskDeploymentDescriptorTest extends TestLogger {
 
         final TaskDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
 
-        assertFalse(orig.getSerializedJobInformation() == copy.getSerializedJobInformation());
-        assertFalse(orig.getSerializedTaskInformation() == copy.getSerializedTaskInformation());
-        assertFalse(orig.getExecutionAttemptId() == copy.getExecutionAttemptId());
-        assertFalse(orig.getTaskRestore() == copy.getTaskRestore());
-        assertFalse(orig.getProducedPartitions() == copy.getProducedPartitions());
-        assertFalse(orig.getInputGates() == copy.getInputGates());
+        assertThat(orig.getJobInformation()).isNotSameAs(copy.getJobInformation());
+        assertThat(orig.getTaskInformation()).isNotSameAs(copy.getTaskInformation());
+        assertThat(orig.getExecutionAttemptId()).isNotSameAs(copy.getExecutionAttemptId());
+        assertThat(orig.getTaskRestore()).isNotSameAs(copy.getTaskRestore());
+        assertThat(orig.getProducedPartitions()).isNotSameAs(copy.getProducedPartitions());
+        assertThat(orig.getInputGates()).isNotSameAs(copy.getInputGates());
 
-        assertEquals(orig.getSerializedJobInformation(), copy.getSerializedJobInformation());
-        assertEquals(orig.getSerializedTaskInformation(), copy.getSerializedTaskInformation());
-        assertEquals(orig.getExecutionAttemptId(), copy.getExecutionAttemptId());
-        assertEquals(orig.getAllocationId(), copy.getAllocationId());
-        assertEquals(orig.getSubtaskIndex(), copy.getSubtaskIndex());
-        assertEquals(orig.getAttemptNumber(), copy.getAttemptNumber());
-        assertEquals(
-                orig.getTaskRestore().getRestoreCheckpointId(),
-                copy.getTaskRestore().getRestoreCheckpointId());
-        assertEquals(
-                orig.getTaskRestore().getTaskStateSnapshot(),
-                copy.getTaskRestore().getTaskStateSnapshot());
-        assertEquals(orig.getProducedPartitions(), copy.getProducedPartitions());
-        assertEquals(orig.getInputGates(), copy.getInputGates());
+        assertThat(orig.getJobInformation()).isEqualTo(copy.getJobInformation());
+        assertThat(orig.getTaskInformation()).isEqualTo(copy.getTaskInformation());
+        assertThat(orig.getExecutionAttemptId()).isEqualTo(copy.getExecutionAttemptId());
+        assertThat(orig.getAllocationId()).isEqualTo(copy.getAllocationId());
+        assertThat(orig.getSubtaskIndex()).isEqualTo(copy.getSubtaskIndex());
+        assertThat(orig.getAttemptNumber()).isEqualTo(copy.getAttemptNumber());
+        assertThat(orig.getTaskRestore().getRestoreCheckpointId())
+                .isEqualTo(copy.getTaskRestore().getRestoreCheckpointId());
+        assertThat(orig.getTaskRestore().getTaskStateSnapshot())
+                .isEqualTo(copy.getTaskRestore().getTaskStateSnapshot());
+        assertThat(orig.getProducedPartitions()).isEqualTo(copy.getProducedPartitions());
+        assertThat(orig.getInputGates()).isEqualTo(copy.getInputGates());
     }
 
     @Test
-    public void testOffLoadedAndNonOffLoadedPayload() {
+    void testOffLoadedAndNonOffLoadedPayload() throws IOException, ClassNotFoundException {
         final TaskDeploymentDescriptor taskDeploymentDescriptor =
                 createTaskDeploymentDescriptor(
                         new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobInformation),
                         new TaskDeploymentDescriptor.Offloaded<>(new PermanentBlobKey()));
 
-        SerializedValue<JobInformation> actualSerializedJobInformation =
-                taskDeploymentDescriptor.getSerializedJobInformation();
-        assertThat(actualSerializedJobInformation, is(serializedJobInformation));
+        JobInformation actualJobInformation = taskDeploymentDescriptor.getJobInformation();
+        assertThat(actualJobInformation).isEqualTo(jobInformation);
 
-        try {
-            taskDeploymentDescriptor.getSerializedTaskInformation();
-            fail("Expected to fail since the task information should be offloaded.");
-        } catch (IllegalStateException expected) {
-            // expected
+        assertThatThrownBy(taskDeploymentDescriptor::getTaskInformation)
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testTaskInformationCache() throws IOException, ClassNotFoundException {
+        try (BlobServer blobServer = setupBlobServer()) {
+            // Serialize taskInformation to blobServer and get the permanentBlobKey
+            Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey =
+                    BlobWriter.serializeAndTryOffload(taskInformation, jobID, blobServer);
+            assertThat(taskInformationOrBlobKey.isRight()).isTrue();
+            PermanentBlobKey permanentBlobKey = taskInformationOrBlobKey.right();
+
+            GroupCache<JobID, PermanentBlobKey, TaskInformation> taskInformationCache =
+                    new DefaultGroupCache.Factory<JobID, PermanentBlobKey, TaskInformation>()
+                            .create();
+            // Test for tdd1
+            final TaskDeploymentDescriptor tdd1 =
+                    createTaskDeploymentDescriptor(
+                            new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobInformation),
+                            new TaskDeploymentDescriptor.Offloaded<>(permanentBlobKey));
+            assertThat(taskInformationCache.get(jobID, permanentBlobKey)).isNull();
+            tdd1.loadBigData(
+                    blobServer,
+                    new NoOpGroupCache<>(),
+                    taskInformationCache,
+                    new NoOpGroupCache<>());
+            TaskInformation taskInformation1 = tdd1.getTaskInformation();
+            assertThat(taskInformation1).isEqualTo(taskInformation);
+            // The TaskInformation is cached in taskInformationCache, and it's equals to
+            // taskInformation1.
+            assertThat(taskInformationCache.get(jobID, permanentBlobKey))
+                    .isNotNull()
+                    .isEqualTo(taskInformation1);
+
+            // Test for tdd2
+            final TaskDeploymentDescriptor tdd2 =
+                    createTaskDeploymentDescriptor(
+                            new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobInformation),
+                            new TaskDeploymentDescriptor.Offloaded<>(permanentBlobKey));
+            tdd2.loadBigData(
+                    blobServer,
+                    new NoOpGroupCache<>(),
+                    taskInformationCache,
+                    new NoOpGroupCache<>());
+            TaskInformation taskInformation2 = tdd2.getTaskInformation();
+            // The TaskInformation2 is equals to taskInformation1 and original taskInformation, but
+            // they are not same.
+            assertThat(taskInformation2)
+                    .isNotNull()
+                    .isEqualTo(taskInformation1)
+                    .isNotSameAs(taskInformation1)
+                    .isEqualTo(taskInformation);
+            // Configuration may be changed by subtask, so the configuration must be not same.
+            assertThat(taskInformation2.getTaskConfiguration())
+                    .isNotNull()
+                    .isEqualTo(taskInformation1.getTaskConfiguration())
+                    .isNotSameAs(taskInformation1.getTaskConfiguration());
         }
+    }
+
+    private BlobServer setupBlobServer() throws IOException {
+
+        Configuration config = new Configuration();
+        // always offload the serialized job and task information
+        config.set(BlobServerOptions.OFFLOAD_MINSIZE, 0);
+        BlobServer blobServer =
+                new BlobServer(
+                        config, TempDirUtils.newFolder(temporaryFolder), new VoidBlobStore());
+        blobServer.start();
+        return blobServer;
     }
 
     @Nonnull
@@ -161,8 +237,6 @@ public class TaskDeploymentDescriptorTest extends TestLogger {
                 taskInformation,
                 execId,
                 allocationId,
-                indexInSubtaskGroup,
-                attemptNumber,
                 taskRestore,
                 producedResults,
                 inputGates);

@@ -23,7 +23,6 @@ import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -38,8 +37,8 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 
     @Override
     public String getClusterDescription() {
-        String host = config.getString(JobManagerOptions.ADDRESS, "");
-        int port = config.getInteger(JobManagerOptions.PORT, -1);
+        String host = config.get(JobManagerOptions.ADDRESS, "");
+        int port = config.get(JobManagerOptions.PORT, -1);
         return "Standalone cluster at " + host + ":" + port;
     }
 
@@ -67,13 +66,6 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
             final ApplicationConfiguration applicationConfiguration) {
         throw new UnsupportedOperationException(
                 "Application Mode not supported by standalone deployments.");
-    }
-
-    @Override
-    public ClusterClientProvider<StandaloneClusterId> deployJobCluster(
-            ClusterSpecification clusterSpecification, JobGraph jobGraph, boolean detached) {
-        throw new UnsupportedOperationException(
-                "Per-Job Mode not supported by standalone deployments.");
     }
 
     @Override

@@ -17,20 +17,20 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.table.api.config.TableConfigOptions
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
-import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.TEMPORARY_FOLDER
+import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.{createTempFile, createTempFolder}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.util.FileUtils
 
-import org.junit.{Assert, Before, Test}
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class TableSourceITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     env.setParallelism(1) // set sink parallelism to 1
@@ -48,7 +48,7 @@ class TableSourceITCase extends BatchTestBase {
                        |""".stripMargin)
 
     val filterableTableDataId =
-      TestValuesTableFactory.registerData(TestLegacyFilterableTableSource.defaultRows)
+      TestValuesTableFactory.registerData(TestData.orderedLoopRows)
     tEnv.executeSql(s"""
                        |CREATE TABLE FilterableTable (
                        |  name STRING,
@@ -77,6 +77,7 @@ class TableSourceITCase extends BatchTestBase {
          |) WITH (
          |  'connector' = 'values',
          |  'nested-projection-supported' = 'true',
+         |  'filterable-fields' = '`nested.value`;`nestedItem.deepMap`;`nestedItem.deepArray`',
          |  'data-id' = '$nestedTableDataId',
          |  'bounded' = 'true'
          |)
@@ -224,6 +225,7 @@ class TableSourceITCase extends BatchTestBase {
          |  `f` FLOAT,
          |  `g` DOUBLE,
          |  `h` DECIMAL(5, 2),
+         |  `x` DECIMAL(30, 10),
          |  `i` VARCHAR(5),
          |  `j` CHAR(5),
          |  `k` DATE,
@@ -253,6 +255,7 @@ class TableSourceITCase extends BatchTestBase {
           "-1.123",
           "-1.123",
           "5.10",
+          "1234567891012345.1000000000",
           1,
           1,
           "1969-01-01",
@@ -272,6 +275,7 @@ class TableSourceITCase extends BatchTestBase {
           "3.4",
           "3.4",
           "6.10",
+          "61234567891012345.1000000000",
           12,
           12,
           "1970-09-30",
@@ -291,6 +295,7 @@ class TableSourceITCase extends BatchTestBase {
           "0.12",
           "0.12",
           "7.10",
+          "71234567891012345.1000000000",
           123,
           123,
           "1990-12-24",
@@ -310,6 +315,7 @@ class TableSourceITCase extends BatchTestBase {
           "1.2345",
           "1.2345",
           "8.12",
+          "812345678910123451.0123456789",
           1234,
           1234,
           "2020-05-01",
@@ -321,14 +327,14 @@ class TableSourceITCase extends BatchTestBase {
           "{null=3}"
         ),
         row(null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-          null, null, null)
+          null, null, null, null)
       )
     )
   }
 
   @Test
   def testSourceProvider(): Unit = {
-    val file = TEMPORARY_FOLDER.newFile()
+    val file = createTempFile()
     file.delete()
     file.createNewFile()
     FileUtils.writeFileUtf8(file, "1\n5\n6")
@@ -351,7 +357,7 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testTableHint(): Unit = {
-    val resultPath = TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    val resultPath = createTempFolder().getAbsolutePath
     tEnv.executeSql(s"""
                        |CREATE TABLE MySink (
                        |  `a` INT,
@@ -375,17 +381,17 @@ class TableSourceITCase extends BatchTestBase {
                            |""".stripMargin)
     stmtSet.execute().await()
 
-    val result = TableTestUtil.readFromFile(resultPath)
-    val expected = Seq("2,2,Hello", "3,2,Hello world", "3,2,Hello world")
-    Assert.assertEquals(expected.sorted, result.sorted)
+    val result = TableTestUtil.readFromFile(resultPath).sorted
+    val expected = List("2,2,Hello", "3,2,Hello world", "3,2,Hello world").sorted
+    assertThat(result).isEqualTo(expected)
   }
 
   @Test
   def testTableHintWithLogicalTableScanReuse(): Unit = {
     tEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
       Boolean.box(true))
-    val resultPath = TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    val resultPath = createTempFolder().getAbsolutePath
     tEnv.executeSql(s"""
                        |CREATE TABLE MySink (
                        |  `a` INT,
@@ -420,6 +426,43 @@ class TableSourceITCase extends BatchTestBase {
       "3,2,Hello world",
       "3,2,Hello world",
       "3,2,Hello world")
-    Assert.assertEquals(expected.sorted, result.sorted)
+    assertThat(expected.sorted).isEqualTo(result.sorted)
+  }
+
+  @Test
+  def testSimpleNestedFilter(): Unit = {
+    checkResult(
+      """
+        |SELECT id, deepNested.nested1.name AS nestedName FROM NestedTable
+        |   WHERE nested.`value` > 20000
+      """.stripMargin,
+      Seq(row(3, "Mike"))
+    )
+  }
+
+  @Test
+  def testNestedFilterOnArray(): Unit = {
+    checkResult(
+      """
+        |SELECT id,
+        |   deepNested.nested1.name AS nestedName,
+        |   nestedItem.deepArray[2].`value` FROM NestedTable
+        |WHERE nestedItem.deepArray[2].`value` > 1
+      """.stripMargin,
+      Seq(row(1, "Sarah", 2), row(2, "Rob", 2), row(3, "Mike", 2))
+    )
+  }
+
+  @Test
+  def testNestedFilterOnMap(): Unit = {
+    checkResult(
+      """
+        |SELECT id,
+        |   deepNested.nested1.name AS nestedName,
+        |   nestedItem.deepMap['Monday'] FROM NestedTable
+        |WHERE nestedItem.deepMap['Monday'] = 1
+      """.stripMargin,
+      Seq(row(1, "Sarah", 1), row(2, "Rob", 1), row(3, "Mike", 1))
+    )
   }
 }

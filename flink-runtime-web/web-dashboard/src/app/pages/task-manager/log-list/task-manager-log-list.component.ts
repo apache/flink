@@ -14,20 +14,33 @@
  *   limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
-import { first, mergeMap } from 'rxjs/operators';
+import { DecimalPipe, NgIf } from '@angular/common';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { ActivatedRoute, RouterLinkWithHref } from '@angular/router';
+import { of, Subject } from 'rxjs';
+import { catchError, takeUntil } from 'rxjs/operators';
 
-import { TaskManagerLogItem } from 'interfaces';
-import { TaskManagerService } from 'services';
+import { HumanizeDatePipe } from '@flink-runtime-web/components/humanize-date.pipe';
+import { TaskManagerLogItem } from '@flink-runtime-web/interfaces';
+import {
+  TASK_MANAGER_MODULE_CONFIG,
+  TASK_MANAGER_MODULE_DEFAULT_CONFIG,
+  TaskManagerModuleConfig
+} from '@flink-runtime-web/pages/task-manager/task-manager.config';
+import { TaskManagerService } from '@flink-runtime-web/services';
+import { NzTableModule } from 'ng-zorro-antd/table';
 
 import { typeDefinition } from '../../../utils/strong-type';
 
 @Component({
   selector: 'flink-task-manager-log-list',
   templateUrl: './task-manager-log-list.component.html',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  styleUrls: ['./task-manager-log-list.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NzTableModule, NgIf, RouterLinkWithHref, HumanizeDatePipe, DecimalPipe],
+  standalone: true
 })
-export class TaskManagerLogListComponent implements OnInit {
+export class TaskManagerLogListComponent implements OnInit, OnDestroy {
   public readonly trackByName = (_: number, log: TaskManagerLogItem): string => log.name;
   public readonly narrowLogData = typeDefinition<TaskManagerLogItem>();
 
@@ -37,25 +50,37 @@ export class TaskManagerLogListComponent implements OnInit {
 
   public listOfLog: TaskManagerLogItem[] = [];
   public isLoading = true;
+  public logRouterFactory: (...args: string[]) => string | string[];
 
-  constructor(private readonly taskManagerService: TaskManagerService, private readonly cdr: ChangeDetectorRef) {}
+  private destroy$ = new Subject<void>();
+
+  constructor(
+    private readonly taskManagerService: TaskManagerService,
+    private readonly activatedRoute: ActivatedRoute,
+    private readonly cdr: ChangeDetectorRef,
+    @Inject(TASK_MANAGER_MODULE_CONFIG) readonly moduleConfig: TaskManagerModuleConfig
+  ) {
+    this.logRouterFactory =
+      moduleConfig.routerFactories?.taskManager || TASK_MANAGER_MODULE_DEFAULT_CONFIG.routerFactories.taskManager;
+  }
 
   public ngOnInit(): void {
-    this.taskManagerService.taskManagerDetail$
+    const taskManagerId = this.activatedRoute.parent!.snapshot.params.taskManagerId;
+    this.taskManagerService
+      .loadLogList(taskManagerId)
       .pipe(
-        first(),
-        mergeMap(data => this.taskManagerService.loadLogList(data.id))
+        catchError(() => of([] as TaskManagerLogItem[])),
+        takeUntil(this.destroy$)
       )
-      .subscribe(
-        data => {
-          this.listOfLog = data;
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        },
-        () => {
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        }
-      );
+      .subscribe(data => {
+        this.listOfLog = data;
+        this.isLoading = false;
+        this.cdr.markForCheck();
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

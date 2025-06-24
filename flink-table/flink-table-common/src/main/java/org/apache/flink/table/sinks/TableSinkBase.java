@@ -21,6 +21,7 @@ package org.apache.flink.table.sinks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.legacy.sinks.TableSink;
 
 import java.util.Optional;
 

@@ -221,7 +221,7 @@ public class MiniBatchGroupAggFunction
 
                 // if this was not the first row and we have to emit retractions
                 if (!firstRow) {
-                    if (!equaliser.equals(prevAggValue, newAggValue)) {
+                    if (stateRetentionTime > 0 || !equaliser.equals(prevAggValue, newAggValue)) {
                         // new row is not same with prev row
                         if (generateUpdateBefore) {
                             // prepare UPDATE_BEFORE message for previous row

@@ -17,24 +17,24 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FieldsFromArray}. */
-public class FieldsFromArrayTest {
+class FieldsFromArrayTest {
 
     String[] testStringArray = {"0", "1", "2", "3", "4"};
     Integer[] testIntegerArray = {10, 11, 12, 13, 14};
     int[] testIntArray = {20, 21, 22, 23, 24};
 
     @Test
-    public void testStringArray() {
+    void testStringArray() {
         // check single field extraction
         for (int i = 0; i < testStringArray.length; i++) {
             String[] tmp = {testStringArray[i]};
             arrayEqualityCheck(
-                    tmp, new FieldsFromArray<String>(String.class, i).extract(testStringArray));
+                    tmp, new FieldsFromArray<>(String.class, i).extract(testStringArray));
         }
 
         // check reverse order
@@ -44,22 +44,21 @@ public class FieldsFromArrayTest {
         }
         arrayEqualityCheck(
                 reverseOrder,
-                new FieldsFromArray<String>(String.class, 4, 3, 2, 1, 0).extract(testStringArray));
+                new FieldsFromArray<>(String.class, 4, 3, 2, 1, 0).extract(testStringArray));
 
         // check picking fields and reorder
         String[] crazyOrder = {testStringArray[4], testStringArray[1], testStringArray[2]};
         arrayEqualityCheck(
-                crazyOrder,
-                new FieldsFromArray<String>(String.class, 4, 1, 2).extract(testStringArray));
+                crazyOrder, new FieldsFromArray<>(String.class, 4, 1, 2).extract(testStringArray));
     }
 
     @Test
-    public void testIntegerArray() {
+    void testIntegerArray() {
         // check single field extraction
         for (int i = 0; i < testIntegerArray.length; i++) {
             Integer[] tmp = {testIntegerArray[i]};
             arrayEqualityCheck(
-                    tmp, new FieldsFromArray<Integer>(Integer.class, i).extract(testIntegerArray));
+                    tmp, new FieldsFromArray<>(Integer.class, i).extract(testIntegerArray));
         }
 
         // check reverse order
@@ -69,22 +68,20 @@ public class FieldsFromArrayTest {
         }
         arrayEqualityCheck(
                 reverseOrder,
-                new FieldsFromArray<Integer>(Integer.class, 4, 3, 2, 1, 0)
-                        .extract(testIntegerArray));
+                new FieldsFromArray<>(Integer.class, 4, 3, 2, 1, 0).extract(testIntegerArray));
 
         // check picking fields and reorder
         Integer[] crazyOrder = {testIntegerArray[4], testIntegerArray[1], testIntegerArray[2]};
         arrayEqualityCheck(
                 crazyOrder,
-                new FieldsFromArray<Integer>(Integer.class, 4, 1, 2).extract(testIntegerArray));
+                new FieldsFromArray<>(Integer.class, 4, 1, 2).extract(testIntegerArray));
     }
 
     @Test
-    public void testIntArray() {
+    void testIntArray() {
         for (int i = 0; i < testIntArray.length; i++) {
             Integer[] tmp = {testIntArray[i]};
-            arrayEqualityCheck(
-                    tmp, new FieldsFromArray<Integer>(Integer.class, i).extract(testIntArray));
+            arrayEqualityCheck(tmp, new FieldsFromArray<>(Integer.class, i).extract(testIntArray));
         }
 
         // check reverse order
@@ -94,19 +91,15 @@ public class FieldsFromArrayTest {
         }
         arrayEqualityCheck(
                 reverseOrder,
-                new FieldsFromArray<Integer>(Integer.class, 4, 3, 2, 1, 0).extract(testIntArray));
+                new FieldsFromArray<>(Integer.class, 4, 3, 2, 1, 0).extract(testIntArray));
 
         // check picking fields and reorder
         Integer[] crazyOrder = {testIntArray[4], testIntArray[1], testIntArray[2]};
         arrayEqualityCheck(
-                crazyOrder,
-                new FieldsFromArray<Integer>(Integer.class, 4, 1, 2).extract(testIntArray));
+                crazyOrder, new FieldsFromArray<>(Integer.class, 4, 1, 2).extract(testIntArray));
     }
 
     private void arrayEqualityCheck(Object[] array1, Object[] array2) {
-        assertEquals("The result arrays must have the same length", array1.length, array2.length);
-        for (int i = 0; i < array1.length; i++) {
-            assertEquals("Unequal fields at position " + i, array1[i], array2[i]);
-        }
+        assertThat(array1).isEqualTo(array2);
     }
 }

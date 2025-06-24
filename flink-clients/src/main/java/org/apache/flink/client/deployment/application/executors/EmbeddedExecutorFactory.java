@@ -20,7 +20,6 @@ package org.apache.flink.client.deployment.application.executors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.deployment.application.EmbeddedJobClient;
 import org.apache.flink.configuration.Configuration;
@@ -29,6 +28,7 @@ import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
+import java.time.Duration;
 import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -79,10 +79,9 @@ public class EmbeddedExecutorFactory implements PipelineExecutorFactory {
         return new EmbeddedExecutor(
                 submittedJobIds,
                 dispatcherGateway,
+                configuration,
                 (jobId, userCodeClassloader) -> {
-                    final Time timeout =
-                            Time.milliseconds(
-                                    configuration.get(ClientOptions.CLIENT_TIMEOUT).toMillis());
+                    final Duration timeout = configuration.get(ClientOptions.CLIENT_TIMEOUT);
                     return new EmbeddedJobClient(
                             jobId, dispatcherGateway, retryExecutor, timeout, userCodeClassloader);
                 });

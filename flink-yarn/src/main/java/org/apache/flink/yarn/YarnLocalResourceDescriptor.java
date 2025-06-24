@@ -19,16 +19,24 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.jackson.JacksonMapperFactory;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactoryBuilder;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -38,14 +46,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link Utils#createTaskExecutorContext}.
  */
 class YarnLocalResourceDescriptor {
+    private static final Logger LOG = LoggerFactory.getLogger(YarnLocalResourceDescriptor.class);
 
-    private static final String STRING_FORMAT =
-            "YarnLocalResourceDescriptor{"
-                    + "key=%s, path=%s, size=%d, modificationTime=%d, visibility=%s, type=%s}";
-    private static final Pattern LOCAL_RESOURCE_DESC_FORMAT =
-            Pattern.compile(
-                    "YarnLocalResourceDescriptor\\{"
-                            + "key=(\\S+), path=(\\S+), size=([\\d]+), modificationTime=([\\d]+), visibility=(\\S+), type=(\\S+)}");
+    private static final ObjectMapper OBJECT_MAPPER =
+            JacksonMapperFactory.createObjectMapper(
+                            new JsonFactoryBuilder().quoteChar('\'').build())
+                    .enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES);
 
     private final String resourceKey;
     private final Path path;
@@ -98,19 +104,31 @@ class YarnLocalResourceDescriptor {
     }
 
     static YarnLocalResourceDescriptor fromString(String desc) throws Exception {
-        Matcher m = LOCAL_RESOURCE_DESC_FORMAT.matcher(desc);
-        boolean mat = m.find();
-        if (mat) {
+        try {
+            JsonNode node = OBJECT_MAPPER.readTree(desc);
+            if (!validate(node)) {
+                throw new FlinkException("Error to parse YarnLocalResourceDescriptor from " + desc);
+            }
             return new YarnLocalResourceDescriptor(
-                    m.group(1),
-                    new Path(m.group(2)),
-                    Long.parseLong(m.group(3)),
-                    Long.parseLong(m.group(4)),
-                    LocalResourceVisibility.valueOf(m.group(5)),
-                    LocalResourceType.valueOf(m.group(6)));
-        } else {
-            throw new FlinkException("Error to parse YarnLocalResourceDescriptor from " + desc);
+                    node.get("resourceKey").asText(),
+                    new Path(node.get("path").asText()),
+                    node.get("size").asLong(),
+                    node.get("modificationTime").asLong(),
+                    LocalResourceVisibility.valueOf(node.get("visibility").asText()),
+                    LocalResourceType.valueOf(node.get("resourceType").asText()));
+        } catch (JsonProcessingException e) {
+            throw new FlinkException("Error to parse YarnLocalResourceDescriptor from " + desc, e);
         }
+    }
+
+    private static boolean validate(JsonNode node) {
+        return !node.isNull()
+                && node.hasNonNull("resourceKey")
+                && node.hasNonNull("path")
+                && node.hasNonNull("size")
+                && node.hasNonNull("modificationTime")
+                && node.hasNonNull("visibility")
+                && node.hasNonNull("resourceType");
     }
 
     static YarnLocalResourceDescriptor fromFileStatus(
@@ -132,14 +150,20 @@ class YarnLocalResourceDescriptor {
 
     @Override
     public String toString() {
-        return String.format(
-                STRING_FORMAT,
-                resourceKey,
-                path.toString(),
-                size,
-                modificationTime,
-                visibility,
-                resourceType);
+        try {
+            ObjectNode node = OBJECT_MAPPER.createObjectNode();
+            node.put("resourceKey", resourceKey);
+            node.put("path", path.toString());
+            node.put("size", size);
+            node.put("modificationTime", modificationTime);
+            node.put("visibility", visibility.toString());
+            node.put("resourceType", resourceType.toString());
+            return OBJECT_MAPPER.writeValueAsString(node);
+        } catch (JsonProcessingException e) {
+            LOG.error("Could not serialize YarnLocalResourceDescriptor to String.", e);
+            throw new RuntimeException(
+                    "Could not serialize YarnLocalResourceDescriptor[%s] to String.", e);
+        }
     }
 
     @Override

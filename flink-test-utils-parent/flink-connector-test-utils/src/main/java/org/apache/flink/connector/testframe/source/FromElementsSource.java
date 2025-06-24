@@ -32,24 +32,42 @@ import org.apache.flink.connector.testframe.source.split.FromElementsSplitSerial
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
- * A {@link Source} implementation that reads data from a list and stops reading at the fixed
- * position. The source will wait until the checkpoint or savepoint triggered, the source is useful
- * for connector tests.
+ * A {@link Source} implementation that reads data from a list or from a {@link
+ * FromElementsSource.ElementsSupplier } and stops reading at the fixed position. The source will
+ * wait until the checkpoint or savepoint triggered, the source is useful for connector tests.
  *
  * <p>Note: This parallelism of source must be 1.
  */
 public class FromElementsSource<OUT> implements Source<OUT, FromElementsSplit, NoOpEnumState> {
     private Boundedness boundedness;
 
-    private List<OUT> elements;
+    private final ElementsSupplier<OUT> elementsSupplier;
 
     private Integer emittedElementsNum;
 
     public FromElementsSource(List<OUT> elements) {
-        this.elements = elements;
+        this.elementsSupplier =
+                new ElementsSupplier<OUT>() {
+                    private static final long serialVersionUID = -2585028536196573171L;
+
+                    @Override
+                    public int numElements() {
+                        return elements.size();
+                    }
+
+                    @Override
+                    public OUT get(int offset) {
+                        return elements.get(offset);
+                    }
+                };
+    }
+
+    public FromElementsSource(ElementsSupplier<OUT> elementsSupplier) {
+        this.elementsSupplier = elementsSupplier;
     }
 
     public FromElementsSource(
@@ -75,7 +93,7 @@ public class FromElementsSource<OUT> implements Source<OUT, FromElementsSplit, N
     public SourceReader<OUT, FromElementsSplit> createReader(SourceReaderContext readerContext)
             throws Exception {
         return new FromElementsSourceReader<>(
-                emittedElementsNum, elements, boundedness, readerContext);
+                emittedElementsNum, elementsSupplier, boundedness, readerContext);
     }
 
     @Override
@@ -99,5 +117,17 @@ public class FromElementsSource<OUT> implements Source<OUT, FromElementsSplit, N
     @Override
     public SimpleVersionedSerializer<NoOpEnumState> getEnumeratorCheckpointSerializer() {
         return new NoOpEnumStateSerializer();
+    }
+
+    /**
+     * A supplier of elements that allows to get those from any offset at any time.
+     *
+     * @param <OUT> the type of the elements supplied
+     */
+    public interface ElementsSupplier<OUT> extends Serializable {
+
+        int numElements();
+
+        OUT get(int offset);
     }
 }

@@ -159,7 +159,10 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
 
         RowType inputType = (RowType) inputEdge.getOutputType();
         RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(partitionKeys, InternalTypeInfo.of(inputType));
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(),
+                        partitionKeys,
+                        InternalTypeInfo.of(inputType));
 
         OneInputStreamOperator<RowData, RowData> operator =
                 RowTimeWindowDeduplicateOperatorBuilder.builder()
@@ -180,7 +183,8 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
                         SimpleOperatorFactory.of(operator),
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism(),
-                        WINDOW_RANK_MEMORY_RATIO);
+                        WINDOW_RANK_MEMORY_RATIO,
+                        false);
 
         // set KeyType and Selector for state
         transform.setStateKeySelector(selector);

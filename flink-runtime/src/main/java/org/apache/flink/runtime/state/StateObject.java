@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import java.io.Serializable;
+import java.util.EnumMap;
 
 /**
  * Base of all handles that represent checkpointed state in some form. The object may hold the
@@ -40,7 +41,7 @@ public interface StateObject extends Serializable {
     /**
      * Discards the state referred to and solemnly owned by this handle, to free up resources in the
      * persistent storage. This method is called when the state represented by this object will not
-     * be used any more.
+     * be used anymore.
      */
     void discardState() throws Exception;
 
@@ -63,4 +64,60 @@ public interface StateObject extends Serializable {
      * @return Size of the state in bytes.
      */
     long getStateSize();
+
+    /**
+     * Collects statistics about state size and location from the state object.
+     *
+     * @implNote default implementation reports {@link StateObject#getStateSize()} as size and
+     *     {@link StateObjectLocation#UNKNOWN} as location.
+     * @param collector the statistics collector.
+     */
+    default void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        collector.add(StateObjectLocation.UNKNOWN, getStateSize());
+    }
+
+    /** Enum for state locations. */
+    enum StateObjectLocation {
+        LOCAL_MEMORY,
+        LOCAL_DISK,
+        REMOTE,
+        UNKNOWN,
+    }
+
+    /**
+     * Collector for size and location stats from a state object via {@link
+     * StateObject#collectSizeStats(StateObjectSizeStatsCollector)}.
+     */
+    final class StateObjectSizeStatsCollector {
+        private final EnumMap<StateObjectLocation, Long> stats;
+
+        private StateObjectSizeStatsCollector() {
+            stats = new EnumMap<>(StateObjectLocation.class);
+        }
+
+        public void add(StateObjectLocation key, long value) {
+            stats.compute(
+                    key,
+                    (k, v) -> {
+                        if (v != null) {
+                            return v + value;
+                        } else {
+                            return value;
+                        }
+                    });
+        }
+
+        public EnumMap<StateObjectLocation, Long> getStats() {
+            return stats;
+        }
+
+        public static StateObjectSizeStatsCollector create() {
+            return new StateObjectSizeStatsCollector();
+        }
+
+        @Override
+        public String toString() {
+            return "StateObjectSizeStatsCollector{" + "stats=" + stats + '}';
+        }
+    }
 }

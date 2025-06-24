@@ -17,22 +17,23 @@
  */
 package org.apache.flink.table.planner.runtime.batch.table
 
-import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.DataTypes._
+import org.apache.flink.table.catalog.CatalogDatabaseImpl
 import org.apache.flink.table.data.DecimalDataUtils
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.test.util.TestBaseUtils.compareResultAsText
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Rule, Test}
-import org.junit.Assert.assertEquals
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, Test}
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import java.sql.{Date, Time, Timestamp}
 import java.time.LocalDateTime
@@ -43,10 +44,10 @@ import scala.collection.JavaConverters._
 
 class CalcITCase extends BatchTestBase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
@@ -367,11 +368,11 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testUserDefinedScalarFunctionWithParameter(): Unit = {
-    registerFunction("RichFunc2", new RichFunc2)
+    tEnv.createTemporarySystemFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))
 
     val ds = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
-    tEnv.registerTable("t1", ds)
+    tEnv.createTemporaryView("t1", ds)
 
     val sqlQuery = "SELECT c FROM t1 where RichFunc2(c)='ABC#Hello'"
 
@@ -387,10 +388,10 @@ class CalcITCase extends BatchTestBase {
     val words = "Hello\nWord"
     val filePath = UserDefinedFunctionTestUtils.writeCacheFile("test_words", words)
     env.registerCachedFile(filePath, "words")
-    registerFunction("RichFunc3", new RichFunc3)
+    tEnv.createTemporarySystemFunction("RichFunc3", new RichFunc3)
 
     val ds = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
-    tEnv.registerTable("t1", ds)
+    tEnv.createTemporaryView("t1", ds)
 
     val sqlQuery = "SELECT c FROM t1 where RichFunc3(c)=true"
 
@@ -403,12 +404,12 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testMultipleUserDefinedScalarFunctions(): Unit = {
-    registerFunction("RichFunc1", new RichFunc1)
-    registerFunction("RichFunc2", new RichFunc2)
+    tEnv.createTemporarySystemFunction("RichFunc1", new RichFunc1)
+    tEnv.createTemporarySystemFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
 
     val ds = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
-    tEnv.registerTable("t1", ds)
+    tEnv.createTemporaryView("t1", ds)
 
     val sqlQuery = "SELECT c FROM t1 where " +
       "RichFunc2(c)='Abc#Hello' or RichFunc1(a)=3 and b=2"
@@ -454,9 +455,9 @@ class CalcITCase extends BatchTestBase {
     executeQuery(result1).foreach {
       record =>
         val row = record.getField(0).asInstanceOf[Row]
-        assertEquals(1, row.getField(0))
-        assertEquals("Hi", row.getField(1))
-        assertEquals(true, row.getField(2))
+        assertThat(row.getField(0)).isEqualTo(1)
+        assertThat(row.getField(1)).isEqualTo("Hi")
+        assertThat(row.getField(2)).isEqualTo(true)
     }
 
     // primitive type
@@ -464,9 +465,9 @@ class CalcITCase extends BatchTestBase {
     executeQuery(result2).zipWithIndex.foreach {
       case (record, idx) =>
         val row = record.getField(0).asInstanceOf[Row]
-        assertEquals(1, row.getField(0))
-        assertEquals(data(idx)._1, row.getField(1))
-        assertEquals(data(idx)._2, row.getField(2))
+        assertThat(row.getField(0)).isEqualTo(1)
+        assertThat(row.getField(1)).isEqualTo(data(idx)._1)
+        assertThat(row.getField(2)).isEqualTo(data(idx)._2)
     }
 
     // non-primitive type
@@ -475,9 +476,9 @@ class CalcITCase extends BatchTestBase {
     executeQuery(result3).zipWithIndex.foreach {
       case (record, idx) =>
         val row = record.getField(0).asInstanceOf[Row]
-        assertEquals(d.toBigDecimal, row.getField(0))
-        assertEquals(data(idx)._1, row.getField(1))
-        assertEquals(data(idx)._3, row.getField(2))
+        assertThat(row.getField(0)).isEqualTo(d.toBigDecimal)
+        assertThat(row.getField(1)).isEqualTo(data(idx)._1)
+        assertThat(row.getField(2)).isEqualTo(data(idx)._3)
     }
   }
 
@@ -563,16 +564,16 @@ class CalcITCase extends BatchTestBase {
     val result = executeQuery(t)
 
     val nestedRow = result.head.getField(0).asInstanceOf[Row]
-    assertEquals(data.head._1, nestedRow.getField(0))
-    assertEquals(data.head._2, nestedRow.getField(1))
-    assertEquals(data.head._3, nestedRow.getField(2))
+    assertThat(nestedRow.getField(0)).isEqualTo(data.head._1)
+    assertThat(nestedRow.getField(1)).isEqualTo(data.head._2)
+    assertThat(nestedRow.getField(2)).isEqualTo(data.head._3)
 
     val arr = result.head.getField(1).asInstanceOf[Array[Integer]]
-    assertEquals(12, arr(0))
-    assertEquals(data.head._2, arr(1))
+    assertThat(arr(0)).isEqualTo(12)
+    assertThat(arr(1)).isEqualTo(data.head._2)
 
     val hashMap = result.head.getField(2).asInstanceOf[util.HashMap[String, Timestamp]]
-    assertEquals(data.head._3, hashMap.get(data.head._1.asInstanceOf[String]))
+    assertThat(data.head._3).isEqualTo(hashMap.get(data.head._1.asInstanceOf[String]))
   }
 
   @Test
@@ -592,9 +593,9 @@ class CalcITCase extends BatchTestBase {
     results.zipWithIndex.foreach {
       case (row, i) =>
         val nestedRow = row.getField(0).asInstanceOf[(Int, Int)]
-        assertEquals(i, nestedRow._1)
-        assertEquals(i, nestedRow._2)
-        assertEquals(i.toString, row.getField(1))
+        assertThat(nestedRow._1).isEqualTo(i)
+        assertThat(nestedRow._2).isEqualTo(i)
+        assertThat(row.getField(1)).isEqualTo(i.toString)
     }
   }
 
@@ -640,6 +641,31 @@ class CalcITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testCurrentDatabase(): Unit = {
+    val result1 = executeQuery(
+      tEnv
+        .from("Table3")
+        .limit(1)
+        .select(currentDatabase()))
+    TestBaseUtils.compareResultAsText(result1.asJava, "default_database")
+
+    // switch to another database
+    tEnv
+      .getCatalog(tEnv.getCurrentCatalog)
+      .get()
+      .createDatabase(
+        "db1",
+        new CatalogDatabaseImpl(new util.HashMap[String, String](), "db1"),
+        false)
+    tEnv.useDatabase("db1")
+    val result2 = executeQuery(
+      tEnv
+        .from("default_database.Table3")
+        .limit(1)
+        .select(currentDatabase()))
+    TestBaseUtils.compareResultAsText(result1.asJava, "default_database")
+  }
 }
 
 @SerialVersionUID(1L)

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { NodesItem } from './job-detail';
+import { NodesItem, NodesItemCorrect, VerticesLink } from './job-detail';
 
 export interface Plan {
   plan: {
@@ -24,4 +24,9 @@ export interface Plan {
     name: string;
     nodes: NodesItem[];
   };
+}
+
+export interface PlanDetail {
+  nodes: NodesItemCorrect[];
+  links: VerticesLink[];
 }

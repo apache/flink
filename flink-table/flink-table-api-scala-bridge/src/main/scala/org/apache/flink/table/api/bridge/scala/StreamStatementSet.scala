@@ -18,7 +18,6 @@
 package org.apache.flink.table.api.bridge.scala
 
 import org.apache.flink.annotation.PublicEvolving
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.{ExplainDetail, StatementSet, Table, TableDescriptor, TablePipeline}
 
 /**
@@ -30,7 +29,15 @@ import org.apache.flink.table.api.{ExplainDetail, StatementSet, Table, TableDesc
  *
  * The added statements will be cleared when calling the `execute()` or `attachAsDataStream()`
  * method.
+ *
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@deprecated(org.apache.flink.table.api.FLIP_265_WARNING, since = "1.18.0")
 @PublicEvolving
 trait StreamStatementSet extends StatementSet {
 

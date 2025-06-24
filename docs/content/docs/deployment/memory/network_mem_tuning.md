@@ -97,7 +97,7 @@ The actual value of parallelism from which the problem occurs is various from jo
 ## Network buffer lifecycle
  
 Flink has several local buffer pools - one for the output stream and one for each input gate. 
-Each of those pools is limited to at most 
+The target size of each buffer pool is calculated by the following formula.
 
 `#channels * taskmanager.network.memory.buffers-per-channel + taskmanager.network.memory.floating-buffers-per-gate`
 
@@ -105,12 +105,17 @@ The size of the buffer can be configured by setting `taskmanager.memory.segment-
 
 ### Input network buffers
 
-Buffers in the input channel are divided into exclusive and floating buffers.  Exclusive buffers can be used by only one particular channel.  A channel can request additional floating buffers from a buffer pool shared across all channels belonging to the given input gate. The remaining floating buffers are optional and are acquired only if there are enough resources available.
+The target buffer pool size is not always reached.
+There's a threshold controlling whether Flink should fail upon not obtaining buffers.
+The part of the target number of buffers that below this threshold is considered required.
+The remaining, if any, is optional.
+Not obtaining required buffers will lead to task failures.
+A task will not fail if it cannot obtain optional buffers, but may suffer a performance reduction.
 
-In the initialization phase:
-- Flink will try to acquire the configured amount of exclusive buffers for each channel
-- all exclusive buffers must be fulfilled or the job will fail with an exception
-- a single floating buffer has to be allocated for Flink to be able to make progress
+The default value for this threshold is `Integer.MAX_VALUE` for streaming workloads, and `1000` for batch workloads.
+We do not recommend users to change this threshold, unless the user has good reasons and knows what he/she is doing well.
+The relevant configuration option is `taskmanager.network.memory.read-buffer.required-per-gate.max`.
+In general, a smaller threshold leads to less chance of the "insufficient number of network buffers" exception, while the workloads may suffer performance reduction silently, and vice versa.
 
 ### Output network buffers
 
@@ -119,6 +124,27 @@ Unlike the input buffer pool, the output buffer pool has only one type of buffer
 In order to avoid excessive data skew, the number of buffers for each subpartition is limited by the `taskmanager.network.memory.max-buffers-per-channel` setting.
 
 Unlike the input buffer pool, the configured amount of exclusive buffers and floating buffers is only treated as recommended values. If there are not enough buffers available, Flink can make progress with only a single exclusive buffer per output subpartition and zero floating buffers.
+
+#### Overdraft buffers
+
+For each output subtask can also request up to `taskmanager.network.memory.max-overdraft-buffers-per-gate`
+(by default 5) extra overdraft buffers. Those buffers are only used, if the subtask is backpressured
+by downstream subtasks and the subtask requires more than a single network buffer to finish what its
+currently doing. This can happen in situations like:
+- Serializing very large records, that do not fit into a single network buffer.
+- Flat Map like operator, that produces many output records per single input record.
+- Operators that output many records either periodically or on a reaction to some events (for
+example `WindowOperator`'s triggers).
+
+Without overdraft buffers in such situations Flink subtask thread would block on the backpressure,
+preventing for example unaligned checkpoints from completing. To mitigate this, the overdraft
+buffers concept has been added. Those overdraft buffers are strictly optional and Flink can
+gradually make progress using only regular buffers, which means `0` is an acceptable configuration
+for the `taskmanager.network.memory.max-overdraft-buffers-per-gate`.
+
+{{< hint warning >}}
+This feature only takes effect for `Pipelined Shuffle`.
+{{< /hint >}}
 
 ## The number of in-flight buffers 
 

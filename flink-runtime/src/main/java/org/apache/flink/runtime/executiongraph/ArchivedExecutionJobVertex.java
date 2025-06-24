@@ -21,6 +21,7 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
 import java.io.Serializable;
 
@@ -39,6 +40,8 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
 
     private final int maxParallelism;
 
+    private final SlotSharingGroup slotSharingGroup;
+
     private final ResourceProfile resourceProfile;
 
     private final StringifiedAccumulatorResult[] archivedUserAccumulators;
@@ -55,6 +58,7 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
         this.name = jobVertex.getJobVertex().getName();
         this.parallelism = jobVertex.getParallelism();
         this.maxParallelism = jobVertex.getMaxParallelism();
+        this.slotSharingGroup = jobVertex.getSlotSharingGroup();
         this.resourceProfile = jobVertex.getResourceProfile();
     }
 
@@ -64,6 +68,7 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
             String name,
             int parallelism,
             int maxParallelism,
+            SlotSharingGroup slotSharingGroup,
             ResourceProfile resourceProfile,
             StringifiedAccumulatorResult[] archivedUserAccumulators) {
         this.taskVertices = taskVertices;
@@ -71,6 +76,7 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
         this.name = name;
         this.parallelism = parallelism;
         this.maxParallelism = maxParallelism;
+        this.slotSharingGroup = slotSharingGroup;
         this.resourceProfile = resourceProfile;
         this.archivedUserAccumulators = archivedUserAccumulators;
     }
@@ -92,6 +98,11 @@ public class ArchivedExecutionJobVertex implements AccessExecutionJobVertex, Ser
     @Override
     public int getMaxParallelism() {
         return maxParallelism;
+    }
+
+    @Override
+    public SlotSharingGroup getSlotSharingGroup() {
+        return slotSharingGroup;
     }
 
     @Override

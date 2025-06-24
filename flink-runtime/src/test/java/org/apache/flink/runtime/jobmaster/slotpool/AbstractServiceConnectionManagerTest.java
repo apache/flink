@@ -18,36 +18,33 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.util.TestLogger;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
-
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DefaultDeclareResourceRequirementServiceConnectionManager}. */
-public class AbstractServiceConnectionManagerTest extends TestLogger {
+class AbstractServiceConnectionManagerTest {
 
     @Test
-    public void testIsConnected() {
+    void testIsConnected() {
         AbstractServiceConnectionManager<Object> connectionManager =
                 new TestServiceConnectionManager();
 
-        assertThat(connectionManager.isConnected(), is(false));
+        assertThat(connectionManager.isConnected()).isFalse();
 
         connectionManager.connect(new Object());
-        assertThat(connectionManager.isConnected(), is(true));
+        assertThat(connectionManager.isConnected()).isTrue();
 
         connectionManager.disconnect();
-        assertThat(connectionManager.isConnected(), is(false));
+        assertThat(connectionManager.isConnected()).isFalse();
 
         connectionManager.close();
-        assertThat(connectionManager.isConnected(), is(false));
+        assertThat(connectionManager.isConnected()).isFalse();
     }
 
     @Test
-    public void testCheckNotClosed() {
+    void testCheckNotClosed() {
         AbstractServiceConnectionManager<Object> connectionManager =
                 new TestServiceConnectionManager();
 
@@ -60,11 +57,9 @@ public class AbstractServiceConnectionManagerTest extends TestLogger {
         connectionManager.checkNotClosed();
 
         connectionManager.close();
-        try {
-            connectionManager.checkNotClosed();
-            fail("checkNotClosed() did not fail for a closed connection manager");
-        } catch (IllegalStateException expected) {
-        }
+        assertThatThrownBy(connectionManager::checkNotClosed)
+                .as("checkNotClosed() did not fail for a closed connection manager")
+                .isInstanceOf(IllegalStateException.class);
     }
 
     private static class TestServiceConnectionManager

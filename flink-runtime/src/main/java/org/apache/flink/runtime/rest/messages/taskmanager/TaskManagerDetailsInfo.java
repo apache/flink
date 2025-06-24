@@ -33,6 +33,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgn
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.Objects;
 
@@ -64,6 +66,7 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
             @JsonProperty(FIELD_NAME_AVAILABLE_RESOURCE) ResourceProfileInfo freeResource,
             @JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription,
             @JsonProperty(FIELD_NAME_MEMORY) TaskExecutorMemoryConfiguration memoryConfiguration,
+            @JsonProperty(FIELD_NAME_BLOCKED) @Nullable Boolean blocked,
             @JsonProperty(FIELD_NAME_ALLOCATED_SLOTS) Collection<SlotInfo> allocatedSlots,
             @JsonProperty(FIELD_NAME_METRICS) TaskManagerMetricsInfo taskManagerMetrics) {
         super(
@@ -77,7 +80,8 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
                 totalResource,
                 freeResource,
                 hardwareDescription,
-                memoryConfiguration);
+                memoryConfiguration,
+                blocked);
 
         this.taskManagerMetrics = Preconditions.checkNotNull(taskManagerMetrics);
         this.allocatedSlots = Preconditions.checkNotNull(allocatedSlots);
@@ -98,6 +102,7 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
                 taskManagerInfoWithSlots.getTaskManagerInfo().getFreeResource(),
                 taskManagerInfoWithSlots.getTaskManagerInfo().getHardwareDescription(),
                 taskManagerInfoWithSlots.getTaskManagerInfo().getMemoryConfiguration(),
+                taskManagerInfoWithSlots.getTaskManagerInfo().getBlocked(),
                 taskManagerInfoWithSlots.getAllocatedSlots(),
                 taskManagerMetrics);
     }

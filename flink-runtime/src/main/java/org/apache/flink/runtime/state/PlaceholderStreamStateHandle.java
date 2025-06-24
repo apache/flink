@@ -33,10 +33,15 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
 
     private static final long serialVersionUID = 1L;
 
+    private final PhysicalStateHandleID physicalID;
     private final long stateSize;
+    private final boolean fileMerged;
 
-    public PlaceholderStreamStateHandle(long stateSize) {
+    public PlaceholderStreamStateHandle(
+            PhysicalStateHandleID physicalID, long stateSize, boolean fileMerged) {
+        this.physicalID = physicalID;
         this.stateSize = stateSize;
+        this.fileMerged = fileMerged;
     }
 
     @Override
@@ -53,8 +58,7 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
 
     @Override
     public PhysicalStateHandleID getStreamStateHandleID() {
-        throw new UnsupportedOperationException(
-                "This is only a placeholder to be replaced by a real StreamStateHandle in the checkpoint coordinator.");
+        return physicalID;
     }
 
     @Override
@@ -65,5 +69,9 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
     @Override
     public long getStateSize() {
         return stateSize;
+    }
+
+    public boolean isFileMerged() {
+        return fileMerged;
     }
 }

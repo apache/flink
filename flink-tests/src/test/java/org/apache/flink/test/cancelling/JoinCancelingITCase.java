@@ -19,21 +19,18 @@
 package org.apache.flink.test.cancelling;
 
 import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichJoinFunction;
-import org.apache.flink.api.common.io.GenericInputFormat;
-import org.apache.flink.api.common.operators.base.JoinOperatorBase;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.util.InfiniteIntegerTupleInputFormat;
 import org.apache.flink.test.util.UniformIntTupleGeneratorInputFormat;
 
 import org.junit.Ignore;
 import org.junit.Test;
-
-import java.io.IOException;
 
 /** Test job cancellation from within a JoinFunction. */
 @Ignore("Takes too long.")
@@ -61,35 +58,36 @@ public class JoinCancelingITCase extends CancelingTestBase {
             boolean slow,
             int parallelism)
             throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<Tuple2<Integer, Integer>> input1 =
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Tuple2<Integer, Integer>> input1 =
                 env.createInput(new InfiniteIntegerTupleInputFormat(slow));
-        DataSet<Tuple2<Integer, Integer>> input2 =
+        DataStreamSource<Tuple2<Integer, Integer>> input2 =
                 env.createInput(new InfiniteIntegerTupleInputFormat(slow));
 
-        input1.join(input2, JoinOperatorBase.JoinHint.REPARTITION_SORT_MERGE)
-                .where(0)
-                .equalTo(0)
-                .with(joiner)
-                .output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
+        input1.join(input2)
+                .where(value -> value.f0)
+                .equalTo(value -> value.f0)
+                .window(GlobalWindows.createWithEndOfStreamTrigger())
+                .apply(joiner)
+                .sinkTo(new DiscardingSink<>());
 
         env.setParallelism(parallelism);
 
-        runAndCancelJob(env.createProgramPlan(), 5 * 1000, 10 * 1000);
+        runAndCancelJob(env.getStreamGraph().getJobGraph(), 5 * 1000, 10 * 1000);
     }
 
     @Test
-    public void testCancelSortMatchWhileReadingSlowInputs() throws Exception {
+    public void testCancelWhileReadingSlowInputs() throws Exception {
         executeTask(new SimpleMatcher<Integer>(), true);
     }
 
     @Test
-    public void testCancelSortMatchWhileReadingFastInputs() throws Exception {
+    public void testCancelWhileReadingFastInputs() throws Exception {
         executeTask(new SimpleMatcher<Integer>(), false);
     }
 
     @Test
-    public void testCancelSortMatchPriorToFirstRecordReading() throws Exception {
+    public void testCancelPriorToFirstRecordReading() throws Exception {
         executeTask(new StuckInOpenMatcher<Integer>(), false);
     }
 
@@ -104,62 +102,33 @@ public class JoinCancelingITCase extends CancelingTestBase {
             int msecsTillCanceling,
             int maxTimeTillCanceled)
             throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<Tuple2<Integer, Integer>> input1 =
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Tuple2<Integer, Integer>> input1 =
                 env.createInput(new UniformIntTupleGeneratorInputFormat(keys, vals));
-        DataSet<Tuple2<Integer, Integer>> input2 =
+        DataStreamSource<Tuple2<Integer, Integer>> input2 =
                 env.createInput(new UniformIntTupleGeneratorInputFormat(keys, vals));
 
-        input1.join(input2, JoinOperatorBase.JoinHint.REPARTITION_SORT_MERGE)
-                .where(0)
-                .equalTo(0)
-                .with(joiner)
-                .output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
+        input1.join(input2)
+                .where(value -> value.f0)
+                .equalTo(value -> value.f0)
+                .window(GlobalWindows.createWithEndOfStreamTrigger())
+                .apply(joiner)
+                .sinkTo(new DiscardingSink<>());
 
-        env.setParallelism(PARALLELISM);
-
-        runAndCancelJob(env.createProgramPlan(), msecsTillCanceling, maxTimeTillCanceled);
-    }
-
-    @Test
-    public void testCancelSortMatchWhileDoingHeavySorting() throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        HeavyCompareGeneratorInputFormat input = new HeavyCompareGeneratorInputFormat(100);
-        DataSet<Tuple2<HeavyCompare, Integer>> input1 = env.createInput(input);
-        DataSet<Tuple2<HeavyCompare, Integer>> input2 = env.createInput(input);
-
-        input1.join(input2, JoinOperatorBase.JoinHint.REPARTITION_SORT_MERGE)
-                .where(0)
-                .equalTo(0)
-                .with(
-                        new JoinFunction<
-                                Tuple2<HeavyCompare, Integer>,
-                                Tuple2<HeavyCompare, Integer>,
-                                Tuple2<HeavyCompare, Integer>>() {
-                            @Override
-                            public Tuple2<HeavyCompare, Integer> join(
-                                    Tuple2<HeavyCompare, Integer> first,
-                                    Tuple2<HeavyCompare, Integer> second)
-                                    throws Exception {
-                                throw new Exception(
-                                        "Job should be canceled in sort-merge phase, never run here ...");
-                            }
-                        })
-                .output(new DiscardingOutputFormat<Tuple2<HeavyCompare, Integer>>());
-
-        runAndCancelJob(env.createProgramPlan(), 30 * 1000, 60 * 1000);
+        runAndCancelJob(
+                env.getStreamGraph().getJobGraph(), msecsTillCanceling, maxTimeTillCanceled);
     }
 
     // --------------- Test Sort Matches that are canceled while in the Matching Phase
     // -----------------
 
     @Test
-    public void testCancelSortMatchWhileJoining() throws Exception {
+    public void testCancelWhileJoining() throws Exception {
         executeTaskWithGenerator(new DelayingMatcher<Integer>(), 500, 3, 10 * 1000, 20 * 1000);
     }
 
     @Test
-    public void testCancelSortMatchWithLongCancellingResponse() throws Exception {
+    public void testCancelWithLongCancellingResponse() throws Exception {
         executeTaskWithGenerator(
                 new LongCancelTimeMatcher<Integer>(), 500, 3, 10 * 1000, 10 * 1000);
     }
@@ -168,7 +137,7 @@ public class JoinCancelingITCase extends CancelingTestBase {
     // ---------------------------------
 
     @Test
-    public void testCancelSortMatchWithHighparallelism() throws Exception {
+    public void testCancelWithHighparallelism() throws Exception {
         executeTask(new SimpleMatcher<Integer>(), false, 64);
     }
 
@@ -222,7 +191,7 @@ public class JoinCancelingITCase extends CancelingTestBase {
         private static final long serialVersionUID = 1L;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             synchronized (this) {
                 wait();
             }
@@ -232,36 +201,5 @@ public class JoinCancelingITCase extends CancelingTestBase {
         public Tuple2<IN, IN> join(Tuple2<IN, IN> first, Tuple2<IN, IN> second) throws Exception {
             return new Tuple2<>(first.f0, second.f0);
         }
-    }
-}
-
-class HeavyCompare implements Comparable<HeavyCompare>, java.io.Serializable {
-    @Override
-    public int compareTo(org.apache.flink.test.cancelling.HeavyCompare o) {
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException iex) {
-        }
-        return 0;
-    }
-}
-
-class HeavyCompareGeneratorInputFormat extends GenericInputFormat<Tuple2<HeavyCompare, Integer>> {
-    private int valueTotal;
-
-    public HeavyCompareGeneratorInputFormat(int numVals) {
-        this.valueTotal = numVals;
-    }
-
-    @Override
-    public boolean reachedEnd() throws IOException {
-        return valueTotal <= 0;
-    }
-
-    @Override
-    public Tuple2<HeavyCompare, Integer> nextRecord(Tuple2<HeavyCompare, Integer> reuse)
-            throws IOException {
-        valueTotal -= 1;
-        return new Tuple2<>(new HeavyCompare(), 20110701);
     }
 }

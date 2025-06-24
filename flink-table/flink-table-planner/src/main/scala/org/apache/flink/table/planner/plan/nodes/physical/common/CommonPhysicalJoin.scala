@@ -18,6 +18,8 @@
 package org.apache.flink.table.planner.plan.nodes.physical.common
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.JList
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.utils.JoinUtil
@@ -28,6 +30,7 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.{CorrelationId, Join, JoinRelType}
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.RexNode
 
 import java.util.Collections
@@ -41,11 +44,12 @@ abstract class CommonPhysicalJoin(
     leftRel: RelNode,
     rightRel: RelNode,
     condition: RexNode,
-    joinType: JoinRelType)
+    joinType: JoinRelType,
+    hints: JList[RelHint] = Collections.emptyList[RelHint]())
   extends Join(
     cluster,
     traitSet,
-    Collections.emptyList(),
+    hints,
     leftRel,
     rightRel,
     condition,
@@ -80,4 +84,14 @@ abstract class CommonPhysicalJoin(
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 
+  def getUpsertKeys(input: RelNode, keys: Array[Int]): List[Array[Int]] = {
+    val upsertKeys = FlinkRelMetadataQuery
+      .reuseOrCreate(cluster.getMetadataQuery)
+      .getUpsertKeysInKeyGroupRange(input, keys)
+    if (upsertKeys == null || upsertKeys.isEmpty) {
+      List.empty
+    } else {
+      upsertKeys.map(_.asList.map(_.intValue).toArray).toList
+    }
+  }
 }

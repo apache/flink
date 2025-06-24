@@ -85,8 +85,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
     @Parameterized.Parameters(name = "StateBackend: {0}")
     public static Collection<String> parameters() {
         return Arrays.asList(
-                StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
-                StateBackendLoader.FS_STATE_BACKEND_NAME,
+                StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
                 StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME);
     }
 
@@ -97,8 +96,8 @@ public class PojoSerializerUpgradeTest extends TestLogger {
     public PojoSerializerUpgradeTest(String backendType)
             throws IOException, DynamicCodeLoadingException {
         Configuration config = new Configuration();
-        config.setString(StateBackendOptions.STATE_BACKEND, backendType);
-        config.setString(
+        config.set(StateBackendOptions.STATE_BACKEND, backendType);
+        config.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
                 temporaryFolder.newFolder().toURI().toString());
         stateBackend =

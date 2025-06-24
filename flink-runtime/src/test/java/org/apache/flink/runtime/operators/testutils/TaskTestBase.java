@@ -37,13 +37,15 @@ import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.util.List;
 
-public abstract class TaskTestBase extends TestLogger {
+public abstract class TaskTestBase {
+
+    @TempDir protected java.nio.file.Path tempFolder;
 
     protected long memorySize = 0;
 
@@ -51,7 +53,7 @@ public abstract class TaskTestBase extends TestLogger {
 
     protected MockEnvironment mockEnv;
 
-    public void initEnvironment(long memorySize, int bufferSize) {
+    protected void initEnvironment(long memorySize, int bufferSize) {
         this.memorySize = memorySize;
         this.inputSplitProvider = new MockInputSplitProvider();
         this.mockEnv =
@@ -63,12 +65,12 @@ public abstract class TaskTestBase extends TestLogger {
                         .build();
     }
 
-    public IteratorWrappingTestSingleInputGate<Record> addInput(
+    protected IteratorWrappingTestSingleInputGate<Record> addInput(
             MutableObjectIterator<Record> input, int groupId) {
         return addInput(input, groupId, true);
     }
 
-    public IteratorWrappingTestSingleInputGate<Record> addInput(
+    protected IteratorWrappingTestSingleInputGate<Record> addInput(
             MutableObjectIterator<Record> input, int groupId, boolean read) {
         final IteratorWrappingTestSingleInputGate<Record> reader = this.mockEnv.addInput(input);
         TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
@@ -82,22 +84,22 @@ public abstract class TaskTestBase extends TestLogger {
         return reader;
     }
 
-    public void addOutput(List<Record> output) {
+    protected void addOutput(List<Record> output) {
         this.mockEnv.addOutput(output);
         TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
         conf.addOutputShipStrategy(ShipStrategyType.FORWARD);
         conf.setOutputSerializer(RecordSerializerFactory.get());
     }
 
-    public TaskConfig getTaskConfig() {
+    protected TaskConfig getTaskConfig() {
         return new TaskConfig(this.mockEnv.getTaskConfiguration());
     }
 
-    public Configuration getConfiguration() {
+    protected Configuration getConfiguration() {
         return this.mockEnv.getTaskConfiguration();
     }
 
-    public void registerTask(
+    protected void registerTask(
             @SuppressWarnings("rawtypes") Class<? extends Driver> driver,
             Class<? extends RichFunction> stubClass) {
 
@@ -106,7 +108,7 @@ public abstract class TaskTestBase extends TestLogger {
         config.setStubWrapper(new UserCodeClassWrapper<>(stubClass));
     }
 
-    public void registerFileOutputTask(
+    protected void registerFileOutputTask(
             Class<? extends FileOutputFormat<Record>> stubClass,
             String outPath,
             Configuration formatParams) {
@@ -117,7 +119,7 @@ public abstract class TaskTestBase extends TestLogger {
                 formatParams);
     }
 
-    public void registerFileOutputTask(
+    protected void registerFileOutputTask(
             FileOutputFormat<Record> outputFormat, String outPath, Configuration formatParams) {
 
         outputFormat.setOutputFilePath(new Path(outPath));
@@ -130,7 +132,7 @@ public abstract class TaskTestBase extends TestLogger {
                 .write(new TaskConfig(this.mockEnv.getTaskConfiguration()));
     }
 
-    public void registerFileInputTask(
+    protected void registerFileInputTask(
             AbstractInvokable inTask,
             Class<? extends DelimitedInputFormat<Record>> stubClass,
             String inPath,
@@ -154,12 +156,12 @@ public abstract class TaskTestBase extends TestLogger {
         this.inputSplitProvider.addInputSplits(inPath, 5);
     }
 
-    public MemoryManager getMemoryManager() {
+    protected MemoryManager getMemoryManager() {
         return this.mockEnv.getMemoryManager();
     }
 
-    @After
-    public void shutdown() throws Exception {
+    @AfterEach
+    void shutdown() throws Exception {
         mockEnv.close();
     }
 }

@@ -24,16 +24,19 @@ import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.CloseableIterator;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -45,22 +48,30 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /** ITCase for {@link AvroParquetRecordFormat}. */
-public class AvroParquetFileReadITCase extends AbstractTestBase {
+class AvroParquetFileReadITCase {
 
     private static final int PARALLELISM = 4;
     private static final String USER_PARQUET_FILE_1 = "user1.parquet";
     private static final String USER_PARQUET_FILE_2 = "user2.parquet";
     private static final String USER_PARQUET_FILE_3 = "user3.parquet";
 
+    @TempDir static java.nio.file.Path temporaryFolder;
+
     private static Schema schema;
     private static final List<GenericRecord> userRecords = new ArrayList<>(3);
 
-    @BeforeClass
-    public static void setup() throws IOException {
+    @RegisterExtension
+    public static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(PARALLELISM)
+                            .build());
+
+    @BeforeAll
+    static void setup() throws IOException {
         // Generic records
         schema =
                 new Schema.Parser()
@@ -81,14 +92,14 @@ public class AvroParquetFileReadITCase extends AbstractTestBase {
 
         createParquetFile(
                 AvroParquetWriters.forGenericRecord(schema),
-                Path.fromLocalFile(TEMPORARY_FOLDER.newFile(USER_PARQUET_FILE_1)),
+                Path.fromLocalFile(temporaryFolder.resolve(USER_PARQUET_FILE_1).toFile()),
                 userRecords.toArray(new GenericRecord[0]));
 
         GenericRecord user = createUser("Max", 4, "blue");
         userRecords.add(user);
         createParquetFile(
                 AvroParquetWriters.forGenericRecord(schema),
-                Path.fromLocalFile(TEMPORARY_FOLDER.newFile(USER_PARQUET_FILE_2)),
+                Path.fromLocalFile(temporaryFolder.resolve(USER_PARQUET_FILE_2).toFile()),
                 user);
 
         user = createUser("Alex", 5, "White");
@@ -98,17 +109,17 @@ public class AvroParquetFileReadITCase extends AbstractTestBase {
         userRecords.add(user1);
         createParquetFile(
                 AvroParquetWriters.forGenericRecord(schema),
-                Path.fromLocalFile(TEMPORARY_FOLDER.newFile(USER_PARQUET_FILE_3)),
+                Path.fromLocalFile(temporaryFolder.resolve(USER_PARQUET_FILE_3).toFile()),
                 user,
                 user1);
     }
 
     @Test
-    public void testReadAvroRecord() throws Exception {
+    void testReadAvroRecord() throws Exception {
         final FileSource<GenericRecord> source =
                 FileSource.forRecordStreamFormat(
                                 AvroParquetReaders.forGenericRecord(schema),
-                                Path.fromLocalFile(TEMPORARY_FOLDER.getRoot()))
+                                Path.fromLocalFile(temporaryFolder.toFile()))
                         .monitorContinuously(Duration.ofMillis(5))
                         .build();
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -121,21 +132,21 @@ public class AvroParquetFileReadITCase extends AbstractTestBase {
         try (CloseableIterator<GenericRecord> iterator =
                 stream.executeAndCollect("Reading Avro GenericRecords")) {
             List<GenericRecord> list = collectRecords(iterator, 6);
-            assertEquals(list.size(), 6);
+            assertThat(list).hasSize(6);
 
             for (int i = 0; i < 6; i++) {
-                assertTrue(list.contains(userRecords.get(i)));
+                assertThat(list).contains(userRecords.get(i));
             }
         }
     }
 
     @Test
-    public void testReadAvroReflectRecord() throws Exception {
+    void testReadAvroReflectRecord() throws Exception {
         final FileSource<AvroParquetRecordFormatTest.User> source =
                 FileSource.forRecordStreamFormat(
                                 AvroParquetReaders.forReflectRecord(
                                         AvroParquetRecordFormatTest.User.class),
-                                Path.fromLocalFile(TEMPORARY_FOLDER.getRoot()))
+                                Path.fromLocalFile(temporaryFolder.toFile()))
                         .monitorContinuously(Duration.ofMillis(5))
                         .build();
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -151,7 +162,7 @@ public class AvroParquetFileReadITCase extends AbstractTestBase {
             Collections.sort(
                     list,
                     Comparator.comparing(AvroParquetRecordFormatTest.User::getFavoriteNumber));
-            assertEquals(list.size(), 6);
+            assertThat(list).hasSize(6);
 
             for (int i = 0; i < 6; i++) {
                 assertUserEquals(list.get(i), userRecords.get(i));

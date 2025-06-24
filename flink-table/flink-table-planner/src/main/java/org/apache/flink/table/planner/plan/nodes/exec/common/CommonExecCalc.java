@@ -58,10 +58,10 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
     public static final String FIELD_NAME_CONDITION = "condition";
 
     @JsonProperty(FIELD_NAME_PROJECTION)
-    private final List<RexNode> projection;
+    protected final List<RexNode> projection;
 
     @JsonProperty(FIELD_NAME_CONDITION)
-    private final @Nullable RexNode condition;
+    protected final @Nullable RexNode condition;
 
     private final Class<?> operatorBaseClass;
     private final boolean retainHeader;
@@ -93,7 +93,8 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final CodeGeneratorContext ctx =
-                new CodeGeneratorContext(config).setOperatorBaseClass(operatorBaseClass);
+                new CodeGeneratorContext(config, planner.getFlinkContext().getClassLoader())
+                        .setOperatorBaseClass(operatorBaseClass);
 
         final CodeGenOperatorFactory<RowData> substituteStreamOperator =
                 CalcCodeGenerator.generateCalcOperator(
@@ -109,6 +110,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
                 createTransformationMeta(CALC_TRANSFORMATION, config),
                 substituteStreamOperator,
                 InternalTypeInfo.of(getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

@@ -19,7 +19,7 @@ package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.LogicalScopeProvider;
@@ -29,6 +29,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import org.slf4j.Logger;
@@ -167,12 +168,53 @@ public class InMemoryReporter implements MetricReporter {
         }
     }
 
-    private String getSubtaskId(OperatorMetricGroup g) {
+    public List<TaskMetricGroup> findTaskMetricGroups(JobID jobId, String operatorPattern) {
+        Pattern pattern = Pattern.compile(operatorPattern);
+        synchronized (this) {
+            return metrics.keySet().stream()
+                    .filter(
+                            g ->
+                                    g instanceof TaskMetricGroup
+                                            && pattern.matcher(getTaskName(g)).find()
+                                            && getJobId(g).equals(jobId.toString()))
+                    .map(TaskMetricGroup.class::cast)
+                    .sorted(Comparator.comparing(this::getSubtaskId))
+                    .collect(Collectors.toList());
+        }
+    }
+
+    public List<Tuple3<MetricGroup, String, Metric>> findJobMetricGroups(
+            JobID jobId, String metricPattern) {
+        Pattern pattern = Pattern.compile(metricPattern);
+        synchronized (this) {
+            return metrics.entrySet().stream()
+                    .filter(group -> Objects.equals(getJobId(group.getKey()), jobId.toString()))
+                    .flatMap(
+                            group ->
+                                    group.getValue().entrySet().stream()
+                                            .filter(
+                                                    metric ->
+                                                            pattern.matcher(metric.getKey()).find())
+                                            .map(
+                                                    metric ->
+                                                            Tuple3.of(
+                                                                    group.getKey(),
+                                                                    metric.getKey(),
+                                                                    metric.getValue())))
+                    .collect(Collectors.toList());
+        }
+    }
+
+    private String getSubtaskId(MetricGroup g) {
         return g.getAllVariables().get(ScopeFormat.SCOPE_TASK_SUBTASK_INDEX);
     }
 
     private String getOperatorName(MetricGroup g) {
         return g.getAllVariables().get(ScopeFormat.SCOPE_OPERATOR_NAME);
+    }
+
+    private String getTaskName(MetricGroup g) {
+        return g.getAllVariables().get(ScopeFormat.SCOPE_TASK_NAME);
     }
 
     private String getJobId(MetricGroup g) {
@@ -243,14 +285,10 @@ public class InMemoryReporter implements MetricReporter {
     }
 
     public Configuration addToConfiguration(Configuration configuration) {
-        configuration.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "mini_cluster_resource_reporter."
-                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
-                InMemoryReporter.Factory.class.getName());
-        configuration.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX + "mini_cluster_resource_reporter." + ID,
-                id.toString());
+        MetricOptions.forReporter(configuration, "mini_cluster_resource_reporter")
+                .set(MetricOptions.REPORTER_FACTORY_CLASS, InMemoryReporter.Factory.class.getName())
+                .setString("ID", id.toString());
+
         return configuration;
     }
 

@@ -25,4 +25,7 @@ public enum FileType {
 
     /** The stdout file type for taskmanager. */
     STDOUT,
+
+    /** The profiler file type for taskmanager. */
+    PROFILER,
 }

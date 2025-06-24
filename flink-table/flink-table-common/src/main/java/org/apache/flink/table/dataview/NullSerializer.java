@@ -94,6 +94,7 @@ public class NullSerializer extends TypeSerializerSingleton<Object> {
 
     /** Serializer configuration snapshot for compatibility and format evolution. */
     @SuppressWarnings("WeakerAccess")
+    @Internal
     public static final class NullSerializerSnapshot extends SimpleTypeSerializerSnapshot<Object> {
         public NullSerializerSnapshot() {
             super(() -> NullSerializer.INSTANCE);

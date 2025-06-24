@@ -25,7 +25,7 @@ import org.apache.flink.types.ByteValue;
 import java.util.Random;
 
 /** A test for the {@link ByteValueSerializer}. */
-public class ByteValueSerializerTest extends SerializerTestBase<ByteValue> {
+class ByteValueSerializerTest extends SerializerTestBase<ByteValue> {
 
     @Override
     protected TypeSerializer<ByteValue> createSerializer() {
@@ -45,7 +45,7 @@ public class ByteValueSerializerTest extends SerializerTestBase<ByteValue> {
     @Override
     protected ByteValue[] getTestData() {
         Random rnd = new Random(874597969123412341L);
-        byte byteArray[] = new byte[1];
+        byte[] byteArray = new byte[1];
         rnd.nextBytes(byteArray);
 
         return new ByteValue[] {

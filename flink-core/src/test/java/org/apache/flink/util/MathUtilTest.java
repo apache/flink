@@ -18,155 +18,149 @@
 
 package org.apache.flink.util;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link MathUtils}. */
-public class MathUtilTest {
+class MathUtilTest {
 
     @Test
-    public void testLog2Computation() {
-        assertEquals(0, MathUtils.log2floor(1));
-        assertEquals(1, MathUtils.log2floor(2));
-        assertEquals(1, MathUtils.log2floor(3));
-        assertEquals(2, MathUtils.log2floor(4));
-        assertEquals(2, MathUtils.log2floor(5));
-        assertEquals(2, MathUtils.log2floor(7));
-        assertEquals(3, MathUtils.log2floor(8));
-        assertEquals(3, MathUtils.log2floor(9));
-        assertEquals(4, MathUtils.log2floor(16));
-        assertEquals(4, MathUtils.log2floor(17));
-        assertEquals(13, MathUtils.log2floor((0x1 << 13) + 1));
-        assertEquals(30, MathUtils.log2floor(Integer.MAX_VALUE));
-        assertEquals(31, MathUtils.log2floor(-1));
+    void testLog2Computation() {
+        assertThat(MathUtils.log2floor(1)).isZero();
+        assertThat(MathUtils.log2floor(2)).isOne();
+        assertThat(MathUtils.log2floor(3)).isOne();
+        assertThat(MathUtils.log2floor(4)).isEqualTo(2);
+        assertThat(MathUtils.log2floor(5)).isEqualTo(2);
+        assertThat(MathUtils.log2floor(7)).isEqualTo(2);
+        assertThat(MathUtils.log2floor(8)).isEqualTo(3);
+        assertThat(MathUtils.log2floor(9)).isEqualTo(3);
+        assertThat(MathUtils.log2floor(16)).isEqualTo(4);
+        assertThat(MathUtils.log2floor(17)).isEqualTo(4);
+        assertThat(MathUtils.log2floor((0x1 << 13) + 1)).isEqualTo(13);
+        assertThat(MathUtils.log2floor(Integer.MAX_VALUE)).isEqualTo(30);
+        assertThat(MathUtils.log2floor(-1)).isEqualTo(31);
 
-        try {
-            MathUtils.log2floor(0);
-            fail();
-        } catch (ArithmeticException ignored) {
-        }
+        assertThatThrownBy(() -> MathUtils.log2floor(0)).isInstanceOf(ArithmeticException.class);
     }
 
     @Test
-    public void testRoundDownToPowerOf2() {
-        assertEquals(0, MathUtils.roundDownToPowerOf2(0));
-        assertEquals(1, MathUtils.roundDownToPowerOf2(1));
-        assertEquals(2, MathUtils.roundDownToPowerOf2(2));
-        assertEquals(2, MathUtils.roundDownToPowerOf2(3));
-        assertEquals(4, MathUtils.roundDownToPowerOf2(4));
-        assertEquals(4, MathUtils.roundDownToPowerOf2(5));
-        assertEquals(4, MathUtils.roundDownToPowerOf2(6));
-        assertEquals(4, MathUtils.roundDownToPowerOf2(7));
-        assertEquals(8, MathUtils.roundDownToPowerOf2(8));
-        assertEquals(8, MathUtils.roundDownToPowerOf2(9));
-        assertEquals(8, MathUtils.roundDownToPowerOf2(15));
-        assertEquals(16, MathUtils.roundDownToPowerOf2(16));
-        assertEquals(16, MathUtils.roundDownToPowerOf2(17));
-        assertEquals(16, MathUtils.roundDownToPowerOf2(31));
-        assertEquals(32, MathUtils.roundDownToPowerOf2(32));
-        assertEquals(32, MathUtils.roundDownToPowerOf2(33));
-        assertEquals(32, MathUtils.roundDownToPowerOf2(42));
-        assertEquals(32, MathUtils.roundDownToPowerOf2(63));
-        assertEquals(64, MathUtils.roundDownToPowerOf2(64));
-        assertEquals(64, MathUtils.roundDownToPowerOf2(125));
-        assertEquals(16384, MathUtils.roundDownToPowerOf2(25654));
-        assertEquals(33554432, MathUtils.roundDownToPowerOf2(34366363));
-        assertEquals(33554432, MathUtils.roundDownToPowerOf2(63463463));
-        assertEquals(1073741824, MathUtils.roundDownToPowerOf2(1852987883));
-        assertEquals(1073741824, MathUtils.roundDownToPowerOf2(Integer.MAX_VALUE));
+    void testRoundDownToPowerOf2() {
+        assertThat(MathUtils.roundDownToPowerOf2(0)).isZero();
+        assertThat(MathUtils.roundDownToPowerOf2(1)).isOne();
+        assertThat(MathUtils.roundDownToPowerOf2(2)).isEqualTo(2);
+        assertThat(MathUtils.roundDownToPowerOf2(3)).isEqualTo(2);
+        assertThat(MathUtils.roundDownToPowerOf2(4)).isEqualTo(4);
+        assertThat(MathUtils.roundDownToPowerOf2(5)).isEqualTo(4);
+        assertThat(MathUtils.roundDownToPowerOf2(6)).isEqualTo(4);
+        assertThat(MathUtils.roundDownToPowerOf2(7)).isEqualTo(4);
+        assertThat(MathUtils.roundDownToPowerOf2(8)).isEqualTo(8);
+        assertThat(MathUtils.roundDownToPowerOf2(9)).isEqualTo(8);
+        assertThat(MathUtils.roundDownToPowerOf2(15)).isEqualTo(8);
+        assertThat(MathUtils.roundDownToPowerOf2(16)).isEqualTo(16);
+        assertThat(MathUtils.roundDownToPowerOf2(17)).isEqualTo(16);
+        assertThat(MathUtils.roundDownToPowerOf2(31)).isEqualTo(16);
+        assertThat(MathUtils.roundDownToPowerOf2(32)).isEqualTo(32);
+        assertThat(MathUtils.roundDownToPowerOf2(33)).isEqualTo(32);
+        assertThat(MathUtils.roundDownToPowerOf2(42)).isEqualTo(32);
+        assertThat(MathUtils.roundDownToPowerOf2(63)).isEqualTo(32);
+        assertThat(MathUtils.roundDownToPowerOf2(64)).isEqualTo(64);
+        assertThat(MathUtils.roundDownToPowerOf2(125)).isEqualTo(64);
+        assertThat(MathUtils.roundDownToPowerOf2(25654)).isEqualTo(16384);
+        assertThat(MathUtils.roundDownToPowerOf2(34366363)).isEqualTo(33554432);
+        assertThat(MathUtils.roundDownToPowerOf2(63463463)).isEqualTo(33554432);
+        assertThat(MathUtils.roundDownToPowerOf2(1852987883)).isEqualTo(1073741824);
+        assertThat(MathUtils.roundDownToPowerOf2(Integer.MAX_VALUE)).isEqualTo(1073741824);
     }
 
     @Test
-    public void testRoundUpToPowerOf2() {
-        assertEquals(0, MathUtils.roundUpToPowerOfTwo(0));
-        assertEquals(1, MathUtils.roundUpToPowerOfTwo(1));
-        assertEquals(2, MathUtils.roundUpToPowerOfTwo(2));
-        assertEquals(4, MathUtils.roundUpToPowerOfTwo(3));
-        assertEquals(4, MathUtils.roundUpToPowerOfTwo(4));
-        assertEquals(8, MathUtils.roundUpToPowerOfTwo(5));
-        assertEquals(8, MathUtils.roundUpToPowerOfTwo(6));
-        assertEquals(8, MathUtils.roundUpToPowerOfTwo(7));
-        assertEquals(8, MathUtils.roundUpToPowerOfTwo(8));
-        assertEquals(16, MathUtils.roundUpToPowerOfTwo(9));
-        assertEquals(16, MathUtils.roundUpToPowerOfTwo(15));
-        assertEquals(16, MathUtils.roundUpToPowerOfTwo(16));
-        assertEquals(32, MathUtils.roundUpToPowerOfTwo(17));
-        assertEquals(32, MathUtils.roundUpToPowerOfTwo(31));
-        assertEquals(32, MathUtils.roundUpToPowerOfTwo(32));
-        assertEquals(64, MathUtils.roundUpToPowerOfTwo(33));
-        assertEquals(64, MathUtils.roundUpToPowerOfTwo(42));
-        assertEquals(64, MathUtils.roundUpToPowerOfTwo(63));
-        assertEquals(64, MathUtils.roundUpToPowerOfTwo(64));
-        assertEquals(128, MathUtils.roundUpToPowerOfTwo(125));
-        assertEquals(32768, MathUtils.roundUpToPowerOfTwo(25654));
-        assertEquals(67108864, MathUtils.roundUpToPowerOfTwo(34366363));
-        assertEquals(67108864, MathUtils.roundUpToPowerOfTwo(67108863));
-        assertEquals(67108864, MathUtils.roundUpToPowerOfTwo(67108864));
-        assertEquals(0x40000000, MathUtils.roundUpToPowerOfTwo(0x3FFFFFFE));
-        assertEquals(0x40000000, MathUtils.roundUpToPowerOfTwo(0x3FFFFFFF));
-        assertEquals(0x40000000, MathUtils.roundUpToPowerOfTwo(0x40000000));
+    void testRoundUpToPowerOf2() {
+        assertThat(MathUtils.roundUpToPowerOfTwo(0)).isZero();
+        assertThat(MathUtils.roundUpToPowerOfTwo(1)).isOne();
+        assertThat(MathUtils.roundUpToPowerOfTwo(2)).isEqualTo(2);
+        assertThat(MathUtils.roundUpToPowerOfTwo(3)).isEqualTo(4);
+        assertThat(MathUtils.roundUpToPowerOfTwo(4)).isEqualTo(4);
+        assertThat(MathUtils.roundUpToPowerOfTwo(5)).isEqualTo(8);
+        assertThat(MathUtils.roundUpToPowerOfTwo(6)).isEqualTo(8);
+        assertThat(MathUtils.roundUpToPowerOfTwo(7)).isEqualTo(8);
+        assertThat(MathUtils.roundUpToPowerOfTwo(8)).isEqualTo(8);
+        assertThat(MathUtils.roundUpToPowerOfTwo(9)).isEqualTo(16);
+        assertThat(MathUtils.roundUpToPowerOfTwo(15)).isEqualTo(16);
+        assertThat(MathUtils.roundUpToPowerOfTwo(16)).isEqualTo(16);
+        assertThat(MathUtils.roundUpToPowerOfTwo(17)).isEqualTo(32);
+        assertThat(MathUtils.roundUpToPowerOfTwo(31)).isEqualTo(32);
+        assertThat(MathUtils.roundUpToPowerOfTwo(32)).isEqualTo(32);
+        assertThat(MathUtils.roundUpToPowerOfTwo(33)).isEqualTo(64);
+        assertThat(MathUtils.roundUpToPowerOfTwo(42)).isEqualTo(64);
+        assertThat(MathUtils.roundUpToPowerOfTwo(63)).isEqualTo(64);
+        assertThat(MathUtils.roundUpToPowerOfTwo(64)).isEqualTo(64);
+        assertThat(MathUtils.roundUpToPowerOfTwo(125)).isEqualTo(128);
+        assertThat(MathUtils.roundUpToPowerOfTwo(25654)).isEqualTo(32768);
+        assertThat(MathUtils.roundUpToPowerOfTwo(34366363)).isEqualTo(67108864);
+        assertThat(MathUtils.roundUpToPowerOfTwo(67108863)).isEqualTo(67108864);
+        assertThat(MathUtils.roundUpToPowerOfTwo(67108864)).isEqualTo(67108864);
+        assertThat(MathUtils.roundUpToPowerOfTwo(0x3FFFFFFE)).isEqualTo(0x40000000);
+        assertThat(MathUtils.roundUpToPowerOfTwo(0x3FFFFFFF)).isEqualTo(0x40000000);
+        assertThat(MathUtils.roundUpToPowerOfTwo(0x40000000)).isEqualTo(0x40000000);
     }
 
     @Test
-    public void testPowerOfTwo() {
-        assertTrue(MathUtils.isPowerOf2(1));
-        assertTrue(MathUtils.isPowerOf2(2));
-        assertTrue(MathUtils.isPowerOf2(4));
-        assertTrue(MathUtils.isPowerOf2(8));
-        assertTrue(MathUtils.isPowerOf2(32768));
-        assertTrue(MathUtils.isPowerOf2(65536));
-        assertTrue(MathUtils.isPowerOf2(1 << 30));
-        assertTrue(MathUtils.isPowerOf2(1L + Integer.MAX_VALUE));
-        assertTrue(MathUtils.isPowerOf2(1L << 41));
-        assertTrue(MathUtils.isPowerOf2(1L << 62));
+    void testPowerOfTwo() {
+        assertThat(MathUtils.isPowerOf2(1)).isTrue();
+        assertThat(MathUtils.isPowerOf2(2)).isTrue();
+        assertThat(MathUtils.isPowerOf2(4)).isTrue();
+        assertThat(MathUtils.isPowerOf2(8)).isTrue();
+        assertThat(MathUtils.isPowerOf2(32768)).isTrue();
+        assertThat(MathUtils.isPowerOf2(65536)).isTrue();
+        assertThat(MathUtils.isPowerOf2(1 << 30)).isTrue();
+        assertThat(MathUtils.isPowerOf2(1L + Integer.MAX_VALUE)).isTrue();
+        assertThat(MathUtils.isPowerOf2(1L << 41)).isTrue();
+        assertThat(MathUtils.isPowerOf2(1L << 62)).isTrue();
 
-        assertFalse(MathUtils.isPowerOf2(3));
-        assertFalse(MathUtils.isPowerOf2(5));
-        assertFalse(MathUtils.isPowerOf2(567923));
-        assertFalse(MathUtils.isPowerOf2(Integer.MAX_VALUE));
-        assertFalse(MathUtils.isPowerOf2(Long.MAX_VALUE));
+        assertThat(MathUtils.isPowerOf2(3)).isFalse();
+        assertThat(MathUtils.isPowerOf2(5)).isFalse();
+        assertThat(MathUtils.isPowerOf2(567923)).isFalse();
+        assertThat(MathUtils.isPowerOf2(Integer.MAX_VALUE)).isFalse();
+        assertThat(MathUtils.isPowerOf2(Long.MAX_VALUE)).isFalse();
     }
 
     @Test
-    public void testFlipSignBit() {
-        Assert.assertEquals(0L, MathUtils.flipSignBit(Long.MIN_VALUE));
-        Assert.assertEquals(Long.MIN_VALUE, MathUtils.flipSignBit(0L));
-        Assert.assertEquals(-1L, MathUtils.flipSignBit(Long.MAX_VALUE));
-        Assert.assertEquals(Long.MAX_VALUE, MathUtils.flipSignBit(-1L));
-        Assert.assertEquals(42L | Long.MIN_VALUE, MathUtils.flipSignBit(42L));
-        Assert.assertEquals(-42L & Long.MAX_VALUE, MathUtils.flipSignBit(-42L));
+    void testFlipSignBit() {
+        assertThat(MathUtils.flipSignBit(Long.MIN_VALUE)).isZero();
+        assertThat(MathUtils.flipSignBit(0L)).isEqualTo(Long.MIN_VALUE);
+        assertThat(MathUtils.flipSignBit(Long.MAX_VALUE)).isEqualTo(-1L);
+        assertThat(MathUtils.flipSignBit(-1L)).isEqualTo(Long.MAX_VALUE);
+        assertThat(MathUtils.flipSignBit(42L)).isEqualTo(42L | Long.MIN_VALUE);
+        assertThat(MathUtils.flipSignBit(-42L)).isEqualTo(-42L & Long.MAX_VALUE);
     }
 
     @Test
-    public void testDivideRoundUp() {
-        assertThat(MathUtils.divideRoundUp(0, 1), is(0));
-        assertThat(MathUtils.divideRoundUp(0, 2), is(0));
-        assertThat(MathUtils.divideRoundUp(1, 1), is(1));
-        assertThat(MathUtils.divideRoundUp(1, 2), is(1));
-        assertThat(MathUtils.divideRoundUp(2, 1), is(2));
-        assertThat(MathUtils.divideRoundUp(2, 2), is(1));
-        assertThat(MathUtils.divideRoundUp(2, 3), is(1));
+    void testDivideRoundUp() {
+        assertThat(MathUtils.divideRoundUp(0, 1)).isZero();
+        assertThat(MathUtils.divideRoundUp(0, 2)).isZero();
+        assertThat(MathUtils.divideRoundUp(1, 1)).isOne();
+        assertThat(MathUtils.divideRoundUp(1, 2)).isOne();
+        assertThat(MathUtils.divideRoundUp(2, 1)).isEqualTo(2);
+        assertThat(MathUtils.divideRoundUp(2, 2)).isOne();
+        assertThat(MathUtils.divideRoundUp(2, 3)).isOne();
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testDivideRoundUpNegativeDividend() {
-        MathUtils.divideRoundUp(-1, 1);
+    @Test
+    void testDivideRoundUpNegativeDividend() {
+        assertThatThrownBy(() -> MathUtils.divideRoundUp(-1, 1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testDivideRoundUpNegativeDivisor() {
-        MathUtils.divideRoundUp(1, -1);
+    @Test
+    void testDivideRoundUpNegativeDivisor() {
+        assertThatThrownBy(() -> MathUtils.divideRoundUp(1, -1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testDivideRoundUpZeroDivisor() {
-        MathUtils.divideRoundUp(1, 0);
+    @Test
+    void testDivideRoundUpZeroDivisor() {
+        assertThatThrownBy(() -> MathUtils.divideRoundUp(1, 0))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

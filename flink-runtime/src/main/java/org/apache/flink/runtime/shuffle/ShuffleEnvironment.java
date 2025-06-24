@@ -33,6 +33,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Interface for the implementation of shuffle service local environment.
@@ -161,6 +162,18 @@ public interface ShuffleEnvironment<P extends ResultPartitionWriter, G extends I
      *     released yet.
      */
     Collection<ResultPartitionID> getPartitionsOccupyingLocalResources();
+
+    /**
+     * Get metrics of the partition if it still occupies some resources locally and have not been
+     * released yet.
+     *
+     * @param partitionId the partition id
+     * @return An Optional of {@link ShuffleMetrics}, if found, of the given partition
+     */
+    default Optional<ShuffleMetrics> getMetricsIfPartitionOccupyingLocalResource(
+            ResultPartitionID partitionId) {
+        return Optional.empty();
+    }
 
     /**
      * Factory method for the {@link InputGate InputGates} to consume result partitions.

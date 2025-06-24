@@ -18,11 +18,13 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.hadoop.bulk.DefaultHadoopFileCommitterFactory;
 import org.apache.flink.formats.hadoop.bulk.HadoopFileCommitterFactory;
 import org.apache.flink.formats.hadoop.bulk.HadoopPathBasedBulkWriter;
 import org.apache.flink.formats.hadoop.bulk.HadoopPathBasedPartFileWriter;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.util.Preconditions;
@@ -32,6 +34,7 @@ import org.apache.hadoop.conf.Configuration;
 import java.io.IOException;
 
 /** Buckets builder to create buckets that use {@link HadoopPathBasedPartFileWriter}. */
+@Internal
 public class HadoopPathBasedBulkFormatBuilder<
                 IN, BucketID, T extends HadoopPathBasedBulkFormatBuilder<IN, BucketID, T>>
         extends StreamingFileSink.BucketsBuilder<IN, BucketID, T> {

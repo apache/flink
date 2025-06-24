@@ -17,9 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.annotation.Experimental
-import org.apache.flink.configuration.ConfigOption
-import org.apache.flink.configuration.ConfigOptions.key
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalExchange, StreamPhysicalGlobalGroupAggregate, StreamPhysicalIncrementalGroupAggregate, StreamPhysicalLocalGroupAggregate}
@@ -30,7 +28,6 @@ import org.apache.flink.util.Preconditions
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 
-import java.lang.{Boolean => JBoolean}
 import java.util.Collections
 
 /**
@@ -62,7 +59,7 @@ class IncrementalAggregateRule
 
     // whether incremental aggregate is enabled
     val incrementalAggEnabled =
-      tableConfig.get(IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED)
+      tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED)
 
     partialGlobalAgg.partialFinalType == PartialFinalType.PARTIAL &&
     finalLocalAgg.partialFinalType == PartialFinalType.FINAL &&
@@ -93,7 +90,9 @@ class IncrementalAggregateRule
       partialGlobalAgg.aggCallNeedRetractions,
       partialGlobalAgg.needRetraction,
       partialLocalAggInputRowType,
-      partialGlobalAgg.getRowType)
+      partialGlobalAgg.getRowType,
+      partialGlobalAgg.hints
+    )
     val incrAggOutputRowType = incrAgg.getRowType
 
     val newExchange = exchange.copy(exchange.getTraitSet, incrAgg, exchange.distribution)
@@ -142,7 +141,8 @@ class IncrementalAggregateRule
         finalGlobalAgg.localAggInputRowType,
         partialGlobalAgg.needRetraction,
         finalGlobalAgg.partialFinalType,
-        partialGlobalAgg.globalAggInfoList.indexOfCountStar)
+        partialGlobalAgg.globalAggInfoList.indexOfCountStar,
+        finalGlobalAgg.hints)
     }
 
     call.transformTo(globalAgg)
@@ -151,18 +151,4 @@ class IncrementalAggregateRule
 
 object IncrementalAggregateRule {
   val INSTANCE = new IncrementalAggregateRule
-
-  // It is a experimental config, will may be removed later.
-  @Experimental
-  val TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED: ConfigOption[JBoolean] =
-    key("table.optimizer.incremental-agg-enabled")
-      .booleanType()
-      .defaultValue(JBoolean.valueOf(true))
-      .withDescription(
-        "When both local aggregation and distinct aggregation splitting " +
-          "are enabled, a distinct aggregation will be optimized into four aggregations, " +
-          "i.e., local-agg1, global-agg1, local-agg2 and global-Agg2. We can combine global-agg1" +
-          " and local-agg2 into a single operator (we call it incremental agg because " +
-          "it receives incremental accumulators and output incremental results). " +
-          "In this way, we can reduce some state overhead and resources. Default is enabled.")
 }

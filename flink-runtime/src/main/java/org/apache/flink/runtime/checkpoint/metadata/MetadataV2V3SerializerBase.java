@@ -26,8 +26,11 @@ import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.checkpoint.filemerging.LogicalFile;
+import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
-import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle;
@@ -35,7 +38,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
-import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -46,11 +49,18 @@ import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryChangelogStateHandle;
+import org.apache.flink.runtime.state.filemerging.DirectoryStreamStateHandle;
+import org.apache.flink.runtime.state.filemerging.EmptyFileMergingOperatorStreamStateHandle;
+import org.apache.flink.runtime.state.filemerging.EmptySegmentFileStateHandle;
+import org.apache.flink.runtime.state.filemerging.FileMergingOperatorStreamStateHandle;
+import org.apache.flink.runtime.state.filemerging.SegmentFileStateHandle;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.BiFunctionWithException;
 
@@ -68,12 +78,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle.UNKNOWN_CHECKPOINTED_SIZE;
+import static org.apache.flink.runtime.state.changelog.StateChange.META_KEY_GROUP;
 
 /**
  * Base (De)serializer for checkpoint metadata format version 2 and 3.
@@ -121,6 +131,15 @@ public abstract class MetadataV2V3SerializerBase {
     private static final byte CHANGELOG_FILE_INCREMENT_HANDLE_V2 = 13;
     // CHANGELOG_HANDLE_V2 is introduced to add new field of checkpointId.
     private static final byte CHANGELOG_HANDLE_V2 = 14;
+
+    // SEGMENT_FILE_HANDLE is introduced to support file merging.
+    private static final byte SEGMENT_FILE_HANDLE = 15;
+
+    // EMPTY_SEGMENT_FILE_HANDLE is introduced as a placeholder for file merging.
+    private static final byte EMPTY_SEGMENT_FILE_HANDLE = 16;
+
+    // SEGMENT_PARTITIONABLE_OPERATOR_STATE_HANDLE is introduced for file merging of operator state.
+    private static final byte SEGMENT_PARTITIONABLE_OPERATOR_STATE_HANDLE = 17;
 
     // ------------------------------------------------------------------------
     //  (De)serialization entry points
@@ -293,8 +312,8 @@ public abstract class MetadataV2V3SerializerBase {
             state.setRawKeyedState(rawKeyedState);
         }
 
-        state.setInputChannelState(deserializeInputChannelStateHandle(dis, context));
-        state.setResultSubpartitionState(deserializeResultSubpartitionStateHandle(dis, context));
+        state.setInputChannelState(deserializeInputStateHandle(dis, context));
+        state.setResultSubpartitionState(deserializeOutputStateHandle(dis, context));
 
         return state.build();
     }
@@ -339,10 +358,10 @@ public abstract class MetadataV2V3SerializerBase {
             dos.writeInt(incrementalKeyedStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
             dos.writeLong(incrementalKeyedStateHandle.getCheckpointedSize());
 
-            serializeStreamStateHandle(incrementalKeyedStateHandle.getMetaStateHandle(), dos);
+            serializeStreamStateHandle(incrementalKeyedStateHandle.getMetaDataStateHandle(), dos);
 
-            serializeStreamStateHandleMap(incrementalKeyedStateHandle.getSharedState(), dos);
-            serializeStreamStateHandleMap(incrementalKeyedStateHandle.getPrivateState(), dos);
+            serializeHandleAndLocalPathList(incrementalKeyedStateHandle.getSharedState(), dos);
+            serializeHandleAndLocalPathList(incrementalKeyedStateHandle.getPrivateState(), dos);
 
             writeStateHandleId(incrementalKeyedStateHandle, dos);
         } else if (stateHandle instanceof ChangelogStateBackendHandle) {
@@ -494,7 +513,11 @@ public abstract class MetadataV2V3SerializerBase {
                 int bytesSize = dis.readInt();
                 byte[] bytes = new byte[bytesSize];
                 IOUtils.readFully(dis, bytes, 0, bytesSize);
-                changes.add(new StateChange(keyGroup, bytes));
+                StateChange stateChange =
+                        keyGroup == META_KEY_GROUP
+                                ? StateChange.ofMetadataChange(bytes)
+                                : StateChange.ofDataChange(keyGroup, bytes);
+                changes.add(stateChange);
             }
             StateHandleID stateHandleId = new StateHandleID(dis.readUTF());
             return InMemoryChangelogStateHandle.restore(
@@ -548,10 +571,8 @@ public abstract class MetadataV2V3SerializerBase {
                 KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
 
         StreamStateHandle metaDataStateHandle = deserializeStreamStateHandle(dis, context);
-        Map<StateHandleID, StreamStateHandle> sharedStates =
-                deserializeStreamStateHandleMap(dis, context);
-        Map<StateHandleID, StreamStateHandle> privateStates =
-                deserializeStreamStateHandleMap(dis, context);
+        List<HandleAndLocalPath> sharedStates = deserializeHandleAndLocalPathList(dis, context);
+        List<HandleAndLocalPath> privateStates = deserializeHandleAndLocalPathList(dis, context);
 
         UUID uuid;
 
@@ -578,7 +599,10 @@ public abstract class MetadataV2V3SerializerBase {
     void serializeOperatorStateHandle(OperatorStateHandle stateHandle, DataOutputStream dos)
             throws IOException {
         if (stateHandle != null) {
-            dos.writeByte(PARTITIONABLE_OPERATOR_STATE_HANDLE);
+            dos.writeByte(
+                    stateHandle instanceof FileMergingOperatorStreamStateHandle
+                            ? SEGMENT_PARTITIONABLE_OPERATOR_STATE_HANDLE
+                            : PARTITIONABLE_OPERATOR_STATE_HANDLE);
             Map<String, OperatorStateHandle.StateMetaInfo> partitionOffsetsMap =
                     stateHandle.getStateNameToPartitionOffsets();
             dos.writeInt(partitionOffsetsMap.size());
@@ -597,6 +621,19 @@ public abstract class MetadataV2V3SerializerBase {
                     dos.writeLong(offset);
                 }
             }
+            if (stateHandle instanceof FileMergingOperatorStreamStateHandle) {
+                dos.writeUTF(
+                        ((FileMergingOperatorStreamStateHandle) stateHandle)
+                                .getTaskOwnedDirHandle()
+                                .getDirectory()
+                                .toString());
+                dos.writeUTF(
+                        ((FileMergingOperatorStreamStateHandle) stateHandle)
+                                .getSharedDirHandle()
+                                .getDirectory()
+                                .toString());
+                dos.writeBoolean(stateHandle instanceof EmptyFileMergingOperatorStreamStateHandle);
+            }
             serializeStreamStateHandle(stateHandle.getDelegateStateHandle(), dos);
         } else {
             dos.writeByte(NULL_HANDLE);
@@ -609,9 +646,11 @@ public abstract class MetadataV2V3SerializerBase {
         final int type = dis.readByte();
         if (NULL_HANDLE == type) {
             return null;
-        } else if (PARTITIONABLE_OPERATOR_STATE_HANDLE == type) {
+        } else if (PARTITIONABLE_OPERATOR_STATE_HANDLE == type
+                || SEGMENT_PARTITIONABLE_OPERATOR_STATE_HANDLE == type) {
             int mapSize = dis.readInt();
-            Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap = new HashMap<>(mapSize);
+            Map<String, OperatorStateHandle.StateMetaInfo> offsetsMap =
+                    CollectionUtil.newHashMapWithExpectedSize(mapSize);
             for (int i = 0; i < mapSize; ++i) {
                 String key = dis.readUTF();
 
@@ -627,8 +666,27 @@ public abstract class MetadataV2V3SerializerBase {
                         new OperatorStateHandle.StateMetaInfo(offsets, mode);
                 offsetsMap.put(key, metaInfo);
             }
-            StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, context);
-            return new OperatorStreamStateHandle(offsetsMap, stateHandle);
+            if (SEGMENT_PARTITIONABLE_OPERATOR_STATE_HANDLE == type) {
+                String taskOwnedDirPathStr = dis.readUTF();
+                String sharedDirPathStr = dis.readUTF();
+                boolean isEmpty = dis.readBoolean();
+                StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, context);
+                Preconditions.checkArgument(stateHandle instanceof SegmentFileStateHandle);
+                return isEmpty
+                        ? new EmptyFileMergingOperatorStreamStateHandle(
+                                DirectoryStreamStateHandle.of(new Path(taskOwnedDirPathStr)),
+                                DirectoryStreamStateHandle.of(new Path(sharedDirPathStr)),
+                                offsetsMap,
+                                stateHandle)
+                        : new FileMergingOperatorStreamStateHandle(
+                                DirectoryStreamStateHandle.of(new Path(taskOwnedDirPathStr)),
+                                DirectoryStreamStateHandle.of(new Path(sharedDirPathStr)),
+                                offsetsMap,
+                                stateHandle);
+            } else {
+                StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, context);
+                return new OperatorStreamStateHandle(offsetsMap, stateHandle);
+            }
         } else {
             throw new IllegalStateException("Reading invalid OperatorStateHandle, type: " + type);
         }
@@ -638,24 +696,20 @@ public abstract class MetadataV2V3SerializerBase {
     //  channel state (unaligned checkpoints)
     // ------------------------------------------------------------------------
 
-    protected StateObjectCollection<ResultSubpartitionStateHandle>
-            deserializeResultSubpartitionStateHandle(
-                    DataInputStream dis, @Nullable DeserializationContext context)
-                    throws IOException {
-        return StateObjectCollection.empty();
-    }
-
-    protected StateObjectCollection<InputChannelStateHandle> deserializeInputChannelStateHandle(
+    protected StateObjectCollection<OutputStateHandle> deserializeOutputStateHandle(
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
         return StateObjectCollection.empty();
     }
 
-    protected void serializeResultSubpartitionStateHandle(
-            ResultSubpartitionStateHandle resultSubpartitionStateHandle, DataOutputStream dos)
+    protected StateObjectCollection<InputStateHandle> deserializeInputStateHandle(
+            DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
+        return StateObjectCollection.empty();
+    }
+
+    protected void serializeOutputStateHandle(OutputStateHandle handle, DataOutputStream dos)
             throws IOException {}
 
-    protected void serializeInputChannelStateHandle(
-            InputChannelStateHandle inputChannelStateHandle, DataOutputStream dos)
+    protected void serializeInputStateHandle(InputStateHandle handle, DataOutputStream dos)
             throws IOException {}
 
     // ------------------------------------------------------------------------
@@ -672,6 +726,19 @@ public abstract class MetadataV2V3SerializerBase {
             RelativeFileStateHandle relativeFileStateHandle = (RelativeFileStateHandle) stateHandle;
             dos.writeUTF(relativeFileStateHandle.getRelativePath());
             dos.writeLong(relativeFileStateHandle.getStateSize());
+        } else if (stateHandle instanceof SegmentFileStateHandle) {
+            if (stateHandle instanceof EmptySegmentFileStateHandle) {
+                dos.writeByte(EMPTY_SEGMENT_FILE_HANDLE);
+            } else {
+                dos.writeByte(SEGMENT_FILE_HANDLE);
+                SegmentFileStateHandle segmentFileStateHandle =
+                        (SegmentFileStateHandle) stateHandle;
+                dos.writeLong(segmentFileStateHandle.getStartPos());
+                dos.writeLong(segmentFileStateHandle.getStateSize());
+                dos.writeInt(segmentFileStateHandle.getScope().ordinal());
+                dos.writeUTF(segmentFileStateHandle.getFilePath().toString());
+                dos.writeUTF(segmentFileStateHandle.getLogicalFileId().getKeyString());
+            }
         } else if (stateHandle instanceof FileStateHandle) {
             dos.writeByte(FILE_STREAM_STATE_HANDLE);
             FileStateHandle fileStateHandle = (FileStateHandle) stateHandle;
@@ -740,6 +807,16 @@ public abstract class MetadataV2V3SerializerBase {
                     new KeyGroupRangeOffsets(keyGroupRange, offsets);
             StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, context);
             return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
+        } else if (SEGMENT_FILE_HANDLE == type) {
+            long startPos = dis.readLong();
+            long stateSize = dis.readLong();
+            CheckpointedStateScope scope = CheckpointedStateScope.values()[dis.readInt()];
+            Path physicalFilePath = new Path(dis.readUTF());
+            LogicalFile.LogicalFileId logicalFileId = new LogicalFile.LogicalFileId(dis.readUTF());
+            return new SegmentFileStateHandle(
+                    physicalFilePath, startPos, stateSize, scope, logicalFileId);
+        } else if (EMPTY_SEGMENT_FILE_HANDLE == type) {
+            return EmptySegmentFileStateHandle.INSTANCE;
         } else {
             throw new IOException("Unknown implementation of StreamStateHandle, code: " + type);
         }
@@ -804,26 +881,26 @@ public abstract class MetadataV2V3SerializerBase {
         return new StateObjectCollection<>(result);
     }
 
-    private static void serializeStreamStateHandleMap(
-            Map<StateHandleID, StreamStateHandle> map, DataOutputStream dos) throws IOException {
+    private static void serializeHandleAndLocalPathList(
+            List<HandleAndLocalPath> list, DataOutputStream dos) throws IOException {
 
-        dos.writeInt(map.size());
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry : map.entrySet()) {
-            dos.writeUTF(entry.getKey().toString());
-            serializeStreamStateHandle(entry.getValue(), dos);
+        dos.writeInt(list.size());
+        for (HandleAndLocalPath handleAndLocalPath : list) {
+            dos.writeUTF(handleAndLocalPath.getLocalPath());
+            serializeStreamStateHandle(handleAndLocalPath.getHandle(), dos);
         }
     }
 
-    private static Map<StateHandleID, StreamStateHandle> deserializeStreamStateHandleMap(
+    private static List<HandleAndLocalPath> deserializeHandleAndLocalPathList(
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
 
         final int size = dis.readInt();
-        Map<StateHandleID, StreamStateHandle> result = new HashMap<>(size);
+        List<HandleAndLocalPath> result = new ArrayList<>(size);
 
         for (int i = 0; i < size; ++i) {
-            StateHandleID stateHandleID = new StateHandleID(dis.readUTF());
+            String localPath = dis.readUTF();
             StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, context);
-            result.put(stateHandleID, stateHandle);
+            result.add(HandleAndLocalPath.of(stateHandle, localPath));
         }
 
         return result;

@@ -23,13 +23,11 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test base for {@link GenericWriteAheadSink}. */
-public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink<IN>>
-        extends TestLogger {
+abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink<IN>> {
 
     protected abstract S createSink() throws Exception;
 
@@ -49,7 +47,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
     private final int maxParallelism = 10;
 
     @Test
-    public void testIdealCircumstances() throws Exception {
+    void testIdealCircumstances() throws Exception {
         S sink = createSink();
 
         OneInputStreamOperatorTestHarness<IN, IN> testHarness =
@@ -88,7 +86,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
     }
 
     @Test
-    public void testDataPersistenceUponMissedNotify() throws Exception {
+    void testDataPersistenceUponMissedNotify() throws Exception {
         S sink = createSink();
 
         OneInputStreamOperatorTestHarness<IN, IN> testHarness =
@@ -126,7 +124,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
     }
 
     @Test
-    public void testDataDiscardingUponRestore() throws Exception {
+    void testDataDiscardingUponRestore() throws Exception {
         S sink = createSink();
 
         OneInputStreamOperatorTestHarness<IN, IN> testHarness =
@@ -172,7 +170,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
     }
 
     @Test
-    public void testScalingDown() throws Exception {
+    void testScalingDown() throws Exception {
         S sink1 = createSink();
         OneInputStreamOperatorTestHarness<IN, IN> testHarness1 =
                 new OneInputStreamOperatorTestHarness<>(sink1, maxParallelism, 2, 0);
@@ -236,7 +234,7 @@ public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink
     }
 
     @Test
-    public void testScalingUp() throws Exception {
+    void testScalingUp() throws Exception {
 
         S sink1 = createSink();
         OneInputStreamOperatorTestHarness<IN, IN> testHarness1 =

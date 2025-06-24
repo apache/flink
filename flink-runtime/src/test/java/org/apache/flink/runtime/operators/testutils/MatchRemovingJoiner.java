@@ -22,10 +22,10 @@ import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-
 import java.util.Collection;
 import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public final class MatchRemovingJoiner
         implements FlatJoinFunction<
@@ -49,14 +49,16 @@ public final class MatchRemovingJoiner
         final String value2 = rec2 != null ? (String) rec2.getField(1) : null;
 
         Collection<Match> matches = this.toRemoveFrom.get(key);
-        if (matches == null) {
-            Assert.fail("Match " + key + " - " + value1 + ":" + value2 + " is unexpected.");
-        }
+        assertThat(matches)
+                .withFailMessage("Match %d - %s:%s is unexpected.", key, value1, value2)
+                .isNotNull();
 
         boolean contained = matches.remove(new Match(value1, value2));
-        if (!contained) {
-            Assert.fail("Produced match was not contained: " + key + " - " + value1 + ":" + value2);
-        }
+        assertThat(contained)
+                .withFailMessage(
+                        "Produced match was not contained: %d - %s:%s", key, value1, value2)
+                .isTrue();
+
         if (matches.isEmpty()) {
             this.toRemoveFrom.remove(key);
         }

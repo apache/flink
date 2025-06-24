@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStateToolset;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
@@ -29,7 +30,8 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
@@ -41,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A test backends that allows you to supply a specific test stream. */
 @SuppressWarnings({"serial"})
-public class BackendForTestStream extends MemoryStateBackend {
+public class BackendForTestStream extends HashMapStateBackend implements CheckpointStorage {
 
     private static final long serialVersionUID = 1L;
 
@@ -57,8 +59,13 @@ public class BackendForTestStream extends MemoryStateBackend {
 
     // make no reconfiguration!
     @Override
-    public MemoryStateBackend configure(ReadableConfig config, ClassLoader classLoader) {
+    public HashMapStateBackend configure(ReadableConfig config, ClassLoader classLoader) {
         return this;
+    }
+
+    @Override
+    public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer) throws IOException {
+        return AbstractFsCheckpointStorageAccess.resolveCheckpointPointer(pointer);
     }
 
     @Override

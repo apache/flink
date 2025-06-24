@@ -24,25 +24,21 @@ import org.apache.flink.connector.file.table.FileSystemTableSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -60,25 +56,24 @@ import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.S
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_TRIGGER;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link StreamingFileWriter}. */
-public class StreamingFileWriterTest {
+class StreamingFileWriterTest {
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
     private final OutputFileConfig outputFileConfig = OutputFileConfig.builder().build();
     private final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
+    @TempDir private java.nio.file.Path tmpDir;
     private Path path;
 
-    @Before
-    public void before() throws IOException {
-        File file = TEMPORARY_FOLDER.newFile();
-        file.delete();
-        path = new Path(file.toURI());
+    @BeforeEach
+    void before() throws IOException {
+        path = new Path(tmpDir.resolve("tmp").toUri());
     }
 
     @Test
-    public void testFailover() throws Exception {
+    void testFailover() throws Exception {
         OperatorSubtaskState state;
         try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
             harness.setup();
@@ -92,7 +87,7 @@ public class StreamingFileWriterTest {
             harness.processElement(row("4"), 0);
             harness.notifyOfCompletedCheckpoint(1);
             List<String> partitions = collect(harness);
-            Assert.assertEquals(Arrays.asList("1", "2"), partitions);
+            assertThat(partitions).containsExactly("1", "2");
         }
 
         // first retry, no partition {1, 2} records
@@ -105,7 +100,7 @@ public class StreamingFileWriterTest {
             state = harness.snapshot(2, 2);
             harness.notifyOfCompletedCheckpoint(2);
             List<String> partitions = collect(harness);
-            Assert.assertEquals(Arrays.asList("1", "2", "3", "4"), partitions);
+            assertThat(partitions).containsExactly("1", "2", "3", "4");
         }
 
         // second retry, partition {4} repeat
@@ -118,7 +113,7 @@ public class StreamingFileWriterTest {
             state = harness.snapshot(3, 3);
             harness.notifyOfCompletedCheckpoint(3);
             List<String> partitions = collect(harness);
-            Assert.assertEquals(Arrays.asList("3", "4", "5"), partitions);
+            assertThat(partitions).containsExactly("3", "4", "5");
         }
 
         // third retry, multiple snapshots
@@ -136,12 +131,12 @@ public class StreamingFileWriterTest {
             harness.notifyOfCompletedCheckpoint(5);
             List<String> partitions = collect(harness);
             // should not contains partition {9}
-            Assert.assertEquals(Arrays.asList("4", "5", "6", "7", "8"), partitions);
+            assertThat(partitions).containsExactly("4", "5", "6", "7", "8");
         }
     }
 
     @Test
-    public void testCommitImmediately() throws Exception {
+    void testCommitImmediately() throws Exception {
         try (OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness = create()) {
             harness.setup();
             harness.initializeEmptyState();
@@ -161,12 +156,12 @@ public class StreamingFileWriterTest {
 
             harness.notifyOfCompletedCheckpoint(1);
             List<String> partitions = collect(harness);
-            Assert.assertEquals(Arrays.asList("1", "2"), partitions);
+            assertThat(partitions).containsExactly("1", "2");
         }
     }
 
     @Test
-    public void testCommitFileWhenPartitionIsCommittableByProcessTime() throws Exception {
+    void testCommitFileWhenPartitionIsCommittableByProcessTime() throws Exception {
         // the rolling policy is not to roll file by filesize and roll file after one day,
         // it can ensure the file can be closed only when the partition is committable in this test.
         FileSystemTableSink.TableRollingPolicy tableRollingPolicy =
@@ -192,8 +187,8 @@ public class StreamingFileWriterTest {
             harness.processElement(row("3"), 0);
             harness.notifyOfCompletedCheckpoint(1);
             // assert files aren't committed in {1, 2} partitions
-            Assert.assertFalse(isPartitionFileCommitted("1", 0, 0));
-            Assert.assertFalse(isPartitionFileCommitted("2", 0, 1));
+            assertThat(isPartitionFileCommitted("1", 0, 0)).isFalse();
+            assertThat(isPartitionFileCommitted("2", 0, 1)).isFalse();
         }
 
         // first retry
@@ -212,15 +207,15 @@ public class StreamingFileWriterTest {
             harness.notifyOfCompletedCheckpoint(2);
             // only file in partition {3} should be committed
             // assert files are committed
-            Assert.assertTrue(isPartitionFileCommitted("3", 0, 2));
-            Assert.assertFalse(isPartitionFileCommitted("4", 0, 3));
+            assertThat(isPartitionFileCommitted("3", 0, 2)).isTrue();
+            assertThat(isPartitionFileCommitted("4", 0, 3)).isFalse();
 
             // simulate waiting for 2 seconds again, now partition {1} is committable
             currentTimeMillis += Duration.ofSeconds(2).toMillis();
             harness.setProcessingTime(currentTimeMillis);
             state = harness.snapshot(3, 3);
             harness.notifyOfCompletedCheckpoint(3);
-            Assert.assertTrue(isPartitionFileCommitted("4", 0, 3));
+            assertThat(isPartitionFileCommitted("4", 0, 3)).isTrue();
         }
 
         // second retry
@@ -236,13 +231,13 @@ public class StreamingFileWriterTest {
             harness.processElement(row("5"), 5);
             harness.endInput();
             // assert files in all partition have been committed
-            Assert.assertTrue(isPartitionFileCommitted("4", 0, 4));
-            Assert.assertTrue(isPartitionFileCommitted("5", 0, 5));
+            assertThat(isPartitionFileCommitted("4", 0, 4)).isTrue();
+            assertThat(isPartitionFileCommitted("5", 0, 5)).isTrue();
         }
     }
 
     @Test
-    public void testCommitFileWhenPartitionIsCommittableByPartitionTime() throws Exception {
+    void testCommitFileWhenPartitionIsCommittableByPartitionTime() throws Exception {
         // the rolling policy is not to roll file by filesize and roll file after one day,
         // it can ensure the file can be closed only when the partition is committable in this test.
         FileSystemTableSink.TableRollingPolicy tableRollingPolicy =
@@ -277,7 +272,7 @@ public class StreamingFileWriterTest {
             state = harness.snapshot(1, 1);
             harness.notifyOfCompletedCheckpoint(1);
             // assert yesterday partition file is committed
-            Assert.assertTrue(isPartitionFileCommitted(yesterdayPartition, 0, 0));
+            assertThat(isPartitionFileCommitted(yesterdayPartition, 0, 0)).isTrue();
         }
 
         // first retry
@@ -295,16 +290,16 @@ public class StreamingFileWriterTest {
             harness.snapshot(2, 2);
             harness.notifyOfCompletedCheckpoint(2);
             // assert today partition file is committed
-            Assert.assertTrue(isPartitionFileCommitted(todayPartition, 0, 2));
+            assertThat(isPartitionFileCommitted(todayPartition, 0, 2)).isTrue();
             // assert tomorrow partition file isn't committed
-            Assert.assertFalse(isPartitionFileCommitted(tomorrowPartition, 0, 1));
+            assertThat(isPartitionFileCommitted(tomorrowPartition, 0, 1)).isFalse();
 
             // simulate waiting for 1 day again, now tomorrow partition is committable
             currentTimeMillis += Duration.ofDays(1).toMillis();
             harness.processWatermark(currentTimeMillis);
             state = harness.snapshot(3, 3);
             harness.notifyOfCompletedCheckpoint(3);
-            Assert.assertTrue(isPartitionFileCommitted(tomorrowPartition, 0, 1));
+            assertThat(isPartitionFileCommitted(tomorrowPartition, 0, 1)).isTrue();
 
             harness.processElement(row(nextYearPartition), 0);
         }
@@ -320,8 +315,8 @@ public class StreamingFileWriterTest {
             harness.processElement(row(tomorrowPartition), 0);
             harness.endInput();
             // assert files in all partition have been committed
-            Assert.assertTrue(isPartitionFileCommitted(tomorrowPartition, 0, 4));
-            Assert.assertTrue(isPartitionFileCommitted(nextYearPartition, 0, 3));
+            assertThat(isPartitionFileCommitted(tomorrowPartition, 0, 4)).isTrue();
+            assertThat(isPartitionFileCommitted(nextYearPartition, 0, 3)).isTrue();
         }
     }
 
@@ -332,7 +327,7 @@ public class StreamingFileWriterTest {
     private static List<String> collect(
             OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness) {
         List<String> parts = new ArrayList<>();
-        harness.extractOutputValues().forEach(m -> parts.addAll(m.getPartitions()));
+        harness.extractOutputValues().forEach(m -> parts.addAll(Arrays.asList(m.getPartitions())));
         return parts;
     }
 
@@ -379,25 +374,24 @@ public class StreamingFileWriterTest {
                         conf);
         OneInputStreamOperatorTestHarness<RowData, PartitionCommitInfo> harness =
                 new OneInputStreamOperatorTestHarness<>(writer, 1, 1, 0);
-        harness.getStreamConfig().setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
         return harness;
     }
 
     private Configuration getPartitionCommitTriggerConf(long commitDelay) {
         Configuration configuration = new Configuration();
-        configuration.setString(SINK_PARTITION_COMMIT_POLICY_KIND, "success-file");
+        configuration.set(SINK_PARTITION_COMMIT_POLICY_KIND, "success-file");
         configuration.setString(PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER.key(), "yyyy-MM-dd");
         configuration.setString(SINK_PARTITION_COMMIT_TRIGGER.key(), "partition-time");
-        configuration.setLong(SINK_PARTITION_COMMIT_DELAY.key(), commitDelay);
+        configuration.set(SINK_PARTITION_COMMIT_DELAY, Duration.ofMillis(commitDelay));
         configuration.setString(SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE.key(), "UTC");
         return configuration;
     }
 
     private Configuration getProcTimeCommitTriggerConf(long commitDelay) {
         Configuration configuration = new Configuration();
-        configuration.setString(SINK_PARTITION_COMMIT_POLICY_KIND, "success-file");
+        configuration.set(SINK_PARTITION_COMMIT_POLICY_KIND, "success-file");
         configuration.setString(SINK_PARTITION_COMMIT_TRIGGER.key(), "process-time");
-        configuration.setLong(SINK_PARTITION_COMMIT_DELAY.key(), commitDelay);
+        configuration.set(SINK_PARTITION_COMMIT_DELAY, Duration.ofMillis(commitDelay));
         configuration.setString(SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE.key(), "UTC");
         return configuration;
     }

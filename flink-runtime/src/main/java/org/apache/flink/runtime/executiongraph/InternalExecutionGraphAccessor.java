@@ -24,14 +24,14 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionGroupReleaseStrategy;
+import org.apache.flink.runtime.executiongraph.failover.partitionrelease.PartitionGroupReleaseStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.types.Either;
-import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nonnull;
 
@@ -50,10 +50,6 @@ public interface InternalExecutionGraphAccessor {
 
     BlobWriter getBlobWriter();
 
-    Either<SerializedValue<JobInformation>, PermanentBlobKey> getJobInformationOrBlobKey();
-
-    TaskDeploymentDescriptorFactory.PartitionLocationConstraint getPartitionLocationConstraint();
-
     /**
      * Returns the ExecutionContext associated with this ExecutionGraph.
      *
@@ -64,7 +60,7 @@ public interface InternalExecutionGraphAccessor {
     @Nonnull
     ComponentMainThreadExecutor getJobMasterMainThreadExecutor();
 
-    ShuffleMaster<?> getShuffleMaster();
+    ShuffleMaster<? extends ShuffleDescriptor> getShuffleMaster();
 
     JobMasterPartitionTracker getPartitionTracker();
 
@@ -112,4 +108,24 @@ public interface InternalExecutionGraphAccessor {
     ExecutionJobVertex getJobVertex(JobVertexID id);
 
     boolean isDynamic();
+
+    ExecutionGraphID getExecutionGraphID();
+
+    /** Get the shuffle descriptors of the cluster partitions ordered by partition number. */
+    List<ShuffleDescriptor> getClusterPartitionShuffleDescriptors(
+            IntermediateDataSetID intermediateResultPartition);
+
+    MarkPartitionFinishedStrategy getMarkPartitionFinishedStrategy();
+
+    /**
+     * Get the input info of a certain input of a certain job vertex.
+     *
+     * @param jobVertexId the job vertex id
+     * @param resultId the input(intermediate result) id
+     * @return the input info
+     */
+    JobVertexInputInfo getJobVertexInputInfo(
+            JobVertexID jobVertexId, IntermediateDataSetID resultId);
+
+    TaskDeploymentDescriptorFactory getTaskDeploymentDescriptorFactory();
 }

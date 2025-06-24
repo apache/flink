@@ -18,9 +18,10 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkRelFactories}
+import org.apache.flink.table.planner.hint.{ClearQueryHintsWithInvalidPropagationShuttle, FlinkHints}
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand, RelOptUtil}
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.RelOptUtil.Logic
 import org.apache.calcite.rel.{RelNode, RelShuttleImpl}
@@ -93,7 +94,14 @@ class FlinkSubQueryRemoveRule(
           relBuilder.filter(c)
         }
         relBuilder.project(fields(relBuilder, filter.getRowType.getFieldCount))
-        call.transformTo(relBuilder.build)
+        // the sub query has been replaced with a common node,
+        // so hints in it should also be resolved with the same logic in SqlToRelConverter
+        val newNode = relBuilder.build
+        val nodeWithHint = RelOptUtil.propagateRelHints(newNode, false)
+        val nodeWithCapitalizedQueryHints = FlinkHints.capitalizeQueryHints(nodeWithHint)
+        val finalNode =
+          nodeWithCapitalizedQueryHints.accept(new ClearQueryHintsWithInvalidPropagationShuttle)
+        call.transformTo(finalNode)
       case _ => // do nothing
     }
   }
@@ -207,6 +215,18 @@ class FlinkSubQueryRemoveRule(
 
       // EXISTS and NOT EXISTS
       case SqlKind.EXISTS =>
+        val mq = subQuery.rel.getCluster.getMetadataQuery
+        val minRowCount = mq.getMinRowCount(subQuery.rel)
+        // If the sub-query is guaranteed to produce at least one row, just return TRUE.
+        if (minRowCount != null && minRowCount >= 1d) {
+          return Option.apply(relBuilder.literal(!withNot))
+        }
+        val maxRowCount = mq.getMaxRowCount(subQuery.rel)
+        // If the sub-query is guaranteed to produce no rows then return FALSE.
+        if (maxRowCount != null && maxRowCount < 1d) {
+          return Option.apply(relBuilder.literal(withNot))
+        }
+
         val joinCondition = if (equivalent != null) {
           // EXISTS has correlation variables
           relBuilder.push(equivalent.getKey) // push join right
@@ -295,13 +315,13 @@ class FlinkSubQueryRemoveRule(
       replacement: RexNode): RexNode = {
     condition.accept(new RexShuttle() {
       override def visitSubQuery(subQuery: RexSubQuery): RexNode = {
-        if (RexUtil.eq(subQuery, oldSubQueryCall)) replacement else subQuery
+        if (subQuery.equals(oldSubQueryCall)) replacement else subQuery
       }
 
       override def visitCall(call: RexCall): RexNode = {
         call.getKind match {
           case SqlKind.NOT if call.operands.head.isInstanceOf[RexSubQuery] =>
-            if (RexUtil.eq(call, oldSubQueryCall)) replacement else call
+            if (call.equals(oldSubQueryCall)) replacement else call
           case _ =>
             super.visitCall(call)
         }

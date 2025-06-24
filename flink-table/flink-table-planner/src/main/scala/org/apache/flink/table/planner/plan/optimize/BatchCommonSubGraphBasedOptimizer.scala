@@ -39,7 +39,8 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
 
   override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
     // build RelNodeBlock plan
-    val rootBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, planner.getTableConfig)
+    val rootBlocks =
+      RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, planner.getTableConfig)
     // optimize recursively RelNodeBlock
     rootBlocks.foreach(optimizeBlock)
     rootBlocks
@@ -106,6 +107,8 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
         override def getFlinkRelBuilder: FlinkRelBuilder = planner.createRelBuilder
 
         override def needFinalTimeIndicatorConversion: Boolean = true
+
+        override def getClassLoader: ClassLoader = context.getClassLoader
       }
     )
   }

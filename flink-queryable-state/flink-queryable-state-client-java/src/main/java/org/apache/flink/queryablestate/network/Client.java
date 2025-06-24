@@ -26,7 +26,7 @@ import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.flink.shaded.guava33.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
@@ -201,7 +201,7 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
                                 }
 
                                 if (bootstrap != null) {
-                                    EventLoopGroup group = bootstrap.group();
+                                    EventLoopGroup group = bootstrap.config().group();
                                     if (group != null && !group.isShutdown()) {
                                         group.shutdownGracefully(0L, 0L, TimeUnit.MILLISECONDS)
                                                 .addListener(
@@ -229,6 +229,6 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 
     @VisibleForTesting
     public boolean isEventGroupShutdown() {
-        return bootstrap == null || bootstrap.group().isTerminated();
+        return bootstrap == null || bootstrap.config().group().isTerminated();
     }
 }

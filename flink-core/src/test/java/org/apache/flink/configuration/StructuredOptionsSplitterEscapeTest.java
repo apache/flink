@@ -18,20 +18,24 @@
 
 package org.apache.flink.configuration;
 
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 
-/** Tests for {@link StructuredOptionsSplitter#escapeWithSingleQuote}. */
-@RunWith(Parameterized.class)
-public class StructuredOptionsSplitterEscapeTest {
+import static org.assertj.core.api.Assertions.assertThat;
 
-    @Parameterized.Parameters(name = "{0}")
-    public static Collection<TestSpec> getEncodeSpecs() {
+/** Tests for {@link StructuredOptionsSplitter#escapeWithSingleQuote}. */
+@ExtendWith(ParameterizedTestExtension.class)
+class StructuredOptionsSplitterEscapeTest {
+
+    @Parameters(name = "testSpec = {0}")
+    private static Collection<TestSpec> getEncodeSpecs() {
         return Arrays.asList(
                 TestSpec.encode("A,B,C,D", ";").expect("A,B,C,D"),
                 TestSpec.encode("A;BCD", ";").expect("'A;BCD'"),
@@ -46,14 +50,14 @@ public class StructuredOptionsSplitterEscapeTest {
                 TestSpec.encode("A;B;C:D", ",", ":").expect("'A;B;C:D'"));
     }
 
-    @Parameterized.Parameter public TestSpec testSpec;
+    @Parameter private TestSpec testSpec;
 
-    @Test
-    public void testEscapeWithSingleQuote() {
+    @TestTemplate
+    void testEscapeWithSingleQuote() {
         String encoded =
                 StructuredOptionsSplitter.escapeWithSingleQuote(
                         testSpec.getString(), testSpec.getEscapeChars());
-        Assert.assertEquals(testSpec.getEncodedString(), encoded);
+        assertThat(encoded).isEqualTo(testSpec.getEncodedString());
     }
 
     private static class TestSpec {

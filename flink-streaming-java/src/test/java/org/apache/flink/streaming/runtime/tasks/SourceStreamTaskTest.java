@@ -18,15 +18,15 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -50,12 +50,11 @@ import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
-import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FromElementsFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -95,6 +94,8 @@ import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpoint
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * These tests verify that the RichFunction methods are called (in correct order). And that
@@ -134,7 +135,7 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 SimpleOperatorFactory.of(
                         new StreamSource<Integer, SourceFunction<Integer>>(
                                 new CancelTestSource(
-                                        INT_TYPE_INFO.createSerializer(new ExecutionConfig()),
+                                        INT_TYPE_INFO.createSerializer(new SerializerConfigImpl()),
                                         42))),
                 busyTime -> busyTime.isNaN());
     }
@@ -230,11 +231,10 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 .chain(
                         new OperatorID(),
                         new TestBoundedOneInputStreamOperator("Operator1"),
-                        STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
 
         StreamConfig streamConfig = testHarness.getStreamConfig();
-        streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         testHarness.invoke();
         testHarness.waitForTaskCompletion();
@@ -263,16 +263,16 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                         new OperatorID(),
                         new StreamSource<>(
                                 new CancelTestSource(
-                                        STRING_TYPE_INFO.createSerializer(new ExecutionConfig()),
+                                        STRING_TYPE_INFO.createSerializer(
+                                                new SerializerConfigImpl()),
                                         "Hello")))
                 .chain(
                         new OperatorID(),
                         new TestBoundedOneInputStreamOperator("Operator1"),
-                        STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
 
         StreamConfig streamConfig = testHarness.getStreamConfig();
-        streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -333,11 +333,10 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 .chain(
                         new OperatorID(),
                         new TestBoundedOneInputStreamOperator("Operator1"),
-                        STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
 
         StreamConfig streamConfig = testHarness.getStreamConfig();
-        streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         testHarness.invoke();
         CancelLockingSource.awaitRunning();
@@ -446,11 +445,8 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 .chain(
                         new OperatorID(),
                         new TestBoundedOneInputStreamOperator("Operator1"),
-                        STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+                        STRING_TYPE_INFO.createSerializer(new SerializerConfigImpl()))
                 .finish();
-
-        StreamConfig streamConfig = testHarness.getStreamConfig();
-        streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         testHarness.invoke();
         try {
@@ -599,6 +595,30 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
     }
 
     @Test
+    void testDisableOverdraftBuffer() throws Exception {
+        try (NettyShuffleEnvironment env =
+                        new NettyShuffleEnvironmentBuilder().setNumNetworkBuffers(2).build();
+                ResultPartition partitionWriter =
+                        PartitionTestUtils.createPartition(
+                                env, ResultPartitionType.PIPELINED_BOUNDED, 1)) {
+            partitionWriter.setup();
+            assertTrue(partitionWriter.getBufferPool().getMaxOverdraftBuffersPerGate() > 0);
+
+            final CompletableFuture<Long> checkpointCompleted = new CompletableFuture<>();
+            try (StreamTaskMailboxTestHarness<String> testHarness =
+                    new StreamTaskMailboxTestHarnessBuilder<>(
+                                    SourceStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                            .addAdditionalOutput(partitionWriter)
+                            .setupOperatorChain(new StreamSource<>(new MockSource(0, 0, 1)))
+                            .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                            .build()) {
+
+                assertEquals(0, partitionWriter.getBufferPool().getMaxOverdraftBuffersPerGate());
+            }
+        }
+    }
+
+    @Test
     void testClosedOnRestoreSourceSkipExecution() throws Exception {
         LifeCycleMonitorSource testSource = new LifeCycleMonitorSource();
         List<Object> output = new ArrayList<>();
@@ -681,7 +701,6 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
             harness.streamTask.runMailboxLoop();
             harness.finishProcessing();
 
-            assertThat(triggerResult.isDone()).isTrue();
             assertThat(triggerResult.get()).isTrue();
             assertThat(checkpointCompleted.isDone()).isTrue();
         }
@@ -692,7 +711,7 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         private final LifeCycleMonitor lifeCycleMonitor = new LifeCycleMonitor();
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             lifeCycleMonitor.incrementCallTime(LifeCyclePhase.OPEN);
         }
 
@@ -865,8 +884,8 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             if (closeCalled) {
                 fail("Close called before open.");
             }

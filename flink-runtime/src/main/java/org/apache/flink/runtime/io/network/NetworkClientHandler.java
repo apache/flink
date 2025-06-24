@@ -39,6 +39,8 @@ public interface NetworkClientHandler extends ChannelHandler {
 
     void cancelRequestFor(InputChannelID inputChannelId);
 
+    void setConnectionId(ConnectionID connectionId);
+
     /**
      * Return whether there is channel error.
      *

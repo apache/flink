@@ -18,16 +18,16 @@
 
 package org.apache.flink.table.runtime.arrow.sources;
 
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
 import org.apache.flink.table.runtime.arrow.ArrowWriter;
@@ -35,13 +35,11 @@ import org.apache.flink.testutils.CustomEqualityMatcher;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
-import org.junit.Assert;
-import org.junit.Test;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -53,10 +51,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Abstract test base for the Arrow source function processing. */
-public abstract class ArrowSourceFunctionTestBase {
+abstract class ArrowSourceFunctionTestBase {
 
     final VectorSchemaRoot root;
     private final TypeSerializer<RowData> typeSerializer;
@@ -82,7 +80,7 @@ public abstract class ArrowSourceFunctionTestBase {
     }
 
     @Test
-    public void testRestore() throws Exception {
+    void testRestore() throws Exception {
         Tuple2<List<RowData>, Integer> testData = getTestData();
         final ArrowSourceFunction arrowSourceFunction =
                 createTestArrowSourceFunction(testData.f0, testData.f1);
@@ -172,13 +170,13 @@ public abstract class ArrowSourceFunctionTestBase {
         }
         runner2.join();
 
-        Assert.assertNull(error[0]);
-        Assert.assertEquals(testData.f0.size(), numOfEmittedElements.get());
+        assertThat(error[0]).isNull();
+        assertThat(testData.f0).hasSize(numOfEmittedElements.get());
         checkElementsEquals(results, testData.f0);
     }
 
     @Test
-    public void testParallelProcessing() throws Exception {
+    void testParallelProcessing() throws Exception {
         Tuple2<List<RowData>, Integer> testData = getTestData();
         final ArrowSourceFunction arrowSourceFunction =
                 createTestArrowSourceFunction(testData.f0, testData.f1);
@@ -253,9 +251,9 @@ public abstract class ArrowSourceFunctionTestBase {
         testHarness.close();
         testHarness2.close();
 
-        Assert.assertNull(error[0]);
-        Assert.assertNull(error[1]);
-        Assert.assertEquals(testData.f0.size(), numOfEmittedElements.get());
+        assertThat(error[0]).isNull();
+        assertThat(error[1]).isNull();
+        assertThat(testData.f0).hasSize(numOfEmittedElements.get());
         checkElementsEquals(results, testData.f0);
     }
 
@@ -266,13 +264,14 @@ public abstract class ArrowSourceFunctionTestBase {
     public abstract ArrowSourceFunction createArrowSourceFunction(byte[][] arrowData);
 
     private void checkElementsEquals(List<RowData> actual, List<RowData> expected) {
-        Assert.assertEquals(actual.size(), expected.size());
+        assertThat(actual).hasSize(expected.size());
         actual.sort(comparator);
         expected.sort(comparator);
         for (int i = 0; i < expected.size(); i++) {
-            assertThat(
-                    actual.get(i),
-                    CustomEqualityMatcher.deeplyEquals(expected.get(i)).withChecker(checker));
+            assertThat(actual.get(i))
+                    .matches(
+                            CustomEqualityMatcher.deeplyEquals(expected.get(i))
+                                    .withChecker(checker));
         }
     }
 
@@ -297,7 +296,7 @@ public abstract class ArrowSourceFunctionTestBase {
                 createArrowSourceFunction(
                         ArrowUtils.readArrowBatches(
                                 Channels.newChannel(new ByteArrayInputStream(baos.toByteArray()))));
-        arrowSourceFunction.setRuntimeContext(Mockito.mock(RuntimeContext.class));
+        arrowSourceFunction.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
         return arrowSourceFunction;
     }
 

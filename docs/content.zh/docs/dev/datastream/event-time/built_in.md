@@ -45,9 +45,9 @@ under the License.
 WatermarkStrategy.forMonotonousTimestamps();
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-WatermarkStrategy.forMonotonousTimestamps()
+{{< tab "Python" >}}
+```python
+WatermarkStrategy.for_monotonous_timestamps()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -64,10 +64,9 @@ WatermarkStrategy.forMonotonousTimestamps()
 WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(10));
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-WatermarkStrategy
-  .forBoundedOutOfOrderness(Duration.ofSeconds(10))
+{{< tab "Python" >}}
+```python
+WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(10))
 ```
 {{< /tab >}}
 {{< /tabs >}}

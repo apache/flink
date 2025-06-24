@@ -25,15 +25,17 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-public class VersionedIOWriteableTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class VersionedIOWriteableTest {
 
     @Test
-    public void testReadSameVersion() throws Exception {
+    void testReadSameVersion() throws Exception {
 
         String payload = "test";
 
@@ -49,11 +51,11 @@ public class VersionedIOWriteableTest {
             testWriteable.read(new DataInputViewStreamWrapper(in));
         }
 
-        Assert.assertEquals(payload, testWriteable.getData());
+        assertThat(testWriteable.getData()).isEqualTo(payload);
     }
 
     @Test
-    public void testReadCompatibleVersion() throws Exception {
+    void testReadCompatibleVersion() throws Exception {
 
         String payload = "test";
 
@@ -75,11 +77,11 @@ public class VersionedIOWriteableTest {
             testWriteable.read(new DataInputViewStreamWrapper(in));
         }
 
-        Assert.assertEquals(payload, testWriteable.getData());
+        assertThat(testWriteable.getData()).isEqualTo(payload);
     }
 
     @Test
-    public void testReadMismatchVersion() throws Exception {
+    void testReadMismatchVersion() throws Exception {
 
         String payload = "test";
 
@@ -90,15 +92,17 @@ public class VersionedIOWriteableTest {
             serialized = out.toByteArray();
         }
 
-        testWriteable = new TestWriteable(2);
-        try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
-            testWriteable.read(new DataInputViewStreamWrapper(in));
-            Assert.fail("Version mismatch expected.");
-        } catch (VersionMismatchException ignored) {
+        TestWriteable finalTestWriteable = new TestWriteable(2);
+        assertThatThrownBy(
+                        () -> {
+                            try (ByteArrayInputStreamWithPos in =
+                                    new ByteArrayInputStreamWithPos(serialized)) {
+                                finalTestWriteable.read(new DataInputViewStreamWrapper(in));
+                            }
+                        })
+                .isInstanceOf(VersionMismatchException.class);
 
-        }
-
-        Assert.assertEquals(null, testWriteable.getData());
+        assertThat(finalTestWriteable.getData()).isNull();
     }
 
     static class TestWriteable extends VersionedIOReadableWritable {

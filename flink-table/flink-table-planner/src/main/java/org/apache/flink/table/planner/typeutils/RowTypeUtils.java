@@ -18,7 +18,13 @@
 
 package org.apache.flink.table.planner.typeutils;
 
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+
+import javax.annotation.Nonnull;
+
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -45,5 +51,34 @@ public class RowTypeUtils {
             }
         }
         return result;
+    }
+
+    /**
+     * Returns projected {@link RowType} by given projection indexes over original {@link RowType}.
+     * Will raise an error when projection index beyond the field count of original rowType.
+     *
+     * @param rowType source row type
+     * @param projection indexes array
+     * @return projected {@link RowType}
+     */
+    public static RowType projectRowType(@Nonnull RowType rowType, @Nonnull int[] projection)
+            throws IllegalArgumentException {
+        final int fieldCnt = rowType.getFieldCount();
+        return RowType.of(
+                Arrays.stream(projection)
+                        .mapToObj(
+                                index -> {
+                                    if (index >= fieldCnt) {
+                                        throw new IllegalArgumentException(
+                                                String.format(
+                                                        "Invalid projection index: %d of source rowType size: %d",
+                                                        index, fieldCnt));
+                                    }
+                                    return rowType.getTypeAt(index);
+                                })
+                        .toArray(LogicalType[]::new),
+                Arrays.stream(projection)
+                        .mapToObj(index -> rowType.getFieldNames().get(index))
+                        .toArray(String[]::new));
     }
 }

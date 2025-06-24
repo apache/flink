@@ -19,27 +19,24 @@
 package org.apache.flink.connector.file.sink;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.util.Collections;
 import java.util.Map;
@@ -48,15 +45,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
 /** Tests the functionality of the {@link FileSink} in STREAMING mode. */
-@RunWith(Parameterized.class)
-public class StreamingExecutionFileSinkITCase extends FileSinkITBase {
+class StreamingExecutionFileSinkITCase extends FileSinkITBase {
 
     private static final Map<String, CountDownLatch> LATCH_MAP = new ConcurrentHashMap<>();
 
     private String latchId;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         this.latchId = UUID.randomUUID().toString();
         // We wait for two successful checkpoints in sources before shutting down. This ensures that
         // the sink can commit its data.
@@ -66,8 +62,8 @@ public class StreamingExecutionFileSinkITCase extends FileSinkITBase {
         LATCH_MAP.put(latchId, new CountDownLatch(NUM_SOURCES * 2));
     }
 
-    @After
-    public void teardown() {
+    @AfterEach
+    void teardown() {
         LATCH_MAP.remove(latchId);
     }
 
@@ -76,7 +72,7 @@ public class StreamingExecutionFileSinkITCase extends FileSinkITBase {
      * Sink]. The source would trigger failover if required.
      */
     @Override
-    protected JobGraph createJobGraph(String path) {
+    protected JobGraph createJobGraph(boolean triggerFailover, String path) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         Configuration config = new Configuration();
         config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
@@ -85,9 +81,9 @@ public class StreamingExecutionFileSinkITCase extends FileSinkITBase {
         env.enableCheckpointing(10, CheckpointingMode.EXACTLY_ONCE);
 
         if (triggerFailover) {
-            env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, Time.milliseconds(100)));
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 100);
         } else {
-            env.setRestartStrategy(RestartStrategies.noRestart());
+            RestartStrategyUtils.configureNoRestartStrategy(env);
         }
 
         DataStreamSink<Integer> sink =
@@ -152,7 +148,7 @@ public class StreamingExecutionFileSinkITCase extends FileSinkITBase {
 
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
-            if (isFailoverScenario && getRuntimeContext().getAttemptNumber() == 0) {
+            if (isFailoverScenario && getRuntimeContext().getTaskInfo().getAttemptNumber() == 0) {
                 // In the first execution, we first send a part of record...
                 sendRecordsUntil((int) (numberOfRecords * FAILOVER_RATIO * 0.5), ctx);
 
@@ -165,7 +161,7 @@ public class StreamingExecutionFileSinkITCase extends FileSinkITBase {
                 sendRecordsUntil((int) (numberOfRecords * FAILOVER_RATIO), ctx);
 
                 // And then trigger the failover.
-                if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
+                if (getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                     throw new RuntimeException("Designated Exception");
                 } else {
                     while (true) {

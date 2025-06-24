@@ -27,23 +27,20 @@ import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.InfiniteIntTupleIterator;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Throwables;
-
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class LeftOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
+class LeftOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
 
     private static final long HASH_MEM = 6 * 1024 * 1024;
 
     private final double hash_frac;
 
-    public LeftOuterJoinTaskTest(ExecutionConfig config) {
+    LeftOuterJoinTaskTest(ExecutionConfig config) {
         super(config);
         hash_frac = (double) HASH_MEM / this.getMemoryManager().getMemorySize();
     }
@@ -66,8 +63,8 @@ public class LeftOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
         return new LeftOuterJoinDriver<>();
     }
 
-    @Test
-    public void testHash1LeftOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testHash1LeftOuterJoinTask() throws Exception {
         final int keyCnt1 = 20;
         final int valCnt1 = 1;
 
@@ -77,8 +74,8 @@ public class LeftOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
         testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
     }
 
-    @Test
-    public void testHash2LeftOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testHash2LeftOuterJoinTask() throws Exception {
         final int keyCnt1 = 20;
         final int valCnt1 = 1;
 
@@ -88,8 +85,8 @@ public class LeftOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
         testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
     }
 
-    @Test
-    public void testHash3LeftOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testHash3LeftOuterJoinTask() throws Exception {
         int keyCnt1 = 20;
         int valCnt1 = 1;
 
@@ -99,8 +96,8 @@ public class LeftOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
         testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
     }
 
-    @Test
-    public void testHash4LeftOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testHash4LeftOuterJoinTask() throws Exception {
         int keyCnt1 = 20;
         int valCnt1 = 20;
 
@@ -110,8 +107,8 @@ public class LeftOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
         testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
     }
 
-    @Test
-    public void testHash5LeftOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testHash5LeftOuterJoinTask() throws Exception {
         int keyCnt1 = 20;
         int valCnt1 = 20;
 
@@ -121,8 +118,8 @@ public class LeftOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
         testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
     }
 
-    @Test
-    public void testHash6LeftOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testHash6LeftOuterJoinTask() throws Exception {
         int keyCnt1 = 10;
         int valCnt1 = 1;
 
@@ -154,15 +151,15 @@ public class LeftOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
 
         final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 
-        Assert.assertTrue(
-                "Result set size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+        assertThat(this.outList)
+                .withFailMessage("Result set size was %d. Expected was %d", outList.size(), expCnt)
+                .hasSize(expCnt);
 
         this.outList.clear();
     }
 
-    @Test(expected = ExpectedTestException.class)
-    public void testFailingHashLeftOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testFailingHashLeftOuterJoinTask() throws Exception {
         int keyCnt1 = 20;
         int valCnt1 = 20;
 
@@ -185,11 +182,12 @@ public class LeftOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
         addInput(new UniformIntTupleGenerator(keyCnt1, valCnt1, true), this.serializer);
         addInput(new UniformIntTupleGenerator(keyCnt2, valCnt2, true), this.serializer);
 
-        testDriver(testTask, MockFailingJoinStub.class);
+        assertThatThrownBy(() -> testDriver(testTask, MockFailingJoinStub.class))
+                .isInstanceOf(ExpectedTestException.class);
     }
 
-    @Test
-    public void testCancelLeftOuterJoinTaskWhileBuilding() throws Exception {
+    @TestTemplate
+    void testCancelLeftOuterJoinTaskWhileBuilding() throws Exception {
         setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
         addDriverComparator(this.comparator1);
         addDriverComparator(this.comparator2);
@@ -226,16 +224,15 @@ public class LeftOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
         cancel();
         taskRunner.join(60000);
 
-        assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+        assertThat(taskRunner.isAlive())
+                .withFailMessage("Task thread did not finish within 60 seconds")
+                .isFalse();
 
-        final Throwable taskError = error.get();
-        if (taskError != null) {
-            fail("Error in task while canceling:\n" + Throwables.getStackTraceAsString(taskError));
-        }
+        assertThat(error.get()).isNull();
     }
 
-    @Test
-    public void testCancelLeftOuterJoinTaskWhileProbing() throws Exception {
+    @TestTemplate
+    void testCancelLeftOuterJoinTaskWhileProbing() throws Exception {
         setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
         addDriverComparator(this.comparator1);
         addDriverComparator(this.comparator2);
@@ -272,11 +269,10 @@ public class LeftOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
         cancel();
         taskRunner.join(60000);
 
-        assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+        assertThat(taskRunner.isAlive())
+                .withFailMessage("Task thread did not finish within 60 seconds")
+                .isFalse();
 
-        final Throwable taskError = error.get();
-        if (taskError != null) {
-            fail("Error in task while canceling:\n" + Throwables.getStackTraceAsString(taskError));
-        }
+        assertThat(error.get()).isNull();
     }
 }

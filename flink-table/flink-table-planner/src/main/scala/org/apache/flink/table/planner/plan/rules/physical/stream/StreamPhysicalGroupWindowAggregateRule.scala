@@ -18,7 +18,6 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggregate
@@ -30,6 +29,7 @@ import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.Aggregate.Group
 
 import scala.collection.JavaConversions._
@@ -37,19 +37,13 @@ import scala.collection.JavaConversions._
 /**
  * Rule to convert a [[FlinkLogicalWindowAggregate]] into a [[StreamPhysicalGroupWindowAggregate]].
  */
-class StreamPhysicalGroupWindowAggregateRule
-  extends ConverterRule(
-    classOf[FlinkLogicalWindowAggregate],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalGroupWindowAggregateRule") {
+class StreamPhysicalGroupWindowAggregateRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: FlinkLogicalWindowAggregate = call.rel(0)
 
     // check if we have grouping sets
-    val groupSets = agg.getGroupType != Group.SIMPLE
-    if (groupSets || agg.indicator) {
+    if (agg.getGroupType != Group.SIMPLE) {
       throw new TableException("GROUPING SETS are currently not supported.")
     }
 
@@ -88,5 +82,10 @@ class StreamPhysicalGroupWindowAggregateRule
 }
 
 object StreamPhysicalGroupWindowAggregateRule {
-  val INSTANCE: RelOptRule = new StreamPhysicalGroupWindowAggregateRule
+  val INSTANCE: RelOptRule = new StreamPhysicalGroupWindowAggregateRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalWindowAggregate],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalGroupWindowAggregateRule"))
 }

@@ -42,7 +42,9 @@ final class WatermarkStrategyWithIdleness<T> implements WatermarkStrategy<T> {
     public WatermarkGenerator<T> createWatermarkGenerator(
             WatermarkGeneratorSupplier.Context context) {
         return new WatermarksWithIdleness<>(
-                baseStrategy.createWatermarkGenerator(context), idlenessTimeout);
+                baseStrategy.createWatermarkGenerator(context),
+                idlenessTimeout,
+                context.getInputActivityClock());
     }
 
     @Override

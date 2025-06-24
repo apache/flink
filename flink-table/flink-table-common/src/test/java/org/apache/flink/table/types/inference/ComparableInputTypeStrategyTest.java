@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.types.inference;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
@@ -33,24 +33,22 @@ import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 
-import org.junit.runners.Parameterized;
-
 import javax.annotation.Nonnull;
 
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
-import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
 /** Tests for {@link ComparableTypeStrategy}. */
-public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase {
+class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        return asList(
+    @Override
+    protected Stream<TestSpec> testData() {
+        return Stream.of(
                 TestSpec.forStrategy(
                                 "Numeric types are comparable",
                                 InputTypeStrategies.comparable(
@@ -269,7 +267,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                                 NotComparableClass.class,
                                                 new TypeSerializer[0],
                                                 new Field[0],
-                                                new ExecutionConfig())))
+                                                new SerializerConfigImpl())))
                         .expectErrorMessage(
                                 String.format(
                                         "All types in a comparison should support 'EQUALS' comparison with"
@@ -354,7 +352,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
     }
 
     private static <T> DataType rawType(Class<T> clazz) {
-        return DataTypes.RAW(clazz, new KryoSerializer<>(clazz, new ExecutionConfig()));
+        return DataTypes.RAW(clazz, new KryoSerializer<>(clazz, new SerializerConfigImpl()));
     }
 
     private static DataType distinctType(String typeName, DataType sourceType) {

@@ -22,24 +22,25 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Tests for {@link AsyncSnapshotCallable}. */
-public class AsyncSnapshotCallableTest {
+class AsyncSnapshotCallableTest {
 
     private static final String METHOD_CALL = "callInternal";
     private static final String METHOD_LOG = "logAsyncSnapshotComplete";
@@ -53,25 +54,25 @@ public class AsyncSnapshotCallableTest {
     private TestAsyncSnapshotCallable testAsyncSnapshotCallable;
     private FutureTask<String> task;
 
-    @Before
-    public void setup() throws IOException {
+    @BeforeEach
+    void setup() throws IOException {
         ownerRegistry = new CloseableRegistry();
         testProvidedResource = new TestBlockingCloseable();
         testBlocker = new TestBlockingCloseable();
         testAsyncSnapshotCallable =
                 new TestAsyncSnapshotCallable(testProvidedResource, testBlocker);
         task = testAsyncSnapshotCallable.toAsyncSnapshotFutureTask(ownerRegistry);
-        Assert.assertEquals(1, ownerRegistry.getNumberOfRegisteredCloseables());
+        assertThat(ownerRegistry.getNumberOfRegisteredCloseables()).isOne();
     }
 
-    @After
-    public void finalChecks() {
-        Assert.assertTrue(testProvidedResource.isClosed());
-        Assert.assertEquals(0, ownerRegistry.getNumberOfRegisteredCloseables());
+    @AfterEach
+    void finalChecks() {
+        assertThat(testProvidedResource.isClosed()).isTrue();
+        assertThat(ownerRegistry.getNumberOfRegisteredCloseables()).isZero();
     }
 
     @Test
-    public void testNormalRun() throws Exception {
+    void testNormalRun() throws Exception {
 
         Thread runner = startTask(task);
 
@@ -83,16 +84,15 @@ public class AsyncSnapshotCallableTest {
 
         runner.join();
 
-        Assert.assertEquals(SUCCESS, task.get());
-        Assert.assertEquals(
-                Arrays.asList(METHOD_CALL, METHOD_LOG, METHOD_CLEANUP),
-                testAsyncSnapshotCallable.getInvocationOrder());
+        assertThat(task.get()).isEqualTo(SUCCESS);
+        assertThat(testAsyncSnapshotCallable.getInvocationOrder())
+                .containsExactly(METHOD_CALL, METHOD_LOG, METHOD_CLEANUP);
 
-        Assert.assertTrue(testBlocker.isClosed());
+        assertThat(testBlocker.isClosed()).isTrue();
     }
 
     @Test
-    public void testExceptionRun() throws Exception {
+    void testExceptionRun() throws Exception {
 
         testBlocker.introduceException();
         Thread runner = startTask(task);
@@ -102,24 +102,20 @@ public class AsyncSnapshotCallableTest {
         }
 
         testBlocker.unblockSuccessfully();
-        try {
-            task.get();
-            Assert.fail();
-        } catch (ExecutionException ee) {
-            Assert.assertEquals(IOException.class, ee.getCause().getClass());
-        }
+        assertThatThrownBy(task::get)
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(IOException.class);
 
         runner.join();
 
-        Assert.assertEquals(
-                Arrays.asList(METHOD_CALL, METHOD_CLEANUP),
-                testAsyncSnapshotCallable.getInvocationOrder());
+        assertThat(testAsyncSnapshotCallable.getInvocationOrder())
+                .containsExactly(METHOD_CALL, METHOD_CLEANUP);
 
-        Assert.assertTrue(testBlocker.isClosed());
+        assertThat(testBlocker.isClosed()).isTrue();
     }
 
     @Test
-    public void testCancelRun() throws Exception {
+    void testCancelRun() throws Exception {
 
         Thread runner = startTask(task);
 
@@ -130,23 +126,18 @@ public class AsyncSnapshotCallableTest {
         task.cancel(true);
         testBlocker.unblockExceptionally();
 
-        try {
-            task.get();
-            Assert.fail();
-        } catch (CancellationException ignored) {
-        }
+        assertThatThrownBy(task::get).isInstanceOf(CancellationException.class);
 
         runner.join();
 
-        Assert.assertEquals(
-                Arrays.asList(METHOD_CALL, METHOD_CANCEL, METHOD_CLEANUP),
-                testAsyncSnapshotCallable.getInvocationOrder());
-        Assert.assertTrue(testProvidedResource.isClosed());
-        Assert.assertTrue(testBlocker.isClosed());
+        assertThat(testAsyncSnapshotCallable.getInvocationOrder())
+                .containsExactly(METHOD_CALL, METHOD_CANCEL, METHOD_CLEANUP);
+        assertThat(testProvidedResource.isClosed()).isTrue();
+        assertThat(testBlocker.isClosed()).isTrue();
     }
 
     @Test
-    public void testCloseRun() throws Exception {
+    void testCloseRun() throws Exception {
 
         Thread runner = startTask(task);
 
@@ -156,40 +147,29 @@ public class AsyncSnapshotCallableTest {
 
         ownerRegistry.close();
 
-        try {
-            task.get();
-            Assert.fail();
-        } catch (CancellationException ignored) {
-        }
+        assertThatThrownBy(task::get).isInstanceOf(CancellationException.class);
 
         runner.join();
 
-        Assert.assertEquals(
-                Arrays.asList(METHOD_CALL, METHOD_CANCEL, METHOD_CLEANUP),
-                testAsyncSnapshotCallable.getInvocationOrder());
-        Assert.assertTrue(testBlocker.isClosed());
+        assertThat(testAsyncSnapshotCallable.getInvocationOrder())
+                .containsExactly(METHOD_CALL, METHOD_CANCEL, METHOD_CLEANUP);
+        assertThat(testBlocker.isClosed()).isTrue();
     }
 
     @Test
-    public void testCancelBeforeRun() throws Exception {
+    void testCancelBeforeRun() throws Exception {
 
         task.cancel(true);
 
         Thread runner = startTask(task);
 
-        try {
-            task.get();
-            Assert.fail();
-        } catch (CancellationException ignored) {
-        }
+        assertThatThrownBy(task::get).isInstanceOf(CancellationException.class);
 
         runner.join();
 
-        Assert.assertEquals(
-                Arrays.asList(METHOD_CANCEL, METHOD_CLEANUP),
-                testAsyncSnapshotCallable.getInvocationOrder());
-
-        Assert.assertTrue(testProvidedResource.isClosed());
+        assertThat(testAsyncSnapshotCallable.getInvocationOrder())
+                .containsExactly(METHOD_CANCEL, METHOD_CLEANUP);
+        assertThat(testProvidedResource.isClosed()).isTrue();
     }
 
     private Thread startTask(Runnable task) {
@@ -261,7 +241,7 @@ public class AsyncSnapshotCallableTest {
         }
     }
 
-    /** Mix of a {@link Closeable} and and some {@link OneShotLatch} functionality for testing. */
+    /** Mix of a {@link Closeable} and some {@link OneShotLatch} functionality for testing. */
     private static class TestBlockingCloseable implements Closeable {
 
         private final OneShotLatch blockerLatch = new OneShotLatch();

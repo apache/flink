@@ -40,9 +40,7 @@ public class MapViewSerializerSnapshot<K, V>
     private static final int CURRENT_VERSION = 1;
 
     /** Constructor for read instantiation. */
-    public MapViewSerializerSnapshot() {
-        super(MapViewSerializer.class);
-    }
+    public MapViewSerializerSnapshot() {}
 
     /** Constructor to create the snapshot for writing. */
     public MapViewSerializerSnapshot(MapViewSerializer<K, V> mapViewSerializer) {

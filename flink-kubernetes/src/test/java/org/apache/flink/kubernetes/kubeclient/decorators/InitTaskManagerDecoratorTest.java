@@ -29,12 +29,15 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
+import io.fabric8.kubernetes.api.model.NodeSelectorRequirement;
+import io.fabric8.kubernetes.api.model.NodeSelectorTerm;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.Toleration;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** General tests for the {@link InitJobManagerDecorator}. */
@@ -87,9 +91,11 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
 
         // Set up external resource configs
         flinkConfig.setString(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), RESOURCE_NAME);
-        flinkConfig.setLong(
-                ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
-                        RESOURCE_NAME, ExternalResourceOptions.EXTERNAL_RESOURCE_AMOUNT_SUFFIX),
+        flinkConfig.set(
+                getLongConfigOption(
+                        ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
+                                RESOURCE_NAME,
+                                ExternalResourceOptions.EXTERNAL_RESOURCE_AMOUNT_SUFFIX)),
                 RESOURCE_AMOUNT);
         flinkConfig.setString(
                 ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
@@ -179,11 +185,27 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
     @Test
     void testMainContainerEnv() {
         final Map<String, String> expectedEnvVars = new HashMap<>(customizedEnvs);
-
-        final Map<String, String> resultEnvVars =
-                this.resultMainContainer.getEnv().stream()
-                        .collect(Collectors.toMap(EnvVar::getName, EnvVar::getValue));
+        final Map<String, String> resultEnvVars = new HashMap<>();
+        this.resultMainContainer
+                .getEnv()
+                .forEach(envVar -> resultEnvVars.put(envVar.getName(), envVar.getValue()));
         expectedEnvVars.forEach((k, v) -> assertThat(resultEnvVars.get(k)).isEqualTo(v));
+    }
+
+    @Test
+    void testNodeIdEnv() {
+        assertThat(this.resultMainContainer.getEnv())
+                .anyMatch(
+                        envVar ->
+                                envVar.getName().equals(Constants.ENV_FLINK_POD_NODE_ID)
+                                        && envVar.getValueFrom()
+                                                .getFieldRef()
+                                                .getApiVersion()
+                                                .equals(Constants.API_VERSION)
+                                        && envVar.getValueFrom()
+                                                .getFieldRef()
+                                                .getFieldPath()
+                                                .equals(Constants.POD_NODE_ID_FIELD_PATH));
     }
 
     @Test
@@ -249,5 +271,25 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
                         envVar ->
                                 envVar.getName().equals(Constants.ENV_FLINK_LOG_DIR)
                                         && envVar.getValue().equals(USER_DEFINED_FLINK_LOG_DIR));
+    }
+
+    @Test
+    void testNodeAffinity() {
+        List<NodeSelectorTerm> nodeSelectorTerms =
+                this.resultPod
+                        .getSpec()
+                        .getAffinity()
+                        .getNodeAffinity()
+                        .getRequiredDuringSchedulingIgnoredDuringExecution()
+                        .getNodeSelectorTerms();
+        assertThat(nodeSelectorTerms.size()).isEqualTo(1);
+
+        List<NodeSelectorRequirement> requirements = nodeSelectorTerms.get(0).getMatchExpressions();
+        assertThat(requirements)
+                .containsExactlyInAnyOrder(
+                        new NodeSelectorRequirement(
+                                flinkConfig.get(KubernetesConfigOptions.KUBERNETES_NODE_NAME_LABEL),
+                                "NotIn",
+                                new ArrayList<>(BLOCKED_NODES)));
     }
 }

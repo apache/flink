@@ -62,6 +62,7 @@ public class OrcFilters {
                                     OrcFilters::convertIsNotNull)
                             .put(BuiltInFunctionDefinitions.NOT, OrcFilters::convertNot)
                             .put(BuiltInFunctionDefinitions.OR, OrcFilters::convertOr)
+                            .put(BuiltInFunctionDefinitions.AND, OrcFilters::convertAnd)
                             .put(
                                     BuiltInFunctionDefinitions.EQUALS,
                                     call ->
@@ -82,28 +83,28 @@ public class OrcFilters {
                                             convertBinary(
                                                     call,
                                                     OrcFilters::convertGreaterThan,
-                                                    OrcFilters::convertLessThanEquals))
+                                                    OrcFilters::convertLessThan))
                             .put(
                                     BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL,
                                     call ->
                                             convertBinary(
                                                     call,
                                                     OrcFilters::convertGreaterThanEquals,
-                                                    OrcFilters::convertLessThan))
+                                                    OrcFilters::convertLessThanEquals))
                             .put(
                                     BuiltInFunctionDefinitions.LESS_THAN,
                                     call ->
                                             convertBinary(
                                                     call,
                                                     OrcFilters::convertLessThan,
-                                                    OrcFilters::convertGreaterThanEquals))
+                                                    OrcFilters::convertGreaterThan))
                             .put(
                                     BuiltInFunctionDefinitions.LESS_THAN_OR_EQUAL,
                                     call ->
                                             convertBinary(
                                                     call,
                                                     OrcFilters::convertLessThanEquals,
-                                                    OrcFilters::convertGreaterThan))
+                                                    OrcFilters::convertGreaterThanEquals))
                             .build();
 
     private static boolean isRef(Expression expression) {
@@ -183,6 +184,22 @@ public class OrcFilters {
             return null;
         } else {
             return new Or(c1, c2);
+        }
+    }
+
+    private static Predicate convertAnd(CallExpression callExp) {
+        if (callExp.getChildren().size() < 2) {
+            return null;
+        }
+        Expression left = callExp.getChildren().get(0);
+        Expression right = callExp.getChildren().get(1);
+
+        Predicate c1 = toOrcPredicate(left);
+        Predicate c2 = toOrcPredicate(right);
+        if (c1 == null || c2 == null) {
+            return null;
+        } else {
+            return new And(c1, c2);
         }
     }
 
@@ -717,6 +734,34 @@ public class OrcFilters {
         @Override
         public String toString() {
             return "OR(" + Arrays.toString(preds) + ")";
+        }
+    }
+
+    /** An AND predicate that can be evaluated by the OrcInputFormat. */
+    public static class And extends Predicate {
+        private final Predicate[] preds;
+
+        /**
+         * Creates an AND predicate.
+         *
+         * @param predicates The conjunctive predicates.
+         */
+        public And(Predicate... predicates) {
+            this.preds = predicates;
+        }
+
+        @Override
+        public SearchArgument.Builder add(SearchArgument.Builder builder) {
+            SearchArgument.Builder withAnd = builder.startAnd();
+            for (Predicate pred : preds) {
+                withAnd = pred.add(withAnd);
+            }
+            return withAnd.end();
+        }
+
+        @Override
+        public String toString() {
+            return "AND(" + Arrays.toString(preds) + ")";
         }
     }
 }

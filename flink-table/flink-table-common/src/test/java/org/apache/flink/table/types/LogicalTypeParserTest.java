@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.types;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
@@ -35,6 +35,7 @@ import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType.DayTimeResolution;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
@@ -47,41 +48,41 @@ import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
+import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.types.utils.TypeConversions;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.UNRESOLVED;
+import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link LogicalTypeParser}. */
-@RunWith(Parameterized.class)
 public class LogicalTypeParserTest {
 
-    @Parameters(name = "{index}: [From: {0}, To: {1}]")
-    public static List<TestSpec> testData() {
-        return Arrays.asList(
+    private static Stream<TestSpec> testData() {
+        return Stream.of(
                 TestSpec.forString("CHAR").expectType(new CharType()),
                 TestSpec.forString("CHAR NOT NULL").expectType(new CharType().copy(false)),
                 TestSpec.forString("CHAR   NOT \t\nNULL").expectType(new CharType().copy(false)),
@@ -90,7 +91,7 @@ public class LogicalTypeParserTest {
                 TestSpec.forString("CHAR(33)").expectType(new CharType(33)),
                 TestSpec.forString("VARCHAR").expectType(new VarCharType()),
                 TestSpec.forString("VARCHAR(33)").expectType(new VarCharType(33)),
-                TestSpec.forString("STRING").expectType(VarCharType.STRING_TYPE),
+                TestSpec.forString("STRING").expectType(STRING_TYPE),
                 TestSpec.forString("BOOLEAN").expectType(new BooleanType()),
                 TestSpec.forString("BINARY").expectType(new BinaryType()),
                 TestSpec.forString("BINARY(33)").expectType(new BinaryType(33)),
@@ -154,6 +155,7 @@ public class LogicalTypeParserTest {
                                         3)),
                 TestSpec.forString("INTERVAL MINUTE")
                         .expectType(new DayTimeIntervalType(DayTimeResolution.MINUTE)),
+                TestSpec.forString("DESCRIPTOR").expectType(new DescriptorType()),
                 TestSpec.forString("ARRAY<TIMESTAMP(3) WITH LOCAL TIME ZONE>")
                         .expectType(new ArrayType(new LocalZonedTimestampType(3))),
                 TestSpec.forString("ARRAY<INT NOT NULL>")
@@ -209,6 +211,62 @@ public class LogicalTypeParserTest {
                                                         "f1",
                                                         new BooleanType(),
                                                         "This as well.")))),
+                TestSpec.forString("ROW<f0 INT NOT NULL, f1 BOOLEAN>")
+                        .expectType(
+                                new RowType(
+                                        Arrays.asList(
+                                                new RowType.RowField("f0", new IntType(false)),
+                                                new RowType.RowField("f1", new BooleanType())))),
+                TestSpec.forString(
+                                "STRUCTURED<'org.apache.flink.NonExistingType', name STRING NOT NULL, `age` INT, city STRING 'Comment'>")
+                        .expectType(
+                                StructuredType.newBuilder("org.apache.flink.NonExistingType")
+                                        .attributes(
+                                                List.of(
+                                                        new StructuredAttribute(
+                                                                "name", STRING_TYPE.copy(false)),
+                                                        new StructuredAttribute(
+                                                                "age", new IntType()),
+                                                        new StructuredAttribute(
+                                                                "city", STRING_TYPE, "Comment")))
+                                        .build()),
+                TestSpec.forString(
+                                "STRUCTURED<'org.apache.flink.NonExistingType', name STRING, `udt` MY_TYPE>")
+                        .expectType(
+                                StructuredType.newBuilder("org.apache.flink.NonExistingType")
+                                        .attributes(
+                                                List.of(
+                                                        new StructuredAttribute(
+                                                                "name", STRING_TYPE),
+                                                        new StructuredAttribute(
+                                                                "udt",
+                                                                new UnresolvedUserDefinedType(
+                                                                        UnresolvedIdentifier.of(
+                                                                                "MY_TYPE")))))
+                                        .build()),
+                TestSpec.forString(
+                                "STRUCTURED<'"
+                                        + MyPojo.class.getName()
+                                        + "', name STRING, `age` INT NOT NULL>")
+                        .expectType(
+                                StructuredType.newBuilder(MyPojo.class)
+                                        .attributes(
+                                                List.of(
+                                                        new StructuredAttribute(
+                                                                "name", STRING_TYPE),
+                                                        new StructuredAttribute(
+                                                                "age", new IntType(false))))
+                                        .build()),
+                TestSpec.forString("STRUCTURED<'" + MyPojo.class.getName() + "'>")
+                        .expectType(
+                                StructuredType.newBuilder(MyPojo.class)
+                                        .attributes(List.of())
+                                        .build()),
+                TestSpec.forString("STRUCTURED<'" + MyPojo.class.getName() + "'>")
+                        .expectType(
+                                StructuredType.newBuilder(MyPojo.class)
+                                        .attributes(List.of())
+                                        .build()),
                 TestSpec.forString("NULL").expectType(new NullType()),
                 TestSpec.forString(
                                 createRawType(LogicalTypeParserTest.class).asSerializableString())
@@ -246,6 +304,8 @@ public class LogicalTypeParserTest {
                 TestSpec.forString(
                                 "LEGACY('RAW', 'ANY<org.apache.flink.table.types.LogicalTypeParserTest>')")
                         .expectType(createGenericLegacyType()),
+                TestSpec.forString("VARIANT").expectType(new VariantType()),
+                TestSpec.forString("VARIANT NOT NULL").expectType(new VariantType(false)),
 
                 // error message testing
 
@@ -260,32 +320,43 @@ public class LogicalTypeParserTest {
                         .expectErrorMessage("Unable to restore the RAW type"));
     }
 
-    @Parameter public TestSpec testSpec;
-
-    @Test
-    public void testParsing() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testParsing(TestSpec testSpec) {
         if (testSpec.expectedType != null) {
-            assertThat(LogicalTypeParser.parse(testSpec.typeString))
+            assertThat(
+                            LogicalTypeParser.parse(
+                                    testSpec.typeString,
+                                    Thread.currentThread().getContextClassLoader()))
                     .isEqualTo(testSpec.expectedType);
         }
     }
 
-    @Test
-    public void testSerializableParsing() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testSerializableParsing(TestSpec testSpec) {
         if (testSpec.expectedType != null) {
             if (!testSpec.expectedType.is(UNRESOLVED)
                     && testSpec.expectedType.getChildren().stream()
                             .noneMatch(t -> t.is(UNRESOLVED))) {
-                assertThat(LogicalTypeParser.parse(testSpec.expectedType.asSerializableString()))
+                assertThat(
+                                LogicalTypeParser.parse(
+                                        testSpec.expectedType.asSerializableString(),
+                                        Thread.currentThread().getContextClassLoader()))
                         .isEqualTo(testSpec.expectedType);
             }
         }
     }
 
-    @Test
-    public void testErrorMessage() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testErrorMessage(TestSpec testSpec) {
         if (testSpec.expectedErrorMessage != null) {
-            assertThatThrownBy(() -> LogicalTypeParser.parse(testSpec.typeString))
+            assertThatThrownBy(
+                            () ->
+                                    LogicalTypeParser.parse(
+                                            testSpec.typeString,
+                                            Thread.currentThread().getContextClassLoader()))
                     .isInstanceOf(ValidationException.class)
                     .hasMessageContaining(testSpec.expectedErrorMessage);
         }
@@ -318,10 +389,15 @@ public class LogicalTypeParserTest {
             this.expectedErrorMessage = expectedErrorMessage;
             return this;
         }
+
+        @Override
+        public String toString() {
+            return typeString;
+        }
     }
 
     private static <T> RawType<T> createRawType(Class<T> clazz) {
-        return new RawType<>(clazz, new KryoSerializer<>(clazz, new ExecutionConfig()));
+        return new RawType<>(clazz, new KryoSerializer<>(clazz, new SerializerConfigImpl()));
     }
 
     @SuppressWarnings("unchecked")

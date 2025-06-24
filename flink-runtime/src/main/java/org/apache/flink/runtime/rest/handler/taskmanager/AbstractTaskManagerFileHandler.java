@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.taskmanager;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blob.TransientBlobService;
@@ -41,10 +40,10 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheLoader;
-import org.apache.flink.shaded.guava30.com.google.common.cache.LoadingCache;
-import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalNotification;
+import org.apache.flink.shaded.guava33.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava33.com.google.common.cache.CacheLoader;
+import org.apache.flink.shaded.guava33.com.google.common.cache.LoadingCache;
+import org.apache.flink.shaded.guava33.com.google.common.cache.RemovalNotification;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -53,11 +52,13 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /** Base class for serving files from the {@link TaskExecutor}. */
 public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessageParameters>
@@ -71,14 +72,14 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 
     protected AbstractTaskManagerFileHandler(
             @Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            @Nonnull Time timeout,
+            @Nonnull Duration timeout,
             @Nonnull Map<String, String> responseHeaders,
             @Nonnull
                     UntypedResponseMessageHeaders<EmptyRequestBody, M>
                             untypedResponseMessageHeaders,
             @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
             @Nonnull TransientBlobService transientBlobService,
-            @Nonnull Time cacheEntryDuration) {
+            @Nonnull Duration cacheEntryDuration) {
         super(leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders);
 
         this.resourceManagerGatewayRetriever =
@@ -88,8 +89,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 
         this.fileBlobKeys =
                 CacheBuilder.newBuilder()
-                        .expireAfterWrite(
-                                cacheEntryDuration.toMilliseconds(), TimeUnit.MILLISECONDS)
+                        .expireAfterWrite(cacheEntryDuration.toMillis(), TimeUnit.MILLISECONDS)
                         .removalListener(this::removeBlob)
                         .build(
                                 new CacheLoader<
@@ -151,35 +151,15 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
                         },
                         ctx.executor());
 
-        return resultFuture.whenComplete(
-                (Void ignored, Throwable throwable) -> {
-                    if (throwable != null) {
-                        log.error(
-                                "Failed to transfer file from TaskExecutor {}.",
-                                taskManagerId,
-                                throwable);
-                        fileBlobKeys.invalidate(taskManagerId);
-
-                        final Throwable strippedThrowable =
-                                ExceptionUtils.stripCompletionException(throwable);
-
-                        if (strippedThrowable instanceof UnknownTaskExecutorException) {
-                            throw new CompletionException(
-                                    new NotFoundException(
-                                            String.format(
-                                                    "Failed to transfer file from TaskExecutor %s because it was unknown.",
-                                                    taskManagerId),
-                                            strippedThrowable));
-                        } else {
-                            throw new CompletionException(
-                                    new FlinkException(
-                                            String.format(
-                                                    "Failed to transfer file from TaskExecutor %s.",
-                                                    taskManagerId),
-                                            strippedThrowable));
-                        }
-                    }
-                });
+        return resultFuture
+                .handle(
+                        (Void ignored, Throwable throwable) -> {
+                            if (throwable != null) {
+                                return handleException(ctx, httpRequest, throwable, taskManagerId);
+                            }
+                            return CompletableFuture.<Void>completedFuture(null);
+                        })
+                .thenCompose(Function.identity());
     }
 
     private CompletableFuture<TransientBlobKey> loadTaskManagerFile(
@@ -218,5 +198,31 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 
     protected String getFileName(HandlerRequest<EmptyRequestBody> handlerRequest) {
         return null;
+    }
+
+    protected CompletableFuture<Void> handleException(
+            ChannelHandlerContext channelHandlerContext,
+            HttpRequest httpRequest,
+            Throwable throwable,
+            ResourceID taskManagerId) {
+        log.error("Failed to transfer file from TaskExecutor {}.", taskManagerId, throwable);
+        fileBlobKeys.invalidate(taskManagerId);
+
+        final Throwable strippedThrowable = ExceptionUtils.stripCompletionException(throwable);
+
+        if (strippedThrowable instanceof UnknownTaskExecutorException) {
+            throw new CompletionException(
+                    new NotFoundException(
+                            String.format(
+                                    "Failed to transfer file from TaskExecutor %s because it was unknown.",
+                                    taskManagerId),
+                            strippedThrowable));
+        } else {
+            throw new CompletionException(
+                    new FlinkException(
+                            String.format(
+                                    "Failed to transfer file from TaskExecutor %s.", taskManagerId),
+                            strippedThrowable));
+        }
     }
 }

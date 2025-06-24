@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.program;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.Configuration;
@@ -245,7 +246,12 @@ public class PackagedProgram implements AutoCloseable {
 
     /** Returns all provided libraries needed to run the program. */
     public List<URL> getJobJarAndDependencies() {
-        List<URL> libs = new ArrayList<URL>(extractedTempLibraries.size() + 1);
+        return getJobJarAndDependencies(jarFile, extractedTempLibraries, isPython);
+    }
+
+    private static List<URL> getJobJarAndDependencies(
+            URL jarFile, List<File> extractedTempLibraries, boolean isPython) {
+        List<URL> libs = new ArrayList<>(extractedTempLibraries.size() + 2);
 
         if (jarFile != null) {
             libs.add(jarFile);
@@ -257,11 +263,9 @@ public class PackagedProgram implements AutoCloseable {
                 throw new RuntimeException("URL is invalid. This should not happen.", e);
             }
         }
-
         if (isPython) {
             libs.add(PackagedProgramUtils.getPythonJar());
         }
-
         return libs;
     }
 
@@ -275,24 +279,8 @@ public class PackagedProgram implements AutoCloseable {
                         ? Collections.emptyList()
                         : extractContainedLibraries(jarFileUrl);
 
-        List<URL> libs = new ArrayList<URL>(extractedTempLibraries.size() + 1);
-
-        if (jarFileUrl != null) {
-            libs.add(jarFileUrl);
-        }
-        for (File tmpLib : extractedTempLibraries) {
-            try {
-                libs.add(tmpLib.getAbsoluteFile().toURI().toURL());
-            } catch (MalformedURLException e) {
-                throw new RuntimeException("URL is invalid. This should not happen.", e);
-            }
-        }
-
-        if (isPython(entryPointClassName)) {
-            libs.add(PackagedProgramUtils.getPythonJar());
-        }
-
-        return libs;
+        return getJobJarAndDependencies(
+                jarFileUrl, extractedTempLibraries, isPython(entryPointClassName));
     }
 
     /** Deletes all temporary files created for contained packaged libraries. */
@@ -681,6 +669,11 @@ public class PackagedProgram implements AutoCloseable {
                 SavepointRestoreSettings savepointRestoreSettings) {
             this.savepointRestoreSettings = savepointRestoreSettings;
             return this;
+        }
+
+        @VisibleForTesting
+        public List<URL> getUserClassPaths() {
+            return userClassPaths;
         }
 
         public PackagedProgram build() throws ProgramInvocationException {

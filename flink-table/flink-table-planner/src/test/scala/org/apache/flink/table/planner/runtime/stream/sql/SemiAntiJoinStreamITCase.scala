@@ -17,31 +17,29 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestData, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit._
-import org.junit.Assert._
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
-import scala.collection.Seq
-
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithStateTestBase(state) {
 
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     val tableA = failingDataSource(TestData.smallTupleData3)
       .toTable(tEnv, 'a1, 'a2, 'a3)
     val tableB = failingDataSource(TestData.tupleData5)
       .toTable(tEnv, 'b1, 'b2, 'b3, 'b4, 'b5)
-    tEnv.registerTable("A", tableA)
-    tEnv.registerTable("B", tableB)
+    tEnv.createTemporaryView("A", tableA)
+    tEnv.createTemporaryView("B", tableB)
   }
 
   val data = List(
@@ -66,12 +64,12 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     (3, 6L, 5, "BCD", 3L)
   )
 
-  @Test
+  @TestTemplate
   def testGenericSemiJoin(): Unit = {
     val ds1 = failingDataSource(data2).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = failingDataSource(data).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
     val query = "SELECT a, b, c FROM ds1 WHERE a in (SELECT d from ds2 WHERE d < 3)"
 
     val sink = new TestingRetractSink
@@ -79,10 +77,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     env.execute()
 
     val expected = Seq("1,1,Hi", "2,2,Hello")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSemiJoinWithOneSideRetraction(): Unit = {
     val leftTable = List(
       (1, "a"),
@@ -110,18 +108,18 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
 
     val ds1 = failingDataSource(leftTable).toTable(tEnv, 'a, 'b)
     val ds2 = failingDataSource(rightTable).toTable(tEnv, 'c, 'd)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
     val query = "SELECT a FROM ds1 WHERE a in (SELECT sum(c) from ds2 GROUP BY d)"
 
     val sink = new TestingRetractSink
     tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = Seq("1", "2", "10", "6", "8")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSemiJoinWithRetractTwoSidesRetraction(): Unit = {
 
     val tableData = List(
@@ -141,10 +139,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     )
     val ds1 = failingDataSource(tableData).toTable(tEnv, 'a, 'b)
     val ds2 = failingDataSource(tableData).toTable(tEnv, 'c, 'd)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
     val ds3 = tEnv.sqlQuery("SELECT sum(a) as a FROM ds1 GROUP BY b")
-    tEnv.registerTable("ds3", ds3)
+    tEnv.createTemporaryView("ds3", ds3)
     val query = "SELECT a FROM ds3 WHERE a in (SELECT sum(c) from ds2 GROUP BY d)"
     val result = tEnv.sqlQuery(query)
 
@@ -153,25 +151,25 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     env.execute()
 
     val expected = Seq("1", "2", "10", "6", "8")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testGenericAntiJoin(): Unit = {
     val ds1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
     val ds2 = failingDataSource(data2).toTable(tEnv, 'f, 'g, 'h)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
     val query = "SELECT c FROM ds1 WHERE NOT EXISTS (SELECT * from ds2 WHERE b = g)"
 
     val sink = new TestingRetractSink
     tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = Seq("2", "3", "4", "5")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAntiJoinWithOneSideRetraction(): Unit = {
     val leftTable = List(
       (1, "a"),
@@ -200,10 +198,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
 
     val ds1 = failingDataSource(leftTable).toTable(tEnv, 'a, 'b)
     val ds2 = failingDataSource(rightTable).toTable(tEnv, 'c, 'd)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
     val ds3 = tEnv.sqlQuery("SELECT SUM(c) as c FROM ds2 GROUP BY d")
-    tEnv.registerTable("ds3", ds3)
+    tEnv.createTemporaryView("ds3", ds3)
     val query = "SELECT * FROM ds1 WHERE NOT EXISTS (SELECT c from ds3 WHERE a = c)"
     val result = tEnv.sqlQuery(query)
 
@@ -211,10 +209,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     result.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = Seq("11,f")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAntiJoinWithTwoSidesRetraction(): Unit = {
     val leftTable = List(
       (0, "a"),
@@ -254,12 +252,12 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
 
     val ds1 = failingDataSource(leftTable).toTable(tEnv, 'a, 'b)
     val ds2 = failingDataSource(rightTable).toTable(tEnv, 'c, 'd)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
     val ds3 = tEnv.sqlQuery("SELECT SUM(c) as c FROM ds2 GROUP BY d")
-    tEnv.registerTable("ds3", ds3)
+    tEnv.createTemporaryView("ds3", ds3)
     val ds4 = tEnv.sqlQuery("SELECT SUM(a) as a, b FROM ds1 GROUP BY b")
-    tEnv.registerTable("ds4", ds4)
+    tEnv.createTemporaryView("ds4", ds4)
     val query = "SELECT * FROM ds4 WHERE NOT EXISTS (SELECT c from ds3 WHERE a = c)"
     val result = tEnv.sqlQuery(query)
 
@@ -267,10 +265,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     result.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = Seq("8,f")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSemiJoin(): Unit = {
     val query = "SELECT * FROM A WHERE a1 in (SELECT b1 from B)"
     val result = tEnv.sqlQuery(query)
@@ -280,10 +278,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     env.execute()
 
     val expected = Seq("1,1,Hi", "2,2,Hello", "3,2,Hello world")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSemiJoinNonEqui(): Unit = {
     val query = "SELECT * FROM A WHERE a1 in (SELECT b1 from B WHERE a2 < b2)"
     val result = tEnv.sqlQuery(query)
@@ -293,10 +291,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     env.execute()
 
     val expected = Seq("2,2,Hello", "3,2,Hello world")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSemiJoinWithEqualPkNonEqui(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A group by a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B group by b1"
@@ -308,10 +306,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     env.execute()
 
     val expected = Seq("2,3", "2,2")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSemiJoinWithRightNotPkNonEqui(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A group by a1"
     val query = s"SELECT * FROM ($query1) WHERE a1 in (SELECT b1 from B WHERE a2 < b2)"
@@ -322,10 +320,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     env.execute()
 
     val expected = Seq("2,2", "2,3")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSemiJoinWithPkNonEqui(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A group by a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B group by b1"
@@ -336,10 +334,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     result.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    assertEquals(0, sink.getRetractResults.size)
+    assertThat(sink.getRetractResults.size).isZero
   }
 
-  @Test
+  @TestTemplate
   def testAntiJoin(): Unit = {
     val query = "SELECT * FROM A WHERE NOT EXISTS (SELECT b1 from B WHERE a1 = b1)"
     val result = tEnv.sqlQuery(query)
@@ -348,10 +346,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     result.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    assertEquals(0, sink.getRetractResults.size)
+    assertThat(sink.getRetractResults.size).isZero
   }
 
-  @Test
+  @TestTemplate
   def testAntiJoinNonEqui(): Unit = {
     val query = "SELECT * FROM A WHERE NOT EXISTS (SELECT b1 from B WHERE a1 = b1 AND a2 < b2)"
     val result = tEnv.sqlQuery(query)
@@ -361,10 +359,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     env.execute()
 
     val expected = Seq("1,1,Hi")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAntiJoinWithEqualPkNonEqui(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A group by a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B group by b1"
@@ -377,10 +375,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     env.execute()
 
     val expected = Seq("1,1")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAntiJoinWithRightNotPkNonEqui(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A group by a1"
     val query = s"SELECT * FROM ($query1) WHERE NOT EXISTS (SELECT b1 from B WHERE a1 = b1 AND a2" +
@@ -392,10 +390,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     env.execute()
 
     val expected = Seq("2,2", "1,1", "2,3")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAntiJoinWithPkNonEqui(): Unit = {
     val query1 = "SELECT SUM(a2) AS a2, a1 FROM A group by a1"
     val query2 = "SELECT SUM(b2) AS b2, b1 FROM B group by b1"
@@ -408,10 +406,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     env.execute()
 
     val expected = Seq("1,1", "2,3", "2,2")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testStreamNotInWithoutEqual(): Unit = {
     val data1 = List((1, 1), (1, 1), (2, 2), (2, 2), (3, 3), (3, 3), (4, 4), (4, 4), (5, 5), (5, 5))
 
@@ -420,8 +418,8 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
 
     val ds1 = failingDataSource(data1).toTable(tEnv, 'pk, 'a)
     val ds2 = failingDataSource(data2).toTable(tEnv, 'pk, 'a)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
 
     val sql =
       """
@@ -434,10 +432,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     env.execute()
 
     val expected = Seq("1", "1", "2", "2", "3", "3")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testStreamExistsWithoutEqual(): Unit = {
     val data1 = List(
       (10, "ACCOUNTING", "NEW YORK"),
@@ -450,8 +448,8 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
 
     val ds1 = failingDataSource(data1).toTable(tEnv, 'deptno, 'dname, 'loc)
     val ds2 = failingDataSource(data2).toTable(tEnv, 'empno, 'ename, 'deptno)
-    tEnv.registerTable("scott_dept", ds1)
-    tEnv.registerTable("scott_emp", ds2)
+    tEnv.createTemporaryView("scott_dept", ds1)
+    tEnv.createTemporaryView("scott_emp", ds2)
 
     val sql =
       """
@@ -466,10 +464,10 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     env.execute()
 
     val expected = Seq("20,RESEARCH,DALLAS")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testStreamNotExistsWithoutEqual(): Unit = {
     val data1 = List((1, 1), (1, 1), (2, 2), (2, 2), (3, 3), (3, 3), (4, 4), (4, 4), (5, 5), (5, 5))
 
@@ -477,8 +475,8 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
 
     val ds1 = failingDataSource(data1).toTable(tEnv, 'pk, 'a)
     val ds2 = failingDataSource(data2).toTable(tEnv, 'pk, 'a)
-    tEnv.registerTable("ds1", ds1)
-    tEnv.registerTable("ds2", ds2)
+    tEnv.createTemporaryView("ds1", ds1)
+    tEnv.createTemporaryView("ds2", ds2)
 
     val sql =
       """
@@ -491,6 +489,31 @@ class SemiAntiJoinStreamITCase(state: StateBackendMode) extends StreamingWithSta
     env.execute()
 
     val expected = Seq("1", "1", "2", "2", "3", "3", "4", "4", "5", "5")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testExistsWithUncorrelated_ComplexCondition(): Unit = {
+    val lTable = List(
+      (1, 1, "a"),
+      (2, 10, "abc"),
+      (3, 20, "abc"),
+      (4, 30, "Hello World!")
+    )
+
+    val rTable = List(0, 1)
+    val ds1 = failingDataSource(lTable).toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = failingDataSource(rTable).toTable(tEnv, 'd)
+    tEnv.createTemporaryView("l", ds1)
+    tEnv.createTemporaryView("r", ds2)
+    val query =
+      "SELECT a + 10, c FROM l WHERE b > 10 AND NOT (c like 'abc' OR NOT EXISTS (SELECT d FROM r))"
+    val result = tEnv.sqlQuery(query)
+    val sink = new TestingRetractSink
+    result.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("14,Hello World!")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 }

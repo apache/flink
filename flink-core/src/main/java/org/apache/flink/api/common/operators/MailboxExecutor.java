@@ -86,6 +86,40 @@ public interface MailboxExecutor {
     /** A constant for empty args to save on object allocation. */
     Object[] EMPTY_ARGS = new Object[0];
 
+    /** Extra options to configure enqueued mails. */
+    @PublicEvolving
+    interface MailOptions {
+
+        /**
+         * Runtime can decide to defer execution of deferrable mails. For example, to unblock
+         * subtask thread as quickly as possible, deferrable mails are not executed during {@link
+         * #yield()} or {@link #tryYield()}. This is done to speed up checkpointing, by skipping
+         * execution of potentially long-running mails.
+         */
+        boolean isDeferrable();
+
+        /**
+         * The urgent mail will be executed first compared to other mails. For example, handling
+         * unaligned checkpoint barrier or some control mails are expected to be executed as soon as
+         * possible.
+         */
+        boolean isUrgent();
+
+        static MailOptions options() {
+            return MailOptionsImpl.DEFAULT;
+        }
+
+        /** Mark this mail as deferrable. */
+        static MailOptions deferrable() {
+            return MailOptionsImpl.DEFERRABLE;
+        }
+
+        /** Mark this mail as urgent. */
+        static MailOptions urgent() {
+            return MailOptionsImpl.URGENT;
+        }
+    }
+
     /**
      * Executes the given command at some time in the future in the mailbox thread.
      *
@@ -110,6 +144,49 @@ public interface MailboxExecutor {
      * The description may contain placeholder that refer to the provided description arguments
      * using {@link java.util.Formatter} syntax. The actual description is only formatted on demand.
      *
+     * @param mailOptions additional options to configure behaviour of the {@code command}
+     * @param command the runnable task to add to the mailbox for execution.
+     * @param description the optional description for the command that is used for debugging and
+     *     error-reporting.
+     * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g.
+     *     because the mailbox is quiesced or closed.
+     */
+    default void execute(
+            MailOptions mailOptions,
+            ThrowingRunnable<? extends Exception> command,
+            String description) {
+        execute(mailOptions, command, description, EMPTY_ARGS);
+    }
+
+    /**
+     * Executes the given command at some time in the future in the mailbox thread.
+     *
+     * <p>An optional description can (and should) be added to ease debugging and error-reporting.
+     * The description may contain placeholder that refer to the provided description arguments
+     * using {@link java.util.Formatter} syntax. The actual description is only formatted on demand.
+     *
+     * @param command the runnable task to add to the mailbox for execution.
+     * @param descriptionFormat the optional description for the command that is used for debugging
+     *     and error-reporting.
+     * @param descriptionArgs the parameters used to format the final description string.
+     * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g.
+     *     because the mailbox is quiesced or closed.
+     */
+    default void execute(
+            ThrowingRunnable<? extends Exception> command,
+            String descriptionFormat,
+            Object... descriptionArgs) {
+        execute(MailOptions.options(), command, descriptionFormat, descriptionArgs);
+    }
+
+    /**
+     * Executes the given command at some time in the future in the mailbox thread.
+     *
+     * <p>An optional description can (and should) be added to ease debugging and error-reporting.
+     * The description may contain placeholder that refer to the provided description arguments
+     * using {@link java.util.Formatter} syntax. The actual description is only formatted on demand.
+     *
+     * @param mailOptions additional options to configure behaviour of the {@code command}
      * @param command the runnable task to add to the mailbox for execution.
      * @param descriptionFormat the optional description for the command that is used for debugging
      *     and error-reporting.
@@ -118,6 +195,7 @@ public interface MailboxExecutor {
      *     because the mailbox is quiesced or closed.
      */
     void execute(
+            MailOptions mailOptions,
             ThrowingRunnable<? extends Exception> command,
             String descriptionFormat,
             Object... descriptionArgs);
@@ -126,6 +204,10 @@ public interface MailboxExecutor {
      * Submits the given command for execution in the future in the mailbox thread and returns a
      * Future representing that command. The Future's {@code get} method will return {@code null}
      * upon <em>successful</em> completion.
+     *
+     * <p>WARNING: Exception raised by the {@code command} will not fail the task but are stored in
+     * the future. Thus, it's an anti-pattern to call {@code submit} without handling the returned
+     * future and {@link #execute(ThrowingRunnable, String, Object...)} should be used instead.
      *
      * <p>An optional description can (and should) be added to ease debugging and error-reporting.
      * The description may contain placeholder that refer to the provided description arguments
@@ -153,6 +235,10 @@ public interface MailboxExecutor {
      * Future representing that command. The Future's {@code get} method will return {@code null}
      * upon <em>successful</em> completion.
      *
+     * <p>WARNING: Exception raised by the {@code command} will not fail the task but are stored in
+     * the future. Thus, it's an anti-pattern to call {@code submit} without handling the returned
+     * future and {@link #execute(ThrowingRunnable, String, Object...)} should be used instead.
+     *
      * <p>An optional description can (and should) be added to ease debugging and error-reporting.
      * The description may contain placeholder that refer to the provided description arguments
      * using {@link java.util.Formatter} syntax. The actual description is only formatted on demand.
@@ -175,6 +261,10 @@ public interface MailboxExecutor {
      * Submits the given command for execution in the future in the mailbox thread and returns a
      * Future representing that command. The Future's {@code get} method will return {@code null}
      * upon <em>successful</em> completion.
+     *
+     * <p>WARNING: Exception raised by the {@code command} will not fail the task but are stored in
+     * the future. Thus, it's an anti-pattern to call {@code submit} without handling the returned
+     * future and {@link #execute(ThrowingRunnable, String, Object...)} should be used instead.
      *
      * <p>An optional description can (and should) be added to ease debugging and error-reporting.
      * The description may contain placeholder that refer to the provided description arguments
@@ -199,6 +289,10 @@ public interface MailboxExecutor {
      * Submits the given command for execution in the future in the mailbox thread and returns a
      * Future representing that command. The Future's {@code get} method will return {@code null}
      * upon <em>successful</em> completion.
+     *
+     * <p>WARNING: Exception raised by the {@code command} will not fail the task but are stored in
+     * the future. Thus, it's an anti-pattern to call {@code submit} without handling the returned
+     * future and {@link #execute(ThrowingRunnable, String, Object...)} should be used instead.
      *
      * <p>An optional description can (and should) be added to ease debugging and error-reporting.
      * The description may contain placeholder that refer to the provided description arguments
@@ -245,4 +339,13 @@ public interface MailboxExecutor {
      * @throws RuntimeException if executed {@link RunnableWithException} thrown an exception.
      */
     boolean tryYield() throws FlinkRuntimeException;
+
+    /**
+     * Return if operator/function should interrupt a longer computation and return from the
+     * currently processed elemenent/watermark, for example in order to let Flink perform a
+     * checkpoint.
+     *
+     * @return whether operator/function should interrupt its computation.
+     */
+    boolean shouldInterrupt();
 }

@@ -28,13 +28,14 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.util.ConverterUtils;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -47,7 +48,7 @@ public class YarnClusterClientFactory
     @Override
     public boolean isCompatibleWith(Configuration configuration) {
         checkNotNull(configuration);
-        final String deploymentTarget = configuration.getString(DeploymentOptions.TARGET);
+        final String deploymentTarget = configuration.get(DeploymentOptions.TARGET);
         return YarnDeploymentTarget.isValidYarnTarget(deploymentTarget);
     }
 
@@ -65,8 +66,8 @@ public class YarnClusterClientFactory
     @Override
     public ApplicationId getClusterId(Configuration configuration) {
         checkNotNull(configuration);
-        final String clusterId = configuration.getString(YarnConfigOptions.APPLICATION_ID);
-        return clusterId != null ? ConverterUtils.toApplicationId(clusterId) : null;
+        final String clusterId = configuration.get(YarnConfigOptions.APPLICATION_ID);
+        return clusterId != null ? ApplicationId.fromString(clusterId) : null;
     }
 
     @Override
@@ -78,6 +79,12 @@ public class YarnClusterClientFactory
         final YarnClient yarnClient = YarnClient.createYarnClient();
         final YarnConfiguration yarnConfiguration =
                 Utils.getYarnAndHadoopConfiguration(configuration);
+
+        if (System.getenv().get("IN_TESTS") != null) {
+            File f = new File(System.getenv("YARN_CONF_DIR"), Utils.YARN_SITE_FILE_NAME);
+            Path yarnSitePath = new Path(f.getAbsolutePath());
+            yarnConfiguration.addResource(yarnSitePath);
+        }
 
         yarnClient.init(yarnConfiguration);
         yarnClient.start();

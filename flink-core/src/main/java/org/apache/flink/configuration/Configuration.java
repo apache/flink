@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -25,6 +26,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.StringValue;
+import org.apache.flink.util.CollectionUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +40,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigurationUtils.canBePrefixMap;
 import static org.apache.flink.configuration.ConfigurationUtils.containsPrefixMap;
@@ -67,7 +70,12 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     /** The log object used for debugging. */
     private static final Logger LOG = LoggerFactory.getLogger(Configuration.class);
 
-    /** Stores the concrete key/value pairs of this configuration object. */
+    /**
+     * Stores the concrete key/value pairs of this configuration object.
+     *
+     * <p>NOTE: This map stores the values that are actually used, and does not include any escaping
+     * that is required by the standard YAML syntax.
+     */
     protected final HashMap<String, Object> confData;
 
     // --------------------------------------------------------------------------------------------
@@ -98,413 +106,35 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     // --------------------------------------------------------------------------------------------
 
     /**
-     * Returns the class associated with the given key as a string.
-     *
-     * @param <T> The type of the class to return.
-     * @param key The key pointing to the associated value
-     * @param defaultValue The optional default value returned if no entry exists
-     * @param classLoader The class loader used to resolve the class.
-     * @return The value associated with the given key, or the default value, if to entry for the
-     *     key exists.
-     */
-    @SuppressWarnings("unchecked")
-    public <T> Class<T> getClass(
-            String key, Class<? extends T> defaultValue, ClassLoader classLoader)
-            throws ClassNotFoundException {
-        Optional<Object> o = getRawValue(key);
-        if (!o.isPresent()) {
-            return (Class<T>) defaultValue;
-        }
-
-        if (o.get().getClass() == String.class) {
-            return (Class<T>) Class.forName((String) o.get(), true, classLoader);
-        }
-
-        throw new IllegalArgumentException(
-                "Configuration cannot evaluate object of class "
-                        + o.get().getClass()
-                        + " as a class name");
-    }
-
-    /**
-     * Adds the given key/value pair to the configuration object. The class can be retrieved by
-     * invoking {@link #getClass(String, Class, ClassLoader)} if it is in the scope of the class
-     * loader on the caller.
-     *
-     * @param key The key of the pair to be added
-     * @param klazz The value of the pair to be added
-     * @see #getClass(String, Class, ClassLoader)
-     */
-    public void setClass(String key, Class<?> klazz) {
-        setValueInternal(key, klazz.getName());
-    }
-
-    /**
-     * Returns the value associated with the given key as a string.
+     * Returns the value associated with the given key as a string. We encourage users and
+     * developers to always use ConfigOption for getting the configurations if possible, for its
+     * rich description, type, default-value and other supports. The string-key-based getter should
+     * only be used when ConfigOption is not applicable, e.g., the key is programmatically generated
+     * in runtime.
      *
      * @param key the key pointing to the associated value
      * @param defaultValue the default value which is returned in case there is no value associated
      *     with the given key
      * @return the (default) value associated with the given key
-     * @deprecated use {@link #getString(ConfigOption, String)} or {@link
-     *     #getOptional(ConfigOption)}
      */
-    @Deprecated
     public String getString(String key, String defaultValue) {
-        return getRawValue(key).map(ConfigurationUtils::convertToString).orElse(defaultValue);
+        return getRawValue(key)
+                .map(o -> ConfigurationUtils.convertToString(o))
+                .orElse(defaultValue);
     }
 
     /**
-     * Returns the value associated with the given config option as a string.
-     *
-     * @param configOption The configuration option
-     * @return the (default) value associated with the given config option
-     */
-    @PublicEvolving
-    public String getString(ConfigOption<String> configOption) {
-        return getOptional(configOption).orElseGet(configOption::defaultValue);
-    }
-
-    /**
-     * Returns the value associated with the given config option as a string. If no value is mapped
-     * under any key of the option, it returns the specified default instead of the option's default
-     * value.
-     *
-     * @param configOption The configuration option
-     * @return the (default) value associated with the given config option
-     */
-    @PublicEvolving
-    public String getString(ConfigOption<String> configOption, String overrideDefault) {
-        return getOptional(configOption).orElse(overrideDefault);
-    }
-
-    /**
-     * Adds the given key/value pair to the configuration object.
+     * Adds the given key/value pair to the configuration object. We encourage users and developers
+     * to always use ConfigOption for setting the configurations if possible, for its rich
+     * description, type, default-value and other supports. The string-key-based setter should only
+     * be used when ConfigOption is not applicable, e.g., the key is programmatically generated in
+     * runtime.
      *
      * @param key the key of the key/value pair to be added
      * @param value the value of the key/value pair to be added
      */
     public void setString(String key, String value) {
         setValueInternal(key, value);
-    }
-
-    /**
-     * Adds the given value to the configuration object. The main key of the config option will be
-     * used to map the value.
-     *
-     * @param key the option specifying the key to be added
-     * @param value the value of the key/value pair to be added
-     */
-    @PublicEvolving
-    public void setString(ConfigOption<String> key, String value) {
-        setValueInternal(key.key(), value);
-    }
-
-    /**
-     * Returns the value associated with the given key as an integer.
-     *
-     * @param key the key pointing to the associated value
-     * @param defaultValue the default value which is returned in case there is no value associated
-     *     with the given key
-     * @return the (default) value associated with the given key
-     * @deprecated use {@link #getInteger(ConfigOption, int)} or {@link #getOptional(ConfigOption)}
-     */
-    @Deprecated
-    public int getInteger(String key, int defaultValue) {
-        return getRawValue(key).map(ConfigurationUtils::convertToInt).orElse(defaultValue);
-    }
-
-    /**
-     * Returns the value associated with the given config option as an integer.
-     *
-     * @param configOption The configuration option
-     * @return the (default) value associated with the given config option
-     */
-    @PublicEvolving
-    public int getInteger(ConfigOption<Integer> configOption) {
-        return getOptional(configOption).orElseGet(configOption::defaultValue);
-    }
-
-    /**
-     * Returns the value associated with the given config option as an integer. If no value is
-     * mapped under any key of the option, it returns the specified default instead of the option's
-     * default value.
-     *
-     * @param configOption The configuration option
-     * @param overrideDefault The value to return if no value was mapper for any key of the option
-     * @return the configured value associated with the given config option, or the overrideDefault
-     */
-    @PublicEvolving
-    public int getInteger(ConfigOption<Integer> configOption, int overrideDefault) {
-        return getOptional(configOption).orElse(overrideDefault);
-    }
-
-    /**
-     * Adds the given key/value pair to the configuration object.
-     *
-     * @param key the key of the key/value pair to be added
-     * @param value the value of the key/value pair to be added
-     */
-    public void setInteger(String key, int value) {
-        setValueInternal(key, value);
-    }
-
-    /**
-     * Adds the given value to the configuration object. The main key of the config option will be
-     * used to map the value.
-     *
-     * @param key the option specifying the key to be added
-     * @param value the value of the key/value pair to be added
-     */
-    @PublicEvolving
-    public void setInteger(ConfigOption<Integer> key, int value) {
-        setValueInternal(key.key(), value);
-    }
-
-    /**
-     * Returns the value associated with the given key as a long.
-     *
-     * @param key the key pointing to the associated value
-     * @param defaultValue the default value which is returned in case there is no value associated
-     *     with the given key
-     * @return the (default) value associated with the given key
-     * @deprecated use {@link #getLong(ConfigOption, long)} or {@link #getOptional(ConfigOption)}
-     */
-    @Deprecated
-    public long getLong(String key, long defaultValue) {
-        return getRawValue(key).map(ConfigurationUtils::convertToLong).orElse(defaultValue);
-    }
-
-    /**
-     * Returns the value associated with the given config option as a long integer.
-     *
-     * @param configOption The configuration option
-     * @return the (default) value associated with the given config option
-     */
-    @PublicEvolving
-    public long getLong(ConfigOption<Long> configOption) {
-        return getOptional(configOption).orElseGet(configOption::defaultValue);
-    }
-
-    /**
-     * Returns the value associated with the given config option as a long integer. If no value is
-     * mapped under any key of the option, it returns the specified default instead of the option's
-     * default value.
-     *
-     * @param configOption The configuration option
-     * @param overrideDefault The value to return if no value was mapper for any key of the option
-     * @return the configured value associated with the given config option, or the overrideDefault
-     */
-    @PublicEvolving
-    public long getLong(ConfigOption<Long> configOption, long overrideDefault) {
-        return getOptional(configOption).orElse(overrideDefault);
-    }
-
-    /**
-     * Adds the given key/value pair to the configuration object.
-     *
-     * @param key the key of the key/value pair to be added
-     * @param value the value of the key/value pair to be added
-     */
-    public void setLong(String key, long value) {
-        setValueInternal(key, value);
-    }
-
-    /**
-     * Adds the given value to the configuration object. The main key of the config option will be
-     * used to map the value.
-     *
-     * @param key the option specifying the key to be added
-     * @param value the value of the key/value pair to be added
-     */
-    @PublicEvolving
-    public void setLong(ConfigOption<Long> key, long value) {
-        setValueInternal(key.key(), value);
-    }
-
-    /**
-     * Returns the value associated with the given key as a boolean.
-     *
-     * @param key the key pointing to the associated value
-     * @param defaultValue the default value which is returned in case there is no value associated
-     *     with the given key
-     * @return the (default) value associated with the given key
-     * @deprecated use {@link #getBoolean(ConfigOption, boolean)} or {@link
-     *     #getOptional(ConfigOption)}
-     */
-    @Deprecated
-    public boolean getBoolean(String key, boolean defaultValue) {
-        return getRawValue(key).map(ConfigurationUtils::convertToBoolean).orElse(defaultValue);
-    }
-
-    /**
-     * Returns the value associated with the given config option as a boolean.
-     *
-     * @param configOption The configuration option
-     * @return the (default) value associated with the given config option
-     */
-    @PublicEvolving
-    public boolean getBoolean(ConfigOption<Boolean> configOption) {
-        return getOptional(configOption).orElseGet(configOption::defaultValue);
-    }
-
-    /**
-     * Returns the value associated with the given config option as a boolean. If no value is mapped
-     * under any key of the option, it returns the specified default instead of the option's default
-     * value.
-     *
-     * @param configOption The configuration option
-     * @param overrideDefault The value to return if no value was mapper for any key of the option
-     * @return the configured value associated with the given config option, or the overrideDefault
-     */
-    @PublicEvolving
-    public boolean getBoolean(ConfigOption<Boolean> configOption, boolean overrideDefault) {
-        return getOptional(configOption).orElse(overrideDefault);
-    }
-
-    /**
-     * Adds the given key/value pair to the configuration object.
-     *
-     * @param key the key of the key/value pair to be added
-     * @param value the value of the key/value pair to be added
-     */
-    public void setBoolean(String key, boolean value) {
-        setValueInternal(key, value);
-    }
-
-    /**
-     * Adds the given value to the configuration object. The main key of the config option will be
-     * used to map the value.
-     *
-     * @param key the option specifying the key to be added
-     * @param value the value of the key/value pair to be added
-     */
-    @PublicEvolving
-    public void setBoolean(ConfigOption<Boolean> key, boolean value) {
-        setValueInternal(key.key(), value);
-    }
-
-    /**
-     * Returns the value associated with the given key as a float.
-     *
-     * @param key the key pointing to the associated value
-     * @param defaultValue the default value which is returned in case there is no value associated
-     *     with the given key
-     * @return the (default) value associated with the given key
-     * @deprecated use {@link #getFloat(ConfigOption, float)} or {@link #getOptional(ConfigOption)}
-     */
-    @Deprecated
-    public float getFloat(String key, float defaultValue) {
-        return getRawValue(key).map(ConfigurationUtils::convertToFloat).orElse(defaultValue);
-    }
-
-    /**
-     * Returns the value associated with the given config option as a float.
-     *
-     * @param configOption The configuration option
-     * @return the (default) value associated with the given config option
-     */
-    @PublicEvolving
-    public float getFloat(ConfigOption<Float> configOption) {
-        return getOptional(configOption).orElseGet(configOption::defaultValue);
-    }
-
-    /**
-     * Returns the value associated with the given config option as a float. If no value is mapped
-     * under any key of the option, it returns the specified default instead of the option's default
-     * value.
-     *
-     * @param configOption The configuration option
-     * @param overrideDefault The value to return if no value was mapper for any key of the option
-     * @return the configured value associated with the given config option, or the overrideDefault
-     */
-    @PublicEvolving
-    public float getFloat(ConfigOption<Float> configOption, float overrideDefault) {
-        return getOptional(configOption).orElse(overrideDefault);
-    }
-
-    /**
-     * Adds the given key/value pair to the configuration object.
-     *
-     * @param key the key of the key/value pair to be added
-     * @param value the value of the key/value pair to be added
-     */
-    public void setFloat(String key, float value) {
-        setValueInternal(key, value);
-    }
-
-    /**
-     * Adds the given value to the configuration object. The main key of the config option will be
-     * used to map the value.
-     *
-     * @param key the option specifying the key to be added
-     * @param value the value of the key/value pair to be added
-     */
-    @PublicEvolving
-    public void setFloat(ConfigOption<Float> key, float value) {
-        setValueInternal(key.key(), value);
-    }
-
-    /**
-     * Returns the value associated with the given key as a double.
-     *
-     * @param key the key pointing to the associated value
-     * @param defaultValue the default value which is returned in case there is no value associated
-     *     with the given key
-     * @return the (default) value associated with the given key
-     * @deprecated use {@link #getDouble(ConfigOption, double)} or {@link
-     *     #getOptional(ConfigOption)}
-     */
-    @Deprecated
-    public double getDouble(String key, double defaultValue) {
-        return getRawValue(key).map(ConfigurationUtils::convertToDouble).orElse(defaultValue);
-    }
-
-    /**
-     * Returns the value associated with the given config option as a {@code double}.
-     *
-     * @param configOption The configuration option
-     * @return the (default) value associated with the given config option
-     */
-    @PublicEvolving
-    public double getDouble(ConfigOption<Double> configOption) {
-        return getOptional(configOption).orElseGet(configOption::defaultValue);
-    }
-
-    /**
-     * Returns the value associated with the given config option as a {@code double}. If no value is
-     * mapped under any key of the option, it returns the specified default instead of the option's
-     * default value.
-     *
-     * @param configOption The configuration option
-     * @param overrideDefault The value to return if no value was mapper for any key of the option
-     * @return the configured value associated with the given config option, or the overrideDefault
-     */
-    @PublicEvolving
-    public double getDouble(ConfigOption<Double> configOption, double overrideDefault) {
-        return getOptional(configOption).orElse(overrideDefault);
-    }
-
-    /**
-     * Adds the given key/value pair to the configuration object.
-     *
-     * @param key the key of the key/value pair to be added
-     * @param value the value of the key/value pair to be added
-     */
-    public void setDouble(String key, double value) {
-        setValueInternal(key, value);
-    }
-
-    /**
-     * Adds the given value to the configuration object. The main key of the config option will be
-     * used to map the value.
-     *
-     * @param key the option specifying the key to be added
-     * @param value the value of the key/value pair to be added
-     */
-    @PublicEvolving
-    public void setDouble(ConfigOption<Double> key, double value) {
-        setValueInternal(key.key(), value);
     }
 
     /**
@@ -515,6 +145,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      *     with the given key.
      * @return the (default) value associated with the given key.
      */
+    @Internal
     public byte[] getBytes(String key, byte[] defaultValue) {
         return getRawValue(key)
                 .map(
@@ -538,6 +169,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      * @param key The key under which the bytes are added.
      * @param bytes The bytes to be added.
      */
+    @Internal
     public void setBytes(String key, byte[] bytes) {
         setValueInternal(key, bytes);
     }
@@ -699,9 +331,36 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
         return Optional.empty();
     }
 
+    /**
+     * Please check the java doc of {@link #getRawValueFromOption(ConfigOption)}. If no keys are
+     * found in {@link Configuration}, default value of the given option will return. Please make
+     * sure there will be at least one value available. Otherwise, a NPE will be thrown by Flink
+     * when the value is used.
+     *
+     * <p>NOTE: current logic is not able to get the default value of the fallback key's
+     * ConfigOption, in case the given ConfigOption has no default value. If you want to use
+     * fallback key, please make sure its value could be found in {@link Configuration} at runtime.
+     *
+     * @param option metadata of the option to read
+     * @return the value of the given option
+     */
     @Override
     public <T> T get(ConfigOption<T> option) {
         return getOptional(option).orElseGet(option::defaultValue);
+    }
+
+    /**
+     * Returns the value associated with the given config option as a T. If no value is mapped under
+     * any key of the option, it returns the specified default instead of the option's default
+     * value.
+     *
+     * @param configOption The configuration option
+     * @param overrideDefault The value to return if no value was mapper for any key of the option
+     * @return the configured value associated with the given config option, or the overrideDefault
+     */
+    @PublicEvolving
+    public <T> T get(ConfigOption<T> configOption, T overrideDefault) {
+        return getOptional(configOption).orElse(overrideDefault);
     }
 
     @Override
@@ -717,9 +376,11 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
             }
         } catch (Exception e) {
             throw new IllegalArgumentException(
-                    String.format(
-                            "Could not parse value '%s' for key '%s'.",
-                            rawValue.map(Object::toString).orElse(""), option.key()),
+                    GlobalConfiguration.isSensitive(option.key())
+                            ? String.format("Could not parse value for key '%s'.", option.key())
+                            : String.format(
+                                    "Could not parse value '%s' for key '%s'.",
+                                    rawValue.map(Object::toString).orElse(""), option.key()),
                     e);
         }
     }
@@ -736,9 +397,33 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     @Override
     public Map<String, String> toMap() {
         synchronized (this.confData) {
-            Map<String, String> ret = new HashMap<>(this.confData.size());
+            Map<String, String> ret =
+                    CollectionUtil.newHashMapWithExpectedSize(this.confData.size());
             for (Map.Entry<String, Object> entry : confData.entrySet()) {
                 ret.put(entry.getKey(), ConfigurationUtils.convertToString(entry.getValue()));
+            }
+            return ret;
+        }
+    }
+
+    /**
+     * Convert Config into a {@code Map<String, String>} representation.
+     *
+     * <p>NOTE: This method is extracted from the {@link Configuration#toMap} method and should be
+     * called when Config needs to be written to a file.
+     *
+     * <p>This method ensures the value is properly escaped when writing the key-value pair to a
+     * standard YAML file.
+     */
+    @Internal
+    public Map<String, String> toFileWritableMap() {
+        synchronized (this.confData) {
+            Map<String, String> ret =
+                    CollectionUtil.newHashMapWithExpectedSize(this.confData.size());
+            for (Map.Entry<String, Object> entry : confData.entrySet()) {
+                // Because some character in standard yaml should be escaped by quotes, such as
+                // '*', here we should wrap the value by Yaml pattern
+                ret.put(entry.getKey(), YamlParserUtils.toYAMLString(entry.getValue()));
             }
             return ret;
         }
@@ -762,6 +447,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
                         return Optional.empty();
                     };
             return applyWithOption(configOption, applier).orElse(false);
+        }
+    }
+
+    /**
+     * Removes given key from the configuration.
+     *
+     * @param key key of a config option to remove
+     * @return true is config has been removed, false otherwise
+     */
+    public boolean removeKey(String key) {
+        synchronized (this.confData) {
+            boolean removed = this.confData.remove(key) != null;
+            removed |= removePrefixMap(confData, key);
+            return removed;
         }
     }
 
@@ -810,6 +509,16 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
         }
     }
 
+    /**
+     * This method will do the following steps to get the value of a config option:
+     *
+     * <p>1. get the value from {@link Configuration}. <br>
+     * 2. if key is not found, try to get the value with fallback keys from {@link Configuration}
+     * <br>
+     * 3. if no fallback keys are found, return {@link Optional#empty()}. <br>
+     *
+     * @return the value of the configuration or {@link Optional#empty()}.
+     */
     private Optional<Object> getRawValueFromOption(ConfigOption<?> configOption) {
         return applyWithOption(configOption, this::getRawValue);
     }
@@ -966,6 +675,12 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
     @Override
     public String toString() {
-        return this.confData.toString();
+        return ConfigurationUtils.hideSensitiveValues(
+                        this.confData.entrySet().stream()
+                                .collect(
+                                        Collectors.toMap(
+                                                Map.Entry::getKey,
+                                                entry -> entry.getValue().toString())))
+                .toString();
     }
 }

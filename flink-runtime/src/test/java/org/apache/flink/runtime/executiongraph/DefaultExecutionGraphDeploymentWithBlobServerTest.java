@@ -22,72 +22,60 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.SerializedValue;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
-import org.mockito.Matchers;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /**
  * Tests {@link ExecutionGraph} deployment when offloading job and task information into the BLOB
  * server.
  */
-public class DefaultExecutionGraphDeploymentWithBlobServerTest
+class DefaultExecutionGraphDeploymentWithBlobServerTest
         extends DefaultExecutionGraphDeploymentTest {
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir Path temporaryFolder;
 
     private Set<byte[]> seenHashes =
             Collections.newSetFromMap(new ConcurrentHashMap<byte[], Boolean>());
 
     protected BlobServer blobServer = null;
 
-    @Before
-    public void setupBlobServer() throws IOException {
+    @BeforeEach
+    void setupBlobServer() throws IOException {
         Configuration config = new Configuration();
         // always offload the serialized job and task information
-        config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
+        config.set(BlobServerOptions.OFFLOAD_MINSIZE, 0);
         blobServer =
-                Mockito.spy(
-                        new BlobServer(config, TEMPORARY_FOLDER.newFolder(), new VoidBlobStore()));
+                new AssertBlobServer(
+                        config, TempDirUtils.newFolder(temporaryFolder), new VoidBlobStore());
         blobWriter = blobServer;
         blobCache = blobServer;
 
         seenHashes.clear();
-
-        // verify that we do not upload the same content more than once
-        doAnswer(
-                        invocation -> {
-                            PermanentBlobKey key = (PermanentBlobKey) invocation.callRealMethod();
-
-                            assertTrue(seenHashes.add(key.getHash()));
-
-                            return key;
-                        })
-                .when(blobServer)
-                .putPermanent(any(JobID.class), Matchers.<byte[]>any());
-
         blobServer.start();
     }
 
-    @After
-    public void shutdownBlobServer() throws IOException {
+    @AfterEach
+    void shutdownBlobServer() throws IOException {
         if (blobServer != null) {
             blobServer.close();
         }
@@ -95,13 +83,14 @@ public class DefaultExecutionGraphDeploymentWithBlobServerTest
 
     @Override
     protected void checkJobOffloaded(DefaultExecutionGraph eg) throws Exception {
-        Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey =
-                eg.getJobInformationOrBlobKey();
+        TaskDeploymentDescriptor.MaybeOffloaded<JobInformation> serializedJobInformation =
+                eg.getTaskDeploymentDescriptorFactory().getSerializedJobInformation();
 
-        assertTrue(jobInformationOrBlobKey.isRight());
-
-        // must not throw:
-        blobServer.getFile(eg.getJobID(), jobInformationOrBlobKey.right());
+        assertThat(serializedJobInformation).isInstanceOf(TaskDeploymentDescriptor.Offloaded.class);
+        PermanentBlobKey blobKey =
+                ((TaskDeploymentDescriptor.Offloaded<JobInformation>) serializedJobInformation)
+                        .serializedValueKey;
+        assertThatNoException().isThrownBy(() -> blobServer.getFile(eg.getJobID(), blobKey));
     }
 
     @Override
@@ -109,9 +98,24 @@ public class DefaultExecutionGraphDeploymentWithBlobServerTest
         Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey =
                 eg.getJobVertex(jobVertexId).getTaskInformationOrBlobKey();
 
-        assertTrue(taskInformationOrBlobKey.isRight());
+        assertThat(taskInformationOrBlobKey.isRight()).isTrue();
 
         // must not throw:
         blobServer.getFile(eg.getJobID(), taskInformationOrBlobKey.right());
+    }
+
+    private class AssertBlobServer extends BlobServer {
+        public AssertBlobServer(Configuration config, File storageDir, BlobStore blobStore)
+                throws IOException {
+            super(config, storageDir, blobStore);
+        }
+
+        @Override
+        public PermanentBlobKey putPermanent(JobID jobId, byte[] value) throws IOException {
+            PermanentBlobKey key = super.putPermanent(jobId, value);
+            // verify that we do not upload the same content more than once
+            assertThat(seenHashes.add(key.getHash())).isTrue();
+            return key;
+        }
     }
 }

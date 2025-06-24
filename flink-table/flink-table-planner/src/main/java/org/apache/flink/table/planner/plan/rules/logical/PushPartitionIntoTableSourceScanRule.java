@@ -26,34 +26,27 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
-import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.abilities.source.PartitionPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
-import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 import org.apache.flink.table.planner.plan.utils.PartitionPruner;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 import org.apache.flink.table.planner.plan.utils.RexNodeToExpressionConverter;
-import org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.type.RelDataType;
@@ -69,7 +62,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -106,7 +98,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
         if (!(dynamicTableSource instanceof SupportsPartitionPushDown)) {
             return false;
         }
-        CatalogTable catalogTable = tableSourceTable.contextResolvedTable().getTable();
+        CatalogTable catalogTable = tableSourceTable.contextResolvedTable().getResolvedTable();
         if (!catalogTable.isPartitioned() || catalogTable.getPartitionKeys().isEmpty()) {
             return false;
         }
@@ -133,7 +125,6 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
         Tuple2<Seq<RexNode>, Seq<RexNode>> allPredicates =
                 RexNodeExtractor.extractPartitionPredicateList(
                         filter.getCondition(),
-                        FlinkRelOptUtil.getMaxCnfNodeCount(scan),
                         inputFieldNames.toArray(new String[0]),
                         rexBuilder,
                         partitionFieldNames.toArray(new String[0]));
@@ -168,6 +159,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
                 partitions ->
                         PartitionPruner.prunePartitions(
                                 context.getTableConfig(),
+                                context.getClassLoader(),
                                 partitionFieldNames.toArray(new String[0]),
                                 partitionFieldTypes,
                                 partitions,
@@ -181,43 +173,26 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
                         defaultPruner,
                         allPredicates._1(),
                         inputFieldNames);
+
+        // If remaining partitions are empty, it means that there are no partitions are selected
+        // after partition prune. We can directly optimize the RelNode to Empty FlinkLogicalValues.
+        if (remainingPartitions.isEmpty()) {
+            RelNode emptyValue = relBuilder.push(filter).empty().build();
+            call.transformTo(emptyValue);
+            return;
+        }
+
         // apply push down
         DynamicTableSource dynamicTableSource = tableSourceTable.tableSource().copy();
         PartitionPushDownSpec partitionPushDownSpec =
                 new PartitionPushDownSpec(remainingPartitions);
         partitionPushDownSpec.apply(dynamicTableSource, SourceAbilityContext.from(scan));
 
-        // build new statistic
-        TableStats newTableStat = null;
-        if (tableSourceTable.contextResolvedTable().isPermanent()) {
-            ObjectIdentifier identifier = tableSourceTable.contextResolvedTable().getIdentifier();
-            ObjectPath tablePath = identifier.toObjectPath();
-            Catalog catalog = tableSourceTable.contextResolvedTable().getCatalog().get();
-            for (Map<String, String> partition : remainingPartitions) {
-                Optional<TableStats> partitionStats =
-                        getPartitionStats(catalog, tablePath, partition);
-                if (!partitionStats.isPresent()) {
-                    // clear all information before
-                    newTableStat = null;
-                    break;
-                } else {
-                    newTableStat =
-                            newTableStat == null
-                                    ? partitionStats.get()
-                                    : newTableStat.merge(partitionStats.get());
-                }
-            }
-        }
-        FlinkStatistic newStatistic =
-                FlinkStatistic.builder()
-                        .statistic(tableSourceTable.getStatistic())
-                        .tableStats(newTableStat)
-                        .build();
-
         TableSourceTable newTableSourceTable =
                 tableSourceTable.copy(
                         dynamicTableSource,
-                        newStatistic,
+                        // The statistics will be updated in FlinkRecomputeStatisticsProgram.
+                        tableSourceTable.getStatistic(),
                         new SourceAbilitySpec[] {partitionPushDownSpec});
         LogicalTableScan newScan =
                 LogicalTableScan.create(scan.getCluster(), newTableSourceTable, scan.getHints());
@@ -341,9 +316,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
                         rexBuilder,
                         allFieldNames.toArray(new String[0]),
                         context.getFunctionCatalog(),
-                        context.getCatalogManager(),
-                        TimeZone.getTimeZone(
-                                TableConfigUtils.getLocalTimeZone(context.getTableConfig())));
+                        context.getCatalogManager());
         ArrayList<Expression> partitionFilters = new ArrayList<>();
         Option<ResolvedExpression> subExpr;
         for (RexNode node : JavaConversions.seqAsJavaList(partitionPredicate)) {
@@ -375,21 +348,5 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
                         .collect(Collectors.toList());
         // prune partitions
         return pruner.apply(allPartitions);
-    }
-
-    private Optional<TableStats> getPartitionStats(
-            Catalog catalog, ObjectPath tablePath, Map<String, String> partition) {
-        try {
-            CatalogPartitionSpec spec = new CatalogPartitionSpec(partition);
-            CatalogTableStatistics partitionStat = catalog.getPartitionStatistics(tablePath, spec);
-            CatalogColumnStatistics partitionColStat =
-                    catalog.getPartitionColumnStatistics(tablePath, spec);
-            TableStats stats =
-                    CatalogTableStatisticsConverter.convertToTableStats(
-                            partitionStat, partitionColStat);
-            return Optional.of(stats);
-        } catch (PartitionNotExistException e) {
-            return Optional.empty();
-        }
     }
 }

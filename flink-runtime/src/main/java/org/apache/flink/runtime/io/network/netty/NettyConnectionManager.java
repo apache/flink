@@ -45,7 +45,6 @@ public class NettyConnectionManager implements ConnectionManager {
             ResultPartitionProvider partitionProvider,
             TaskEventPublisher taskEventPublisher,
             NettyConfig nettyConfig,
-            int maxNumberOfConnections,
             boolean connectionReuseEnabled) {
 
         this(
@@ -53,7 +52,6 @@ public class NettyConnectionManager implements ConnectionManager {
                 partitionProvider,
                 taskEventPublisher,
                 nettyConfig,
-                maxNumberOfConnections,
                 connectionReuseEnabled);
     }
 
@@ -63,7 +61,6 @@ public class NettyConnectionManager implements ConnectionManager {
             ResultPartitionProvider partitionProvider,
             TaskEventPublisher taskEventPublisher,
             NettyConfig nettyConfig,
-            int maxNumberOfConnections,
             boolean connectionReuseEnabled) {
 
         this.server = new NettyServer(nettyConfig);
@@ -72,10 +69,7 @@ public class NettyConnectionManager implements ConnectionManager {
 
         this.partitionRequestClientFactory =
                 new PartitionRequestClientFactory(
-                        client,
-                        nettyConfig.getNetworkRetries(),
-                        maxNumberOfConnections,
-                        connectionReuseEnabled);
+                        client, nettyConfig.getNetworkRetries(), connectionReuseEnabled);
 
         this.nettyProtocol =
                 new NettyProtocol(

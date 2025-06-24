@@ -26,9 +26,15 @@ class StreamTableExplainTests(PyFlinkStreamTableTestCase):
     def test_explain(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
         result = t.group_by(t.c).select(t.a.sum, t.c.alias('b')).explain(
-            ExplainDetail.CHANGELOG_MODE)
-
+            ExplainDetail.CHANGELOG_MODE, ExplainDetail.PLAN_ADVICE)
         assert isinstance(result, str)
+        self.assertGreaterEqual(result.find('== Optimized Physical Plan With Advice =='), 0)
+        self.assertGreaterEqual(result.find('advice[1]: [ADVICE] You might want to enable '
+                                            'local-global two-phase optimization by configuring ('
+                                            '\'table.exec.mini-batch.enabled\' to \'true\', '
+                                            '\'table.exec.mini-batch.allow-latency\' to a '
+                                            'positive long value, \'table.exec.mini-batch.size\' '
+                                            'to a positive long value).'), 0)
 
         result = t.group_by(t.c).select(t.a.sum, t.c.alias('b')).explain(
             ExplainDetail.JSON_EXECUTION_PLAN)

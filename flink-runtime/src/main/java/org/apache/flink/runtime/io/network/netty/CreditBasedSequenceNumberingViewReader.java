@@ -22,9 +22,12 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
+import org.apache.flink.runtime.io.network.partition.PartitionRequestListener;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
@@ -33,8 +36,10 @@ import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Simple wrapper for the subpartition view used in the new network credit-based mode.
@@ -53,7 +58,15 @@ class CreditBasedSequenceNumberingViewReader
 
     private final int initialCredit;
 
+    /**
+     * Cache of the index of the only subpartition if the underlining {@link ResultSubpartitionView}
+     * only consumes one subpartition, or -1 otherwise.
+     */
+    private int subpartitionId;
+
     private volatile ResultSubpartitionView subpartitionView;
+
+    private volatile PartitionRequestListener partitionRequestListener;
 
     /**
      * The status indicating whether this reader is already enqueued in the pipeline for
@@ -75,35 +88,71 @@ class CreditBasedSequenceNumberingViewReader
         this.initialCredit = initialCredit;
         this.numCreditsAvailable = initialCredit;
         this.requestQueue = requestQueue;
+        this.subpartitionId = -1;
     }
 
     @Override
-    public void requestSubpartitionView(
+    public void requestSubpartitionViewOrRegisterListener(
             ResultPartitionProvider partitionProvider,
             ResultPartitionID resultPartitionId,
-            int subPartitionIndex)
+            ResultSubpartitionIndexSet subpartitionIndexSet)
             throws IOException {
-
         synchronized (requestLock) {
-            if (subpartitionView == null) {
-                // This call can trigger a notification we have to
-                // schedule a separate task at the event loop that will
-                // start consuming this. Otherwise the reference to the
-                // view cannot be available in getNextBuffer().
-                this.subpartitionView =
-                        partitionProvider.createSubpartitionView(
-                                resultPartitionId, subPartitionIndex, this);
+            checkState(subpartitionView == null, "Subpartitions already requested");
+            checkState(
+                    partitionRequestListener == null, "Partition request listener already created");
+            partitionRequestListener =
+                    new NettyPartitionRequestListener(
+                            partitionProvider, this, subpartitionIndexSet, resultPartitionId);
+            // The partition provider will create subpartitionView if resultPartition is
+            // registered, otherwise it will register a listener of partition request to the result
+            // partition manager.
+            Optional<ResultSubpartitionView> subpartitionViewOptional =
+                    partitionProvider.createSubpartitionViewOrRegisterListener(
+                            resultPartitionId,
+                            subpartitionIndexSet,
+                            this,
+                            partitionRequestListener);
+            if (subpartitionViewOptional.isPresent()) {
+                this.subpartitionView = subpartitionViewOptional.get();
+                if (subpartitionIndexSet.size() == 1) {
+                    subpartitionId = subpartitionIndexSet.values().iterator().next();
+                }
             } else {
-                throw new IllegalStateException("Subpartition already requested");
+                // If the subpartitionView is not exist, it means that the requested partition is
+                // not registered.
+                return;
             }
         }
 
-        notifyDataAvailable();
+        notifyDataAvailable(subpartitionView);
+        requestQueue.notifyReaderCreated(this);
+    }
+
+    @Override
+    public void notifySubpartitionsCreated(
+            ResultPartition partition, ResultSubpartitionIndexSet subpartitionIndexSet)
+            throws IOException {
+        synchronized (requestLock) {
+            checkState(subpartitionView == null, "Subpartitions already requested");
+            subpartitionView = partition.createSubpartitionView(subpartitionIndexSet, this);
+            if (subpartitionIndexSet.size() == 1) {
+                subpartitionId = subpartitionIndexSet.values().iterator().next();
+            }
+        }
+
+        notifyDataAvailable(subpartitionView);
+        requestQueue.notifyReaderCreated(this);
     }
 
     @Override
     public void addCredit(int creditDeltas) {
         numCreditsAvailable += creditDeltas;
+    }
+
+    @Override
+    public void notifyRequiredSegmentId(int subpartitionId, int segmentId) {
+        subpartitionView.notifyRequiredSegmentId(subpartitionId, segmentId);
     }
 
     @Override
@@ -141,7 +190,7 @@ class CreditBasedSequenceNumberingViewReader
      */
     @Override
     public ResultSubpartitionView.AvailabilityWithBacklog getAvailabilityAndBacklog() {
-        return subpartitionView.getAvailabilityAndBacklog(numCreditsAvailable);
+        return subpartitionView.getAvailabilityAndBacklog(numCreditsAvailable > 0);
     }
 
     /**
@@ -177,6 +226,12 @@ class CreditBasedSequenceNumberingViewReader
         subpartitionView.notifyNewBufferSize(newBufferSize);
     }
 
+    @Override
+    public void notifyPartitionRequestTimeout(PartitionRequestListener partitionRequestListener) {
+        requestQueue.notifyPartitionRequestTimeout(partitionRequestListener);
+        this.partitionRequestListener = null;
+    }
+
     @VisibleForTesting
     int getNumCreditsAvailable() {
         return numCreditsAvailable;
@@ -184,7 +239,15 @@ class CreditBasedSequenceNumberingViewReader
 
     @VisibleForTesting
     ResultSubpartitionView.AvailabilityWithBacklog hasBuffersAvailable() {
-        return subpartitionView.getAvailabilityAndBacklog(Integer.MAX_VALUE);
+        return subpartitionView.getAvailabilityAndBacklog(true);
+    }
+
+    @Override
+    public int peekNextBufferSubpartitionId() throws IOException {
+        if (subpartitionId >= 0) {
+            return subpartitionId;
+        }
+        return subpartitionView.peekNextBufferSubpartitionId();
     }
 
     @Nullable
@@ -221,17 +284,20 @@ class CreditBasedSequenceNumberingViewReader
 
     @Override
     public void releaseAllResources() throws IOException {
+        if (partitionRequestListener != null) {
+            partitionRequestListener.releaseListener();
+        }
         subpartitionView.releaseAllResources();
     }
 
     @Override
-    public void notifyDataAvailable() {
+    public void notifyDataAvailable(ResultSubpartitionView view) {
         requestQueue.notifyReaderNonEmpty(this);
     }
 
     @Override
     public void notifyPriorityEvent(int prioritySequenceNumber) {
-        notifyDataAvailable();
+        notifyDataAvailable(this.subpartitionView);
     }
 
     @Override

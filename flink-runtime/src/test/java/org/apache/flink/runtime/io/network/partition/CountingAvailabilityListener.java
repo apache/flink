@@ -24,7 +24,7 @@ final class CountingAvailabilityListener implements BufferAvailabilityListener {
     int numNotifications;
 
     @Override
-    public void notifyDataAvailable() {
+    public void notifyDataAvailable(ResultSubpartitionView view) {
         numNotifications++;
     }
 }

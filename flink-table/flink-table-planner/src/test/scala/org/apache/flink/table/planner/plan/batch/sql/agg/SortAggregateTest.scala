@@ -17,34 +17,55 @@
  */
 package org.apache.flink.table.planner.plan.batch.sql.agg
 
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.utils.OperatorType
-import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
-import org.junit.Before
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util
 
 import scala.collection.JavaConversions._
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class SortAggregateTest(aggStrategy: AggregatePhaseStrategy) extends AggregateTestBase {
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     // disable hash agg
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, OperatorType.HashAgg.toString)
     util.tableEnv.getConfig
-      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy)
+  }
+
+  @TestTemplate
+  def testApproximateCountDistinct(): Unit = {
+    val sql =
+      """
+        |SELECT 
+        | APPROX_COUNT_DISTINCT(`byte`), 
+        | APPROX_COUNT_DISTINCT(`short`), 
+        | APPROX_COUNT_DISTINCT(`int`), 
+        | APPROX_COUNT_DISTINCT(`long`), 
+        | APPROX_COUNT_DISTINCT(`float`), 
+        | APPROX_COUNT_DISTINCT(`double`), 
+        | APPROX_COUNT_DISTINCT(`string`), 
+        | APPROX_COUNT_DISTINCT(`date`), 
+        | APPROX_COUNT_DISTINCT(`time`), 
+        | APPROX_COUNT_DISTINCT(`timestamp`), 
+        | APPROX_COUNT_DISTINCT(`decimal3020`), 
+        | APPROX_COUNT_DISTINCT(`decimal105`)
+        | FROM MyTable
+      """.stripMargin
+    util.verifyExecPlan(sql)
   }
 }
 
 object SortAggregateTest {
 
-  @Parameterized.Parameters(name = "aggStrategy={0}")
+  @Parameters(name = "aggStrategy={0}")
   def parameters(): util.Collection[AggregatePhaseStrategy] = {
     Seq[AggregatePhaseStrategy](
       AggregatePhaseStrategy.AUTO,

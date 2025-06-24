@@ -57,7 +57,7 @@ These environment variables will affect the behavior of PyFlink:
         <ol>
         <li>The configuration 'python.client.executable' defined in the source code; </li>
         <li>The environment variable PYFLINK_CLIENT_EXECUTABLE; </li>
-        <li>The configuration 'python.client.executable' defined in flink-conf.yaml</li>
+        <li>The configuration 'python.client.executable' defined in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}})</li>
         </ol>
         If none of above is set, the default Python interpreter 'python' will be used.
       </td>

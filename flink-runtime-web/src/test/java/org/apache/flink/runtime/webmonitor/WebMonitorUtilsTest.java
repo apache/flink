@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler;
@@ -27,6 +26,7 @@ import org.apache.flink.util.concurrent.Executors;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
@@ -39,11 +39,11 @@ class WebMonitorUtilsTest {
     @Test
     void testLoadWebSubmissionExtension() throws Exception {
         final Configuration configuration = new Configuration();
-        configuration.setString(JobManagerOptions.ADDRESS, "localhost");
+        configuration.set(JobManagerOptions.ADDRESS, "localhost");
         final WebMonitorExtension webMonitorExtension =
                 WebMonitorUtils.loadWebSubmissionExtension(
                         CompletableFuture::new,
-                        Time.seconds(10),
+                        Duration.ofSeconds(10),
                         Collections.emptyMap(),
                         CompletableFuture.completedFuture("localhost:12345"),
                         Paths.get("/tmp"),

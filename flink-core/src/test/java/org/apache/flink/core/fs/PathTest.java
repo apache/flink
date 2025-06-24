@@ -18,222 +18,209 @@
 
 package org.apache.flink.core.fs;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.URI;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link Path} class. */
-public class PathTest {
+class PathTest {
 
     @Test
-    public void testPathFromString() {
+    void testPathFromString() {
 
         Path p = new Path("/my/path");
-        assertEquals("/my/path", p.toUri().getPath());
-        assertNull(p.toUri().getScheme());
+        assertThat(p.toUri().getPath()).isEqualTo("/my/path");
+        assertThat(p.toUri().getScheme()).isNull();
 
         p = new Path("/my/path/");
-        assertEquals("/my/path", p.toUri().getPath());
-        assertNull(p.toUri().getScheme());
+        assertThat(p.toUri().getPath()).isEqualTo("/my/path");
+        assertThat(p.toUri().getScheme()).isNull();
 
         p = new Path("/my//path/");
-        assertEquals("/my/path", p.toUri().getPath());
-        assertNull(p.toUri().getScheme());
+        assertThat(p.toUri().getPath()).isEqualTo("/my/path");
+        assertThat(p.toUri().getScheme()).isNull();
 
         p = new Path("/my//path//a///");
-        assertEquals("/my/path/a", p.toUri().getPath());
-        assertNull(p.toUri().getScheme());
+        assertThat(p.toUri().getPath()).isEqualTo("/my/path/a");
+        assertThat(p.toUri().getScheme()).isNull();
 
         p = new Path("\\my\\path\\\\a\\\\\\");
-        assertEquals("/my/path/a", p.toUri().getPath());
-        assertNull(p.toUri().getScheme());
+        assertThat(p.toUri().getPath()).isEqualTo("/my/path/a");
+        assertThat(p.toUri().getScheme()).isNull();
 
         p = new Path("hdfs:///my/path");
-        assertEquals("/my/path", p.toUri().getPath());
-        assertEquals("hdfs", p.toUri().getScheme());
+        assertThat(p.toUri().getPath()).isEqualTo("/my/path");
+        assertThat(p.toUri().getScheme()).isEqualTo("hdfs");
 
         p = new Path("hdfs:///my/path/");
-        assertEquals("/my/path", p.toUri().getPath());
-        assertEquals("hdfs", p.toUri().getScheme());
+        assertThat(p.toUri().getPath()).isEqualTo("/my/path");
+        assertThat(p.toUri().getScheme()).isEqualTo("hdfs");
 
         p = new Path("file:///my/path");
-        assertEquals("/my/path", p.toUri().getPath());
-        assertEquals("file", p.toUri().getScheme());
+        assertThat(p.toUri().getPath()).isEqualTo("/my/path");
+        assertThat(p.toUri().getScheme()).isEqualTo("file");
 
         p = new Path("C:/my/windows/path");
-        assertEquals("/C:/my/windows/path", p.toUri().getPath());
+        assertThat(p.toUri().getPath()).isEqualTo("/C:/my/windows/path");
 
         p = new Path("file:/C:/my/windows/path");
-        assertEquals("/C:/my/windows/path", p.toUri().getPath());
+        assertThat(p.toUri().getPath()).isEqualTo("/C:/my/windows/path");
 
-        try {
-            new Path((String) null);
-            fail();
-        } catch (Exception e) {
-            // exception expected
-        }
+        assertThatThrownBy(() -> new Path((String) null)).isInstanceOf(Exception.class);
 
-        try {
-            new Path("");
-            fail();
-        } catch (Exception e) {
-            // exception expected
-        }
+        assertThatThrownBy(() -> new Path("")).isInstanceOf(Exception.class);
     }
 
     @Test
-    public void testIsAbsolute() {
+    void testIsAbsolute() {
 
         // UNIX
 
         Path p = new Path("/my/abs/path");
-        assertTrue(p.isAbsolute());
+        assertThat(p.isAbsolute()).isTrue();
 
         p = new Path("/");
-        assertTrue(p.isAbsolute());
+        assertThat(p.isAbsolute()).isTrue();
 
         p = new Path("./my/rel/path");
-        assertFalse(p.isAbsolute());
+        assertThat(p.isAbsolute()).isFalse();
 
         p = new Path("my/rel/path");
-        assertFalse(p.isAbsolute());
+        assertThat(p.isAbsolute()).isFalse();
 
         // WINDOWS
 
         p = new Path("C:/my/abs/windows/path");
-        assertTrue(p.isAbsolute());
+        assertThat(p.isAbsolute()).isTrue();
 
         p = new Path("y:/my/abs/windows/path");
-        assertTrue(p.isAbsolute());
+        assertThat(p.isAbsolute()).isTrue();
 
         p = new Path("/y:/my/abs/windows/path");
-        assertTrue(p.isAbsolute());
+        assertThat(p.isAbsolute()).isTrue();
 
         p = new Path("b:\\my\\abs\\windows\\path");
-        assertTrue(p.isAbsolute());
+        assertThat(p.isAbsolute()).isTrue();
 
         p = new Path("/c:/my/dir");
-        assertTrue(p.isAbsolute());
+        assertThat(p.isAbsolute()).isTrue();
 
         p = new Path("/C:/");
-        assertTrue(p.isAbsolute());
+        assertThat(p.isAbsolute()).isTrue();
 
         p = new Path("C:");
-        assertFalse(p.isAbsolute());
+        assertThat(p.isAbsolute()).isFalse();
 
         p = new Path("C:/");
-        assertTrue(p.isAbsolute());
+        assertThat(p.isAbsolute()).isTrue();
 
         p = new Path("C:my\\relative\\path");
-        assertFalse(p.isAbsolute());
+        assertThat(p.isAbsolute()).isFalse();
 
         p = new Path("\\my\\dir");
-        assertTrue(p.isAbsolute());
+        assertThat(p.isAbsolute()).isTrue();
 
         p = new Path("\\");
-        assertTrue(p.isAbsolute());
+        assertThat(p.isAbsolute()).isTrue();
 
         p = new Path(".\\my\\relative\\path");
-        assertFalse(p.isAbsolute());
+        assertThat(p.isAbsolute()).isFalse();
 
         p = new Path("my\\relative\\path");
-        assertFalse(p.isAbsolute());
+        assertThat(p.isAbsolute()).isFalse();
 
         p = new Path("\\\\myServer\\myDir");
-        assertTrue(p.isAbsolute());
+        assertThat(p.isAbsolute()).isTrue();
     }
 
     @Test
-    public void testGetName() {
+    void testGetName() {
 
         Path p = new Path("/my/fancy/path");
-        assertEquals("path", p.getName());
+        assertThat(p.getName()).isEqualTo("path");
 
         p = new Path("/my/fancy/path/");
-        assertEquals("path", p.getName());
+        assertThat(p.getName()).isEqualTo("path");
 
         p = new Path("hdfs:///my/path");
-        assertEquals("path", p.getName());
+        assertThat(p.getName()).isEqualTo("path");
 
         p = new Path("hdfs:///myPath/");
-        assertEquals("myPath", p.getName());
+        assertThat(p.getName()).isEqualTo("myPath");
 
         p = new Path("/");
-        assertEquals("", p.getName());
+        assertThat(p.getName()).isEmpty();
 
         p = new Path("C:/my/windows/path");
-        assertEquals("path", p.getName());
+        assertThat(p.getName()).isEqualTo("path");
 
         p = new Path("file:/C:/my/windows/path");
-        assertEquals("path", p.getName());
+        assertThat(p.getName()).isEqualTo("path");
     }
 
     @Test
-    public void testGetParent() {
+    void testGetParent() {
 
         Path p = new Path("/my/fancy/path");
-        assertEquals("/my/fancy", p.getParent().toUri().getPath());
+        assertThat(p.getParent().toUri().getPath()).isEqualTo("/my/fancy");
 
         p = new Path("/my/other/fancy/path/");
-        assertEquals("/my/other/fancy", p.getParent().toUri().getPath());
+        assertThat(p.getParent().toUri().getPath()).isEqualTo("/my/other/fancy");
 
         p = new Path("hdfs:///my/path");
-        assertEquals("/my", p.getParent().toUri().getPath());
+        assertThat(p.getParent().toUri().getPath()).isEqualTo("/my");
 
         p = new Path("hdfs:///myPath/");
-        assertEquals("/", p.getParent().toUri().getPath());
+        assertThat(p.getParent().toUri().getPath()).isEqualTo("/");
 
         p = new Path("/");
-        assertNull(p.getParent());
+        assertThat(p.getParent()).isNull();
 
         p = new Path("C:/my/windows/path");
-        assertEquals("/C:/my/windows", p.getParent().toUri().getPath());
+        assertThat(p.getParent().toUri().getPath()).isEqualTo("/C:/my/windows");
     }
 
     @Test
-    public void testSuffix() {
+    void testSuffix() {
 
         Path p = new Path("/my/path");
         p = p.suffix("_123");
-        assertEquals("/my/path_123", p.toUri().getPath());
+        assertThat(p.toUri().getPath()).isEqualTo("/my/path_123");
 
         p = new Path("/my/path/");
         p = p.suffix("/abc");
-        assertEquals("/my/path/abc", p.toUri().getPath());
+        assertThat(p.toUri().getPath()).isEqualTo("/my/path/abc");
 
         p = new Path("C:/my/windows/path");
         p = p.suffix("/abc");
-        assertEquals("/C:/my/windows/path/abc", p.toUri().getPath());
+        assertThat(p.toUri().getPath()).isEqualTo("/C:/my/windows/path/abc");
     }
 
     @Test
-    public void testDepth() {
+    void testDepth() {
 
         Path p = new Path("/my/path");
-        assertEquals(2, p.depth());
+        assertThat(p.depth()).isEqualTo(2);
 
         p = new Path("/my/fancy/path/");
-        assertEquals(3, p.depth());
+        assertThat(p.depth()).isEqualTo(3);
 
         p = new Path("/my/fancy/fancy/fancy/fancy/fancy/fancy/fancy/fancy/fancy/fancy/path");
-        assertEquals(12, p.depth());
+        assertThat(p.depth()).isEqualTo(12);
 
         p = new Path("/");
-        assertEquals(0, p.depth());
+        assertThat(p.depth()).isZero();
 
         p = new Path("C:/my/windows/path");
-        assertEquals(4, p.depth());
+        assertThat(p.depth()).isEqualTo(4);
     }
 
     @Test
-    public void testParsing() {
+    void testParsing() {
         URI u;
         String scheme = "hdfs";
         String authority = "localhost:8000";
@@ -242,54 +229,54 @@ public class PathTest {
         // correct usage
         // hdfs://localhost:8000/test/test
         u = new Path(scheme + "://" + authority + path).toUri();
-        assertEquals(scheme, u.getScheme());
-        assertEquals(authority, u.getAuthority());
-        assertEquals(path, u.getPath());
+        assertThat(u.getScheme()).isEqualTo(scheme);
+        assertThat(u.getAuthority()).isEqualTo(authority);
+        assertThat(u.getPath()).isEqualTo(path);
         // hdfs:///test/test
         u = new Path(scheme + "://" + path).toUri();
-        assertEquals(scheme, u.getScheme());
-        assertEquals(null, u.getAuthority());
-        assertEquals(path, u.getPath());
+        assertThat(u.getScheme()).isEqualTo(scheme);
+        assertThat(u.getAuthority()).isNull();
+        assertThat(u.getPath()).isEqualTo(path);
         // hdfs:/test/test
         u = new Path(scheme + ":" + path).toUri();
-        assertEquals(scheme, u.getScheme());
-        assertEquals(null, u.getAuthority());
-        assertEquals(path, u.getPath());
+        assertThat(u.getScheme()).isEqualTo(scheme);
+        assertThat(u.getAuthority()).isNull();
+        assertThat(u.getPath()).isEqualTo(path);
 
         // incorrect usage
         // hdfs://test/test
         u = new Path(scheme + ":/" + path).toUri();
-        assertEquals(scheme, u.getScheme());
-        assertEquals("test", u.getAuthority());
-        assertEquals("/test", u.getPath());
+        assertThat(u.getScheme()).isEqualTo(scheme);
+        assertThat(u.getAuthority()).isEqualTo("test");
+        assertThat(u.getPath()).isEqualTo("/test");
         // hdfs:////test/test
         u = new Path(scheme + ":///" + path).toUri();
-        assertEquals("hdfs", u.getScheme());
-        assertEquals(null, u.getAuthority());
-        assertEquals(path, u.getPath());
+        assertThat(u.getScheme()).isEqualTo("hdfs");
+        assertThat(u.getAuthority()).isNull();
+        assertThat(u.getPath()).isEqualTo(path);
     }
 
     @Test
-    public void testMakeQualified() throws IOException {
+    void testMakeQualified() throws IOException {
         // make relative path qualified
         String path = "test/test";
         Path p = new Path(path).makeQualified(FileSystem.getLocalFileSystem());
         URI u = p.toUri();
 
-        assertEquals("file", u.getScheme());
-        assertEquals(null, u.getAuthority());
+        assertThat(u.getScheme()).isEqualTo("file");
+        assertThat(u.getAuthority()).isNull();
 
         String q =
                 new Path(FileSystem.getLocalFileSystem().getWorkingDirectory().getPath(), path)
                         .getPath();
-        assertEquals(q, u.getPath());
+        assertThat(u.getPath()).isEqualTo(q);
 
         // make absolute path qualified
         path = "/test/test";
         p = new Path(path).makeQualified(FileSystem.getLocalFileSystem());
         u = p.toUri();
-        assertEquals("file", u.getScheme());
-        assertEquals(null, u.getAuthority());
-        assertEquals(path, u.getPath());
+        assertThat(u.getScheme()).isEqualTo("file");
+        assertThat(u.getAuthority()).isNull();
+        assertThat(u.getPath()).isEqualTo(path);
     }
 }

@@ -37,6 +37,8 @@ public class TestingTaskManagerInfo implements TaskManagerInfo {
     private final ResourceProfile defaultSlotResourceProfile;
     private final int defaultNumSlots;
 
+    private long idleSince = Long.MAX_VALUE;
+
     public TestingTaskManagerInfo(
             ResourceProfile totalResource,
             ResourceProfile availableResource,
@@ -52,6 +54,10 @@ public class TestingTaskManagerInfo implements TaskManagerInfo {
                 new TaskExecutorConnection(
                         ResourceID.generate(),
                         new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway());
+    }
+
+    public void setIdleSince(long idleSince) {
+        this.idleSince = idleSince;
     }
 
     @Override
@@ -91,11 +97,11 @@ public class TestingTaskManagerInfo implements TaskManagerInfo {
 
     @Override
     public long getIdleSince() {
-        return Long.MAX_VALUE;
+        return idleSince;
     }
 
     @Override
     public boolean isIdle() {
-        return false;
+        return idleSince != Long.MAX_VALUE;
     }
 }

@@ -22,10 +22,10 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.deduplicate.window.combines.RowTimeDeduplicateRecordsCombiner;
-import org.apache.flink.table.runtime.operators.deduplicate.window.processors.RowTimeWindowDeduplicateProcessor;
-import org.apache.flink.table.runtime.operators.window.combines.RecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator;
-import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.deduplicate.window.processors.RowTimeSyncStateWindowDeduplicateProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingSyncStateWindowProcessor;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 
@@ -35,8 +35,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The {@link RowTimeWindowDeduplicateOperatorBuilder} is used to build a {@link
- * SlicingWindowOperator} for rowtime window deduplicate.
+ * The {@link RowTimeWindowDeduplicateOperatorBuilder} is used to build a {@link WindowAggOperator}
+ * for rowtime window deduplicate.
  *
  * <pre>
  * RowTimeWindowDeduplicateOperatorBuilder.builder()
@@ -93,7 +93,7 @@ public class RowTimeWindowDeduplicateOperatorBuilder {
         return this;
     }
 
-    public SlicingWindowOperator<RowData, ?> build() {
+    public WindowAggOperator<RowData, ?> build() {
         checkNotNull(inputSerializer);
         checkNotNull(keySerializer);
         checkArgument(
@@ -105,9 +105,9 @@ public class RowTimeWindowDeduplicateOperatorBuilder {
                         inputSerializer, rowtimeIndex, keepLastRow);
         final WindowBuffer.Factory bufferFactory =
                 new RecordsWindowBuffer.Factory(keySerializer, inputSerializer, combinerFactory);
-        final SlicingWindowProcessor<Long> windowProcessor =
-                new RowTimeWindowDeduplicateProcessor(
+        final SlicingSyncStateWindowProcessor<Long> windowProcessor =
+                new RowTimeSyncStateWindowDeduplicateProcessor(
                         inputSerializer, bufferFactory, windowEndIndex, shiftTimeZone);
-        return new SlicingWindowOperator<>(windowProcessor);
+        return new WindowAggOperator<>(windowProcessor, true);
     }
 }

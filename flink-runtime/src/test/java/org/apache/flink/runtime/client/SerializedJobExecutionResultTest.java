@@ -22,28 +22,24 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the SerializedJobExecutionResult */
-public class SerializedJobExecutionResultTest extends TestLogger {
+class SerializedJobExecutionResultTest {
 
     @Test
-    public void testSerialization() throws Exception {
+    void testSerialization() throws Exception {
         final ClassLoader classloader = getClass().getClassLoader();
 
         JobID origJobId = new JobID();
@@ -62,61 +58,53 @@ public class SerializedJobExecutionResultTest extends TestLogger {
         // serialize and deserialize the object
         SerializedJobExecutionResult cloned = CommonTestUtils.createCopySerializable(result);
 
-        assertEquals(origJobId, cloned.getJobId());
-        assertEquals(origTime, cloned.getNetRuntime());
-        assertEquals(origTime, cloned.getNetRuntime(TimeUnit.MILLISECONDS));
-        assertEquals(origMap, cloned.getSerializedAccumulatorResults());
+        assertThat(cloned.getJobId()).isEqualTo(origJobId);
+        assertThat(cloned.getNetRuntime()).isEqualTo(origTime);
+        assertThat(cloned.getNetRuntime(TimeUnit.MILLISECONDS)).isEqualTo(origTime);
+        assertThat(cloned.getSerializedAccumulatorResults()).isEqualTo(origMap);
 
         // convert to deserialized result
         JobExecutionResult jResult = result.toJobExecutionResult(classloader);
         JobExecutionResult jResultCopied = result.toJobExecutionResult(classloader);
 
-        assertEquals(origJobId, jResult.getJobID());
-        assertEquals(origJobId, jResultCopied.getJobID());
-        assertEquals(origTime, jResult.getNetRuntime());
-        assertEquals(origTime, jResult.getNetRuntime(TimeUnit.MILLISECONDS));
-        assertEquals(origTime, jResultCopied.getNetRuntime());
-        assertEquals(origTime, jResultCopied.getNetRuntime(TimeUnit.MILLISECONDS));
+        assertThat(jResult.getJobID()).isEqualTo(origJobId);
+        assertThat(jResultCopied.getJobID()).isEqualTo(origJobId);
+        assertThat(jResult.getNetRuntime()).isEqualTo(origTime);
+        assertThat(jResult.getNetRuntime(TimeUnit.MILLISECONDS)).isEqualTo(origTime);
+        assertThat(jResultCopied.getNetRuntime()).isEqualTo(origTime);
+        assertThat(jResultCopied.getNetRuntime(TimeUnit.MILLISECONDS)).isEqualTo(origTime);
 
         for (Map.Entry<String, SerializedValue<OptionalFailure<Object>>> entry :
                 origMap.entrySet()) {
             String name = entry.getKey();
             OptionalFailure<Object> value = entry.getValue().deserializeValue(classloader);
             if (value.isFailure()) {
-                try {
-                    jResult.getAccumulatorResult(name);
-                    fail("expected failure");
-                } catch (FlinkRuntimeException ex) {
-                    assertTrue(
-                            ExceptionUtils.findThrowable(ex, ExpectedTestException.class)
-                                    .isPresent());
-                }
-                try {
-                    jResultCopied.getAccumulatorResult(name);
-                    fail("expected failure");
-                } catch (FlinkRuntimeException ex) {
-                    assertTrue(
-                            ExceptionUtils.findThrowable(ex, ExpectedTestException.class)
-                                    .isPresent());
-                }
+                assertThatThrownBy(() -> jResult.getAccumulatorResult(name))
+                        .isInstanceOf(FlinkRuntimeException.class)
+                        .hasCauseInstanceOf(ExpectedTestException.class);
+
+                assertThatThrownBy(() -> jResultCopied.getAccumulatorResult(name))
+                        .isInstanceOf(FlinkRuntimeException.class)
+                        .hasCauseInstanceOf(ExpectedTestException.class);
             } else {
-                assertEquals(value.get(), jResult.getAccumulatorResult(name));
-                assertEquals(value.get(), jResultCopied.getAccumulatorResult(name));
+                assertThat((Object) jResult.getAccumulatorResult(name)).isEqualTo(value.get());
+                assertThat((Object) jResultCopied.getAccumulatorResult(name))
+                        .isEqualTo(value.get());
             }
         }
     }
 
     @Test
-    public void testSerializationWithNullValues() throws Exception {
+    void testSerializationWithNullValues() throws Exception {
         SerializedJobExecutionResult result = new SerializedJobExecutionResult(null, 0L, null);
         SerializedJobExecutionResult cloned = CommonTestUtils.createCopySerializable(result);
 
-        assertNull(cloned.getJobId());
-        assertEquals(0L, cloned.getNetRuntime());
-        assertNull(cloned.getSerializedAccumulatorResults());
+        assertThat(cloned.getJobId()).isNull();
+        assertThat(cloned.getNetRuntime()).isZero();
+        assertThat(cloned.getSerializedAccumulatorResults()).isNull();
 
         JobExecutionResult jResult = result.toJobExecutionResult(getClass().getClassLoader());
-        assertNull(jResult.getJobID());
-        assertTrue(jResult.getAllAccumulatorResults().isEmpty());
+        assertThat(jResult.getJobID()).isNull();
+        assertThat(jResult.getAllAccumulatorResults()).isEmpty();
     }
 }

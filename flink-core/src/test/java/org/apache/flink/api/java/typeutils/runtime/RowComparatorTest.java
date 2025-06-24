@@ -18,6 +18,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -29,13 +30,14 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
 
 import java.io.Serializable;
+import java.util.Objects;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class RowComparatorTest extends ComparatorTestBase<Row> {
+class RowComparatorTest extends ComparatorTestBase<Row> {
 
     private static final RowTypeInfo typeInfo =
             new RowTypeInfo(
@@ -48,9 +50,9 @@ public class RowComparatorTest extends ComparatorTestBase<Row> {
                             BasicTypeInfo.SHORT_TYPE_INFO),
                     TypeExtractor.createTypeInfo(MyPojo.class));
 
-    private static MyPojo testPojo1 = new MyPojo();
-    private static MyPojo testPojo2 = new MyPojo();
-    private static MyPojo testPojo3 = new MyPojo();
+    private static final MyPojo testPojo1 = new MyPojo();
+    private static final MyPojo testPojo2 = new MyPojo();
+    private static final MyPojo testPojo3 = new MyPojo();
 
     private static final Row[] data =
             new Row[] {
@@ -74,8 +76,8 @@ public class RowComparatorTest extends ComparatorTestBase<Row> {
                 createRow(RowKind.DELETE, 1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo3)
             };
 
-    @BeforeClass
-    public static void init() {
+    @BeforeAll
+    static void init() {
         // TODO we cannot test null here as PojoComparator has no support for null keys
         testPojo1.name = "";
         testPojo2.name = "Test1";
@@ -85,11 +87,11 @@ public class RowComparatorTest extends ComparatorTestBase<Row> {
     @Override
     protected void deepEquals(String message, Row should, Row is) {
         int arity = should.getArity();
-        assertEquals(message, arity, is.getArity());
+        assertThat(is.getArity()).as(message).isEqualTo(arity);
         for (int i = 0; i < arity; i++) {
             Object copiedValue = should.getField(i);
             Object element = is.getField(i);
-            assertEquals(message, element, copiedValue);
+            assertThat(element).as(message).isEqualTo(copiedValue);
         }
     }
 
@@ -106,7 +108,7 @@ public class RowComparatorTest extends ComparatorTestBase<Row> {
 
     @Override
     protected TypeSerializer<Row> createSerializer() {
-        return typeInfo.createSerializer(new ExecutionConfig());
+        return typeInfo.createSerializer(new SerializerConfigImpl());
     }
 
     @Override
@@ -158,7 +160,7 @@ public class RowComparatorTest extends ComparatorTestBase<Row> {
 
             MyPojo myPojo = (MyPojo) o;
 
-            return name != null ? name.equals(myPojo.name) : myPojo.name == null;
+            return Objects.equals(name, myPojo.name);
         }
     }
 }

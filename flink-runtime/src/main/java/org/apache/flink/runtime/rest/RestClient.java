@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
@@ -59,6 +58,9 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOption;
+import org.apache.flink.shaded.netty4.io.netty.channel.DefaultSelectStrategyFactory;
+import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.SelectStrategyFactory;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
@@ -67,6 +69,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.TooLongFrameExcepti
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpClientCodec;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderValues;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObjectAggregator;
@@ -78,6 +82,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.Attr
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.multipart.MemoryAttribute;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.timeout.IdleStateEvent;
 import org.apache.flink.shaded.netty4.io.netty.handler.timeout.IdleStateHandler;
@@ -85,12 +90,17 @@ import org.apache.flink.shaded.netty4.io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.net.URL;
+import java.nio.channels.spi.SelectorProvider;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -100,11 +110,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.SecurityOptions.SSL_REST_ENABLED;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE;
 
 /** This client is the counter-part to the {@link RestServerEndpoint}. */
@@ -112,6 +124,8 @@ public class RestClient implements AutoCloseableAsync {
     private static final Logger LOG = LoggerFactory.getLogger(RestClient.class);
 
     private static final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
+    private static final ObjectMapper flexibleObjectMapper =
+            RestMapperUtils.getFlexibleObjectMapper();
 
     // used to open connections to a rest server endpoint
     private final Executor executor;
@@ -122,9 +136,70 @@ public class RestClient implements AutoCloseableAsync {
 
     private final AtomicBoolean isRunning = new AtomicBoolean(true);
 
-    @VisibleForTesting List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories;
+    public static final String VERSION_PLACEHOLDER = "{{VERSION}}";
+
+    private final String urlPrefix;
+
+    // Used to track unresolved request futures in case they need to be resolved when the client is
+    // closed
+    private final Collection<CompletableFuture<Channel>> responseChannelFutures =
+            ConcurrentHashMap.newKeySet();
+
+    private final List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories;
+    private final boolean useInternalEventLoopGroup;
+
+    /**
+     * Creates a new RestClient for the provided root URL. If the protocol of the URL is "https",
+     * then SSL is automatically enabled for the REST client.
+     */
+    public static RestClient forUrl(Configuration configuration, Executor executor, URL rootUrl)
+            throws ConfigurationException {
+        return forUrl(configuration, executor, rootUrl, null);
+    }
+
+    public static RestClient forUrl(
+            Configuration configuration, Executor executor, URL rootUrl, EventLoopGroup group)
+            throws ConfigurationException {
+        Preconditions.checkNotNull(configuration);
+        Preconditions.checkNotNull(rootUrl);
+        if ("https".equals(rootUrl.getProtocol())) {
+            configuration = configuration.clone();
+            configuration.set(SSL_REST_ENABLED, true);
+        }
+        return new RestClient(configuration, executor, rootUrl.getHost(), rootUrl.getPort(), group);
+    }
 
     public RestClient(Configuration configuration, Executor executor)
+            throws ConfigurationException {
+        this(configuration, executor, null, -1, null);
+    }
+
+    public RestClient(
+            Configuration configuration,
+            Executor executor,
+            String host,
+            int port,
+            EventLoopGroup group)
+            throws ConfigurationException {
+        this(configuration, executor, host, port, DefaultSelectStrategyFactory.INSTANCE, group);
+    }
+
+    @VisibleForTesting
+    RestClient(
+            Configuration configuration,
+            Executor executor,
+            SelectStrategyFactory selectStrategyFactory)
+            throws ConfigurationException {
+        this(configuration, executor, null, -1, selectStrategyFactory, null);
+    }
+
+    private RestClient(
+            Configuration configuration,
+            Executor executor,
+            String host,
+            int port,
+            SelectStrategyFactory selectStrategyFactory,
+            @Nullable EventLoopGroup group)
             throws ConfigurationException {
         Preconditions.checkNotNull(configuration);
         this.executor = Preconditions.checkNotNull(executor);
@@ -148,6 +223,11 @@ public class RestClient implements AutoCloseableAsync {
         outboundChannelHandlerFactories.sort(
                 Comparator.comparingInt(OutboundChannelHandlerFactory::priority).reversed());
 
+        urlPrefix = configuration.get(RestOptions.URL_PREFIX);
+        Preconditions.checkArgument(
+                urlPrefix.startsWith("/") && urlPrefix.endsWith("/"),
+                "urlPrefix must start and end with '/'");
+
         final RestClientConfiguration restConfiguration =
                 RestClientConfiguration.fromConfiguration(configuration);
         final SSLHandlerFactory sslHandlerFactory = restConfiguration.getSslHandlerFactory();
@@ -158,14 +238,14 @@ public class RestClient implements AutoCloseableAsync {
                         try {
                             // SSL should be the first handler in the pipeline
                             if (sslHandlerFactory != null) {
-                                socketChannel
-                                        .pipeline()
-                                        .addLast(
-                                                "ssl",
-                                                sslHandlerFactory.createNettySSLHandler(
-                                                        socketChannel.alloc()));
+                                SslHandler nettySSLHandler =
+                                        host == null
+                                                ? sslHandlerFactory.createNettySSLHandler(
+                                                        socketChannel.alloc())
+                                                : sslHandlerFactory.createNettySSLHandler(
+                                                        socketChannel.alloc(), host, port);
+                                socketChannel.pipeline().addLast("ssl", nettySSLHandler);
                             }
-
                             socketChannel
                                     .pipeline()
                                     .addLast(new HttpClientCodec())
@@ -199,8 +279,25 @@ public class RestClient implements AutoCloseableAsync {
                         }
                     }
                 };
-        NioEventLoopGroup group =
-                new NioEventLoopGroup(1, new ExecutorThreadFactory("flink-rest-client-netty"));
+
+        if (group == null) {
+            // No NioEventLoopGroup constructor available that allows passing nThreads,
+            // threadFactory,
+            // and selectStrategyFactory without also passing a SelectorProvider, so mimicking its
+            // default value seen in other constructors
+            group =
+                    new NioEventLoopGroup(
+                            1,
+                            new ExecutorThreadFactory("flink-rest-client-netty"),
+                            SelectorProvider.provider(),
+                            selectStrategyFactory);
+            useInternalEventLoopGroup = true;
+        } else {
+            Preconditions.checkArgument(
+                    !group.isShuttingDown() && !group.isShutdown(),
+                    "provided eventLoopGroup is shut/shutting down");
+            useInternalEventLoopGroup = false;
+        }
 
         bootstrap = new Bootstrap();
         bootstrap
@@ -214,33 +311,46 @@ public class RestClient implements AutoCloseableAsync {
         LOG.debug("Rest client endpoint started.");
     }
 
-    @Override
-    public CompletableFuture<Void> closeAsync() {
-        return shutdownInternally(Time.seconds(10L));
+    @VisibleForTesting
+    Collection<CompletableFuture<Channel>> getResponseChannelFutures() {
+        return responseChannelFutures;
     }
 
-    public void shutdown(Time timeout) {
+    @VisibleForTesting
+    List<OutboundChannelHandlerFactory> getOutboundChannelHandlerFactories() {
+        return outboundChannelHandlerFactories;
+    }
+
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        return shutdownInternally(Duration.ofSeconds(10L));
+    }
+
+    public void shutdown(Duration timeout) {
         final CompletableFuture<Void> shutDownFuture = shutdownInternally(timeout);
 
         try {
-            shutDownFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+            shutDownFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             LOG.debug("Rest endpoint shutdown complete.");
         } catch (Exception e) {
             LOG.warn("Rest endpoint shutdown failed.", e);
         }
     }
 
-    private CompletableFuture<Void> shutdownInternally(Time timeout) {
+    private CompletableFuture<Void> shutdownInternally(Duration timeout) {
         if (isRunning.compareAndSet(true, false)) {
             LOG.debug("Shutting down rest endpoint.");
 
             if (bootstrap != null) {
-                if (bootstrap.group() != null) {
+                if (bootstrap.config().group() != null && useInternalEventLoopGroup) {
                     bootstrap
+                            .config()
                             .group()
-                            .shutdownGracefully(0L, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
+                            .shutdownGracefully(0L, timeout.toMillis(), TimeUnit.MILLISECONDS)
                             .addListener(
                                     finished -> {
+                                        notifyResponseFuturesOfShutdown();
+
                                         if (finished.isSuccess()) {
                                             terminationFuture.complete(null);
                                         } else {
@@ -252,6 +362,15 @@ public class RestClient implements AutoCloseableAsync {
             }
         }
         return terminationFuture;
+    }
+
+    private void notifyResponseFuturesOfShutdown() {
+        responseChannelFutures.forEach(
+                future ->
+                        future.completeExceptionally(
+                                new IllegalStateException(
+                                        "RestClient closed before request completed")));
+        responseChannelFutures.clear();
     }
 
     public <
@@ -301,6 +420,8 @@ public class RestClient implements AutoCloseableAsync {
                     R request,
                     Collection<FileUpload> fileUploads)
                     throws IOException {
+        Collection<? extends RestAPIVersion> supportedAPIVersions =
+                messageHeaders.getSupportedAPIVersions();
         return sendRequest(
                 targetAddress,
                 targetPort,
@@ -308,7 +429,7 @@ public class RestClient implements AutoCloseableAsync {
                 messageParameters,
                 request,
                 fileUploads,
-                RestAPIVersion.getLatestVersion(messageHeaders.getSupportedAPIVersions()));
+                RestAPIVersion.getLatestVersion(supportedAPIVersions));
     }
 
     public <
@@ -323,7 +444,7 @@ public class RestClient implements AutoCloseableAsync {
                     U messageParameters,
                     R request,
                     Collection<FileUpload> fileUploads,
-                    RestAPIVersion apiVersion)
+                    RestAPIVersion<? extends RestAPIVersion<?>> apiVersion)
                     throws IOException {
         Preconditions.checkNotNull(targetAddress);
         Preconditions.checkArgument(
@@ -349,7 +470,8 @@ public class RestClient implements AutoCloseableAsync {
         }
 
         String versionedHandlerURL =
-                "/" + apiVersion.getURLVersionPrefix() + messageHeaders.getTargetRestEndpointURL();
+                constructVersionedHandlerUrl(
+                        messageHeaders, apiVersion.getURLVersionPrefix(), this.urlPrefix);
         String targetUrl = MessageParameters.resolveUrl(versionedHandlerURL, messageParameters);
 
         LOG.debug(
@@ -370,7 +492,8 @@ public class RestClient implements AutoCloseableAsync {
                         targetUrl,
                         messageHeaders.getHttpMethod().getNettyHttpMethod(),
                         payload,
-                        fileUploads);
+                        fileUploads,
+                        messageHeaders.getCustomHeaders());
 
         final JavaType responseType;
 
@@ -390,12 +513,23 @@ public class RestClient implements AutoCloseableAsync {
         return submitRequest(targetAddress, targetPort, httpRequest, responseType);
     }
 
+    private static <M extends MessageHeaders<?, ?, ?>> String constructVersionedHandlerUrl(
+            M messageHeaders, String urlVersionPrefix, String urlPrefix) {
+        String targetUrl = messageHeaders.getTargetRestEndpointURL();
+        if (targetUrl.contains(VERSION_PLACEHOLDER)) {
+            return targetUrl.replace(VERSION_PLACEHOLDER, urlVersionPrefix);
+        } else {
+            return urlPrefix + urlVersionPrefix + messageHeaders.getTargetRestEndpointURL();
+        }
+    }
+
     private static Request createRequest(
             String targetAddress,
             String targetUrl,
             HttpMethod httpMethod,
             ByteBuf jsonPayload,
-            Collection<FileUpload> fileUploads)
+            Collection<FileUpload> fileUploads,
+            Collection<HttpHeader> customHeaders)
             throws IOException {
         if (fileUploads.isEmpty()) {
 
@@ -403,22 +537,22 @@ public class RestClient implements AutoCloseableAsync {
                     new DefaultFullHttpRequest(
                             HttpVersion.HTTP_1_1, httpMethod, targetUrl, jsonPayload);
 
-            httpRequest
-                    .headers()
-                    .set(HttpHeaders.Names.HOST, targetAddress)
-                    .set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE)
-                    .add(HttpHeaders.Names.CONTENT_LENGTH, jsonPayload.capacity())
-                    .add(HttpHeaders.Names.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
+            HttpHeaders headers = httpRequest.headers();
+            headers.set(HttpHeaderNames.HOST, targetAddress)
+                    .set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE)
+                    .add(HttpHeaderNames.CONTENT_LENGTH, jsonPayload.capacity())
+                    .add(HttpHeaderNames.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
+            customHeaders.forEach(ch -> headers.set(ch.getName(), ch.getValue()));
 
             return new SimpleRequest(httpRequest);
         } else {
             HttpRequest httpRequest =
                     new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, httpMethod, targetUrl);
 
-            httpRequest
-                    .headers()
-                    .set(HttpHeaders.Names.HOST, targetAddress)
-                    .set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+            HttpHeaders headers = httpRequest.headers();
+            headers.set(HttpHeaderNames.HOST, targetAddress)
+                    .set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
+            customHeaders.forEach(ch -> headers.set(ch.getName(), ch.getValue()));
 
             // takes care of splitting the request into multiple parts
             HttpPostRequestEncoder bodyRequestEncoder;
@@ -464,12 +598,19 @@ public class RestClient implements AutoCloseableAsync {
 
     private <P extends ResponseBody> CompletableFuture<P> submitRequest(
             String targetAddress, int targetPort, Request httpRequest, JavaType responseType) {
-        final ChannelFuture connectFuture = bootstrap.connect(targetAddress, targetPort);
+        if (!isRunning.get()) {
+            return FutureUtils.completedExceptionally(
+                    new IllegalStateException("RestClient is already closed"));
+        }
 
         final CompletableFuture<Channel> channelFuture = new CompletableFuture<>();
+        responseChannelFutures.add(channelFuture);
 
+        final ChannelFuture connectFuture = bootstrap.connect(targetAddress, targetPort);
         connectFuture.addListener(
                 (ChannelFuture future) -> {
+                    responseChannelFutures.remove(channelFuture);
+
                     if (future.isSuccess()) {
                         channelFuture.complete(future.channel());
                     } else {
@@ -518,35 +659,34 @@ public class RestClient implements AutoCloseableAsync {
         CompletableFuture<P> responseFuture = new CompletableFuture<>();
         final JsonParser jsonParser = objectMapper.treeAsTokens(rawResponse.json);
         try {
-            P response = objectMapper.readValue(jsonParser, responseType);
-            responseFuture.complete(response);
-        } catch (IOException originalException) {
-            // the received response did not matched the expected response type
-
-            // lets see if it is an ErrorResponse instead
-            try {
+            // We make sure it fits to ErrorResponseBody, this condition is enforced by test in
+            // RestClientTest
+            if (rawResponse.json.size() == 1 && rawResponse.json.has("errors")) {
                 ErrorResponseBody error =
                         objectMapper.treeToValue(rawResponse.getJson(), ErrorResponseBody.class);
                 responseFuture.completeExceptionally(
                         new RestClientException(
                                 error.errors.toString(), rawResponse.getHttpResponseStatus()));
-            } catch (JsonProcessingException jpe2) {
-                // if this fails it is either the expected type or response type was wrong, most
-                // likely caused
-                // by a client/search MessageHeaders mismatch
-                LOG.error(
-                        "Received response was neither of the expected type ({}) nor an error. Response={}",
-                        responseType,
-                        rawResponse,
-                        jpe2);
-                responseFuture.completeExceptionally(
-                        new RestClientException(
-                                "Response was neither of the expected type("
-                                        + responseType
-                                        + ") nor an error.",
-                                originalException,
-                                rawResponse.getHttpResponseStatus()));
+            } else {
+                P response = flexibleObjectMapper.readValue(jsonParser, responseType);
+                responseFuture.complete(response);
             }
+        } catch (IOException ex) {
+            // if this fails it is either the expected type or response type was wrong, most
+            // likely caused
+            // by a client/search MessageHeaders mismatch
+            LOG.error(
+                    "Received response was neither of the expected type ({}) nor an error. Response={}",
+                    responseType,
+                    rawResponse,
+                    ex);
+            responseFuture.completeExceptionally(
+                    new RestClientException(
+                            "Response was neither of the expected type("
+                                    + responseType
+                                    + ") nor an error.",
+                            ex,
+                            rawResponse.getHttpResponseStatus()));
         }
         return responseFuture;
     }
@@ -618,7 +758,7 @@ public class RestClient implements AutoCloseableAsync {
                     jsonFuture.completeExceptionally(
                             new RestClientException(
                                     "Implementation error: Received a response that wasn't a FullHttpResponse.",
-                                    ((HttpResponse) msg).getStatus()));
+                                    ((HttpResponse) msg).status()));
                 } else {
                     jsonFuture.completeExceptionally(
                             new RestClientException(
@@ -681,23 +821,22 @@ public class RestClient implements AutoCloseableAsync {
                             new RestClientException(
                                     "Response was not valid JSON, but plain-text: " + message,
                                     je,
-                                    msg.getStatus()));
+                                    msg.status()));
                 } catch (IOException e) {
                     jsonFuture.completeExceptionally(
                             new RestClientException(
                                     "Response was not valid JSON, nor plain-text.",
                                     je,
-                                    msg.getStatus()));
+                                    msg.status()));
                 }
                 return;
             } catch (IOException ioe) {
                 LOG.error("Response could not be read.", ioe);
                 jsonFuture.completeExceptionally(
-                        new RestClientException(
-                                "Response could not be read.", ioe, msg.getStatus()));
+                        new RestClientException("Response could not be read.", ioe, msg.status()));
                 return;
             }
-            jsonFuture.complete(new JsonResponse(rawResponse, msg.getStatus()));
+            jsonFuture.complete(new JsonResponse(rawResponse, msg.status()));
         }
     }
 

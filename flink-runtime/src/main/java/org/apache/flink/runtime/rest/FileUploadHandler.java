@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.runtime.rest.handler.FileUploads;
+import org.apache.flink.runtime.rest.handler.router.MultipartRoutes;
 import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.util.RestConstants;
@@ -30,7 +31,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPipeline;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpContent;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaderNames;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObject;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
@@ -79,15 +80,15 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
 
     private final Path uploadDir;
 
+    private final MultipartRoutes multipartRoutes;
+
     private HttpPostRequestDecoder currentHttpPostRequestDecoder;
 
     private HttpRequest currentHttpRequest;
     private byte[] currentJsonPayload;
     private Path currentUploadDir;
 
-    private boolean addCRPrefix = false;
-
-    public FileUploadHandler(final Path uploadDir) {
+    public FileUploadHandler(final Path uploadDir, final MultipartRoutes multipartRoutes) {
         super(true);
 
         // the clean up of temp files when jvm exits is handled by
@@ -103,6 +104,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
         DiskAttribute.baseDirectory = DiskFileUpload.baseDirectory;
 
         this.uploadDir = requireNonNull(uploadDir);
+        this.multipartRoutes = requireNonNull(multipartRoutes);
     }
 
     @Override
@@ -113,9 +115,9 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
                 final HttpRequest httpRequest = (HttpRequest) msg;
                 LOG.trace(
                         "Received request. URL:{} Method:{}",
-                        httpRequest.getUri(),
-                        httpRequest.getMethod());
-                if (httpRequest.getMethod().equals(HttpMethod.POST)) {
+                        httpRequest.uri(),
+                        httpRequest.method());
+                if (httpRequest.method().equals(HttpMethod.POST)) {
                     if (HttpPostRequestDecoder.isMultipart(httpRequest)) {
                         LOG.trace("Initializing multipart file upload.");
                         checkState(currentHttpPostRequestDecoder == null);
@@ -124,6 +126,18 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
                         currentHttpPostRequestDecoder =
                                 new HttpPostRequestDecoder(DATA_FACTORY, httpRequest);
                         currentHttpRequest = ReferenceCountUtil.retain(httpRequest);
+
+                        // We check this after initializing the multipart file upload in order for
+                        // handleError to work correctly.
+                        if (!multipartRoutes.isPostRoute(httpRequest.uri())) {
+                            LOG.trace("POST request not allowed for {}.", httpRequest.uri());
+                            handleError(
+                                    ctx,
+                                    "POST request not allowed",
+                                    HttpResponseStatus.BAD_REQUEST,
+                                    null);
+                            return;
+                        }
 
                         // make sure that we still have a upload dir in case that it got deleted in
                         // the meanwhile
@@ -148,9 +162,20 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
                 currentHttpPostRequestDecoder.offer(httpContent);
 
                 while (httpContent != LastHttpContent.EMPTY_LAST_CONTENT
-                        && currentHttpPostRequestDecoder.hasNext()) {
+                        && hasNext(currentHttpPostRequestDecoder)) {
                     final InterfaceHttpData data = currentHttpPostRequestDecoder.next();
                     if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.FileUpload) {
+                        HttpRequest httpRequest = currentHttpRequest;
+                        if (!multipartRoutes.isFileUploadRoute(httpRequest.uri())) {
+                            LOG.trace("File upload not allowed for {}.", httpRequest.uri());
+                            handleError(
+                                    ctx,
+                                    "File upload not allowed",
+                                    HttpResponseStatus.BAD_REQUEST,
+                                    null);
+                            return;
+                        }
+
                         final DiskFileUpload fileUpload = (DiskFileUpload) data;
                         checkState(fileUpload.isCompleted());
 
@@ -189,18 +214,16 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
                     if (currentJsonPayload != null) {
                         currentHttpRequest
                                 .headers()
-                                .set(HttpHeaders.Names.CONTENT_LENGTH, currentJsonPayload.length);
+                                .set(HttpHeaderNames.CONTENT_LENGTH, currentJsonPayload.length);
                         currentHttpRequest
                                 .headers()
-                                .set(
-                                        HttpHeaders.Names.CONTENT_TYPE,
-                                        RestConstants.REST_CONTENT_TYPE);
+                                .set(HttpHeaderNames.CONTENT_TYPE, RestConstants.REST_CONTENT_TYPE);
                         ctx.fireChannelRead(currentHttpRequest);
                         ctx.fireChannelRead(
                                 httpContent.replace(Unpooled.wrappedBuffer(currentJsonPayload)));
                     } else {
-                        currentHttpRequest.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
-                        currentHttpRequest.headers().remove(HttpHeaders.Names.CONTENT_TYPE);
+                        currentHttpRequest.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
+                        currentHttpRequest.headers().remove(HttpHeaderNames.CONTENT_TYPE);
                         ctx.fireChannelRead(currentHttpRequest);
                         ctx.fireChannelRead(LastHttpContent.EMPTY_LAST_CONTENT);
                     }
@@ -211,6 +234,16 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
             }
         } catch (Exception e) {
             handleError(ctx, "File upload failed.", HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+        }
+    }
+
+    private static boolean hasNext(HttpPostRequestDecoder decoder) {
+        try {
+            return decoder.hasNext();
+        } catch (HttpPostRequestDecoder.EndOfDataDecoderException e) {
+            // this can occur if the final chuck wasn't empty, but didn't contain any attribute data
+            // unfortunately the Netty APIs don't give us any way to check this
+            return false;
         }
     }
 
@@ -260,7 +293,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
     }
 
     public static FileUploads getMultipartFileUploads(ChannelHandlerContext ctx) {
-        return Optional.ofNullable(ctx.channel().attr(UPLOADED_FILES).getAndRemove())
+        return Optional.ofNullable(ctx.channel().attr(UPLOADED_FILES).getAndSet(null))
                 .orElse(FileUploads.EMPTY);
     }
 }

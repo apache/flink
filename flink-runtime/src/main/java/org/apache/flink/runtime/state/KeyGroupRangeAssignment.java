@@ -26,7 +26,7 @@ public final class KeyGroupRangeAssignment {
 
     /**
      * The default lower bound for max parallelism if nothing was configured by the user. We have
-     * this so allow users some degree of scale-up in case they forgot to configure maximum
+     * this to allow users some degree of scale-up in case they forgot to configure maximum
      * parallelism explicitly.
      */
     public static final int DEFAULT_LOWER_BOUND_MAX_PARALLELISM = 1 << 7;
@@ -80,14 +80,14 @@ public final class KeyGroupRangeAssignment {
      * Computes the range of key-groups that are assigned to a given operator under the given
      * parallelism and maximum parallelism.
      *
-     * <p>IMPORTANT: maxParallelism must be <= Short.MAX_VALUE to avoid rounding problems in this
-     * method. If we ever want to go beyond this boundary, this method must perform arithmetic on
-     * long values.
+     * <p>IMPORTANT: maxParallelism must be <= Short.MAX_VALUE + 1 to avoid rounding problems in
+     * this method. If we ever want to go beyond this boundary, this method must perform arithmetic
+     * on long values.
      *
      * @param maxParallelism Maximal parallelism that the job was initially created with.
      * @param parallelism The current parallelism under which the job runs. Must be <=
      *     maxParallelism.
-     * @param operatorIndex Id of a key-group. 0 <= keyGroupID < maxParallelism.
+     * @param operatorIndex index of a operatorIndex. 0 <= operatorIndex < parallelism.
      * @return the computed key-group range for the operator.
      */
     public static KeyGroupRange computeKeyGroupRangeForOperatorIndex(
@@ -109,12 +109,12 @@ public final class KeyGroupRangeAssignment {
      * Computes the index of the operator to which a key-group belongs under the given parallelism
      * and maximum parallelism.
      *
-     * <p>IMPORTANT: maxParallelism must be <= Short.MAX_VALUE to avoid rounding problems in this
-     * method. If we ever want to go beyond this boundary, this method must perform arithmetic on
-     * long values.
+     * <p>IMPORTANT: maxParallelism must be <= Short.MAX_VALUE + 1 to avoid rounding problems in
+     * this method. If we ever want to go beyond this boundary, this method must perform arithmetic
+     * on long values.
      *
      * @param maxParallelism Maximal parallelism that the job was initially created with. 0 <
-     *     parallelism <= maxParallelism <= Short.MAX_VALUE must hold.
+     *     parallelism <= maxParallelism <= Short.MAX_VALUE + 1 must hold.
      * @param parallelism The current parallelism under which the job runs. Must be <=
      *     maxParallelism.
      * @param keyGroupId Id of a key-group. 0 <= keyGroupID < maxParallelism.

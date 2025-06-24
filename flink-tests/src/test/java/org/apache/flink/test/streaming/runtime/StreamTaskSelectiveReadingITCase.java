@@ -18,13 +18,12 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.util.TestSequentialReadingStreamOperator;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
 
@@ -58,7 +57,6 @@ public class StreamTaskSelectiveReadingITCase {
 
         TestSequentialReadingStreamOperator twoInputStreamOperator =
                 new TestSequentialReadingStreamOperator("Operator0");
-        twoInputStreamOperator.setChainingStrategy(ChainingStrategy.NEVER);
 
         source0.connect(source1)
                 .transform(
@@ -113,7 +111,7 @@ public class StreamTaskSelectiveReadingITCase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             this.context = getRuntimeContext();
         }
 
@@ -124,7 +122,9 @@ public class StreamTaskSelectiveReadingITCase {
                 if (elementIndex < elements.length) {
                     synchronized (ctx.getCheckpointLock()) {
                         ctx.collect(
-                                outValue(elements[elementIndex], context.getIndexOfThisSubtask()));
+                                outValue(
+                                        elements[elementIndex],
+                                        context.getTaskInfo().getIndexOfThisSubtask()));
                         elementIndex++;
                     }
                 } else {

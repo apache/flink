@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
@@ -44,6 +45,8 @@ public abstract class IOManager implements AutoCloseable {
 
     private final FileChannelManager fileChannelManager;
 
+    protected final ExecutorService executorService;
+
     // -------------------------------------------------------------------------
     //               Constructors / Destructors
     // -------------------------------------------------------------------------
@@ -53,7 +56,7 @@ public abstract class IOManager implements AutoCloseable {
      *
      * @param tempDirs The basic directories for files underlying anonymous channels.
      */
-    protected IOManager(String[] tempDirs) {
+    protected IOManager(String[] tempDirs, ExecutorService executorService) {
         this.fileChannelManager =
                 new FileChannelManagerImpl(Preconditions.checkNotNull(tempDirs), DIR_NAME_PREFIX);
         if (LOG.isInfoEnabled()) {
@@ -64,6 +67,7 @@ public abstract class IOManager implements AutoCloseable {
                             .map(File::getAbsolutePath)
                             .collect(Collectors.joining("\n\t")));
         }
+        this.executorService = executorService;
     }
 
     /** Removes all temporary files. */
@@ -226,4 +230,8 @@ public abstract class IOManager implements AutoCloseable {
      */
     public abstract BulkBlockChannelReader createBulkBlockChannelReader(
             ID channelID, List<MemorySegment> targetSegments, int numBlocks) throws IOException;
+
+    public ExecutorService getExecutorService() {
+        return executorService;
+    }
 }

@@ -18,18 +18,21 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.CollectionUtil;
 
 import javax.annotation.Nonnull;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * This class implements a {@link SlotSelectionStrategy} that is based on location preference hints.
@@ -40,12 +43,11 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
     @Override
     public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
-            @Nonnull Collection<SlotInfoAndResources> availableSlots,
-            @Nonnull SlotProfile slotProfile) {
+            @Nonnull FreeSlotTracker freeSlotTracker, @Nonnull SlotProfile slotProfile) {
 
         Collection<TaskManagerLocation> locationPreferences = slotProfile.getPreferredLocations();
 
-        if (availableSlots.isEmpty()) {
+        if (freeSlotTracker.getAvailableSlots().isEmpty()) {
             return Optional.empty();
         }
 
@@ -53,51 +55,53 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
         // if we have no location preferences, we can only filter by the additional requirements.
         return locationPreferences.isEmpty()
-                ? selectWithoutLocationPreference(availableSlots, resourceProfile)
+                ? selectWithoutLocationPreference(freeSlotTracker, resourceProfile)
                 : selectWithLocationPreference(
-                        availableSlots, locationPreferences, resourceProfile);
+                        freeSlotTracker, locationPreferences, resourceProfile);
     }
 
     @Nonnull
     private Optional<SlotInfoAndLocality> selectWithLocationPreference(
-            @Nonnull Collection<SlotInfoAndResources> availableSlots,
+            @Nonnull FreeSlotTracker freeSlotTracker,
             @Nonnull Collection<TaskManagerLocation> locationPreferences,
             @Nonnull ResourceProfile resourceProfile) {
 
         // we build up two indexes, one for resource id and one for host names of the preferred
         // locations.
         final Map<ResourceID, Integer> preferredResourceIDs =
-                new HashMap<>(locationPreferences.size());
-        final Map<String, Integer> preferredFQHostNames = new HashMap<>(locationPreferences.size());
+                CollectionUtil.newHashMapWithExpectedSize(locationPreferences.size());
+        final Map<String, Integer> preferredFQHostNames =
+                CollectionUtil.newHashMapWithExpectedSize(locationPreferences.size());
 
         for (TaskManagerLocation locationPreference : locationPreferences) {
             preferredResourceIDs.merge(locationPreference.getResourceID(), 1, Integer::sum);
             preferredFQHostNames.merge(locationPreference.getFQDNHostname(), 1, Integer::sum);
         }
 
-        SlotInfoAndResources bestCandidate = null;
+        SlotInfo bestCandidate = null;
         Locality bestCandidateLocality = Locality.UNKNOWN;
         double bestCandidateScore = Double.NEGATIVE_INFINITY;
 
-        for (SlotInfoAndResources candidate : availableSlots) {
+        for (AllocationID allocationId : freeSlotTracker.getAvailableSlots()) {
+            SlotInfo candidate = freeSlotTracker.getSlotInfo(allocationId);
 
-            if (candidate.getRemainingResources().isMatching(resourceProfile)) {
+            if (candidate.getResourceProfile().isMatching(resourceProfile)) {
 
                 // this gets candidate is local-weigh
                 int localWeigh =
                         preferredResourceIDs.getOrDefault(
-                                candidate.getSlotInfo().getTaskManagerLocation().getResourceID(),
-                                0);
+                                candidate.getTaskManagerLocation().getResourceID(), 0);
 
                 // this gets candidate is host-local-weigh
                 int hostLocalWeigh =
                         preferredFQHostNames.getOrDefault(
-                                candidate.getSlotInfo().getTaskManagerLocation().getFQDNHostname(),
-                                0);
+                                candidate.getTaskManagerLocation().getFQDNHostname(), 0);
 
                 double candidateScore =
                         calculateCandidateScore(
-                                localWeigh, hostLocalWeigh, candidate.getTaskExecutorUtilization());
+                                localWeigh,
+                                hostLocalWeigh,
+                                () -> freeSlotTracker.getTaskExecutorUtilization(candidate));
                 if (candidateScore > bestCandidateScore) {
                     bestCandidateScore = candidateScore;
                     bestCandidate = candidate;
@@ -111,18 +115,16 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
         // at the end of the iteration, we return the candidate with best possible locality or null.
         return bestCandidate != null
-                ? Optional.of(
-                        SlotInfoAndLocality.of(bestCandidate.getSlotInfo(), bestCandidateLocality))
+                ? Optional.of(SlotInfoAndLocality.of(bestCandidate, bestCandidateLocality))
                 : Optional.empty();
     }
 
     @Nonnull
     protected abstract Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
-            @Nonnull Collection<SlotInfoAndResources> availableSlots,
-            @Nonnull ResourceProfile resourceProfile);
+            @Nonnull FreeSlotTracker freeSlotTracker, @Nonnull ResourceProfile resourceProfile);
 
     protected abstract double calculateCandidateScore(
-            int localWeigh, int hostLocalWeigh, double taskExecutorUtilization);
+            int localWeigh, int hostLocalWeigh, Supplier<Double> taskExecutorUtilizationSupplier);
 
     // -------------------------------------------------------------------------------------------
     // Factory methods

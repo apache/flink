@@ -108,6 +108,22 @@ public class BlobUtils {
     }
 
     /**
+     * Returns a temporary object name with entropy, formed by adding the temporary object id to the
+     * temporary object partial name in both start and end of path, i.e. abc.inprogress/foo/bar/abc
+     * for the final blob with object name "foo/bar" and temporary object id "abc".
+     *
+     * @param finalBlobIdentifier The final blob identifier
+     * @param temporaryObjectId The temporary object id
+     * @return The temporary object name with entropy
+     */
+    public static String getTemporaryObjectNameWithEntropy(
+            GSBlobIdentifier finalBlobIdentifier, UUID temporaryObjectId) {
+        return temporaryObjectId.toString()
+                + getTemporaryObjectPartialName(finalBlobIdentifier)
+                + temporaryObjectId.toString();
+    }
+
+    /**
      * Resolves a temporary blob identifier for a provided temporary object id and the provided
      * options.
      *
@@ -122,7 +138,10 @@ public class BlobUtils {
             GSFileSystemOptions options) {
         String temporaryBucketName = BlobUtils.getTemporaryBucketName(finalBlobIdentifier, options);
         String temporaryObjectName =
-                BlobUtils.getTemporaryObjectName(finalBlobIdentifier, temporaryObjectId);
+                options.isFileSinkEntropyEnabled()
+                        ? BlobUtils.getTemporaryObjectNameWithEntropy(
+                                finalBlobIdentifier, temporaryObjectId)
+                        : BlobUtils.getTemporaryObjectName(finalBlobIdentifier, temporaryObjectId);
         return new GSBlobIdentifier(temporaryBucketName, temporaryObjectName);
     }
 }

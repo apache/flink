@@ -18,51 +18,141 @@
 package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, INT_TYPE_INFO, LONG_TYPE_INFO}
-import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
+import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.streaming.api.transformations.{LegacySinkTransformation, OneInputTransformation, TwoInputTransformation}
-import org.apache.flink.table.api.internal.{StatementSetImpl, TableEnvironmentInternal}
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.internal.StatementSetImpl
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
-import org.apache.flink.table.planner.runtime.utils.BatchTestBase
+import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestSinkUtil}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.planner.sinks.CollectRowTableSink
 import org.apache.flink.table.planner.utils.TestingTableEnvironment
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
+import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
-import org.junit.{Assert, Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util
 
 import scala.collection.JavaConversions._
-import scala.collection.Seq
 
-@RunWith(classOf[Parameterized])
-class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class JoinITCase extends BatchTestBase {
 
-  @Before
+  @Parameter var expectedJoinType: JoinType = _
+  @BeforeEach
   override def before(): Unit = {
     super.before()
-    registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
-    registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
-    registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)
-    registerCollection("NullTable3", nullData3, type3, "a, b, c", nullablesOfNullData3)
-    registerCollection("NullTable5", nullData5, type5, "d, e, f, g, h", nullablesOfNullData5)
-    registerCollection("l", data2_1, INT_DOUBLE, "a, b")
-    registerCollection("r", data2_2, INT_DOUBLE, "c, d")
-    registerCollection("t", data2_3, INT_DOUBLE, "c, d", nullablesOfData2_3)
+    val smallData3Id = TestValuesTableFactory.registerData(smallData3)
+    val data3Id = TestValuesTableFactory.registerData(data3)
+    val nullData3Id = TestValuesTableFactory.registerData(nullData3)
+    val data5Id = TestValuesTableFactory.registerData(data5)
+    val nullData5Id = TestValuesTableFactory.registerData(nullData5)
+    val data21Id = TestValuesTableFactory.registerData(data2_1)
+    val data22Id = TestValuesTableFactory.registerData(data2_2)
+    val data23Id = TestValuesTableFactory.registerData(data2_3)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE SmallTable3 (
+                       | a int,
+                       | b bigint,
+                       | c string
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$smallData3Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE Table3 (
+                       | a int,
+                       | b bigint,
+                       | c string
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data3Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE NullTable3 (
+                       | a int,
+                       | b bigint,
+                       | c string
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$nullData3Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE Table5(
+                       | d int,
+                       | e bigint,
+                       | f int,
+                       | g string,
+                       | h bigint
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data5Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE NullTable5(
+                       | d int,
+                       | e bigint,
+                       | f int,
+                       | g string,
+                       | h bigint
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$nullData5Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE l(
+                       | a int,
+                       | b double
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data21Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE r(
+                       | c int,
+                       | d double
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data22Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE t(
+                       | c int,
+                       | d double
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data23Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
     JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, expectedJoinType)
   }
 
-  @Test
+  @TestTemplate
   def testJoin(): Unit = {
     checkResult(
       "SELECT c, g FROM SmallTable3, Table5 WHERE b = e",
@@ -73,20 +163,33 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       ))
   }
 
-  @Test
+  @TestTemplate
   def testLongJoinWithBigRange(): Unit = {
-    registerCollection(
-      "inputT1",
-      Seq(row(Long.box(Long.MaxValue), Double.box(1)), row(Long.box(Long.MinValue), Double.box(1))),
-      new RowTypeInfo(LONG_TYPE_INFO, DOUBLE_TYPE_INFO),
-      "a, b"
-    )
-    registerCollection(
-      "inputT2",
-      Seq(row(Long.box(Long.MaxValue), Double.box(1)), row(Long.box(Long.MinValue), Double.box(1))),
-      new RowTypeInfo(LONG_TYPE_INFO, DOUBLE_TYPE_INFO),
-      "c, d"
-    )
+    val data1 =
+      Seq(row(Long.box(Long.MaxValue), Double.box(1)), row(Long.box(Long.MinValue), Double.box(1)))
+    val data2 =
+      Seq(row(Long.box(Long.MaxValue), Double.box(1)), row(Long.box(Long.MinValue), Double.box(1)))
+    val inputDataId1 = TestValuesTableFactory.registerData(data1)
+    val inputDataId2 = TestValuesTableFactory.registerData(data2)
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE inputT1(
+                       | a bigint,
+                       | b double
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$inputDataId1',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE inputT2(
+                       | c bigint,
+                       | d double
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$inputDataId2',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
 
     checkResult(
       "SELECT a, b, c, d FROM inputT1, inputT2 WHERE a = c",
@@ -97,11 +200,22 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testLongHashJoinGenerator(): Unit = {
     if (expectedJoinType == HashJoin) {
-      val sink = (new CollectRowTableSink).configure(Array("c"), Array(Types.STRING))
-      tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("outputTable", sink)
+      tEnv.getConfig.set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY,
+        OptimizerConfigOptions.AdaptiveBroadcastJoinStrategy.NONE)
+      tEnv.getConfig.set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_STRATEGY,
+        OptimizerConfigOptions.AdaptiveSkewedJoinOptimizationStrategy.NONE)
+      TestSinkUtil.addValuesSink(
+        tEnv,
+        "outputTable",
+        List("c"),
+        List(DataTypes.STRING),
+        ChangelogMode.insertOnly()
+      )
       val stmtSet = tEnv.createStatementSet()
       val table = tEnv.sqlQuery("SELECT c FROM SmallTable3, Table5 WHERE b = e")
       stmtSet.addInsert("outputTable", table)
@@ -131,35 +245,38 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
             case _ =>
           }
       }
-      Assert.assertTrue(haveTwoOp)
+      assertThat(haveTwoOp).isTrue
     }
   }
 
-  @Test
+  @TestTemplate
   def testOneSideSmjFieldError(): Unit = {
     if (expectedJoinType == SortMergeJoin) {
-      registerCollection(
-        "PojoSmallTable3",
-        smallData3,
-        new RowTypeInfo(
-          INT_TYPE_INFO,
-          LONG_TYPE_INFO,
-          new GenericTypeInfoWithoutComparator[String](classOf[String])),
-        "a, b, c",
-        nullablesOfSmallData3
-      )
-      registerCollection(
-        "PojoTable5",
-        data5,
-        new RowTypeInfo(
-          INT_TYPE_INFO,
-          LONG_TYPE_INFO,
-          INT_TYPE_INFO,
-          new GenericTypeInfoWithoutComparator[String](classOf[String]),
-          LONG_TYPE_INFO),
-        "d, e, f, g, h",
-        nullablesOfData5
-      )
+      val smallData3Id = TestValuesTableFactory.registerData(smallData3)
+      tEnv.executeSql(s"""CREATE TEMPORARY TABLE PojoSmallTable3(
+                         | a int,
+                         | b bigint,
+                         | c string
+                         |)WITH(
+                         |  'connector' = 'values',
+                         |  'data-id' = '$smallData3Id',
+                         |  'bounded' = 'true'
+                         |)
+                         |""".stripMargin)
+
+      val data5Id = TestValuesTableFactory.registerData(data5)
+      tEnv.executeSql(s"""CREATE TEMPORARY TABLE PojoTable5(
+                         | d int,
+                         | e bigint,
+                         | f int,
+                         | g string,
+                         | h bigint
+                         |)WITH(
+                         |  'connector' = 'values',
+                         |  'data-id' = '$data5Id',
+                         |  'bounded' = 'true'
+                         |)
+                         |""".stripMargin)
 
       checkResult(
         "SELECT c, g FROM (SELECT h, g, f, e, d FROM PojoSmallTable3, PojoTable5 WHERE b = e)," +
@@ -175,7 +292,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testJoinSameFieldEqual(): Unit = {
     checkResult(
       "SELECT c, g FROM SmallTable3, Table5 WHERE b = e and b = h",
@@ -186,7 +303,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       ))
   }
 
-  @Test
+  @TestTemplate
   def testJoinOn(): Unit = {
     checkResult(
       "SELECT c, g FROM SmallTable3 JOIN Table5 ON b = e",
@@ -197,12 +314,12 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       ))
   }
 
-  @Test
+  @TestTemplate
   def testJoinNoMatches(): Unit = {
     checkResult("SELECT c, g FROM SmallTable3, Table5 where c = g", Seq())
   }
 
-  @Test
+  @TestTemplate
   def testJoinNoMatchesWithSubquery(): Unit = {
     checkResult(
       "SELECT c, g FROM " +
@@ -210,7 +327,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       Seq())
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithFilter(): Unit = {
     checkResult(
       "SELECT c, g FROM SmallTable3, Table5 WHERE b = e AND b < 2",
@@ -219,7 +336,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       ))
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithJoinFilter(): Unit = {
     checkResult(
       "SELECT c, g FROM Table3, Table5 WHERE b = e AND a < 6",
@@ -233,7 +350,48 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
+  def testInnerJoinWithBooleanFilterCondition(): Unit = {
+    val data1: Seq[Row] =
+      Seq(row(1, 1L, "Hi", true), row(2, 2L, "Hello", false), row(3, 2L, "Hello world", true))
+
+    val data1Id = TestValuesTableFactory.registerData(data1)
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE table5(
+                       | a1 int,
+                       | b1 bigint,
+                       | c1 string,
+                       | d1 boolean
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data1Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE table6(
+                       | a2 int,
+                       | b2 bigint,
+                       | c2 string,
+                       | d2 boolean
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data1Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    checkResult(
+      "SELECT a1, a1, c2 FROM table5 INNER JOIN table6 ON d1 = d2 where d1 is true",
+      Seq(
+        row("1, 1, Hello world"),
+        row("1, 1, Hi"),
+        row("3, 3, Hello world"),
+        row("3, 3, Hi")
+      )
+    )
+  }
+
+  @TestTemplate
   def testInnerJoinWithNonEquiJoinPredicate(): Unit = {
     checkResult(
       "SELECT c, g FROM Table3, Table5 WHERE b = e AND a < 6 AND h < b",
@@ -244,7 +402,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithMultipleKeys(): Unit = {
     checkResult(
       "SELECT c, g FROM NullTable3, NullTable5 WHERE a = d AND b = h",
@@ -259,9 +417,22 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithAlias(): Unit = {
-    registerCollection("AliasTable5", data5, type5, "d, e, f, g, c")
+    val data1Id = TestValuesTableFactory.registerData(data5)
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE AliasTable5(
+                       | d int,
+                       | e bigint,
+                       | f int,
+                       | g string,
+                       | c bigint
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data1Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
     checkResult(
       "SELECT AliasTable5.c, T.`1-_./Ü` FROM " +
         "(SELECT a, b, c AS `1-_./Ü` FROM Table3) AS T, AliasTable5 WHERE a = d AND a < 4",
@@ -276,7 +447,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testLeftJoinWithMultipleKeys(): Unit = {
     checkResult(
       "SELECT c, g FROM NullTable3 LEFT JOIN NullTable5 ON a = d and b = h",
@@ -310,7 +481,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testLeftJoinWithNonEquiJoinPred(): Unit = {
     checkResult(
       "SELECT c, g FROM NullTable3 LEFT JOIN NullTable5 ON a = d and b <= h",
@@ -345,7 +516,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testLeftJoinWithLeftLocalPred(): Unit = {
     checkResult(
       "SELECT c, g FROM NullTable3 LEFT JOIN NullTable5 ON a = d and b = 2",
@@ -380,7 +551,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testRightJoinWithMultipleKeys(): Unit = {
     checkResult(
       "SELECT c, g FROM NullTable3 RIGHT JOIN NullTable5 ON a = d and b = h",
@@ -406,7 +577,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testRightJoinWithNonEquiJoinPred(): Unit = {
     checkResult(
       "SELECT c, g FROM NullTable5 RIGHT JOIN NullTable3 ON a = d and b <= h",
@@ -441,7 +612,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testRightJoinWithLeftLocalPred(): Unit = {
     checkResult(
       "SELECT c, g FROM NullTable5 RIGHT JOIN NullTable3 ON a = d and b = 2",
@@ -476,7 +647,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testFullOuterJoinWithMultipleKeys(): Unit = {
     if (expectedJoinType != BroadcastHashJoin && expectedJoinType != NestedLoopJoin) {
       checkResult(
@@ -523,7 +694,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testFullJoinWithNonEquiJoinPred(): Unit = {
     if (expectedJoinType != BroadcastHashJoin && expectedJoinType != NestedLoopJoin) {
       checkResult(
@@ -575,7 +746,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testFullJoinWithLeftLocalPred(): Unit = {
     if (expectedJoinType != BroadcastHashJoin && expectedJoinType != NestedLoopJoin) {
       checkResult(
@@ -628,7 +799,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testFullOuterJoin(): Unit = {
     if (expectedJoinType != BroadcastHashJoin && expectedJoinType != NestedLoopJoin) {
       checkResult(
@@ -655,7 +826,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testFullOuterJoinWithoutEqualCond(): Unit = {
     if (expectedJoinType == NestedLoopJoin) {
       checkResult(
@@ -671,7 +842,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testSingleRowFullOuterJoinWithoutEqualCond(): Unit = {
     if (expectedJoinType == NestedLoopJoin) {
       checkResult(
@@ -686,7 +857,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testSingleRowFullOuterJoinWithoutEqualCondNoMatch(): Unit = {
     if (expectedJoinType == NestedLoopJoin) {
       checkResult(
@@ -702,7 +873,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testLeftOuterJoin(): Unit = {
     checkResult(
       "SELECT c, g FROM Table5 LEFT OUTER JOIN SmallTable3 ON b = e",
@@ -727,7 +898,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testRightOuterJoin(): Unit = {
     checkResult(
       "SELECT c, g FROM SmallTable3 RIGHT OUTER JOIN Table5 ON b = e",
@@ -752,19 +923,19 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithAggregation(): Unit = {
     checkResult("SELECT COUNT(g), COUNT(b) FROM SmallTable3, Table5 WHERE a = d", Seq(row(6L, 6L)))
   }
 
-  @Test
+  @TestTemplate
   def testJoinConditionNeedSimplify(): Unit = {
     checkResult(
       "SELECT A.d FROM Table5 A JOIN SmallTable3 B ON (A.d=B.a and B.a>2) or (A.d=B.a and B.b=1)",
       Seq(row(1), row(3), row(3), row(3)))
   }
 
-  @Test
+  @TestTemplate
   def testJoinConditionDerivedFromCorrelatedSubQueryNeedSimplify(): Unit = {
     checkResult(
       "SELECT B.a FROM SmallTable3 B WHERE b = (" +
@@ -772,19 +943,19 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       Seq(row(1), row(2)))
   }
 
-  @Test
+  @TestTemplate
   def testSimple(): Unit = {
     checkResult(
       "select a, b from l where a in (select c from r where c > 2)",
       Seq(row(3, 3.0), row(6, null)))
   }
 
-  @Test
+  @TestTemplate
   def testSelect(): Unit = {
     checkResult("select t.a from (select 1 as a)t", Seq(row(1)))
   }
 
-  @Test
+  @TestTemplate
   def testCorrelated(): Unit = {
     expectedJoinType match {
       case NestedLoopJoin =>
@@ -797,7 +968,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testCorrelatedExist(): Unit = {
     checkResult(
       "select * from l where exists (select * from r where l.a = r.c)",
@@ -808,18 +979,26 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       Seq(row(2, 1.0), row(2, 1.0)))
   }
 
-  @Test
+  @TestTemplate
   def testCorrelatedExist2(): Unit = {
     val data: Seq[Row] =
       Seq(row(0L), row(123456L), row(-123456L), row(2147483647L), row(-2147483647L))
-    registerCollection("t1", data, new RowTypeInfo(LONG_TYPE_INFO), "f1")
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE t1(
+                       | f1 bigint
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
 
     checkResult(
       "select * from t1 o where exists (select 1 from t1 i where i.f1=o.f1 limit 0)",
       Seq())
   }
 
-  @Test
+  @TestTemplate
   def testCorrelatedNotExist(): Unit = {
     checkResult(
       "select * from l where not exists (select * from r where l.a = r.c and l.b <> r.d)",
@@ -827,7 +1006,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testUncorrelatedScalar(): Unit = {
     checkResult("select (select 1) as b", Seq(row(1)))
 
@@ -836,14 +1015,14 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     checkResult("select (select 1 as a) as b", Seq(row(1)))
   }
 
-  @Test
+  @TestTemplate
   def testEqualWithAggScalar(): Unit = {
     checkResult(
       "select a, b from l where a = (select distinct (c) from r where c = 2)",
       Seq(row(2, 1.0), row(2, 1.0)))
   }
 
-  @Test
+  @TestTemplate
   def testComparisonsScalar(): Unit = {
     if (expectedJoinType == NestedLoopJoin) {
       checkEmptyResult("select a, b from l where a = (select c from r where 1 = 2)")
@@ -858,7 +1037,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       row(2, 1.0) :: row(2, 1.0) :: Nil)
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithNull(): Unit = {
     // TODO enable all
     // TODO not support same source until set lazy_from_source
@@ -891,12 +1070,18 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         )
       )
 
-      registerCollection(
-        "NullT",
-        Seq(row(null, null, "c")),
-        type3,
-        "a, b, c",
-        allNullablesOfNullData3)
+      val dataId = TestValuesTableFactory.registerData(Seq(row(null, null, "c")))
+      tEnv.executeSql(s"""CREATE TEMPORARY TABLE NullT(
+                         | a int,
+                         | b bigint,
+                         | c string
+                         |)WITH(
+                         |  'connector' = 'values',
+                         |  'data-id' = '$dataId',
+                         |  'bounded' = 'true'
+                         |)
+                         |""".stripMargin)
+
       checkResult(
         "SELECT T1.a, T1.b, T1.c FROM NullT T1, NullT T2 WHERE " +
           "(T1.a = T2.a OR (T1.a IS NULL AND T2.a IS NULL)) " +
@@ -906,7 +1091,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testSingleRowJoin(): Unit = {
     if (expectedJoinType == NestedLoopJoin) {
       checkResult(
@@ -947,7 +1132,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testNonEmptyTableJoinEmptyTable(): Unit = {
     if (expectedJoinType == NestedLoopJoin) {
       checkResult(
@@ -976,7 +1161,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testEmptyTableJoinEmptyTable(): Unit = {
     if (expectedJoinType == NestedLoopJoin) {
       checkResult(
@@ -1009,7 +1194,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     }
   }
 
-  @Test
+  @TestTemplate
   def testJoinCollation(): Unit = {
     checkResult(
       """
@@ -1056,18 +1241,266 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithUDFFilter(): Unit = {
-    registerFunction("funcWithOpen", new FuncWithOpen)
+    tEnv.createTemporarySystemFunction("funcWithOpen", new FuncWithOpen)
     checkResult(
       "SELECT c, g FROM SmallTable3 join Table5 on funcWithOpen(a + d) where b = e",
       Seq(row("Hi", "Hallo"), row("Hello", "Hallo Welt"), row("Hello world", "Hallo Welt"))
     )
   }
+
+  @TestTemplate
+  def testJoinWithFilterPushDown(): Unit = {
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 where a >= 2
+        |""".stripMargin,
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  left join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 where a >= 2
+        |""".stripMargin,
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  left join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 where c >= 2
+        |""".stripMargin,
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  right join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 where a >= 2
+        |""".stripMargin,
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  right join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 where c >= 2
+        |""".stripMargin,
+      Seq(
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, null, null, 4, 1.0, 1))
+    )
+
+    checkResult(
+      """
+        |select * from
+        | l inner join r on a = c where c IS NULL
+        |""".stripMargin,
+      Seq()
+    )
+
+    checkResult(
+      """
+        |select * from
+        | l inner join r on a = c where c = NULL
+        |""".stripMargin,
+      Seq()
+    )
+
+    if (expectedJoinType == NestedLoopJoin) {
+      // For inner join, we will push c = 3 into left side l by
+      // derived from a = c and c = 3.
+      checkResult(
+        """
+          |select * from
+          | l inner join r on a = c where c = 3
+          |""".stripMargin,
+        Seq(
+          row(3, 3.0, 3, 2.0)
+        )
+      )
+
+      // For left join, we will push c = 3 into left side l by
+      // derived from a = c and c = 3.
+      checkResult(
+        """
+          |select * from
+          | l left join r on a = c where c = 3
+          |""".stripMargin,
+        Seq(
+          row(3, 3.0, 3, 2.0)
+        )
+      )
+    }
+
+    // For left/right join, we will only push equal filter condition into
+    // other side by derived from join condition and filter condition. So,
+    // c IS NULL cannot be push into left side.
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c IS NULL
+        |""".stripMargin,
+      Seq(
+        row(1, 2.0, null, null),
+        row(1, 2.0, null, null),
+        row(null, 5.0, null, null),
+        row(null, null, null, null)
+      )
+    )
+
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c IS NULL AND a <= 1
+        |""".stripMargin,
+      Seq(
+        row(1, 2.0, null, null),
+        row(1, 2.0, null, null)
+      )
+    )
+
+    // For 'c = NULL', all data cannot match this condition.
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c = NULL
+        |""".stripMargin,
+      Seq()
+    )
+
+    // For left/right join, we will only push equal filter condition into
+    // other side by derived from join condition and filter condition. So,
+    // c < 3 cannot be push into left side.
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c < 3 AND a <= 3
+        |""".stripMargin,
+      Seq(
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0)
+      )
+    )
+
+    // C <> 3 cannot be push into left side.
+    checkResult(
+      """
+        |select * from
+        | l left join r on a = c where c <> 3 AND a <= 3
+        |""".stripMargin,
+      Seq(
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0),
+        row(2, 1.0, 2, 3.0)
+      )
+    )
+  }
+
+  @TestTemplate
+  def testJoinWithJoinConditionPushDown(): Unit = {
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 and a >= 2
+        |""".stripMargin,
+      Seq(row(2, 1.0, 2, 2, 3.0, 2), row(3, 3.0, 1, 3, 2.0, 1), row(6, null, 1, 6, null, 1))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  left join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 and a >= 2
+        |""".stripMargin,
+      Seq(
+        row(1, 2.0, 2, null, null, null),
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, 5.0, 2, null, null, null))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  left join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 and c >= 2
+        |""".stripMargin,
+      Seq(
+        row(1, 2.0, 2, null, null, null),
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, 5.0, 2, null, null, null))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  right join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 and a >= 2
+        |""".stripMargin,
+      Seq(
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, null, null, 4, 1.0, 1),
+        row(null, null, null, null, 5.0, 2))
+    )
+
+    checkResult(
+      """
+        |select * from
+        |  (select a, max(b) b, count(*) c1 from l group by a)
+        |  right join
+        |  (select c, max(d) d, count(*) c2 from r group by c)
+        |  on a = c and c1 = c2 and c >= 2
+        |""".stripMargin,
+      Seq(
+        row(2, 1.0, 2, 2, 3.0, 2),
+        row(3, 3.0, 1, 3, 2.0, 1),
+        row(6, null, 1, 6, null, 1),
+        row(null, null, null, 4, 1.0, 1),
+        row(null, null, null, null, 5.0, 2))
+    )
+  }
 }
 
 object JoinITCase {
-  @Parameterized.Parameters(name = "{0}")
+  @Parameters(name = "expectedJoinType={0}")
   def parameters(): util.Collection[Any] = {
     util.Arrays.asList(
       Array(BroadcastHashJoin),

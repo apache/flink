@@ -80,12 +80,18 @@ class BatchPhysicalLimit(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val requiredDistribution = if (isGlobal) {
+      InputProperty.SINGLETON_DISTRIBUTION
+    } else {
+      InputProperty.UNKNOWN_DISTRIBUTION
+    }
+
     new BatchExecLimit(
       unwrapTableConfig(this),
       limitStart,
       limitEnd,
       isGlobal,
-      InputProperty.DEFAULT,
+      InputProperty.builder().requiredDistribution(requiredDistribution).build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

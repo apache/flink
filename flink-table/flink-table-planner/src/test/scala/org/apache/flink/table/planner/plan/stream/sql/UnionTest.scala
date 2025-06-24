@@ -17,18 +17,18 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 // TODO add more union case after aggregation and join supported
 class UnionTest extends TableTestBase {
 
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.addTableSource[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String)]("MyTable2", 'a, 'b, 'c)
@@ -131,4 +131,20 @@ class UnionTest extends TableTestBase {
     util.verifyRelPlanWithType(sqlQuery)
   }
 
+  @Test
+  def testSeveralUnionWithOneWrongTypeColumn(): Unit = {
+    val sqlQuery =
+      """
+        | SELECT id, ts, name, timestamp_col, timestamp_ltz_col FROM t2
+        | UNION ALL
+        | SELECT  id, ts, name, timestamp_col, timestamp_ltz_col FROM t3
+        | UNION ALL
+        | SELECT  id, ts, timestamp_col as wrong_column_type, timestamp_col, timestamp_ltz_col FROM t2
+      """.stripMargin
+
+    val error = assertThatThrownBy(() => util.verifyRelPlanWithType(sqlQuery))
+
+    error.isInstanceOf(classOf[ValidationException])
+    error.hasMessageContaining("Type mismatch in column 3 of UNION ALL")
+  }
 }

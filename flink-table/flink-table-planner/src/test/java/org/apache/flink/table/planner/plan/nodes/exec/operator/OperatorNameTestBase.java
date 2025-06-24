@@ -25,30 +25,32 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableFunc1;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 /** Base class for verifying name and description of SQL operators. */
-@RunWith(Parameterized.class)
-public abstract class OperatorNameTestBase extends TableTestBase {
-    @Parameterized.Parameter public boolean isNameSimplifyEnabled;
+@ExtendWith(ParameterizedTestExtension.class)
+abstract class OperatorNameTestBase extends TableTestBase {
+    @Parameter private boolean isNameSimplifyEnabled;
     protected TableTestUtil util;
     protected TableEnvironment tEnv;
 
-    @Parameterized.Parameters(name = "isNameSimplifyEnabled={0}")
-    public static List<Boolean> testData() {
+    @Parameters(name = "isNameSimplifyEnabled={0}")
+    private static List<Boolean> testData() {
         return Arrays.asList(true, false);
     }
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = getTableTestUtil();
         util.getStreamEnv().setParallelism(2);
         tEnv = util.getTableEnv();
@@ -73,16 +75,16 @@ public abstract class OperatorNameTestBase extends TableTestBase {
     }
 
     /** Verify Correlate and Calc. */
-    @Test
-    public void testCorrelate() {
+    @TestTemplate
+    void testCorrelate() {
         createTestSource();
         util.addTemporarySystemFunction("func1", new TableFunc1());
         verifyQuery("SELECT s FROM MyTable, LATERAL TABLE(func1(c)) AS T(s)");
     }
 
     /** Verify LookUpJoin. */
-    @Test
-    public void testLookupJoin() {
+    @TestTemplate
+    void testLookupJoin() {
         createSourceWithTimeAttribute();
         String srcTableB =
                 "CREATE TABLE LookupTable (\n"
@@ -99,8 +101,8 @@ public abstract class OperatorNameTestBase extends TableTestBase {
     }
 
     /** Verify GroupWindowAggregate. */
-    @Test
-    public void testGroupWindowAggregate() {
+    @TestTemplate
+    void testGroupWindowAggregate() {
         createSourceWithTimeAttribute();
         verifyQuery(
                 "SELECT\n"
@@ -112,8 +114,8 @@ public abstract class OperatorNameTestBase extends TableTestBase {
     }
 
     /** Verify OverAggregate. */
-    @Test
-    public void testOverAggregate() {
+    @TestTemplate
+    void testOverAggregate() {
         createSourceWithTimeAttribute();
         String sql =
                 "SELECT b,\n"
@@ -124,8 +126,8 @@ public abstract class OperatorNameTestBase extends TableTestBase {
     }
 
     /** Verify Rank. */
-    @Test
-    public void testRank() {
+    @TestTemplate
+    void testRank() {
         createTestSource();
         String sql =
                 "SELECT a, row_num\n"

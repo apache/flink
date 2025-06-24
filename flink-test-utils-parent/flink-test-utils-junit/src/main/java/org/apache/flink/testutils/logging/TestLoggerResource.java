@@ -26,6 +26,7 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.apache.logging.log4j.core.config.AppenderRef;
 import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.logging.log4j.core.config.Property;
 import org.apache.logging.log4j.core.filter.ThresholdFilter;
 import org.junit.rules.ExternalResource;
 
@@ -101,7 +102,11 @@ public class TestLoggerResource extends ExternalResource {
 
         final Appender testAppender =
                 new AbstractAppender(
-                        "test-appender-" + generateRandomString(), levelFilter, null, false) {
+                        "test-appender-" + generateRandomString(),
+                        levelFilter,
+                        null,
+                        false,
+                        Property.EMPTY_ARRAY) {
                     @Override
                     public void append(LogEvent event) {
                         loggingEvents.add(event.getMessage().getFormattedMessage());

@@ -18,9 +18,7 @@
 
 package org.apache.flink.architecture.common;
 
-import com.tngtech.archunit.base.ChainableFunction;
 import com.tngtech.archunit.base.DescribedPredicate;
-import com.tngtech.archunit.base.Function;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaField;
 import com.tngtech.archunit.core.domain.JavaModifier;
@@ -29,6 +27,7 @@ import com.tngtech.archunit.core.domain.properties.CanBeAnnotated;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.tngtech.archunit.lang.conditions.ArchPredicates.is;
@@ -40,7 +39,13 @@ import static org.apache.flink.architecture.common.JavaFieldPredicates.isPublic;
 import static org.apache.flink.architecture.common.JavaFieldPredicates.isStatic;
 import static org.apache.flink.architecture.common.JavaFieldPredicates.ofType;
 
-/** Common predicates for architecture tests. */
+/**
+ * Common predicates for architecture tests.
+ *
+ * <p>NOTE: it is recommended to use methods that accept fully qualified class names instead of
+ * {@code Class} objects to reduce the risks of introducing circular dependencies between the
+ * project submodules.
+ */
 public class Predicates {
 
     @SafeVarargs
@@ -48,7 +53,7 @@ public class Predicates {
             Class<? extends Annotation>... annotations) {
         return Arrays.stream(annotations)
                 .map(CanBeAnnotated.Predicates::annotatedWith)
-                .reduce(DescribedPredicate::or)
+                .reduce((p, pOther) -> p.or(pOther))
                 .orElseThrow(IllegalArgumentException::new)
                 .forSubtype();
     }
@@ -59,34 +64,27 @@ public class Predicates {
      */
     public static DescribedPredicate<JavaClass> containAnyFieldsInClassHierarchyThat(
             DescribedPredicate<? super JavaField> predicate) {
-        return new ContainAnyFieldsThatPredicate<>(
-                "fields",
-                new ChainableFunction<JavaClass, Set<JavaField>>() {
-                    @Override
-                    public Set<JavaField> apply(JavaClass input) {
-                        // need to get all fields with the inheritance hierarchy
-                        return input.getAllFields();
-                    }
-                },
-                predicate);
+        return new ContainAnyFieldsThatPredicate<>("fields", JavaClass::getAllFields, predicate);
     }
 
     /**
-     * Tests that the given field is {@code public static} and of the given type {@code clazz} .
+     * Tests that the given field is {@code public static} and has the fully qualified type name of
+     * {@code fqClassName}.
      *
      * <p>Attention: changing the description will add a rule into the stored.rules.
      */
-    public static DescribedPredicate<JavaField> arePublicStaticOfType(Class<?> clazz) {
-        return areFieldOfType(clazz, JavaModifier.PUBLIC, JavaModifier.STATIC);
+    public static DescribedPredicate<JavaField> arePublicStaticOfType(String fqClassName) {
+        return areFieldOfType(fqClassName, JavaModifier.PUBLIC, JavaModifier.STATIC);
     }
 
     /**
-     * Tests that the given field is of the given type {@code clazz} and has given modifiers.
+     * Tests that the field has the fully qualified type of {@code fqClassName} with the given
+     * modifiers.
      *
      * <p>Attention: changing the description will add a rule into the stored.rules.
      */
     public static DescribedPredicate<JavaField> areFieldOfType(
-            Class<?> clazz, JavaModifier... modifiers) {
+            String fqClassName, JavaModifier... modifiers) {
         return DescribedPredicate.describe(
                 String.format(
                         "are %s, and of type %s",
@@ -94,18 +92,18 @@ public class Predicates {
                                 .map(JavaModifier::toString)
                                 .map(String::toLowerCase)
                                 .collect(Collectors.joining(", ")),
-                        clazz.getSimpleName()),
+                        getClassSimpleNameFromFqName(fqClassName)),
                 field ->
                         field.getModifiers().containsAll(Arrays.asList(modifiers))
-                                && field.getRawType().isEquivalentTo(clazz));
+                                && field.getRawType().getName().equals(fqClassName));
     }
 
     /**
-     * Tests that the given field is {@code public final} and not {@code static} and of the given
-     * type {@code clazz} .
+     * Tests that the given field is {@code public final}, not {@code static} and has the given
+     * fully qualified type name of {@code fqClassName}.
      */
-    public static DescribedPredicate<JavaField> arePublicFinalOfType(Class<?> clazz) {
-        return is(ofType(clazz)).and(isPublic()).and(isFinal()).and(isNotStatic());
+    public static DescribedPredicate<JavaField> arePublicFinalOfType(String fqClassName) {
+        return is(ofType(fqClassName)).and(isPublic()).and(isFinal()).and(isNotStatic());
     }
 
     /**
@@ -117,38 +115,39 @@ public class Predicates {
     }
 
     /**
-     * Tests that the given field is {@code public static final} and of the given type {@code clazz}
-     * .
+     * Tests that the field is {@code public static final} and has the fully qualified type name of
+     * {@code fqClassName}.
      */
-    public static DescribedPredicate<JavaField> arePublicStaticFinalOfType(Class<?> clazz) {
-        return arePublicStaticOfType(clazz).and(isFinal());
+    public static DescribedPredicate<JavaField> arePublicStaticFinalOfType(String fqClassName) {
+        return arePublicStaticOfType(fqClassName).and(isFinal());
     }
 
     /**
-     * Tests that the given field is {@code public final} and of the given type {@code clazz} with
-     * exactly the given {@code annotationType}.
+     * Tests that the field is {@code public final}, has the fully qualified type name of {@code
+     * fqClassName} and is annotated with the {@code annotationType}.
      */
     public static DescribedPredicate<JavaField> arePublicFinalOfTypeWithAnnotation(
-            Class<?> clazz, Class<? extends Annotation> annotationType) {
-        return arePublicFinalOfType(clazz).and(annotatedWith(annotationType));
+            String fqClassName, Class<? extends Annotation> annotationType) {
+        return arePublicFinalOfType(fqClassName).and(annotatedWith(annotationType));
     }
 
     /**
-     * Tests that the given field is {@code public static final} and of the given type {@code clazz}
-     * with exactly the given {@code annotationType}.
+     * Tests that the field is {@code public static final}, has the fully qualified type name of
+     * {@code fqClassName} and is annotated with the {@code annotationType}.
      */
     public static DescribedPredicate<JavaField> arePublicStaticFinalOfTypeWithAnnotation(
-            Class<?> clazz, Class<? extends Annotation> annotationType) {
-        return arePublicStaticFinalOfType(clazz).and(annotatedWith(annotationType));
+            String fqClassName, Class<? extends Annotation> annotationType) {
+        return arePublicStaticFinalOfType(fqClassName).and(annotatedWith(annotationType));
     }
 
     /**
-     * Tests that the given field is {@code static final} and of the given type {@code clazz} with
-     * exactly the given {@code annotationType}. It doesn't matter if public, private or protected.
+     * Tests that the field is {@code static final}, has the fully qualified type name of {@code
+     * fqClassName} and is annotated with the {@code annotationType}. It doesn't matter if public,
+     * private or protected.
      */
     public static DescribedPredicate<JavaField> areStaticFinalOfTypeWithAnnotation(
-            Class<?> clazz, Class<? extends Annotation> annotationType) {
-        return areFieldOfType(clazz, JavaModifier.STATIC, JavaModifier.FINAL)
+            String fqClassName, Class<? extends Annotation> annotationType) {
+        return areFieldOfType(fqClassName, JavaModifier.STATIC, JavaModifier.FINAL)
                 .and(annotatedWith(annotationType));
     }
 
@@ -164,10 +163,35 @@ public class Predicates {
                         + Arrays.stream(other)
                                 .map(dp -> "* " + dp + "\n")
                                 .collect(Collectors.joining()),
-                t ->
-                        Arrays.stream(other)
-                                .map(dp -> dp.apply(t))
-                                .reduce(false, Boolean::logicalXor));
+                t -> Arrays.stream(other).map(dp -> dp.test(t)).reduce(false, Boolean::logicalXor));
+    }
+
+    /**
+     * Extracts the class name from the given fully qualified class name.
+     *
+     * <p>Example:
+     *
+     * <pre>
+     *     getClassFromFqName("com.example.MyClass");  // Returns: "MyClass"
+     * </pre>
+     */
+    public static String getClassSimpleNameFromFqName(String fqClassName) {
+        // Not using Preconditions to avoid adding non-test flink-core dependency
+        if (fqClassName == null) {
+            throw new NullPointerException("Fully qualified class name cannot be null");
+        }
+        if (fqClassName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Fully qualified class name cannot be empty");
+        }
+        int lastDotIndex = fqClassName.lastIndexOf('.');
+        int lastDollarIndex = fqClassName.lastIndexOf('$');
+        int startIndex = Math.max(lastDotIndex, lastDollarIndex) + 1;
+        String className = fqClassName.substring(startIndex);
+        if (className.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Extracted class name is empty from: " + fqClassName);
+        }
+        return className;
     }
 
     private Predicates() {}
@@ -191,9 +215,9 @@ public class Predicates {
         }
 
         @Override
-        public boolean apply(JavaClass input) {
+        public boolean test(JavaClass input) {
             for (T member : getFields.apply(input)) {
-                if (predicate.apply(member)) {
+                if (predicate.test(member)) {
                     return true;
                 }
             }

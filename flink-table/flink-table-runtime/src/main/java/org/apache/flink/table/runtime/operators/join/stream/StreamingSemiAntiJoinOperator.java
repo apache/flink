@@ -22,11 +22,13 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
-import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateViews;
+import org.apache.flink.table.runtime.operators.join.stream.utils.AssociatedRecords;
+import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
+import org.apache.flink.table.runtime.operators.join.stream.utils.OuterRecord;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.types.RowKind;
 
@@ -35,7 +37,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
 
     private static final long serialVersionUID = -3135772379944924519L;
 
-    // true if it is anti join, otherwise is semi joinp
+    // true if it is anti join, otherwise is semi join
     private final boolean isAntiJoin;
 
     // left join state
@@ -51,7 +53,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
             JoinInputSideSpec leftInputSideSpec,
             JoinInputSideSpec rightInputSideSpec,
             boolean[] filterNullKeys,
-            long stateRetentionTime) {
+            long leftStateRetentionTime,
+            long rightStateRetentionTIme) {
         super(
                 leftType,
                 rightType,
@@ -59,7 +62,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                 leftInputSideSpec,
                 rightInputSideSpec,
                 filterNullKeys,
-                stateRetentionTime);
+                leftStateRetentionTime,
+                rightStateRetentionTIme);
         this.isAntiJoin = isAntiJoin;
     }
 
@@ -73,7 +77,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                         LEFT_RECORDS_STATE_NAME,
                         leftInputSideSpec,
                         leftType,
-                        stateRetentionTime);
+                        leftStateRetentionTime);
 
         this.rightRecordStateView =
                 JoinRecordStateViews.create(
@@ -81,7 +85,7 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
                         RIGHT_RECORDS_STATE_NAME,
                         rightInputSideSpec,
                         rightType,
-                        stateRetentionTime);
+                        rightStateRetentionTime);
     }
 
     /**
@@ -103,7 +107,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
     public void processElement1(StreamRecord<RowData> element) throws Exception {
         RowData input = element.getValue();
         AssociatedRecords associatedRecords =
-                AssociatedRecords.of(input, true, rightRecordStateView, joinCondition);
+                AssociatedRecords.fromSyncStateView(
+                        input, true, rightRecordStateView, joinCondition);
         if (associatedRecords.isEmpty()) {
             if (isAntiJoin) {
                 collector.collect(input);
@@ -167,7 +172,8 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
         input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
 
         AssociatedRecords associatedRecords =
-                AssociatedRecords.of(input, false, leftRecordStateView, joinCondition);
+                AssociatedRecords.fromSyncStateView(
+                        input, false, leftRecordStateView, joinCondition);
         if (isAccumulateMsg) { // record is accumulate
             rightRecordStateView.addRecord(input);
             if (!associatedRecords.isEmpty()) {

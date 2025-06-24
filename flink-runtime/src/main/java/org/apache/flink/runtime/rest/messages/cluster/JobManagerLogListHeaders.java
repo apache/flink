@@ -23,13 +23,13 @@ import org.apache.flink.runtime.rest.handler.cluster.JobManagerLogListHandler;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.LogListInfo;
-import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /** Headers for the {@link JobManagerLogListHandler}. */
 public class JobManagerLogListHeaders
-        implements MessageHeaders<EmptyRequestBody, LogListInfo, EmptyMessageParameters> {
+        implements RuntimeMessageHeaders<EmptyRequestBody, LogListInfo, EmptyMessageParameters> {
 
     private static final JobManagerLogListHeaders INSTANCE = new JobManagerLogListHeaders();
 

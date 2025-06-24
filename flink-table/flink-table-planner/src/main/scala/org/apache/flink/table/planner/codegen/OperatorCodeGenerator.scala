@@ -50,7 +50,7 @@ object OperatorCodeGenerator extends Logging {
       lazyInputUnboxingCode: Boolean = false,
       converter: String => String = a => a): GeneratedOperator[OneInputStreamOperator[IN, OUT]] = {
     addReuseOutElement(ctx)
-    val operatorName = newName(name)
+    val operatorName = newName(ctx, name)
     val abstractBaseClass = ctx.getOperatorBaseClass
     val baseClass = classOf[OneInputStreamOperator[IN, OUT]]
     val inputTypeTerm = boxedTypeTermForType(inputType)
@@ -110,9 +110,15 @@ object OperatorCodeGenerator extends Logging {
         $endInput
 
         @Override
+        public void finish() throws Exception {
+            ${ctx.reuseFinishCode()}
+            super.finish();
+        }
+
+        @Override
         public void close() throws Exception {
            super.close();
-          ${ctx.reuseCloseCode()}
+           ${ctx.reuseCloseCode()}
         }
 
         ${ctx.reuseInnerClassDefinitionCode()}
@@ -138,7 +144,7 @@ object OperatorCodeGenerator extends Logging {
       endInputCode2: Option[String] = None,
       useTimeCollect: Boolean = false): GeneratedOperator[TwoInputStreamOperator[IN1, IN2, OUT]] = {
     addReuseOutElement(ctx)
-    val operatorName = newName(name)
+    val operatorName = newName(ctx, name)
     val abstractBaseClass = ctx.getOperatorBaseClass
     val baseClass = classOf[TwoInputStreamOperator[IN1, IN2, OUT]]
     val inputTypeTerm1 = boxedTypeTermForType(input1Type)
@@ -239,6 +245,13 @@ object OperatorCodeGenerator extends Logging {
         $nextSel
 
         $endInput
+
+        @Override
+        public void finish() throws Exception {
+          super.finish();
+          ${ctx.reuseFinishCode()}
+        }
+
 
         @Override
         public void close() throws Exception {

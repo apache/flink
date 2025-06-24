@@ -229,7 +229,9 @@ public class GenericDataSourceBase<OUT, T extends InputFormat<OUT, ?>> extends O
         // splits
         InputSplit[] splits = inputFormat.createInputSplits(1);
         TypeSerializer<OUT> serializer =
-                getOperatorInfo().getOutputType().createSerializer(executionConfig);
+                getOperatorInfo()
+                        .getOutputType()
+                        .createSerializer(executionConfig.getSerializerConfig());
 
         for (InputSplit split : splits) {
             inputFormat.open(split);

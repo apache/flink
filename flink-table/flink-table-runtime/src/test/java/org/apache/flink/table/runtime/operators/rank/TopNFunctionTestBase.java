@@ -19,10 +19,12 @@
 package org.apache.flink.table.runtime.operators.rank;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.runtime.asyncprocessing.operators.AsyncKeyedProcessOperator;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
@@ -40,19 +42,35 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 /** Base Tests for all subclass of {@link AbstractTopNFunction}. */
+@ExtendWith(ParameterizedTestExtension.class)
 abstract class TopNFunctionTestBase {
+
+    @Parameters(name = "EnableAsyncState = {0}")
+    public static List<Boolean> enableAsyncState() {
+        return Arrays.asList(false, true);
+    }
+
+    @Parameter protected boolean enableAsyncState;
 
     StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(10_000_000);
     long cacheSize = 10000L;
@@ -126,32 +144,58 @@ abstract class TopNFunctionTestBase {
             HandwrittenSelectorUtil.getRowDataSelector(
                     new int[] {rowKeyIdx}, inputRowType.toRowFieldTypes());
 
+    @BeforeEach
+    void beforeEach() {
+        if (!supportedAsyncState()) {
+            assumeFalse(enableAsyncState);
+        }
+    }
+
     /** RankEnd column must be long, int or short type, but could not be string type yet. */
-    @Test(expected = UnsupportedOperationException.class)
-    public void testInvalidVariableRankRangeWithIntType() throws Exception {
+    @TestTemplate
+    void testInvalidVariableRankRangeWithIntType() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new VariableRankRange(0), true, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
-        testHarness.open();
+        assertThatThrownBy(() -> testHarness.open())
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testNotSupportRank() throws Exception {
-        createFunction(RankType.RANK, new ConstantRankRange(1, 10), true, true);
+    @TestTemplate
+    void testNotSupportRank() throws Exception {
+        assertThatThrownBy(
+                        () ->
+                                createFunction(
+                                        RankType.RANK, new ConstantRankRange(1, 10), true, true))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testNotSupportDenseRank() throws Exception {
-        createFunction(RankType.DENSE_RANK, new ConstantRankRange(1, 10), true, true);
+    @TestTemplate
+    void testNotSupportDenseRank() throws Exception {
+        assertThatThrownBy(
+                        () ->
+                                createFunction(
+                                        RankType.DENSE_RANK,
+                                        new ConstantRankRange(1, 10),
+                                        true,
+                                        true))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testNotSupportWithoutRankEnd() throws Exception {
-        createFunction(RankType.ROW_NUMBER, new ConstantRankRangeWithoutEnd(1), true, true);
+    @TestTemplate
+    void testNotSupportWithoutRankEnd() throws Exception {
+        assertThatThrownBy(
+                        () ->
+                                createFunction(
+                                        RankType.ROW_NUMBER,
+                                        new ConstantRankRangeWithoutEnd(1),
+                                        true,
+                                        true))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    @Test
-    public void testDisableGenerateUpdateBefore() throws Exception {
+    @TestTemplate
+    void testDisableGenerateUpdateBefore() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -183,8 +227,8 @@ abstract class TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testDisableGenerateUpdateBeforeAndOutputRankNumber() throws Exception {
+    @TestTemplate
+    void testDisableGenerateUpdateBeforeAndOutputRankNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -215,8 +259,8 @@ abstract class TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testOutputRankNumberWithConstantRankRange() throws Exception {
+    @TestTemplate
+    void testOutputRankNumberWithConstantRankRange() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -249,8 +293,8 @@ abstract class TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testConstantRankRangeWithOffset() throws Exception {
+    @TestTemplate
+    void testConstantRankRangeWithOffset() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(2, 2), true, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -274,8 +318,8 @@ abstract class TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testOutputRankNumberWithVariableRankRange() throws Exception {
+    @TestTemplate
+    void testOutputRankNumberWithVariableRankRange() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -302,8 +346,8 @@ abstract class TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testConstantRankRangeWithoutOffset() throws Exception {
+    @TestTemplate
+    void testConstantRankRangeWithoutOffset() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -348,16 +392,37 @@ abstract class TopNFunctionTestBase {
 
     OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
             AbstractTopNFunction rankFunction) throws Exception {
-        KeyedProcessOperator<RowData, RowData, RowData> operator =
-                new KeyedProcessOperator<>(rankFunction);
-        rankFunction.setKeyContext(operator);
-        return new KeyedOneInputStreamOperatorTestHarness<>(
-                operator, keySelector, keySelector.getProducedType());
+        if (enableAsyncState) {
+            AsyncKeyedProcessOperator<RowData, RowData, RowData> operator =
+                    new AsyncKeyedProcessOperator<>(rankFunction);
+            rankFunction.setKeyContext(operator);
+            return AsyncKeyedOneInputStreamOperatorTestHarness.create(
+                    operator, keySelector, keySelector.getProducedType());
+        } else {
+            KeyedProcessOperator<RowData, RowData, RowData> operator =
+                    new KeyedProcessOperator<>(rankFunction);
+            rankFunction.setKeyContext(operator);
+            return new KeyedOneInputStreamOperatorTestHarness<>(
+                    operator, keySelector, keySelector.getProducedType());
+        }
+    }
+
+    final AbstractTopNFunction createFunction(
+            RankType rankType,
+            RankRange rankRange,
+            boolean generateUpdateBefore,
+            boolean outputRankNumber) {
+        return createFunction(
+                rankType, rankRange, generateUpdateBefore, outputRankNumber, enableAsyncState);
     }
 
     abstract AbstractTopNFunction createFunction(
             RankType rankType,
             RankRange rankRange,
             boolean generateUpdateBefore,
-            boolean outputRankNumber);
+            boolean outputRankNumber,
+            boolean enableAsyncState);
+
+    /** TODO remove this method after all rank function support async state. */
+    abstract boolean supportedAsyncState();
 }

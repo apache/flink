@@ -74,6 +74,14 @@ class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
                                 "world",
                                 DataTypes.STRING().notNull())
                         .testResult(
+                                call(
+                                        "GREATEST",
+                                        call("IFNULL", $("f4"), $("f5")),
+                                        call("IFNULL", $("f5"), $("f4"))),
+                                "GREATEST(IFNULL(f4, f5), IFNULL(f5, f4))",
+                                "world",
+                                DataTypes.STRING().notNull())
+                        .testResult(
                                 call("GREATEST", $("f6"), $("f7")),
                                 "GREATEST(f6, f7)",
                                 LocalDateTime.parse("1970-01-01T00:00:03.001"),
@@ -157,6 +165,14 @@ class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
                                 "LEAST(f0, f1) = LEAST(f0, f1)",
                                 null,
                                 DataTypes.BOOLEAN())
+                        .testResult(
+                                call(
+                                        "LEAST",
+                                        call("IFNULL", $("f4"), $("f5")),
+                                        call("IFNULL", $("f5"), $("f4"))),
+                                "LEAST(IFNULL(f4, f5), IFNULL(f5, f4))",
+                                "hello",
+                                DataTypes.STRING().notNull())
                         .testSqlValidationError(
                                 "LEAST(f5, f6)",
                                 "SQL validation failed. Invalid function call:\n"

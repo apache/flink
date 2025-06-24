@@ -17,21 +17,21 @@
  */
 package org.apache.flink.table.api.stream
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.connector.ChangelogMode
+import org.apache.flink.table.planner.runtime.utils.TestSinkUtil
 import org.apache.flink.table.planner.utils.TableTestBase
-import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
+import org.apache.flink.table.types.DataType
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
-import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.sql.Timestamp
 import java.time.Duration
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class ExplainTest(extended: Boolean) extends TableTestBase {
 
   private val extraDetails = if (extended) {
@@ -45,82 +45,93 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   util.addDataStream[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
   util.addDataStream[(Int, Long, String)]("MyTable2", 'd, 'e, 'f)
 
-  val STRING = VarCharType.STRING_TYPE
-  val LONG = new BigIntType()
-  val INT = new IntType()
+  val STRING: DataType = DataTypes.STRING
+  val LONG: DataType = DataTypes.BIGINT
+  val INT: DataType = DataTypes.INT
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(4))
   }
 
-  @Test
+  @TestTemplate
   def testExplainTableSourceScan(): Unit = {
     util.verifyExplain("SELECT * FROM MyTable", extraDetails: _*)
   }
 
-  @Test
+  @TestTemplate
   def testExplainDataStreamScan(): Unit = {
     util.verifyExplain("SELECT * FROM MyTable1", extraDetails: _*)
   }
 
-  @Test
+  @TestTemplate
   def testExplainWithFilter(): Unit = {
     util.verifyExplain("SELECT * FROM MyTable1 WHERE mod(a, 2) = 0", extraDetails: _*)
   }
 
-  @Test
+  @TestTemplate
   def testExplainWithAgg(): Unit = {
     util.verifyExplain("SELECT COUNT(*) FROM MyTable1 GROUP BY a", extraDetails: _*)
   }
 
-  @Test
+  @TestTemplate
   def testExplainWithJoin(): Unit = {
     util.verifyExplain("SELECT a, b, c, e, f FROM MyTable1, MyTable2 WHERE a = d", extraDetails: _*)
   }
 
-  @Test
+  @TestTemplate
   def testExplainWithUnion(): Unit = {
     util.verifyExplain("SELECT * FROM MyTable1 UNION ALL SELECT * FROM MyTable2", extraDetails: _*)
   }
 
-  @Test
+  @TestTemplate
   def testExplainWithSort(): Unit = {
     util.verifyExplain("SELECT * FROM MyTable1 ORDER BY a LIMIT 5", extraDetails: _*)
   }
 
-  @Test
+  @TestTemplate
   def testExplainWithSingleSink(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT * FROM MyTable1 WHERE a > 10")
-    val appendSink = util.createAppendTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.verifyExplainInsert(table, appendSink, "appendSink", extraDetails: _*)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "appendSink",
+      List("a", "b", "c"),
+      List(INT, LONG, STRING),
+      ChangelogMode.insertOnly())
+    util.verifyExplainInsert(table, "appendSink", extraDetails: _*)
   }
 
-  @Test
+  @TestTemplate
   def testExplainWithMultiSinks(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     val table = util.tableEnv.sqlQuery("SELECT a, COUNT(*) AS cnt FROM MyTable1 GROUP BY a")
-    util.tableEnv.registerTable("TempTable", table)
+    util.tableEnv.createTemporaryView("TempTable", table)
 
     val table1 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt > 10")
-    val upsertSink1 = util.createUpsertTableSink(Array(0), Array("a", "cnt"), Array(INT, LONG))
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSinkInternal("upsertSink1", upsertSink1)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "upsertSink1",
+      List("a", "cnt"),
+      List(INT, LONG),
+      ChangelogMode.upsert(),
+      List("a"))
     stmtSet.addInsert("upsertSink1", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt < 10")
-    val upsertSink2 = util.createUpsertTableSink(Array(0), Array("a", "cnt"), Array(INT, LONG))
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSinkInternal("upsertSink2", upsertSink2)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "upsertSink2",
+      List("a", "cnt"),
+      List(INT, LONG),
+      ChangelogMode.upsert(),
+      List("a"))
     stmtSet.addInsert("upsertSink2", table2)
 
     util.verifyExplain(stmtSet, extraDetails: _*)
   }
 
-  @Test
+  @TestTemplate
   def testMiniBatchIntervalInfer(): Unit = {
     val stmtSet = util.tableEnv.createStatementSet()
     // Test emit latency propagate among RelNodeBlocks
@@ -145,17 +156,19 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
                                          |      AND T3.rowtime > T4.rowtime - INTERVAL '5' MINUTE
                                          |      AND T3.rowtime < T4.rowtime + INTERVAL '3' MINUTE
       """.stripMargin)
-    util.tableEnv.registerTable("TempTable", table)
+    util.tableEnv.createTemporaryView("TempTable", table)
 
     val table1 = util.tableEnv.sqlQuery("""
                                           |SELECT id1, LISTAGG(text, '#')
                                           |FROM TempTable
                                           |GROUP BY id1, TUMBLE(ts, INTERVAL '8' SECOND)
       """.stripMargin)
-    val appendSink1 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSinkInternal("appendSink1", appendSink1)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "appendSink1",
+      List("a", "b"),
+      List(INT, STRING),
+      ChangelogMode.insertOnly())
     stmtSet.addInsert("appendSink1", table1)
 
     val table2 =
@@ -164,10 +177,12 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
                                |FROM TempTable
                                |GROUP BY id1, HOP(ts, INTERVAL '12' SECOND, INTERVAL '6' SECOND)
       """.stripMargin)
-    val appendSink2 = util.createAppendTableSink(Array("a", "b"), Array(INT, STRING))
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSinkInternal("appendSink2", appendSink2)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "appendSink2",
+      List("a", "b"),
+      List(INT, STRING),
+      ChangelogMode.insertOnly())
     stmtSet.addInsert("appendSink2", table2)
 
     util.verifyExplain(stmtSet, extraDetails: _*)
@@ -176,7 +191,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
 }
 
 object ExplainTest {
-  @Parameterized.Parameters(name = "extended={0}")
+  @Parameters(name = "extended={0}")
   def parameters(): java.util.Collection[Boolean] = {
     java.util.Arrays.asList(true, false)
   }

@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.operators.multipleinput.input;
 
 import org.apache.flink.streaming.api.operators.Input;
-import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputStreamOperatorBase;
 import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapper;
 
 import java.io.Serializable;
@@ -31,14 +30,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class InputSpec implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    /**
-     * The input id (start from 1) used for identifying each {@link Input} in {@link
-     * MultipleInputStreamOperatorBase#getInputs()}.
-     */
-    private final int multipleInputId;
-
-    /** The read order for current input in multiple operator. */
-    private final int readOrder;
+    /** The input id and read order for current input in multiple operator. */
+    private final InputSelectionSpec inputSelectionSpec;
 
     /** The output operator corresponding to the {@link Input}. */
     private final TableOperatorWrapper<?> output;
@@ -51,18 +44,21 @@ public class InputSpec implements Serializable {
             int readOrder,
             TableOperatorWrapper<?> output,
             int outputOpInputId) {
-        this.multipleInputId = multipleInputId;
-        this.readOrder = readOrder;
+        this.inputSelectionSpec = new InputSelectionSpec(multipleInputId, readOrder);
         this.output = checkNotNull(output);
         this.outputOpInputId = outputOpInputId;
     }
 
+    public InputSelectionSpec getInputSelectionSpec() {
+        return inputSelectionSpec;
+    }
+
     public int getMultipleInputId() {
-        return multipleInputId;
+        return inputSelectionSpec.getMultipleInputId();
     }
 
     public int getReadOrder() {
-        return readOrder;
+        return inputSelectionSpec.getReadOrder();
     }
 
     public TableOperatorWrapper<?> getOutput() {
@@ -82,24 +78,21 @@ public class InputSpec implements Serializable {
             return false;
         }
         InputSpec inputSpec = (InputSpec) o;
-        return multipleInputId == inputSpec.multipleInputId
-                && readOrder == inputSpec.readOrder
-                && outputOpInputId == inputSpec.outputOpInputId
-                && output.equals(inputSpec.output);
+        return outputOpInputId == inputSpec.outputOpInputId
+                && Objects.equals(inputSelectionSpec, inputSpec.inputSelectionSpec)
+                && Objects.equals(output, inputSpec.output);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(multipleInputId, readOrder, output, outputOpInputId);
+        return Objects.hash(inputSelectionSpec, output, outputOpInputId);
     }
 
     @Override
     public String toString() {
         return "InputSpec{"
-                + "multipleInputId="
-                + multipleInputId
-                + ", readOrder="
-                + readOrder
+                + "inputSelectionSpec="
+                + inputSelectionSpec
                 + ", output="
                 + output
                 + ", outputOpInputId="

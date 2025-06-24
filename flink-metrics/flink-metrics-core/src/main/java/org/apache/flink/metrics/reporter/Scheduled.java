@@ -26,7 +26,8 @@ public interface Scheduled {
 
     /**
      * Report the current measurements. This method is called periodically by the metrics registry
-     * that uses the reporter.
+     * that uses the reporter. This method must not block for a significant amount of time, any
+     * reporter needing more time should instead run the operation asynchronously.
      */
     void report();
 }

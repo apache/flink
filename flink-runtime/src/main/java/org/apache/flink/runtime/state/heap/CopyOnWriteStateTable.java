@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.state.InternalKeyContext;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 
 import javax.annotation.Nonnull;
@@ -53,6 +54,15 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> {
     @Override
     protected CopyOnWriteStateMap<K, N, S> createStateMap() {
         return new CopyOnWriteStateMap<>(getStateSerializer());
+    }
+
+    @Override
+    public void setMetaInfo(RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo) {
+        super.setMetaInfo(metaInfo);
+        for (StateMap<K, N, S> keyGroupedStateMap : keyGroupedStateMaps) {
+            ((CopyOnWriteStateMap<K, N, S>) keyGroupedStateMap)
+                    .setStateSerializer(metaInfo.getStateSerializer());
+        }
     }
 
     // Snapshotting

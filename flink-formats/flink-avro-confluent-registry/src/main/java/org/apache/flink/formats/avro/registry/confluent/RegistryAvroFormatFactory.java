@@ -43,7 +43,11 @@ import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+
+import org.apache.avro.Schema;
+import org.apache.avro.Schema.Parser;
 
 import javax.annotation.Nullable;
 
@@ -55,11 +59,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.lang.String.format;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_TOKEN;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.PROPERTIES;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SCHEMA;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_LOCATION;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_PASSWORD;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_TRUSTSTORE_LOCATION;
@@ -83,6 +89,7 @@ public class RegistryAvroFormatFactory
         FactoryUtil.validateFactoryOptions(this, formatOptions);
 
         String schemaRegistryURL = formatOptions.get(URL);
+        Optional<String> schemaString = formatOptions.getOptional(SCHEMA);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
         return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
@@ -93,13 +100,15 @@ public class RegistryAvroFormatFactory
                     int[][] projections) {
                 producedDataType = Projection.of(projections).project(producedDataType);
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
+                final Schema schema =
+                        schemaString
+                                .map(s -> getAvroSchema(s, rowType))
+                                .orElse(AvroSchemaConverter.convertToSchema(rowType));
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new AvroRowDataDeserializationSchema(
                         ConfluentRegistryAvroDeserializationSchema.forGeneric(
-                                AvroSchemaConverter.convertToSchema(rowType),
-                                schemaRegistryURL,
-                                optionalPropertiesMap),
+                                schema, schemaRegistryURL, optionalPropertiesMap),
                         AvroToRowDataConverters.createRowConverter(rowType),
                         rowDataTypeInfo);
             }
@@ -118,6 +127,7 @@ public class RegistryAvroFormatFactory
 
         String schemaRegistryURL = formatOptions.get(URL);
         Optional<String> subject = formatOptions.getOptional(SUBJECT);
+        Optional<String> schemaString = formatOptions.getOptional(SCHEMA);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
         if (!subject.isPresent()) {
@@ -132,13 +142,14 @@ public class RegistryAvroFormatFactory
             public SerializationSchema<RowData> createRuntimeEncoder(
                     DynamicTableSink.Context context, DataType consumedDataType) {
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
+                final Schema schema =
+                        schemaString
+                                .map(s -> getAvroSchema(s, rowType))
+                                .orElse(AvroSchemaConverter.convertToSchema(rowType));
                 return new AvroRowDataSerializationSchema(
                         rowType,
                         ConfluentRegistryAvroSerializationSchema.forGeneric(
-                                subject.get(),
-                                AvroSchemaConverter.convertToSchema(rowType),
-                                schemaRegistryURL,
-                                optionalPropertiesMap),
+                                subject.get(), schema, schemaRegistryURL, optionalPropertiesMap),
                         RowDataToAvroConverters.createConverter(rowType));
             }
 
@@ -165,6 +176,7 @@ public class RegistryAvroFormatFactory
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(SUBJECT);
+        options.add(SCHEMA);
         options.add(PROPERTIES);
         options.add(SSL_KEYSTORE_LOCATION);
         options.add(SSL_KEYSTORE_PASSWORD);
@@ -182,6 +194,7 @@ public class RegistryAvroFormatFactory
         return Stream.of(
                         URL,
                         SUBJECT,
+                        SCHEMA,
                         PROPERTIES,
                         SSL_KEYSTORE_LOCATION,
                         SSL_KEYSTORE_PASSWORD,
@@ -229,5 +242,23 @@ public class RegistryAvroFormatFactory
             return null;
         }
         return properties;
+    }
+
+    private static Schema getAvroSchema(String schemaString, RowType rowType) {
+        LogicalType convertedDataType =
+                AvroSchemaConverter.convertToDataType(schemaString).getLogicalType();
+
+        if (convertedDataType.isNullable()) {
+            convertedDataType = convertedDataType.copy(false);
+        }
+
+        if (!convertedDataType.equals(rowType)) {
+            throw new IllegalArgumentException(
+                    format(
+                            "Schema provided for '%s' format does not match the table schema: %s",
+                            IDENTIFIER, schemaString));
+        }
+
+        return new Parser().parse(schemaString);
     }
 }

@@ -23,9 +23,9 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.assertj.core.data.Offset;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,16 +34,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ManagedMemoryUtils}. */
-public class ManagedMemoryUtilsTest extends TestLogger {
+class ManagedMemoryUtilsTest {
 
     private static final double DELTA = 0.000001;
 
-    private static final int DATA_PROC_WEIGHT = 111;
     private static final int PYTHON_WEIGHT = 222;
     private static final int OPERATOR_WEIGHT = 333;
     private static final int STATE_BACKEND_WEIGHT = 444;
@@ -57,10 +55,6 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                                     TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
                                     new HashMap<String, String>() {
                                         {
-                                            put(
-                                                    TaskManagerOptions
-                                                            .MANAGED_MEMORY_CONSUMER_NAME_DATAPROC,
-                                                    String.valueOf(DATA_PROC_WEIGHT));
                                             put(
                                                     TaskManagerOptions
                                                             .MANAGED_MEMORY_CONSUMER_NAME_PYTHON,
@@ -88,10 +82,6 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                                         {
                                             put(
                                                     TaskManagerOptions
-                                                            .MANAGED_MEMORY_CONSUMER_NAME_DATAPROC,
-                                                    String.valueOf(DATA_PROC_WEIGHT));
-                                            put(
-                                                    TaskManagerOptions
                                                             .MANAGED_MEMORY_CONSUMER_NAME_PYTHON,
                                                     String.valueOf(PYTHON_WEIGHT));
                                         }
@@ -100,7 +90,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                     });
 
     @Test
-    public void testGetWeightsFromConfig() {
+    void testGetWeightsFromConfig() {
         final Map<ManagedMemoryUseCase, Integer> expectedWeights =
                 new HashMap<ManagedMemoryUseCase, Integer>() {
                     {
@@ -114,29 +104,11 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                 ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(
                         CONFIG_WITH_ALL_USE_CASES);
 
-        assertThat(configuredWeights, is(expectedWeights));
+        assertThat(configuredWeights).isEqualTo(expectedWeights);
     }
 
     @Test
-    public void testGetWeightsFromConfigLegacy() {
-        final Map<ManagedMemoryUseCase, Integer> expectedWeights =
-                new HashMap<ManagedMemoryUseCase, Integer>() {
-                    {
-                        put(ManagedMemoryUseCase.OPERATOR, DATA_PROC_WEIGHT);
-                        put(ManagedMemoryUseCase.STATE_BACKEND, DATA_PROC_WEIGHT);
-                        put(ManagedMemoryUseCase.PYTHON, PYTHON_WEIGHT);
-                    }
-                };
-
-        final Map<ManagedMemoryUseCase, Integer> configuredWeights =
-                ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(
-                        CONFIG_WITH_LEGACY_USE_CASES);
-
-        assertThat(configuredWeights, is(expectedWeights));
-    }
-
-    @Test(expected = IllegalConfigurationException.class)
-    public void testGetWeightsFromConfigFailNegativeWeight() {
+    void testGetWeightsFromConfigFailNegativeWeight() {
         final Configuration config =
                 new Configuration() {
                     {
@@ -147,12 +119,13 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                                         "-123"));
                     }
                 };
-
-        ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(config);
+        assertThatThrownBy(
+                        () -> ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(config))
+                .isInstanceOf(IllegalConfigurationException.class);
     }
 
     @Test
-    public void testConvertToFractionOfSlot() {
+    void testConvertToFractionOfSlot() {
         final ManagedMemoryUseCase useCase = ManagedMemoryUseCase.OPERATOR;
         final double fractionOfUseCase = 0.3;
 
@@ -167,15 +140,18 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                                 add(ManagedMemoryUseCase.PYTHON);
                             }
                         },
+                        new Configuration(),
                         CONFIG_WITH_ALL_USE_CASES,
                         Optional.of(true),
                         ClassLoader.getSystemClassLoader());
 
-        assertEquals(fractionOfUseCase * OPERATOR_WEIGHT / TOTAL_WEIGHT, fractionOfSlot, DELTA);
+        assertThat(fractionOfSlot)
+                .isCloseTo(
+                        fractionOfUseCase * OPERATOR_WEIGHT / TOTAL_WEIGHT, Offset.offset(DELTA));
     }
 
     @Test
-    public void testConvertToFractionOfSlotWeightNotConfigured() {
+    void testConvertToFractionOfSlotWeightNotConfigured() {
         final ManagedMemoryUseCase useCase = ManagedMemoryUseCase.OPERATOR;
         final double fractionOfUseCase = 0.3;
 
@@ -199,15 +175,16 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                                 add(ManagedMemoryUseCase.PYTHON);
                             }
                         },
+                        new Configuration(),
                         config,
                         Optional.of(true),
                         ClassLoader.getSystemClassLoader());
 
-        assertEquals(0.0, fractionOfSlot, DELTA);
+        assertThat(fractionOfSlot).isCloseTo(0.0, Offset.offset(DELTA));
     }
 
     @Test
-    public void testConvertToFractionOfSlotStateBackendUseManagedMemory() {
+    void testConvertToFractionOfSlotStateBackendUseManagedMemory() {
         testConvertToFractionOfSlotGivenWhetherStateBackendUsesManagedMemory(
                 true,
                 1.0 * OPERATOR_WEIGHT / TOTAL_WEIGHT,
@@ -216,7 +193,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testConvertToFractionOfSlotStateBackendNotUserManagedMemory() {
+    void testConvertToFractionOfSlotStateBackendNotUserManagedMemory() {
         final int totalWeight = OPERATOR_WEIGHT + PYTHON_WEIGHT;
         testConvertToFractionOfSlotGivenWhetherStateBackendUsesManagedMemory(
                 false, 1.0 * OPERATOR_WEIGHT / totalWeight, 0.0, 1.0 * PYTHON_WEIGHT / totalWeight);
@@ -242,6 +219,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                         ManagedMemoryUseCase.OPERATOR,
                         1.0,
                         allUseCases,
+                        new Configuration(),
                         CONFIG_WITH_ALL_USE_CASES,
                         Optional.of(stateBackendUsesManagedMemory),
                         ClassLoader.getSystemClassLoader());
@@ -250,6 +228,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                         ManagedMemoryUseCase.STATE_BACKEND,
                         1.0,
                         allUseCases,
+                        new Configuration(),
                         CONFIG_WITH_ALL_USE_CASES,
                         Optional.of(stateBackendUsesManagedMemory),
                         ClassLoader.getSystemClassLoader());
@@ -258,17 +237,21 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                         ManagedMemoryUseCase.PYTHON,
                         1.0,
                         allUseCases,
+                        new Configuration(),
                         CONFIG_WITH_ALL_USE_CASES,
                         Optional.of(stateBackendUsesManagedMemory),
                         ClassLoader.getSystemClassLoader());
 
-        assertEquals(expectedOperatorFractionOfSlot, opFractionOfSlot, DELTA);
-        assertEquals(expectedStateFractionOfSlot, stateFractionOfSlot, DELTA);
-        assertEquals(expectedPythonFractionOfSlot, pythonFractionOfSlot, DELTA);
+        assertThat(opFractionOfSlot)
+                .isCloseTo(expectedOperatorFractionOfSlot, Offset.offset(DELTA));
+        assertThat(stateFractionOfSlot)
+                .isCloseTo(expectedStateFractionOfSlot, Offset.offset(DELTA));
+        assertThat(pythonFractionOfSlot)
+                .isCloseTo(expectedPythonFractionOfSlot, Offset.offset(DELTA));
     }
 
     @Test
-    public void testUseCaseWeightsConfiguredWithConsistentValue() {
+    void testUseCaseWeightsConfiguredWithConsistentValue() {
         final Map<ManagedMemoryUseCase, Integer> existingWeights =
                 new HashMap<ManagedMemoryUseCase, Integer>() {
                     {
@@ -287,8 +270,8 @@ public class ManagedMemoryUtilsTest extends TestLogger {
         ManagedMemoryUtils.validateUseCaseWeightsNotConflict(existingWeights, newWeights);
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testUseCaseWeightsConfiguredWithConflictValue() {
+    @Test
+    void testUseCaseWeightsConfiguredWithConflictValue() {
         final Map<ManagedMemoryUseCase, Integer> existingWeights =
                 new HashMap<ManagedMemoryUseCase, Integer>() {
                     {
@@ -303,6 +286,10 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                     }
                 };
 
-        ManagedMemoryUtils.validateUseCaseWeightsNotConflict(existingWeights, newWeights);
+        assertThatThrownBy(
+                        () ->
+                                ManagedMemoryUtils.validateUseCaseWeightsNotConflict(
+                                        existingWeights, newWeights))
+                .isInstanceOf(IllegalStateException.class);
     }
 }

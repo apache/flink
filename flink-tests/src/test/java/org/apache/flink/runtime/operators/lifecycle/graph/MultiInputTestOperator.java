@@ -80,8 +80,12 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
                                                 eventQueue,
                                                 output,
                                                 operatorId,
-                                                getRuntimeContext().getIndexOfThisSubtask(),
-                                                getRuntimeContext().getAttemptNumber(),
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getIndexOfThisSubtask(),
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getAttemptNumber(),
                                                 lastDataReceived,
                                                 lastDataSent))
                         .collect(Collectors.toList());
@@ -96,8 +100,8 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
         this.eventQueue.add(
                 new OperatorStartedEvent(
                         operatorId,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber()));
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber()));
     }
 
     @Override
@@ -110,8 +114,8 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
         eventQueue.add(
                 new OperatorFinishedEvent(
                         operatorId,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         lastDataSent.get(),
                         new LastReceivedVertexDataInfo(lastDataReceived)));
         super.finish();
@@ -122,8 +126,8 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
         eventQueue.add(
                 new CheckpointStartedEvent(
                         operatorId,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         context.getCheckpointId()));
         super.snapshotState(context);
     }
@@ -133,8 +137,8 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
         eventQueue.add(
                 new CheckpointCompletedEvent(
                         operatorId,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         checkpointId));
         super.notifyCheckpointComplete(checkpointId);
     }
@@ -154,8 +158,8 @@ class MultiInputTestOperator extends AbstractStreamOperatorV2<TestDataElement>
         eventQueue.add(
                 new InputEndedEvent(
                         operatorId,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         inputId));
     }
 

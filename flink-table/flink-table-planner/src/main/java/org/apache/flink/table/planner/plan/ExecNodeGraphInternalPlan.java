@@ -26,7 +26,7 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink;
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,17 +34,26 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /** Implementation of {@link CompiledPlan} backed by an {@link ExecNodeGraph}. */
 @Internal
 public class ExecNodeGraphInternalPlan implements InternalPlan {
 
-    private final String serializedPlan;
+    private final Supplier<String> serializedPlanSupplier;
+    private final Supplier<byte[]> smileSerializedPlanSupplier;
     private final ExecNodeGraph execNodeGraph;
 
-    public ExecNodeGraphInternalPlan(String serializedPlan, ExecNodeGraph execNodeGraph) {
-        this.serializedPlan = serializedPlan;
+    private String jsonSerializedPlan;
+    private byte[] smileSerializedPlan;
+
+    public ExecNodeGraphInternalPlan(
+            Supplier<String> jsonSerializedPlanSupplier,
+            Supplier<byte[]> smileSerializedPlanSupplier,
+            ExecNodeGraph execNodeGraph) {
+        this.serializedPlanSupplier = jsonSerializedPlanSupplier;
+        this.smileSerializedPlanSupplier = smileSerializedPlanSupplier;
         this.execNodeGraph = execNodeGraph;
     }
 
@@ -54,7 +63,18 @@ public class ExecNodeGraphInternalPlan implements InternalPlan {
 
     @Override
     public String asJsonString() {
-        return serializedPlan;
+        if (jsonSerializedPlan == null) {
+            jsonSerializedPlan = serializedPlanSupplier.get();
+        }
+        return jsonSerializedPlan;
+    }
+
+    @Override
+    public byte[] asSmileBytes() {
+        if (smileSerializedPlan == null) {
+            smileSerializedPlan = smileSerializedPlanSupplier.get();
+        }
+        return smileSerializedPlan;
     }
 
     @Override
@@ -75,10 +95,12 @@ public class ExecNodeGraphInternalPlan implements InternalPlan {
             }
         }
         try {
+            Files.createDirectories(file.toPath().getParent());
             Files.write(
                     file.toPath(),
-                    serializedPlan.getBytes(StandardCharsets.UTF_8),
+                    asJsonString().getBytes(StandardCharsets.UTF_8),
                     StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING,
                     StandardOpenOption.WRITE);
         } catch (IOException e) {
             throw new TableException("Cannot write the compiled plan to file '" + file + "'.", e);
@@ -93,10 +115,10 @@ public class ExecNodeGraphInternalPlan implements InternalPlan {
     @Override
     public List<String> getSinkIdentifiers() {
         return this.execNodeGraph.getRootNodes().stream()
-                .filter(execNode -> execNode instanceof StreamExecSink)
+                .filter(execNode -> execNode instanceof CommonExecSink)
                 .map(
                         execNode ->
-                                ((StreamExecSink) execNode)
+                                ((CommonExecSink) execNode)
                                         .getTableSinkSpec()
                                         .getContextResolvedTable()
                                         .getIdentifier())

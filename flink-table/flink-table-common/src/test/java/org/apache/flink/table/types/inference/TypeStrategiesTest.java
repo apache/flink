@@ -19,14 +19,12 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
-import org.junit.runners.Parameterized;
-
-import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.inference.TypeStrategies.MISSING;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
@@ -34,13 +32,14 @@ import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfAllArgs;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullableIfArgs;
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
+import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.PERCENTILE;
 
 /** Tests for built-in {@link TypeStrategies}. */
-public class TypeStrategiesTest extends TypeStrategiesTestBase {
+class TypeStrategiesTest extends TypeStrategiesTestBase {
 
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static List<TypeStrategiesTestBase.TestSpec> testData() {
-        return Arrays.asList(
+    @Override
+    protected Stream<TestSpec> testData() {
+        return Stream.of(
                 // missing strategy with arbitrary argument
                 TypeStrategiesTestBase.TestSpec.forStrategy(MISSING)
                         .inputTypes(DataTypes.INT())
@@ -139,6 +138,25 @@ public class TypeStrategiesTest extends TypeStrategiesTestBase {
                                 DataTypes.DECIMAL(20, 10))
                         .expectDataType(DataTypes.DECIMAL(20, 10)),
                 TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Find a common type of selected arguments",
+                                TypeStrategies.commonRange(ConstantArgumentCount.from(1)))
+                        .inputTypes(DataTypes.INT(), DataTypes.SMALLINT(), DataTypes.TINYINT())
+                        .expectDataType(DataTypes.SMALLINT()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Find a common type of selected arguments",
+                                TypeStrategies.commonRange(ConstantArgumentCount.between(1, 2)))
+                        .inputTypes(
+                                DataTypes.VARCHAR(10),
+                                DataTypes.CHAR(3),
+                                DataTypes.VARCHAR(4),
+                                DataTypes.CHAR(7))
+                        .expectDataType(DataTypes.VARCHAR(4)),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Find a common type of selected arguments",
+                                TypeStrategies.commonRange(ConstantArgumentCount.to(1)))
+                        .inputTypes(DataTypes.TINYINT(), DataTypes.SMALLINT(), DataTypes.INT())
+                        .expectDataType(DataTypes.SMALLINT()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
                                 "Convert to varying string",
                                 varyingString(explicit(DataTypes.CHAR(12).notNull())))
                         .inputTypes(DataTypes.CHAR(12).notNull())
@@ -153,6 +171,31 @@ public class TypeStrategiesTest extends TypeStrategiesTestBase {
                                 "Average without grouped aggregation",
                                 TypeStrategies.aggArg0(LogicalTypeMerging::findAvgAggType, true))
                         .inputTypes(DataTypes.INT().notNull())
-                        .expectDataType(DataTypes.INT()));
+                        .expectDataType(DataTypes.INT()),
+
+                // PercentileTypeStrategy
+                TypeStrategiesTestBase.TestSpec.forStrategy(PERCENTILE)
+                        .inputTypes(DataTypes.INT(), DataTypes.DOUBLE())
+                        .expectDataType(DataTypes.DOUBLE()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(PERCENTILE)
+                        .inputTypes(DataTypes.INT(), DataTypes.ARRAY(DataTypes.DECIMAL(5, 2)))
+                        .expectDataType(DataTypes.ARRAY(DataTypes.DOUBLE())),
+
+                // LeadLagStrategy
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Expression not null", SpecificTypeStrategies.LEAD_LAG)
+                        .inputTypes(DataTypes.INT().notNull(), DataTypes.BIGINT())
+                        .expectDataType(DataTypes.INT()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Default value not null", SpecificTypeStrategies.LEAD_LAG)
+                        .inputTypes(
+                                DataTypes.STRING(),
+                                DataTypes.BIGINT(),
+                                DataTypes.STRING().notNull())
+                        .expectDataType(DataTypes.STRING().notNull()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Default value nullable", SpecificTypeStrategies.LEAD_LAG)
+                        .inputTypes(DataTypes.STRING(), DataTypes.BIGINT(), DataTypes.STRING())
+                        .expectDataType(DataTypes.STRING()));
     }
 }

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.util.bash;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterConfigurationParserFactory;
+import org.apache.flink.runtime.entrypoint.ModifiableClusterConfigurationParserFactory;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.util.FlinkException;
 
@@ -36,22 +37,34 @@ import java.util.List;
  */
 public class FlinkConfigLoader {
 
-    private static final Options CMD_OPTIONS = ClusterConfigurationParserFactory.options();
-
     public static Configuration loadConfiguration(String[] args) throws FlinkException {
         return ConfigurationParserUtils.loadCommonConfiguration(
-                filterCmdArgs(args), BashJavaUtils.class.getSimpleName());
+                filterCmdArgs(args, ClusterConfigurationParserFactory.options()),
+                BashJavaUtils.class.getSimpleName());
     }
 
-    private static String[] filterCmdArgs(String[] args) {
+    public static List<String> loadAndModifyConfiguration(String[] args) throws FlinkException {
+        return ConfigurationParserUtils.loadAndModifyConfiguration(
+                filterCmdArgs(args, ModifiableClusterConfigurationParserFactory.options()),
+                BashJavaUtils.class.getSimpleName());
+    }
+
+    public static List<String> migrateLegacyConfigurationToStandardYaml(String[] args)
+            throws FlinkException {
+        return ConfigurationParserUtils.migrateLegacyConfigurationToStandardYaml(
+                filterCmdArgs(args, ClusterConfigurationParserFactory.options()),
+                BashJavaUtils.class.getSimpleName());
+    }
+
+    private static String[] filterCmdArgs(String[] args, Options options) {
         final List<String> filteredArgs = new ArrayList<>();
         final Iterator<String> iter = Arrays.asList(args).iterator();
 
         while (iter.hasNext()) {
             String token = iter.next();
-            if (CMD_OPTIONS.hasOption(token)) {
+            if (options.hasOption(token)) {
                 filteredArgs.add(token);
-                if (CMD_OPTIONS.getOption(token).hasArg() && iter.hasNext()) {
+                if (options.getOption(token).hasArg() && iter.hasNext()) {
                     filteredArgs.add(iter.next());
                 }
             } else if (token.startsWith("-D")) {

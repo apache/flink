@@ -33,10 +33,10 @@ class KubernetesWorkerResourceSpecFactoryTest {
     @Test
     void testGetCpuCoresCommonOption() {
         final Configuration configuration = new Configuration();
-        configuration.setDouble(TaskManagerOptions.CPU_CORES, 1.0);
-        configuration.setDouble(KubernetesConfigOptions.TASK_MANAGER_CPU, 2.0);
-        configuration.setDouble(KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_FACTOR, 1.5);
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+        configuration.set(TaskManagerOptions.CPU_CORES, 1.0);
+        configuration.set(KubernetesConfigOptions.TASK_MANAGER_CPU, 2.0);
+        configuration.set(KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_FACTOR, 1.5);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 
         assertThat(KubernetesWorkerResourceSpecFactory.getDefaultCpus(configuration))
                 .isEqualTo(new CPUResource(1.0));
@@ -45,9 +45,9 @@ class KubernetesWorkerResourceSpecFactoryTest {
     @Test
     void testGetCpuCoresKubernetesOption() {
         final Configuration configuration = new Configuration();
-        configuration.setDouble(KubernetesConfigOptions.TASK_MANAGER_CPU, 2.0);
-        configuration.setDouble(KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_FACTOR, 1.5);
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+        configuration.set(KubernetesConfigOptions.TASK_MANAGER_CPU, 2.0);
+        configuration.set(KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_FACTOR, 1.5);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 
         assertThat(KubernetesWorkerResourceSpecFactory.getDefaultCpus(configuration))
                 .isEqualTo(new CPUResource(2.0));
@@ -56,7 +56,7 @@ class KubernetesWorkerResourceSpecFactoryTest {
     @Test
     void testGetCpuCoresNumSlots() {
         final Configuration configuration = new Configuration();
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 
         assertThat(KubernetesWorkerResourceSpecFactory.getDefaultCpus(configuration))
                 .isEqualTo(new CPUResource(3.0));

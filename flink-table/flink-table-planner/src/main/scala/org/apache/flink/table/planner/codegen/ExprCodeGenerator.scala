@@ -18,16 +18,18 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.util.DataFormatConverters.{getConverterForDataType, DataFormatConverter}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
+import org.apache.flink.table.legacy.types.logical.TypeInformationRawType
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
+import org.apache.flink.table.planner.codegen.JsonGenerateUtils.{isJsonFunctionOperand, isSupportedJsonOperand}
 import org.apache.flink.table.planner.codegen.calls._
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.codegen.calls.SearchOperatorGen.generateSearch
@@ -41,7 +43,6 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTemporal, isTimeInterval}
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, isCompositeType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import org.apache.calcite.rex._
@@ -120,14 +121,6 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         case Some(input) => fieldIndices(input)
         case _ => Array[Int]()
       }
-  }
-
-  private def fieldIndices(t: LogicalType): Array[Int] = {
-    if (isCompositeType(t)) {
-      (0 until getFieldCount(t)).toArray
-    } else {
-      Array(0)
-    }
   }
 
   /**
@@ -440,8 +433,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case None =>
         val pType = primitiveTypeTermForType(value.internalType)
         val defaultValue = primitiveDefaultValue(value.internalType)
-        val resultTerm = newName("field")
-        val nullTerm = newName("isNull")
+        val resultTerm = newName(ctx, "field")
+        val nullTerm = newName(ctx, "isNull")
         val code =
           s"""
              |$pType $resultTerm = $defaultValue;
@@ -467,6 +460,15 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
   override def visitCall(call: RexCall): GeneratedExpression = {
     val resultType = FlinkTypeFactory.toLogicalType(call.getType)
+
+    // throw exception if json function is called outside JSON_OBJECT or JSON_ARRAY function
+    if (isJsonFunctionOperand(call)) {
+      throw new ValidationException(
+        "The JSON() function is currently only supported inside JSON_ARRAY() or as the VALUE param" +
+          " of JSON_OBJECT(). Example: JSON_OBJECT('a', JSON('{\"key\": \"value\"}')) or " +
+          "JSON_ARRAY(JSON('{\"key\": \"value\"}')).")
+    }
+
     if (call.getKind == SqlKind.SEARCH) {
       return generateSearch(
         ctx,
@@ -483,6 +485,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           if operandLiteral.getType.getSqlTypeName == SqlTypeName.NULL &&
             call.getOperator.getReturnTypeInference == ReturnTypes.ARG0 =>
         generateNullLiteral(resultType)
+
+      // We only support the JSON function inside of JSON_OBJECT or JSON_ARRAY
+      case (operand: RexNode, i) if isSupportedJsonOperand(operand, call, i) =>
+        generateJsonCall(operand)
 
       case (o @ _, _) => o.accept(this)
     }
@@ -546,8 +552,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case MULTIPLY if isTimeInterval(resultType) =>
         val left = operands.head
         val right = operands(1)
-        requireTimeInterval(left)
-        requireNumeric(right)
+        requireNumericAndTimeInterval(left, right)
         generateBinaryArithmeticOperator(ctx, "*", resultType, left, right)
 
       case DIVIDE | DIVIDE_INTEGER if isNumeric(resultType) =>
@@ -572,7 +577,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case UNARY_MINUS if isTimeInterval(resultType) =>
         val operand = operands.head
         requireTimeInterval(operand)
-        generateUnaryIntervalPlusMinus(ctx, plus = false, operand)
+        generateUnaryIntervalPlusMinus(ctx, plus = false, resultType, operand)
 
       case UNARY_PLUS if isNumeric(resultType) =>
         val operand = operands.head
@@ -582,59 +587,64 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case UNARY_PLUS if isTimeInterval(resultType) =>
         val operand = operands.head
         requireTimeInterval(operand)
-        generateUnaryIntervalPlusMinus(ctx, plus = true, operand)
+        generateUnaryIntervalPlusMinus(ctx, plus = true, resultType, operand)
 
       // comparison
       case EQUALS =>
         val left = operands.head
         val right = operands(1)
-        generateEquals(ctx, left, right)
+        generateEquals(ctx, left, right, resultType)
+
+      case IS_DISTINCT_FROM =>
+        val left = operands.head
+        val right = operands(1)
+        generateIsDistinctFrom(ctx, left, right, resultType)
 
       case IS_NOT_DISTINCT_FROM =>
         val left = operands.head
         val right = operands(1)
-        generateIsNotDistinctFrom(ctx, left, right)
+        generateIsNotDistinctFrom(ctx, left, right, resultType)
 
       case NOT_EQUALS =>
         val left = operands.head
         val right = operands(1)
-        generateNotEquals(ctx, left, right)
+        generateNotEquals(ctx, left, right, resultType)
 
       case GREATER_THAN =>
         val left = operands.head
         val right = operands(1)
         requireComparable(left)
         requireComparable(right)
-        generateComparison(ctx, ">", left, right)
+        generateComparison(ctx, ">", left, right, resultType)
 
       case GREATER_THAN_OR_EQUAL =>
         val left = operands.head
         val right = operands(1)
         requireComparable(left)
         requireComparable(right)
-        generateComparison(ctx, ">=", left, right)
+        generateComparison(ctx, ">=", left, right, resultType)
 
       case LESS_THAN =>
         val left = operands.head
         val right = operands(1)
         requireComparable(left)
         requireComparable(right)
-        generateComparison(ctx, "<", left, right)
+        generateComparison(ctx, "<", left, right, resultType)
 
       case LESS_THAN_OR_EQUAL =>
         val left = operands.head
         val right = operands(1)
         requireComparable(left)
         requireComparable(right)
-        generateComparison(ctx, "<=", left, right)
+        generateComparison(ctx, "<=", left, right, resultType)
 
       case IS_NULL =>
         val operand = operands.head
-        generateIsNull(operand)
+        generateIsNull(ctx, operand, resultType)
 
       case IS_NOT_NULL =>
         val operand = operands.head
-        generateIsNotNull(operand)
+        generateIsNotNull(ctx, operand, resultType)
 
       // logic
       case AND =>
@@ -642,7 +652,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           (left: GeneratedExpression, right: GeneratedExpression) =>
             requireBoolean(left)
             requireBoolean(right)
-            generateAnd(left, right)
+            generateAnd(ctx, left, right, resultType)
         }
 
       case OR =>
@@ -650,13 +660,13 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           (left: GeneratedExpression, right: GeneratedExpression) =>
             requireBoolean(left)
             requireBoolean(right)
-            generateOr(left, right)
+            generateOr(ctx, left, right, resultType)
         }
 
       case NOT =>
         val operand = operands.head
         requireBoolean(operand)
-        generateNot(ctx, operand)
+        generateNot(ctx, operand, resultType)
 
       case CASE =>
         generateIfElse(ctx, operands, resultType)
@@ -664,22 +674,22 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case IS_TRUE =>
         val operand = operands.head
         requireBoolean(operand)
-        generateIsTrue(operand)
+        generateIsTrue(operand, resultType)
 
       case IS_NOT_TRUE =>
         val operand = operands.head
         requireBoolean(operand)
-        generateIsNotTrue(operand)
+        generateIsNotTrue(operand, resultType)
 
       case IS_FALSE =>
         val operand = operands.head
         requireBoolean(operand)
-        generateIsFalse(operand)
+        generateIsFalse(operand, resultType)
 
       case IS_NOT_FALSE =>
         val operand = operands.head
         requireBoolean(operand)
-        generateIsNotFalse(operand)
+        generateIsNotFalse(operand, resultType)
 
       // casting
       case CAST =>
@@ -703,6 +713,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case AS =>
         operands.head
 
+      case DESCRIPTOR =>
+        generateDescriptor(ctx, operands, resultType)
+
       // rows
       case ROW =>
         generateRow(ctx, resultType, operands)
@@ -721,7 +734,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             val array = operands.head
             val index = operands(1)
             requireInteger(index)
-            generateArrayElementAt(array, index)
+            generateArrayElementAt(ctx, array, index)
 
           case LogicalTypeRoot.MAP =>
             val key = operands(1)
@@ -737,11 +750,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         operands.head.resultType match {
           case t: LogicalType if TypeCheckUtils.isArray(t) =>
             val array = operands.head
-            generateArrayCardinality(ctx, array)
+            generateArrayCardinality(ctx, array, resultType)
 
           case t: LogicalType if TypeCheckUtils.isMap(t) =>
             val map = operands.head
-            generateMapCardinality(ctx, map)
+            generateMapCardinality(ctx, map, resultType)
 
           case _ => throw new CodeGenException("Expect an array or a map.")
         }
@@ -749,7 +762,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case ELEMENT =>
         val array = operands.head
         requireArray(array)
-        generateArrayElement(array)
+        generateArrayElement(ctx, array)
 
       case DOT =>
         generateDot(ctx, operands)
@@ -767,6 +780,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case JSON_VALUE => new JsonValueCallGen().generate(ctx, operands, resultType)
 
+      case JSON_QUERY => new JsonQueryCallGen().generate(ctx, operands, resultType)
+
       case JSON_OBJECT => new JsonObjectCallGen(call).generate(ctx, operands, resultType)
 
       case JSON_ARRAY => new JsonArrayCallGen(call).generate(ctx, operands, resultType)
@@ -778,7 +793,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
              |${operands.map(_.code).mkString("\n")}
              |${nullValue.code}
              |org.apache.flink.util.ExceptionUtils.rethrow(
-             |  new RuntimeException(${operands.head.resultTerm}.toString()));
+             |  new org.apache.flink.table.api.TableRuntimeException(${operands.head.resultTerm}.toString()));
              |""".stripMargin
         GeneratedExpression(nullValue.resultTerm, nullValue.nullTerm, code, resultType)
 
@@ -810,7 +825,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           case BuiltInFunctionDefinitions.JSON_STRING =>
             new JsonStringCallGen(call).generate(ctx, operands, resultType)
 
-          case BuiltInFunctionDefinitions.AGG_DECIMAL_PLUS =>
+          case BuiltInFunctionDefinitions.INTERNAL_HASHCODE =>
+            new HashCodeCallGen().generate(ctx, operands, resultType)
+
+          case BuiltInFunctionDefinitions.AGG_DECIMAL_PLUS |
+              BuiltInFunctionDefinitions.HIVE_AGG_DECIMAL_PLUS =>
             val left = operands.head
             val right = operands(1)
             generateBinaryArithmeticOperator(ctx, "+", resultType, left, right)
@@ -819,6 +838,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             val left = operands.head
             val right = operands(1)
             generateBinaryArithmeticOperator(ctx, "-", resultType, left, right)
+
+          case BuiltInFunctionDefinitions.JSON =>
+            new JsonCallGen().generate(ctx, operands, FlinkTypeFactory.toLogicalType(call.getType))
 
           case _ =>
             new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
@@ -846,6 +868,16 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         val explainCall = s"$call(${operands.map(_.resultType).mkString(", ")})"
         throw new CodeGenException(s"Unsupported call: $explainCall")
     }
+  }
+
+  private def generateJsonCall(operand: RexNode) = {
+    val jsonCall = operand.asInstanceOf[RexCall]
+    val jsonOperands = jsonCall.getOperands.map(_.accept(this))
+    generateCallExpression(
+      ctx,
+      jsonCall,
+      jsonOperands,
+      FlinkTypeFactory.toLogicalType(jsonCall.getType))
   }
 
   def getOperandLiterals(operands: Seq[GeneratedExpression]): Array[AnyRef] = {

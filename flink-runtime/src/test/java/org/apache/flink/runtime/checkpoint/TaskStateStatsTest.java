@@ -21,28 +21,24 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class TaskStateStatsTest {
+class TaskStateStatsTest {
 
     private final ThreadLocalRandom rand = ThreadLocalRandom.current();
 
     /** Tests that subtask stats are correctly collected. */
     @Test
-    public void testHandInSubtasks() throws Exception {
+    void testHandInSubtasks() throws Exception {
         test(false);
     }
 
     @Test
-    public void testIsJavaSerializable() throws Exception {
+    void testIsJavaSerializable() throws Exception {
         test(true);
     }
 
@@ -52,12 +48,12 @@ public class TaskStateStatsTest {
 
         TaskStateStats taskStats = new TaskStateStats(jobVertexId, subtasks.length);
 
-        assertEquals(jobVertexId, taskStats.getJobVertexId());
-        assertEquals(subtasks.length, taskStats.getNumberOfSubtasks());
-        assertEquals(0, taskStats.getNumberOfAcknowledgedSubtasks());
-        assertNull(taskStats.getLatestAcknowledgedSubtaskStats());
-        assertEquals(-1, taskStats.getLatestAckTimestamp());
-        assertArrayEquals(subtasks, taskStats.getSubtaskStats());
+        assertThat(taskStats.getJobVertexId()).isEqualTo(jobVertexId);
+        assertThat(taskStats.getNumberOfSubtasks()).isEqualTo(subtasks.length);
+        assertThat(taskStats.getNumberOfAcknowledgedSubtasks()).isZero();
+        assertThat(taskStats.getLatestAcknowledgedSubtaskStats()).isNull();
+        assertThat(taskStats.getLatestAckTimestamp()).isEqualTo(-1);
+        assertThat(taskStats.getSubtaskStats()).isEqualTo(subtasks);
 
         long stateSize = 0;
         long processedData = 0;
@@ -84,37 +80,37 @@ public class TaskStateStatsTest {
             processedData += subtasks[i].getProcessedData();
             persistedData += subtasks[i].getPersistedData();
 
-            assertTrue(taskStats.reportSubtaskStats(subtasks[i]));
-            assertEquals(i + 1, taskStats.getNumberOfAcknowledgedSubtasks());
-            assertEquals(subtasks[i], taskStats.getLatestAcknowledgedSubtaskStats());
-            assertEquals(subtasks[i].getAckTimestamp(), taskStats.getLatestAckTimestamp());
+            assertThat(taskStats.reportSubtaskStats(subtasks[i])).isTrue();
+            assertThat(taskStats.getNumberOfAcknowledgedSubtasks()).isEqualTo(i + 1);
+            assertThat(taskStats.getLatestAcknowledgedSubtaskStats()).isEqualTo(subtasks[i]);
+            assertThat(taskStats.getLatestAckTimestamp()).isEqualTo(subtasks[i].getAckTimestamp());
             int duration = rand.nextInt(128);
-            assertEquals(
-                    duration,
-                    taskStats.getEndToEndDuration(subtasks[i].getAckTimestamp() - duration));
-            assertEquals(stateSize, taskStats.getStateSize());
-            assertEquals(processedData, taskStats.getProcessedDataStats());
-            assertEquals(persistedData, taskStats.getPersistedDataStats());
+            assertThat(taskStats.getEndToEndDuration(subtasks[i].getAckTimestamp() - duration))
+                    .isEqualTo(duration);
+            assertThat(taskStats.getStateSize()).isEqualTo(stateSize);
+            assertThat(taskStats.getProcessedDataStats()).isEqualTo(processedData);
+            assertThat(taskStats.getPersistedDataStats()).isEqualTo(persistedData);
         }
 
-        assertFalse(
-                taskStats.reportSubtaskStats(
-                        new SubtaskStateStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, true)));
+        assertThat(
+                        taskStats.reportSubtaskStats(
+                                new SubtaskStateStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, true)))
+                .isFalse();
 
         taskStats = serialize ? CommonTestUtils.createCopySerializable(taskStats) : taskStats;
 
-        assertEquals(stateSize, taskStats.getStateSize());
+        assertThat(taskStats.getStateSize()).isEqualTo(stateSize);
 
         // Test that all subtasks are taken into the account for the summary.
         // The correctness of the actual results is checked in the test of the
         // MinMaxAvgStats.
         TaskStateStats.TaskStateStatsSummary summary = taskStats.getSummaryStats();
-        assertEquals(subtasks.length, summary.getStateSizeStats().getCount());
-        assertEquals(subtasks.length, summary.getAckTimestampStats().getCount());
-        assertEquals(subtasks.length, summary.getSyncCheckpointDurationStats().getCount());
-        assertEquals(subtasks.length, summary.getAsyncCheckpointDurationStats().getCount());
-        assertEquals(subtasks.length, summary.getAlignmentDurationStats().getCount());
-        assertEquals(subtasks.length, summary.getProcessedDataStats().getCount());
-        assertEquals(subtasks.length, summary.getPersistedDataStats().getCount());
+        assertThat(summary.getStateSizeStats().getCount()).isEqualTo(subtasks.length);
+        assertThat(summary.getAckTimestampStats().getCount()).isEqualTo(subtasks.length);
+        assertThat(summary.getSyncCheckpointDurationStats().getCount()).isEqualTo(subtasks.length);
+        assertThat(summary.getAsyncCheckpointDurationStats().getCount()).isEqualTo(subtasks.length);
+        assertThat(summary.getAlignmentDurationStats().getCount()).isEqualTo(subtasks.length);
+        assertThat(summary.getProcessedDataStats().getCount()).isEqualTo(subtasks.length);
+        assertThat(summary.getPersistedDataStats().getCount()).isEqualTo(subtasks.length);
     }
 }

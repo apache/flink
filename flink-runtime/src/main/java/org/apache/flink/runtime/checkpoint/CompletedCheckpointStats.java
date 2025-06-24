@@ -48,6 +48,8 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
 
     private final long persistedData;
 
+    private final boolean unalignedCheckpoint;
+
     /** The latest acknowledged subtask stats. */
     private final SubtaskStateStats latestAcknowledgedSubtask;
 
@@ -67,6 +69,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
             long stateSize,
             long processedData,
             long persistedData,
+            boolean unalignedCheckpoint,
             SubtaskStateStats latestAcknowledgedSubtask,
             String externalPointer) {
         this(
@@ -80,6 +83,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
                 stateSize,
                 processedData,
                 persistedData,
+                unalignedCheckpoint,
                 latestAcknowledgedSubtask,
                 externalPointer);
     }
@@ -98,6 +102,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
      * @param stateSize Total checkpoint state size over all subtasks.
      * @param processedData Processed data during the checkpoint.
      * @param persistedData Persisted data during the checkpoint.
+     * @param unalignedCheckpoint Whether the checkpoint is unaligned.
      * @param latestAcknowledgedSubtask The latest acknowledged subtask stats.
      * @param externalPointer Optional external path if persisted externally.
      */
@@ -112,6 +117,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
             long stateSize,
             long processedData,
             long persistedData,
+            boolean unalignedCheckpoint,
             SubtaskStateStats latestAcknowledgedSubtask,
             String externalPointer) {
 
@@ -124,6 +130,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
         this.stateSize = stateSize;
         this.processedData = processedData;
         this.persistedData = persistedData;
+        this.unalignedCheckpoint = unalignedCheckpoint;
         this.latestAcknowledgedSubtask = checkNotNull(latestAcknowledgedSubtask);
         this.externalPointer = externalPointer;
     }
@@ -156,6 +163,11 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
     @Override
     public long getPersistedData() {
         return persistedData;
+    }
+
+    @Override
+    public boolean isUnalignedCheckpoint() {
+        return unalignedCheckpoint;
     }
 
     @Override

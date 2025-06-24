@@ -20,86 +20,99 @@ package org.apache.flink.api.common.eventtime;
 
 import org.apache.flink.api.common.eventtime.WatermarksWithIdleness.IdlenessTimer;
 import org.apache.flink.util.clock.ManualClock;
+import org.apache.flink.util.clock.SystemClock;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for the {@link WatermarksWithIdleness} class. */
-public class WatermarksWithIdlenessTest {
+class WatermarksWithIdlenessTest {
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testZeroTimeout() {
-        new WatermarksWithIdleness<>(new AscendingTimestampsWatermarks<>(), Duration.ZERO);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testNegativeTimeout() {
-        new WatermarksWithIdleness<>(new AscendingTimestampsWatermarks<>(), Duration.ofMillis(-1L));
+    @Test
+    void testZeroTimeout() {
+        assertThatThrownBy(
+                        () ->
+                                new WatermarksWithIdleness<>(
+                                        new AscendingTimestampsWatermarks<>(),
+                                        Duration.ZERO,
+                                        SystemClock.getInstance()))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testInitiallyActive() {
+    void testNegativeTimeout() {
+        assertThatThrownBy(
+                        () ->
+                                new WatermarksWithIdleness<>(
+                                        new AscendingTimestampsWatermarks<>(),
+                                        Duration.ofMillis(-1L),
+                                        SystemClock.getInstance()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testInitiallyActive() {
         final ManualClock clock = new ManualClock(System.nanoTime());
         final IdlenessTimer timer = new IdlenessTimer(clock, Duration.ofMillis(10));
 
-        assertFalse(timer.checkIfIdle());
+        assertThat(timer.checkIfIdle()).isFalse();
     }
 
     @Test
-    public void testIdleWithoutEvents() {
+    void testIdleWithoutEvents() {
         final ManualClock clock = new ManualClock(System.nanoTime());
         final IdlenessTimer timer = new IdlenessTimer(clock, Duration.ofMillis(10));
         timer.checkIfIdle(); // start timer
 
         clock.advanceTime(11, MILLISECONDS);
-        assertTrue(timer.checkIfIdle());
+        assertThat(timer.checkIfIdle()).isTrue();
     }
 
     @Test
-    public void testRepeatedIdleChecks() {
+    void testRepeatedIdleChecks() {
         final ManualClock clock = new ManualClock(System.nanoTime());
         final IdlenessTimer timer = createTimerAndMakeIdle(clock, Duration.ofMillis(122));
 
-        assertTrue(timer.checkIfIdle());
+        assertThat(timer.checkIfIdle()).isTrue();
         clock.advanceTime(100, MILLISECONDS);
-        assertTrue(timer.checkIfIdle());
+        assertThat(timer.checkIfIdle()).isTrue();
     }
 
     @Test
-    public void testActiveAfterIdleness() {
+    void testActiveAfterIdleness() {
         final ManualClock clock = new ManualClock(System.nanoTime());
         final IdlenessTimer timer = createTimerAndMakeIdle(clock, Duration.ofMillis(10));
 
         timer.activity();
-        assertFalse(timer.checkIfIdle());
+        assertThat(timer.checkIfIdle()).isFalse();
     }
 
     @Test
-    public void testIdleActiveIdle() {
+    void testIdleActiveIdle() {
         final ManualClock clock = new ManualClock(System.nanoTime());
         final IdlenessTimer timer = createTimerAndMakeIdle(clock, Duration.ofMillis(122));
 
         // active again
         timer.activity();
-        assertFalse(timer.checkIfIdle());
+        assertThat(timer.checkIfIdle()).isFalse();
 
         // idle again
         timer.checkIfIdle(); // start timer
         clock.advanceTime(Duration.ofMillis(123));
-        assertTrue(timer.checkIfIdle());
+        assertThat(timer.checkIfIdle()).isTrue();
     }
 
     private static IdlenessTimer createTimerAndMakeIdle(ManualClock clock, Duration idleTimeout) {
         final IdlenessTimer timer = new IdlenessTimer(clock, idleTimeout);
 
         timer.checkIfIdle(); // start timer
-        clock.advanceTime(Duration.ofMillis(idleTimeout.toMillis() + 1));
-        assertTrue(timer.checkIfIdle()); // rigger timer
+        clock.advanceTime(idleTimeout.plusMillis(1));
+        assertThat(timer.checkIfIdle()).isTrue(); // rigger timer
 
         return timer;
     }

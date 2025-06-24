@@ -18,12 +18,9 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.typeutils.BackwardsCompatibleSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerializationUtil;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -37,8 +34,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters.CURRENT_STATE_META_INFO_SNAPSHOT_VERSION;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Serialization proxy for all meta data in keyed state backends. In the future we might also
@@ -64,9 +63,6 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
     /** This specifies if we use a compressed format write the key-groups */
     private boolean usingKeyGroupCompression;
 
-    // TODO the keySerializer field should be removed, once all serializers have the
-    // restoreSerializer() method implemented
-    private TypeSerializer<K> keySerializer;
     private TypeSerializerSnapshot<K> keySerializerSnapshot;
 
     private List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
@@ -84,7 +80,6 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
         this.usingKeyGroupCompression = compression;
 
-        this.keySerializer = Preconditions.checkNotNull(keySerializer);
         this.keySerializerSnapshot =
                 Preconditions.checkNotNull(keySerializer.snapshotConfiguration());
 
@@ -112,7 +107,17 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
     @Override
     public int[] getCompatibleVersions() {
-        return new int[] {VERSION, 5, 4, 3, 2, 1};
+        return new int[] {VERSION};
+    }
+
+    @Override
+    public Optional<String> getAdditionalDetailsForIncompatibleVersion(int readVersion) {
+        if (readVersion <= 5) {
+            return Optional.of(
+                    "Since 1.17 Flink doesn't support recovery from pre Flink 1.8 savepoints."
+                            + " Please migrate in two steps. First to Flink 1.16 and then upgrade to the desired Flink version.");
+        }
+        return Optional.empty();
     }
 
     @Override
@@ -122,8 +127,7 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
         // write the compression format used to write each key-group
         out.writeBoolean(usingKeyGroupCompression);
 
-        TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                out, keySerializerSnapshot, keySerializer);
+        TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(out, keySerializerSnapshot);
 
         // write individual registered keyed state metainfos
         out.writeShort(stateMetaInfoSnapshots.size());
@@ -147,23 +151,13 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
         }
 
         // only starting from version 3, we have the key serializer and its config snapshot written
-        if (readVersion >= 6) {
-            this.keySerializerSnapshot =
-                    TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-                            in, userCodeClassLoader, null);
-        } else if (readVersion >= 3) {
-            Tuple2<TypeSerializer<?>, TypeSerializerSnapshot<?>> keySerializerAndConfig =
-                    TypeSerializerSerializationUtil.readSerializersAndConfigsWithResilience(
-                                    in, userCodeClassLoader)
-                            .get(0);
-            this.keySerializerSnapshot = (TypeSerializerSnapshot<K>) keySerializerAndConfig.f1;
-        } else {
-            this.keySerializerSnapshot =
-                    new BackwardsCompatibleSerializerSnapshot<>(
-                            TypeSerializerSerializationUtil.tryReadSerializer(
-                                    in, userCodeClassLoader, true));
-        }
-        this.keySerializer = null;
+        checkState(
+                readVersion >= 6,
+                "Unsupported readVersion [%s], please migrate using Flink 1.16",
+                readVersion);
+        this.keySerializerSnapshot =
+                TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+                        in, userCodeClassLoader);
 
         Integer metaInfoSnapshotVersion = META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.get(readVersion);
         if (metaInfoSnapshotVersion == null) {
@@ -173,9 +167,7 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
                             + readVersion);
         }
         final StateMetaInfoReader stateMetaInfoReader =
-                StateMetaInfoSnapshotReadersWriters.getReader(
-                        metaInfoSnapshotVersion,
-                        StateMetaInfoSnapshotReadersWriters.StateTypeHint.KEYED_STATE);
+                StateMetaInfoSnapshotReadersWriters.getReader(metaInfoSnapshotVersion);
 
         int numKvStates = in.readShort();
         stateMetaInfoSnapshots = new ArrayList<>(numKvStates);

@@ -30,12 +30,14 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -74,14 +76,7 @@ public abstract class StateBackendTestContext {
     protected abstract StateBackend createStateBackend();
 
     protected CheckpointStorage createCheckpointStorage() {
-        if (stateBackend instanceof CheckpointStorage) {
-            return (CheckpointStorage) stateBackend;
-        }
-
-        throw new IllegalStateException(
-                "The state backend under test does not implement CheckpointStorage."
-                        + "Please override 'createCheckpointStorage' and provide an appropriate"
-                        + "checkpoint storage instance");
+        return new JobManagerCheckpointStorage();
     }
 
     private CheckpointStreamFactory createCheckpointStreamFactory() {
@@ -94,7 +89,7 @@ public abstract class StateBackendTestContext {
         }
     }
 
-    void createAndRestoreKeyedStateBackend(KeyedStateHandle snapshot) {
+    public void createAndRestoreKeyedStateBackend(KeyedStateHandle snapshot) {
         createAndRestoreKeyedStateBackend(NUMBER_OF_KEY_GROUPS, snapshot);
     }
 
@@ -111,17 +106,20 @@ public abstract class StateBackendTestContext {
             disposeKeyedStateBackend();
             keyedStateBackend =
                     stateBackend.createKeyedStateBackend(
-                            env,
-                            new JobID(),
-                            "test",
-                            StringSerializer.INSTANCE,
-                            numberOfKeyGroups,
-                            new KeyGroupRange(0, numberOfKeyGroups - 1),
-                            env.getTaskKvStateRegistry(),
-                            timeProvider,
-                            new UnregisteredMetricsGroup(),
-                            stateHandles,
-                            new CloseableRegistry());
+                            new KeyedStateBackendParametersImpl<>(
+                                    env,
+                                    new JobID(),
+                                    "test",
+                                    StringSerializer.INSTANCE,
+                                    numberOfKeyGroups,
+                                    new KeyGroupRange(0, numberOfKeyGroups - 1),
+                                    env.getTaskKvStateRegistry(),
+                                    timeProvider,
+                                    new UnregisteredMetricsGroup(),
+                                    (name, value) -> {},
+                                    stateHandles,
+                                    new CloseableRegistry(),
+                                    1.0));
         } catch (Exception e) {
             throw new RuntimeException("unexpected", e);
         }
@@ -146,7 +144,7 @@ public abstract class StateBackendTestContext {
         }
     }
 
-    KeyedStateHandle takeSnapshot() throws Exception {
+    public KeyedStateHandle takeSnapshot() throws Exception {
         SnapshotResult<KeyedStateHandle> snapshotResult = triggerSnapshot().get();
         KeyedStateHandle jobManagerOwnedSnapshot = snapshotResult.getJobManagerOwnedSnapshot();
         if (jobManagerOwnedSnapshot != null) {
@@ -173,7 +171,7 @@ public abstract class StateBackendTestContext {
     }
 
     @SuppressWarnings("unchecked")
-    <N, S extends State, V> S createState(
+    public <N, S extends State, V> S createState(
             StateDescriptor<S, V> stateDescriptor,
             @SuppressWarnings("SameParameterValue") N defaultNamespace)
             throws Exception {

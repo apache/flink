@@ -36,6 +36,8 @@ import java.util.List;
 public abstract class CommonExecExchange extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
+    public static final String EXCHANGE_TRANSFORMATION = "exchange";
+
     public CommonExecExchange(
             int id,
             ExecNodeContext context,

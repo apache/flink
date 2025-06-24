@@ -64,8 +64,8 @@ public class InternalOperatorMetricGroup extends ComponentMetricGroup<TaskMetric
         return parent.getIOMetricGroup();
     }
 
-    public final MetricGroup getJobMetricGroup() {
-        return parent.parent;
+    public final MetricGroup getTaskMetricGroup() {
+        return parent;
     }
 
     @Override
@@ -75,6 +75,7 @@ public class InternalOperatorMetricGroup extends ComponentMetricGroup<TaskMetric
                 this.parent.parent.jobId.toString(),
                 this.parent.vertexId.toString(),
                 this.parent.subtaskIndex,
+                this.parent.attemptNumber(),
                 filter.filterCharacters(this.operatorName));
     }
 
@@ -100,7 +101,7 @@ public class InternalOperatorMetricGroup extends ComponentMetricGroup<TaskMetric
     }
 
     @Override
-    protected Iterable<? extends ComponentMetricGroup> subComponents() {
+    protected Iterable<? extends ComponentMetricGroup<?>> subComponents() {
         return Collections.emptyList();
     }
 

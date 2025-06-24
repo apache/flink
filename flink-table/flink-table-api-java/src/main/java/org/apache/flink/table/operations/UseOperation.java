@@ -29,4 +29,4 @@ import org.apache.flink.annotation.Internal;
  * switching current database.
  */
 @Internal
-public interface UseOperation extends Operation {}
+public interface UseOperation extends Operation, ExecutableOperation {}

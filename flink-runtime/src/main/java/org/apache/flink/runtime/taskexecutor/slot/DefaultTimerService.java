@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.Preconditions;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
@@ -58,7 +58,7 @@ public class DefaultTimerService<K> implements TimerService<K> {
                 "The shut down timeout must be larger than or equal than 0.");
         this.shutdownTimeout = shutdownTimeout;
 
-        this.timeouts = new HashMap<>(16);
+        this.timeouts = CollectionUtil.newHashMapWithExpectedSize(16);
         this.timeoutListener = null;
     }
 

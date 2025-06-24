@@ -19,15 +19,19 @@
 package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.plan.nodes.common.CommonIntermediateTableScan;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecProcessTableFunction;
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel;
 
 import org.apache.calcite.rel.RelNode;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A generator that generates a {@link ExecNode} graph from a graph of {@link FlinkPhysicalRel}s.
@@ -43,20 +47,22 @@ import java.util.Map;
 public class ExecNodeGraphGenerator {
 
     private final Map<FlinkPhysicalRel, ExecNode<?>> visitedRels;
+    private final Set<String> visitedProcessTableFunctionUids;
 
     public ExecNodeGraphGenerator() {
         this.visitedRels = new IdentityHashMap<>();
+        this.visitedProcessTableFunctionUids = new HashSet<>();
     }
 
-    public ExecNodeGraph generate(List<FlinkPhysicalRel> relNodes) {
+    public ExecNodeGraph generate(List<FlinkPhysicalRel> relNodes, boolean isCompiled) {
         List<ExecNode<?>> rootNodes = new ArrayList<>(relNodes.size());
         for (FlinkPhysicalRel relNode : relNodes) {
-            rootNodes.add(generate(relNode));
+            rootNodes.add(generate(relNode, isCompiled));
         }
         return new ExecNodeGraph(rootNodes);
     }
 
-    private ExecNode<?> generate(FlinkPhysicalRel rel) {
+    private ExecNode<?> generate(FlinkPhysicalRel rel, boolean isCompiled) {
         ExecNode<?> execNode = visitedRels.get(rel);
         if (execNode != null) {
             return execNode;
@@ -68,18 +74,38 @@ public class ExecNodeGraphGenerator {
 
         List<ExecNode<?>> inputNodes = new ArrayList<>();
         for (RelNode input : rel.getInputs()) {
-            inputNodes.add(generate((FlinkPhysicalRel) input));
+            inputNodes.add(generate((FlinkPhysicalRel) input, isCompiled));
         }
 
-        execNode = rel.translateToExecNode();
+        execNode = rel.translateToExecNode(isCompiled);
         // connects the input nodes
         List<ExecEdge> inputEdges = new ArrayList<>(inputNodes.size());
         for (ExecNode<?> inputNode : inputNodes) {
             inputEdges.add(ExecEdge.builder().source(inputNode).target(execNode).build());
         }
         execNode.setInputEdges(inputEdges);
-
+        checkUidForProcessTableFunction(execNode);
         visitedRels.put(rel, execNode);
         return execNode;
+    }
+
+    private void checkUidForProcessTableFunction(ExecNode<?> execNode) {
+        if (!(execNode instanceof StreamExecProcessTableFunction)) {
+            return;
+        }
+        final String uid = ((StreamExecProcessTableFunction) execNode).getUid();
+        if (uid == null) {
+            return;
+        }
+        if (visitedProcessTableFunctionUids.contains(uid)) {
+            throw new ValidationException(
+                    String.format(
+                            "Duplicate unique identifier '%s' detected among process table functions. "
+                                    + "Make sure that all PTF calls have an identifier defined that is globally unique. "
+                                    + "Please provide a custom identifier using the implicit `uid` argument. "
+                                    + "For example: myFunction(..., uid => 'my-id')",
+                            uid));
+        }
+        visitedProcessTableFunctionUids.add(uid);
     }
 }

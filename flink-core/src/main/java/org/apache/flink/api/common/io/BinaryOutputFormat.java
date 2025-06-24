@@ -32,9 +32,6 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
 
     private static final long serialVersionUID = 1L;
 
-    /** The config parameter which defines the fixed length of a record. */
-    public static final String BLOCK_SIZE_PARAMETER_KEY = "output.block_size";
-
     public static final long NATIVE_BLOCK_SIZE = Long.MIN_VALUE;
 
     /** The block size to use. */
@@ -61,17 +58,6 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
     @Override
     public void configure(Configuration parameters) {
         super.configure(parameters);
-
-        // read own parameters
-        this.blockSize = parameters.getLong(BLOCK_SIZE_PARAMETER_KEY, NATIVE_BLOCK_SIZE);
-        if (this.blockSize < 1 && this.blockSize != NATIVE_BLOCK_SIZE) {
-            throw new IllegalArgumentException(
-                    "The block size parameter must be set and larger than 0.");
-        }
-        if (this.blockSize > Integer.MAX_VALUE) {
-            throw new UnsupportedOperationException(
-                    "Currently only block size up to Integer.MAX_VALUE are supported");
-        }
     }
 
     protected BlockInfo createBlockInfo() {
@@ -79,8 +65,8 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
     }
 
     @Override
-    public void open(int taskNumber, int numTasks) throws IOException {
-        super.open(taskNumber, numTasks);
+    public void open(InitializationContext context) throws IOException {
+        super.open(context);
 
         final long blockSize =
                 this.blockSize == NATIVE_BLOCK_SIZE

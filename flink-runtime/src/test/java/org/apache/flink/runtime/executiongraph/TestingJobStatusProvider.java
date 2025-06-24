@@ -26,7 +26,7 @@ import java.util.function.Supplier;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** {@link JobStatusProvider} implementation for testing purposes. */
-public class TestingJobStatusProvider implements JobStatusProvider {
+class TestingJobStatusProvider implements JobStatusProvider {
 
     private final Supplier<JobStatus> statusSupplier;
     private final Function<JobStatus, Long> statusTimestampRetriever;

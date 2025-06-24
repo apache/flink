@@ -19,10 +19,11 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
@@ -116,8 +117,8 @@ public class YarnTaskExecutorRunner {
         final String keytabPrincipal = variables.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
         LOG.info("TM: keytab principal obtained {}", keytabPrincipal);
 
-        // tell akka to die in case of an error
-        configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
+        // tell pekko to die in case of an error
+        configuration.set(RpcOptions.JVM_EXIT_ON_FATAL_ERROR, true);
 
         String keytabPath = Utils.resolveKeytabPath(currDir, localKeytabPath);
 
@@ -129,15 +130,17 @@ public class YarnTaskExecutorRunner {
                 yarnClientUsername);
 
         if (keytabPath != null && keytabPrincipal != null) {
-            configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
-            configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, keytabPrincipal);
+            configuration.set(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
+            configuration.set(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, keytabPrincipal);
         }
 
         // use the hostname passed by job manager
         final String taskExecutorHostname =
                 variables.get(YarnResourceManagerDriver.ENV_FLINK_NODE_ID);
         if (taskExecutorHostname != null) {
-            configuration.setString(TaskManagerOptions.HOST, taskExecutorHostname);
+            configuration.set(TaskManagerOptions.HOST, taskExecutorHostname);
+            configuration.set(
+                    TaskManagerOptionsInternal.TASK_MANAGER_NODE_ID, taskExecutorHostname);
         }
     }
 }

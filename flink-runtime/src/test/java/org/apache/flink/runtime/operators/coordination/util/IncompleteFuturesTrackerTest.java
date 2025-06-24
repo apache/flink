@@ -18,56 +18,51 @@
 
 package org.apache.flink.runtime.operators.coordination.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for the {@link IncompleteFuturesTracker}. */
-public class IncompleteFuturesTrackerTest {
+class IncompleteFuturesTrackerTest {
 
     @Test
-    public void testFutureTracked() {
+    void testFutureTracked() {
         final IncompleteFuturesTracker tracker = new IncompleteFuturesTracker();
         final CompletableFuture<?> future = new CompletableFuture<>();
 
         tracker.trackFutureWhileIncomplete(future);
 
-        assertThat(tracker.getCurrentIncompleteAndReset(), contains(future));
+        assertThat(tracker.getCurrentIncompleteAndReset()).containsExactly(future);
     }
 
     @Test
-    public void testFutureRemovedAfterCompletion() {
+    void testFutureRemovedAfterCompletion() {
         final IncompleteFuturesTracker tracker = new IncompleteFuturesTracker();
         final CompletableFuture<?> future = new CompletableFuture<>();
 
         tracker.trackFutureWhileIncomplete(future);
         future.complete(null);
 
-        assertThat(tracker.getCurrentIncompleteAndReset(), not(contains(future)));
+        assertThat(tracker.getCurrentIncompleteAndReset()).doesNotContain(future);
     }
 
     @Test
-    public void testFutureNotAddedIfAlreadyCompleted() {
+    void testFutureNotAddedIfAlreadyCompleted() {
         final IncompleteFuturesTracker tracker = new IncompleteFuturesTracker();
         final CompletableFuture<?> future = new CompletableFuture<>();
 
         future.complete(null);
         tracker.trackFutureWhileIncomplete(future);
 
-        assertThat(tracker.getCurrentIncompleteAndReset(), not(contains(future)));
+        assertThat(tracker.getCurrentIncompleteAndReset()).doesNotContain(future);
     }
 
     @Test
-    public void testFailFutures() throws Exception {
+    void testFailFutures() {
         final IncompleteFuturesTracker tracker = new IncompleteFuturesTracker();
         final CompletableFuture<?> future = new CompletableFuture<>();
 
@@ -76,17 +71,13 @@ public class IncompleteFuturesTrackerTest {
         final Exception expectedException = new Exception();
         tracker.failAllFutures(expectedException);
 
-        assertTrue(future.isCompletedExceptionally());
-        try {
-            future.get();
-            fail();
-        } catch (ExecutionException e) {
-            assertSame(expectedException, e.getCause());
-        }
+        assertThatFuture(future)
+                .eventuallyFailsWith(ExecutionException.class)
+                .withCause(expectedException);
     }
 
     @Test
-    public void testFailFuturesImmediately() throws Exception {
+    void testFailFuturesImmediately() {
         final IncompleteFuturesTracker tracker = new IncompleteFuturesTracker();
         final CompletableFuture<?> future = new CompletableFuture<>();
 
@@ -95,23 +86,19 @@ public class IncompleteFuturesTrackerTest {
 
         tracker.trackFutureWhileIncomplete(future);
 
-        assertTrue(future.isCompletedExceptionally());
-        try {
-            future.get();
-            fail();
-        } catch (ExecutionException e) {
-            assertSame(expectedException, e.getCause());
-        }
+        assertThatFuture(future)
+                .eventuallyFailsWith(ExecutionException.class)
+                .withCause(expectedException);
     }
 
     @Test
-    public void testResetClearsTrackedFutures() {
+    void testResetClearsTrackedFutures() {
         final IncompleteFuturesTracker tracker = new IncompleteFuturesTracker();
 
         final CompletableFuture<?> future = new CompletableFuture<>();
         tracker.trackFutureWhileIncomplete(future);
         tracker.getCurrentIncompleteAndReset();
 
-        assertThat(tracker.getCurrentIncompleteAndReset(), empty());
+        assertThat(tracker.getCurrentIncompleteAndReset()).isEmpty();
     }
 }

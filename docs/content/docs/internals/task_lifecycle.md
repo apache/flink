@@ -122,7 +122,7 @@ The steps a task goes through when executed until completion without being inter
             open-operators
             run
             finish-operators
-            wait for the final checkponit completed (if enabled)
+            wait for the final checkpoint completed (if enabled)
             close-operators
             task-specific-cleanup
             common-cleanup

@@ -23,6 +23,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.PriorityComparator;
+import org.apache.flink.util.CollectionUtil;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -95,7 +96,8 @@ public class HeapPriorityQueueSet<T extends HeapPriorityQueueElement> extends He
         final int deduplicationSetSize = 1 + minimumCapacity / keyGroupsInLocalRange;
         this.deduplicationMapsByKeyGroup = new HashMap[keyGroupsInLocalRange];
         for (int i = 0; i < keyGroupsInLocalRange; ++i) {
-            deduplicationMapsByKeyGroup[i] = new HashMap<>(deduplicationSetSize);
+            deduplicationMapsByKeyGroup[i] =
+                    CollectionUtil.newHashMapWithExpectedSize(deduplicationSetSize);
         }
     }
 

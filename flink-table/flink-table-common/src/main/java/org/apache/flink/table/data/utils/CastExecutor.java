@@ -19,7 +19,7 @@
 package org.apache.flink.table.data.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableRuntimeException;
 
 import javax.annotation.Nullable;
 
@@ -39,5 +39,5 @@ public interface CastExecutor<IN, OUT> {
      * @param value Input value.
      */
     @Nullable
-    OUT cast(@Nullable IN value) throws TableException;
+    OUT cast(@Nullable IN value) throws TableRuntimeException;
 }

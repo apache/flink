@@ -22,17 +22,20 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.FunctionLanguage;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
@@ -45,11 +48,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link UserDefinedFunctionHelper}. */
 @SuppressWarnings("unused")
-public class UserDefinedFunctionHelperTest {
+class UserDefinedFunctionHelperTest {
 
     @ParameterizedTest
     @MethodSource("testSpecs")
-    public void testInstantiation(TestSpec testSpec) {
+    void testInstantiation(TestSpec testSpec) {
         final Supplier<UserDefinedFunction> supplier;
         if (testSpec.functionClass != null) {
             supplier = () -> instantiateFunction(testSpec.functionClass);
@@ -77,7 +80,7 @@ public class UserDefinedFunctionHelperTest {
 
     @ParameterizedTest
     @MethodSource("testSpecs")
-    public void testValidation(TestSpec testSpec) {
+    void testValidation(TestSpec testSpec) {
         final Runnable runnable;
         if (testSpec.functionClass != null) {
             runnable = () -> validateClass(testSpec.functionClass);
@@ -98,7 +101,7 @@ public class UserDefinedFunctionHelperTest {
     }
 
     @Test
-    public void testSerialization() {
+    void testSerialization() {
         assertThat(isClassNameSerializable(new ValidTableFunction())).isTrue();
 
         assertThat(isClassNameSerializable(new ValidScalarFunction())).isTrue();
@@ -131,6 +134,33 @@ public class UserDefinedFunctionHelperTest {
                                 "Method 'eval' of function class '"
                                         + PrivateMethodScalarFunction.class.getName()
                                         + "' is not public."),
+                TestSpec.forClass(ValidAsyncScalarFunction.class).expectSuccess(),
+                TestSpec.forInstance(new ValidAsyncScalarFunction()).expectSuccess(),
+                TestSpec.forClass(PrivateAsyncScalarFunction.class)
+                        .expectErrorMessage(
+                                "Function class '"
+                                        + PrivateAsyncScalarFunction.class.getName()
+                                        + "' is not public."),
+                TestSpec.forClass(MissingImplementationAsyncScalarFunction.class)
+                        .expectErrorMessage(
+                                "Function class '"
+                                        + MissingImplementationAsyncScalarFunction.class.getName()
+                                        + "' does not implement a method named 'eval'."),
+                TestSpec.forClass(PrivateMethodAsyncScalarFunction.class)
+                        .expectErrorMessage(
+                                "Method 'eval' of function class '"
+                                        + PrivateMethodAsyncScalarFunction.class.getName()
+                                        + "' is not public."),
+                TestSpec.forClass(NonVoidAsyncScalarFunction.class)
+                        .expectErrorMessage(
+                                "Method 'eval' of function class '"
+                                        + NonVoidAsyncScalarFunction.class.getName()
+                                        + "' must be void."),
+                TestSpec.forClass(NoFutureAsyncScalarFunction.class)
+                        .expectErrorMessage(
+                                "Method 'eval' of function class '"
+                                        + NoFutureAsyncScalarFunction.class.getName()
+                                        + "' must have a first argument of type java.util.concurrent.CompletableFuture."),
                 TestSpec.forInstance(new ValidTableAggregateFunction()).expectSuccess(),
                 TestSpec.forInstance(new MissingEmitTableAggregateFunction())
                         .expectErrorMessage(
@@ -221,13 +251,13 @@ public class UserDefinedFunctionHelperTest {
         }
 
         @Override
-        public boolean isGeneric() {
-            return false;
+        public FunctionLanguage getFunctionLanguage() {
+            return FunctionLanguage.JAVA;
         }
 
         @Override
-        public FunctionLanguage getFunctionLanguage() {
-            return FunctionLanguage.JAVA;
+        public List<ResourceUri> getFunctionResources() {
+            return Collections.emptyList();
         }
     }
 
@@ -258,6 +288,37 @@ public class UserDefinedFunctionHelperTest {
         private String eval(int i) {
             return null;
         }
+    }
+
+    /** Valid scalar function. */
+    public static class ValidAsyncScalarFunction extends AsyncScalarFunction {
+        public void eval(CompletableFuture<Integer> future, int i) {}
+    }
+
+    private static class PrivateAsyncScalarFunction extends AsyncScalarFunction {
+        public void eval(CompletableFuture<Integer> future, int i) {}
+    }
+
+    /** No implementation method. */
+    public static class MissingImplementationAsyncScalarFunction extends AsyncScalarFunction {
+        // nothing to do
+    }
+
+    /** Implementation method is private. */
+    public static class PrivateMethodAsyncScalarFunction extends AsyncScalarFunction {
+        private void eval(CompletableFuture<Integer> future, int i) {}
+    }
+
+    /** Implementation method isn't void. */
+    public static class NonVoidAsyncScalarFunction extends AsyncScalarFunction {
+        public String eval(CompletableFuture<Integer> future, int i) {
+            return "";
+        }
+    }
+
+    /** Implementation method isn't void. */
+    public static class NoFutureAsyncScalarFunction extends AsyncScalarFunction {
+        public void eval(int i) {}
     }
 
     /** Valid table aggregate function. */

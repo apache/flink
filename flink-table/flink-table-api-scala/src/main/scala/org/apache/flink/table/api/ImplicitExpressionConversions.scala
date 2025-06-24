@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark
 import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression, TableSymbol, TimePointUnit}
 import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
-import org.apache.flink.table.functions.{ImperativeAggregateFunction, ScalarFunction, TableFunction, UserDefinedFunctionHelper, _}
+import org.apache.flink.table.functions._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{DISTINCT, RANGE_TO}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
@@ -33,12 +33,21 @@ import java.sql.{Date, Time, Timestamp}
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.util.{List => JList, Map => JMap}
 
+import scala.language.experimental.macros
 import scala.language.implicitConversions
 
 /**
  * Implicit conversions from Scala literals to [[Expression]] and from [[Expression]] to
  * [[ImplicitExpressionOperations]].
+ *
+ * @deprecated
+ *   All Flink Scala APIs are deprecated and will be removed in a future Flink major version. You
+ *   can still build your application in Scala, but you should move to the Java version of either
+ *   the DataStream and/or Table API.
+ * @see
+ *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
+@Deprecated
 @PublicEvolving
 trait ImplicitExpressionConversions {
 
@@ -50,28 +59,27 @@ trait ImplicitExpressionConversions {
    * Offset constant to be used in the `preceding` clause of unbounded [[Over]] windows. Use this
    * constant for a time interval. Unbounded over windows start with the first row of a partition.
    */
-  implicit val UNBOUNDED_ROW: Expression = unresolvedCall(BuiltInFunctionDefinitions.UNBOUNDED_ROW)
+  implicit val UNBOUNDED_ROW: Expression = lit(OverWindowRange.UNBOUNDED_ROW)
 
   /**
    * Offset constant to be used in the `preceding` clause of unbounded [[Over]] windows. Use this
    * constant for a row-count interval. Unbounded over windows start with the first row of a
    * partition.
    */
-  implicit val UNBOUNDED_RANGE: Expression =
-    unresolvedCall(BuiltInFunctionDefinitions.UNBOUNDED_RANGE)
+  implicit val UNBOUNDED_RANGE: Expression = lit(OverWindowRange.UNBOUNDED_RANGE)
 
   /**
    * Offset constant to be used in the `following` clause of [[Over]] windows. Use this for setting
    * the upper bound of the window to the current row.
    */
-  implicit val CURRENT_ROW: Expression = unresolvedCall(BuiltInFunctionDefinitions.CURRENT_ROW)
+  implicit val CURRENT_ROW: Expression = lit(OverWindowRange.CURRENT_ROW)
 
   /**
    * Offset constant to be used in the `following` clause of [[Over]] windows. Use this for setting
    * the upper bound of the window to the sort key of the current row, i.e., all rows with the same
    * sort key as the current row are included in the window.
    */
-  implicit val CURRENT_RANGE: Expression = unresolvedCall(BuiltInFunctionDefinitions.CURRENT_RANGE)
+  implicit val CURRENT_RANGE: Expression = lit(OverWindowRange.CURRENT_RANGE)
 
   // ----------------------------------------------------------------------------------------------
   // Implicit conversions
@@ -462,6 +470,9 @@ trait ImplicitExpressionConversions {
     Expressions.currentWatermark(rowtimeAttribute)
   }
 
+  /** Return the current database, the return type of this expression is [[DataTypes.STRING()]]. */
+  def currentDatabase(): Expression = Expressions.currentDatabase()
+
   /**
    * Returns the current SQL time in local time zone, the return type of this expression is
    * [[DataTypes.TIME]], this is a synonym for [[ImplicitExpressionConversions.currentTime()]].
@@ -479,14 +490,33 @@ trait ImplicitExpressionConversions {
   }
 
   /**
-   * Converts a numeric type epoch time to [[DataTypes#TIMESTAMP_LTZ]].
-   *
-   * The supported precision is 0 or 3:
-   *   - 0 means the numericEpochTime is in second.
-   *   - 3 means the numericEpochTime is in millisecond.
+   * Converts the date string with format 'yyyy-MM-dd' to a date value of [[DataTypes.DATE]] type.
    */
-  def toTimestampLtz(numericEpochTime: Expression, precision: Expression): Expression = {
-    Expressions.toTimestampLtz(numericEpochTime, precision)
+  def toDate(dateStr: Expression): Expression = {
+    Expressions.toDate(dateStr)
+  }
+
+  /**
+   * Converts the date string with the specified format to a date value of [[DataTypes.DATE]] type.
+   */
+  def toDate(dateStr: Expression, format: Expression): Expression = {
+    Expressions.toDate(dateStr, format)
+  }
+
+  /**
+   * Converts the date time string with format 'yyyy-MM-dd HH:mm:ss' under the 'UTC+0' time zone to
+   * a timestamp value of [[DataTypes.TIMESTAMP]].
+   */
+  def toTimestamp(timestampStr: Expression): Expression = {
+    Expressions.toTimestamp(timestampStr)
+  }
+
+  /**
+   * Converts the date time string with the specified format under the 'UTC+0' time zone to a
+   * timestamp value of [[DataTypes.TIMESTAMP]].
+   */
+  def toTimestamp(timestampStr: Expression, format: Expression): Expression = {
+    Expressions.toTimestamp(timestampStr, format)
   }
 
   /**
@@ -545,6 +575,60 @@ trait ImplicitExpressionConversions {
     Expressions.timestampDiff(timePointUnit, timePoint1, timePoint2)
   }
 
+  /**
+   * Converts a datetime dateStr (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time
+   * zone tzFrom to time zone tzTo. The format of time zone should be either an abbreviation such as
+   * "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00". E.g.,
+   * convertTz('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31 16:00:00'.
+   *
+   * @param dateStr
+   *   dateStr the date time string
+   * @param tzFrom
+   *   tzFrom the original time zone
+   * @param tzTo
+   *   tzTo the target time zone
+   * @return
+   *   The formatted timestamp as string.
+   */
+  def convertTz(dateStr: Expression, tzFrom: Expression, tzTo: Expression): ApiExpression = {
+    Expressions.convertTz(dateStr, tzFrom, tzTo)
+  }
+
+  /**
+   * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+   * "yyyy-MM-dd HH:mm:ss" format.
+   */
+  def fromUnixtime(unixtime: Expression): Expression = Expressions.fromUnixtime(unixtime)
+
+  /**
+   * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
+   * given format.
+   */
+  def fromUnixtime(unixtime: Expression, format: Expression): Expression =
+    Expressions.fromUnixtime(unixtime, format)
+
+  /**
+   * Gets the current unix timestamp in seconds. This function is not deterministic which means the
+   * value would be recalculated for each record.
+   */
+  def unixTimestamp(): Expression = Expressions.unixTimestamp()
+
+  /**
+   * Converts the given date time string with format 'yyyy-MM-dd HH:mm:ss' to unix timestamp (in
+   * seconds), using the time zone specified in the table config.
+   */
+  def unixTimestamp(timestampStr: Expression): Expression = {
+    Expressions.unixTimestamp(timestampStr)
+  }
+
+  /**
+   * Converts the given date time string with the specified format to unix timestamp (in seconds),
+   * using the specified timezone in table config.
+   */
+  def unixTimestamp(timestampStr: Expression, format: Expression): Expression = {
+    Expressions.unixTimestamp(timestampStr, format)
+  }
+
   /** Creates an array of literals. */
   def array(head: Expression, tail: Expression*): Expression = {
     Expressions.array(head, tail: _*)
@@ -558,6 +642,11 @@ trait ImplicitExpressionConversions {
   /** Creates a map of expressions. */
   def map(key: Expression, value: Expression, tail: Expression*): Expression = {
     Expressions.map(key, value, tail: _*)
+  }
+
+  /** Creates a map from an array of keys and an array of values. */
+  def mapFromArrays(key: Expression, value: Expression): Expression = {
+    Expressions.mapFromArrays(key, value)
   }
 
   /** Returns a value that is closer than any other value to pi. */

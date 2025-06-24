@@ -19,10 +19,15 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
+import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
+import org.apache.flink.runtime.state.AbstractChannelStateHandle;
+import org.apache.flink.runtime.state.AbstractMergedChannelStateHandle;
+import org.apache.flink.runtime.state.ChannelState;
+import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 
 import org.apache.commons.lang3.BooleanUtils;
@@ -31,10 +36,16 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * This class is a wrapper over multiple alternative {@link OperatorSubtaskState} that are (partial)
@@ -69,10 +80,9 @@ public class PrioritizedOperatorSubtaskState {
     /** List of prioritized snapshot alternatives for raw keyed state. */
     private final List<StateObjectCollection<KeyedStateHandle>> prioritizedRawKeyedState;
 
-    private final List<StateObjectCollection<InputChannelStateHandle>> prioritizedInputChannelState;
+    private final List<StateObjectCollection<InputStateHandle>> prioritizedInputChannelState;
 
-    private final List<StateObjectCollection<ResultSubpartitionStateHandle>>
-            prioritizedResultSubpartitionState;
+    private final List<StateObjectCollection<OutputStateHandle>> prioritizedResultSubpartitionState;
 
     /** Checkpoint id for a restored operator or null if not restored. */
     private final @Nullable Long restoredCheckpointId;
@@ -84,11 +94,9 @@ public class PrioritizedOperatorSubtaskState {
                     List<StateObjectCollection<OperatorStateHandle>>
                             prioritizedManagedOperatorState,
             @Nonnull List<StateObjectCollection<OperatorStateHandle>> prioritizedRawOperatorState,
+            @Nonnull List<StateObjectCollection<InputStateHandle>> prioritizedInputChannelState,
             @Nonnull
-                    List<StateObjectCollection<InputChannelStateHandle>>
-                            prioritizedInputChannelState,
-            @Nonnull
-                    List<StateObjectCollection<ResultSubpartitionStateHandle>>
+                    List<StateObjectCollection<OutputStateHandle>>
                             prioritizedResultSubpartitionState,
             @Nullable Long restoredCheckpointId) {
 
@@ -178,13 +186,12 @@ public class PrioritizedOperatorSubtaskState {
     }
 
     @Nonnull
-    public StateObjectCollection<InputChannelStateHandle> getPrioritizedInputChannelState() {
+    public StateObjectCollection<InputStateHandle> getPrioritizedInputChannelState() {
         return lastElement(prioritizedInputChannelState);
     }
 
     @Nonnull
-    public StateObjectCollection<ResultSubpartitionStateHandle>
-            getPrioritizedResultSubpartitionState() {
+    public StateObjectCollection<OutputStateHandle> getPrioritizedResultSubpartitionState() {
         return lastElement(prioritizedResultSubpartitionState);
     }
 
@@ -267,10 +274,10 @@ public class PrioritizedOperatorSubtaskState {
                     new ArrayList<>(size);
             List<StateObjectCollection<KeyedStateHandle>> rawKeyedAlternatives =
                     new ArrayList<>(size);
-            List<StateObjectCollection<InputChannelStateHandle>> inputChannelStateAlternatives =
+            List<StateObjectCollection<InputStateHandle>> inputChannelStateAlternatives =
                     new ArrayList<>(size);
-            List<StateObjectCollection<ResultSubpartitionStateHandle>>
-                    resultSubpartitionStateAlternatives = new ArrayList<>(size);
+            List<StateObjectCollection<OutputStateHandle>> resultSubpartitionStateAlternatives =
+                    new ArrayList<>(size);
 
             for (OperatorSubtaskState subtaskState : alternativesByPriority) {
 
@@ -286,14 +293,14 @@ public class PrioritizedOperatorSubtaskState {
             }
 
             return new PrioritizedOperatorSubtaskState(
-                    resolvePrioritizedAlternatives(
+                    computePrioritizedAlternatives(
                             jobManagerState.getManagedKeyedState(),
                             managedKeyedAlternatives,
-                            eqStateApprover(KeyedStateHandle::getKeyGroupRange)),
-                    resolvePrioritizedAlternatives(
+                            KeyedStateHandle::getKeyGroupRange),
+                    computePrioritizedAlternatives(
                             jobManagerState.getRawKeyedState(),
                             rawKeyedAlternatives,
-                            eqStateApprover(KeyedStateHandle::getKeyGroupRange)),
+                            KeyedStateHandle::getKeyGroupRange),
                     resolvePrioritizedAlternatives(
                             jobManagerState.getManagedOperatorState(),
                             managedOperatorAlternatives,
@@ -305,12 +312,133 @@ public class PrioritizedOperatorSubtaskState {
                     resolvePrioritizedAlternatives(
                             jobManagerState.getInputChannelState(),
                             inputChannelStateAlternatives,
-                            eqStateApprover(InputChannelStateHandle::getInfo)),
+                            channelStateApprover(
+                                    (InputChannelInfo i1, InputChannelInfo i2) -> {
+                                        if (i1.getGateIdx() == i2.getGateIdx()) {
+                                            return Integer.compare(
+                                                    i1.getInputChannelIdx(),
+                                                    i2.getInputChannelIdx());
+                                        } else {
+                                            return Integer.compare(
+                                                    i1.getGateIdx(), i2.getGateIdx());
+                                        }
+                                    })),
                     resolvePrioritizedAlternatives(
                             jobManagerState.getResultSubpartitionState(),
                             resultSubpartitionStateAlternatives,
-                            eqStateApprover(ResultSubpartitionStateHandle::getInfo)),
+                            channelStateApprover(
+                                    (ResultSubpartitionInfo r1, ResultSubpartitionInfo r2) -> {
+                                        if (r1.getPartitionIdx() == r2.getPartitionIdx()) {
+                                            return Integer.compare(
+                                                    r1.getSubPartitionIdx(),
+                                                    r2.getSubPartitionIdx());
+                                        } else {
+                                            return Integer.compare(
+                                                    r1.getPartitionIdx(), r2.getPartitionIdx());
+                                        }
+                                    })),
                     restoredCheckpointId);
+        }
+
+        /**
+         * This method creates an alternative recovery option by replacing as much job manager state
+         * with higher prioritized (=local) alternatives as possible.
+         *
+         * @param jobManagerState the state that the task got assigned from the job manager (this
+         *     state lives in remote storage).
+         * @param alternativesByPriority local alternatives to the job manager state, ordered by
+         *     priority.
+         * @param identityExtractor function to extract an identifier from a state object.
+         * @return prioritized state alternatives.
+         * @param <STATE_OBJ_TYPE> the type of the state objects we process.
+         * @param <ID_TYPE> the type of object that represents the id the state object type.
+         */
+        <STATE_OBJ_TYPE extends StateObject, ID_TYPE>
+                List<StateObjectCollection<STATE_OBJ_TYPE>> computePrioritizedAlternatives(
+                        StateObjectCollection<STATE_OBJ_TYPE> jobManagerState,
+                        List<StateObjectCollection<STATE_OBJ_TYPE>> alternativesByPriority,
+                        Function<STATE_OBJ_TYPE, ID_TYPE> identityExtractor) {
+
+            if (alternativesByPriority != null
+                    && !alternativesByPriority.isEmpty()
+                    && jobManagerState.hasState()) {
+
+                Optional<StateObjectCollection<STATE_OBJ_TYPE>> mergedAlternative =
+                        tryComputeMixedLocalAndRemoteAlternative(
+                                jobManagerState, alternativesByPriority, identityExtractor);
+
+                // Return the mix of local/remote state as first and pure remote state as second
+                // alternative (in case that we fail to recover from the local state, e.g. because
+                // of corruption).
+                if (mergedAlternative.isPresent()) {
+                    return Arrays.asList(mergedAlternative.get(), jobManagerState);
+                }
+            }
+
+            return Collections.singletonList(jobManagerState);
+        }
+
+        /**
+         * This method creates an alternative recovery option by replacing as much job manager state
+         * with higher prioritized (=local) alternatives as possible. Returns empty Optional if the
+         * JM state is empty or nothing could be replaced.
+         *
+         * @param jobManagerState the state that the task got assigned from the job manager (this
+         *     state lives in remote storage).
+         * @param alternativesByPriority local alternatives to the job manager state, ordered by
+         *     priority.
+         * @param identityExtractor function to extract an identifier from a state object.
+         * @return A state collection where all JM state handles for which we could find local *
+         *     alternatives are replaced by the alternative with the highest priority. Empty
+         *     optional if no state could be replaced.
+         * @param <STATE_OBJ_TYPE> the type of the state objects we process.
+         * @param <ID_TYPE> the type of object that represents the id the state object type.
+         */
+        static <STATE_OBJ_TYPE extends StateObject, ID_TYPE>
+                Optional<StateObjectCollection<STATE_OBJ_TYPE>>
+                        tryComputeMixedLocalAndRemoteAlternative(
+                                StateObjectCollection<STATE_OBJ_TYPE> jobManagerState,
+                                List<StateObjectCollection<STATE_OBJ_TYPE>> alternativesByPriority,
+                                Function<STATE_OBJ_TYPE, ID_TYPE> identityExtractor) {
+
+            List<STATE_OBJ_TYPE> result = Collections.emptyList();
+
+            // Build hash index over ids of the JM state
+            Map<ID_TYPE, STATE_OBJ_TYPE> indexById =
+                    jobManagerState.stream()
+                            .collect(Collectors.toMap(identityExtractor, Function.identity()));
+
+            // Move through all alternative in order from high to low priority
+            for (StateObjectCollection<STATE_OBJ_TYPE> alternative : alternativesByPriority) {
+                // Check all the state objects in the alternative if they can replace JM state
+                for (STATE_OBJ_TYPE stateHandle : alternative) {
+                    // Remove the current state object's id from the index to check for a match
+                    if (indexById.remove(identityExtractor.apply(stateHandle)) != null) {
+                        if (result.isEmpty()) {
+                            // Lazy init result collection
+                            result = new ArrayList<>(jobManagerState.size());
+                        }
+                        // If the id was still in the index, replace with higher prio alternative
+                        result.add(stateHandle);
+
+                        // If the index is empty we are already done, all JM state was replaces with
+                        // the best alternative.
+                        if (indexById.isEmpty()) {
+                            return Optional.of(new StateObjectCollection<>(result));
+                        }
+                    }
+                }
+            }
+
+            // Nothing useful to return
+            if (result.isEmpty()) {
+                return Optional.empty();
+            }
+
+            // Add all remaining JM state objects that we could not replace from the index to the
+            // final result
+            result.addAll(indexById.values());
+            return Optional.of(new StateObjectCollection<>(result));
         }
 
         /**
@@ -318,17 +446,15 @@ public class PrioritizedOperatorSubtaskState {
          * state obtained from the job manager and potential alternatives for recovery, e.g. from a
          * task-local source.
          */
-        protected <T extends StateObject>
-                List<StateObjectCollection<T>> resolvePrioritizedAlternatives(
-                        StateObjectCollection<T> jobManagerState,
-                        List<StateObjectCollection<T>> alternativesByPriority,
-                        BiFunction<T, T, Boolean> approveFun) {
+        <T extends StateObject> List<StateObjectCollection<T>> resolvePrioritizedAlternatives(
+                StateObjectCollection<T> jobManagerState,
+                List<StateObjectCollection<T>> alternativesByPriority,
+                BiFunction<T, T, Boolean> approveFun) {
 
             // Nothing to resolve if there are no alternatives, or the ground truth has already no
-            // state, or if we can
-            // assume that a rescaling happened because we find more than one handle in the JM state
-            // (this is more a sanity
-            // check).
+            // state, or if we can assume that a rescaling happened because we find more than one
+            // handle in the JM state
+            // (this is more a sanity check).
             if (alternativesByPriority == null
                     || alternativesByPriority.isEmpty()
                     || !jobManagerState.hasState()
@@ -347,8 +473,7 @@ public class PrioritizedOperatorSubtaskState {
             for (StateObjectCollection<T> alternative : alternativesByPriority) {
 
                 // We found an alternative to the JM state if it has state, we have a 1:1
-                // relationship, and the
-                // approve-function signaled true.
+                // relationship, and the approve-function signaled true.
                 if (alternative != null
                         && alternative.hasState()
                         && alternative.size() == 1
@@ -362,6 +487,48 @@ public class PrioritizedOperatorSubtaskState {
             // Of course we include the ground truth as last alternative.
             approved.add(jobManagerState);
             return Collections.unmodifiableList(approved);
+        }
+    }
+
+    private static <T extends ChannelState, Info> BiFunction<T, T, Boolean> channelStateApprover(
+            Comparator<Info> comparator) {
+        return (ref, alt) -> approveChannelState(ref, alt, comparator);
+    }
+
+    private static <Info> boolean approveChannelState(
+            ChannelState ref, ChannelState alt, Comparator<Info> comparator) {
+        List<Info> refInfos = extractInfos(ref, comparator);
+        List<Info> altInfos = extractInfos(alt, comparator);
+
+        if (refInfos.size() != altInfos.size()) {
+            return false;
+        }
+
+        Iterator<Info> refInfoIterator = refInfos.iterator();
+        Iterator<Info> altInfoIterator = altInfos.iterator();
+        while (refInfoIterator.hasNext()) {
+            Info refInfo = refInfoIterator.next();
+            Info altInfo = altInfoIterator.next();
+            if (!refInfo.equals(altInfo)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** return sorted info list extracted from the passed in handle. */
+    private static <Info> List<Info> extractInfos(
+            ChannelState handle, Comparator<Info> comparator) {
+        if (handle instanceof AbstractChannelStateHandle) {
+            return Collections.singletonList(((AbstractChannelStateHandle<Info>) handle).getInfo());
+        } else if (handle instanceof AbstractMergedChannelStateHandle) {
+            return ((AbstractMergedChannelStateHandle<Info, AbstractChannelStateHandle<Info>>)
+                            handle)
+                    .getInfos().stream().sorted(comparator).collect(Collectors.toList());
+        } else {
+            throw new IllegalStateException(
+                    "Not supported InputStateHandle : " + handle.getClass());
         }
     }
 

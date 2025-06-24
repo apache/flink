@@ -1,0 +1,165 @@
+<!--
+  ~   Licensed to the Apache Software Foundation (ASF) under one
+  ~   or more contributor license agreements.  See the NOTICE file
+  ~   distributed with this work for additional information
+  ~   regarding copyright ownership.  The ASF licenses this file
+  ~   to you under the Apache License, Version 2.0 (the
+  ~   "License"); you may not use this file except in compliance
+  ~   with the License.  You may obtain a copy of the License at
+  ~       http://www.apache.org/licenses/LICENSE-2.0
+  ~   Unless required by applicable law or agreed to in writing, software
+  ~   distributed under the License is distributed on an "AS IS" BASIS,
+  ~   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~   See the License for the specific language governing permissions and
+  ~   limitations under the License.
+  -->
+
+<nz-card nzSize="small" style="width: 100%; height: 100%">
+  <div style="margin-bottom: 10px">
+    <form nz-form [nzLayout]="'inline'">
+      <nz-form-item>
+        <nz-form-label nzFor="duration">Profiling Duration</nz-form-label>
+        <nz-form-control>
+          <nz-input-number
+            [(ngModel)]="duration"
+            [nzMin]="1"
+            [nzStep]="30"
+            [nzFormatter]="formatterDuration"
+            [nzParser]="parserDuration"
+            nzPlaceHolder="Duration"
+            name="duration"
+          ></nz-input-number>
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label nzFor="mode">Profiling Mode</nz-form-label>
+        <nz-form-control>
+          <nz-select
+            [(ngModel)]="selectMode"
+            nzPlaceHolder="Profiling Mode"
+            name="mode"
+            style="width: 200px"
+          >
+            <nz-option nzCustomContent nzValue="CPU" nzLabel="CPU">
+              <span
+                nz-tooltip
+                nzTooltipTitle="In this mode profiler collects stack trace samples that include Java methods, native calls, JVM code and kernel functions."
+              >
+                CPU
+              </span>
+            </nz-option>
+            <nz-option nzCustomContent nzValue="LOCK" nzLabel="Lock">
+              <span
+                nz-tooltip
+                nzTooltipTitle="In lock profiling mode the top frame is the class of lock/monitor, and the counter is number of nanoseconds it took to enter this lock/monitor."
+              >
+                Lock
+              </span>
+            </nz-option>
+            <nz-option nzCustomContent nzValue="WALL" nzLabel="Wall-Clock">
+              <span
+                nz-tooltip
+                nzTooltipTitle="Wall-Clock option tells async-profiler to sample all threads equally every given period of time regardless of thread status: Running, Sleeping or Blocked. For instance, this can be helpful when profiling application start-up time."
+              >
+                Wall-Clock
+              </span>
+            </nz-option>
+            <nz-option nzCustomContent nzValue="ALLOC" nzLabel="Allocation">
+              <span
+                nz-tooltip
+                nzTooltipTitle="In allocation profiling mode the top frame of every call trace is the class of the allocated object, and the counter is the heap pressure (the total size of allocated TLABs or objects outside TLAB)."
+              >
+                Allocation
+              </span>
+            </nz-option>
+            <nz-option nzCustomContent nzValue="ITIMER" nzLabel="ITIMER">
+              <span
+                nz-tooltip
+                nzTooltipTitle="You can fall back to itimer profiling mode. It is similar to cpu mode, but does not require perf_events support. As a drawback, there will be no kernel stack traces."
+              >
+                ITIMER
+              </span>
+            </nz-option>
+          </nz-select>
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-control>
+          <button
+            nz-button
+            nzType="primary"
+            [nzLoading]="isCreating"
+            [disabled]="duration === null || !isEnabled"
+            (click)="createProfilingInstance()"
+            style="margin-left: 10px"
+          >
+            Create Profiling Instance
+          </button>
+          <i
+            class="header-icon"
+            style="margin-left: 10px"
+            nz-icon
+            nz-tooltip
+            [nzTooltipTitle]="titleTemplate"
+            nzTooltipTitle=""
+            nzType="info-circle"
+          ></i>
+          <ng-template #titleTemplate>
+            <span>
+              Please refer to
+              <a
+                href="https://github.com/async-profiler/async-profiler/wiki"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                async-profiler's wiki
+              </a>
+              for more detailed info of this feature.
+            </span>
+          </ng-template>
+        </nz-form-control>
+      </nz-form-item>
+    </form>
+    <nz-alert
+      *ngIf="!isEnabled"
+      nzType="warning"
+      style="margin-top: 10px"
+      nzShowIcon
+      nzMessage="You need to set the config `rest.profiling.enabled: true` to enable this experimental profiler feature."
+    ></nz-alert>
+  </div>
+  <nz-table
+    [nzSize]="'small'"
+    [nzData]="profilingList"
+    [nzLoading]="isLoading"
+    [nzFrontPagination]="false"
+    [nzShowPagination]="false"
+  >
+    <thead>
+      <tr>
+        <th nzWidth="5%">Index</th>
+        <th nzWidth="15%">Trigger Time</th>
+        <th nzWidth="15%">Finished Time</th>
+        <th nzWidth="10%">Profiling Duration</th>
+        <th nzWidth="5%">Mode</th>
+        <th nzWidth="10%">Status</th>
+        <th nzWidth="25%">Link</th>
+        <th nzWidth="15%">Message</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let info of profilingList; let id = index">
+        <td>{{ id }}</td>
+        <td>{{ info.triggerTime | humanizeWatermarkToDatetime }}</td>
+        <td>{{ info.finishedTime | humanizeWatermarkToDatetime }}</td>
+        <td>{{ info.duration }} s</td>
+        <td>{{ info.mode }}</td>
+        <td>{{ info.status }}</td>
+        <td>
+          <a (click)="downloadProfilingResult(info.outputFile)">{{ info.outputFile }}</a>
+        </td>
+        <td>{{ info.message }}</td>
+      </tr>
+    </tbody>
+  </nz-table>
+</nz-card>

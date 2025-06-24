@@ -1,3 +1,0 @@
-simple name of org.apache.flink.formats.hadoop.bulk.HadoopPathBasedPartFileWriterTest does not end with 'ITCase' in (HadoopPathBasedPartFileWriterTest.java:0)
-simple name of org.apache.flink.formats.hadoop.bulk.committer.HadoopRenameCommitterHDFSTest does not end with 'ITCase' in (HadoopRenameCommitterHDFSTest.java:0)
-simple name of org.apache.flink.formats.hadoop.bulk.committer.HadoopRenameCommitterLocalFSTest does not end with 'ITCase' in (HadoopRenameCommitterLocalFSTest.java:0)

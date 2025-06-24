@@ -20,16 +20,16 @@ package org.apache.flink.runtime.state.changelog;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static java.util.Collections.emptyList;
 import static org.apache.flink.runtime.state.StateHandleID.randomStateHandleId;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class ChangelogStateBackendHandleTest {
+class ChangelogStateBackendHandleTest {
 
     @Test
-    public void testPublicConstructor() {
+    void testPublicConstructor() {
         long checkpointId = 2L;
         long materializationID = 1L;
         long size = 2L;
@@ -47,7 +47,7 @@ public class ChangelogStateBackendHandleTest {
     }
 
     @Test
-    public void testRestore() {
+    void testRestore() {
         long checkpointId = 2L;
         long materializationID = 1L;
         long size = 2L;
@@ -70,8 +70,8 @@ public class ChangelogStateBackendHandleTest {
             long materializationID,
             long size,
             ChangelogStateBackendHandleImpl handle) {
-        assertEquals(checkpointId, handle.getCheckpointId());
-        assertEquals(materializationID, handle.getMaterializationID());
-        assertEquals(size, handle.getCheckpointedSize());
+        assertThat(handle.getCheckpointId()).isEqualTo(checkpointId);
+        assertThat(handle.getMaterializationID()).isEqualTo(materializationID);
+        assertThat(handle.getCheckpointedSize()).isEqualTo(size);
     }
 }

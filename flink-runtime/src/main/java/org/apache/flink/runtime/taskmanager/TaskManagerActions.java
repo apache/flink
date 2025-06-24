@@ -46,4 +46,11 @@ public interface TaskManagerActions {
      * @param taskExecutionState Task execution state update
      */
     void updateTaskExecutionState(TaskExecutionState taskExecutionState);
+
+    /**
+     * Notifies that the task has reached the end of data.
+     *
+     * @param executionAttemptID Execution attempt ID of the task.
+     */
+    void notifyEndOfData(ExecutionAttemptID executionAttemptID);
 }

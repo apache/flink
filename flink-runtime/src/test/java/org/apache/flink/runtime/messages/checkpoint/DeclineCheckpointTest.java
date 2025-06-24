@@ -21,36 +21,32 @@ package org.apache.flink.runtime.messages.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.testutils.ClassLoaderUtils;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.net.URLClassLoader;
 import java.util.Optional;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DeclineCheckpoint} message. */
-public class DeclineCheckpointTest extends TestLogger {
+class DeclineCheckpointTest {
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir private java.nio.file.Path tempDir;
 
     @Test
-    public void testDeclineCheckpointWithUserExceptionCanBeDeserializedWithoutUserClass()
+    void testDeclineCheckpointWithUserExceptionCanBeDeserializedWithoutUserClass()
             throws Exception {
         final String className = "UserException";
         final URLClassLoader userClassLoader =
                 ClassLoaderUtils.compileAndLoadJava(
-                        TEMPORARY_FOLDER.newFolder(),
+                        TempDirUtils.newFolder(tempDir),
                         className + ".java",
                         String.format(
                                 "public class %s extends RuntimeException { public %s() {super(\"UserMessage\");} }",
@@ -65,22 +61,25 @@ public class DeclineCheckpointTest extends TestLogger {
         final byte[] serializedCheckpointMessage =
                 InstantiationUtil.serializeObject(
                         new DeclineCheckpoint(
-                                new JobID(), new ExecutionAttemptID(), 1, checkpointException));
+                                new JobID(), createExecutionAttemptId(), 1, checkpointException));
         final DeclineCheckpoint deserializedCheckpointMessage =
                 InstantiationUtil.deserializeObject(
                         serializedCheckpointMessage, ClassLoader.getSystemClassLoader());
 
         Throwable throwable =
                 deserializedCheckpointMessage.getSerializedCheckpointException().unwrap();
-        assertThat(throwable, instanceOf(CheckpointException.class));
+        assertThat(throwable).isInstanceOf(CheckpointException.class);
         Optional<Throwable> throwableWithMessage =
                 ExceptionUtils.findThrowableWithMessage(throwable, userException.getMessage());
-        assertTrue(throwableWithMessage.isPresent());
-        assertThat(
-                throwableWithMessage.get().getMessage(),
-                equalTo(
-                        String.format(
-                                "%s: %s",
-                                userException.getClass().getName(), userException.getMessage())));
+        assertThat(throwableWithMessage)
+                .isPresent()
+                .hasValueSatisfying(
+                        throwable1 ->
+                                assertThat(throwable1)
+                                        .hasMessage(
+                                                String.format(
+                                                        "%s: %s",
+                                                        userException.getClass().getName(),
+                                                        userException.getMessage())));
     }
 }

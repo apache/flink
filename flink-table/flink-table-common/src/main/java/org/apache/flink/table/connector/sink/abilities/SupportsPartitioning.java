@@ -83,6 +83,15 @@ import java.util.Map;
  * <p>If the {@code PARTITION} clause contains no static assignments or is omitted entirely, all
  * values for partition keys are either derived from static parts of the query or obtained
  * dynamically.
+ *
+ * <p>A sink can implement both {@link SupportsPartitioning} and {@link SupportsBucketing}.
+ * Conceptually, a partition can be seen as kind of "directory" whereas buckets correspond to
+ * "files" per directory. Partitioning splits the data on a small, human-readable keyspace (e.g. by
+ * year or by geographical region). This enables efficient selection via equality, inequality, or
+ * ranges due to knowledge about existing partitions. Bucketing operates within partitions on a
+ * potentially large and infinite keyspace.
+ *
+ * @see SupportsBucketing
  */
 @PublicEvolving
 public interface SupportsPartitioning {

@@ -258,19 +258,47 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
   <TestCase name="testInsertPartColumn">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.zm_test], fields=[a, m1, m2, m3, m4])
+LogicalSink(table=[default_catalog.default_database.zm_test], targetColumns=[[0]], fields=[a, m1, m2, m3, m4])
 +- LogicalProject(a=[CAST($0):BIGINT], m1=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP], m2=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP], m3=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP], m4=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.zm_test], fields=[a, m1, m2, m3, m4], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.zm_test], targetColumns=[[0]], fields=[a, m1, m2, m3, m4], changelogMode=[NONE])
 +- Calc(select=[CAST(a AS BIGINT) AS a, null:(VARCHAR(2147483647), BIGINT) MAP AS m1, null:(VARCHAR(2147483647), BIGINT) MAP AS m2, null:(VARCHAR(2147483647), BIGINT) MAP AS m3, null:(VARCHAR(2147483647), BIGINT) MAP AS m4], changelogMode=[I])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testDistribution">
+		<Resource name="ast">
+			<![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b])
++- LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[a, b])
++- Sort(orderBy=[a ASC])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[a, b])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[a, b])
++- Sort(orderBy=[a ASC])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[a, b])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+		</Resource>
+	</TestCase>
   <TestCase name="testAppendUpsertAndRetractSink">
     <Resource name="ast">
       <![CDATA[
@@ -485,12 +513,19 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name, ts, r
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testManagedTableSinkWithEnableCheckpointing">
+  <TestCase name="testInsertWithTargetColumnsAndSqlHint">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
+LogicalSink(table=[default_catalog.default_database.appendSink], targetColumns=[[0],[1]], fields=[EXPR$0, c], hints=[[[OPTIONS options:{sink.parallelism=1}]]])
++- LogicalProject(EXPR$0=[+($0, $1)], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.appendSink], targetColumns=[[0],[1]], fields=[EXPR$0, c], hints=[[[OPTIONS options:{sink.parallelism=1}]]], changelogMode=[NONE])
++- Calc(select=[+(a, b) AS EXPR$0, c], changelogMode=[I])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -499,7 +534,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.MetadataTable], fields=[a, b, c, metadata_1, metadata_2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], metadata_1=[$3], metadata_2=[CAST(CAST($4):INTEGER):BIGINT])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -515,7 +550,7 @@ Sink(table=[default_catalog.default_database.MetadataTable], fields=[a, b, c, me
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.MetadataTable], fields=[metadata_1, metadata_2, other, metadata_23])
 +- LogicalProject(metadata_1=[$0], metadata_2=[$1], other=[$2], metadata_23=[$4])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -705,9 +740,10 @@ SELECT person, sum_votes FROM
 LogicalSink(table=[default_catalog.default_database.SinkRankChangeLog], fields=[person, sum_votes])
 +- LogicalProject(person=[$0], sum_votes=[$1])
    +- LogicalFilter(condition=[<($2, 10)])
-      +- LogicalProject(person=[$0], sum_votes=[$1], rank_number=[ROW_NUMBER() OVER (PARTITION BY /($1, 2) ORDER BY $1 DESC NULLS LAST)])
-         +- LogicalAggregate(group=[{0}], sum_votes=[SUM($1)])
-            +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+      +- LogicalProject(person=[$0], sum_votes=[$1], rank_number=[ROW_NUMBER() OVER (PARTITION BY $2 ORDER BY $1 DESC NULLS LAST)])
+         +- LogicalProject(person=[$0], sum_votes=[$1], vote_section=[/($1, 2)])
+            +- LogicalAggregate(group=[{0}], sum_votes=[SUM($1)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

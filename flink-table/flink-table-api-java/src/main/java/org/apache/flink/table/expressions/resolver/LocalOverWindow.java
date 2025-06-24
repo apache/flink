@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.expressions.resolver;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.expressions.Expression;
 
 import javax.annotation.Nullable;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Optional;
 
 /** Local over window created during expression resolution. */
+@Internal
 public final class LocalOverWindow {
 
     private Expression alias;
@@ -34,7 +36,7 @@ public final class LocalOverWindow {
 
     private Expression orderBy;
 
-    private Expression preceding;
+    private @Nullable Expression preceding;
 
     private @Nullable Expression following;
 
@@ -42,7 +44,7 @@ public final class LocalOverWindow {
             Expression alias,
             List<Expression> partitionBy,
             Expression orderBy,
-            Expression preceding,
+            @Nullable Expression preceding,
             @Nullable Expression following) {
         this.alias = alias;
         this.partitionBy = partitionBy;
@@ -63,8 +65,8 @@ public final class LocalOverWindow {
         return orderBy;
     }
 
-    public Expression getPreceding() {
-        return preceding;
+    public Optional<Expression> getPreceding() {
+        return Optional.ofNullable(preceding);
     }
 
     public Optional<Expression> getFollowing() {

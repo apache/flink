@@ -40,6 +40,7 @@ java -cp "$TARGET_DIR/TpchTestProgram.jar:$TARGET_DIR/lib/*" org.apache.flink.ta
 echo "Preparing Flink..."
 
 set_config_key "taskmanager.memory.managed.fraction" "0.55f"
+set_config_key "execution.batch.adaptive.auto-parallelism.enabled" "false"
 start_cluster
 
 ################################################################################
@@ -52,8 +53,10 @@ MODIFIED_QUERY_DIR="$TPCH_DATA_DIR/modified-query"
 EXPECTED_DIR="$TARGET_DIR/expected"
 RESULT_DIR="$TEST_DATA_DIR/result"
 INIT_SQL="$TEST_DATA_DIR/init_table.sql"
+TEMP_DIR_FOR_SUBMITTING="$TARGET_DIR/submitting"
 
 mkdir "$RESULT_DIR"
+mkdir -p "$TEMP_DIR_FOR_SUBMITTING"
 
 SOURCES_SQL=$(cat "$TPCH_DATA_DIR/source.sql")
 SOURCES_SQL=${SOURCES_SQL//\$TABLE_DIR/"$TABLE_DIR"}
@@ -65,7 +68,13 @@ do
     SINK_SQL=$(cat "$TPCH_DATA_DIR/sink/q${i}.sql")
     SINK_SQL=${SINK_SQL//\$RESULT_DIR/"$RESULT_DIR"}
 
-    cat > "$INIT_SQL" << EOF
+    # the file submitted to SQL Client
+    TEMP_FILE_FOR_SUBMITTING="$TEMP_DIR_FOR_SUBMITTING/q$i.sql"
+    # clear first
+    rm -f $TEMP_FILE_FOR_SUBMITTING
+
+#    cat > "$INIT_SQL" << EOF
+    cat > "$TEMP_FILE_FOR_SUBMITTING" << EOF
 ${SOURCES_SQL}
 ${SINK_SQL}
 SET execution.runtime-mode=batch;
@@ -79,9 +88,12 @@ EOF
         SQL_STATEMENT="INSERT INTO q$i $(cat "$ORIGIN_QUERY_DIR/q$i.sql")"
     fi
 
+    echo "$SQL_STATEMENT" >> "$TEMP_FILE_FOR_SUBMITTING"
+
     JOB_ID=$("$FLINK_DIR/bin/sql-client.sh" \
-        -i "$INIT_SQL" \
-        --update "$SQL_STATEMENT" | grep "Job ID:" | sed 's/.* //g')
+        -f "$TEMP_FILE_FOR_SUBMITTING" | grep "Job ID:" | sed 's/.* //g')
+
+    echo "Job ID: $JOB_ID"
 
     wait_job_terminal_state "$JOB_ID" "FINISHED"
 

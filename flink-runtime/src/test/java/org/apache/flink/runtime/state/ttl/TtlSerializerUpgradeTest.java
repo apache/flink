@@ -20,45 +20,33 @@ package org.apache.flink.runtime.state.ttl;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory.TtlSerializer;
 
-import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.assertj.core.api.Condition;
 
 import java.util.ArrayList;
 import java.util.Collection;
-
-import static org.apache.flink.runtime.state.ttl.TtlValueMatchers.ttlValue;
-import static org.hamcrest.Matchers.is;
+import java.util.Objects;
 
 /** State migration test for {@link TtlSerializer}. */
-@RunWith(Parameterized.class)
-public class TtlSerializerUpgradeTest
+class TtlSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<TtlValue<String>, TtlValue<String>> {
 
-    public TtlSerializerUpgradeTest(
-            TestSpecification<TtlValue<String>, TtlValue<String>> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "ttl-serializer",
-                            flinkVersion,
-                            TtlSerializerSetup.class,
-                            TtlSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "ttl-serializer",
+                        flinkVersion,
+                        TtlSerializerSetup.class,
+                        TtlSerializerVerifier.class));
 
         return testSpecifications;
     }
@@ -90,14 +78,18 @@ public class TtlSerializerUpgradeTest
         }
 
         @Override
-        public Matcher<TtlValue<String>> testDataMatcher() {
-            return ttlValue(is("hello Gordon"), is(13L));
+        public Condition<TtlValue<String>> testDataCondition() {
+            return new Condition<>(
+                    ttlValue ->
+                            Objects.equals(ttlValue.getUserValue(), "hello Gordon")
+                                    && ttlValue.getLastAccessTimestamp() == 13L,
+                    "ttlValue");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<TtlValue<String>>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<TtlValue<String>>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 }

@@ -66,6 +66,15 @@ public final class ProjectPushDownSpec extends SourceAbilitySpecBase {
     }
 
     @Override
+    public boolean needAdjustFieldReferenceAfterProjection() {
+        return false;
+    }
+
+    public int[][] getProjectedFields() {
+        return projectedFields;
+    }
+
+    @Override
     public String getDigests(SourceAbilityContext context) {
         final List<String> fieldNames =
                 this.getProducedType()

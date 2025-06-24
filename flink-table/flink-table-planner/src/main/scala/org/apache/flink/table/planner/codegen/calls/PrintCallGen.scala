@@ -31,7 +31,7 @@ class PrintCallGen extends CallGenerator {
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
       returnType: LogicalType): GeneratedExpression = {
-    val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
+    val Seq(resultTerm, nullTerm) = newNames(ctx, "result", "isNull")
     val resultTypeTerm = primitiveTypeTermForType(returnType)
 
     // add logger, prefer name without number suffix to make sure only one definition

@@ -29,24 +29,23 @@ import org.apache.flink.testutils.oss.OSSTestCredentials;
 
 import com.aliyun.oss.model.PartETag;
 import org.apache.hadoop.fs.aliyun.oss.AliyunOSSFileSystem;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertFalse;
-import static junit.framework.TestCase.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link OSSRecoverableMultipartUpload}. */
-public class OSSRecoverableMultipartUploadTest {
+class OSSRecoverableMultipartUploadTest {
 
     private static Path basePath;
 
@@ -66,10 +65,10 @@ public class OSSRecoverableMultipartUploadTest {
 
     private OSSRecoverableMultipartUpload uploader;
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir File temporaryFolder;
 
-    @Before
-    public void before() throws IOException {
+    @BeforeEach
+    void before() throws IOException {
         OSSTestCredentials.assumeCredentialsAvailable();
 
         final Configuration conf = new Configuration();
@@ -103,7 +102,7 @@ public class OSSRecoverableMultipartUploadTest {
     }
 
     @Test
-    public void testUploadSinglePart() throws IOException {
+    void testUploadSinglePart() throws IOException {
         final byte[] part = OSSTestUtils.bytesOf("hello world", 1024 * 1024);
 
         OSSTestUtils.uploadPart(uploader, temporaryFolder, part);
@@ -117,7 +116,7 @@ public class OSSRecoverableMultipartUploadTest {
     }
 
     @Test
-    public void testUploadIncompletePart() throws IOException {
+    void testUploadIncompletePart() throws IOException {
         final byte[] part = OSSTestUtils.bytesOf("hello world", 1024 * 1024);
 
         RefCountedBufferingFileStream partFile = OSSTestUtils.writeData(temporaryFolder, part);
@@ -131,7 +130,7 @@ public class OSSRecoverableMultipartUploadTest {
     }
 
     @Test
-    public void testMultipartAndIncompletePart() throws IOException {
+    void testMultipartAndIncompletePart() throws IOException {
         final byte[] firstCompletePart = OSSTestUtils.bytesOf("hello world", 1024 * 1024);
         final byte[] secondCompletePart = OSSTestUtils.bytesOf("hello again", 1024 * 1024);
         final byte[] thirdIncompletePart = OSSTestUtils.bytesOf("!!!", 1024);
@@ -146,12 +145,12 @@ public class OSSRecoverableMultipartUploadTest {
 
         OSSRecoverable ossRecoverable = uploader.getRecoverable(partFile);
 
-        assertEquals(ossRecoverable.getPartETags().size(), 2);
-        assertNotNull(ossRecoverable.getLastPartObject());
-        assertEquals(ossRecoverable.getLastPartObjectLength(), 1026);
-        assertEquals(ossRecoverable.getNumBytesInParts(), 2 * 1024 * 1024 + 20);
-        assertEquals(ossRecoverable.getUploadId(), uploadId);
-        assertEquals(ossRecoverable.getObjectName(), ossAccessor.pathToObject(objectPath));
+        assertThat(ossRecoverable.getPartETags()).hasSize(2);
+        assertThat(ossRecoverable.getLastPartObject()).isNotNull();
+        assertThat(ossRecoverable.getLastPartObjectLength()).isEqualTo(1026);
+        assertThat(ossRecoverable.getNumBytesInParts()).isEqualTo(2 * 1024 * 1024 + 20);
+        assertThat(ossRecoverable.getUploadId()).isEqualTo(uploadId);
+        assertThat(ossRecoverable.getObjectName()).isEqualTo(ossAccessor.pathToObject(objectPath));
 
         ossAccessor.completeMultipartUpload(
                 ossAccessor.pathToObject(objectPath), uploadId, completeParts);
@@ -165,7 +164,7 @@ public class OSSRecoverableMultipartUploadTest {
     }
 
     @Test
-    public void testRecoverableReflectsTheLatestPartialObject() throws IOException {
+    void testRecoverableReflectsTheLatestPartialObject() throws IOException {
         final byte[] incompletePartOne = OSSTestUtils.bytesOf("AB", 1024);
         final byte[] incompletePartTwo = OSSTestUtils.bytesOf("ABC", 1024);
 
@@ -179,21 +178,23 @@ public class OSSRecoverableMultipartUploadTest {
         partFile.close();
         OSSRecoverable recoverableTwo = uploader.getRecoverable(partFile);
 
-        assertFalse(recoverableOne.getLastPartObject().equals(recoverableTwo.getLastPartObject()));
+        assertThat(recoverableOne.getLastPartObject())
+                .isNotEqualTo(recoverableTwo.getLastPartObject());
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testUploadingNonClosedFileAsCompleteShouldThroughException() throws IOException {
+    @Test
+    void testUploadingNonClosedFileAsCompleteShouldThroughException() throws IOException {
         final byte[] incompletePart = OSSTestUtils.bytesOf("!!!", 1024);
 
         RefCountedBufferingFileStream partFile =
                 OSSTestUtils.writeData(temporaryFolder, incompletePart);
 
-        uploader.uploadPart(partFile);
+        assertThatThrownBy(() -> uploader.uploadPart(partFile))
+                .isInstanceOf(IllegalStateException.class);
     }
 
-    @After
-    public void after() throws IOException {
+    @AfterEach
+    void after() throws IOException {
         try {
             if (fs != null) {
                 fs.delete(basePath, true);

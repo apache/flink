@@ -25,9 +25,7 @@ import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
-import org.junit._
-
-import scala.collection.Seq
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class UnionITCase extends BatchTestBase {
 
@@ -40,7 +38,7 @@ class UnionITCase extends BatchTestBase {
     binaryRow(type6.toRowFieldTypes, 4, 3L, fromString("Hello world, how are you?"))
   )
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("Table3", smallData3, type3, "a, b, c", nullablesOfSmallData3)

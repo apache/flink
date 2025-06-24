@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 /** Utility functions used in tests. */
-public final class SavepointTestUtilities {
+final class SavepointTestUtilities {
 
     /**
      * Returns a function which, when called, sets the provided reference to the {@link

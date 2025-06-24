@@ -26,10 +26,10 @@ import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.InputStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -63,10 +63,10 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     public static final MetadataV3Serializer INSTANCE = new MetadataV3Serializer();
 
     private final ChannelStateHandleSerializer channelStateHandleSerializer =
-            new ChannelStateHandleSerializer();
+            new ChannelStateHandleSerializerV1();
 
     /** Singleton, not meant to be instantiated. */
-    private MetadataV3Serializer() {}
+    protected MetadataV3Serializer() {}
 
     @Override
     public int getVersion() {
@@ -77,9 +77,10 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     //  (De)serialization entry points
     // ------------------------------------------------------------------------
 
-    public static void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
+    @Override
+    public void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
             throws IOException {
-        INSTANCE.serializeMetadata(checkpointMetadata, dos);
+        serializeMetadata(checkpointMetadata, dos);
     }
 
     @Override
@@ -140,11 +141,9 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
             throws IOException {
         super.serializeSubtaskState(subtaskState, dos);
         serializeCollection(
-                subtaskState.getInputChannelState(), dos, this::serializeInputChannelStateHandle);
+                subtaskState.getInputChannelState(), dos, this::serializeInputStateHandle);
         serializeCollection(
-                subtaskState.getResultSubpartitionState(),
-                dos,
-                this::serializeResultSubpartitionStateHandle);
+                subtaskState.getResultSubpartitionState(), dos, this::serializeOutputStateHandle);
     }
 
     @Override
@@ -162,11 +161,12 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
             checkState(
                     coordinateState == null,
                     "Coordinator State should be null for fully finished operator state");
-            return new FullyFinishedOperatorState(jobVertexId, parallelism, maxParallelism);
+            return new FullyFinishedOperatorState(
+                    null, null, jobVertexId, parallelism, maxParallelism);
         }
 
         final OperatorState operatorState =
-                new OperatorState(jobVertexId, parallelism, maxParallelism);
+                new OperatorState(null, null, jobVertexId, parallelism, maxParallelism);
 
         // Coordinator state
         operatorState.setCoordinatorState(coordinateState);
@@ -188,7 +188,7 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
         return operatorState;
     }
 
-    private SubtaskAndFinishedState deserializeSubtaskIndexAndFinishedState(DataInputStream dis)
+    protected SubtaskAndFinishedState deserializeSubtaskIndexAndFinishedState(DataInputStream dis)
             throws IOException {
         int storedSubtaskIndex = dis.readInt();
         if (storedSubtaskIndex < 0) {
@@ -198,38 +198,36 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
         }
     }
 
-    @VisibleForTesting
-    @Override
-    public void serializeResultSubpartitionStateHandle(
-            ResultSubpartitionStateHandle handle, DataOutputStream dos) throws IOException {
-        channelStateHandleSerializer.serialize(handle, dos);
+    protected ChannelStateHandleSerializer getChannelStateHandleSerializer() {
+        return channelStateHandleSerializer;
     }
 
     @VisibleForTesting
     @Override
-    public StateObjectCollection<ResultSubpartitionStateHandle>
-            deserializeResultSubpartitionStateHandle(
-                    DataInputStream dis, @Nullable DeserializationContext context)
-                    throws IOException {
-        return deserializeCollection(
-                dis,
-                context,
-                channelStateHandleSerializer::deserializeResultSubpartitionStateHandle);
+    public void serializeOutputStateHandle(OutputStateHandle handle, DataOutputStream dos)
+            throws IOException {
+        getChannelStateHandleSerializer().serialize(handle, dos);
     }
 
-    @VisibleForTesting
     @Override
-    public void serializeInputChannelStateHandle(
-            InputChannelStateHandle handle, DataOutputStream dos) throws IOException {
-        channelStateHandleSerializer.serialize(handle, dos);
-    }
-
-    @VisibleForTesting
-    @Override
-    public StateObjectCollection<InputChannelStateHandle> deserializeInputChannelStateHandle(
+    public StateObjectCollection<OutputStateHandle> deserializeOutputStateHandle(
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
         return deserializeCollection(
-                dis, context, channelStateHandleSerializer::deserializeInputChannelStateHandle);
+                dis, context, getChannelStateHandleSerializer()::deserializeOutputStateHandle);
+    }
+
+    @VisibleForTesting
+    @Override
+    public void serializeInputStateHandle(InputStateHandle handle, DataOutputStream dos)
+            throws IOException {
+        getChannelStateHandleSerializer().serialize(handle, dos);
+    }
+
+    @Override
+    public StateObjectCollection<InputStateHandle> deserializeInputStateHandle(
+            DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
+        return deserializeCollection(
+                dis, context, getChannelStateHandleSerializer()::deserializeInputStateHandle);
     }
 
     private <T extends StateObject> void serializeCollection(
@@ -270,42 +268,42 @@ public class MetadataV3Serializer extends MetadataV2V3SerializerBase implements 
     }
 
     @VisibleForTesting
-    public static void serializeOperatorStateHandleUtil(
+    public void serializeOperatorStateHandleUtil(
             OperatorStateHandle stateHandle, DataOutputStream dos) throws IOException {
-        INSTANCE.serializeOperatorStateHandle(stateHandle, dos);
+        serializeOperatorStateHandle(stateHandle, dos);
     }
 
     @VisibleForTesting
-    public static OperatorStateHandle deserializeOperatorStateHandleUtil(DataInputStream dis)
+    public OperatorStateHandle deserializeOperatorStateHandleUtil(DataInputStream dis)
             throws IOException {
-        return INSTANCE.deserializeOperatorStateHandle(dis, null);
+        return deserializeOperatorStateHandle(dis, null);
     }
 
     @VisibleForTesting
-    public static void serializeKeyedStateHandleUtil(
-            KeyedStateHandle stateHandle, DataOutputStream dos) throws IOException {
-        INSTANCE.serializeKeyedStateHandle(stateHandle, dos);
-    }
-
-    @VisibleForTesting
-    public static KeyedStateHandle deserializeKeyedStateHandleUtil(DataInputStream dis)
+    public void serializeKeyedStateHandleUtil(KeyedStateHandle stateHandle, DataOutputStream dos)
             throws IOException {
-        return INSTANCE.deserializeKeyedStateHandle(dis, null);
+        serializeKeyedStateHandle(stateHandle, dos);
     }
 
     @VisibleForTesting
-    public static StateObjectCollection<InputChannelStateHandle> deserializeInputChannelStateHandle(
+    public KeyedStateHandle deserializeKeyedStateHandleUtil(DataInputStream dis)
+            throws IOException {
+        return deserializeKeyedStateHandle(dis, null);
+    }
+
+    @VisibleForTesting
+    public StateObjectCollection<InputStateHandle> deserializeInputStateHandle(DataInputStream dis)
+            throws IOException {
+        return deserializeInputStateHandle(dis, null);
+    }
+
+    @VisibleForTesting
+    public StateObjectCollection<OutputStateHandle> deserializeOutputStateHandle(
             DataInputStream dis) throws IOException {
-        return INSTANCE.deserializeInputChannelStateHandle(dis, null);
+        return deserializeOutputStateHandle(dis, null);
     }
 
-    @VisibleForTesting
-    public StateObjectCollection<ResultSubpartitionStateHandle>
-            deserializeResultSubpartitionStateHandle(DataInputStream dis) throws IOException {
-        return INSTANCE.deserializeResultSubpartitionStateHandle(dis, null);
-    }
-
-    private static class SubtaskAndFinishedState {
+    static class SubtaskAndFinishedState {
 
         final int subtaskIndex;
 

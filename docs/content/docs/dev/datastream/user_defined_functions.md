@@ -30,9 +30,6 @@ Most operations require a user-defined function. This section lists different
 ways of how they can be specified. We also cover `Accumulators`, which can be
 used to gain insights into your Flink application.
 
-{{< tabs "ff746fe9-c77d-443f-b7ec-41716f968349" >}}
-{{< tab "Java" >}}
-
 ## Implementing an interface
 
 The most basic way is to implement one of the provided interfaces:
@@ -97,69 +94,6 @@ data.map (new RichMapFunction<String, Integer>() {
 });
 ```
 
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-## Lambda Functions
-
-As already seen in previous examples all operations accept lambda functions for describing
-the operation:
-```scala
-val data: DataSet[String] = // [...]
-data.filter { _.startsWith("http://") }
-```
-
-```scala
-val data: DataSet[Int] = // [...]
-data.reduce { (i1,i2) => i1 + i2 }
-// or
-data.reduce { _ + _ }
-```
-
-## Rich functions
-
-All transformations that take as argument a lambda function can
-instead take as argument a *rich* function. For example, instead of
-
-```scala
-data.map { x => x.toInt }
-```
-
-you can write
-
-```scala
-class MyMapFunction extends RichMapFunction[String, Int] {
-  def map(in: String): Int = in.toInt
-}
-```
-
-and pass the function to a `map` transformation:
-
-```scala
-data.map(new MyMapFunction())
-```
-
-Rich functions can also be defined as an anonymous class:
-```scala
-data.map (new RichMapFunction[String, Int] {
-  def map(in: String): Int = in.toInt
-})
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-Rich functions provide, in addition to the user-defined function (map,
-reduce, etc), four methods: `open`, `close`, `getRuntimeContext`, and
-`setRuntimeContext`. These are useful for parameterizing the function
-(see [Passing Parameters to Functions]({{< ref "docs/dev/dataset/overview" >}}#passing-parameters-to-functions)),
-creating and finalizing local state, accessing broadcast variables (see
-[Broadcast Variables]({{< ref "docs/dev/dataset/overview" >}}#broadcast-variables)), and for accessing runtime
-information such as accumulators and counters (see
-[Accumulators and Counters](#accumulators--counters)), and information
-on iterations (see [Iterations]({{< ref "docs/dev/dataset/iterations" >}})).
-
-{{< top >}}
-
 ## Accumulators & Counters
 
 Accumulators are simple constructs with an **add operation** and a **final accumulated result**,
@@ -218,12 +152,6 @@ myJobExecutionResult.getAccumulatorResult("num-lines");
 All accumulators share a single namespace per job. Thus you can use the same accumulator in
 different operator functions of your job. Flink will internally merge all accumulators with the same
 name.
-
-A note on accumulators and iterations: Currently the result of accumulators is only available after
-the overall job has ended. We plan to also make the result of the previous iteration available in the
-next iteration. You can use
-{{< gh_link file="/flink-java/src/main/java/org/apache/flink/api/java/operators/IterativeDataSet.java#L98" name="Aggregators" >}}
-to compute per-iteration statistics and base the termination of iterations on such statistics.
 
 __Custom accumulators:__
 

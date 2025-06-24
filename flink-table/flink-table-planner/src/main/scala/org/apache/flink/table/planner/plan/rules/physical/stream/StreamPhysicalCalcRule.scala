@@ -20,26 +20,25 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCalc
+import org.apache.flink.table.planner.plan.utils.AsyncScalarUtil
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 
+import AsyncScalarUtil.containsAsyncCall
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 
 import scala.collection.JavaConverters._
 
 /** Rule that converts [[FlinkLogicalCalc]] to [[StreamPhysicalCalc]]. */
-class StreamPhysicalCalcRule
-  extends ConverterRule(
-    classOf[FlinkLogicalCalc],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalCalcRule") {
+class StreamPhysicalCalcRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0)
     val program = calc.getProgram
-    !program.getExprList.asScala.exists(containsPythonCall(_))
+    !program.getExprList.asScala.exists(containsPythonCall(_)) &&
+    !program.getExprList.asScala.exists(containsAsyncCall)
   }
 
   def convert(rel: RelNode): RelNode = {
@@ -52,5 +51,10 @@ class StreamPhysicalCalcRule
 }
 
 object StreamPhysicalCalcRule {
-  val INSTANCE: RelOptRule = new StreamPhysicalCalcRule
+  val INSTANCE: RelOptRule = new StreamPhysicalCalcRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalCalc],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalCalcRule"))
 }

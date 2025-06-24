@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.highavailability;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -26,6 +27,7 @@ import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
 /** The set of configuration options relating to the Job Result Store. */
+@PublicEvolving
 public class JobResultStoreOptions {
     @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY_JOB_RESULT_STORE)
     public static final ConfigOption<String> STORAGE_PATH =

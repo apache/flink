@@ -20,43 +20,31 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 
-import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.assertj.core.api.Condition;
 
 import java.util.ArrayList;
 import java.util.Collection;
 
-import static org.hamcrest.Matchers.is;
-
 /** A {@link TypeSerializerUpgradeTestBase} for {@link VoidNamespaceSerializer}. */
-@RunWith(Parameterized.class)
-public class VoidNamespaceSerializerUpgradeTest
+class VoidNamespaceSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<VoidNamespace, VoidNamespace> {
 
     private static final String SPEC_NAME = "void-namespace-serializer";
 
-    public VoidNamespaceSerializerUpgradeTest(
-            TestSpecification<VoidNamespace, VoidNamespace> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            SPEC_NAME,
-                            flinkVersion,
-                            VoidNamespaceSerializerSetup.class,
-                            VoidNamespaceSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        SPEC_NAME,
+                        flinkVersion,
+                        VoidNamespaceSerializerSetup.class,
+                        VoidNamespaceSerializerVerifier.class));
         return testSpecifications;
     }
 
@@ -93,14 +81,14 @@ public class VoidNamespaceSerializerUpgradeTest
         }
 
         @Override
-        public Matcher<VoidNamespace> testDataMatcher() {
-            return is(VoidNamespace.INSTANCE);
+        public Condition<VoidNamespace> testDataCondition() {
+            return new Condition<>(VoidNamespace.INSTANCE::equals, "is VoidNamespace.INSTANCE");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<VoidNamespace>> schemaCompatibilityMatcher(
-                FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<VoidNamespace>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 }

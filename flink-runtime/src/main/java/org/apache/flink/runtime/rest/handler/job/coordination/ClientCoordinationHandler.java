@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job.coordination;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -28,7 +26,7 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.OperatorIDPathParameter;
+import org.apache.flink.runtime.rest.messages.OperatorUidPathParameter;
 import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationRequestBody;
 import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationResponseBody;
@@ -41,6 +39,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -58,7 +57,7 @@ public class ClientCoordinationHandler
 
     public ClientCoordinationHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<
                             ClientCoordinationRequestBody,
@@ -74,12 +73,12 @@ public class ClientCoordinationHandler
             @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-        OperatorID operatorId = request.getPathParameter(OperatorIDPathParameter.class);
+        String operatorUid = request.getPathParameter(OperatorUidPathParameter.class);
         SerializedValue<CoordinationRequest> serializedRequest =
                 request.getRequestBody().getSerializedCoordinationRequest();
         CompletableFuture<CoordinationResponse> responseFuture =
                 gateway.deliverCoordinationRequestToCoordinator(
-                        jobId, operatorId, serializedRequest, timeout);
+                        jobId, operatorUid, serializedRequest, timeout);
         return responseFuture.thenApply(
                 coordinationResponse -> {
                     try {

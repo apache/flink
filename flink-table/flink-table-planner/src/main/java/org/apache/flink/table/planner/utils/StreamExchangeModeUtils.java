@@ -23,11 +23,7 @@ import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
-import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
-
-import java.util.Optional;
 
 /** Utility class to load job-wide exchange mode. */
 @Internal
@@ -43,41 +39,16 @@ public class StreamExchangeModeUtils {
             return StreamExchangeMode.BATCH;
         }
 
-        final GlobalStreamExchangeMode globalExchangeMode =
-                getGlobalStreamExchangeMode(config).orElse(null);
-        if (globalExchangeMode == GlobalStreamExchangeMode.ALL_EDGES_BLOCKING) {
-            return StreamExchangeMode.BATCH;
-        }
-
         final BatchShuffleMode shuffleMode = config.get(ExecutionOptions.BATCH_SHUFFLE_MODE);
         if (shuffleMode == BatchShuffleMode.ALL_EXCHANGES_BLOCKING) {
             return StreamExchangeMode.BATCH;
+        } else if (shuffleMode == BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL) {
+            return StreamExchangeMode.HYBRID_FULL;
+        } else if (shuffleMode == BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE) {
+            return StreamExchangeMode.HYBRID_SELECTIVE;
         }
 
         return StreamExchangeMode.UNDEFINED;
-    }
-
-    /**
-     * The {@link GlobalStreamExchangeMode} should be determined by the {@link StreamGraphGenerator}
-     * in the future.
-     */
-    @Deprecated
-    static Optional<GlobalStreamExchangeMode> getGlobalStreamExchangeMode(ReadableConfig config) {
-        return config.getOptional(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE)
-                .map(
-                        value -> {
-                            try {
-                                return GlobalStreamExchangeMode.valueOf(
-                                        convertLegacyShuffleMode(value).toUpperCase());
-                            } catch (IllegalArgumentException e) {
-                                throw new IllegalArgumentException(
-                                        String.format(
-                                                "Unsupported value %s for config %s.",
-                                                value,
-                                                ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE
-                                                        .key()));
-                            }
-                        });
     }
 
     private static String convertLegacyShuffleMode(final String shuffleMode) {

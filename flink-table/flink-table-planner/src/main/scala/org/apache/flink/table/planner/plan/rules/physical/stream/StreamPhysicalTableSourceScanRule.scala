@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.connector.source.ScanTableSource
-import org.apache.flink.table.planner.connectors.DynamicSourceUtils.{isSourceChangeEventsDuplicate, isUpsertSource}
+import org.apache.flink.table.planner.connectors.DynamicSourceUtils.changelogNormalizeEnabled
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rel.core.TableScan
 
 /**
@@ -38,12 +39,7 @@ import org.apache.calcite.rel.core.TableScan
  * <p>Depends whether this is a scan source, this rule will also generate
  * [[StreamPhysicalChangelogNormalize]] to materialize the upsert stream.
  */
-class StreamPhysicalTableSourceScanRule
-  extends ConverterRule(
-    classOf[FlinkLogicalTableSourceScan],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalTableSourceScanRule") {
+class StreamPhysicalTableSourceScanRule(config: Config) extends ConverterRule(config) {
 
   /** Rule must only match if TableScan targets a [[ScanTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -65,12 +61,20 @@ class StreamPhysicalTableSourceScanRule
     val tableConfig = ShortcutUtils.unwrapContext(rel.getCluster).getTableConfig
     val table = scan.getTable.asInstanceOf[TableSourceTable]
 
-    val newScan = new StreamPhysicalTableSourceScan(rel.getCluster, traitSet, scan.getHints, table)
+    val newScan = new StreamPhysicalTableSourceScan(
+      rel.getCluster,
+      traitSet,
+      scan.getHints,
+      table,
+      scan.eventTimeSnapshotRequired)
     val resolvedSchema = table.contextResolvedTable.getResolvedSchema
 
     if (
-      isUpsertSource(resolvedSchema, table.tableSource) ||
-      isSourceChangeEventsDuplicate(resolvedSchema, table.tableSource, tableConfig)
+      changelogNormalizeEnabled(
+        scan.eventTimeSnapshotRequired,
+        resolvedSchema,
+        table.tableSource,
+        tableConfig)
     ) {
       // generate changelog normalize node
       // primary key has been validated in CatalogSourceTable
@@ -89,8 +93,7 @@ class StreamPhysicalTableSourceScanRule
         scan.getCluster,
         traitSet,
         newInput,
-        primaryKeyIndices,
-        table.contextResolvedTable
+        primaryKeyIndices
       )
     } else {
       newScan
@@ -99,5 +102,10 @@ class StreamPhysicalTableSourceScanRule
 }
 
 object StreamPhysicalTableSourceScanRule {
-  val INSTANCE = new StreamPhysicalTableSourceScanRule
+  val INSTANCE = new StreamPhysicalTableSourceScanRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalTableSourceScan],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalTableSourceScanRule"))
 }

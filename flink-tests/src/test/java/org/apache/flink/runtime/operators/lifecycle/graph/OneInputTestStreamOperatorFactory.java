@@ -48,12 +48,8 @@ public class OneInputTestStreamOperatorFactory
     public <T extends StreamOperator<TestDataElement>> T createStreamOperator(
             StreamOperatorParameters<TestDataElement> parameters) {
         OneInputTestStreamOperator operator =
-                new OneInputTestStreamOperator(operatorID, eventQueue, commandDispatcher);
-        operator.setup(
-                parameters.getContainingTask(),
-                parameters.getStreamConfig(),
-                parameters.getOutput());
-        operator.setProcessingTimeService(processingTimeService);
+                new OneInputTestStreamOperator(
+                        parameters, operatorID, eventQueue, commandDispatcher);
         return (T) operator;
     }
 

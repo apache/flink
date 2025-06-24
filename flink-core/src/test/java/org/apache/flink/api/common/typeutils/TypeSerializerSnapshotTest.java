@@ -18,138 +18,97 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
-
-/** Tests the backwards compatibility of the TypeSerializerConfigSnapshot. */
-@SuppressWarnings({"serial", "deprecation"})
-public class TypeSerializerSnapshotTest {
+/** Test for {@link TypeSerializerSnapshot} */
+class TypeSerializerSnapshotTest {
 
     @Test
-    public void testSerializeConfigWhenSerializerMissing() throws Exception {
-        TestSerializer ser = new TestSerializer();
-        TypeSerializerConfigSnapshot<Object> snap =
-                (TypeSerializerConfigSnapshot<Object>) ser.snapshotConfiguration();
+    void testNestedSchemaCompatibility() {
+        TypeSerializerSnapshot<Integer> innerSnapshot =
+                new NotCompletedTypeSerializerSnapshot() {
+                    @Override
+                    public TypeSerializerSchemaCompatibility<Integer> resolveSchemaCompatibility(
+                            TypeSerializerSnapshot<Integer> oldSerializerSnapshot) {
+                        return TypeSerializerSchemaCompatibility.compatibleAsIs();
+                    }
+                };
 
-        try {
-            TypeSerializerSnapshot.writeVersionedSnapshot(new DataOutputSerializer(64), snap);
-            fail("exception expected");
-        } catch (IllegalStateException e) {
-            // expected
-        }
+        TypeSerializerSnapshot<Integer> outerSnapshot =
+                new NotCompletedTypeSerializerSnapshot() {
+                    @Override
+                    public TypeSerializerSchemaCompatibility<Integer> resolveSchemaCompatibility(
+                            TypeSerializerSnapshot<Integer> newSerializer) {
+                        return innerSnapshot.resolveSchemaCompatibility(innerSnapshot);
+                    }
+                };
+
+        // The result of resolving schema compatibility should be determined by the new method of
+        // innerSnapshot
+        assertThat(outerSnapshot.resolveSchemaCompatibility(outerSnapshot).isCompatibleAsIs())
+                .isTrue();
     }
 
-    @Test
-    public void testSerializerDeserializationFailure() throws Exception {
-        TestSerializer ser = new TestSerializer();
-        TypeSerializerConfigSnapshot<Object> snap =
-                (TypeSerializerConfigSnapshot<Object>) ser.snapshotConfiguration();
-        snap.setPriorSerializer(ser);
-
-        DataOutputSerializer out = new DataOutputSerializer(64);
-
-        TypeSerializerSnapshot.writeVersionedSnapshot(out, snap);
-        TypeSerializerSnapshot<Object> readBack =
-                TypeSerializerSnapshot.readVersionedSnapshot(
-                        new DataInputDeserializer(out.getCopyOfBuffer()),
-                        getClass().getClassLoader());
-
-        assertNotNull(readBack);
-
-        try {
-            readBack.restoreSerializer();
-            fail("expected exception");
-        } catch (IllegalStateException e) {
-            // expected
-        }
-
-        ((TypeSerializerConfigSnapshot<Object>) readBack)
-                .setPriorSerializer(new UnloadableDummyTypeSerializer<>(new byte[0]));
-        try {
-            readBack.restoreSerializer();
-            fail("expected exception");
-        } catch (IllegalStateException e) {
-            // expected
-        }
-    }
-
-    // ------------------------------------------------------------------------
-
-    private static final class TestSerializer extends TypeSerializer<Object> {
-
-        private final boolean compatible;
-
-        TestSerializer() {
-            this(true);
-        }
-
-        TestSerializer(boolean compatible) {
-            this.compatible = compatible;
-        }
+    private static class NotCompletedTypeSerializer extends TypeSerializer<Integer> {
 
         @Override
         public boolean isImmutableType() {
-            throw new UnsupportedOperationException();
+            return true;
         }
 
         @Override
-        public TypeSerializer<Object> duplicate() {
-            throw new UnsupportedOperationException();
+        public TypeSerializer<Integer> duplicate() {
+            return this;
         }
 
         @Override
-        public Object createInstance() {
-            throw new UnsupportedOperationException();
+        public Integer createInstance() {
+            return 0;
         }
 
         @Override
-        public Object copy(Object from) {
-            throw new UnsupportedOperationException();
+        public Integer copy(Integer from) {
+            return from;
         }
 
         @Override
-        public Object copy(Object from, Object reuse) {
-            throw new UnsupportedOperationException();
+        public Integer copy(Integer from, Integer reuse) {
+            return from;
         }
 
         @Override
         public int getLength() {
-            throw new UnsupportedOperationException();
+            return 1;
         }
 
         @Override
-        public void serialize(Object record, DataOutputView target) throws IOException {
-            throw new UnsupportedOperationException();
+        public void serialize(Integer record, DataOutputView target) {
+            // do nothing
         }
 
         @Override
-        public Object deserialize(DataInputView source) throws IOException {
-            throw new UnsupportedOperationException();
+        public Integer deserialize(DataInputView source) {
+            return 0;
         }
 
         @Override
-        public Object deserialize(Object reuse, DataInputView source) throws IOException {
-            throw new UnsupportedOperationException();
+        public Integer deserialize(Integer reuse, DataInputView source) {
+            return reuse;
         }
 
         @Override
-        public void copy(DataInputView source, DataOutputView target) throws IOException {
-            throw new UnsupportedOperationException();
+        public void copy(DataInputView source, DataOutputView target) {
+            // do nothing
         }
 
         @Override
         public boolean equals(Object obj) {
-            return obj instanceof TestSerializer;
+            return false;
         }
 
         @Override
@@ -157,21 +116,50 @@ public class TypeSerializerSnapshotTest {
             return 0;
         }
 
-        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-            throw new IOException("cannot deserialize");
-        }
-
         @Override
-        public TypeSerializerSnapshot<Object> snapshotConfiguration() {
-            return new TestSerializerConfigSnapshot();
+        public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
+            return new NotCompletedTypeSerializerSnapshot() {
+                @Override
+                public TypeSerializer<Integer> restoreSerializer() {
+                    return NotCompletedTypeSerializer.this;
+                }
+            };
         }
     }
 
-    public static class TestSerializerConfigSnapshot extends TypeSerializerConfigSnapshot<Object> {
+    private static class NotCompletedTypeSerializerSnapshot
+            implements TypeSerializerSnapshot<Integer> {
 
         @Override
-        public int getVersion() {
+        public int getCurrentVersion() {
             return 0;
+        }
+
+        @Override
+        public void writeSnapshot(DataOutputView out) {
+            // do nothing
+        }
+
+        @Override
+        public void readSnapshot(
+                int readVersion, DataInputView in, ClassLoader userCodeClassLoader) {
+            // do nothing
+        }
+
+        @Override
+        public TypeSerializer<Integer> restoreSerializer() {
+            return new NotCompletedTypeSerializer() {
+                @Override
+                public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
+                    return NotCompletedTypeSerializerSnapshot.this;
+                }
+            };
+        }
+
+        @Override
+        public TypeSerializerSchemaCompatibility<Integer> resolveSchemaCompatibility(
+                TypeSerializerSnapshot<Integer> oldSerializerSnapshot) {
+            return TypeSerializerSchemaCompatibility.incompatible();
         }
     }
 }

@@ -18,72 +18,73 @@
 
 package org.apache.flink.runtime.metrics.dump;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_COUNTER;
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_GAUGE;
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_HISTOGRAM;
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_METER;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 /** Tests for the {@link MetricDump} classes. */
-public class MetricDumpTest {
+class MetricDumpTest {
     @Test
-    public void testDumpedCounter() {
+    void testDumpedCounter() {
         QueryScopeInfo info = new QueryScopeInfo.JobManagerQueryScopeInfo();
 
         MetricDump.CounterDump cd = new MetricDump.CounterDump(info, "counter", 4);
 
-        assertEquals("counter", cd.name);
-        assertEquals(4, cd.count);
-        assertEquals(info, cd.scopeInfo);
-        assertEquals(METRIC_CATEGORY_COUNTER, cd.getCategory());
+        assertThat(cd.name).isEqualTo("counter");
+        assertThat(cd.count).isEqualTo(4);
+        assertThat(cd.scopeInfo).isEqualTo(info);
+        assertThat(cd.getCategory()).isEqualTo(METRIC_CATEGORY_COUNTER);
     }
 
     @Test
-    public void testDumpedGauge() {
+    void testDumpedGauge() {
         QueryScopeInfo info = new QueryScopeInfo.JobManagerQueryScopeInfo();
 
         MetricDump.GaugeDump gd = new MetricDump.GaugeDump(info, "gauge", "hello");
 
-        assertEquals("gauge", gd.name);
-        assertEquals("hello", gd.value);
-        assertEquals(info, gd.scopeInfo);
-        assertEquals(METRIC_CATEGORY_GAUGE, gd.getCategory());
+        assertThat(gd.name).isEqualTo("gauge");
+        assertThat(gd.value).isEqualTo("hello");
+        assertThat(gd.scopeInfo).isEqualTo(info);
+        assertThat(gd.getCategory()).isEqualTo(METRIC_CATEGORY_GAUGE);
     }
 
     @Test
-    public void testDumpedHistogram() {
+    void testDumpedHistogram() {
         QueryScopeInfo info = new QueryScopeInfo.JobManagerQueryScopeInfo();
 
         MetricDump.HistogramDump hd =
                 new MetricDump.HistogramDump(info, "hist", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
 
-        assertEquals("hist", hd.name);
-        assertEquals(1, hd.min);
-        assertEquals(2, hd.max);
-        assertEquals(3, hd.mean, 0.1);
-        assertEquals(4, hd.median, 0.1);
-        assertEquals(5, hd.stddev, 0.1);
-        assertEquals(6, hd.p75, 0.1);
-        assertEquals(7, hd.p90, 0.1);
-        assertEquals(8, hd.p95, 0.1);
-        assertEquals(9, hd.p98, 0.1);
-        assertEquals(10, hd.p99, 0.1);
-        assertEquals(11, hd.p999, 0.1);
-        assertEquals(info, hd.scopeInfo);
-        assertEquals(METRIC_CATEGORY_HISTOGRAM, hd.getCategory());
+        assertThat(hd.name).isEqualTo("hist");
+        assertThat(hd.min).isOne();
+        assertThat(hd.max).isEqualTo(2);
+        assertThat(hd.mean).isCloseTo(3, within(0.1));
+        assertThat(hd.median).isCloseTo(4, within(0.1));
+        assertThat(hd.stddev).isCloseTo(5, within(0.1));
+        assertThat(hd.p75).isCloseTo(6, within(0.1));
+        assertThat(hd.p90).isCloseTo(7, within(0.1));
+        assertThat(hd.p95).isCloseTo(8, within(0.1));
+        assertThat(hd.p98).isCloseTo(9, within(0.1));
+        assertThat(hd.p99).isCloseTo(10, within(0.1));
+        assertThat(hd.p999).isCloseTo(11, within(0.1));
+        assertThat(hd.scopeInfo).isEqualTo(info);
+        assertThat(hd.getCategory()).isEqualTo(METRIC_CATEGORY_HISTOGRAM);
     }
 
     @Test
-    public void testDumpedMeter() {
+    void testDumpedMeter() {
         QueryScopeInfo info = new QueryScopeInfo.JobManagerQueryScopeInfo();
 
         MetricDump.MeterDump md = new MetricDump.MeterDump(info, "meter", 5.0);
 
-        assertEquals("meter", md.name);
-        assertEquals(5.0, md.rate, 0.1);
-        assertEquals(info, md.scopeInfo);
-        assertEquals(METRIC_CATEGORY_METER, md.getCategory());
+        assertThat(md.name).isEqualTo("meter");
+        assertThat(md.rate).isCloseTo(5.0, within(0.1));
+        assertThat(md.scopeInfo).isEqualTo(info);
+        assertThat(md.getCategory()).isEqualTo(METRIC_CATEGORY_METER);
     }
 }

@@ -20,9 +20,6 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
-import org.apache.flink.api.common.typeutils.base.MapSerializer;
-import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
@@ -31,6 +28,8 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -41,14 +40,13 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
@@ -129,7 +127,8 @@ public final class InstantiationUtil {
 
         // ------------------------------------------------
 
-        private static final HashMap<String, Class<?>> primitiveClasses = new HashMap<>(9);
+        private static final HashMap<String, Class<?>> primitiveClasses =
+                CollectionUtil.newHashMapWithExpectedSize(9);
 
         static {
             primitiveClasses.put("boolean", boolean.class);
@@ -145,84 +144,57 @@ public final class InstantiationUtil {
     }
 
     /**
-     * This is maintained as a temporary workaround for FLINK-6869.
-     *
-     * <p>Before 1.3, the Scala serializers did not specify the serialVersionUID. Although since 1.3
-     * they are properly specified, we still have to ignore them for now as their previous
-     * serialVersionUIDs will vary depending on the Scala version.
-     *
-     * <p>This can be removed once 1.2 is no longer supported.
+     * Workaround for bugs like e.g. FLINK-36318 where we serialize a class into a snapshot and then
+     * its serialVersionUID is changed in an uncontrolled way. This lets us deserialize the old
+     * snapshot assuming the binary representation of the faulty class has not changed.
      */
-    private static final Set<String> scalaSerializerClassnames = new HashSet<>();
+    private static final class VersionMismatchHandler {
+
+        private final Map<String, Map<Long, List<Long>>> supportedSerialVersionUidsPerClass =
+                new HashMap<>();
+
+        void addVersionsMatch(
+                String className, long localVersionUID, List<Long> streamVersionUIDs) {
+            supportedSerialVersionUidsPerClass
+                    .computeIfAbsent(className, k -> new HashMap<>())
+                    .put(localVersionUID, streamVersionUIDs);
+        }
+
+        /**
+         * Checks if the local version of the given class can safely deserialize the class of a
+         * different version from the object stream.
+         */
+        boolean shouldTolerateSerialVersionMismatch(
+                String className, long localVersionUID, long streamVersionUID) {
+            return supportedSerialVersionUidsPerClass
+                    .getOrDefault(className, Collections.emptyMap())
+                    .getOrDefault(localVersionUID, Collections.emptyList())
+                    .contains(streamVersionUID);
+        }
+
+        /**
+         * Checks if there are any rules for the given class. This lets us decide early if we need
+         * to look up the local class.
+         */
+        boolean haveRulesForClass(String className) {
+            return supportedSerialVersionUidsPerClass.containsKey(className);
+        }
+    }
+
+    private static final VersionMismatchHandler versionMismatchHandler =
+            new VersionMismatchHandler();
 
     static {
-        scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.TraversableSerializer");
-        scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.CaseClassSerializer");
-        scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.EitherSerializer");
-        scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.EnumValueSerializer");
-        scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.OptionSerializer");
-        scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.TrySerializer");
-        scalaSerializerClassnames.add("org.apache.flink.api.scala.typeutils.UnitSerializer");
+        // See FLINK-36318
+        versionMismatchHandler.addVersionsMatch(
+                "org.apache.flink.table.runtime.typeutils.MapDataSerializer",
+                4073842523628732956L,
+                Collections.singletonList(2533002123505507000L));
     }
 
     /**
-     * The serialVersionUID might change between Scala versions and since those classes are part of
-     * the tuple serializer config snapshots we need to ignore them.
-     *
-     * @see <a href="https://issues.apache.org/jira/browse/FLINK-8451">FLINK-8451</a>
-     */
-    private static final Set<String> scalaTypes = new HashSet<>();
-
-    static {
-        scalaTypes.add("scala.Tuple1");
-        scalaTypes.add("scala.Tuple2");
-        scalaTypes.add("scala.Tuple3");
-        scalaTypes.add("scala.Tuple4");
-        scalaTypes.add("scala.Tuple5");
-        scalaTypes.add("scala.Tuple6");
-        scalaTypes.add("scala.Tuple7");
-        scalaTypes.add("scala.Tuple8");
-        scalaTypes.add("scala.Tuple9");
-        scalaTypes.add("scala.Tuple10");
-        scalaTypes.add("scala.Tuple11");
-        scalaTypes.add("scala.Tuple12");
-        scalaTypes.add("scala.Tuple13");
-        scalaTypes.add("scala.Tuple14");
-        scalaTypes.add("scala.Tuple15");
-        scalaTypes.add("scala.Tuple16");
-        scalaTypes.add("scala.Tuple17");
-        scalaTypes.add("scala.Tuple18");
-        scalaTypes.add("scala.Tuple19");
-        scalaTypes.add("scala.Tuple20");
-        scalaTypes.add("scala.Tuple21");
-        scalaTypes.add("scala.Tuple22");
-        scalaTypes.add("scala.Tuple1$mcJ$sp");
-        scalaTypes.add("scala.Tuple1$mcI$sp");
-        scalaTypes.add("scala.Tuple1$mcD$sp");
-        scalaTypes.add("scala.Tuple2$mcJJ$sp");
-        scalaTypes.add("scala.Tuple2$mcJI$sp");
-        scalaTypes.add("scala.Tuple2$mcJD$sp");
-        scalaTypes.add("scala.Tuple2$mcIJ$sp");
-        scalaTypes.add("scala.Tuple2$mcII$sp");
-        scalaTypes.add("scala.Tuple2$mcID$sp");
-        scalaTypes.add("scala.Tuple2$mcDJ$sp");
-        scalaTypes.add("scala.Tuple2$mcDI$sp");
-        scalaTypes.add("scala.Tuple2$mcDD$sp");
-        scalaTypes.add("scala.Enumeration$ValueSet");
-    }
-
-    /**
-     * An {@link ObjectInputStream} that ignores serialVersionUID mismatches when deserializing
-     * objects of anonymous classes or our Scala serializer classes and also replaces occurrences of
-     * GenericData.Array (from Avro) by a dummy class so that the KryoSerializer can still be
-     * deserialized without Avro being on the classpath.
-     *
-     * <p>The {@link TypeSerializerSerializationUtil.TypeSerializerSerializationProxy} uses this
-     * specific object input stream to read serializers, so that mismatching serialVersionUIDs of
-     * anonymous classes / Scala serializers are ignored. This is a required workaround to maintain
-     * backwards compatibility for our pre-1.3 Scala serializers. See FLINK-6869 for details.
-     *
-     * @see <a href="https://issues.apache.org/jira/browse/FLINK-6869">FLINK-6869</a>
+     * An {@link ObjectInputStream} that ignores certain serialVersionUID mismatches. This is a
+     * workaround for uncontrolled serialVersionUIDs changes.
      */
     public static class FailureTolerantObjectInputStream
             extends InstantiationUtil.ClassLoaderObjectInputStream {
@@ -236,117 +208,29 @@ public final class InstantiationUtil {
                 throws IOException, ClassNotFoundException {
             ObjectStreamClass streamClassDescriptor = super.readClassDescriptor();
 
-            try {
-                Class.forName(streamClassDescriptor.getName(), false, classLoader);
-            } catch (ClassNotFoundException e) {
-
-                final ObjectStreamClass equivalentSerializer =
-                        MigrationUtil.getEquivalentSerializer(streamClassDescriptor.getName());
-
-                if (equivalentSerializer != null) {
-                    return equivalentSerializer;
-                }
-            }
-
             final Class localClass = resolveClass(streamClassDescriptor);
             final String name = localClass.getName();
-            if (scalaSerializerClassnames.contains(name)
-                    || scalaTypes.contains(name)
-                    || isAnonymousClass(localClass)
-                    || isOldAvroSerializer(name, streamClassDescriptor.getSerialVersionUID())) {
+            if (versionMismatchHandler.haveRulesForClass(name)) {
                 final ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
                 if (localClassDescriptor != null
                         && localClassDescriptor.getSerialVersionUID()
                                 != streamClassDescriptor.getSerialVersionUID()) {
-                    LOG.warn(
-                            "Ignoring serialVersionUID mismatch for class {}; was {}, now {}.",
-                            streamClassDescriptor.getName(),
-                            streamClassDescriptor.getSerialVersionUID(),
-                            localClassDescriptor.getSerialVersionUID());
+                    if (versionMismatchHandler.shouldTolerateSerialVersionMismatch(
+                            name,
+                            localClassDescriptor.getSerialVersionUID(),
+                            streamClassDescriptor.getSerialVersionUID())) {
+                        LOG.warn(
+                                "Ignoring serialVersionUID mismatch for class {}; was {}, now {}.",
+                                streamClassDescriptor.getName(),
+                                streamClassDescriptor.getSerialVersionUID(),
+                                localClassDescriptor.getSerialVersionUID());
 
-                    streamClassDescriptor = localClassDescriptor;
+                        streamClassDescriptor = localClassDescriptor;
+                    }
                 }
             }
 
             return streamClassDescriptor;
-        }
-    }
-
-    private static boolean isAnonymousClass(Class clazz) {
-        final String name = clazz.getName();
-
-        // isAnonymousClass does not work for anonymous Scala classes; additionally check by class
-        // name
-        if (name.contains("$anon$") || name.contains("$anonfun") || name.contains("$macro$")) {
-            return true;
-        }
-
-        // calling isAnonymousClass or getSimpleName can throw InternalError for certain Scala
-        // types, see https://issues.scala-lang.org/browse/SI-2034
-        // until we move to JDK 9, this try-catch is necessary
-        try {
-            return clazz.isAnonymousClass();
-        } catch (InternalError e) {
-            return false;
-        }
-    }
-
-    private static boolean isOldAvroSerializer(String name, long serialVersionUID) {
-        // please see FLINK-11436 for details on why we need to ignore serial version UID here for
-        // the AvroSerializer
-        return (serialVersionUID == 1)
-                && "org.apache.flink.formats.avro.typeutils.AvroSerializer".equals(name);
-    }
-
-    /**
-     * A mapping between the full path of a deprecated serializer and its equivalent. These mappings
-     * are hardcoded and fixed.
-     *
-     * <p>IMPORTANT: mappings can be removed after 1 release as there will be a "migration path". As
-     * an example, a serializer is removed in 1.5-SNAPSHOT, then the mapping should be added for
-     * 1.5, and it can be removed in 1.6, as the path would be Flink-{< 1.5} -> Flink-1.5 ->
-     * Flink-{>= 1.6}.
-     */
-    private enum MigrationUtil {
-
-        // To add a new mapping just pick a name and add an entry as the following:
-
-        GENERIC_DATA_ARRAY_SERIALIZER(
-                "org.apache.avro.generic.GenericData$Array",
-                ObjectStreamClass.lookup(
-                        KryoRegistrationSerializerConfigSnapshot.DummyRegisteredClass.class)),
-        HASH_MAP_SERIALIZER(
-                "org.apache.flink.runtime.state.HashMapSerializer",
-                ObjectStreamClass.lookup(MapSerializer.class)); // added in 1.5
-
-        /**
-         * An internal unmodifiable map containing the mappings between deprecated and new
-         * serializers.
-         */
-        private static final Map<String, ObjectStreamClass> EQUIVALENCE_MAP =
-                Collections.unmodifiableMap(initMap());
-
-        /** The full name of the class of the old serializer. */
-        private final String oldSerializerName;
-
-        /** The serialization descriptor of the class of the new serializer. */
-        private final ObjectStreamClass newSerializerStreamClass;
-
-        MigrationUtil(String oldSerializerName, ObjectStreamClass newSerializerStreamClass) {
-            this.oldSerializerName = oldSerializerName;
-            this.newSerializerStreamClass = newSerializerStreamClass;
-        }
-
-        private static Map<String, ObjectStreamClass> initMap() {
-            final Map<String, ObjectStreamClass> init = new HashMap<>(4);
-            for (MigrationUtil m : MigrationUtil.values()) {
-                init.put(m.oldSerializerName, m.newSerializerStreamClass);
-            }
-            return init;
-        }
-
-        private static ObjectStreamClass getEquivalentSerializer(String classDescriptorName) {
-            return EQUIVALENCE_MAP.get(classDescriptorName);
         }
     }
 
@@ -454,14 +338,8 @@ public final class InstantiationUtil {
      * @return True, if the class has a public nullary constructor, false if not.
      */
     public static boolean hasPublicNullaryConstructor(Class<?> clazz) {
-        Constructor<?>[] constructors = clazz.getConstructors();
-        for (Constructor<?> constructor : constructors) {
-            if (constructor.getParameterTypes().length == 0
-                    && Modifier.isPublic(constructor.getModifiers())) {
-                return true;
-            }
-        }
-        return false;
+        return Arrays.stream(clazz.getConstructors())
+                .anyMatch(constructor -> constructor.getParameterCount() == 0);
     }
 
     /**
@@ -533,6 +411,7 @@ public final class InstantiationUtil {
         }
     }
 
+    @Nullable
     public static <T> T readObjectFromConfig(Configuration config, String key, ClassLoader cl)
             throws IOException, ClassNotFoundException {
         byte[] bytes = config.getBytes(key, null);
@@ -583,34 +462,26 @@ public final class InstantiationUtil {
         return serializer.deserialize(reuse, inputViewWrapper);
     }
 
-    @SuppressWarnings("unchecked")
     public static <T> T deserializeObject(byte[] bytes, ClassLoader cl)
             throws IOException, ClassNotFoundException {
-        return deserializeObject(bytes, cl, false);
+        return deserializeObject(new ByteArrayInputStream(bytes), cl);
     }
 
-    @SuppressWarnings("unchecked")
     public static <T> T deserializeObject(InputStream in, ClassLoader cl)
             throws IOException, ClassNotFoundException {
         return deserializeObject(in, cl, false);
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T deserializeObject(byte[] bytes, ClassLoader cl, boolean isFailureTolerant)
-            throws IOException, ClassNotFoundException {
-
-        return deserializeObject(new ByteArrayInputStream(bytes), cl, isFailureTolerant);
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <T> T deserializeObject(InputStream in, ClassLoader cl, boolean isFailureTolerant)
+    public static <T> T deserializeObject(
+            InputStream in, ClassLoader cl, boolean tolerateKnownVersionMismatch)
             throws IOException, ClassNotFoundException {
 
         final ClassLoader old = Thread.currentThread().getContextClassLoader();
         // not using resource try to avoid AutoClosable's close() on the given stream
         try {
             ObjectInputStream oois =
-                    isFailureTolerant
+                    tolerateKnownVersionMismatch
                             ? new InstantiationUtil.FailureTolerantObjectInputStream(in, cl)
                             : new InstantiationUtil.ClassLoaderObjectInputStream(in, cl);
             Thread.currentThread().setContextClassLoader(cl);
@@ -622,8 +493,7 @@ public final class InstantiationUtil {
 
     public static <T> T decompressAndDeserializeObject(byte[] bytes, ClassLoader cl)
             throws IOException, ClassNotFoundException {
-        return deserializeObject(
-                new InflaterInputStream(new ByteArrayInputStream(bytes)), cl, false);
+        return deserializeObject(new InflaterInputStream(new ByteArrayInputStream(bytes)), cl);
     }
 
     public static byte[] serializeObject(Object o) throws IOException {
@@ -706,6 +576,22 @@ public final class InstantiationUtil {
     }
 
     /**
+     * Unchecked equivalent of {@link #clone(Serializable)}.
+     *
+     * @param obj Object to clone
+     * @param <T> Type of the object to clone
+     * @return The cloned object
+     */
+    public static <T extends Serializable> T cloneUnchecked(T obj) {
+        try {
+            return clone(obj, obj.getClass().getClassLoader());
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException(
+                    String.format("Unable to clone instance of %s.", obj.getClass().getName()), e);
+        }
+    }
+
+    /**
      * Clones the given writable using the {@link IOReadableWritable serialization}.
      *
      * @param original Object to clone
@@ -772,7 +658,15 @@ public final class InstantiationUtil {
         try {
             rawClazz = Class.forName(className, false, cl);
         } catch (ClassNotFoundException e) {
-            throw new IOException("Could not find class '" + className + "' in classpath.", e);
+            String error = "Could not find class '" + className + "' in classpath.";
+            if (className.contains("SerializerConfig")) {
+                error +=
+                        " TypeSerializerConfigSnapshot and it's subclasses are not supported since Flink 1.17."
+                                + " If you are using built-in serializers, please first migrate to Flink 1.16."
+                                + " If you are using custom serializers, please migrate them to"
+                                + " TypeSerializerSnapshot using Flink 1.16.";
+            }
+            throw new IOException(error, e);
         }
 
         if (!supertype.isAssignableFrom(rawClazz)) {

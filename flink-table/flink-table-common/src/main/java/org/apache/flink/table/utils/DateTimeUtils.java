@@ -142,6 +142,8 @@ public class DateTimeUtils {
                     .optionalEnd()
                     .toFormatter();
 
+    private static final Integer DEFAULT_PRECISION = 3;
+
     /**
      * A ThreadLocal cache map for SimpleDateFormat, because SimpleDateFormat is not thread-safe.
      * (string_format) => formatter
@@ -422,8 +424,12 @@ public class DateTimeUtils {
     }
 
     public static TimestampData parseTimestampData(String dateStr, String format) {
-        DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
-
+        DateTimeFormatter formatter;
+        try {
+            formatter = DATETIME_FORMATTER_CACHE.get(format);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
         try {
             TemporalAccessor accessor = formatter.parse(dateStr);
             // Precision is hardcoded to match signature of TO_TIMESTAMP
@@ -695,8 +701,8 @@ public class DateTimeUtils {
         LocalDateTime ldt = ts.toLocalDateTime();
 
         String fraction = pad(9, ldt.getNano());
-        while (fraction.length() > precision && fraction.endsWith("0")) {
-            fraction = fraction.substring(0, fraction.length() - 1);
+        if (fraction.length() > precision) {
+            fraction = fraction.substring(0, precision);
         }
 
         StringBuilder ymdhms =
@@ -735,12 +741,23 @@ public class DateTimeUtils {
 
     public static String formatTimestampString(
             String dateStr, String fromFormat, String toFormat, TimeZone tz) {
+        return formatTimestampStringWithOffset(dateStr, fromFormat, toFormat, tz, 0);
+    }
+
+    public static String formatTimestampStringWithOffset(
+            String dateStr, String fromFormat, String toFormat, TimeZone tz, long offsetMills) {
         SimpleDateFormat fromFormatter = FORMATTER_CACHE.get(fromFormat);
         fromFormatter.setTimeZone(tz);
         SimpleDateFormat toFormatter = FORMATTER_CACHE.get(toFormat);
         toFormatter.setTimeZone(tz);
         try {
-            return toFormatter.format(fromFormatter.parse(dateStr));
+            Date date = fromFormatter.parse(dateStr);
+
+            if (offsetMills != 0) {
+                date = new Date(date.getTime() + offsetMills);
+            }
+
+            return toFormatter.format(date);
         } catch (ParseException e) {
             LOG.error(
                     "Exception when formatting: '"
@@ -749,6 +766,8 @@ public class DateTimeUtils {
                             + fromFormat
                             + "' to: '"
                             + toFormat
+                            + "' with offsetMills: '"
+                            + offsetMills
                             + "'",
                     e);
             return null;
@@ -1206,6 +1225,12 @@ public class DateTimeUtils {
         long utcTs = ts + offset;
 
         switch (range) {
+            case MILLISECOND:
+                return floor(utcTs, 1L) - offset;
+            case SECOND:
+                return floor(utcTs, MILLIS_PER_SECOND) - offset;
+            case MINUTE:
+                return floor(utcTs, MILLIS_PER_MINUTE) - offset;
             case HOUR:
                 return floor(utcTs, MILLIS_PER_HOUR) - offset;
             case DAY:
@@ -1236,6 +1261,12 @@ public class DateTimeUtils {
         long utcTs = ts + offset;
 
         switch (range) {
+            case MILLISECOND:
+                return ceil(utcTs, 1L) - offset;
+            case SECOND:
+                return ceil(utcTs, MILLIS_PER_SECOND) - offset;
+            case MINUTE:
+                return ceil(utcTs, MILLIS_PER_MINUTE) - offset;
             case HOUR:
                 return ceil(utcTs, MILLIS_PER_HOUR) - offset;
             case DAY:
@@ -1713,6 +1744,7 @@ public class DateTimeUtils {
      * use internally, when converting to and from UNIX timestamps. And also may be arguments to the
      * {@code EXTRACT}, {@code TIMESTAMPADD} and {@code TIMESTAMPDIFF} functions.
      */
+    @Internal
     public enum TimeUnit {
         YEAR(true, ' ', BigDecimal.valueOf(12) /* months */, null),
         MONTH(true, '-', BigDecimal.ONE /* months */, BigDecimal.valueOf(12)),
@@ -1774,6 +1806,7 @@ public class DateTimeUtils {
      * A range of time units. The first is more significant than the other (e.g. year-to-day) or the
      * same as the other (e.g. month).
      */
+    @Internal
     public enum TimeUnitRange {
         YEAR(TimeUnit.YEAR, null),
         YEAR_TO_MONTH(TimeUnit.YEAR, TimeUnit.MONTH),

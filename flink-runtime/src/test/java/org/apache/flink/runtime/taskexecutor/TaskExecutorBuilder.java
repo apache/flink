@@ -27,6 +27,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.TestingTaskExecutorPartitionTracker;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.util.concurrent.Executors;
 
 import javax.annotation.Nullable;
@@ -57,7 +59,7 @@ public class TaskExecutorBuilder {
     private ExternalResourceInfoProvider externalResourceInfoProvider =
             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
 
-    private HeartbeatServices heartbeatServices = new HeartbeatServices(1 << 20, 1 << 20);
+    private HeartbeatServices heartbeatServices = new HeartbeatServicesImpl(1 << 20, 1 << 20);
 
     private TaskManagerMetricGroup taskManagerMetricGroup =
             UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
@@ -137,11 +139,15 @@ public class TaskExecutorBuilder {
                             VoidPermanentBlobService.INSTANCE,
                             UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                             Executors.newDirectExecutorService(),
+                            rpcService.getScheduledExecutor(),
                             throwable -> {},
                             workingDirectory);
         } else {
             resolvedTaskManagerServices = taskManagerServices;
         }
+
+        final DelegationTokenReceiverRepository delegationTokenReceiverRepository =
+                new DelegationTokenReceiverRepository(configuration, null);
 
         return new TaskExecutor(
                 rpcService,
@@ -154,7 +160,8 @@ public class TaskExecutorBuilder {
                 metricQueryServiceAddress,
                 resolvedTaskExecutorBlobService,
                 fatalErrorHandler,
-                partitionTracker);
+                partitionTracker,
+                delegationTokenReceiverRepository);
     }
 
     public static TaskExecutorBuilder newBuilder(

@@ -25,8 +25,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test utils for metric reporters. */
 public class MetricReporterTestUtils {
@@ -49,6 +48,6 @@ public class MetricReporterTestUtils {
                                 false)
                         .map(MetricReporterFactory::getClass)
                         .collect(Collectors.toSet());
-        assertThat(loadedFactories, hasItem(clazz));
+        assertThat(loadedFactories).contains(clazz);
     }
 }

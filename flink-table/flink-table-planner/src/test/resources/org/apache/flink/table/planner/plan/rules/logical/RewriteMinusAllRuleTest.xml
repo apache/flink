@@ -24,9 +24,9 @@ limitations under the License.
       <![CDATA[
 LogicalMinus(all=[true])
 :- LogicalProject(c=[$2])
-:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 +- LogicalProject(f=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -39,10 +39,10 @@ LogicalProject(c=[$2])
    :        +- LogicalUnion(all=[true])
    :           :- LogicalProject(c=[$0], vcol_marker=[1:BIGINT])
    :           :  +- LogicalProject(c=[$2])
-   :           :     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+   :           :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
    :           +- LogicalProject(f=[$0], vcol_marker=[-1:BIGINT])
    :              +- LogicalProject(f=[$2])
-   :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+   :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
    +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)])
 ]]>
     </Resource>
@@ -56,9 +56,9 @@ LogicalProject(c=[$2])
 LogicalMinus(all=[true])
 :- LogicalProject(c=[$2])
 :  +- LogicalFilter(condition=[=(1, 0)])
-:     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 +- LogicalProject(f=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -72,10 +72,10 @@ LogicalProject(c=[$2])
    :           :- LogicalProject(c=[$0], vcol_marker=[1:BIGINT])
    :           :  +- LogicalProject(c=[$2])
    :           :     +- LogicalFilter(condition=[=(1, 0)])
-   :           :        +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+   :           :        +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
    :           +- LogicalProject(f=[$0], vcol_marker=[-1:BIGINT])
    :              +- LogicalProject(f=[$2])
-   :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+   :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
    +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)])
 ]]>
     </Resource>
@@ -88,10 +88,10 @@ LogicalProject(c=[$2])
       <![CDATA[
 LogicalMinus(all=[true])
 :- LogicalProject(c=[$2])
-:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 +- LogicalProject(f=[$2])
    +- LogicalFilter(condition=[=(1, 0)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -104,11 +104,11 @@ LogicalProject(c=[$2])
    :        +- LogicalUnion(all=[true])
    :           :- LogicalProject(c=[$0], vcol_marker=[1:BIGINT])
    :           :  +- LogicalProject(c=[$2])
-   :           :     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+   :           :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
    :           +- LogicalProject(f=[$0], vcol_marker=[-1:BIGINT])
    :              +- LogicalProject(f=[$2])
    :                 +- LogicalFilter(condition=[=(1, 0)])
-   :                    +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+   :                    +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
    +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1)], rowType=[RecordType(VARCHAR(2147483647) c)])
 ]]>
     </Resource>
@@ -123,9 +123,9 @@ LogicalProject(c=[$2])
 +- LogicalFilter(condition=[<($1, 2)])
    +- LogicalMinus(all=[true])
       :- LogicalProject(a=[$0], b=[$1], c=[$2])
-      :  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
       +- LogicalProject(d=[$0], e=[$1], f=[$2])
-         +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -140,10 +140,10 @@ LogicalProject(c=[$2])
          :        +- LogicalUnion(all=[true])
          :           :- LogicalProject(a=[$0], b=[$1], c=[$2], vcol_marker=[1:BIGINT])
          :           :  +- LogicalProject(a=[$0], b=[$1], c=[$2])
-         :           :     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+         :           :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
          :           +- LogicalProject(d=[$0], e=[$1], f=[$2], vcol_marker=[-1:BIGINT])
          :              +- LogicalProject(d=[$0], e=[$1], f=[$2])
-         :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+         :                 +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
          +- LogicalTableFunctionScan(invocation=[$REPLICATE_ROWS$1($0, $1, $2, $3)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)])
 ]]>
     </Resource>

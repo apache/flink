@@ -34,12 +34,14 @@ import java.util.List;
 public class SqlDescribeCatalog extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("DESCRIBE CATALOG", SqlKind.OTHER);
+            new SqlSpecialOperator("DESCRIBE CATALOG", SqlKind.OTHER_DDL);
     private final SqlIdentifier catalogName;
+    private final boolean isExtended;
 
-    public SqlDescribeCatalog(SqlParserPos pos, SqlIdentifier catalogName) {
+    public SqlDescribeCatalog(SqlParserPos pos, SqlIdentifier catalogName, boolean isExtended) {
         super(pos);
         this.catalogName = catalogName;
+        this.isExtended = isExtended;
     }
 
     @Override
@@ -56,9 +58,16 @@ public class SqlDescribeCatalog extends SqlCall {
         return catalogName.getSimple();
     }
 
+    public boolean isExtended() {
+        return isExtended;
+    }
+
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.keyword("DESCRIBE CATALOG");
+        if (isExtended) {
+            writer.keyword("EXTENDED");
+        }
         catalogName.unparse(writer, leftPrec, rightPrec);
     }
 }

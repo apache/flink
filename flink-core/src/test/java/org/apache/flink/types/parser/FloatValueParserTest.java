@@ -20,7 +20,7 @@ package org.apache.flink.types.parser;
 
 import org.apache.flink.types.FloatValue;
 
-public class FloatValueParserTest extends ParserTestBase<FloatValue> {
+class FloatValueParserTest extends ParserTestBase<FloatValue> {
 
     @Override
     public String[] getValidTestValues() {

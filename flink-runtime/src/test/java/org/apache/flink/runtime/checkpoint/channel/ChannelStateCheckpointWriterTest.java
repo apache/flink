@@ -23,45 +23,59 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelSta
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
 import static org.apache.flink.core.fs.Path.fromLocalFile;
 import static org.apache.flink.core.fs.local.LocalFileSystem.getSharedInstance;
 import static org.apache.flink.core.memory.MemorySegmentFactory.wrap;
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHANNEL_STATE_SHARED_STREAM_EXCEPTION;
+import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteResultUtil.assertAllSubtaskDoneNormally;
+import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteResultUtil.assertAllSubtaskNotDone;
+import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteResultUtil.assertCheckpointFailureReason;
+import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteResultUtil.assertHasSpecialCause;
 import static org.apache.flink.runtime.state.CheckpointedStateScope.EXCLUSIVE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 /** {@link ChannelStateCheckpointWriter} test. */
-public class ChannelStateCheckpointWriterTest {
+class ChannelStateCheckpointWriterTest {
     private static final RunnableWithException NO_OP_RUNNABLE = () -> {};
     private final Random random = new Random();
+    private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
+    private static final int SUBTASK_INDEX = 0;
+    private static final SubtaskID SUBTASK_ID = SubtaskID.of(JOB_VERTEX_ID, SUBTASK_INDEX);
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private Path temporaryFolder;
 
     @Test
-    public void testFileHandleSize() throws Exception {
+    void testFileHandleSize() throws Exception {
         int numChannels = 3;
         int numWritesPerChannel = 4;
         int numBytesPerWrite = 5;
@@ -71,8 +85,12 @@ public class ChannelStateCheckpointWriterTest {
                         result,
                         new FsCheckpointStreamFactory(
                                         getSharedInstance(),
-                                        fromLocalFile(temporaryFolder.newFolder("checkpointsDir")),
-                                        fromLocalFile(temporaryFolder.newFolder("sharedStateDir")),
+                                        fromLocalFile(
+                                                TempDirUtils.newFolder(
+                                                        temporaryFolder, "checkpointsDir")),
+                                        fromLocalFile(
+                                                TempDirUtils.newFolder(
+                                                        temporaryFolder, "sharedStateDir")),
                                         numBytesPerWrite - 1,
                                         numBytesPerWrite - 1)
                                 .createCheckpointStateOutputStream(EXCLUSIVE));
@@ -86,22 +104,21 @@ public class ChannelStateCheckpointWriterTest {
                 write(writer, channels[channel], getData(numBytesPerWrite));
             }
         }
-        writer.completeInput();
-        writer.completeOutput();
+        writer.completeInput(JOB_VERTEX_ID, SUBTASK_INDEX);
+        writer.completeOutput(JOB_VERTEX_ID, SUBTASK_INDEX);
 
         for (InputChannelStateHandle handle : result.inputChannelStateHandles.get()) {
-            assertEquals(
-                    (Integer.BYTES + numBytesPerWrite) * numWritesPerChannel,
-                    handle.getStateSize());
+            assertThat(handle.getStateSize())
+                    .isEqualTo((Integer.BYTES + numBytesPerWrite) * numWritesPerChannel);
         }
     }
 
     @Test
     @SuppressWarnings("ConstantConditions")
-    public void testSmallFilesNotWritten() throws Exception {
+    void testSmallFilesNotWritten() throws Exception {
         int threshold = 100;
-        File checkpointsDir = temporaryFolder.newFolder("checkpointsDir");
-        File sharedStateDir = temporaryFolder.newFolder("sharedStateDir");
+        File checkpointsDir = TempDirUtils.newFolder(temporaryFolder, "checkpointsDir");
+        File sharedStateDir = TempDirUtils.newFolder(temporaryFolder, "sharedStateDir");
         FsCheckpointStreamFactory checkpointStreamFactory =
                 new FsCheckpointStreamFactory(
                         getSharedInstance(),
@@ -118,16 +135,16 @@ public class ChannelStateCheckpointWriterTest {
                 new NetworkBuffer(
                         MemorySegmentFactory.allocateUnpooledSegment(threshold / 2),
                         FreeingBufferRecycler.INSTANCE);
-        writer.writeInput(new InputChannelInfo(1, 2), buffer);
-        writer.completeOutput();
-        writer.completeInput();
-        assertTrue(result.isDone());
-        assertEquals(0, checkpointsDir.list().length);
-        assertEquals(0, sharedStateDir.list().length);
+        writer.writeInput(JOB_VERTEX_ID, SUBTASK_INDEX, new InputChannelInfo(1, 2), buffer);
+        writer.completeOutput(JOB_VERTEX_ID, SUBTASK_INDEX);
+        writer.completeInput(JOB_VERTEX_ID, SUBTASK_INDEX);
+        assertThat(result.isDone()).isTrue();
+        assertThat(checkpointsDir).isEmptyDirectory();
+        assertThat(sharedStateDir).isEmptyDirectory();
     }
 
     @Test
-    public void testEmptyState() throws Exception {
+    void testEmptyState() throws Exception {
         MemoryCheckpointOutputStream stream =
                 new MemoryCheckpointOutputStream(1000) {
                     @Override
@@ -137,24 +154,24 @@ public class ChannelStateCheckpointWriterTest {
                     }
                 };
         ChannelStateCheckpointWriter writer = createWriter(new ChannelStateWriteResult(), stream);
-        writer.completeOutput();
-        writer.completeInput();
-        assertTrue(stream.isClosed());
+        writer.completeOutput(JOB_VERTEX_ID, SUBTASK_INDEX);
+        writer.completeInput(JOB_VERTEX_ID, SUBTASK_INDEX);
+        assertThat(stream.isClosed()).isTrue();
     }
 
     @Test
-    public void testRecyclingBuffers() throws Exception {
+    void testRecyclingBuffers() {
         ChannelStateCheckpointWriter writer = createWriter(new ChannelStateWriteResult());
         NetworkBuffer buffer =
                 new NetworkBuffer(
-                        MemorySegmentFactory.allocateUnpooledSegment(10, null),
+                        MemorySegmentFactory.allocateUnpooledSegment(10),
                         FreeingBufferRecycler.INSTANCE);
-        writer.writeInput(new InputChannelInfo(1, 2), buffer);
-        assertTrue(buffer.isRecycled());
+        writer.writeInput(JOB_VERTEX_ID, SUBTASK_INDEX, new InputChannelInfo(1, 2), buffer);
+        assertThat(buffer.isRecycled()).isTrue();
     }
 
     @Test
-    public void testFlush() throws Exception {
+    void testFlush() throws Exception {
         class FlushRecorder extends DataOutputStream {
             private boolean flushed = false;
 
@@ -172,33 +189,198 @@ public class ChannelStateCheckpointWriterTest {
         FlushRecorder dataStream = new FlushRecorder();
         final ChannelStateCheckpointWriter writer =
                 new ChannelStateCheckpointWriter(
-                        "dummy task",
-                        0,
+                        Collections.singleton(SUBTASK_ID),
                         1L,
-                        new ChannelStateWriteResult(),
                         new ChannelStateSerializerImpl(),
                         NO_OP_RUNNABLE,
                         new MemoryCheckpointOutputStream(42),
                         dataStream);
+        writer.registerSubtaskResult(SUBTASK_ID, new ChannelStateWriteResult());
+        writer.completeInput(JOB_VERTEX_ID, SUBTASK_INDEX);
+        writer.completeOutput(JOB_VERTEX_ID, SUBTASK_INDEX);
 
-        writer.completeInput();
-        writer.completeOutput();
-
-        assertTrue(dataStream.flushed);
+        assertThat(dataStream.flushed).isTrue();
     }
 
     @Test
-    public void testResultCompletion() throws Exception {
-        ChannelStateWriteResult result = new ChannelStateWriteResult();
-        ChannelStateCheckpointWriter writer = createWriter(result);
-        writer.completeInput();
-        assertFalse(result.isDone());
-        writer.completeOutput();
-        assertTrue(result.isDone());
+    void testResultCompletion() throws Exception {
+        for (int maxSubtasksPerChannelStateFile = 1;
+                maxSubtasksPerChannelStateFile < 10;
+                maxSubtasksPerChannelStateFile++) {
+            testMultiTaskCompletionAndAssertResult(maxSubtasksPerChannelStateFile);
+        }
+    }
+
+    private void testMultiTaskCompletionAndAssertResult(int maxSubtasksPerChannelStateFile)
+            throws Exception {
+        Map<SubtaskID, ChannelStateWriteResult> subtasks = new HashMap<>();
+        for (int i = 0; i < maxSubtasksPerChannelStateFile; i++) {
+            subtasks.put(SubtaskID.of(new JobVertexID(), i), new ChannelStateWriteResult());
+        }
+        MemoryCheckpointOutputStream stream = new MemoryCheckpointOutputStream(1000);
+        ChannelStateCheckpointWriter writer = createWriter(stream, subtasks.keySet());
+        for (Map.Entry<SubtaskID, ChannelStateWriteResult> entry : subtasks.entrySet()) {
+            writer.registerSubtaskResult(entry.getKey(), entry.getValue());
+        }
+
+        for (SubtaskID subtaskID : subtasks.keySet()) {
+            assertAllSubtaskNotDone(subtasks.values());
+            assertThat(stream.isClosed()).isFalse();
+            writer.completeInput(subtaskID.getJobVertexID(), subtaskID.getSubtaskIndex());
+            assertAllSubtaskNotDone(subtasks.values());
+            assertThat(stream.isClosed()).isFalse();
+            writer.completeOutput(subtaskID.getJobVertexID(), subtaskID.getSubtaskIndex());
+        }
+        assertThat(stream.isClosed()).isTrue();
+        assertAllSubtaskDoneNormally(subtasks.values());
     }
 
     @Test
-    public void testRecordingOffsets() throws Exception {
+    void testTaskUnregister() throws Exception {
+        testTaskUnregisterAndAssertResult(2);
+        testTaskUnregisterAndAssertResult(3);
+        testTaskUnregisterAndAssertResult(5);
+        testTaskUnregisterAndAssertResult(10);
+    }
+
+    private void testTaskUnregisterAndAssertResult(int maxSubtasksPerChannelStateFile)
+            throws Exception {
+        Map<SubtaskID, ChannelStateWriteResult> subtasks = new HashMap<>();
+        for (int i = 0; i < maxSubtasksPerChannelStateFile; i++) {
+            subtasks.put(SubtaskID.of(new JobVertexID(), i), new ChannelStateWriteResult());
+        }
+        MemoryCheckpointOutputStream stream = new MemoryCheckpointOutputStream(1000);
+        ChannelStateCheckpointWriter writer = createWriter(stream, subtasks.keySet());
+        SubtaskID unregisterSubtask = null;
+        Iterator<Map.Entry<SubtaskID, ChannelStateWriteResult>> iterator =
+                subtasks.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<SubtaskID, ChannelStateWriteResult> entry = iterator.next();
+            if (unregisterSubtask == null) {
+                unregisterSubtask = entry.getKey();
+                iterator.remove();
+                continue;
+            }
+            writer.registerSubtaskResult(entry.getKey(), entry.getValue());
+        }
+
+        for (SubtaskID subtaskID : subtasks.keySet()) {
+            writer.completeInput(subtaskID.getJobVertexID(), subtaskID.getSubtaskIndex());
+            writer.completeOutput(subtaskID.getJobVertexID(), subtaskID.getSubtaskIndex());
+        }
+        assertAllSubtaskNotDone(subtasks.values());
+        assertThat(stream.isClosed()).isFalse();
+
+        assert unregisterSubtask != null;
+        writer.releaseSubtask(unregisterSubtask);
+        assertThat(stream.isClosed()).isTrue();
+        assertAllSubtaskDoneNormally(subtasks.values());
+    }
+
+    @Test
+    void testTaskFailThenCompleteOtherTask() {
+        testTaskFailAfterAllTaskRegisteredAndAssertResult(2);
+        testTaskFailAfterAllTaskRegisteredAndAssertResult(3);
+        testTaskFailAfterAllTaskRegisteredAndAssertResult(5);
+        testTaskFailAfterAllTaskRegisteredAndAssertResult(10);
+    }
+
+    private void testTaskFailAfterAllTaskRegisteredAndAssertResult(
+            int maxSubtasksPerChannelStateFile) {
+        Map<SubtaskID, ChannelStateWriteResult> subtasks = new HashMap<>();
+        for (int i = 0; i < maxSubtasksPerChannelStateFile; i++) {
+            subtasks.put(SubtaskID.of(new JobVertexID(), i), new ChannelStateWriteResult());
+        }
+        MemoryCheckpointOutputStream stream = new MemoryCheckpointOutputStream(1000);
+        ChannelStateCheckpointWriter writer = createWriter(stream, subtasks.keySet());
+        SubtaskID firstSubtask = null;
+        for (Map.Entry<SubtaskID, ChannelStateWriteResult> entry : subtasks.entrySet()) {
+            if (firstSubtask == null) {
+                firstSubtask = entry.getKey();
+            }
+            writer.registerSubtaskResult(entry.getKey(), entry.getValue());
+        }
+        assertThat(stream.isClosed()).isFalse();
+
+        assert firstSubtask != null;
+        writer.fail(
+                firstSubtask.getJobVertexID(), firstSubtask.getSubtaskIndex(), new TestException());
+        assertThat(stream.isClosed()).isTrue();
+
+        for (Map.Entry<SubtaskID, ChannelStateWriteResult> entry : subtasks.entrySet()) {
+            if (firstSubtask.equals(entry.getKey())) {
+                assertHasSpecialCause(entry.getValue(), TestException.class);
+                continue;
+            }
+            assertCheckpointFailureReason(entry.getValue(), CHANNEL_STATE_SHARED_STREAM_EXCEPTION);
+        }
+    }
+
+    @Test
+    void testCloseGetHandleThrowException() throws Exception {
+        Map<SubtaskID, ChannelStateWriteResult> subtasks = new HashMap<>();
+        for (int i = 0; i < 5; i++) {
+            subtasks.put(SubtaskID.of(new JobVertexID(), i), new ChannelStateWriteResult());
+        }
+        CloseExceptionOutputStream stream = new CloseExceptionOutputStream();
+        ChannelStateCheckpointWriter writer = createWriter(stream, subtasks.keySet());
+        for (Map.Entry<SubtaskID, ChannelStateWriteResult> entry : subtasks.entrySet()) {
+            SubtaskID subtaskID = entry.getKey();
+            writer.registerSubtaskResult(subtaskID, entry.getValue());
+            NetworkBuffer buffer =
+                    new NetworkBuffer(
+                            MemorySegmentFactory.allocateUnpooledSegment(10),
+                            FreeingBufferRecycler.INSTANCE);
+            writer.writeInput(
+                    subtaskID.getJobVertexID(),
+                    subtaskID.getSubtaskIndex(),
+                    new InputChannelInfo(1, 2),
+                    buffer);
+        }
+
+        for (SubtaskID subtaskID : subtasks.keySet()) {
+            assertAllSubtaskNotDone(subtasks.values());
+            assertThat(stream.isClosed()).isFalse();
+            writer.completeInput(subtaskID.getJobVertexID(), subtaskID.getSubtaskIndex());
+            assertAllSubtaskNotDone(subtasks.values());
+            assertThat(stream.isClosed()).isFalse();
+            writer.completeOutput(subtaskID.getJobVertexID(), subtaskID.getSubtaskIndex());
+        }
+        assertThat(stream.isClosed()).isTrue();
+        for (Map.Entry<SubtaskID, ChannelStateWriteResult> entry : subtasks.entrySet()) {
+            assertThatThrownBy(() -> entry.getValue().getInputChannelStateHandles().get())
+                    .cause()
+                    .isInstanceOf(IOException.class)
+                    .hasMessage("Test closeAndGetHandle exception.");
+            assertThatThrownBy(() -> entry.getValue().getResultSubpartitionStateHandles().get())
+                    .cause()
+                    .isInstanceOf(IOException.class)
+                    .hasMessage("Test closeAndGetHandle exception.");
+        }
+    }
+
+    @Test
+    void testRegisterSubtaskAfterWriterDone() {
+        Map<SubtaskID, ChannelStateWriteResult> subtasks = new HashMap<>();
+        SubtaskID subtask0 = SubtaskID.of(JOB_VERTEX_ID, 0);
+        SubtaskID subtask1 = SubtaskID.of(JOB_VERTEX_ID, 1);
+        subtasks.put(subtask0, new ChannelStateWriteResult());
+        subtasks.put(subtask1, new ChannelStateWriteResult());
+        MemoryCheckpointOutputStream stream = new MemoryCheckpointOutputStream(1000);
+        ChannelStateCheckpointWriter writer = createWriter(stream, subtasks.keySet());
+        writer.fail(new JobVertexID(), 0, new TestException());
+        assertThatThrownBy(
+                        () -> writer.registerSubtaskResult(subtask0, new ChannelStateWriteResult()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("The write is done.");
+        assertThatThrownBy(
+                        () -> writer.registerSubtaskResult(subtask1, new ChannelStateWriteResult()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("The write is done.");
+    }
+
+    @Test
+    void testRecordingOffsets() throws Exception {
         Map<InputChannelInfo, Integer> offsetCounts = new HashMap<>();
         offsetCounts.put(new InputChannelInfo(1, 1), 1);
         offsetCounts.put(new InputChannelInfo(1, 2), 2);
@@ -212,18 +394,20 @@ public class ChannelStateCheckpointWriterTest {
                 write(writer, e.getKey(), getData(numBytes));
             }
         }
-        writer.completeInput();
-        writer.completeOutput();
+        writer.completeInput(JOB_VERTEX_ID, SUBTASK_INDEX);
+        writer.completeOutput(JOB_VERTEX_ID, SUBTASK_INDEX);
 
         for (InputChannelStateHandle handle : result.inputChannelStateHandles.get()) {
             int headerSize = Integer.BYTES;
             int lengthSize = Integer.BYTES;
-            assertEquals(singletonList((long) headerSize), handle.getOffsets());
-            assertEquals(
-                    headerSize + lengthSize + numBytes * offsetCounts.remove(handle.getInfo()),
-                    handle.getDelegate().getStateSize());
+            assertThat(handle.getOffsets()).isEqualTo(singletonList((long) headerSize));
+            assertThat(handle.getDelegate().getStateSize())
+                    .isEqualTo(
+                            headerSize
+                                    + lengthSize
+                                    + numBytes * offsetCounts.remove(handle.getInfo()));
         }
-        assertTrue(offsetCounts.isEmpty());
+        assertThat(offsetCounts).isEmpty();
     }
 
     private byte[] getData(int len) {
@@ -233,8 +417,7 @@ public class ChannelStateCheckpointWriterTest {
     }
 
     private void write(
-            ChannelStateCheckpointWriter writer, InputChannelInfo channelInfo, byte[] data)
-            throws Exception {
+            ChannelStateCheckpointWriter writer, InputChannelInfo channelInfo, byte[] data) {
         MemorySegment segment = wrap(data);
         NetworkBuffer buffer =
                 new NetworkBuffer(
@@ -242,23 +425,37 @@ public class ChannelStateCheckpointWriterTest {
                         FreeingBufferRecycler.INSTANCE,
                         Buffer.DataType.DATA_BUFFER,
                         segment.size());
-        writer.writeInput(channelInfo, buffer);
+        writer.writeInput(JOB_VERTEX_ID, SUBTASK_INDEX, channelInfo, buffer);
     }
 
-    private ChannelStateCheckpointWriter createWriter(ChannelStateWriteResult result)
-            throws Exception {
+    private ChannelStateCheckpointWriter createWriter(ChannelStateWriteResult result) {
         return createWriter(result, new MemoryCheckpointOutputStream(1000));
     }
 
     private ChannelStateCheckpointWriter createWriter(
-            ChannelStateWriteResult result, CheckpointStateOutputStream stream) throws Exception {
+            ChannelStateWriteResult result, CheckpointStateOutputStream stream) {
+        ChannelStateCheckpointWriter writer =
+                createWriter(stream, Collections.singleton(SUBTASK_ID));
+        writer.registerSubtaskResult(SUBTASK_ID, result);
+        return writer;
+    }
+
+    private ChannelStateCheckpointWriter createWriter(
+            CheckpointStateOutputStream stream, Set<SubtaskID> subtasks) {
         return new ChannelStateCheckpointWriter(
-                "dummy task",
-                0,
-                1L,
-                result,
-                stream,
-                new ChannelStateSerializerImpl(),
-                NO_OP_RUNNABLE);
+                subtasks, 1L, stream, new ChannelStateSerializerImpl(), NO_OP_RUNNABLE);
+    }
+}
+
+/** The output stream that throws an exception when close or closeAndGetHandle. */
+class CloseExceptionOutputStream extends MemoryCheckpointOutputStream {
+    public CloseExceptionOutputStream() {
+        super(1000);
+    }
+
+    @Nullable
+    @Override
+    public StreamStateHandle closeAndGetHandle() throws IOException {
+        throw new IOException("Test closeAndGetHandle exception.");
     }
 }

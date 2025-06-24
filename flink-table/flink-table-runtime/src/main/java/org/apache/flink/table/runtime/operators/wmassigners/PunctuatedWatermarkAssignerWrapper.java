@@ -19,8 +19,8 @@
 package org.apache.flink.table.runtime.operators.wmassigners;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -34,7 +34,7 @@ import javax.annotation.Nullable;
 /** Generates periodic watermarks based on a {@link PunctuatedWatermarkAssigner}. */
 @Internal
 public class PunctuatedWatermarkAssignerWrapper
-        implements AssignerWithPunctuatedWatermarks<RowData> {
+        implements WatermarkStrategyWithPunctuatedWatermarks<RowData> {
     private static final long serialVersionUID = 1L;
     private final PunctuatedWatermarkAssigner assigner;
     private final int timeFieldIdx;

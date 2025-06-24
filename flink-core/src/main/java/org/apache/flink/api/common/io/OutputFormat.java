@@ -59,11 +59,10 @@ public interface OutputFormat<IT> extends Serializable {
      *
      * <p>When this method is called, the output format it guaranteed to be configured.
      *
-     * @param taskNumber The number of the parallel instance.
-     * @param numTasks The number of parallel tasks.
+     * @param context The context to get task parallel infos.
      * @throws IOException Thrown, if the output could not be opened due to an I/O problem.
      */
-    void open(int taskNumber, int numTasks) throws IOException;
+    void open(InitializationContext context) throws IOException;
 
     /**
      * Adds a record to the output.
@@ -71,7 +70,7 @@ public interface OutputFormat<IT> extends Serializable {
      * <p>When this method is called, the output format it guaranteed to be opened.
      *
      * @param record The records to add to the output.
-     * @throws IOException Thrown, if the records could not be added to to an I/O problem.
+     * @throws IOException Thrown, if the records could not be added due to an I/O problem.
      */
     void writeRecord(IT record) throws IOException;
 
@@ -85,4 +84,30 @@ public interface OutputFormat<IT> extends Serializable {
      * @throws IOException Thrown, if the input could not be closed properly.
      */
     void close() throws IOException;
+
+    /** The context exposes some runtime info for initializing output format. */
+    @Public
+    interface InitializationContext {
+        /**
+         * Gets the parallelism with which the parallel task runs.
+         *
+         * @return The parallelism with which the parallel task runs.
+         */
+        int getNumTasks();
+
+        /**
+         * Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
+         * parallelism-1 (parallelism as returned by {@link #getNumTasks()}).
+         *
+         * @return The index of the parallel subtask.
+         */
+        int getTaskNumber();
+
+        /**
+         * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
+         *
+         * @return Attempt number of the subtask.
+         */
+        int getAttemptNumber();
+    }
 }

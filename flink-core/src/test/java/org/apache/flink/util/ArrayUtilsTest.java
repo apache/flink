@@ -18,42 +18,32 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.sameInstance;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ArrayUtils}. */
-public class ArrayUtilsTest extends TestLogger {
+class ArrayUtilsTest {
 
     @Test
-    public void concatWithEmptyArray() {
+    void concatWithEmptyArray() {
         String[] emptyArray = new String[] {};
         String[] nonEmptyArray = new String[] {"some value"};
 
-        assertThat(
-                "Should return the non empty array",
-                ArrayUtils.concat(emptyArray, nonEmptyArray),
-                sameInstance(nonEmptyArray));
+        assertThat(ArrayUtils.concat(emptyArray, nonEmptyArray)).isSameAs(nonEmptyArray);
 
-        assertThat(
-                "Should return the non empty array",
-                ArrayUtils.concat(nonEmptyArray, emptyArray),
-                sameInstance(nonEmptyArray));
+        assertThat(ArrayUtils.concat(nonEmptyArray, emptyArray)).isSameAs(nonEmptyArray);
     }
 
     @Test
-    public void concatArrays() {
+    void concatArrays() {
         String[] array1 = new String[] {"A", "B", "C", "D", "E", "F", "G"};
         String[] array2 = new String[] {"1", "2", "3"};
 
-        assertThat(
-                ArrayUtils.concat(array1, array2),
-                is(new String[] {"A", "B", "C", "D", "E", "F", "G", "1", "2", "3"}));
+        assertThat(ArrayUtils.concat(array1, array2))
+                .isEqualTo(new String[] {"A", "B", "C", "D", "E", "F", "G", "1", "2", "3"});
 
-        assertThat(
-                ArrayUtils.concat(array2, array1),
-                is(new String[] {"1", "2", "3", "A", "B", "C", "D", "E", "F", "G"}));
+        assertThat(ArrayUtils.concat(array2, array1))
+                .isEqualTo(new String[] {"1", "2", "3", "A", "B", "C", "D", "E", "F", "G"});
     }
 }

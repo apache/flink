@@ -23,6 +23,7 @@ import org.apache.flink.util.WrappingProxy;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 
 /**
  * A wrapper around {@link FileSystemFactory} that ensures the plugin classloader is used for all
@@ -69,7 +70,7 @@ public class PluginFileSystemFactory implements FileSystemFactory {
     }
 
     static class ClassLoaderFixingFileSystem extends FileSystem
-            implements WrappingProxy<FileSystem> {
+            implements WrappingProxy<FileSystem>, PathsCopyingFileSystem {
         private final FileSystem inner;
         private final ClassLoader loader;
 
@@ -150,6 +151,21 @@ public class PluginFileSystemFactory implements FileSystemFactory {
         }
 
         @Override
+        public void copyFiles(List<CopyRequest> requests, ICloseableRegistry closeableRegistry)
+                throws IOException {
+            try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
+                ((PathsCopyingFileSystem) inner).copyFiles(requests, closeableRegistry);
+            }
+        }
+
+        @Override
+        public boolean canCopyPaths(Path source, Path destination) throws IOException {
+            try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
+                return inner.canCopyPaths(source, destination);
+            }
+        }
+
+        @Override
         public boolean delete(final Path f, final boolean recursive) throws IOException {
             try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
                 return inner.delete(f, recursive);
@@ -175,13 +191,6 @@ public class PluginFileSystemFactory implements FileSystemFactory {
         public boolean isDistributedFS() {
             try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
                 return inner.isDistributedFS();
-            }
-        }
-
-        @Override
-        public FileSystemKind getKind() {
-            try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
-                return inner.getKind();
             }
         }
 

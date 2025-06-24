@@ -36,11 +36,14 @@ import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.concurrent.ExponentialBackoffRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -53,6 +56,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -60,12 +64,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.kubernetes.utils.Constants.KUBERNETES_ZERO_RESOURCE_VERSION;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The implementation of {@link FlinkKubeClient}. */
@@ -76,17 +81,19 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     private final String clusterId;
     private final String namespace;
     private final int maxRetryAttempts;
+    private final Duration initialRetryInterval;
+    private final Duration maxRetryInterval;
     private final KubernetesConfigOptions.NodePortAddressType nodePortAddressType;
 
     private final NamespacedKubernetesClient internalClient;
-    private final ExecutorService kubeClientExecutorService;
+    private final ScheduledExecutorService kubeClientExecutorService;
     // save the master deployment atomic reference for setting owner reference of task manager pods
     private final AtomicReference<Deployment> masterDeploymentRef;
 
     public Fabric8FlinkKubeClient(
             Configuration flinkConfig,
             NamespacedKubernetesClient client,
-            ExecutorService executorService) {
+            ScheduledExecutorService executorService) {
         this.clusterId =
                 flinkConfig
                         .getOptional(KubernetesConfigOptions.CLUSTER_ID)
@@ -96,10 +103,17 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                                                 String.format(
                                                         "Configuration option '%s' is not set.",
                                                         KubernetesConfigOptions.CLUSTER_ID.key())));
-        this.namespace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
+        this.namespace = flinkConfig.get(KubernetesConfigOptions.NAMESPACE);
         this.maxRetryAttempts =
-                flinkConfig.getInteger(
+                flinkConfig.get(
                         KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
+        this.initialRetryInterval =
+                flinkConfig.get(
+                        KubernetesConfigOptions
+                                .KUBERNETES_TRANSACTIONAL_OPERATION_INITIAL_RETRY_DEALY);
+        this.maxRetryInterval =
+                flinkConfig.get(
+                        KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRY_DEALY);
         this.nodePortAddressType =
                 flinkConfig.get(
                         KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE);
@@ -118,8 +132,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                 "Start to create deployment with spec {}{}",
                 System.lineSeparator(),
                 KubernetesUtils.tryToGetPrettyPrintYaml(deployment));
-        final Deployment createdDeployment =
-                this.internalClient.apps().deployments().create(deployment);
+        final Deployment createdDeployment = this.internalClient.resource(deployment).create();
 
         // Note that we should use the uid of the created Deployment for the OwnerReference.
         setOwnerReference(createdDeployment, accompanyingResources);
@@ -160,7 +173,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                             KubernetesUtils.tryToGetPrettyPrintYaml(
                                     kubernetesPod.getInternalResource()));
 
-                    this.internalClient.pods().create(kubernetesPod.getInternalResource());
+                    this.internalClient.resource(kubernetesPod.getInternalResource()).create();
                 },
                 kubeClientExecutorService);
     }
@@ -191,7 +204,15 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
     @Override
     public List<KubernetesPod> getPodsWithLabels(Map<String, String> labels) {
-        final List<Pod> podList = this.internalClient.pods().withLabels(labels).list().getItems();
+        final List<Pod> podList =
+                this.internalClient
+                        .pods()
+                        .withLabels(labels)
+                        .list(
+                                new ListOptionsBuilder()
+                                        .withResourceVersion(KUBERNETES_ZERO_RESOURCE_VERSION)
+                                        .build())
+                        .getItems();
 
         if (podList == null || podList.isEmpty()) {
             return new ArrayList<>();
@@ -212,8 +233,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
 
     @Override
     public Optional<KubernetesService> getService(String serviceName) {
-        final Service service =
-                this.internalClient.services().withName(serviceName).fromServer().get();
+        final Service service = this.internalClient.services().withName(serviceName).get();
         if (service == null) {
             LOG.debug("Service {} does not exist", serviceName);
             return Optional.empty();
@@ -222,27 +242,26 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     }
 
     @Override
-    public KubernetesWatch watchPodsAndDoCallback(
-            Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler)
-            throws Exception {
-        return FutureUtils.retry(
-                        () ->
-                                CompletableFuture.supplyAsync(
-                                        () ->
-                                                new KubernetesWatch(
-                                                        this.internalClient
-                                                                .pods()
-                                                                .withLabels(labels)
-                                                                .watch(
-                                                                        new KubernetesPodsWatcher(
-                                                                                podCallbackHandler))),
-                                        kubeClientExecutorService),
-                        maxRetryAttempts,
-                        t ->
-                                ExceptionUtils.findThrowable(t, KubernetesClientException.class)
-                                        .isPresent(),
-                        kubeClientExecutorService)
-                .get();
+    public CompletableFuture<KubernetesWatch> watchPodsAndDoCallback(
+            Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler) {
+        return FutureUtils.retryWithDelay(
+                () ->
+                        CompletableFuture.supplyAsync(
+                                () ->
+                                        new KubernetesWatch(
+                                                this.internalClient
+                                                        .pods()
+                                                        .withLabels(labels)
+                                                        .withResourceVersion(
+                                                                KUBERNETES_ZERO_RESOURCE_VERSION)
+                                                        .watch(
+                                                                new KubernetesPodsWatcher(
+                                                                        podCallbackHandler))),
+                                kubeClientExecutorService),
+                new ExponentialBackoffRetryStrategy(
+                        maxRetryAttempts, initialRetryInterval, maxRetryInterval),
+                t -> ExceptionUtils.findThrowable(t, KubernetesClientException.class).isPresent(),
+                new ScheduledExecutorServiceAdapter(kubeClientExecutorService));
     }
 
     @Override
@@ -259,8 +278,8 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
         return CompletableFuture.runAsync(
                         () ->
                                 this.internalClient
-                                        .configMaps()
-                                        .create(configMap.getInternalResource()),
+                                        .resource(configMap.getInternalResource())
+                                        .create(),
                         kubeClientExecutorService)
                 .exceptionally(
                         throwable -> {
@@ -310,10 +329,9 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                     if (maybeUpdate.isPresent()) {
                         try {
                             internalClient
-                                    .configMaps()
-                                    .withName(configMapName)
-                                    .lockResourceVersion(maybeUpdate.get().getResourceVersion())
-                                    .replace(maybeUpdate.get().getInternalResource());
+                                    .resource(maybeUpdate.get().getInternalResource())
+                                    .lockResourceVersion()
+                                    .update();
                             return true;
                         } catch (Throwable throwable) {
                             LOG.debug(
@@ -333,15 +351,6 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     }
 
     @Override
-    public CompletableFuture<Void> deleteConfigMapsByLabels(Map<String, String> labels) {
-        // the only time, the delete method returns false is due to a 404 HTTP status which is
-        // returned if the underlying resource doesn't exist
-        return CompletableFuture.runAsync(
-                () -> this.internalClient.configMaps().withLabels(labels).delete(),
-                kubeClientExecutorService);
-    }
-
-    @Override
     public CompletableFuture<Void> deleteConfigMap(String configMapName) {
         // the only time, the delete method returns false is due to a 404 HTTP status which is
         // returned if the underlying resource doesn't exist
@@ -351,9 +360,9 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     }
 
     @Override
-    public KubernetesConfigMapSharedWatcher createConfigMapSharedWatcher(
-            Map<String, String> labels) {
-        return new KubernetesConfigMapSharedInformer(this.internalClient, labels);
+    public KubernetesConfigMapSharedWatcher createConfigMapSharedWatcher(String name) {
+        LOG.info("Creating configmap shared watcher for {}.", name);
+        return new KubernetesConfigMapSharedInformer(this.internalClient, name);
     }
 
     @Override
@@ -368,7 +377,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
             throw new FlinkRuntimeException(
                     String.format("Pod template file %s does not exist.", file));
         }
-        return new KubernetesPod(this.internalClient.pods().load(file).get());
+        return new KubernetesPod(this.internalClient.pods().load(file).item());
     }
 
     @Override
@@ -396,10 +405,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                                                             .endPort()
                                                             .endSpec()
                                                             .build();
-                                            this.internalClient
-                                                    .services()
-                                                    .withName(serviceName)
-                                                    .replace(updatedService);
+                                            this.internalClient.resource(updatedService).update();
                                         }),
                 kubeClientExecutorService);
     }

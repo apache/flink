@@ -21,8 +21,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
+import org.apache.flink.runtime.state.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.heap.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -124,7 +124,9 @@ public class ChangelogListStateTest {
         private final List<String> list;
 
         public TestingInternalListState(List<String> stringStringList) {
-            serializer = TypeInformation.of(String.class).createSerializer(new ExecutionConfig());
+            serializer =
+                    TypeInformation.of(String.class)
+                            .createSerializer(new ExecutionConfig().getSerializerConfig());
             listSerializer = new ListSerializer<>(serializer);
             list = new ArrayList<>(stringStringList);
         }

@@ -19,11 +19,12 @@
 from typing import Any
 
 from pyflink.common import Duration
-from pyflink.common.serialization import SimpleStringSchema, JsonRowDeserializationSchema
+from pyflink.common.serialization import SimpleStringSchema
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import TimestampAssigner, WatermarkStrategy
-from pyflink.datastream import StreamExecutionEnvironment, TimeCharacteristic
+from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors import FlinkKafkaProducer, FlinkKafkaConsumer
+from pyflink.datastream.formats.json import JsonRowDeserializationSchema
 from pyflink.datastream.functions import KeyedProcessFunction
 
 from functions import MyKeySelector
@@ -35,7 +36,6 @@ def python_data_stream_example():
     # are processed by the same worker and the collected result would be in order which is good for
     # assertion.
     env.set_parallelism(1)
-    env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
 
     type_info = Types.ROW_NAMED(['createTime', 'orderId', 'payAmount', 'payPlatform', 'provinceId'],
                                 [Types.LONG(), Types.LONG(), Types.DOUBLE(), Types.INT(),

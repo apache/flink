@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.bridging;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
+import org.apache.flink.table.catalog.ContextResolvedProcedure;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
@@ -30,13 +31,11 @@ import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.inference.TypeInferenceOperandChecker;
 import org.apache.flink.table.planner.functions.inference.TypeInferenceOperandInference;
 import org.apache.flink.table.planner.functions.inference.TypeInferenceReturnInference;
 import org.apache.flink.table.types.inference.TypeInference;
 
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -46,9 +45,7 @@ import org.apache.calcite.sql.type.SqlReturnTypeInference;
 
 import javax.annotation.Nullable;
 
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /** Utilities for bridging {@link FunctionDefinition} with Calcite's representation of functions. */
 final class BridgingUtils {
@@ -57,6 +54,10 @@ final class BridgingUtils {
                 .getIdentifier()
                 .map(BridgingUtils::extractName)
                 .orElseGet(() -> createInlineFunctionName(resolvedFunction.getDefinition()));
+    }
+
+    static String createName(ContextResolvedProcedure resolveProcedure) {
+        return extractName(resolveProcedure.getIdentifier());
     }
 
     private static String extractName(FunctionIdentifier identifier) {
@@ -125,6 +126,17 @@ final class BridgingUtils {
                 .orElse(null);
     }
 
+    static SqlIdentifier createSqlIdentifier(ContextResolvedProcedure resolvedProcedure) {
+        final FunctionIdentifier fi = resolvedProcedure.getIdentifier();
+        return fi.getIdentifier()
+                .map(oi -> new SqlIdentifier(oi.toList(), SqlParserPos.ZERO))
+                .orElseGet(
+                        () ->
+                                new SqlIdentifier(
+                                        fi.getSimpleName().orElseThrow(IllegalStateException::new),
+                                        SqlParserPos.ZERO));
+    }
+
     static SqlReturnTypeInference createSqlReturnTypeInference(
             DataTypeFactory dataTypeFactory,
             FunctionDefinition definition,
@@ -144,21 +156,6 @@ final class BridgingUtils {
             FunctionDefinition definition,
             TypeInference typeInference) {
         return new TypeInferenceOperandChecker(dataTypeFactory, definition, typeInference);
-    }
-
-    static @Nullable List<RelDataType> createParamTypes(
-            FlinkTypeFactory typeFactory, TypeInference typeInference) {
-        return typeInference
-                .getTypedArguments()
-                .map(
-                        dataTypes ->
-                                dataTypes.stream()
-                                        .map(
-                                                dataType ->
-                                                        typeFactory.createFieldTypeFromLogicalType(
-                                                                dataType.getLogicalType()))
-                                        .collect(Collectors.toList()))
-                .orElse(null);
     }
 
     static SqlFunctionCategory createSqlFunctionCategory(ContextResolvedFunction resolvedFunction) {

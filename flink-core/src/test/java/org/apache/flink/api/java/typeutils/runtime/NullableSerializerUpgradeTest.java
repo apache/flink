@@ -20,47 +20,37 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 
-import org.hamcrest.Matcher;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.assertj.core.api.Condition;
 
 import java.util.ArrayList;
 import java.util.Collection;
-
-import static org.hamcrest.CoreMatchers.is;
+import java.util.Objects;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link NullableSerializer}. */
-@RunWith(Parameterized.class)
-public class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Long, Long> {
+class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Long, Long> {
 
-    public NullableSerializerUpgradeTest(TestSpecification<Long, Long> testSpecification) {
-        super(testSpecification);
-    }
-
-    @Parameterized.Parameters(name = "Test Specification = {0}")
-    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
+            throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "nullable-padded-serializer",
-                            flinkVersion,
-                            NullablePaddedSerializerSetup.class,
-                            NullablePaddedSerializerVerifier.class));
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "nullable-padded-serializer",
+                        flinkVersion,
+                        NullablePaddedSerializerSetup.class,
+                        NullablePaddedSerializerVerifier.class));
 
-            testSpecifications.add(
-                    new TestSpecification<>(
-                            "nullable-not-padded-serializer",
-                            flinkVersion,
-                            NullableNotPaddedSerializerSetup.class,
-                            NullableNotPaddedSerializerVerifier.class));
-        }
+        testSpecifications.add(
+                new TestSpecification<>(
+                        "nullable-not-padded-serializer",
+                        flinkVersion,
+                        NullableNotPaddedSerializerSetup.class,
+                        NullableNotPaddedSerializerVerifier.class));
         return testSpecifications;
     }
 
@@ -97,14 +87,14 @@ public class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase
         }
 
         @Override
-        public Matcher<Long> testDataMatcher() {
-            return is((Long) null);
+        public Condition<Long> testDataCondition() {
+            return new Condition<>(Objects::isNull, "value is null");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<Long>> schemaCompatibilityMatcher(
+        public Condition<TypeSerializerSchemaCompatibility<Long>> schemaCompatibilityCondition(
                 FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 
@@ -141,14 +131,14 @@ public class NullableSerializerUpgradeTest extends TypeSerializerUpgradeTestBase
         }
 
         @Override
-        public Matcher<Long> testDataMatcher() {
-            return is((Long) null);
+        public Condition<Long> testDataCondition() {
+            return new Condition<>(Objects::isNull, "value is null");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<Long>> schemaCompatibilityMatcher(
+        public Condition<TypeSerializerSchemaCompatibility<Long>> schemaCompatibilityCondition(
                 FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 }

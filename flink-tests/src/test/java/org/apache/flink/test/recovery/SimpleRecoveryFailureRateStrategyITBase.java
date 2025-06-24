@@ -27,6 +27,8 @@ import org.junit.ClassRule;
 
 import java.time.Duration;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FAILURE_RATE;
+
 /** Test cluster configuration with failure-rate recovery. */
 public class SimpleRecoveryFailureRateStrategyITBase extends SimpleRecoveryITCaseBase {
 
@@ -41,8 +43,8 @@ public class SimpleRecoveryFailureRateStrategyITBase extends SimpleRecoveryITCas
 
     private static Configuration getConfiguration() {
         Configuration config = new Configuration();
-        config.setString(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
-        config.setInteger(
+        config.set(RestartStrategyOptions.RESTART_STRATEGY, FAILURE_RATE.getMainValue());
+        config.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL, 3);
         config.set(
                 RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL,

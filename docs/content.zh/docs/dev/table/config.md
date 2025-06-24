@@ -134,6 +134,12 @@ Flink SQL> SET 'table.exec.mini-batch.size' = '5000';
 
 {{< generated/table_config_configuration >}}
 
+### Materialized Table 配置
+
+以下配置可以用于调整 Materialized Table 的行为。
+
+{{< generated/materialized_table_config_configuration >}}
+
 ### SQL Client 配置
 
 以下配置可以用于调整 sql client 的行为。

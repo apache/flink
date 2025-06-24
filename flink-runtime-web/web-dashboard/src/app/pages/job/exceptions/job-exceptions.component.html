@@ -52,6 +52,12 @@
               <td>{{ item.selected.timestamp | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
               <td>
                 <div class="name">{{ item.selected.exceptionName }}</div>
+                <nz-tag
+                  *ngFor="let label of item.selected.failureLabels | keyvalue"
+                  [nzColor]="'#ff0000'"
+                >
+                  {{ label.key }}:{{ label.value }}
+                </nz-tag>
               </td>
               <td class="select-td">
                 <nz-select
@@ -78,7 +84,15 @@
                   </nz-option>
                 </nz-select>
               </td>
-              <td>{{ item.selected.location || '(unassigned)' }}</td>
+              <td class="clickable" (click)="navigateTo(item.selected.taskManagerId)">
+                <a>
+                  {{
+                    item.selected.endpoint
+                      ? item.selected.taskManagerId + '(' + item.selected.endpoint + ')'
+                      : '(unassigned)'
+                  }}
+                </a>
+              </td>
             </tr>
             <tr [nzExpand]="item.expand">
               <td colspan="5" class="expand-td">

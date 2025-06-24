@@ -25,7 +25,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.utils.PlannerMocks;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link ParserImpl}. */
-public class ParserImplTest {
+class ParserImplTest {
 
     private final PlannerMocks plannerMocks = PlannerMocks.create(true);
 
@@ -76,7 +76,7 @@ public class ParserImplTest {
                                     "SQL parse failed. Encountered \"execution\" at line 1, column 5"));
 
     @Test
-    public void testParseLegalStatements() {
+    void testParseLegalStatements() {
         for (TestSpec spec : TEST_SPECS) {
             if (spec.expectedSummary != null) {
                 Operation op = parser.parse(spec.statement).get(0);
@@ -92,13 +92,13 @@ public class ParserImplTest {
     }
 
     @Test
-    public void testPartialParse() {
+    void testPartialParse() {
         assertThatThrownBy(() -> parser.parse("select A From"))
                 .isInstanceOf(SqlParserEOFException.class);
     }
 
     @Test
-    public void testPartialParseWithStatementSet() {
+    void testPartialParseWithStatementSet() {
         assertThatThrownBy(
                         () ->
                                 parser.parse(
@@ -107,7 +107,7 @@ public class ParserImplTest {
     }
 
     @Test
-    public void testCompletionTest() {
+    void testCompletionTest() {
         verifySqlCompletion("QU", 1, new String[] {"QUIT"});
         verifySqlCompletion("SE", 1, new String[] {"SET"});
         verifySqlCompletion("", 0, new String[] {"CLEAR", "HELP", "EXIT", "QUIT", "RESET", "SET"});

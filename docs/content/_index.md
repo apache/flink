@@ -30,7 +30,7 @@ under the License.
 # Apache Flink Documentation
 
 {{< center >}}
-**Apache Flink** is a framework and distributed processing engine for stateful computations over *unbounded* and *bounded* data streams. Flink has been designed to run in *all common cluster environments* perform computations at *in-memory* speed and at *any scale*.
+**Apache Flink** is a framework and distributed processing engine for stateful computations over *unbounded* and *bounded* data streams. Flink has been designed to run in *all common cluster environments*, perform computations at *in-memory* speed and at *any scale*.
 {{< /center >}}
 
 {{< columns >}}
@@ -62,6 +62,7 @@ The reference documentation covers all the details. Some starting points:
 
 {{< columns >}}
 * [DataStream API]({{< ref "docs/dev/datastream/overview" >}})
+* [DataStream API (V2)]({{< ref "docs/dev/datastream-v2/overview" >}})
 * [Table API & SQL]({{< ref "docs/dev/table/overview" >}})
 * [Stateful Functions](https://nightlies.apache.org/flink/flink-statefun-docs-stable/)
 
@@ -85,7 +86,22 @@ Release notes cover important changes between Flink versions. Please read them c
 For some reason Hugo will only allow linking to the 
 release notes if there is a leading '/' and file extension.
 -->
-See the release notes for [Flink 1.15]({{< ref "/release-notes/flink-1.15.md" >}}), [Flink 1.14]({{< ref "/release-notes/flink-1.14.md" >}}), [Flink 1.13]({{< ref "/release-notes/flink-1.13.md" >}}), [Flink 1.12]({{< ref "/release-notes/flink-1.12.md" >}}), [Flink 1.11]({{< ref "/release-notes/flink-1.11.md" >}}), [Flink 1.10]({{< ref "/release-notes/flink-1.10.md" >}}), [Flink 1.9]({{< ref "/release-notes/flink-1.9.md" >}}), [Flink 1.8]({{< ref "/release-notes/flink-1.8.md" >}}), or [Flink 1.7]({{< ref "/release-notes/flink-1.7.md" >}}).
+See the release notes for
+[Flink 2.0]({{< ref "/release-notes/flink-2.0.md" >}}),
+[Flink 1.20]({{< ref "/release-notes/flink-1.20.md" >}}),
+[Flink 1.19]({{< ref "/release-notes/flink-1.19.md" >}}),
+[Flink 1.18]({{< ref "/release-notes/flink-1.18.md" >}}),
+[Flink 1.17]({{< ref "/release-notes/flink-1.17.md" >}}),
+[Flink 1.16]({{< ref "/release-notes/flink-1.16.md" >}}), 
+[Flink 1.15]({{< ref "/release-notes/flink-1.15.md" >}}), 
+[Flink 1.14]({{< ref "/release-notes/flink-1.14.md" >}}), 
+[Flink 1.13]({{< ref "/release-notes/flink-1.13.md" >}}), 
+[Flink 1.12]({{< ref "/release-notes/flink-1.12.md" >}}), 
+[Flink 1.11]({{< ref "/release-notes/flink-1.11.md" >}}), 
+[Flink 1.10]({{< ref "/release-notes/flink-1.10.md" >}}), 
+[Flink 1.9]({{< ref "/release-notes/flink-1.9.md" >}}), 
+[Flink 1.8]({{< ref "/release-notes/flink-1.8.md" >}}), or 
+[Flink 1.7]({{< ref "/release-notes/flink-1.7.md" >}}).
 
 {{< /columns >}}
 

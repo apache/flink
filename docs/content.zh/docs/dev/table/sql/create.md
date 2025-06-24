@@ -33,10 +33,12 @@ CREATE 语句用于向当前或指定的 [Catalog]({{< ref "docs/dev/table/catal
 目前 Flink SQL 支持下列 CREATE 语句：
 
 - CREATE TABLE
+- [CREATE OR] REPLACE TABLE
 - CREATE CATALOG
 - CREATE DATABASE
 - CREATE VIEW
 - CREATE FUNCTION
+- CREATE MODEL
 
 ## 执行 CREATE 语句
 
@@ -156,8 +158,9 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
   )
   [COMMENT table_comment]
   [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
+  [ <distribution> ]
   WITH (key1=val1, key2=val2, ...)
-  [ LIKE source_table [( <like_options> )] ]
+  [ LIKE source_table [( <like_options> )] | AS select_query ]
    
 <physical_column_definition>:
   column_name column_type [ <column_constraint> ] [COMMENT column_comment]
@@ -182,9 +185,15 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
 
 <like_options>:
 {
-   { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | PARTITIONS }
+   { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | DISTRIBUTION | PARTITIONS }
  | { INCLUDING | EXCLUDING | OVERWRITING } { GENERATED | OPTIONS | WATERMARKS } 
 }[, ...]
+
+<distribution>:
+{
+    DISTRIBUTION BY [ { HASH | RANGE } ] (bucket_column_name1, bucket_column_name2, ...) [INTO n BUCKETS]
+  | DISTRIBUTION INTO n BUCKETS
+}
 
 ```
 
@@ -317,7 +326,7 @@ CREATE TABLE MyTable (
   `user_id` BIGINT,
   `price` DOUBLE,
   `quantity` DOUBLE,
-  `cost` AS price * quanitity,  -- evaluate expression and supply the result to queries
+  `cost` AS price * quantity  -- evaluate expression and supply the result to queries
 ) WITH (
   'connector' = 'kafka'
   ...
@@ -404,6 +413,36 @@ Flink 假设声明了主键的列都是不包含 Null 值的，Connector 在处�
 
 根据指定的列对已经创建的表进行分区。若表使用 filesystem sink ，则将会为每个分区创建一个目录。
 
+### `DISTRIBUTED`
+
+Buckets enable load balancing in an external storage system by splitting data into disjoint subsets. These subsets group rows with potentially "infinite" keyspace into smaller and more manageable chunks that allow for efficient parallel processing.
+
+Bucketing depends heavily on the semantics of the underlying connector. However, a user can influence the bucketing behavior by specifying the number of buckets, the bucketing algorithm, and (if the algorithm allows it) the columns which are used for target bucket calculation.
+
+All bucketing components (i.e. bucket number, distribution algorithm, bucket key columns) are
+optional from a SQL syntax perspective.
+
+Given the following SQL statements:
+
+```sql
+-- Example 1
+CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY HASH(uid) INTO 4 BUCKETS;
+
+-- Example 2
+CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY (uid) INTO 4 BUCKETS;
+
+-- Example 3
+CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY (uid);
+
+-- Example 4
+CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED INTO 4 BUCKETS;
+```
+
+Example 1 declares a hash function on a fixed number of 4 buckets (i.e. HASH(uid) % 4 = target
+bucket). Example 2 leaves the selection of an algorithm up to the connector. Additionally,
+Example 3 leaves the number of buckets up  to the connector.
+In contrast, Example 4 only defines the number of buckets.
+
 ### `WITH` Options
 
 表属性用于创建 table source/sink ，一般用于寻找和创建底层的连接器。
@@ -463,6 +502,7 @@ CREATE TABLE Orders_with_watermark (
 * CONSTRAINTS - 主键和唯一键约束
 * GENERATED - 计算列
 * OPTIONS - 连接器信息、格式化方式等配置项
+* DISTRIBUTION - distribution definition
 * PARTITIONS - 表分区信息
 * WATERMARKS - watermark 定义
 
@@ -482,7 +522,7 @@ CREATE TABLE Orders_in_file (
     `user` BIGINT,
     product STRING,
     order_time_string STRING,
-    order_time AS to_timestamp(order_time)
+    order_time AS to_timestamp(order_time_string)
     
 )
 PARTITIONED BY (`user`) 
@@ -513,23 +553,267 @@ LIKE Orders_in_file (
 
 **注意：** 源表 `source_table` 可以是一个组合 ID。您可以指定不同 catalog 或者 DB 的表作为源表: 例如，`my_catalog.my_db.MyTable` 指定了源表 `MyTable` 来源于名为 `MyCatalog` 的 catalog  和名为 `my_db` 的 DB ，`my_db.MyTable` 指定了源表 `MyTable` 来源于当前 catalog  和名为 `my_db` 的 DB。
 
+### `AS select_statement`
+
+表也可以通过一个 CTAS 语句中的查询结果来创建并填充数据，CTAS 是一种简单、快捷的创建表并插入数据的方法。
+
+CTAS 有两个部分，SELECT 部分可以是 Flink SQL 支持的任何 [SELECT 查询]({{< ref "docs/dev/table/sql/queries/overview" >}})。 CREATE 部分从 SELECT 查询中获取列信息，并创建目标表。 与 `CREATE TABLE` 类似，CTAS 要求必须在目标表的 WITH 子句中指定必填的表属性。
+
+CTAS 的建表操作需要依赖目标 Catalog。比如，Hive Catalog 会自动在 Hive 中创建物理表。但是基于内存的 Catalog 只会将表的元信息注册在执行 SQL 的 Client 的内存中。
+
+示例如下:
+
+```sql
+CREATE TABLE my_ctas_table
+WITH (
+    'connector' = 'kafka',
+    ...
+)
+AS SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
+```
+
+结果表 `my_ctas_table` 等效于使用以下语句创建表并写入数据:
+```sql
+CREATE TABLE my_ctas_table (
+    id BIGINT,
+    name STRING,
+    age INT
+) WITH (
+    'connector' = 'kafka',
+    ...
+);
+ 
+INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
+```
+
+The `CREATE` part allows you to specify explicit columns. The resulting table schema will contain the columns defined in the `CREATE` part first followed by the columns from the `SELECT` part. Columns named in both parts, in the `CREATE` and `SELECT` parts, keep the same column position as defined in the `SELECT` part. The data type of `SELECT` columns can also be overridden if specified in the `CREATE` part.
+
+Consider the example statement below:
+
+```sql
+CREATE TABLE my_ctas_table (
+    desc STRING,
+    quantity DOUBLE,   
+    cost AS price * quantity,
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND,
+) WITH (
+    'connector' = 'kafka',
+    ...
+) AS SELECT id, price, quantity, order_time FROM source_table;
+```
+
+The resulting table `my_ctas_table` will be equivalent to create the following table and insert the data with the following statement:
+
+```
+CREATE TABLE my_ctas_table (
+    desc STRING,
+    cost AS price * quantity,
+    id BIGINT,
+    price DOUBLE,
+    quantity DOUBLE,
+    order_time TIMESTAMP(3),
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
+) WITH (
+    'connector' = 'kafka',
+    ...
+);
+
+INSERT INTO my_ctas_table (id, price, quantity, order_time)
+    SELECT id, price, quantity, order_time FROM source_table;
+```
+
+The `CREATE` part also lets you specify primary keys and distribution strategies. Notice that primary keys work only on `NOT NULL` columns. Currently, primary keys only allow you to define columns from the `SELECT` part which may be `NOT NULL`. The `CREATE` part does not allow `NOT NULL` column definitions.
+
+Consider the example statement below where `id` is a not null column in the `SELECT` part:
+
+```sql
+CREATE TABLE my_ctas_table (
+    PRIMARY KEY (id) NOT ENFORCED
+) DISTRIBUTED BY (id) INTO 4 buckets 
+AS SELECT id, name FROM source_table;
+```
+
+The resulting table `my_ctas_table` will be equivalent to create the following table and insert the data with the following statement:
+
+```
+CREATE TABLE my_ctas_table (
+    id BIGINT NOT NULL PRIMARY KEY NOT ENFORCED,
+    name STRING 
+) DISTRIBUTED BY (id) INTO 4 buckets;
+
+INSERT INTO my_ctas_table SELECT id, name FROM source_table;
+```
+
+`CTAS` also allows you to reorder the columns defined in the `SELECT` part by specifying all column names without data types in the `CREATE` part. This feature is equivalent to the `INSERT INTO` statement.
+The columns specified must match the names and number of columns in the `SELECT` part. This definition cannot be combined with new columns, which requires defining data types.
+
+Consider the example statement below:
+
+```sql
+CREATE TABLE my_ctas_table (
+    order_time, price, quantity, id
+) WITH (
+    'connector' = 'kafka',
+    ...
+) AS SELECT id, price, quantity, order_time FROM source_table;
+```
+
+The resulting table `my_ctas_table` will be equivalent to create the following table and insert the data with the following statement:
+
+```
+CREATE TABLE my_ctas_table (
+    order_time TIMESTAMP(3),
+    price DOUBLE,
+    quantity DOUBLE,
+    id BIGINT
+) WITH (
+    'connector' = 'kafka',
+    ...
+);
+
+INSERT INTO my_ctas_table (order_time, price, quantity, id)
+    SELECT id, price, quantity, order_time FROM source_table;
+```
+
+**Note:** CTAS has these restrictions:
+* Does not support creating a temporary table yet.
+* Does not support creating partitioned table yet.
+
+**注意：** CTAS 有如下约束：
+* 暂不支持创建临时表。
+* 暂不支持创建分区表。
+
+**注意：** 默认情况下，CTAS 是非原子性的，这意味着如果在向表中插入数据时发生错误，该表不会被自动删除。
+
+#### 原子性
+
+如果要启用 CTAS 的原子性，则应确保：
+* 对应的 Connector sink 已经实现了 CTAS 的原子性语义，你可能需要阅读对应 Connector 的文档看是否已经支持了原子性语义。如果开发者想要实现原子性语义，请参考文档 [SupportsStaging]({{< ref "docs/dev/table/sourcesSinks" >}}#sink-abilities)。
+* 设置配置项 [table.rtas-ctas.atomicity-enabled]({{< ref "docs/dev/table/config" >}}#table-rtas-ctas-atomicity-enabled) 为 `true`。
+
+{{< top >}}
+
+## [CREATE OR] REPLACE TABLE
+```sql
+[CREATE OR] REPLACE TABLE [catalog_name.][db_name.]table_name
+  [(
+    { <physical_column_definition> | <metadata_column_definition> | <computed_column_definition> }[ , ...n]
+    [ <watermark_definition> ]
+    [ <table_constraint> ][ , ...n]
+  )]
+[COMMENT table_comment]
+[ <distribution> ]
+WITH (key1=val1, key2=val2, ...)
+AS select_query
+```
+
+**注意：** RTAS 有如下语义:
+* REPLACE TABLE AS SELECT 语句：要被替换的目标表必须存在，否则会报错。
+* CREATE OR REPLACE TABLE AS SELECT 语句：要被替换的目标表如果不存在，引擎会自动创建；如果存在的话，引擎就直接替换它。
+
+表可以通过一个 [CREATE OR] REPLACE TABLE AS SELECT（RTAS）语句中的查询结果来替换（或创建）并填充数据，RTAS 是一种简单快捷的替换（或创建）表并插入数据的方法。
+
+RTAS 有两个部分：SELECT 部分可以是 Flink SQL 支持的任何 [SELECT 查询]({{< ref "docs/dev/table/sql/queries/overview" >}})， `REPLACE TABLE` 部分会先删除已经存在的目标表，然后根据从 `SELECT` 查询中获取列信息，创建新的目标表。 与 `CREATE TABLE` 和 `CTAS` 类似，RTAS 要求必须在目标表的 WITH 子句中指定必填的表属性。
+
+示例如下:
+
+```sql
+REPLACE TABLE my_rtas_table
+WITH (
+    'connector' = 'kafka',
+    ...
+)
+AS SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
+```
+
+`REPLACE TABLE AS SELECT` 语句等价于使用以下语句先删除表，然后创建表并写入数据:
+```sql
+DROP TABLE my_rtas_table;
+
+CREATE TABLE my_rtas_table (
+    id BIGINT,
+    name STRING,
+    age INT
+) WITH (
+    'connector' = 'kafka',
+    ...
+);
+ 
+INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
+```
+
+Similar to `CREATE TABLE AS`, `REPLACE TABLE AS` allows you to specify explicit columns, watermarks, primary keys and distribution strategies. The resulting table schema is built from the `CREATE` part first followed by the columns from the `SELECT` part. Columns named in both parts, in the `CREATE` and `SELECT` parts, keep the same column position as defined in the `SELECT` part. The data type of `SELECT` columns can also be overridden if specified in the `CREATE` part.
+
+Consider the example statement below:
+
+```sql
+REPLACE TABLE my_rtas_table (
+    desc STRING,
+    quantity DOUBLE,   
+    cost AS price * quantity,
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND,
+    PRIMARY KEY (id) NOT ENFORCED
+) DISTRIBUTED BY (id) INTO 4 buckets
+AS SELECT id, price, quantity, order_time FROM source_table;
+```
+
+The resulting table `my_rtas_table` will be equivalent to create the following table and insert the data with the following statement:
+
+```sql
+DROP TABLE my_rtas_table;
+
+CREATE TABLE my_rtas_table (
+    desc STRING,
+    cost AS price * quantity,
+    id BIGINT NOT NULL PRIMARY KEY NOT ENFORCED,
+    price DOUBLE,
+    quantity DOUBLE,
+    order_time TIMESTAMP(3),
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
+) WITH (
+    'connector' = 'kafka',
+    ...
+);
+
+INSERT INTO my_rtas_table (id, price, quantity, order_time)
+    SELECT id, price, quantity, order_time FROM source_table;
+```
+
+**注意：** RTAS 有如下约束：
+* 暂不支持替换临时表。
+* 暂不支持创建分区表。
+
+**注意：** 默认情况下，RTAS 是非原子性的，这意味着如果在向表中插入数据时发生错误，该表不会被自动删除或还原成原来的表。
+**注意：** RTAS 会先删除表，然后创建表并写入数据。但如果表是在基于内存的 Catalog 里，删除表只会将其从 Catalog 里移除，并不会移除物理表中的数据。因此，执行RTAS语句之前的数据仍然存在。
+
+### 原子性
+
+如果要启用 RTAS 的原子性，则应确保：
+* 对应的 Connector sink 已经实现了 RTAS 的原子性语义，你可能需要阅读对应 Connector 的文档看是否已经支持了原子性语义。如果开发者想要实现原子性语义，请参考文档 [SupportsStaging]({{< ref "docs/dev/table/sourcesSinks" >}}#sink-abilities)。
+* 设置配置项 [table.rtas-ctas.atomicity-enabled]({{< ref "docs/dev/table/config" >}}#table-rtas-ctas-atomicity-enabled) 为 `true`。
+
 {{< top >}}
 
 ## CREATE CATALOG
 
 ```sql
-CREATE CATALOG catalog_name
+CREATE CATALOG [IF NOT EXISTS] catalog_name
+  [COMMENT catalog_comment]
   WITH (key1=val1, key2=val2, ...)
 ```
 
-Create a catalog with the given catalog properties. If a catalog with the same name already exists, an exception is thrown.
+根据给定的属性创建 catalog。若已存在同名 catalog，会抛出异常。
+
+**IF NOT EXISTS**
+
+若 catalog 已经存在，则不会进行任何操作。
 
 **WITH OPTIONS**
 
-Catalog properties used to store extra information related to this catalog.
-The key and value of expression `key1=val1` should both be string literal.
+catalog 属性一般用于存储关于这个 catalog 的额外的信息。
+表达式 `key1=val1` 中的键和值都需要是字符串文本常量。
 
-Check out more details at [Catalogs]({{< ref "docs/dev/table/catalogs" >}}).
+详情见 [Catalogs]({{< ref "docs/dev/table/catalogs" >}})。
 
 {{< top >}}
 
@@ -578,6 +862,7 @@ CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [catalog_name.][db_name.]view_name
 CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   [IF NOT EXISTS] [[catalog_name.]db_name.]function_name
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
+  [USING JAR '<path_to_filename>.jar' [, JAR '<path_to_filename>.jar']* ]
 ```
 
 创建一个有 catalog 和数据库命名空间的 catalog function ，需要指定一个 identifier ，可指定 language tag 。 若 catalog 中，已经有同名的函数注册了，则无法注册。
@@ -604,3 +889,69 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 
 Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只支持 JAVA, SCALA 和 PYTHON，且函数的默认语言为 JAVA。
 
+**USING**
+
+指定包含该函数的实现及其依赖的 jar 资源列表。该 jar 应该位于 Flink 当前支持的本地或远程[文件系统]({{< ref "docs/deployment/filesystems/overview" >}}) 中，比如 hdfs/s3/oss。
+
+<span class="label label-danger">注意</span> 目前只有 JAVA、SCALA 语言支持 USING 子句。
+
+## CREATE MODEL
+```sql
+CREATE [TEMPORARY] MODEL [IF NOT EXISTS] [catalog_name.][db_name.]model_name
+  [(
+    { <input_column_definition> }[ , ...n]
+    { <output_column_definition> }[ , ...n]
+  )]
+  [COMMENT model_comment]
+  WITH (key1=val1, key2=val2, ...)
+
+<input_column_definition>:
+  column_name column_type [COMMENT column_comment]
+
+<output_column_definition>:
+  column_name column_type [COMMENT column_comment]
+```
+
+创建一个有 catalog 和数据库命名空间的模型。若 catalog 中已经存在同名模型，则无法注册。
+
+**TEMPORARY**
+
+创建一个有 catalog 和数据库命名空间的临时模型，并覆盖原有的模型。
+
+**IF NOT EXISTS**
+
+若该模型已经存在，则不会进行任何操作。
+
+**Input/Output**
+
+输入列定义了将用于模型推理的特征。输出列定义了模型将产生的预测结果。每个列必须有名称和数据类型。
+
+**COMMENT**
+
+为模型添加注释。
+
+**WITH OPTIONS**
+
+用于存储与此模型相关的额外信息的模型属性。这些属性通常用于查找和创建底层模型提供者。表达式 `key1=val1` 中的键和值都应该是字符串字面量。
+
+**注意：** 模型属性和支持的模型类型可能因底层模型提供者而异。
+
+### 示例
+
+以下示例展示了 `CREATE MODEL` 语句的使用方法：
+
+```sql
+CREATE MODEL sentiment_analysis_model 
+INPUT (text STRING COMMENT '用于情感分析的输入文本') 
+OUTPUT (sentiment STRING COMMENT '预测的情感（positive/negative/neutral/mixed）')
+COMMENT '用于文本情感分析的模型'
+WITH (
+    'provider' = 'openai',
+    'endpoint' = 'https://api.openai.com/v1/chat/completions',
+    'api-key' = '<YOUR KEY>',
+    'model'='gpt-3.5-turbo',
+    'system-prompt' = 'Classify the text below into one of the following labels: [positive, negative, neutral, mixed]. Output only the label.'
+);
+```
+
+{{< top >}}

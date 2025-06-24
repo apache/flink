@@ -25,17 +25,19 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-rpc</artifactId>
-		<version>1.16-SNAPSHOT</version>
+		<version>2.1-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-rpc-akka</artifactId>
 	<name>Flink : RPC : Akka</name>
 	<packaging>jar</packaging>
+	<description>
+		Pekko-based RPC implementation. Pekko is the Apache fork of Akka.
+		For compatibility/git reasons not all mentions of Akka have been replaced.
+	</description>
 
 	<properties>
-		<akka.version>2.6.15</akka.version>
-		<scala.binary.version>2.12</scala.binary.version>
-		<scala.version>2.12.7</scala.version>
+		<pekko.version>1.1.2</pekko.version>
 	</properties>
 
 	<dependencies>
@@ -59,25 +61,16 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-library</artifactId>
-			<scope>compile</scope>
+			<groupId>org.apache.pekko</groupId>
+			<artifactId>pekko-actor_${scala.binary.version}</artifactId>
+			<version>${pekko.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-compiler</artifactId>
-			<scope>compile</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-actor_${scala.binary.version}</artifactId>
-			<version>${akka.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-remote_${scala.binary.version}</artifactId>
-			<version>${akka.version}</version>
+			<groupId>org.apache.pekko</groupId>
+			<artifactId>pekko-remote_${scala.binary.version}</artifactId>
+			<version>${pekko.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 			<exclusions>
 				<exclusion>
 					<!-- optional dependency for UDP transport which we don't need -->
@@ -92,14 +85,16 @@ under the License.
 			</exclusions>
 		</dependency>
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
-			<version>${akka.version}</version>
+			<groupId>org.apache.pekko</groupId>
+			<artifactId>pekko-slf4j_${scala.binary.version}</artifactId>
+			<version>${pekko.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 		<dependency>
 			<groupId>io.netty</groupId>
-			<artifactId>netty</artifactId>
-			<version>3.10.6.Final</version>
+			<artifactId>netty-all</artifactId>
+			<scope>test</scope>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<dependency>
@@ -131,24 +126,16 @@ under the License.
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
-				<groupId>org.scala-lang</groupId>
-				<artifactId>scala-compiler</artifactId>
-				<version>${scala.version}</version>
-			</dependency>
-			<dependency>
+				<!-- Overwrite parent dependency management -->
 				<groupId>org.scala-lang</groupId>
 				<artifactId>scala-library</artifactId>
 				<version>${scala.version}</version>
 			</dependency>
+			<!-- For dependency convergence in Akka 2.6.20 -->
 			<dependency>
-				<groupId>org.scala-lang</groupId>
-				<artifactId>scala-reflect</artifactId>
-				<version>${scala.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.scala-lang.modules</groupId>
-				<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
-				<version>1.1.2</version>
+				<groupId>com.typesafe</groupId>
+				<artifactId>config</artifactId>
+				<version>1.4.2</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -183,9 +170,15 @@ under the License.
 									<include>*</include>
 								</includes>
 							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.shaded.netty4.io.netty</shadedPattern>
+								</relocation>
+							</relocations>
 							<filters>
 								<filter>
-									<artifact>io.netty:netty</artifact>
+									<artifact>io.netty:*</artifact>
 									<excludes>
 										<!-- Only some of these licenses actually apply to the JAR and have been manually
 											 placed in this module's resources directory. -->
@@ -193,6 +186,14 @@ under the License.
 										<!-- Only parts of NOTICE file actually apply to the netty JAR and have been manually
 											 copied into this modules's NOTICE file. -->
 										<exclude>META-INF/NOTICE.txt</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.scala-lang:*</artifact>
+									<excludes>
+										<!-- For deduplication purposes. -->
+										<exclude>LICENSE</exclude>
+										<exclude>NOTICE</exclude>
 									</excludes>
 								</filter>
 							</filters>

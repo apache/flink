@@ -18,21 +18,22 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.RpcOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Reference;
 
@@ -40,6 +41,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.net.InetAddress;
+import java.time.Duration;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -58,6 +60,8 @@ public class TaskManagerServicesConfiguration {
     private final ResourceID resourceID;
 
     private final String externalAddress;
+
+    private final String nodeId;
 
     private final InetAddress bindAddress;
 
@@ -79,9 +83,11 @@ public class TaskManagerServicesConfiguration {
 
     private final boolean localRecoveryEnabled;
 
+    private final boolean localBackupEnabled;
+
     private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
-    private Optional<Time> systemResourceMetricsProbingInterval;
+    private Optional<Duration> systemResourceMetricsProbingInterval;
 
     private final TaskExecutorResourceSpec taskExecutorResourceSpec;
 
@@ -101,16 +107,18 @@ public class TaskManagerServicesConfiguration {
             String[] tmpDirPaths,
             Reference<File[]> localRecoveryStateDirectories,
             boolean localRecoveryEnabled,
+            boolean localBackupEnabled,
             @Nullable QueryableStateConfiguration queryableStateConfig,
             int numberOfSlots,
             int pageSize,
             TaskExecutorResourceSpec taskExecutorResourceSpec,
             long timerServiceShutdownTimeout,
             RetryingRegistrationConfiguration retryingRegistrationConfiguration,
-            Optional<Time> systemResourceMetricsProbingInterval,
+            Optional<Duration> systemResourceMetricsProbingInterval,
             FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
             String[] alwaysParentFirstLoaderPatterns,
-            int numIoThreads) {
+            int numIoThreads,
+            String nodeId) {
         this.configuration = checkNotNull(configuration);
         this.resourceID = checkNotNull(resourceID);
 
@@ -121,6 +129,7 @@ public class TaskManagerServicesConfiguration {
         this.tmpDirPaths = checkNotNull(tmpDirPaths);
         this.localRecoveryStateDirectories = checkNotNull(localRecoveryStateDirectories);
         this.localRecoveryEnabled = localRecoveryEnabled;
+        this.localBackupEnabled = localBackupEnabled;
         this.queryableStateConfig = queryableStateConfig;
         this.numberOfSlots = numberOfSlots;
 
@@ -139,6 +148,8 @@ public class TaskManagerServicesConfiguration {
 
         this.systemResourceMetricsProbingInterval =
                 checkNotNull(systemResourceMetricsProbingInterval);
+
+        this.nodeId = checkNotNull(nodeId);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -181,6 +192,10 @@ public class TaskManagerServicesConfiguration {
         return localRecoveryEnabled;
     }
 
+    boolean isLocalBackupEnabled() {
+        return localBackupEnabled;
+    }
+
     @Nullable
     QueryableStateConfiguration getQueryableStateConfig() {
         return queryableStateConfig;
@@ -210,7 +225,7 @@ public class TaskManagerServicesConfiguration {
         return timerServiceShutdownTimeout;
     }
 
-    public Optional<Time> getSystemResourceMetricsProbingInterval() {
+    public Optional<Duration> getSystemResourceMetricsProbingInterval() {
         return systemResourceMetricsProbingInterval;
     }
 
@@ -228,6 +243,10 @@ public class TaskManagerServicesConfiguration {
 
     public int getNumIoThreads() {
         return numIoThreads;
+    }
+
+    public String getNodeId() {
+        return nodeId;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -273,27 +292,26 @@ public class TaskManagerServicesConfiguration {
             localStateDirs = Reference.owned(createdLocalStateDirs);
         }
 
-        boolean localRecoveryMode = configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY);
+        boolean localRecoveryEnabled = configuration.get(StateRecoveryOptions.LOCAL_RECOVERY);
+        boolean localBackupEnabled = configuration.get(CheckpointingOptions.LOCAL_BACKUP_ENABLED);
 
         final QueryableStateConfiguration queryableStateConfig =
                 QueryableStateConfiguration.fromConfiguration(configuration);
 
         long timerServiceShutdownTimeout =
-                configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION).toMillis();
+                configuration.get(RpcOptions.ASK_TIMEOUT_DURATION).toMillis();
 
         final RetryingRegistrationConfiguration retryingRegistrationConfiguration =
                 RetryingRegistrationConfiguration.fromConfiguration(configuration);
 
-        final int externalDataPort =
-                configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT);
+        final int externalDataPort = configuration.get(NettyShuffleEnvironmentOptions.DATA_PORT);
 
         String bindAddr =
-                configuration.getString(
-                        TaskManagerOptions.BIND_HOST, NetUtils.getWildcardIPAddress());
+                configuration.get(TaskManagerOptions.BIND_HOST, NetUtils.getWildcardIPAddress());
         InetAddress bindAddress = InetAddress.getByName(bindAddr);
 
         final String classLoaderResolveOrder =
-                configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+                configuration.get(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
 
         final String[] alwaysParentFirstLoaderPatterns =
                 CoreOptions.getParentFirstLoaderPatterns(configuration);
@@ -301,6 +319,13 @@ public class TaskManagerServicesConfiguration {
         final int numIoThreads = ClusterEntrypointUtils.getPoolSize(configuration);
 
         final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
+
+        // If TaskManagerOptionsInternal.TASK_MANAGER_NODE_ID is not set, use the external address
+        // as the node id.
+        final String nodeId =
+                configuration
+                        .getOptional(TaskManagerOptionsInternal.TASK_MANAGER_NODE_ID)
+                        .orElse(externalAddress);
 
         return new TaskManagerServicesConfiguration(
                 configuration,
@@ -311,7 +336,8 @@ public class TaskManagerServicesConfiguration {
                 localCommunicationOnly,
                 tmpDirs,
                 localStateDirs,
-                localRecoveryMode,
+                localRecoveryEnabled,
+                localBackupEnabled,
                 queryableStateConfig,
                 ConfigurationParserUtils.getSlot(configuration),
                 ConfigurationParserUtils.getPageSize(configuration),
@@ -321,6 +347,7 @@ public class TaskManagerServicesConfiguration {
                 ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration),
                 FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
                 alwaysParentFirstLoaderPatterns,
-                numIoThreads);
+                numIoThreads,
+                nodeId);
     }
 }

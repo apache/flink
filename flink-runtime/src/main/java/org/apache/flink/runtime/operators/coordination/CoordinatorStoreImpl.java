@@ -55,6 +55,11 @@ public class CoordinatorStoreImpl implements CoordinatorStore {
     }
 
     @Override
+    public Object compute(Object key, BiFunction<Object, Object, Object> mappingFunction) {
+        return store.compute(key, mappingFunction);
+    }
+
+    @Override
     public <R> R apply(Object key, Function<Object, R> consumer) {
         return consumer.apply(store.get(key));
     }

@@ -21,12 +21,11 @@ package org.apache.flink.streaming.api.windowing.assigners;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -40,9 +39,10 @@ import java.util.Collections;
  * DataStream<Tuple2<String, Integer>> in = ...;
  * KeyedStream<String, Tuple2<String, Integer>> keyed = in.keyBy(...);
  * WindowedStream<Tuple2<String, Integer>, String, TimeWindows> windowed =
- *   keyed.window(ProcessingTimeSessionWindows.withGap(Time.minutes(1)));
+ *   keyed.window(ProcessingTimeSessionWindows.withGap(Duration.ofMinutes(1)));
  * }</pre>
  */
+@PublicEvolving
 public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, TimeWindow> {
     private static final long serialVersionUID = 1L;
 
@@ -66,7 +66,7 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
     }
 
     @Override
-    public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+    public Trigger<Object, TimeWindow> getDefaultTrigger() {
         return ProcessingTimeTrigger.create();
     }
 
@@ -82,8 +82,8 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
      * @param size The session timeout, i.e. the time gap between sessions
      * @return The policy.
      */
-    public static ProcessingTimeSessionWindows withGap(Time size) {
-        return new ProcessingTimeSessionWindows(size.toMilliseconds());
+    public static ProcessingTimeSessionWindows withGap(Duration size) {
+        return new ProcessingTimeSessionWindows(size.toMillis());
     }
 
     /**

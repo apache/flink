@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.testutils;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
@@ -92,7 +93,15 @@ public class MiniClusterResource extends ExternalResource {
         return restClusterClientConfig;
     }
 
+    /**
+     * @deprecated use {@link #getRestAddress()} instead
+     */
+    @Deprecated
     public URI getRestAddres() {
+        return getRestAddress();
+    }
+
+    public URI getRestAddress() {
         return miniCluster.getRestAddress().join();
     }
 
@@ -109,9 +118,12 @@ public class MiniClusterResource extends ExternalResource {
 
     public void cancelAllJobsAndWaitUntilSlotsAreFreed() {
         final long heartbeatTimeout =
-                miniCluster.getConfiguration().get(HeartbeatManagerOptions.HEARTBEAT_INTERVAL);
+                miniCluster
+                        .getConfiguration()
+                        .get(HeartbeatManagerOptions.HEARTBEAT_INTERVAL)
+                        .toMillis();
         final long shutdownTimeout =
-                miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds();
+                miniClusterResourceConfiguration.getShutdownTimeout().toMillis();
         Preconditions.checkState(
                 heartbeatTimeout < shutdownTimeout,
                 "Heartbeat timeout (%d) needs to be lower than the shutdown timeout (%d) in order to ensure reliable job cancellation and resource cleanup.",
@@ -172,7 +184,7 @@ public class MiniClusterResource extends ExternalResource {
 
             try {
                 terminationFuture.get(
-                        miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds(),
+                        miniClusterResourceConfiguration.getShutdownTimeout().toMillis(),
                         TimeUnit.MILLISECONDS);
             } catch (Exception e) {
                 exception = ExceptionUtils.firstOrSuppressed(e, exception);
@@ -191,13 +203,20 @@ public class MiniClusterResource extends ExternalResource {
     private void startMiniCluster() throws Exception {
         final Configuration configuration =
                 new Configuration(miniClusterResourceConfiguration.getConfiguration());
-        configuration.setString(
-                CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
+        configuration.set(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
+        if (!configuration.contains(CheckpointingOptions.CHECKPOINTS_DIRECTORY)) {
+            // The channel state or checkpoint file may exceed the upper limit of
+            // JobManagerCheckpointStorage, so use FileSystemCheckpointStorage as
+            // the default checkpoint storage for all tests.
+            configuration.set(
+                    CheckpointingOptions.CHECKPOINTS_DIRECTORY,
+                    temporaryFolder.newFolder().toURI().toString());
+        }
 
         // we need to set this since a lot of test expect this because TestBaseUtils.startCluster()
         // enabled this by default
         if (!configuration.contains(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE)) {
-            configuration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+            configuration.set(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
         }
 
         if (!configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
@@ -205,8 +224,11 @@ public class MiniClusterResource extends ExternalResource {
         }
 
         // set rest and rpc port to 0 to avoid clashes with concurrent MiniClusters
-        configuration.setInteger(JobManagerOptions.PORT, 0);
-        configuration.setString(RestOptions.BIND_PORT, "0");
+        configuration.set(JobManagerOptions.PORT, 0);
+        if (!(configuration.contains(RestOptions.BIND_PORT)
+                || configuration.contains(RestOptions.PORT))) {
+            configuration.set(RestOptions.BIND_PORT, "0");
+        }
 
         randomizeConfiguration(configuration);
 
@@ -246,8 +268,8 @@ public class MiniClusterResource extends ExternalResource {
 
     private void createClientConfiguration(URI restAddress) {
         Configuration restClientConfig = new Configuration();
-        restClientConfig.setString(JobManagerOptions.ADDRESS, restAddress.getHost());
-        restClientConfig.setInteger(RestOptions.PORT, restAddress.getPort());
+        restClientConfig.set(JobManagerOptions.ADDRESS, restAddress.getHost());
+        restClientConfig.set(RestOptions.PORT, restAddress.getPort());
         this.restClusterClientConfig = new UnmodifiableConfiguration(restClientConfig);
     }
 }

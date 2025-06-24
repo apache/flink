@@ -26,20 +26,17 @@ import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.TestingResultPartitionManager;
 
-import org.hamcrest.Matchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.verifyBufferOrEvent;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link UnionInputGate}. */
-public class UnionInputGateTest extends InputGateTestBase {
+class UnionInputGateTest extends InputGateTestBase {
 
     /**
      * Tests basic correctness of buffer-or-event interleaving and correct <code>null</code> return
@@ -48,17 +45,17 @@ public class UnionInputGateTest extends InputGateTestBase {
      * <p>For buffer-or-event instances, it is important to verify that they have been set off to
      * the correct logical index.
      */
-    @Test(timeout = 120 * 1000)
-    public void testBasicGetNextLogic() throws Exception {
+    @Test
+    @Timeout(value = 120)
+    void testBasicGetNextLogic() throws Exception {
         // Setup
         final SingleInputGate ig1 = createInputGate(3);
         final SingleInputGate ig2 = createInputGate(5);
 
         final UnionInputGate union = new UnionInputGate(new SingleInputGate[] {ig1, ig2});
 
-        assertEquals(
-                ig1.getNumberOfInputChannels() + ig2.getNumberOfInputChannels(),
-                union.getNumberOfInputChannels());
+        assertThat(union.getNumberOfInputChannels())
+                .isEqualTo(ig1.getNumberOfInputChannels() + ig2.getNumberOfInputChannels());
 
         final TestInputChannel[][] inputChannels =
                 new TestInputChannel[][] {
@@ -116,15 +113,15 @@ public class UnionInputGateTest extends InputGateTestBase {
         verifyBufferOrEvent(union, false, 0, true); // gate 1, channel 0
         verifyBufferOrEvent(union, false, 4, true); // gate 1, channel 1
         verifyBufferOrEvent(union, false, 1, true); // gate 1, channel 1
-        assertEquals(
-                PullingAsyncDataInput.EndOfDataStatus.NOT_END_OF_DATA,
-                union.hasReceivedEndOfData());
+        assertThat(union.hasReceivedEndOfData())
+                .isEqualTo(PullingAsyncDataInput.EndOfDataStatus.NOT_END_OF_DATA);
         verifyBufferOrEvent(union, false, 5, true); // gate 2, channel 2
         verifyBufferOrEvent(union, false, 2, true); // gate 1, channel 2
         verifyBufferOrEvent(union, false, 6, true); // gate 2, channel 3
         verifyBufferOrEvent(union, false, 7, true); // gate 2, channel 4
-        assertEquals(PullingAsyncDataInput.EndOfDataStatus.DRAINED, union.hasReceivedEndOfData());
-        assertFalse(union.isFinished());
+        assertThat(union.hasReceivedEndOfData())
+                .isEqualTo(PullingAsyncDataInput.EndOfDataStatus.DRAINED);
+        assertThat(union.isFinished()).isFalse();
         verifyBufferOrEvent(union, false, 3, true); // gate 2, channel 0
         verifyBufferOrEvent(union, false, 4, true); // gate 2, channel 1
         verifyBufferOrEvent(union, false, 5, true); // gate 2, channel 2
@@ -132,12 +129,12 @@ public class UnionInputGateTest extends InputGateTestBase {
         verifyBufferOrEvent(union, false, 7, false); // gate 2, channel 4
 
         // Return null when the input gate has received all end-of-partition events
-        assertTrue(union.isFinished());
-        assertFalse(union.getNext().isPresent());
+        assertThat(union.isFinished()).isTrue();
+        assertThat(union.getNext()).isNotPresent();
     }
 
     @Test
-    public void testDrainFlagComputation() throws Exception {
+    void testDrainFlagComputation() throws Exception {
         // Setup
         final SingleInputGate inputGate1 = createInputGate();
         final SingleInputGate inputGate2 = createInputGate();
@@ -170,20 +167,18 @@ public class UnionInputGateTest extends InputGateTestBase {
         verifyBufferOrEvent(unionInputGate, false, 0, true);
         verifyBufferOrEvent(unionInputGate, false, 2, true);
         // we have received EndOfData on a single input only
-        assertEquals(
-                PullingAsyncDataInput.EndOfDataStatus.NOT_END_OF_DATA,
-                unionInputGate.hasReceivedEndOfData());
+        assertThat(unionInputGate.hasReceivedEndOfData())
+                .isEqualTo(PullingAsyncDataInput.EndOfDataStatus.NOT_END_OF_DATA);
 
         verifyBufferOrEvent(unionInputGate, false, 1, true);
         verifyBufferOrEvent(unionInputGate, false, 3, true);
         // both channels received EndOfData, one channel said we should not drain
-        assertEquals(
-                PullingAsyncDataInput.EndOfDataStatus.STOPPED,
-                unionInputGate.hasReceivedEndOfData());
+        assertThat(unionInputGate.hasReceivedEndOfData())
+                .isEqualTo(PullingAsyncDataInput.EndOfDataStatus.STOPPED);
     }
 
     @Test
-    public void testIsAvailable() throws Exception {
+    void testIsAvailable() throws Exception {
         final SingleInputGate inputGate1 = createInputGate(1);
         TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0);
         inputGate1.setInputChannels(inputChannel1);
@@ -196,7 +191,7 @@ public class UnionInputGateTest extends InputGateTestBase {
     }
 
     @Test
-    public void testAvailability() throws IOException, InterruptedException {
+    void testAvailability() throws IOException, InterruptedException {
         final SingleInputGate inputGate1 = createInputGate(1);
         TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0, false, true);
         inputGate1.setInputChannels(inputChannel1);
@@ -208,15 +203,15 @@ public class UnionInputGateTest extends InputGateTestBase {
         UnionInputGate inputGate = new UnionInputGate(inputGate1, inputGate2);
 
         inputChannel1.read(BufferBuilderTestUtils.buildSomeBuffer(1));
-        assertTrue(inputGate.getAvailableFuture().isDone());
+        assertThat(inputGate.getAvailableFuture()).isDone();
         inputChannel1.read(BufferBuilderTestUtils.buildSomeBuffer(2));
-        assertTrue(inputGate.getAvailableFuture().isDone());
-        assertEquals(1, inputGate.getNext().get().getBuffer().getSize());
-        assertTrue(inputGate.getAvailableFuture().isDone());
+        assertThat(inputGate.getAvailableFuture()).isDone();
+        assertThat(inputGate.getNext().get().getBuffer().getSize()).isOne();
+        assertThat(inputGate.getAvailableFuture()).isDone();
     }
 
     @Test
-    public void testIsAvailableAfterFinished() throws Exception {
+    void testIsAvailableAfterFinished() throws Exception {
         final SingleInputGate inputGate1 = createInputGate(1);
         TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0);
         inputGate1.setInputChannels(inputChannel1);
@@ -236,7 +231,7 @@ public class UnionInputGateTest extends InputGateTestBase {
     }
 
     @Test
-    public void testUpdateInputChannel() throws Exception {
+    void testUpdateInputChannel() throws Exception {
         final SingleInputGate inputGate1 = createInputGate(1);
         TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0);
         inputGate1.setInputChannels(inputChannel1);
@@ -257,13 +252,13 @@ public class UnionInputGateTest extends InputGateTestBase {
                 location,
                 createRemoteWithIdAndLocation(resultPartitionID.getPartitionId(), location));
 
-        assertThat(unionInputGate.getChannel(0), Matchers.is(inputChannel1));
+        assertThat(unionInputGate.getChannel(0)).isEqualTo(inputChannel1);
         // Check that updated input channel is visible via UnionInputGate
-        assertThat(unionInputGate.getChannel(1), Matchers.is(inputGate2.getChannel(0)));
+        assertThat(unionInputGate.getChannel(1)).isEqualTo(inputGate2.getChannel(0));
     }
 
     @Test
-    public void testGetChannelWithShiftedGateIndexes() {
+    void testGetChannelWithShiftedGateIndexes() {
         gateIndex = 2;
         final SingleInputGate inputGate1 = createInputGate(1);
         TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0);
@@ -275,13 +270,13 @@ public class UnionInputGateTest extends InputGateTestBase {
 
         UnionInputGate unionInputGate = new UnionInputGate(inputGate1, inputGate2);
 
-        assertThat(unionInputGate.getChannel(0), Matchers.is(inputChannel1));
+        assertThat(unionInputGate.getChannel(0)).isEqualTo(inputChannel1);
         // Check that updated input channel is visible via UnionInputGate
-        assertThat(unionInputGate.getChannel(1), Matchers.is(inputChannel2));
+        assertThat(unionInputGate.getChannel(1)).isEqualTo(inputChannel2);
     }
 
     @Test
-    public void testEmptyPull() throws IOException, InterruptedException {
+    void testEmptyPull() throws IOException, InterruptedException {
         final SingleInputGate inputGate1 = createInputGate(1);
         TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0, false, true);
         inputGate1.setInputChannels(inputChannel1);
@@ -293,8 +288,8 @@ public class UnionInputGateTest extends InputGateTestBase {
         UnionInputGate inputGate = new UnionInputGate(inputGate1, inputGate2);
 
         inputChannel1.notifyChannelNonEmpty();
-        assertTrue(inputGate.getAvailableFuture().isDone());
-        assertFalse(inputGate.pollNext().isPresent());
-        assertFalse(inputGate.getAvailableFuture().isDone());
+        assertThat(inputGate.getAvailableFuture()).isDone();
+        assertThat(inputGate.pollNext()).isNotPresent();
+        assertThat(inputGate.getAvailableFuture()).isNotDone();
     }
 }

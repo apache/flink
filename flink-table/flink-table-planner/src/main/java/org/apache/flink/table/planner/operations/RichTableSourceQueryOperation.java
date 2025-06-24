@@ -19,13 +19,13 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.legacy.table.sources.StreamTableSource;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
-import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.util.Preconditions;
 
 import java.util.HashMap;

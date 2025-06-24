@@ -21,7 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.LambdaUtil;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Joiner;
+import org.apache.flink.shaded.guava33.com.google.common.base.Joiner;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +61,17 @@ public class StateUtil {
             Iterable<? extends StateObject> handlesToDiscard) throws Exception {
         LambdaUtil.applyToAllWhileSuppressingExceptions(
                 handlesToDiscard, StateObject::discardState);
+    }
+
+    public static void discardStateObjectQuietly(StateObject stateObject) {
+        if (stateObject == null) {
+            return;
+        }
+        try {
+            stateObject.discardState();
+        } catch (Exception exception) {
+            LOG.warn("Discard {} exception.", stateObject, exception);
+        }
     }
 
     /**

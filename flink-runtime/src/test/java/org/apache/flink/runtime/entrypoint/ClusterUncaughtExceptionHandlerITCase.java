@@ -130,7 +130,7 @@ public class ClusterUncaughtExceptionHandlerITCase extends TestLogger {
         }
 
         @Override
-        public String[] getJvmArgs() {
+        public String[] getMainMethodArgs() {
             return new String[0];
         }
 

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.operators.aggregate;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -28,9 +27,9 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -38,7 +37,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test hash agg. */
-public class HashAggTest {
+class HashAggTest {
 
     private static final int MEMORY_SIZE = 1024 * 1024 * 32;
 
@@ -48,8 +47,8 @@ public class HashAggTest {
     private IOManager ioManager;
     private SumHashAggTestOperator operator;
 
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void before() throws Exception {
         ioManager = new IOManagerAsync();
         operator =
                 new SumHashAggTestOperator(40 * 32 * 1024) {
@@ -81,11 +80,6 @@ public class HashAggTest {
                     }
 
                     @Override
-                    Configuration getConf() {
-                        return new Configuration();
-                    }
-
-                    @Override
                     public IOManager getIOManager() {
                         return ioManager;
                     }
@@ -94,8 +88,8 @@ public class HashAggTest {
         operator.open();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         this.ioManager.close();
 
         if (this.memoryManager != null) {
@@ -112,7 +106,7 @@ public class HashAggTest {
     }
 
     @Test
-    public void testNormal() throws Exception {
+    void testNormal() throws Exception {
         addRow(GenericRowData.of(1, 1L));
         addRow(GenericRowData.of(5, 2L));
         addRow(GenericRowData.of(2, 3L));
@@ -140,7 +134,7 @@ public class HashAggTest {
     }
 
     @Test
-    public void testSpill() throws Exception {
+    void testSpill() throws Exception {
         for (int i = 0; i < 30000; i++) {
             addRow(GenericRowData.of(i, (long) i));
             addRow(GenericRowData.of(i + 1, (long) i));

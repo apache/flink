@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api.input;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -56,14 +57,16 @@ public class BroadcastStateInputFormatTest {
             testHarness.processElement2(new StreamRecord<>(3));
 
             OperatorSubtaskState subtaskState = testHarness.snapshot(0, 0);
-            OperatorState state = new OperatorState(OperatorIDGenerator.fromUid("uid"), 1, 4);
+            OperatorState state =
+                    new OperatorState(null, null, OperatorIDGenerator.fromUid("uid"), 1, 4);
             state.putState(0, subtaskState);
 
             OperatorStateInputSplit split =
                     new OperatorStateInputSplit(subtaskState.getManagedOperatorState(), 0);
 
             BroadcastStateInputFormat<Integer, Integer> format =
-                    new BroadcastStateInputFormat<>(state, new Configuration(), null, descriptor);
+                    new BroadcastStateInputFormat<>(
+                            state, new Configuration(), null, descriptor, new ExecutionConfig());
 
             format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
             format.open(split);

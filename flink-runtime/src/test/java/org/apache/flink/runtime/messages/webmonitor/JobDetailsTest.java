@@ -21,20 +21,20 @@ package org.apache.flink.runtime.messages.webmonitor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link JobDetails}. */
-public class JobDetailsTest extends TestLogger {
+class JobDetailsTest {
     private static final String COMPATIBLE_JOB_DETAILS =
             "{"
                     + "  \"jid\" : \"7a7c3291accebd10b6be8d4f8c8d8dfc\","
@@ -55,52 +55,78 @@ public class JobDetailsTest extends TestLogger {
                     + "    \"canceled\" : 2,"
                     + "    \"failed\" : 7,"
                     + "    \"reconciling\" : 3"
-                    + "  }"
+                    + "  },"
+                    + "  \"pending-operators\" : 0"
                     + "}";
+    private static final String UNKNOWN_FIELD_JOB_DETAILS =
+            "{"
+                    + "  \"jid\" : \"7a7c3291accebd10b6be8d4f8c8d8dfc\","
+                    + "  \"intentionally_unknown_which_must_be_skipped\" : 0,"
+                    + "  \"name\" : \"foobar\","
+                    + "  \"state\" : \"RUNNING\","
+                    + "  \"start-time\" : 1,"
+                    + "  \"end-time\" : 10,"
+                    + "  \"duration\" : 9,"
+                    + "  \"last-modification\" : 8,"
+                    + "  \"tasks\" : {"
+                    + "    \"total\" : 42,"
+                    + "    \"created\" : 1,"
+                    + "    \"scheduled\" : 3,"
+                    + "    \"deploying\" : 3,"
+                    + "    \"running\" : 4,"
+                    + "    \"finished\" : 7,"
+                    + "    \"canceling\" : 4,"
+                    + "    \"canceled\" : 2,"
+                    + "    \"failed\" : 7,"
+                    + "    \"reconciling\" : 3"
+                    + "  },"
+                    + "  \"pending-operators\" : 0"
+                    + "}";
+
+    private ObjectMapper objectMapper;
+    private ObjectMapper flexibleObjectMapper;
+
+    final JobDetails expected =
+            new JobDetails(
+                    JobID.fromHexString("7a7c3291accebd10b6be8d4f8c8d8dfc"),
+                    "foobar",
+                    1L,
+                    10L,
+                    9L,
+                    JobStatus.RUNNING,
+                    8L,
+                    new int[] {1, 3, 3, 4, 7, 4, 2, 7, 3, 0},
+                    42);
+
+    @BeforeEach
+    public void beforeEach() {
+        objectMapper = RestMapperUtils.getStrictObjectMapper();
+        flexibleObjectMapper = RestMapperUtils.getFlexibleObjectMapper();
+    }
 
     /** Tests that we can marshal and unmarshal JobDetails instances. */
     @Test
-    public void testJobDetailsMarshalling() throws JsonProcessingException {
-        final JobDetails expected =
-                new JobDetails(
-                        new JobID(),
-                        "foobar",
-                        1L,
-                        10L,
-                        9L,
-                        JobStatus.RUNNING,
-                        8L,
-                        new int[] {1, 3, 3, 4, 7, 4, 2, 7, 3, 3},
-                        42);
-
-        final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
-
+    void testJobDetailsMarshalling() throws JsonProcessingException {
         final JsonNode marshalled = objectMapper.valueToTree(expected);
 
         final JobDetails unmarshalled = objectMapper.treeToValue(marshalled, JobDetails.class);
 
-        assertEquals(expected, unmarshalled);
+        assertThat(unmarshalled).isEqualTo(expected);
     }
 
     @Test
-    public void testJobDetailsCompatibleUnmarshalling() throws IOException {
-        final JobDetails expected =
-                new JobDetails(
-                        JobID.fromHexString("7a7c3291accebd10b6be8d4f8c8d8dfc"),
-                        "foobar",
-                        1L,
-                        10L,
-                        9L,
-                        JobStatus.RUNNING,
-                        8L,
-                        new int[] {1, 3, 3, 4, 7, 4, 2, 7, 3, 0},
-                        42);
-
-        final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
-
+    void testJobDetailsCompatibleUnmarshalling() throws IOException {
         final JobDetails unmarshalled =
                 objectMapper.readValue(COMPATIBLE_JOB_DETAILS, JobDetails.class);
 
-        assertEquals(expected, unmarshalled);
+        assertThat(unmarshalled).isEqualTo(expected);
+    }
+
+    @Test
+    void testJobDetailsCompatibleUnmarshallingSkipUnknown() throws IOException {
+        final JobDetails unmarshalled =
+                flexibleObjectMapper.readValue(UNKNOWN_FIELD_JOB_DETAILS, JobDetails.class);
+
+        assertThat(unmarshalled).isEqualTo(expected);
     }
 }

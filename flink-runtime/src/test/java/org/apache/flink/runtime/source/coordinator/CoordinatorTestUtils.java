@@ -20,19 +20,19 @@ package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
-
-import org.hamcrest.Matchers;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** A util class containing the helper methods for the coordinator tests. */
 class CoordinatorTestUtils {
@@ -58,24 +58,28 @@ class CoordinatorTestUtils {
     /** Check the actual assignment meets the expectation. */
     static void verifyAssignment(
             List<String> expectedSplitIds, Collection<MockSourceSplit> actualAssignment) {
-        assertEquals(expectedSplitIds.size(), actualAssignment.size());
+        assertThat(actualAssignment.size()).isEqualTo(expectedSplitIds.size());
         int i = 0;
         for (MockSourceSplit split : actualAssignment) {
-            assertEquals(expectedSplitIds.get(i++), split.splitId());
+            assertThat(split.splitId()).isEqualTo(expectedSplitIds.get(i++));
         }
     }
 
     static void verifyException(
             ThrowingRunnable<Throwable> runnable, String failureMessage, String errorMessage) {
+        assertThatThrownBy(runnable::run, failureMessage).hasStackTraceContaining(errorMessage);
+    }
+
+    static void waitForCoordinatorToProcessActions(SourceCoordinatorContext<?> context) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        context.runInCoordinatorThread(() -> future.complete(null));
+
         try {
-            runnable.run();
-            fail(failureMessage);
-        } catch (Throwable t) {
-            Throwable rootCause = t;
-            while (rootCause.getCause() != null) {
-                rootCause = rootCause.getCause();
-            }
-            assertThat(rootCause.getMessage(), Matchers.startsWith(errorMessage));
+            future.get();
+        } catch (InterruptedException e) {
+            throw new AssertionError("test interrupted");
+        } catch (ExecutionException e) {
+            ExceptionUtils.rethrow(ExceptionUtils.stripExecutionException(e));
         }
     }
 }

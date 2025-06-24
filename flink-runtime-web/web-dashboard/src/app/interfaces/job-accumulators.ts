@@ -16,6 +16,11 @@
  * limitations under the License.
  */
 
+export interface JobAccumulators {
+  main: UserAccumulators[];
+  subtasks: SubTaskAccumulators[];
+}
+
 export interface UserAccumulators {
   name: string;
   type: string;

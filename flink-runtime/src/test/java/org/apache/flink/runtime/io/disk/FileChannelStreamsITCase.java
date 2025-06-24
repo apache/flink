@@ -31,18 +31,18 @@ import org.apache.flink.runtime.operators.testutils.PairGenerator;
 import org.apache.flink.runtime.operators.testutils.PairGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.PairGenerator.Pair;
 import org.apache.flink.runtime.operators.testutils.PairGenerator.ValueMode;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.EOFException;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class FileChannelStreamsITCase extends TestLogger {
+class FileChannelStreamsITCase {
 
     private static final long SEED = 649180756312423613L;
 
@@ -66,8 +66,8 @@ public class FileChannelStreamsITCase extends TestLogger {
 
     // --------------------------------------------------------------------------------------------
 
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         memManager =
                 MemoryManagerBuilder.newBuilder()
                         .setMemorySize(NUM_MEMORY_SEGMENTS * MEMORY_PAGE_SIZE)
@@ -76,295 +76,261 @@ public class FileChannelStreamsITCase extends TestLogger {
         ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         ioManager.close();
-        assertTrue("The memory has not been properly released", memManager.verifyEmpty());
+        assertThat(memManager.verifyEmpty())
+                .withFailMessage("The memory has not been properly released")
+                .isTrue();
     }
 
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testWriteReadSmallRecords() {
-        try {
-            List<MemorySegment> memory =
-                    memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+    void testWriteReadSmallRecords() throws Exception {
+        List<MemorySegment> memory =
+                memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
 
-            final PairGenerator generator =
-                    new PairGenerator(
-                            SEED,
-                            KEY_MAX,
-                            VALUE_SHORT_LENGTH,
-                            KeyMode.RANDOM,
-                            ValueMode.RANDOM_LENGTH);
-            final FileIOChannel.ID channel = ioManager.createChannel();
+        final PairGenerator generator =
+                new PairGenerator(
+                        SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+        final FileIOChannel.ID channel = ioManager.createChannel();
 
-            // create the writer output view
-            final BlockChannelWriter<MemorySegment> writer =
-                    ioManager.createBlockChannelWriter(channel);
-            final FileChannelOutputView outView =
-                    new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
+        // create the writer output view
+        final BlockChannelWriter<MemorySegment> writer =
+                ioManager.createBlockChannelWriter(channel);
+        final FileChannelOutputView outView =
+                new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
 
-            // write a number of pairs
-            Pair pair = new Pair();
-            for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
-                generator.next(pair);
-                pair.write(outView);
-            }
-            outView.close();
-
-            // create the reader input view
-            List<MemorySegment> readMemory =
-                    memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
-
-            final BlockChannelReader<MemorySegment> reader =
-                    ioManager.createBlockChannelReader(channel);
-            final FileChannelInputView inView =
-                    new FileChannelInputView(
-                            reader, memManager, readMemory, outView.getBytesInLatestSegment());
-            generator.reset();
-
-            // read and re-generate all records and compare them
-            Pair readPair = new Pair();
-            for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
-                generator.next(pair);
-                readPair.read(inView);
-                assertEquals("The re-generated and the read record do not match.", pair, readPair);
-            }
-
-            inView.close();
-            reader.deleteChannel();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+        // write a number of pairs
+        Pair pair = new Pair();
+        for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
+            generator.next(pair);
+            pair.write(outView);
         }
+        outView.close();
+
+        // create the reader input view
+        List<MemorySegment> readMemory =
+                memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+
+        final BlockChannelReader<MemorySegment> reader =
+                ioManager.createBlockChannelReader(channel);
+        final FileChannelInputView inView =
+                new FileChannelInputView(
+                        reader, memManager, readMemory, outView.getBytesInLatestSegment());
+        generator.reset();
+
+        // read and re-generate all records and compare them
+        Pair readPair = new Pair();
+        for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
+            generator.next(pair);
+            readPair.read(inView);
+            assertThat(readPair)
+                    .withFailMessage("The re-generated and the read record do not match.")
+                    .isEqualTo(pair);
+        }
+
+        inView.close();
+        reader.deleteChannel();
     }
 
     @Test
-    public void testWriteAndReadLongRecords() {
-        try {
-            final List<MemorySegment> memory =
-                    memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+    void testWriteAndReadLongRecords() throws Exception {
+        final List<MemorySegment> memory =
+                memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
 
-            final PairGenerator generator =
-                    new PairGenerator(
-                            SEED,
-                            KEY_MAX,
-                            VALUE_LONG_LENGTH,
-                            KeyMode.RANDOM,
-                            ValueMode.RANDOM_LENGTH);
-            final FileIOChannel.ID channel = this.ioManager.createChannel();
+        final PairGenerator generator =
+                new PairGenerator(
+                        SEED, KEY_MAX, VALUE_LONG_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+        final FileIOChannel.ID channel = this.ioManager.createChannel();
 
-            // create the writer output view
-            final BlockChannelWriter<MemorySegment> writer =
-                    this.ioManager.createBlockChannelWriter(channel);
-            final FileChannelOutputView outView =
-                    new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
+        // create the writer output view
+        final BlockChannelWriter<MemorySegment> writer =
+                this.ioManager.createBlockChannelWriter(channel);
+        final FileChannelOutputView outView =
+                new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
 
-            // write a number of pairs
-            Pair pair = new Pair();
-            for (int i = 0; i < NUM_PAIRS_LONG; i++) {
-                generator.next(pair);
-                pair.write(outView);
-            }
-            outView.close();
-
-            // create the reader input view
-            List<MemorySegment> readMemory =
-                    memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
-
-            final BlockChannelReader<MemorySegment> reader =
-                    ioManager.createBlockChannelReader(channel);
-            final FileChannelInputView inView =
-                    new FileChannelInputView(
-                            reader, memManager, readMemory, outView.getBytesInLatestSegment());
-            generator.reset();
-
-            // read and re-generate all records and compare them
-            Pair readPair = new Pair();
-            for (int i = 0; i < NUM_PAIRS_LONG; i++) {
-                generator.next(pair);
-                readPair.read(inView);
-                assertEquals("The re-generated and the read record do not match.", pair, readPair);
-            }
-
-            inView.close();
-            reader.deleteChannel();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+        // write a number of pairs
+        Pair pair = new Pair();
+        for (int i = 0; i < NUM_PAIRS_LONG; i++) {
+            generator.next(pair);
+            pair.write(outView);
         }
+        outView.close();
+
+        // create the reader input view
+        List<MemorySegment> readMemory =
+                memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+
+        final BlockChannelReader<MemorySegment> reader =
+                ioManager.createBlockChannelReader(channel);
+        final FileChannelInputView inView =
+                new FileChannelInputView(
+                        reader, memManager, readMemory, outView.getBytesInLatestSegment());
+        generator.reset();
+
+        // read and re-generate all records and compare them
+        Pair readPair = new Pair();
+        for (int i = 0; i < NUM_PAIRS_LONG; i++) {
+            generator.next(pair);
+            readPair.read(inView);
+            assertThat(readPair)
+                    .withFailMessage("The re-generated and the read record do not match.")
+                    .isEqualTo(pair);
+        }
+
+        inView.close();
+        reader.deleteChannel();
     }
 
     @Test
-    public void testReadTooMany() {
-        try {
-            final List<MemorySegment> memory =
-                    memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+    void testReadTooMany() throws Exception {
+        final List<MemorySegment> memory =
+                memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
 
-            final PairGenerator generator =
-                    new PairGenerator(
-                            SEED,
-                            KEY_MAX,
-                            VALUE_SHORT_LENGTH,
-                            KeyMode.RANDOM,
-                            ValueMode.RANDOM_LENGTH);
-            final FileIOChannel.ID channel = this.ioManager.createChannel();
+        final PairGenerator generator =
+                new PairGenerator(
+                        SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+        final FileIOChannel.ID channel = this.ioManager.createChannel();
 
-            // create the writer output view
-            final BlockChannelWriter<MemorySegment> writer =
-                    this.ioManager.createBlockChannelWriter(channel);
-            final FileChannelOutputView outView =
-                    new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
+        // create the writer output view
+        final BlockChannelWriter<MemorySegment> writer =
+                this.ioManager.createBlockChannelWriter(channel);
+        final FileChannelOutputView outView =
+                new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
 
-            // write a number of pairs
-            Pair pair = new Pair();
-            for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
-                generator.next(pair);
-                pair.write(outView);
-            }
-            outView.close();
-
-            // create the reader input view
-            List<MemorySegment> readMemory =
-                    memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
-
-            final BlockChannelReader<MemorySegment> reader =
-                    ioManager.createBlockChannelReader(channel);
-            final FileChannelInputView inView =
-                    new FileChannelInputView(
-                            reader, memManager, readMemory, outView.getBytesInLatestSegment());
-            generator.reset();
-
-            // read and re-generate all records and compare them
-            try {
-                Pair readPair = new Pair();
-                for (int i = 0; i < NUM_PAIRS_SHORT + 1; i++) {
-                    generator.next(pair);
-                    readPair.read(inView);
-                    assertEquals(
-                            "The re-generated and the read record do not match.", pair, readPair);
-                }
-                fail("Expected an EOFException which did not occur.");
-            } catch (EOFException eofex) {
-                // expected
-            }
-
-            inView.close();
-            reader.deleteChannel();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+        // write a number of pairs
+        Pair pair = new Pair();
+        for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
+            generator.next(pair);
+            pair.write(outView);
         }
+        outView.close();
+
+        // create the reader input view
+        List<MemorySegment> readMemory =
+                memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+
+        final BlockChannelReader<MemorySegment> reader =
+                ioManager.createBlockChannelReader(channel);
+        final FileChannelInputView inView =
+                new FileChannelInputView(
+                        reader, memManager, readMemory, outView.getBytesInLatestSegment());
+        generator.reset();
+
+        // read and re-generate all records and compare them
+        Pair readPair = new Pair();
+        for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
+            generator.next(pair);
+            readPair.read(inView);
+            assertThat(readPair)
+                    .withFailMessage("The re-generated and the read record do not match.")
+                    .isEqualTo(pair);
+        }
+
+        generator.next(pair);
+        assertThatThrownBy(() -> readPair.read(inView))
+                .withFailMessage("Read too much, expected EOFException.")
+                .isInstanceOf(EOFException.class);
+
+        inView.close();
+        reader.deleteChannel();
     }
 
     @Test
-    public void testWriteReadOneBufferOnly() {
-        try {
-            final List<MemorySegment> memory = memManager.allocatePages(new DummyInvokable(), 1);
+    void testWriteReadOneBufferOnly() throws Exception {
+        final List<MemorySegment> memory = memManager.allocatePages(new DummyInvokable(), 1);
 
-            final PairGenerator generator =
-                    new PairGenerator(
-                            SEED,
-                            KEY_MAX,
-                            VALUE_SHORT_LENGTH,
-                            KeyMode.RANDOM,
-                            ValueMode.RANDOM_LENGTH);
-            final FileIOChannel.ID channel = this.ioManager.createChannel();
+        final PairGenerator generator =
+                new PairGenerator(
+                        SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+        final FileIOChannel.ID channel = this.ioManager.createChannel();
 
-            // create the writer output view
-            final BlockChannelWriter<MemorySegment> writer =
-                    this.ioManager.createBlockChannelWriter(channel);
-            final FileChannelOutputView outView =
-                    new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
+        // create the writer output view
+        final BlockChannelWriter<MemorySegment> writer =
+                this.ioManager.createBlockChannelWriter(channel);
+        final FileChannelOutputView outView =
+                new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
 
-            // write a number of pairs
-            Pair pair = new Pair();
-            for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
-                generator.next(pair);
-                pair.write(outView);
-            }
-            outView.close();
-
-            // create the reader input view
-            List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), 1);
-
-            final BlockChannelReader<MemorySegment> reader =
-                    ioManager.createBlockChannelReader(channel);
-            final FileChannelInputView inView =
-                    new FileChannelInputView(
-                            reader, memManager, readMemory, outView.getBytesInLatestSegment());
-            generator.reset();
-
-            // read and re-generate all records and compare them
-            Pair readPair = new Pair();
-            for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
-                generator.next(pair);
-                readPair.read(inView);
-                assertEquals("The re-generated and the read record do not match.", pair, readPair);
-            }
-
-            inView.close();
-            reader.deleteChannel();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+        // write a number of pairs
+        Pair pair = new Pair();
+        for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
+            generator.next(pair);
+            pair.write(outView);
         }
+        outView.close();
+
+        // create the reader input view
+        List<MemorySegment> readMemory = memManager.allocatePages(new DummyInvokable(), 1);
+
+        final BlockChannelReader<MemorySegment> reader =
+                ioManager.createBlockChannelReader(channel);
+        final FileChannelInputView inView =
+                new FileChannelInputView(
+                        reader, memManager, readMemory, outView.getBytesInLatestSegment());
+        generator.reset();
+
+        // read and re-generate all records and compare them
+        Pair readPair = new Pair();
+        for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
+            generator.next(pair);
+            readPair.read(inView);
+            assertThat(readPair)
+                    .withFailMessage("The re-generated and the read record do not match.")
+                    .isEqualTo(pair);
+        }
+
+        inView.close();
+        reader.deleteChannel();
     }
 
     @Test
-    public void testWriteReadNotAll() {
-        try {
-            final List<MemorySegment> memory =
-                    memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+    void testWriteReadNotAll() throws Exception {
+        final List<MemorySegment> memory =
+                memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
 
-            final PairGenerator generator =
-                    new PairGenerator(
-                            SEED,
-                            KEY_MAX,
-                            VALUE_SHORT_LENGTH,
-                            KeyMode.RANDOM,
-                            ValueMode.RANDOM_LENGTH);
-            final FileIOChannel.ID channel = this.ioManager.createChannel();
+        final PairGenerator generator =
+                new PairGenerator(
+                        SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
+        final FileIOChannel.ID channel = this.ioManager.createChannel();
 
-            // create the writer output view
-            final BlockChannelWriter<MemorySegment> writer =
-                    this.ioManager.createBlockChannelWriter(channel);
-            final FileChannelOutputView outView =
-                    new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
+        // create the writer output view
+        final BlockChannelWriter<MemorySegment> writer =
+                this.ioManager.createBlockChannelWriter(channel);
+        final FileChannelOutputView outView =
+                new FileChannelOutputView(writer, memManager, memory, MEMORY_PAGE_SIZE);
 
-            // write a number of pairs
-            Pair pair = new Pair();
-            for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
-                generator.next(pair);
-                pair.write(outView);
-            }
-            outView.close();
-
-            // create the reader input view
-            List<MemorySegment> readMemory =
-                    memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
-
-            final BlockChannelReader<MemorySegment> reader =
-                    ioManager.createBlockChannelReader(channel);
-            final FileChannelInputView inView =
-                    new FileChannelInputView(
-                            reader, memManager, readMemory, outView.getBytesInLatestSegment());
-            generator.reset();
-
-            // read and re-generate all records and compare them
-            Pair readPair = new Pair();
-            for (int i = 0; i < NUM_PAIRS_SHORT / 2; i++) {
-                generator.next(pair);
-                readPair.read(inView);
-                assertEquals("The re-generated and the read record do not match.", pair, readPair);
-            }
-
-            inView.close();
-            reader.deleteChannel();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+        // write a number of pairs
+        Pair pair = new Pair();
+        for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
+            generator.next(pair);
+            pair.write(outView);
         }
+        outView.close();
+
+        // create the reader input view
+        List<MemorySegment> readMemory =
+                memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
+
+        final BlockChannelReader<MemorySegment> reader =
+                ioManager.createBlockChannelReader(channel);
+        final FileChannelInputView inView =
+                new FileChannelInputView(
+                        reader, memManager, readMemory, outView.getBytesInLatestSegment());
+        generator.reset();
+
+        // read and re-generate all records and compare them
+        Pair readPair = new Pair();
+        for (int i = 0; i < NUM_PAIRS_SHORT / 2; i++) {
+            generator.next(pair);
+            readPair.read(inView);
+            assertThat(readPair)
+                    .withFailMessage("The re-generated and the read record do not match.")
+                    .isEqualTo(pair);
+        }
+
+        inView.close();
+        reader.deleteChannel();
     }
 }

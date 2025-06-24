@@ -30,9 +30,7 @@ public class ArrayListSerializerSnapshot<T>
     private static final int CURRENT_VERSION = 1;
 
     /** Constructor for read instantiation. */
-    public ArrayListSerializerSnapshot() {
-        super(ArrayListSerializer.class);
-    }
+    public ArrayListSerializerSnapshot() {}
 
     /** Constructor for creating the snapshot for writing. */
     public ArrayListSerializerSnapshot(ArrayListSerializer<T> arrayListSerializer) {

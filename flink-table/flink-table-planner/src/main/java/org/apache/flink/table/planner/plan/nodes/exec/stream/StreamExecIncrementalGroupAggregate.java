@@ -33,10 +33,12 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.plan.utils.MinibatchUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -47,10 +49,13 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.tools.RelBuilder;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -82,6 +87,8 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
             "partialLocalAggInputRowType";
     public static final String FIELD_NAME_PARTIAL_AGG_NEED_RETRACTION = "partialAggNeedRetraction";
 
+    public static final String STATE_NAME = "incrementalGroupAggregateState";
+
     /** The partial agg's grouping. */
     @JsonProperty(FIELD_NAME_PARTIAL_AGG_GROUPING)
     private final int[] partialAggGrouping;
@@ -106,6 +113,11 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
     @JsonProperty(FIELD_NAME_PARTIAL_AGG_NEED_RETRACTION)
     private final boolean partialAggNeedRetraction;
 
+    @Nullable
+    @JsonProperty(FIELD_NAME_STATE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final List<StateMetadata> stateMetadataList;
+
     public StreamExecIncrementalGroupAggregate(
             ReadableConfig tableConfig,
             int[] partialAggGrouping,
@@ -114,6 +126,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
             boolean[] partialAggCallNeedRetractions,
             RowType partialLocalAggInputType,
             boolean partialAggNeedRetraction,
+            @Nullable Long stateTtlFromHint,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -128,6 +141,8 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                 partialAggCallNeedRetractions,
                 partialLocalAggInputType,
                 partialAggNeedRetraction,
+                StateMetadata.getOneInputOperatorDefaultMeta(
+                        stateTtlFromHint, tableConfig, STATE_NAME),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -146,6 +161,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                     boolean[] partialAggCallNeedRetractions,
             @JsonProperty(FIELD_NAME_PARTIAL_LOCAL_AGG_INPUT_TYPE) RowType partialLocalAggInputType,
             @JsonProperty(FIELD_NAME_PARTIAL_AGG_NEED_RETRACTION) boolean partialAggNeedRetraction,
+            @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -157,6 +173,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
         checkArgument(partialOriginalAggCalls.length == partialAggCallNeedRetractions.length);
         this.partialLocalAggInputType = checkNotNull(partialLocalAggInputType);
         this.partialAggNeedRetraction = partialAggNeedRetraction;
+        this.stateMetadataList = stateMetadataList;
     }
 
     @SuppressWarnings("unchecked")
@@ -183,6 +200,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                         partialAggGrouping.length,
                         partialLocalAggInfoList.getAccTypes(),
                         config,
+                        planner.getFlinkContext().getClassLoader(),
                         planner.createRelBuilder(),
                         // the partial aggregate accumulators will be buffered, so need copy
                         true);
@@ -202,27 +220,32 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                         0,
                         partialLocalAggInfoList.getAccTypes(),
                         config,
+                        planner.getFlinkContext().getClassLoader(),
                         planner.createRelBuilder(),
                         // the final aggregate accumulators is not buffered
                         false);
 
         final RowDataKeySelector partialKeySelector =
                 KeySelectorUtil.getRowDataSelector(
-                        partialAggGrouping, InternalTypeInfo.of(inputEdge.getOutputType()));
+                        planner.getFlinkContext().getClassLoader(),
+                        partialAggGrouping,
+                        InternalTypeInfo.of(inputEdge.getOutputType()));
         final RowDataKeySelector finalKeySelector =
                 KeySelectorUtil.getRowDataSelector(
-                        finalAggGrouping, partialKeySelector.getProducedType());
+                        planner.getFlinkContext().getClassLoader(),
+                        finalAggGrouping,
+                        partialKeySelector.getProducedType());
 
         final MiniBatchIncrementalGroupAggFunction aggFunction =
                 new MiniBatchIncrementalGroupAggFunction(
                         partialAggsHandler,
                         finalAggsHandler,
                         finalKeySelector,
-                        config.getStateRetentionTime());
+                        StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList));
 
         final OneInputStreamOperator<RowData, RowData> operator =
                 new KeyedMapBundleOperator<>(
-                        aggFunction, AggregateUtil.createMiniBatchTrigger(config));
+                        aggFunction, MinibatchUtil.createMiniBatchTrigger(config));
 
         // partitioned aggregation
         final OneInputTransformation<RowData, RowData> transform =
@@ -232,7 +255,8 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                                 INCREMENTAL_GROUP_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
-                        inputTransform.getParallelism());
+                        inputTransform.getParallelism(),
+                        false);
 
         // set KeyType and Selector for state
         transform.setStateKeySelector(partialKeySelector);
@@ -246,12 +270,13 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
             int mergedAccOffset,
             DataType[] mergedAccExternalTypes,
             ExecNodeConfig config,
+            ClassLoader classLoader,
             RelBuilder relBuilder,
             boolean inputFieldCopy) {
 
         AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(config, classLoader),
                         relBuilder,
                         JavaScalaConversionUtil.toScala(partialLocalAggInputType.getChildren()),
                         inputFieldCopy);

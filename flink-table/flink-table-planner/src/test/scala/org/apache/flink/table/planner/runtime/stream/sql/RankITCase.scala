@@ -19,27 +19,51 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
+import org.apache.flink.table.utils.LegacyRowExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit._
-import org.junit.Assert._
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, Disabled, TestTemplate}
+import org.junit.jupiter.api.{Disabled, TestTemplate}
+import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
+import org.junit.jupiter.api.extension.ExtendWith
 
-import scala.collection.Seq
+import java.util
+import java.util.stream.Collectors
 
-@RunWith(classOf[Parameterized])
-class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
+import scala.collection.JavaConversions._
 
-  @Test
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
+  extends StreamingWithStateTestBase(mode) {
+
+  @BeforeEach
+  override def before(): Unit = {
+    super.before()
+
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
+  }
+
+  // fixing the RowKind in FLINK-36998
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
+
+  @TestTemplate
   def testTopN(): Unit = {
     val data = List(
       ("book", 1, 12),
@@ -50,7 +74,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -66,16 +90,16 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = List("book,2,19,1", "book,1,12,2", "fruit,3,44,1", "fruit,4,33,2")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTop1(): Unit = {
     val expected = List("book,2,19,1", "fruit,3,44,1")
     testTopNthBase(1, expected)
   }
 
-  @Test
+  @TestTemplate
   def testTop2(): Unit = {
     val expected = List("book,1,12,2", "fruit,4,33,2")
     testTopNthBase(2, expected)
@@ -91,7 +115,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       s"""
@@ -107,10 +131,10 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTopNWithUpsertSink(): Unit = {
     val data = List(
       ("book", 1, 12),
@@ -121,7 +145,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -135,17 +159,26 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 3)).configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.upsert(),
+      List(0, 3).map(fieldNames)
+    )
     table.executeInsert("MySink").await()
 
-    val expected = List("book,4,11,1", "book,1,12,2", "fruit,5,22,1", "fruit,4,33,2")
-    assertEquals(expected.sorted, sink.getUpsertResults.sorted)
+    val expected =
+      List("book,4,11,1", "book,1,12,2", "fruit,5,22,1", "fruit,4,33,2")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTopNWithUnary(): Unit = {
     val data = List(
       ("book", 11, 100),
@@ -175,7 +208,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -193,18 +226,26 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 3)).configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.upsert(),
+      List(0, 3).map(fieldNames)
+    )
     table.executeInsert("MySink").await()
 
     val updatedExpected = List("book,5,800,1", "book,12,900,2", "book,4,910,3")
 
-    assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(updatedExpected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testUnarySortTopNOnString(): Unit = {
     val data = List(
       ("book", 11, "100"),
@@ -234,7 +275,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'price)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -252,18 +293,26 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 3)).configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.upsert(),
+      List(0, 3).map(fieldNames)
+    )
     table.executeInsert("MySink").await()
 
     val updatedExpected = List("book,3,110,1", "book,8,200,2", "book,12,600,3")
 
-    assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(updatedExpected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTopNWithGroupBy(): Unit = {
     val data = List(
       ("book", 1, 11),
@@ -276,7 +325,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -294,17 +343,27 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 3)).configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.upsert(),
+      List(0, 3).map(fieldNames)
+    )
     table.executeInsert("MySink").await()
 
-    val updatedExpected = List("book,1,22,1", "book,2,19,2", "fruit,3,44,1", "fruit,5,34,2")
-    assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
+    // Fix the RowKind in FLINK-36998
+    val updatedExpected =
+      List("book,1,22,1", "book,2,19,2", "fruit,3,44,1", "fruit,5,34,2")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(updatedExpected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTopNWithSumAndCondition(): Unit = {
     val data = List(
       Row.of("book", Int.box(11), Double.box(100)),
@@ -321,9 +380,9 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       BasicTypeInfo.DOUBLE_TYPE_INFO
     ) // tpe is automatically
 
-    val ds = env.fromCollection(data)
+    val ds = StreamingEnvUtil.fromCollection(env, data)
     val t = ds.toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", t)
+    tEnv.createTemporaryView("T", t)
 
     val subquery =
       """
@@ -345,18 +404,26 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 3)).configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.upsert(),
+      List(0, 3).map(fieldNames)
+    )
     table.executeInsert("MySink").await()
 
     val updatedExpected = List("book,10,1300.0,1", "book,12,900.0,2")
 
-    assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(updatedExpected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTopNthWithGroupBy(): Unit = {
     val data = List(
       ("book", 1, 11),
@@ -369,7 +436,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -387,18 +454,26 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 3)).configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.upsert(),
+      List(0, 3).map(fieldNames)
+    )
     table.executeInsert("MySink").await()
 
     val updatedExpected = List("book,2,19,2", "fruit,5,34,2")
 
-    assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(updatedExpected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTopNWithGroupByAndRetract(): Unit = {
     val data = List(
       ("book", 1, 11),
@@ -411,7 +486,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -432,10 +507,10 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     env.execute()
 
     val expected = List("book,1,22,2,1", "book,2,19,1,2", "fruit,3,44,1,1", "fruit,5,34,2,2")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTopNthWithGroupByAndRetract(): Unit = {
     val data = List(
       ("book", 1, 11),
@@ -448,7 +523,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -469,10 +544,10 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     env.execute()
 
     val expected = List("book,2,19,1,2", "fruit,5,34,2,2")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTopNWithGroupByCount(): Unit = {
     val data = List(
       ("book", 1, 1001),
@@ -496,7 +571,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'sellId)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -514,10 +589,15 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 1)).configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.upsert(),
+      List(0, 1).map(fieldNames)
+    )
     table.executeInsert("MySink").await()
 
     val expected = List(
@@ -528,16 +608,19 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "fruit,1,3,5",
       "fruit,2,2,4",
       "fruit,3,1,3")
-    assertEquals(expected.sorted, sink.getUpsertResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTop1WithGroupByCount(): Unit = {
     val expected = List("book,1,5,4", "fruit,1,3,5")
     testTopNthWithGroupByCountBase(1, expected)
   }
 
-  @Test
+  @TestTemplate
   def testTop3WithGroupByCount(): Unit = {
     val expected = List("book,3,2,2", "fruit,3,1,3")
     testTopNthWithGroupByCountBase(3, expected)
@@ -566,7 +649,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'sellId)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       s"""
@@ -584,16 +667,24 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 1)).configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.upsert(),
+      List(0, 1).map(fieldNames)
+    )
     table.executeInsert("MySink").await()
 
-    assertEquals(expected.sorted, sink.getUpsertResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testNestedTopN(): Unit = {
     val data = List(
       ("book", "a", 1),
@@ -611,7 +702,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     env.setParallelism(1)
     val ds = failingDataSource(data).toTable(tEnv, 'cate, 'shopId, 'sells)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -640,45 +731,57 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql2)
     val schema = table.getSchema
-    val sink = new TestingUpsertTableSink(Array(0)).configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.upsert(),
+      List(0).map(fieldNames)
+    )
     table.executeInsert("MySink").await()
 
     val expected = List(
-      "(true,1,book,a,1,1)",
-      "(true,2,book,b,1,1)",
-      "(true,3,book,c,1,1)",
-      "(true,1,fruit,a,2,1)",
-      "(true,2,book,a,1,1)",
-      "(true,3,book,b,1,1)",
-      "(true,4,book,c,1,1)",
-      "(true,2,book,a,1,2)",
-      "(true,1,book,b,3,2)",
-      "(true,2,fruit,a,2,1)",
-      "(true,3,book,a,1,2)",
-      "(true,3,book,a,1,2)",
-      "(true,1,fruit,b,6,1)",
-      "(true,2,book,b,3,2)",
-      "(true,3,fruit,a,2,1)",
-      "(true,4,book,a,1,2)",
-      "(true,3,fruit,a,2,1)",
-      "(true,2,book,e,5,1)",
-      "(true,3,book,b,3,2)",
-      "(true,4,fruit,a,2,1)",
-      "(true,3,book,b,3,2)",
-      "(true,3,book,d,4,2)",
-      "(true,4,book,b,3,2)",
-      "(true,4,book,b,3,2)"
+      "+I(1,book,a,1,1)",
+      "+I(2,book,b,1,1)",
+      "+I(3,book,c,1,1)",
+      "+U(1,fruit,a,2,1)",
+      "+U(2,book,a,1,1)",
+      "+U(3,book,b,1,1)",
+      "+I(4,book,c,1,1)",
+      "+U(2,book,a,1,2)",
+      "+U(1,book,b,3,2)",
+      "+U(2,fruit,a,2,1)",
+      "+U(3,book,a,1,2)",
+      "+U(3,book,a,1,2)",
+      "+U(1,fruit,b,6,1)",
+      "+U(2,book,b,3,2)",
+      "+U(3,fruit,a,2,1)",
+      "+U(4,book,a,1,2)",
+      "+U(3,fruit,a,2,1)",
+      "+U(2,book,e,5,1)",
+      "+U(3,book,b,3,2)",
+      "+U(4,fruit,a,2,1)",
+      "+U(3,book,b,3,2)",
+      "+U(3,book,d,4,2)",
+      "+U(4,book,b,3,2)",
+      "+U(4,book,b,3,2)"
     )
-    assertEquals(expected.mkString("\n"), sink.getRawResults.mkString("\n"))
+    assertThat(
+      TestValuesTableFactory
+        .getRawResultsAsStrings("MySink")
+        .stream()
+        .collect(Collectors.joining("\n"))).isEqualTo(expected.mkString("\n"))
 
     val expected2 = List("1,fruit,b,6,1", "2,book,e,5,1", "3,book,d,4,2", "4,book,b,3,2")
-    assertEquals(expected2, sink.getUpsertResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected2.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTopNWithoutDeduplicate(): Unit = {
     val data = List(
       ("book", "a", 1),
@@ -696,7 +799,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     env.setParallelism(1)
     val ds = failingDataSource(data).toTable(tEnv, 'cate, 'shopId, 'sells)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -714,37 +817,55 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingUpsertTableSink(Array(0)).configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.upsert(),
+      List(0).map(fieldNames)
+    )
+
     table.executeInsert("MySink").await()
 
     val expected = List(
-      "(true,1,book,a,1,1)",
-      "(true,2,book,b,1,1)",
-      "(true,3,book,c,1,1)",
-      "(true,1,fruit,a,2,1)",
-      "(true,1,book,a,1,2)",
-      "(true,4,book,d,0,1)",
-      "(true,1,book,b,3,2)",
-      "(true,2,book,a,1,2)",
-      "(true,1,fruit,b,6,1)",
-      "(true,2,fruit,a,2,1)",
-      "(true,3,book,c,1,2)",
-      "(true,1,book,e,5,1)",
-      "(true,2,book,b,3,2)",
-      "(true,3,book,a,1,2)",
-      "(true,4,book,c,1,2)",
-      "(true,2,book,d,4,2)",
-      "(true,3,book,b,3,2)",
-      "(true,4,book,a,1,2)"
+      "+I(1,book,a,1,1)",
+      "+I(2,book,b,1,1)",
+      "+I(3,book,c,1,1)",
+      "+U(1,fruit,a,2,1)",
+      "+U(1,book,a,1,2)",
+      "+I(4,book,d,0,1)",
+      "+U(1,fruit,a,2,1)",
+      "-D(2,book,b,1,1)",
+      "+U(1,book,b,3,2)",
+      "+I(2,book,a,1,2)",
+      "+U(1,fruit,b,6,1)",
+      "+U(2,fruit,a,2,1)",
+      "-D(3,book,c,1,1)",
+      "+I(3,book,c,1,2)",
+      "+U(1,book,e,5,1)",
+      "+U(2,book,b,3,2)",
+      "-D(3,book,c,1,2)",
+      "+I(3,book,a,1,2)",
+      "-D(4,book,d,0,1)",
+      "+I(4,book,c,1,2)",
+      "+U(2,fruit,a,2,1)",
+      "+U(2,book,d,4,2)",
+      "-D(3,book,a,1,2)",
+      "+I(3,book,b,3,2)",
+      "-D(4,book,c,1,2)",
+      "+I(4,book,a,1,2)"
     )
 
-    assertEquals(expected.mkString("\n"), sink.getRawResults.mkString("\n"))
+    assertThat(
+      TestValuesTableFactory
+        .getRawResultsAsStrings("MySink")
+        .stream()
+        .collect(Collectors.joining("\n"))).isEqualTo(expected.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTopNWithVariableTopSize(): Unit = {
     val data = List(
       ("book", 1, 1001, 4),
@@ -768,7 +889,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'sellId, 'topSize)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -786,19 +907,27 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 1)).configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.upsert(),
+      List(0, 1).map(fieldNames)
+    )
     table.executeInsert("MySink").await()
 
     val expected =
       List("book,1,5,4", "book,2,4,1", "book,3,2,2", "book,4,1,3", "fruit,1,3,5", "fruit,2,2,4")
-    assertEquals(expected.sorted, sink.getUpsertResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
-  @Ignore("Enable after UnaryUpdatableTopN is supported")
-  @Test
+  @Disabled("Enable after UnaryUpdatableTopN is supported")
+  @TestTemplate
   def testTopNUnaryComplexScenario(): Unit = {
     val data = List(
       ("book", 1, 11),
@@ -826,7 +955,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     env.setParallelism(1)
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -844,10 +973,15 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 3)).configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.upsert(),
+      List(0, 3).map(fieldNames)
+    )
     table.executeInsert("MySink").await()
 
     val expected = List(
@@ -871,14 +1005,21 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "(true,book,12,10,3)"
     )
 
-    assertEquals(expected.mkString("\n"), sink.getRawResults.mkString("\n"))
+    assertThat(
+      TestValuesTableFactory
+        .getRawResultsAsStrings("MySink")
+        .stream()
+        .collect(Collectors.joining("\n"))).isEqualTo(expected.mkString("\n"))
 
     val updatedExpected = List("book,2,9,1", "book,7,10,2", "book,12,10,3")
 
-    assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(updatedExpected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTopNWithGroupByAvgWithoutRowNumber(): Unit = {
     val data = List(
       ("book", 1, 100),
@@ -895,7 +1036,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     env.setParallelism(1)
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'sellId)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -913,45 +1054,57 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 1)).configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.upsert(),
+      List(0, 1).map(fieldNames)
+    )
     table.executeInsert("MySink").await()
 
     val expected = List(
-      "(true,book,1,100)",
-      "(true,book,3,110)",
-      "(true,book,4,120)",
-      "(false,book,1,100)",
-      "(true,book,1,150)",
-      "(false,book,1,150)",
-      "(true,book,1,166)",
-      "(false,book,3,110)",
-      "(true,book,2,300)",
-      "(false,book,2,300)",
-      "(true,book,3,110)",
-      "(false,book,3,110)",
-      "(true,book,2,350)",
-      "(false,book,4,120)",
-      "(true,book,3,110)",
-      "(false,book,3,110)",
-      "(true,book,4,310)",
-      "(false,book,1,166)",
-      "(true,book,3,110)",
-      "(false,book,3,110)",
-      "(true,book,1,225)",
-      "(true,fruit,5,100)"
+      "+I(book,1,100)",
+      "+I(book,3,110)",
+      "+I(book,4,120)",
+      "-D(book,1,100)",
+      "+I(book,1,150)",
+      "-D(book,1,150)",
+      "+I(book,1,166)",
+      "-D(book,3,110)",
+      "+I(book,2,300)",
+      "-D(book,2,300)",
+      "+I(book,3,110)",
+      "-D(book,3,110)",
+      "+I(book,2,350)",
+      "-D(book,4,120)",
+      "+I(book,3,110)",
+      "-D(book,3,110)",
+      "+I(book,4,310)",
+      "-D(book,1,166)",
+      "+I(book,3,110)",
+      "-D(book,3,110)",
+      "+I(book,1,225)",
+      "+I(fruit,5,100)"
     )
 
-    assertEquals(expected, sink.getRawResults)
+    assertThat(
+      TestValuesTableFactory
+        .getRawResultsAsStrings("MySink")
+        .stream()
+        .collect(Collectors.joining("\n"))).isEqualTo(expected.mkString("\n"))
 
     val updatedExpected = List("book,1,225", "book,2,350", "book,4,310", "fruit,5,100")
 
-    assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(updatedExpected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTopNWithGroupByCountWithoutRowNumber(): Unit = {
     val data = List(
       ("book", 1, 1001),
@@ -976,7 +1129,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     env.setParallelism(1)
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'sellId)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -994,41 +1147,53 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 1)).configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.upsert(),
+      List(0, 1).map(fieldNames)
+    )
     table.executeInsert("MySink").await()
 
     val expected = List(
-      "(true,book,1,1)",
-      "(true,book,3,1)",
-      "(true,book,4,1)",
-      "(true,book,1,2)",
-      "(true,book,1,3)",
-      "(false,book,4,1)",
-      "(true,book,2,2)",
-      "(false,book,3,1)",
-      "(true,book,4,2)",
-      "(true,book,1,4)",
-      "(true,book,4,3)",
-      "(true,book,4,4)",
-      "(true,book,4,5)",
-      "(true,fruit,4,1)",
-      "(true,fruit,5,1)",
-      "(true,fruit,3,1)",
-      "(true,fruit,4,2)",
-      "(true,fruit,5,2)",
-      "(true,fruit,5,3)"
+      "+I(book,1,1)",
+      "+I(book,3,1)",
+      "+I(book,4,1)",
+      "+U(book,1,2)",
+      "+U(book,1,3)",
+      "-D(book,4,1)",
+      "+I(book,2,2)",
+      "-D(book,3,1)",
+      "+I(book,4,2)",
+      "+U(book,1,4)",
+      "+U(book,4,3)",
+      "+U(book,4,4)",
+      "+U(book,4,5)",
+      "+I(fruit,4,1)",
+      "+I(fruit,5,1)",
+      "+I(fruit,3,1)",
+      "+U(fruit,4,2)",
+      "+U(fruit,5,2)",
+      "+U(fruit,5,3)"
     )
-    assertEquals(expected.mkString("\n"), sink.getRawResults.mkString("\n"))
+    assertThat(
+      TestValuesTableFactory
+        .getRawResultsAsStrings("MySink")
+        .stream()
+        .collect(Collectors.joining("\n"))).isEqualTo(expected.mkString("\n"))
 
     val updatedExpected =
       List("book,4,5", "book,1,4", "book,2,2", "fruit,5,3", "fruit,4,2", "fruit,3,1")
-    assertEquals(updatedExpected.sorted, sink.getUpsertResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(updatedExpected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testTopNWithoutRowNumber(): Unit = {
     val data = List(
       ("book", 1, 12),
@@ -1042,7 +1207,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     env.setParallelism(1)
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -1056,29 +1221,40 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val table = tEnv.sqlQuery(sql)
     val schema = table.getSchema
-    val sink = new TestingRetractTableSink().configure(
-      schema.getFieldNames,
-      schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      schema.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.all()
+    )
     table.executeInsert("MySink").await()
 
     val expected = List(
-      "(true,book,12,1)",
-      "(true,book,19,2)",
-      "(false,book,12,1)",
-      "(true,book,20,5)",
-      "(true,fruit,33,4)",
-      "(true,fruit,44,3)",
-      "(false,fruit,33,4)",
-      "(true,fruit,40,1)"
+      "+I(book,12,1)",
+      "+I(book,19,2)",
+      "-D(book,12,1)",
+      "+I(book,20,5)",
+      "+I(fruit,33,4)",
+      "+I(fruit,44,3)",
+      "-D(fruit,33,4)",
+      "+I(fruit,40,1)"
     )
-    assertEquals(expected, sink.getRawResults)
+    assertThat(
+      TestValuesTableFactory
+        .getRawResultsAsStrings("MySink")
+        .stream()
+        .collect(Collectors.joining("\n"))).isEqualTo(expected.mkString("\n"))
 
     val updatedExpected = List("book,19,2", "book,20,5", "fruit,40,1", "fruit,44,3")
-    assertEquals(updatedExpected.sorted, sink.getRetractResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(updatedExpected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testMultipleRetractTopNAfterAgg(): Unit = {
     def registerView(): Unit = {
       val data = List(
@@ -1092,7 +1268,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
       env.setParallelism(1)
       val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-      tEnv.registerTable("T", ds)
+      tEnv.createTemporaryView("T", ds)
 
       val subquery =
         s"""
@@ -1103,7 +1279,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
            |""".stripMargin
 
       val t1 = tEnv.sqlQuery(subquery)
-      tEnv.registerTable("MyView", t1)
+      tEnv.createTemporaryView("MyView", t1)
     }
 
     registerView()
@@ -1139,13 +1315,13 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     env.execute()
 
     val expected1 = List("book,1,25,12,1", "book,2,19,19,2", "fruit,3,44,44,1", "fruit,4,33,33,2")
-    assertEquals(expected1.sorted, sink1.getRetractResults.sorted)
+    assertThat(sink1.getRetractResults.sorted).isEqualTo(expected1.sorted)
 
     val expected2 = List("book,2,19,1,1", "book,1,13,2,2", "fruit,3,44,1,1", "fruit,4,33,1,2")
-    assertEquals(expected2.sorted, sink2.getRetractResults.sorted)
+    assertThat(sink2.getRetractResults.sorted).isEqualTo(expected2.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testMultipleUnaryTopNAfterAgg(): Unit = {
     val data = List(
       ("book", 1, 12),
@@ -1158,7 +1334,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     env.setParallelism(1)
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val subquery =
       s"""
@@ -1168,7 +1344,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |""".stripMargin
 
     val t1 = tEnv.sqlQuery(subquery)
-    tEnv.registerTable("MyView", t1)
+    tEnv.createTemporaryView("MyView", t1)
 
     val table1 = tEnv.sqlQuery(
       s"""
@@ -1180,10 +1356,15 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |WHERE rank_num <= 2
          |""".stripMargin)
     val schema1 = table1.getSchema
-    val sink1 = new TestingUpsertTableSink(Array(0, 3)).configure(
-      schema1.getFieldNames,
-      schema1.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink1", sink1)
+    val fieldNames1 = java.util.Arrays.asList(schema1.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink1",
+      fieldNames1,
+      java.util.Arrays.asList(schema1.getFieldDataTypes: _*).toList,
+      ChangelogMode.upsert(),
+      List(0, 3).map(fieldNames1)
+    )
     table1.executeInsert("MySink1").await()
 
     val table2 = tEnv.sqlQuery(
@@ -1196,20 +1377,31 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |WHERE rank_num <= 2
          |""".stripMargin)
     val schema2 = table2.getSchema
-    val sink2 = new TestingUpsertTableSink(Array(0, 3)).configure(
-      schema2.getFieldNames,
-      schema2.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink2", sink2)
+    val fieldNames2 = java.util.Arrays.asList(schema2.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink2",
+      fieldNames2,
+      java.util.Arrays.asList(schema2.getFieldDataTypes: _*).toList,
+      ChangelogMode.upsert(),
+      List(0, 3).map(fieldNames2)
+    )
     table2.executeInsert("MySink2").await()
 
     val expected1 = List("book,1,25,1", "book,2,19,2", "fruit,3,44,1", "fruit,4,33,2")
-    assertEquals(expected1.sorted, sink1.getUpsertResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink1")
+        .sorted).isEqualTo(expected1.sorted)
 
     val expected2 = List("book,2,19,1", "book,1,13,2", "fruit,3,44,1", "fruit,4,33,2")
-    assertEquals(expected2.sorted, sink2.getUpsertResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink2")
+        .sorted).isEqualTo(expected2.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testMultipleUpdateTopNAfterAgg(): Unit = {
     val data = List(
       ("book", 1, 12),
@@ -1222,7 +1414,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     env.setParallelism(1)
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val subquery =
       s"""
@@ -1232,7 +1424,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |""".stripMargin
 
     val t1 = tEnv.sqlQuery(subquery)
-    tEnv.registerTable("MyView", t1)
+    tEnv.createTemporaryView("MyView", t1)
 
     val table1 = tEnv.sqlQuery(
       s"""
@@ -1244,10 +1436,14 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |WHERE rank_num <= 2
          |""".stripMargin)
     val schema1 = table1.getSchema
-    val sink1 = new TestingRetractTableSink().configure(
-      schema1.getFieldNames,
-      schema1.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink1", sink1)
+    val fieldNames1 = java.util.Arrays.asList(schema1.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink1",
+      fieldNames1,
+      schema1.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.all()
+    )
     table1.executeInsert("MySink1").await()
 
     val table2 = tEnv.sqlQuery(
@@ -1260,20 +1456,30 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
          |WHERE rank_num <= 2
          |""".stripMargin)
     val schema2 = table2.getSchema
-    val sink2 = new TestingRetractTableSink().configure(
-      schema2.getFieldNames,
-      schema2.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink2", sink2)
+    val fieldNames2 = java.util.Arrays.asList(schema2.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink2",
+      fieldNames2,
+      schema2.getFieldDataTypes.map(_.nullable()).toList,
+      ChangelogMode.all()
+    )
     table2.executeInsert("MySink2").await()
 
     val expected1 = List("book,1,2,1", "book,2,1,2", "fruit,4,1,1", "fruit,3,1,2")
-    assertEquals(expected1.sorted, sink1.getRetractResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink1")
+        .sorted).isEqualTo(expected1.sorted)
 
     val expected2 = List("book,2,19,1", "book,1,13,2", "fruit,3,44,1", "fruit,4,33,2")
-    assertEquals(expected2.sorted, sink2.getRetractResults.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink2")
+        .sorted).isEqualTo(expected2.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testCorrelateSortToRank(): Unit = {
     val citiesDataId = TestValuesTableFactory.registerData(TestData.citiesData)
     tEnv.executeSql(s"""
@@ -1316,10 +1522,10 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "CA,San_Diego",
       "CA,Los_Angeles",
       "TX,San_Antonio")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testCorrelateSortToRankWithMultipleGroupKeys(): Unit = {
     val data = List(
       ("book", "aws", 1, 12),
@@ -1330,7 +1536,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       ("fruit", "aws", 5, 22))
 
     val ds = failingDataSource(data).toTable(tEnv, 'category, 'seller, 'shopId, 'num)
-    tEnv.registerTable("T", ds)
+    tEnv.createTemporaryView("T", ds)
 
     val sql =
       """
@@ -1349,6 +1555,17 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = List("book,aws,1", "book,aws,2", "fruit,aws,3", "fruit,aws,4")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+}
+
+object RankITCase {
+
+  @Parameters(name = "StateBackend={0}, EnableAsyncState={1}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(HEAP_BACKEND, Boolean.box(false)),
+      Array(HEAP_BACKEND, Boolean.box(true)),
+      Array(ROCKSDB_BACKEND, Boolean.box(false)))
   }
 }

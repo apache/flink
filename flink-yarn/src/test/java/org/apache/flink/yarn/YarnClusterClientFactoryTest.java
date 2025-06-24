@@ -23,35 +23,29 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
 import org.apache.flink.yarn.executors.YarnSessionClusterExecutor;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the {@link YarnClusterClientFactory} discovery. */
-public class YarnClusterClientFactoryTest {
+class YarnClusterClientFactoryTest {
 
     @Test
-    public void testYarnClusterClientFactoryDiscoveryWithPerJobExecutor() {
-        testYarnClusterClientFactoryDiscoveryHelper(YarnJobClusterExecutor.NAME);
-    }
-
-    @Test
-    public void testYarnClusterClientFactoryDiscoveryWithSessionExecutor() {
+    void testYarnClusterClientFactoryDiscoveryWithSessionExecutor() {
         testYarnClusterClientFactoryDiscoveryHelper(YarnSessionClusterExecutor.NAME);
     }
 
     private void testYarnClusterClientFactoryDiscoveryHelper(final String targetName) {
         final Configuration configuration = new Configuration();
-        configuration.setString(DeploymentOptions.TARGET, targetName);
+        configuration.set(DeploymentOptions.TARGET, targetName);
 
         final ClusterClientServiceLoader serviceLoader = new DefaultClusterClientServiceLoader();
         final ClusterClientFactory<ApplicationId> factory =
                 serviceLoader.getClusterClientFactory(configuration);
 
-        assertTrue(factory instanceof YarnClusterClientFactory);
+        assertThat(factory).isInstanceOf(YarnClusterClientFactory.class);
     }
 }

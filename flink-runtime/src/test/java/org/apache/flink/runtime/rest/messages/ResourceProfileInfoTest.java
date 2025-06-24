@@ -18,12 +18,17 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
 /** Test for (un)marshalling of the {@link ResourceProfileInfo}. */
-public class ResourceProfileInfoTest extends RestResponseMarshallingTestBase<ResourceProfileInfo> {
+@ExtendWith(NoOpTestExtension.class)
+class ResourceProfileInfoTest extends RestResponseMarshallingTestBase<ResourceProfileInfo> {
 
     private static final Random random = new Random();
 

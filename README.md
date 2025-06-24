@@ -9,7 +9,7 @@ Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 
 * A streaming-first runtime that supports both batch processing and data streaming programs
 
-* Elegant and fluent APIs in Java and Scala
+* Elegant and fluent APIs in Java
 
 * A runtime that supports very high throughput and low event latency at the same time
 
@@ -23,8 +23,6 @@ Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 
 * Libraries for Graph processing (batch), Machine Learning (batch), and Complex Event Processing (streaming)
 
-* Built-in support for iterative programs (BSP) in the DataSet (batch) API
-
 * Custom memory management for efficient and robust switching between in-memory and out-of-core data processing algorithms
 
 * Compatibility layers for Apache Hadoop MapReduce
@@ -33,32 +31,68 @@ Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 
 
 ### Streaming Example
-```scala
-case class WordWithCount(word: String, count: Long)
+```java
+// pojo class WordWithCount
+public class WordWithCount {
+    public String word;
+    public int count;
 
-val text = env.socketTextStream(host, port, '\n')
+    public WordWithCount() {}
+    
+    public WordWithCount(String word, int count) {
+        this.word = word;
+        this.count = count;
+    }
+}
 
-val windowCounts = text.flatMap { w => w.split("\\s") }
-  .map { w => WordWithCount(w, 1) }
-  .keyBy("word")
-  .window(TumblingProcessingTimeWindow.of(Time.seconds(5)))
-  .sum("count")
+// main method
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+DataStreamSource<String> text = env.socketTextStream(host, port);
+DataStream<WordWithCount> windowCounts = text
+    .flatMap(
+        (FlatMapFunction<String, String>) (line, collector) 
+            -> Arrays.stream(line.split("\\s")).forEach(collector::collect)
+    ).returns(String.class)
+    .map(word -> new WordWithCount(word, 1)).returns(TypeInformation.of(WordWithCount.class))
+    .keyBy(wordWithCnt -> wordWithCnt.word)
+    .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
+    .sum("count").returns(TypeInformation.of(WordWithCount.class));
 
-windowCounts.print()
+windowCounts.print();
+env.execute();
+}
 ```
 
 ### Batch Example
-```scala
-case class WordWithCount(word: String, count: Long)
+```java
+// pojo class WordWithCount
+public class WordWithCount {
+    public String word;
+    public int count;
 
-val text = env.readTextFile(path)
+    public WordWithCount() {}
 
-val counts = text.flatMap { w => w.split("\\s") }
-  .map { w => WordWithCount(w, 1) }
-  .groupBy("word")
-  .sum("count")
+    public WordWithCount(String word, int count) {
+        this.word = word;
+        this.count = count;
+    }
+}
 
-counts.writeAsCsv(outputPath)
+// main method
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+FileSource<String> source = FileSource.forRecordStreamFormat(new TextLineInputFormat(), new Path("MyInput.txt")).build();
+DataStreamSource<String> text = env.fromSource(source, WatermarkStrategy.noWatermarks(), "MySource");
+DataStream<WordWithCount> windowCounts = text
+        .flatMap((FlatMapFunction<String, String>) (line, collector) -> Arrays
+                .stream(line.split("\\s"))
+                .forEach(collector::collect)).returns(String.class)
+        .map(word -> new WordWithCount(word, 1)).returns(TypeInformation.of(WordWithCount.class))
+        .keyBy(wordWintCount -> wordWintCount.word)
+        .sum("count").returns(TypeInformation.of(WordWithCount.class));
+
+windowCounts.print();
+env.execute();
 ```
 
 
@@ -69,19 +103,47 @@ Prerequisites for building Flink:
 
 * Unix-like environment (we use Linux, Mac OS X, Cygwin, WSL)
 * Git
-* Maven (we recommend version 3.2.5 and require at least 3.1.1)
-* Java 8 or 11 (Java 9 or 10 may work)
+* Maven (we require version 3.8.6)
+* Java (version 11, 17, or 21)
+
+### Basic Build Instructions
+
+First, clone the repository:
 
 ```
 git clone https://github.com/apache/flink.git
 cd flink
-mvn clean package -DskipTests # this will take up to 10 minutes
 ```
 
-Flink is now installed in `build-target`.
+Then, choose one of the following commands based on your preferred Java version:
 
-*NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.1.1 creates the libraries properly.
-To build unit tests with Java 8, use Java 8u51 or above to prevent failures in unit tests that use the PowerMock runner.*
+**For Java 11**
+
+```
+./mvnw clean package -DskipTests -Djdk11 -Pjava11-target
+```
+
+**For Java 17 (Default)**
+
+```
+./mvnw clean package -DskipTests -Djdk17 -Pjava17-target
+```
+
+**For Java 21**
+
+```
+./mvnw clean package -DskipTests -Djdk21 -Pjava21-target
+```
+
+The build process will take approximately 10 minutes to complete.
+Flink will be installed in `build-target`.
+
+### Notes
+
+* Make sure your JAVA_HOME environment variable points to the correct JDK version
+* The build command uses Maven wrapper (mvnw) which ensures the correct Maven version is used
+* The -DskipTests flag skips running tests to speed up the build process
+* Each Java version requires its corresponding profile (-Pjava<version>-target) and JDK flag (-Djdk<version>)
 
 ## Developing Flink
 
@@ -116,7 +178,7 @@ Don’t hesitate to ask!
 
 Contact the developers and community on the [mailing lists](https://flink.apache.org/community.html#mailing-lists) if you need any help.
 
-[Open an issue](https://issues.apache.org/jira/browse/FLINK) if you found a bug in Flink.
+[Open an issue](https://issues.apache.org/jira/browse/FLINK) if you find a bug in Flink.
 
 
 ## Documentation
@@ -131,6 +193,23 @@ This is an active open-source project. We are always open to people who want to 
 Contact us if you are looking for implementation tasks that fit your skills.
 This article describes [how to contribute to Apache Flink](https://flink.apache.org/contributing/how-to-contribute.html).
 
+## Externalized Connectors
+
+Most Flink connectors have been externalized to individual repos under the [Apache Software Foundation](https://github.com/apache):
+
+* [flink-connector-aws](https://github.com/apache/flink-connector-aws)
+* [flink-connector-cassandra](https://github.com/apache/flink-connector-cassandra)
+* [flink-connector-elasticsearch](https://github.com/apache/flink-connector-elasticsearch)
+* [flink-connector-gcp-pubsub](https://github.com/apache/flink-connector-gcp-pubsub)
+* [flink-connector-hbase](https://github.com/apache/flink-connector-hbase)
+* [flink-connector-hive](https://github.com/apache/flink-connector-hive)
+* [flink-connector-jdbc](https://github.com/apache/flink-connector-jdbc)
+* [flink-connector-kafka](https://github.com/apache/flink-connector-kafka)
+* [flink-connector-mongodb](https://github.com/apache/flink-connector-mongodb)
+* [flink-connector-opensearch](https://github.com/apache/flink-connector-opensearch)
+* [flink-connector-prometheus](https://github.com/apache/flink-connector-prometheus)
+* [flink-connector-pulsar](https://github.com/apache/flink-connector-pulsar)
+* [flink-connector-rabbitmq](https://github.com/apache/flink-connector-rabbitmq)
 
 ## About
 

@@ -19,10 +19,9 @@ package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.{Table, TableEnvironment}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -244,6 +243,8 @@ object BatchTableEnvUtil {
    *   The field isNullables attributes of data.
    * @param statistic
    *   statistics of current Table
+   * @param forceNonParallel
+   *   sets the operator with only one parallelism
    * @tparam T
    *   The type of the [[Iterable]].
    * @return
@@ -257,14 +258,17 @@ object BatchTableEnvUtil {
       typeInfo: TypeInformation[T],
       fields: Option[Array[Expression]],
       fieldNullables: Option[Array[Boolean]],
-      statistic: Option[FlinkStatistic]): Unit = {
+      statistic: Option[FlinkStatistic],
+      forceNonParallel: Boolean = true): Unit = {
     val execEnv = getPlanner(tEnv).getExecEnv
     val boundedStream = execEnv.createInput(
       new CollectionInputFormat[T](
         data.asJavaCollection,
-        typeInfo.createSerializer(execEnv.getConfig)),
+        typeInfo.createSerializer(execEnv.getConfig.getSerializerConfig)),
       typeInfo)
-    boundedStream.forceNonParallel()
+    if (forceNonParallel) {
+      boundedStream.forceNonParallel()
+    }
     registerBoundedStreamInternal(tEnv, tableName, boundedStream, fields, fieldNullables, statistic)
   }
 
@@ -313,7 +317,7 @@ object BatchTableEnvUtil {
     val boundedStream = execEnv.createInput(
       new CollectionInputFormat[T](
         data.asJavaCollection,
-        typeInfo.createSerializer(execEnv.getConfig)),
+        typeInfo.createSerializer(execEnv.getConfig.getSerializerConfig)),
       typeInfo)
     boundedStream.setParallelism(1)
     val name = if (tableName == null) UUID.randomUUID().toString else tableName

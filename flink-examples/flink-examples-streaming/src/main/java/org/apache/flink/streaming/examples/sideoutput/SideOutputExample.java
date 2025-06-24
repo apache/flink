@@ -26,20 +26,23 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.connector.file.src.FileSource;
+import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.examples.wordcount.util.WordCountData;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.ParameterTool;
 
 import java.time.Duration;
 
@@ -70,34 +73,49 @@ public class SideOutputExample {
         env.getConfig().setGlobalJobParameters(params);
 
         // get input data
-        DataStream<String> text;
+        DataStream<String> textWithTimestampAndWatermark;
         if (params.has("input")) {
             // read the text file from given input path
-            text = env.readTextFile(params.get("input"));
+            FileSource<String> fileSource =
+                    FileSource.forRecordStreamFormat(
+                                    new TextLineInputFormat(), new Path(params.get("input")))
+                            .build();
+            textWithTimestampAndWatermark =
+                    env.fromSource(
+                            fileSource, IngestionTimeWatermarkStrategy.create(), "Words Source");
         } else {
             System.out.println("Executing WordCount example with default input data set.");
             System.out.println("Use --input to specify file input.");
             // get default test text data
-            text = env.fromElements(WordCountData.WORDS);
+            DataStreamSource<String> text = env.fromData(WordCountData.WORDS);
+            // We assign the WatermarkStrategy after creating the source because
+            // StreamExecutionEnvironment#fromElemenets() methods currently does not accept
+            // WatermarkStrategies. In a real-world job you should integrate the WatermarkStrategy
+            // in the source as shown above for the FileSource.
+            textWithTimestampAndWatermark =
+                    text.assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create());
         }
 
-        // We assign the WatermarkStrategy after creating the source. In a real-world job you
-        // should integrate the WatermarkStrategy in the source. The Kafka source allows this,
-        // for example.
-        text.assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create());
+        final boolean asyncState = params.has("async-state");
 
         SingleOutputStreamOperator<Tuple2<String, Integer>> tokenized =
-                text.process(new Tokenizer());
+                textWithTimestampAndWatermark.process(new Tokenizer());
 
         DataStream<String> rejectedWords =
                 tokenized
                         .getSideOutput(rejectedWordsTag)
                         .map(value -> "rejected: " + value, Types.STRING);
 
+        KeyedStream<Tuple2<String, Integer>, String> keyedTokenized =
+                tokenized.keyBy(value -> value.f0);
+
+        if (asyncState) {
+            keyedTokenized.enableAsyncState();
+        }
+
         DataStream<Tuple2<String, Integer>> counts =
-                tokenized
-                        .keyBy(value -> value.f0)
-                        .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+                keyedTokenized
+                        .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
                         // group by the tuple field "0" and sum up tuple field "1"
                         .sum(1);
 

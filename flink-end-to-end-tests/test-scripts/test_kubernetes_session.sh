@@ -25,6 +25,7 @@ FLINK_IMAGE_NAME="test_kubernetes_session"
 LOCAL_OUTPUT_PATH="${TEST_DATA_DIR}/out/wc_out"
 OUTPUT_PATH="/tmp/wc_out"
 OUTPUT_ARGS="--output ${OUTPUT_PATH}"
+EXECUTION_MODE_ARGS="--execution-mode BATCH"
 IMAGE_BUILD_RETRIES=3
 IMAGE_BUILD_BACKOFF=2
 
@@ -32,12 +33,13 @@ INPUT_TYPE=${1:-embedded}
 case $INPUT_TYPE in
     (embedded)
         INPUT_ARGS=""
+        RESULT_HASH="382f860d4fcf379b96b24f25857326eb"
     ;;
     (dummy-fs)
         source "$(dirname "$0")"/common_dummy_fs.sh
         cp_dummy_fs_to_opt
         INPUT_ARGS="--input dummy://localhost/words --input anotherDummy://localhost/words"
-        RESULT_HASH="0e5bd0a3dd7d5a7110aa85ff70adb54b"
+        RESULT_HASH="41d097718a0b00f67fe13d21048d1757"
         ENABLE_DUMMPY_FS_ARGS="-Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-dummy-fs.jar;flink-another-dummy-fs.jar \
         -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-dummy-fs.jar;flink-another-dummy-fs.jar"
     ;;
@@ -68,7 +70,7 @@ mkdir -p "$(dirname $LOCAL_OUTPUT_PATH)"
 
 # Set the memory and cpu smaller than default, so that the jobmanager and taskmanager pods could be allocated in minikube.
 "$FLINK_DIR"/bin/kubernetes-session.sh -Dkubernetes.cluster-id=${CLUSTER_ID} \
-    -Dkubernetes.container.image=${FLINK_IMAGE_NAME} \
+    -Dkubernetes.container.image.ref=${FLINK_IMAGE_NAME} \
     -Djobmanager.memory.process.size=1088m \
     -Dkubernetes.jobmanager.cpu=0.5 \
     -Dkubernetes.taskmanager.cpu=0.5 \
@@ -81,7 +83,7 @@ wait_rest_endpoint_up_k8s $jm_pod_name
 
 "$FLINK_DIR"/bin/flink run -e kubernetes-session \
     -Dkubernetes.cluster-id=${CLUSTER_ID} \
-    ${FLINK_DIR}/examples/batch/WordCount.jar ${INPUT_ARGS} ${OUTPUT_ARGS}
+    ${FLINK_DIR}/examples/streaming/WordCount.jar ${INPUT_ARGS} ${OUTPUT_ARGS} ${EXECUTION_MODE_ARGS}
 
 if ! check_logs_output $jm_pod_name 'Starting KubernetesSessionClusterEntrypoint'; then
   echo "JobManager logs are not accessible via kubectl logs."
@@ -96,4 +98,5 @@ fi
 
 kubectl cp `kubectl get pods | awk '/taskmanager/ {print $1}'`:${OUTPUT_PATH} ${LOCAL_OUTPUT_PATH}
 
-check_result_hash "WordCount" "${LOCAL_OUTPUT_PATH}" "${RESULT_HASH}"
+OUTPUT_FILES=$(find "${LOCAL_OUTPUT_PATH}" -type f)
+check_result_hash "WordCount" "${OUTPUT_FILES}" "${RESULT_HASH}"

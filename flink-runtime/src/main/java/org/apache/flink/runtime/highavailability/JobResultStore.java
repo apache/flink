@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * A storage for the results of globally terminated jobs. These results can have the following
@@ -43,14 +44,15 @@ public interface JobResultStore {
      * Registers the passed {@link JobResultEntry} instance as {@code dirty} which indicates that
      * clean-up operations still need to be performed. Once the job resource cleanup has been
      * finalized, we can mark the {@code JobResultEntry} as {@code clean} result using {@link
-     * #markResultAsClean(JobID)}.
+     * #markResultAsCleanAsync(JobID)}.
      *
      * @param jobResultEntry The job result we wish to persist.
-     * @throws IOException if the creation of the dirty result failed for IO reasons.
-     * @throws IllegalStateException if the passed {@code jobResultEntry} has a {@code JobID}
-     *     attached that is already registered in this {@code JobResultStore}.
+     * @return a successfully completed future if the dirty result is created successfully. The
+     *     future will be completed with {@link IllegalStateException} if the passed {@code
+     *     jobResultEntry} has a {@code JobID} attached that is already registered in this {@code
+     *     JobResultStore}.
      */
-    void createDirtyResult(JobResultEntry jobResultEntry) throws IOException, IllegalStateException;
+    CompletableFuture<Void> createDirtyResultAsync(JobResultEntry jobResultEntry);
 
     /**
      * Marks an existing {@link JobResultEntry} as {@code clean}. This indicates that no more
@@ -58,47 +60,46 @@ public interface JobResultStore {
      * {@code JobID} belongs to a job that was already marked as clean.
      *
      * @param jobId Ident of the job we wish to mark as clean.
-     * @throws IOException if marking the {@code dirty} {@code JobResultEntry} as {@code clean}
-     *     failed for IO reasons.
-     * @throws NoSuchElementException if there is no corresponding {@code dirty} job present in the
-     *     store for the given {@code JobID}.
+     * @return a successfully completed future if the result is marked successfully. The future can
+     *     complete exceptionally with a {@link NoSuchElementException}. i.e. there is no
+     *     corresponding {@code dirty} job present in the store for the given {@code JobID}.
      */
-    void markResultAsClean(JobID jobId) throws IOException, NoSuchElementException;
+    CompletableFuture<Void> markResultAsCleanAsync(JobID jobId);
 
     /**
-     * Returns whether the store already contains an entry for a job.
+     * Returns the future of whether the store already contains an entry for a job.
      *
      * @param jobId Ident of the job we wish to check the store for.
-     * @return {@code true} if a {@code dirty} or {@code clean} {@link JobResultEntry} exists for
-     *     the given {@code JobID}; otherwise {@code false}.
-     * @throws IOException if determining whether a job entry is present in the store failed for IO
-     *     reasons.
+     * @return a successfully completed future with {@code true} if a {@code dirty} or {@code clean}
+     *     {@link JobResultEntry} exists for the given {@code JobID}; otherwise {@code false}.
      */
-    default boolean hasJobResultEntry(JobID jobId) throws IOException {
-        return hasDirtyJobResultEntry(jobId) || hasCleanJobResultEntry(jobId);
+    default CompletableFuture<Boolean> hasJobResultEntryAsync(JobID jobId) {
+        return hasDirtyJobResultEntryAsync(jobId)
+                .thenCombine(
+                        hasCleanJobResultEntryAsync(jobId),
+                        (result1, result2) -> result1 || result2);
     }
 
     /**
-     * Returns whether the store already contains a {@code dirty} entry for the given {@code JobID}.
+     * Returns the future of whether the store contains a {@code dirty} entry for the given {@code
+     * JobID}.
      *
      * @param jobId Ident of the job we wish to check the store for.
-     * @return {@code true}, if a {@code dirty} entry exists for the given {@code JobID}; otherwise
-     *     {@code false}.
-     * @throws IOException if determining whether a job entry is present in the store failed for IO
-     *     reasons.
+     * @return a successfully completed future with {@code true}, if a {@code dirty} entry exists
+     *     for the given {@code JobID}; otherwise {@code false}.
      */
-    boolean hasDirtyJobResultEntry(JobID jobId) throws IOException;
+    CompletableFuture<Boolean> hasDirtyJobResultEntryAsync(JobID jobId);
 
     /**
-     * Returns whether the store already contains a {@code clean} entry for the given {@code JobID}.
+     * Returns the future of whether the store contains a {@code clean} entry for the given {@code
+     * JobID}.
      *
      * @param jobId Ident of the job we wish to check the store for.
-     * @return {@code true}, if a {@code clean} entry exists for the given {@code JobID}; otherwise
-     *     {@code false}.
-     * @throws IOException if determining whether a job entry is present in the store failed for IO
-     *     reasons.
+     * @return a successfully completed future with {@code true}, if a {@code clean} entry exists
+     *     for the given {@code JobID}; otherwise a successfully completed future with {@code
+     *     false}.
      */
-    boolean hasCleanJobResultEntry(JobID jobId) throws IOException;
+    CompletableFuture<Boolean> hasCleanJobResultEntryAsync(JobID jobId);
 
     /**
      * Get the persisted {@link JobResult} instances that are marked as {@code dirty}. This is

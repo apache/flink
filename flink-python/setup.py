@@ -20,14 +20,16 @@ from __future__ import print_function
 import io
 import os
 import platform
+import re
 import sys
 from distutils.command.build_ext import build_ext
 from shutil import copytree, copy, rmtree
 
 from setuptools import setup, Extension
+from xml.etree import ElementTree as ET
 
-if sys.version_info < (3, 6):
-    print("Python versions prior to 3.6 are not supported for PyFlink.",
+if sys.version_info < (3, 9):
+    print("Python versions prior to 3.9 are not supported for PyFlink.",
           file=sys.stderr)
     sys.exit(-1)
 
@@ -195,8 +197,8 @@ README_FILE_TEMP_PATH = os.path.join("pyflink", "README.txt")
 PYFLINK_UDF_RUNNER_SH = "pyflink-udf-runner.sh"
 PYFLINK_UDF_RUNNER_BAT = "pyflink-udf-runner.bat"
 
-in_flink_source = os.path.isfile("../flink-java/src/main/java/org/apache/flink/api/java/"
-                                 "ExecutionEnvironment.java")
+in_flink_source = os.path.isfile("../flink-runtime/src/main/java/org/apache/flink/streaming"
+                                 "/api/environment/StreamExecutionEnvironment.java")
 try:
     if in_flink_source:
 
@@ -206,7 +208,16 @@ try:
             print("Temp path for symlink to parent already exists {0}".format(TEMP_PATH),
                   file=sys.stderr)
             sys.exit(-1)
-        flink_version = VERSION.replace(".dev0", "-SNAPSHOT")
+        namespace = "http://maven.apache.org/POM/4.0.0"
+        flink_version = ET.parse("../pom.xml").getroot().find(
+            'POM:version',
+            namespaces={
+                'POM': 'http://maven.apache.org/POM/4.0.0'
+            }).text
+        if not flink_version:
+            print("Not able to get flink version", file=sys.stderr)
+            sys.exit(-1)
+        print("Detected flink version: {0}".format(flink_version))
         FLINK_HOME = os.path.abspath(
             "../flink-dist/target/flink-%s-bin/flink-%s" % (flink_version, flink_version))
         FLINK_ROOT = os.path.abspath("..")
@@ -252,7 +263,7 @@ try:
                   "is complete, or do this in the flink-python directory of the flink source "
                   "directory.")
             sys.exit(-1)
-    if VERSION.find('dev0') != -1:
+    if re.search('dev.*$', VERSION) is not None:
         apache_flink_libraries_dependency = 'apache-flink-libraries==%s' % VERSION
     else:
         split_versions = VERSION.split('.')
@@ -269,18 +280,28 @@ try:
                 'pyflink.table',
                 'pyflink.util',
                 'pyflink.datastream',
+                'pyflink.datastream.connectors',
+                'pyflink.datastream.formats',
                 'pyflink.common',
                 'pyflink.fn_execution',
                 'pyflink.fn_execution.beam',
                 'pyflink.fn_execution.datastream',
+                'pyflink.fn_execution.datastream.embedded',
+                'pyflink.fn_execution.datastream.process',
                 'pyflink.fn_execution.datastream.window',
+                'pyflink.fn_execution.embedded',
+                'pyflink.fn_execution.formats',
+                'pyflink.fn_execution.metrics',
+                'pyflink.fn_execution.metrics.embedded',
+                'pyflink.fn_execution.metrics.process',
                 'pyflink.fn_execution.table',
                 'pyflink.fn_execution.utils',
                 'pyflink.metrics',
                 'pyflink.conf',
                 'pyflink.log',
                 'pyflink.examples',
-                'pyflink.bin']
+                'pyflink.bin',
+                'pyflink.testing']
 
     PACKAGE_DIR = {
         'pyflink.conf': TEMP_PATH + '/conf',
@@ -295,6 +316,19 @@ try:
         'pyflink.examples': ['*.py', '*/*.py'],
         'pyflink.bin': ['*']}
 
+    install_requires = ['py4j==0.10.9.7', 'python-dateutil>=2.8.0,<3',
+                        'apache-beam>=2.54.0,<=2.61.0',
+                        'cloudpickle>=2.2.0', 'avro>=1.12.0',
+                        'pytz>=2018.3', 'fastavro>=1.1.0,!=1.8.0', 'requests>=2.26.0',
+                        'protobuf>=3.19.0',
+                        'numpy>=1.22.4',
+                        'pandas>=1.3.0',
+                        'pyarrow>=5.0.0',
+                        'pemja==0.5.1;platform_system != "Windows"',
+                        'httplib2>=0.19.0',
+                        'ruamel.yaml>=0.18.4',
+                        apache_flink_libraries_dependency]
+
     setup(
         name='apache-flink',
         version=VERSION,
@@ -307,16 +341,9 @@ try:
         license='https://www.apache.org/licenses/LICENSE-2.0',
         author='Apache Software Foundation',
         author_email='dev@flink.apache.org',
-        python_requires='>=3.6',
-        install_requires=['py4j==0.10.9.3', 'python-dateutil==2.8.0', 'apache-beam==2.27.0',
-                          'cloudpickle==1.2.2', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
-                          'pandas>=1.0,<1.2.0', 'pyarrow>=0.15.1,<3.0.0',
-                          'pytz>=2018.3', 'numpy>=1.14.3,<1.20', 'fastavro>=0.21.4,<0.24',
-                          'requests>=2.26.0', 'protobuf<3.18',
-                          'pemja==0.1.4;python_full_version >= "3.7"',
-                          apache_flink_libraries_dependency],
+        python_requires='>=3.9',
+        install_requires=install_requires,
         cmdclass={'build_ext': build_ext},
-        tests_require=['pytest==4.4.1'],
         description='Apache Flink Python API',
         long_description=long_description,
         long_description_content_type='text/markdown',
@@ -324,9 +351,10 @@ try:
         classifiers=[
             'Development Status :: 5 - Production/Stable',
             'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.6',
-            'Programming Language :: Python :: 3.7',
-            'Programming Language :: Python :: 3.8'],
+            'Programming Language :: Python :: 3.9',
+            'Programming Language :: Python :: 3.10',
+            'Programming Language :: Python :: 3.11',
+            'Programming Language :: Python :: 3.12'],
         ext_modules=extensions
     )
 finally:

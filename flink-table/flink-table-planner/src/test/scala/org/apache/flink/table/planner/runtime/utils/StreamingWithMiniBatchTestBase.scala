@@ -20,8 +20,9 @@ package org.apache.flink.table.planner.runtime.utils
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, TABLE_EXEC_MINIBATCH_ENABLED, TABLE_EXEC_MINIBATCH_SIZE}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
 
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.BeforeEach
 
 import java.time.Duration
 import java.util
@@ -31,6 +32,7 @@ import scala.collection.JavaConversions._
 abstract class StreamingWithMiniBatchTestBase(miniBatch: MiniBatchMode, state: StateBackendMode)
   extends StreamingWithStateTestBase(state) {
 
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     // set mini batch
@@ -61,7 +63,7 @@ object StreamingWithMiniBatchTestBase {
   val MiniBatchOff = MiniBatchMode(false)
   val MiniBatchOn = MiniBatchMode(true)
 
-  @Parameterized.Parameters(name = "{0}, StateBackend={1}")
+  @Parameters(name = "{0}, StateBackend={1}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       Array(MiniBatchOff, HEAP_BACKEND),

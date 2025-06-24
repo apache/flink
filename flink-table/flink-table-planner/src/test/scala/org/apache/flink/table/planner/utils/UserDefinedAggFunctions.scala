@@ -20,12 +20,11 @@ package org.apache.flink.table.planner.utils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo, TupleTypeInfo}
-import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.types.Row
 
 import java.lang.{Float => JFloat, Integer => JInt, Long => JLong}
-import java.util
 
 /**
  * User-defined aggregation function to compute the top 10 most visited Int IDs with the highest

@@ -20,9 +20,13 @@ package org.apache.flink.runtime.messages.webmonitor;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /** Tests for the {@link JobStatusInfo}. */
-public class JobStatusInfoTest extends RestResponseMarshallingTestBase<JobStatusInfo> {
+@ExtendWith(NoOpTestExtension.class)
+class JobStatusInfoTest extends RestResponseMarshallingTestBase<JobStatusInfo> {
     @Override
     protected Class<JobStatusInfo> getTestResponseClass() {
         return JobStatusInfo.class;

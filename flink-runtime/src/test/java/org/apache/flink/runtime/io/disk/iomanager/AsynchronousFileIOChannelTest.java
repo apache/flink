@@ -21,11 +21,12 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.util.TestNotificationListener;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,31 +43,30 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@RunWith(PowerMockRunner.class)
-public class AsynchronousFileIOChannelTest {
+class AsynchronousFileIOChannelTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AsynchronousFileIOChannelTest.class);
 
+    @RegisterExtension
+    private static final TestExecutorExtension<ExecutorService> EXECUTOR_EXTENSION =
+            new TestExecutorExtension<>(Executors::newCachedThreadPool);
+
     @Test
-    public void testAllRequestsProcessedListenerNotification() throws Exception {
+    void testAllRequestsProcessedListenerNotification() throws Exception {
         // -- Config ----------------------------------------------------------
         final int numberOfRuns = 10;
         final int numberOfRequests = 100;
 
         // -- Setup -----------------------------------------------------------
 
-        final ExecutorService executor = Executors.newFixedThreadPool(3);
-
         final Random random = new Random();
 
-        final RequestQueue<WriteRequest> requestQueue = new RequestQueue<WriteRequest>();
+        final RequestQueue<WriteRequest> requestQueue = new RequestQueue<>();
 
-        final RequestDoneCallback<Buffer> ioChannelCallback = mock(RequestDoneCallback.class);
+        final RequestDoneCallback<Buffer> ioChannelCallback = new NoOpCallback<>();
 
         final TestNotificationListener listener = new TestNotificationListener();
 
@@ -83,86 +83,77 @@ public class AsynchronousFileIOChannelTest {
                 final CountDownLatch sync = new CountDownLatch(3);
 
                 // The mock requests
-                final Buffer buffer = mock(Buffer.class);
-                final WriteRequest request = mock(WriteRequest.class);
+                final Buffer buffer = BufferBuilderTestUtils.buildSomeBuffer();
+                final WriteRequest request = new NoOpWriteRequest();
 
                 // Add requests task
                 Callable<Void> addRequestsTask =
-                        new Callable<Void>() {
-                            @Override
-                            public Void call() throws Exception {
-                                for (int i = 0; i < numberOfRuns; i++) {
-                                    LOG.debug("Starting run {}.", i + 1);
+                        () -> {
+                            for (int i = 0; i < numberOfRuns; i++) {
+                                LOG.debug("Starting run {}.", i + 1);
 
-                                    for (int j = 0; j < numberOfRequests; j++) {
-                                        ioChannel.addRequest(request);
-                                    }
-
-                                    LOG.debug(
-                                            "Added all ({}) requests of run {}.",
-                                            numberOfRequests,
-                                            i + 1);
-
-                                    int sleep = random.nextInt(10);
-                                    LOG.debug("Sleeping for {} ms before next run.", sleep);
-
-                                    Thread.sleep(sleep);
+                                for (int j = 0; j < numberOfRequests; j++) {
+                                    ioChannel.addRequest(request);
                                 }
 
-                                LOG.debug("Done. Closing channel.");
-                                ioChannel.close();
+                                LOG.debug(
+                                        "Added all ({}) requests of run {}.",
+                                        numberOfRequests,
+                                        i + 1);
 
-                                sync.countDown();
+                                int sleep = random.nextInt(10);
+                                LOG.debug("Sleeping for {} ms before next run.", sleep);
 
-                                return null;
+                                Thread.sleep(sleep);
                             }
+
+                            LOG.debug("Done. Closing channel.");
+                            ioChannel.close();
+
+                            sync.countDown();
+
+                            return null;
                         };
 
                 // Process requests task
                 Callable<Void> processRequestsTask =
-                        new Callable<Void>() {
-                            @Override
-                            public Void call() throws Exception {
-                                int total = numberOfRequests * numberOfRuns;
-                                for (int i = 0; i < total; i++) {
-                                    requestQueue.take();
+                        () -> {
+                            int total = numberOfRequests * numberOfRuns;
+                            for (int i = 0; i < total; i++) {
+                                requestQueue.take();
 
-                                    ioChannel.handleProcessedBuffer(buffer, null);
-                                }
-
-                                LOG.debug("Processed all ({}) requests.", numberOfRequests);
-
-                                sync.countDown();
-
-                                return null;
+                                ioChannel.handleProcessedBuffer(buffer, null);
                             }
+
+                            LOG.debug("Processed all ({}) requests.", numberOfRequests);
+
+                            sync.countDown();
+
+                            return null;
                         };
 
                 // Listener
                 Callable<Void> registerListenerTask =
-                        new Callable<Void>() {
-                            @Override
-                            public Void call() throws Exception {
-                                while (true) {
-                                    int current = listener.getNumberOfNotifications();
+                        () -> {
+                            while (true) {
+                                int current = listener.getNumberOfNotifications();
 
-                                    if (ioChannel.registerAllRequestsProcessedListener(listener)) {
-                                        listener.waitForNotification(current);
-                                    } else if (ioChannel.isClosed()) {
-                                        break;
-                                    }
+                                if (ioChannel.registerAllRequestsProcessedListener(listener)) {
+                                    listener.waitForNotification(current);
+                                } else if (ioChannel.isClosed()) {
+                                    break;
                                 }
-
-                                LOG.debug("Stopping listener. Channel closed.");
-
-                                sync.countDown();
-
-                                return null;
                             }
+
+                            LOG.debug("Stopping listener. Channel closed.");
+
+                            sync.countDown();
+
+                            return null;
                         };
 
                 // Run tasks in random order
-                final List<Callable<?>> tasks = new LinkedList<Callable<?>>();
+                final List<Callable<?>> tasks = new LinkedList<>();
                 tasks.add(addRequestsTask);
                 tasks.add(processRequestsTask);
                 tasks.add(registerListenerTask);
@@ -170,36 +161,32 @@ public class AsynchronousFileIOChannelTest {
                 Collections.shuffle(tasks);
 
                 for (Callable<?> task : tasks) {
-                    executor.submit(task);
+                    EXECUTOR_EXTENSION.getExecutor().submit(task);
                 }
 
-                if (!sync.await(2, TimeUnit.MINUTES)) {
-                    fail(
-                            "Test failed due to a timeout. This indicates a deadlock due to the way"
-                                    + "that listeners are registered/notified in the asynchronous file I/O"
-                                    + "channel.");
-                }
+                assertThat(sync.await(2, TimeUnit.MINUTES))
+                        .withFailMessage(
+                                "Test failed due to a timeout. This indicates a deadlock due to the way"
+                                        + "that listeners are registered/notified in the asynchronous file I/O"
+                                        + "channel.")
+                        .isTrue();
 
                 listener.reset();
             }
-        } finally {
-            executor.shutdown();
         }
     }
 
     @Test
-    public void testClosedButAddRequestAndRegisterListenerRace() throws Exception {
+    void testClosedButAddRequestAndRegisterListenerRace() throws Exception {
         // -- Config ----------------------------------------------------------
         final int numberOfRuns = 1024;
 
         // -- Setup -----------------------------------------------------------
 
-        final ExecutorService executor = Executors.newFixedThreadPool(2);
-
-        final RequestQueue<WriteRequest> requestQueue = new RequestQueue<WriteRequest>();
+        final RequestQueue<WriteRequest> requestQueue = new RequestQueue<>();
 
         @SuppressWarnings("unchecked")
-        final RequestDoneCallback<Buffer> ioChannelCallback = mock(RequestDoneCallback.class);
+        final RequestDoneCallback<Buffer> ioChannelCallback = new NoOpCallback<>();
 
         final TestNotificationListener listener = new TestNotificationListener();
 
@@ -213,67 +200,59 @@ public class AsynchronousFileIOChannelTest {
 
                 final CountDownLatch sync = new CountDownLatch(2);
 
-                final WriteRequest request = mock(WriteRequest.class);
+                final WriteRequest request = new NoOpWriteRequest();
 
                 ioChannel.close();
 
                 // Add request task
                 Callable<Void> addRequestTask =
-                        new Callable<Void>() {
-                            @Override
-                            public Void call() throws Exception {
-                                try {
-                                    ioChannel.addRequest(request);
-                                } catch (Throwable expected) {
-                                } finally {
-                                    sync.countDown();
-                                }
-
-                                return null;
+                        () -> {
+                            try {
+                                ioChannel.addRequest(request);
+                            } catch (Throwable expected) {
+                            } finally {
+                                sync.countDown();
                             }
+
+                            return null;
                         };
 
                 // Listener
                 Callable<Void> registerListenerTask =
-                        new Callable<Void>() {
-                            @Override
-                            public Void call() throws Exception {
-                                try {
-                                    while (true) {
-                                        int current = listener.getNumberOfNotifications();
+                        () -> {
+                            try {
+                                while (true) {
+                                    int current = listener.getNumberOfNotifications();
 
-                                        if (ioChannel.registerAllRequestsProcessedListener(
-                                                listener)) {
-                                            listener.waitForNotification(current);
-                                        } else if (ioChannel.isClosed()) {
-                                            break;
-                                        }
+                                    if (ioChannel.registerAllRequestsProcessedListener(listener)) {
+                                        listener.waitForNotification(current);
+                                    } else if (ioChannel.isClosed()) {
+                                        break;
                                     }
-                                } finally {
-                                    sync.countDown();
                                 }
-
-                                return null;
+                            } finally {
+                                sync.countDown();
                             }
+
+                            return null;
                         };
 
+                ExecutorService executor = EXECUTOR_EXTENSION.getExecutor();
                 executor.submit(addRequestTask);
                 executor.submit(registerListenerTask);
 
-                if (!sync.await(2, TimeUnit.MINUTES)) {
-                    fail(
-                            "Test failed due to a timeout. This indicates a deadlock due to the way"
-                                    + "that listeners are registered/notified in the asynchronous file I/O"
-                                    + "channel.");
-                }
+                assertThat(sync.await(2, TimeUnit.MINUTES))
+                        .withFailMessage(
+                                "Test failed due to a timeout. This indicates a deadlock due to the way"
+                                        + "that listeners are registered/notified in the asynchronous file I/O"
+                                        + "channel.")
+                        .isTrue();
             }
-        } finally {
-            executor.shutdown();
         }
     }
 
     @Test
-    public void testClosingWaits() {
+    void testClosingWaits() throws Exception {
         try (final IOManagerAsync ioMan = new IOManagerAsync()) {
 
             final int NUM_BLOCKS = 100;
@@ -311,19 +290,16 @@ public class AsynchronousFileIOChannelTest {
 
                 writer.close();
 
-                assertEquals(NUM_BLOCKS, callbackCounter.get());
-                assertFalse(exceptionOccurred.get());
+                assertThat(callbackCounter).hasValue(NUM_BLOCKS);
+                assertThat(exceptionOccurred).isFalse();
             } finally {
                 writer.closeAndDelete();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testExceptionForwardsToClose() throws Exception {
+    void testExceptionForwardsToClose() throws Exception {
         try (IOManagerAsync ioMan = new IOManagerAsync()) {
             testExceptionForwardsToClose(ioMan, 100, 1);
             testExceptionForwardsToClose(ioMan, 100, 50);
@@ -332,58 +308,59 @@ public class AsynchronousFileIOChannelTest {
     }
 
     private void testExceptionForwardsToClose(
-            IOManagerAsync ioMan, final int numBlocks, final int failingBlock) {
-        try {
-            MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(32 * 1024);
-            FileIOChannel.ID channelId = ioMan.createChannel();
+            IOManagerAsync ioMan, final int numBlocks, final int failingBlock) throws IOException {
+        MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(32 * 1024);
+        FileIOChannel.ID channelId = ioMan.createChannel();
 
-            BlockChannelWriterWithCallback<MemorySegment> writer =
-                    new AsynchronousBlockWriterWithCallback(
-                            channelId, ioMan.getWriteRequestQueue(channelId), new NoOpCallback()) {
+        BlockChannelWriterWithCallback<MemorySegment> writer =
+                new AsynchronousBlockWriterWithCallback(
+                        channelId, ioMan.getWriteRequestQueue(channelId), new NoOpCallback<>()) {
 
-                        private int numBlocks;
+                    private int numBlocks;
 
-                        @Override
-                        public void writeBlock(MemorySegment segment) throws IOException {
-                            numBlocks++;
+                    @Override
+                    public void writeBlock(MemorySegment segment) throws IOException {
+                        numBlocks++;
 
-                            if (numBlocks == failingBlock) {
-                                this.requestsNotReturned.incrementAndGet();
-                                this.requestQueue.add(new FailingWriteRequest(this, segment));
-                            } else {
-                                super.writeBlock(segment);
-                            }
+                        if (numBlocks == failingBlock) {
+                            this.requestsNotReturned.incrementAndGet();
+                            this.requestQueue.add(new FailingWriteRequest(this, segment));
+                        } else {
+                            super.writeBlock(segment);
                         }
-                    };
+                    }
+                };
 
-            try {
-                for (int i = 0; i < numBlocks; i++) {
-                    writer.writeBlock(seg);
-                }
+        assertThatThrownBy(
+                        () -> {
+                            try {
+                                for (int i = 0; i < numBlocks; i++) {
+                                    writer.writeBlock(seg);
+                                }
 
-                writer.close();
-                fail("did not forward exception");
-            } catch (IOException e) {
-                // expected
-            } finally {
-                try {
-                    writer.closeAndDelete();
-                } catch (Throwable ignored) {
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+                                writer.close();
+                            } finally {
+                                writer.closeAndDelete();
+                            }
+                        })
+                .isInstanceOf(IOException.class);
     }
 
-    private static class NoOpCallback implements RequestDoneCallback<MemorySegment> {
+    private static class NoOpCallback<T> implements RequestDoneCallback<T> {
 
         @Override
-        public void requestSuccessful(MemorySegment buffer) {}
+        public void requestSuccessful(T buffer) {}
 
         @Override
-        public void requestFailed(MemorySegment buffer, IOException e) {}
+        public void requestFailed(T buffer, IOException e) {}
+    }
+
+    private static class NoOpWriteRequest implements WriteRequest {
+        @Override
+        public void requestDone(IOException ioex) {}
+
+        @Override
+        public void write() {}
     }
 
     private static class FailingWriteRequest implements WriteRequest {

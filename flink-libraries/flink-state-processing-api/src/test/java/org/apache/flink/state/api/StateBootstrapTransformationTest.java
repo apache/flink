@@ -28,24 +28,23 @@ import org.apache.flink.state.api.functions.BroadcastStateBootstrapFunction;
 import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
 import org.apache.flink.state.api.functions.StateBootstrapFunction;
 import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
-import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 /** Tests for bootstrap transformations. */
-public class StateBootstrapTransformationTest extends AbstractTestBase {
+public class StateBootstrapTransformationTest extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testBroadcastStateTransformationParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
-        DataStream<Integer> input = env.fromElements(0);
+        DataStream<Integer> input = env.fromData(0);
 
         StateBootstrapTransformation<Integer> transformation =
                 OperatorTransformation.bootstrapWith(input)
@@ -54,7 +53,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
         int maxParallelism = transformation.getMaxParallelism(4);
         DataStream<TaggedOperatorSubtaskState> result =
                 transformation.writeOperatorSubtaskStates(
-                        OperatorIDGenerator.fromUid("uid"),
+                        OperatorIdentifier.forUid("uid"),
                         new HashMapStateBackend(),
                         new Path(),
                         maxParallelism);
@@ -70,7 +69,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
-        DataStream<Integer> input = env.fromElements(0);
+        DataStream<Integer> input = env.fromData(0);
 
         StateBootstrapTransformation<Integer> transformation =
                 OperatorTransformation.bootstrapWith(input)
@@ -79,7 +78,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
         int maxParallelism = transformation.getMaxParallelism(10);
         DataStream<TaggedOperatorSubtaskState> result =
                 transformation.writeOperatorSubtaskStates(
-                        OperatorIDGenerator.fromUid("uid"),
+                        OperatorIdentifier.forUid("uid"),
                         new HashMapStateBackend(),
                         new Path(),
                         maxParallelism);
@@ -95,7 +94,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
-        DataStream<Integer> input = env.fromElements(0);
+        DataStream<Integer> input = env.fromData(0);
 
         StateBootstrapTransformation<Integer> transformation =
                 OperatorTransformation.bootstrapWith(input)
@@ -104,7 +103,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
         int maxParallelism = transformation.getMaxParallelism(4);
         DataStream<TaggedOperatorSubtaskState> result =
                 transformation.writeOperatorSubtaskStates(
-                        OperatorIDGenerator.fromUid("uid"),
+                        OperatorIdentifier.forUid("uid"),
                         new HashMapStateBackend(),
                         new Path(),
                         maxParallelism);
@@ -120,7 +119,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
-        DataStream<Integer> input = env.fromElements(0);
+        DataStream<Integer> input = env.fromData(0);
 
         StateBootstrapTransformation<Integer> transformation =
                 OperatorTransformation.bootstrapWith(input)
@@ -130,7 +129,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
         int maxParallelism = transformation.getMaxParallelism(4);
         DataStream<TaggedOperatorSubtaskState> result =
                 transformation.writeOperatorSubtaskStates(
-                        OperatorIDGenerator.fromUid("uid"),
+                        OperatorIdentifier.forUid("uid"),
                         new HashMapStateBackend(),
                         new Path(),
                         maxParallelism);
@@ -144,7 +143,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
     @Test
     public void testStreamConfig() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStream<String> input = env.fromElements("");
+        DataStream<String> input = env.fromData("");
 
         StateBootstrapTransformation<String> transformation =
                 OperatorTransformation.bootstrapWith(input)
@@ -153,7 +152,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
 
         StreamConfig config =
                 transformation.getConfig(
-                        OperatorIDGenerator.fromUid("uid"),
+                        OperatorIdentifier.forUid("uid"),
                         new HashMapStateBackend(),
                         new Configuration(),
                         null);

@@ -83,11 +83,11 @@ public class ExecutionConfigAccessor {
     }
 
     public int getParallelism() {
-        return configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM);
+        return configuration.get(CoreOptions.DEFAULT_PARALLELISM);
     }
 
     public boolean getDetachedMode() {
-        return !configuration.getBoolean(DeploymentOptions.ATTACHED);
+        return !configuration.get(DeploymentOptions.ATTACHED);
     }
 
     public SavepointRestoreSettings getSavepointRestoreSettings() {
@@ -95,6 +95,6 @@ public class ExecutionConfigAccessor {
     }
 
     public boolean isShutdownOnAttachedExit() {
-        return configuration.getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED);
+        return configuration.get(DeploymentOptions.SHUTDOWN_IF_ATTACHED);
     }
 }

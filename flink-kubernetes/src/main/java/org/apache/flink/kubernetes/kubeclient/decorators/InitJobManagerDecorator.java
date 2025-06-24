@@ -43,8 +43,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.API_VERSION;
-import static org.apache.flink.kubernetes.utils.Constants.DNS_PLOICY_DEFAULT;
-import static org.apache.flink.kubernetes.utils.Constants.DNS_PLOICY_HOSTNETWORK;
 import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_IP_ADDRESS;
 import static org.apache.flink.kubernetes.utils.Constants.POD_IP_FIELD_PATH;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -72,21 +70,35 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                         kubernetesJobManagerParameters.getServiceAccount(),
                         KubernetesUtils.getServiceAccount(flinkPod),
                         "service account");
+
+        final String dnsPolicy =
+                KubernetesUtils.resolveDNSPolicy(
+                        flinkPod.getPodWithoutMainContainer().getSpec().getDnsPolicy(),
+                        kubernetesJobManagerParameters.isHostNetworkEnabled());
+
         if (flinkPod.getPodWithoutMainContainer().getSpec().getRestartPolicy() != null) {
             logger.info(
                     "The restart policy of JobManager pod will be overwritten to 'always' "
                             + "since it is controlled by the Kubernetes deployment.");
         }
+
         basicPodBuilder
                 .withApiVersion(API_VERSION)
                 .editOrNewSpec()
                 .withServiceAccount(serviceAccountName)
                 .withServiceAccountName(serviceAccountName)
                 .withHostNetwork(kubernetesJobManagerParameters.isHostNetworkEnabled())
-                .withDnsPolicy(
-                        kubernetesJobManagerParameters.isHostNetworkEnabled()
-                                ? DNS_PLOICY_HOSTNETWORK
-                                : DNS_PLOICY_DEFAULT)
+                .withDnsPolicy(dnsPolicy)
+                .endSpec();
+
+        // Specify volume for user artifact(s)
+        basicPodBuilder
+                .editOrNewSpec()
+                .addNewVolume()
+                .withName(Constants.USER_ARTIFACTS_VOLUME)
+                .withNewEmptyDir()
+                .endEmptyDir()
+                .endVolume()
                 .endSpec();
 
         // Merge fields
@@ -148,6 +160,13 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                 .withImagePullPolicy(imagePullPolicy)
                 .withResources(requirements);
 
+        // Mount volume for user artifact(s)
+        mainContainerBuilder
+                .addNewVolumeMount()
+                .withName(Constants.USER_ARTIFACTS_VOLUME)
+                .withMountPath(kubernetesJobManagerParameters.getUserArtifactsBaseDir())
+                .endVolumeMount();
+
         // Merge fields
         mainContainerBuilder
                 .addAllToPorts(getContainerPorts())
@@ -159,6 +178,7 @@ public class InitJobManagerDecorator extends AbstractKubernetesStepDecorator {
                                 .withNewFieldRef(API_VERSION, POD_IP_FIELD_PATH)
                                 .build())
                 .endEnv();
+
         getFlinkLogDirEnv().ifPresent(mainContainerBuilder::addToEnv);
         return mainContainerBuilder.build();
     }

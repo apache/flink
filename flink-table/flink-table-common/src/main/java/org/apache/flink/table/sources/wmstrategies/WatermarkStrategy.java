@@ -19,8 +19,8 @@
 package org.apache.flink.table.sources.wmstrategies;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.descriptors.Descriptor;
-import org.apache.flink.table.descriptors.Rowtime;
+import org.apache.flink.table.legacy.descriptors.Descriptor;
+import org.apache.flink.table.legacy.descriptors.Rowtime;
 import org.apache.flink.table.utils.EncodingUtils;
 
 import java.io.Serializable;

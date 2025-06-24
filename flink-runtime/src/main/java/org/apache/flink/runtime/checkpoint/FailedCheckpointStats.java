@@ -55,6 +55,7 @@ public class FailedCheckpointStats extends PendingCheckpointStats {
      * @param stateSize Total checkpoint state size over all subtasks.
      * @param processedData Processed data during the checkpoint.
      * @param persistedData Persisted data during the checkpoint.
+     * @param unalignedCheckpoint Whether the checkpoint is unaligned.
      * @param failureTimestamp Timestamp when this checkpoint failed.
      * @param latestAcknowledgedSubtask The latest acknowledged subtask stats or <code>null</code>.
      * @param cause Cause of the checkpoint failure or <code>null</code>.
@@ -70,6 +71,7 @@ public class FailedCheckpointStats extends PendingCheckpointStats {
             long stateSize,
             long processedData,
             long persistedData,
+            boolean unalignedCheckpoint,
             long failureTimestamp,
             @Nullable SubtaskStateStats latestAcknowledgedSubtask,
             @Nullable Throwable cause) {
@@ -85,6 +87,7 @@ public class FailedCheckpointStats extends PendingCheckpointStats {
                 stateSize,
                 processedData,
                 persistedData,
+                unalignedCheckpoint,
                 latestAcknowledgedSubtask);
         checkArgument(numAcknowledgedSubtasks >= 0, "Negative number of ACKs");
         this.failureTimestamp = failureTimestamp;

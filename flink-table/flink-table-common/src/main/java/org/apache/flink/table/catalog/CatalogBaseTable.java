@@ -20,8 +20,8 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.legacy.api.TableSchema;
 
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +39,7 @@ public interface CatalogBaseTable {
     @PublicEvolving
     enum TableKind {
         TABLE,
+        MATERIALIZED_TABLE,
         VIEW
     }
 

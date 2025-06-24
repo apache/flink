@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.legacy.sinks.TableSink;
 
 import java.util.Collections;
 

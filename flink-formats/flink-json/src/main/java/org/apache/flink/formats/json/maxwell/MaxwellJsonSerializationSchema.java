@@ -56,19 +56,22 @@ public class MaxwellJsonSerializationSchema implements SerializationSchema<RowDa
             TimestampFormat timestampFormat,
             JsonFormatOptions.MapNullKeyMode mapNullKeyMode,
             String mapNullKeyLiteral,
-            boolean encodeDecimalAsPlainNumber) {
+            boolean encodeDecimalAsPlainNumber,
+            boolean ignoreNullFields) {
         this.jsonSerializer =
                 new JsonRowDataSerializationSchema(
                         createJsonRowType(fromLogicalToDataType(rowType)),
                         timestampFormat,
                         mapNullKeyMode,
                         mapNullKeyLiteral,
-                        encodeDecimalAsPlainNumber);
+                        encodeDecimalAsPlainNumber,
+                        ignoreNullFields);
         this.timestampFormat = timestampFormat;
     }
 
     @Override
     public void open(InitializationContext context) throws Exception {
+        jsonSerializer.open(context);
         this.reuse = new GenericRowData(2);
     }
 

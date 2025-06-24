@@ -18,18 +18,17 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -47,14 +46,15 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 
-import java.io.File;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,10 +62,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test cases which ensure that the Yarn containers are started with the correct settings. */
 class YarnConfigurationITCase extends YarnTestBase {
 
-    private static final Time TIMEOUT = Time.seconds(10L);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10L);
 
     /** Tests that the Flink components are started with the correct memory settings. */
-    @Timeout(value = 60)
     @Test
     void testFlinkContainerMemory() throws Exception {
         runTest(
@@ -79,6 +78,10 @@ class YarnConfigurationITCase extends YarnTestBase {
                     configuration.set(
                             JobManagerOptions.TOTAL_PROCESS_MEMORY,
                             MemorySize.ofMebiBytes(masterMemory));
+                    configuration.set(DeploymentOptions.TARGET, "yarn-application");
+                    configuration.setString(
+                            PipelineOptions.JARS.key(),
+                            getTestJarPath("WindowJoin.jar").getAbsolutePath());
 
                     final TaskExecutorProcessSpec tmResourceSpec =
                             TaskExecutorProcessUtils.processSpecFromConfig(configuration);
@@ -95,15 +98,10 @@ class YarnConfigurationITCase extends YarnTestBase {
                                     true);
 
                     clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-                    clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
-
-                    final File streamingWordCountFile = getTestJarPath("WindowJoin.jar");
-
-                    final PackagedProgram packagedProgram =
-                            PackagedProgram.newBuilder().setJarFile(streamingWordCountFile).build();
-                    final JobGraph jobGraph =
-                            PackagedProgramUtils.createJobGraph(
-                                    packagedProgram, configuration, 1, false);
+                    clusterDescriptor.addShipFiles(
+                            Arrays.stream(Objects.requireNonNull(flinkLibFolder.listFiles()))
+                                    .map(file -> new Path(file.toURI()))
+                                    .collect(Collectors.toList()));
 
                     try {
                         final ClusterSpecification clusterSpecification =
@@ -115,7 +113,10 @@ class YarnConfigurationITCase extends YarnTestBase {
 
                         final ClusterClient<ApplicationId> clusterClient =
                                 clusterDescriptor
-                                        .deployJobCluster(clusterSpecification, jobGraph, true)
+                                        .deployApplicationCluster(
+                                                clusterSpecification,
+                                                ApplicationConfiguration.fromConfiguration(
+                                                        configuration))
                                         .getClusterClient();
 
                         final ApplicationId clusterId = clusterClient.getClusterId();
@@ -141,7 +142,7 @@ class YarnConfigurationITCase extends YarnTestBase {
                             }
 
                             for (ContainerReport container : containers) {
-                                if (container.getContainerId().getId() == 1) {
+                                if (container.getContainerId().getContainerId() == 1) {
                                     // this should be the application master
                                     assertThat(container.getAllocatedResource().getMemorySize())
                                             .isEqualTo(masterMemory);

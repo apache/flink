@@ -19,13 +19,13 @@
 package org.apache.flink.table.runtime.operators.over;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Process Function for RANGE clause event-time bounded OVER window.
@@ -110,7 +111,7 @@ public class RowTimeRangeBoundedPrecedingFunction<K>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
         function.open(new PerKeyStateDataViewStore(getRuntimeContext()));
 
@@ -227,12 +228,13 @@ public class RowTimeRangeBoundedPrecedingFunction<K>
             List<Long> retractTsList = new ArrayList<Long>();
 
             // do retraction
-            Iterator<Long> dataTimestampIt = inputState.keys().iterator();
-            while (dataTimestampIt.hasNext()) {
-                Long dataTs = dataTimestampIt.next();
+            Iterator<Map.Entry<Long, List<RowData>>> iter = inputState.entries().iterator();
+            while (iter.hasNext()) {
+                Map.Entry<Long, List<RowData>> data = iter.next();
+                Long dataTs = data.getKey();
                 Long offset = timestamp - dataTs;
                 if (offset > precedingOffset) {
-                    List<RowData> retractDataList = inputState.get(dataTs);
+                    List<RowData> retractDataList = data.getValue();
                     if (retractDataList != null) {
                         dataListIndex = 0;
                         while (dataListIndex < retractDataList.size()) {

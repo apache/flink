@@ -20,8 +20,7 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.TransientBlobService;
-import org.apache.flink.runtime.entrypoint.JobClusterEntrypoint;
-import org.apache.flink.runtime.leaderelection.LeaderElectionService;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
@@ -35,7 +34,7 @@ import org.apache.flink.util.ConfigurationException;
 import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
 
-/** REST endpoint for the {@link JobClusterEntrypoint}. */
+/** REST endpoint for the ApplicationClusterEntryPoint. */
 public class MiniDispatcherRestEndpoint extends WebMonitorEndpoint<RestfulGateway> {
 
     public MiniDispatcherRestEndpoint(
@@ -46,7 +45,7 @@ public class MiniDispatcherRestEndpoint extends WebMonitorEndpoint<RestfulGatewa
             TransientBlobService transientBlobService,
             ScheduledExecutorService executor,
             MetricFetcher metricFetcher,
-            LeaderElectionService leaderElectionService,
+            LeaderElection leaderElection,
             ExecutionGraphCache executionGraphCache,
             FatalErrorHandler fatalErrorHandler)
             throws IOException, ConfigurationException {
@@ -58,7 +57,7 @@ public class MiniDispatcherRestEndpoint extends WebMonitorEndpoint<RestfulGatewa
                 transientBlobService,
                 executor,
                 metricFetcher,
-                leaderElectionService,
+                leaderElection,
                 executionGraphCache,
                 fatalErrorHandler);
     }

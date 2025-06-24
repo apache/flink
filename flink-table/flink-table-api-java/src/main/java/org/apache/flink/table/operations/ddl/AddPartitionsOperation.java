@@ -18,28 +18,36 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.internal.TableResultImpl;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.operations.OperationUtils;
 
 import java.util.List;
 import java.util.Map;
 
 /** Operation to describe ALTER TABLE ADD PARTITION statement. */
+@Internal
 public class AddPartitionsOperation extends AlterTableOperation {
 
-    private final boolean ifNotExists;
+    private final boolean ignoreIfPartitionExists;
     private final List<CatalogPartitionSpec> partitionSpecs;
     private final List<CatalogPartition> catalogPartitions;
 
     public AddPartitionsOperation(
             ObjectIdentifier tableIdentifier,
-            boolean ifNotExists,
+            boolean ignoreIfPartitionExists,
             List<CatalogPartitionSpec> partitionSpecs,
             List<CatalogPartition> catalogPartitions) {
-        super(tableIdentifier);
-        this.ifNotExists = ifNotExists;
+        super(tableIdentifier, false);
+        this.ignoreIfPartitionExists = ignoreIfPartitionExists;
         this.partitionSpecs = partitionSpecs;
         this.catalogPartitions = catalogPartitions;
     }
@@ -52,8 +60,8 @@ public class AddPartitionsOperation extends AlterTableOperation {
         return catalogPartitions;
     }
 
-    public boolean ifNotExists() {
-        return ifNotExists;
+    public boolean ignoreIfPartitionExists() {
+        return ignoreIfPartitionExists;
     }
 
     @Override
@@ -61,7 +69,7 @@ public class AddPartitionsOperation extends AlterTableOperation {
         StringBuilder builder =
                 new StringBuilder(
                         String.format("ALTER TABLE %s ADD", tableIdentifier.asSummaryString()));
-        if (ifNotExists) {
+        if (ignoreIfPartitionExists) {
             builder.append(" IF NOT EXISTS");
         }
         for (int i = 0; i < partitionSpecs.size(); i++) {
@@ -74,5 +82,29 @@ public class AddPartitionsOperation extends AlterTableOperation {
             }
         }
         return builder.toString();
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        List<CatalogPartitionSpec> specs = getPartitionSpecs();
+        List<CatalogPartition> partitions = getCatalogPartitions();
+        ObjectPath tablePath = getTableIdentifier().toObjectPath();
+        try {
+            for (int i = 0; i < specs.size(); i++) {
+                ctx.getCatalogManager()
+                        .getCatalogOrThrowException(getTableIdentifier().getCatalogName())
+                        .createPartition(
+                                tablePath,
+                                specs.get(i),
+                                partitions.get(i),
+                                ignoreIfPartitionExists());
+            }
+            return TableResultImpl.TABLE_RESULT_OK;
+        } catch (TableNotExistException e) {
+            throw new ValidationException(
+                    String.format("Could not execute %s", asSummaryString()), e);
+        } catch (Exception e) {
+            throw new TableException(String.format("Could not execute %s", asSummaryString()), e);
+        }
     }
 }

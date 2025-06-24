@@ -51,10 +51,14 @@ public interface ResolverRule {
      * Contextual information that can be used during application of the rule. E.g. one can access
      * fields in inputs by name etc.
      */
+    @Internal
     interface ResolutionContext {
 
         /** Access to configuration. */
         ReadableConfig configuration();
+
+        /** Access to user classloader. */
+        ClassLoader userClassLoader();
 
         /**
          * Access to available {@link org.apache.flink.table.expressions.FieldReferenceExpression}

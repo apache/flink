@@ -20,23 +20,23 @@ package org.apache.flink.connector.base.source.hybrid;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.CloseableIterator;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -47,11 +47,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** MiniCluster-based integration test for the {@link HybridSource}. */
-public class HybridSourceITCase extends TestLogger {
+class HybridSourceITCase {
 
     // Parallelism cannot exceed number of splits, otherwise test may fail intermittently with:
     // Caused by: org.apache.flink.util.FlinkException: An OperatorEvent from an
@@ -60,9 +59,9 @@ public class HybridSourceITCase extends TestLogger {
     // #3
     private static final int PARALLELISM = 2;
 
-    @Rule
-    public final MiniClusterWithClientResource miniClusterResource =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension miniClusterResource =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(PARALLELISM)
@@ -76,26 +75,29 @@ public class HybridSourceITCase extends TestLogger {
 
     /** Test the source in the happy path. */
     @Test
-    public void testHybridSource() throws Exception {
-        testHybridSource(FailoverType.NONE, sourceWithFixedSwitchPosition());
+    void testHybridSource(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
+        testHybridSource(FailoverType.NONE, sourceWithFixedSwitchPosition(), miniCluster);
     }
 
     /** Test the source in the happy path with runtime position transfer. */
     @Test
-    public void testHybridSourceWithDynamicSwitchPosition() throws Exception {
-        testHybridSource(FailoverType.NONE, sourceWithDynamicSwitchPosition());
+    void testHybridSourceWithDynamicSwitchPosition(@InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
+        testHybridSource(FailoverType.NONE, sourceWithDynamicSwitchPosition(), miniCluster);
     }
 
     /** Test the source with TaskManager restart. */
     @Test
-    public void testHybridSourceWithTaskManagerFailover() throws Exception {
-        testHybridSource(FailoverType.TM, sourceWithFixedSwitchPosition());
+    void testHybridSourceWithTaskManagerFailover(@InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
+        testHybridSource(FailoverType.TM, sourceWithFixedSwitchPosition(), miniCluster);
     }
 
     /** Test the source with JobManager failover. */
     @Test
-    public void testHybridSourceWithJobManagerFailover() throws Exception {
-        testHybridSource(FailoverType.JM, sourceWithFixedSwitchPosition());
+    void testHybridSourceWithJobManagerFailover(@InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
+        testHybridSource(FailoverType.JM, sourceWithFixedSwitchPosition(), miniCluster);
     }
 
     private Source sourceWithFixedSwitchPosition() {
@@ -119,14 +121,16 @@ public class HybridSourceITCase extends TestLogger {
                 .build();
     }
 
-    private void testHybridSource(FailoverType failoverType, Source source) throws Exception {
+    private void testHybridSource(FailoverType failoverType, Source source, MiniCluster miniCluster)
+            throws Exception {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
-        env.setRestartStrategy(
-                FailoverType.NONE == failoverType
-                        ? RestartStrategies.noRestart()
-                        : RestartStrategies.fixedDelayRestart(1, 0));
+        if (FailoverType.NONE == failoverType) {
+            RestartStrategyUtils.configureNoRestartStrategy(env);
+        } else {
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0);
+        }
 
         final DataStream<Integer> stream =
                 env.fromSource(source, WatermarkStrategy.noWatermarks(), "hybrid-source")
@@ -135,22 +139,19 @@ public class HybridSourceITCase extends TestLogger {
         final DataStream<Integer> streamFailingInTheMiddleOfReading =
                 RecordCounterToFail.wrapWithFailureAfter(stream, EXPECTED_RESULT.size() / 2);
 
-        final ClientAndIterator<Integer> client =
-                DataStreamUtils.collectWithClient(
-                        streamFailingInTheMiddleOfReading,
+        CloseableIterator<Integer> iterator = streamFailingInTheMiddleOfReading.collectAsync();
+        JobClient client =
+                env.executeAsync(
                         HybridSourceITCase.class.getSimpleName() + '-' + failoverType.name());
-        final JobID jobId = client.client.getJobID();
+
+        final JobID jobId = client.getJobID();
 
         RecordCounterToFail.waitToFail();
-        triggerFailover(
-                failoverType,
-                jobId,
-                RecordCounterToFail::continueProcessing,
-                miniClusterResource.getMiniCluster());
+        triggerFailover(failoverType, jobId, RecordCounterToFail::continueProcessing, miniCluster);
 
         final List<Integer> result = new ArrayList<>();
-        while (result.size() < EXPECTED_RESULT.size() && client.iterator.hasNext()) {
-            result.add(client.iterator.next());
+        while (result.size() < EXPECTED_RESULT.size() && iterator.hasNext()) {
+            result.add(iterator.next());
         }
 
         verifyResult(result);
@@ -205,7 +206,7 @@ public class HybridSourceITCase extends TestLogger {
 
     private static void verifyResult(List<Integer> result) {
         Collections.sort(result);
-        assertThat(result, equalTo(EXPECTED_RESULT));
+        assertThat(result).isEqualTo(EXPECTED_RESULT);
     }
 
     // ------------------------------------------------------------------------

@@ -20,9 +20,8 @@ package org.apache.flink.connector.file.table.stream.compact;
 
 import org.apache.flink.core.fs.Path;
 
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -31,18 +30,18 @@ import java.io.IOException;
 /** Test base for compact operators. */
 public abstract class AbstractCompactTestBase {
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
-
     public static final int TARGET_SIZE = 9;
 
-    Path folder;
+    @TempDir private java.nio.file.Path path;
 
-    @Before
-    public void before() throws IOException {
-        folder = new Path(TEMP_FOLDER.newFolder().getPath());
+    protected Path folder;
+
+    @BeforeEach
+    void before() {
+        folder = new Path(path.toString());
     }
 
-    Path newFile(String name, int len) throws IOException {
+    protected Path newFile(String name, int len) throws IOException {
         Path path = new Path(folder, name);
         File file = new File(path.getPath());
         file.delete();

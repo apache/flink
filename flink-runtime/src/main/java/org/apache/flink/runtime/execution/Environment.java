@@ -20,6 +20,7 @@ package org.apache.flink.runtime.execution;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
@@ -29,22 +30,26 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
+import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.UserCodeClassLoader;
 
@@ -72,6 +77,8 @@ public interface Environment {
      * @return the ID of the job from the original job graph
      */
     JobID getJobID();
+
+    JobType getJobType();
 
     /**
      * Gets the ID of the JobVertex for which this task executes a parallel subtask.
@@ -116,7 +123,14 @@ public interface Environment {
     Configuration getJobConfiguration();
 
     /**
-     * Returns the {@link TaskInfo} object associated with this subtask
+     * Returns the {@link JobInfo} object associated with current job.
+     *
+     * @return JobInfo for current job
+     */
+    JobInfo getJobInfo();
+
+    /**
+     * Returns the {@link TaskInfo} object associated with this subtask.
      *
      * @return TaskInfo for this subtask
      */
@@ -147,7 +161,12 @@ public interface Environment {
      */
     MemoryManager getMemoryManager();
 
-    /** Returns the user code class loader */
+    /**
+     * @return the resources shared among all tasks of this task manager.
+     */
+    SharedResources getSharedResources();
+
+    /** Returns the user code class loader. */
     UserCodeClassLoader getUserCodeClassLoader();
 
     Map<String, Future<Path>> getDistributedCacheEntries();
@@ -182,7 +201,7 @@ public interface Environment {
     TaskKvStateRegistry getTaskKvStateRegistry();
 
     /**
-     * Confirms that the invokable has successfully completed all steps it needed to to for the
+     * Confirms that the invokable has successfully completed all steps it needed to for the
      * checkpoint with the give checkpoint-ID. This method does not include any state in the
      * checkpoint.
      *
@@ -236,6 +255,8 @@ public interface Environment {
 
     TaskEventDispatcher getTaskEventDispatcher();
 
+    TaskManagerActions getTaskManagerActions();
+
     // --------------------------------------------------------------------------------------------
     //  Fields set in the StreamTask to provide access to mailbox and other runtime resources
     // --------------------------------------------------------------------------------------------
@@ -257,4 +278,6 @@ public interface Environment {
     default CheckpointStorageAccess getCheckpointStorageAccess() {
         throw new UnsupportedOperationException();
     }
+
+    ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory();
 }

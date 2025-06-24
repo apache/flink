@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,14 +18,15 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperLeaderElectionHaServices;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.TreeCache;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.TreeCacheSelector;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.leader.LeaderLatch;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.leader.LeaderLatchListener;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionState;
@@ -34,177 +35,137 @@ import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.Conne
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-/**
- * {@link LeaderElectionDriver} implementation for Zookeeper. The leading JobManager is elected
- * using ZooKeeper. The current leader's address as well as its leader session ID is published via
- * ZooKeeper.
- *
- * @deprecated in favour of {@link ZooKeeperMultipleComponentLeaderElectionDriver}
- */
-@Deprecated
+/** ZooKeeper based {@link LeaderElectionDriver} implementation. */
 public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, LeaderLatchListener {
 
     private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderElectionDriver.class);
 
-    /** Client to the ZooKeeper quorum. */
-    private final CuratorFramework client;
+    private final CuratorFramework curatorFramework;
 
-    /** Curator recipe for leader election. */
-    private final LeaderLatch leaderLatch;
-
-    /** Curator recipe to watch a given ZooKeeper node for changes. */
-    private final TreeCache cache;
-
-    /** ZooKeeper path of the node which stores the current leader information. */
-    private final String connectionInformationPath;
+    private final LeaderElectionDriver.Listener leaderElectionListener;
 
     private final String leaderLatchPath;
+    private final LeaderLatch leaderLatch;
+
+    private final TreeCache treeCache;
 
     private final ConnectionStateListener listener =
             (client, newState) -> handleStateChange(newState);
 
-    private final LeaderElectionEventHandler leaderElectionEventHandler;
+    private AtomicBoolean running = new AtomicBoolean(true);
 
-    private final FatalErrorHandler fatalErrorHandler;
-
-    private final String leaderContenderDescription;
-
-    private volatile boolean running;
-
-    /**
-     * Creates a ZooKeeperLeaderElectionDriver object.
-     *
-     * @param client Client which is connected to the ZooKeeper quorum
-     * @param path ZooKeeper node path for the leader election
-     * @param leaderElectionEventHandler Event handler for processing leader change events
-     * @param fatalErrorHandler Fatal error handler
-     * @param leaderContenderDescription Leader contender description
-     */
     public ZooKeeperLeaderElectionDriver(
-            CuratorFramework client,
-            String path,
-            LeaderElectionEventHandler leaderElectionEventHandler,
-            FatalErrorHandler fatalErrorHandler,
-            String leaderContenderDescription)
+            CuratorFramework curatorFramework, LeaderElectionDriver.Listener leaderElectionListener)
             throws Exception {
-        checkNotNull(path);
-        this.client = checkNotNull(client);
-        this.connectionInformationPath = ZooKeeperUtils.generateConnectionInformationPath(path);
-        this.leaderElectionEventHandler = checkNotNull(leaderElectionEventHandler);
-        this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
-        this.leaderContenderDescription = checkNotNull(leaderContenderDescription);
+        this.curatorFramework = Preconditions.checkNotNull(curatorFramework);
+        this.leaderElectionListener = Preconditions.checkNotNull(leaderElectionListener);
 
-        leaderLatchPath = ZooKeeperUtils.generateLeaderLatchPath(path);
-        leaderLatch = new LeaderLatch(client, leaderLatchPath);
-        this.cache =
+        this.leaderLatchPath =
+                ZooKeeperUtils.generateLeaderLatchPath(curatorFramework.getNamespace());
+        this.leaderLatch = new LeaderLatch(curatorFramework, ZooKeeperUtils.getLeaderLatchPath());
+        this.treeCache =
                 ZooKeeperUtils.createTreeCache(
-                        client,
-                        connectionInformationPath,
-                        this::retrieveLeaderInformationFromZooKeeper);
+                        curatorFramework,
+                        "/",
+                        new ZooKeeperLeaderElectionDriver.ConnectionInfoNodeSelector());
 
-        running = true;
+        treeCache
+                .getListenable()
+                .addListener(
+                        (client, event) -> {
+                            switch (event.getType()) {
+                                case NODE_ADDED:
+                                case NODE_UPDATED:
+                                    Preconditions.checkNotNull(
+                                            event.getData(),
+                                            "The ZooKeeper event data must not be null.");
+                                    handleChangedLeaderInformation(event.getData());
+                                    break;
+                                case NODE_REMOVED:
+                                    Preconditions.checkNotNull(
+                                            event.getData(),
+                                            "The ZooKeeper event data must not be null.");
+                                    handleRemovedLeaderInformation(event.getData().getPath());
+                                    break;
+                            }
+                        });
 
         leaderLatch.addListener(this);
+        curatorFramework.getConnectionStateListenable().addListener(listener);
         leaderLatch.start();
-
-        cache.start();
-
-        client.getConnectionStateListenable().addListener(listener);
+        treeCache.start();
     }
 
     @Override
     public void close() throws Exception {
-        if (!running) {
-            return;
-        }
-        running = false;
+        if (running.compareAndSet(true, false)) {
+            LOG.info("Closing {}.", this);
 
-        LOG.info("Closing {}", this);
+            curatorFramework.getConnectionStateListenable().removeListener(listener);
 
-        client.getConnectionStateListenable().removeListener(listener);
+            Exception exception = null;
 
-        Exception exception = null;
+            try {
+                treeCache.close();
+            } catch (Exception e) {
+                exception = e;
+            }
 
-        try {
-            cache.close();
-        } catch (Exception e) {
-            exception = e;
-        }
+            try {
+                leaderLatch.close();
+            } catch (Exception e) {
+                exception = ExceptionUtils.firstOrSuppressed(e, exception);
+            }
 
-        try {
-            leaderLatch.close();
-        } catch (Exception e) {
-            exception = ExceptionUtils.firstOrSuppressed(e, exception);
-        }
-
-        if (exception != null) {
-            throw new Exception(
-                    "Could not properly stop the ZooKeeperLeaderElectionDriver.", exception);
+            ExceptionUtils.tryRethrowException(exception);
         }
     }
 
     @Override
     public boolean hasLeadership() {
-        assert (running);
         return leaderLatch.hasLeadership();
     }
 
     @Override
-    public void isLeader() {
-        leaderElectionEventHandler.onGrantLeadership(UUID.randomUUID());
-    }
+    public void publishLeaderInformation(String componentId, LeaderInformation leaderInformation) {
+        Preconditions.checkState(running.get());
 
-    @Override
-    public void notLeader() {
-        leaderElectionEventHandler.onRevokeLeadership();
-    }
-
-    private void retrieveLeaderInformationFromZooKeeper() throws Exception {
-        if (leaderLatch.hasLeadership()) {
-            ChildData childData = cache.getCurrentData(connectionInformationPath);
-            if (childData != null) {
-                leaderElectionEventHandler.onLeaderInformationChange(
-                        ZooKeeperUtils.readLeaderInformation(childData.getData()));
-            }
-            leaderElectionEventHandler.onLeaderInformationChange(LeaderInformation.empty());
-        }
-    }
-
-    /** Writes the current leader's address as well the given leader session ID to ZooKeeper. */
-    @Override
-    public void writeLeaderInformation(LeaderInformation leaderInformation) {
-        assert (running);
-        // this method does not have to be synchronized because the curator framework client
-        // is thread-safe. We do not write the empty data to ZooKeeper here. Because
-        // check-leadership-and-update
-        // is not a transactional operation. We may wrongly clear the data written by new leader.
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Write leader information: {}.", leaderInformation);
-        }
-        if (leaderInformation.isEmpty()) {
+        if (!leaderLatch.hasLeadership()) {
             return;
         }
+
+        final String connectionInformationPath =
+                ZooKeeperUtils.generateConnectionInformationPath(componentId);
+
+        LOG.debug(
+                "Write leader information {} for component '{}' to {}.",
+                leaderInformation,
+                componentId,
+                ZooKeeperUtils.generateZookeeperPath(
+                        curatorFramework.getNamespace(), connectionInformationPath));
 
         try {
             ZooKeeperUtils.writeLeaderInformationToZooKeeper(
                     leaderInformation,
-                    client,
+                    curatorFramework,
                     leaderLatch::hasLeadership,
                     connectionInformationPath);
-
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Successfully wrote leader information: {}.", leaderInformation);
-            }
         } catch (Exception e) {
-            fatalErrorHandler.onFatalError(
-                    new LeaderElectionException(
-                            "Could not write leader address and leader session ID to "
-                                    + "ZooKeeper.",
-                            e));
+            leaderElectionListener.onError(e);
+        }
+    }
+
+    @Override
+    public void deleteLeaderInformation(String componentId) {
+        try {
+            ZooKeeperUtils.deleteZNode(
+                    curatorFramework, ZooKeeperUtils.generateZookeeperPath(componentId));
+        } catch (Exception e) {
+            leaderElectionListener.onError(e);
         }
     }
 
@@ -223,22 +184,95 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
             case LOST:
                 // Maybe we have to throw an exception here to terminate the JobManager
                 LOG.warn(
-                        "Connection to ZooKeeper lost. The contender "
-                                + leaderContenderDescription
-                                + " no longer participates in the leader election.");
+                        "Connection to ZooKeeper lost. None of the contenders participates in the leader election anymore.");
                 break;
+        }
+    }
+
+    @Override
+    public void isLeader() {
+        final UUID leaderSessionID = UUID.randomUUID();
+        LOG.debug("{} obtained the leadership with session ID {}.", this, leaderSessionID);
+        leaderElectionListener.onGrantLeadership(leaderSessionID);
+    }
+
+    @Override
+    public void notLeader() {
+        LOG.debug("{} lost the leadership.", this);
+        leaderElectionListener.onRevokeLeadership();
+    }
+
+    private void handleChangedLeaderInformation(ChildData childData) {
+        if (shouldHandleLeaderInformationEvent(childData.getPath())) {
+            final String componentId = extractComponentId(childData.getPath());
+
+            final LeaderInformation leaderInformation =
+                    tryReadingLeaderInformation(childData, componentId);
+
+            leaderElectionListener.onLeaderInformationChange(componentId, leaderInformation);
+        }
+    }
+
+    private String extractComponentId(String path) {
+        final String[] splits = ZooKeeperUtils.splitZooKeeperPath(path);
+
+        Preconditions.checkState(
+                splits.length >= 2,
+                String.format(
+                        "Expecting path consisting of /<component-id>/connection_info. Got path '%s'",
+                        path));
+
+        return splits[splits.length - 2];
+    }
+
+    private void handleRemovedLeaderInformation(String removedNodePath) {
+        if (shouldHandleLeaderInformationEvent(removedNodePath)) {
+            final String leaderName = extractComponentId(removedNodePath);
+
+            leaderElectionListener.onLeaderInformationChange(leaderName, LeaderInformation.empty());
+        }
+    }
+
+    private boolean shouldHandleLeaderInformationEvent(String path) {
+        return running.get()
+                && leaderLatch.hasLeadership()
+                && ZooKeeperUtils.isConnectionInfoPath(path);
+    }
+
+    private LeaderInformation tryReadingLeaderInformation(ChildData childData, String id) {
+        LeaderInformation leaderInformation;
+        try {
+            leaderInformation = ZooKeeperUtils.readLeaderInformation(childData.getData());
+
+            LOG.debug("Leader information for {} has changed to {}.", id, leaderInformation);
+        } catch (IOException | ClassNotFoundException e) {
+            LOG.debug(
+                    "Could not read leader information for {}. Rewriting the information.", id, e);
+            leaderInformation = LeaderInformation.empty();
+        }
+
+        return leaderInformation;
+    }
+
+    /**
+     * This selector finds all connection info nodes. See {@link ZooKeeperLeaderElectionHaServices}
+     * for more details on the Znode layout.
+     */
+    private static class ConnectionInfoNodeSelector implements TreeCacheSelector {
+        @Override
+        public boolean traverseChildren(String fullPath) {
+            return true;
+        }
+
+        @Override
+        public boolean acceptChild(String fullPath) {
+            return !fullPath.endsWith(ZooKeeperUtils.getLeaderLatchPath());
         }
     }
 
     @Override
     public String toString() {
         return String.format(
-                "%s{leaderLatchPath='%s', connectionInformationPath='%s'}",
-                getClass().getSimpleName(), leaderLatchPath, connectionInformationPath);
-    }
-
-    @VisibleForTesting
-    String getConnectionInformationPath() {
-        return connectionInformationPath;
+                "%s{leaderLatchPath='%s'}", getClass().getSimpleName(), leaderLatchPath);
     }
 }

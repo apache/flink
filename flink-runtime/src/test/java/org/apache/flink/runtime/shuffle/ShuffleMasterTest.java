@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.shuffle;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -32,11 +30,12 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -44,14 +43,12 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.api.common.restartstrategy.RestartStrategies.fixedDelayRestart;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ShuffleMaster}. */
-public class ShuffleMasterTest extends TestLogger {
+class ShuffleMasterTest {
 
     private static final String STOP_TRACKING_PARTITION_KEY = "stop_tracking_partition_key";
 
@@ -59,55 +56,50 @@ public class ShuffleMasterTest extends TestLogger {
 
     private static final String EXTERNAL_PARTITION_RELEASE_EVENT = "releasePartitionExternally";
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         TestShuffleMaster.partitionEvents.clear();
     }
 
     @Test
-    public void testShuffleMasterLifeCycle() throws Exception {
+    void testShuffleMasterLifeCycle() throws Exception {
         try (MiniCluster cluster = new MiniCluster(createClusterConfiguration(false))) {
             cluster.start();
             cluster.executeJobBlocking(createJobGraph());
         }
-        assertTrue(TestShuffleMaster.currentInstance.get().closed.get());
-
-        String[] expectedPartitionEvents =
-                new String[] {
-                    PARTITION_REGISTRATION_EVENT,
-                    PARTITION_REGISTRATION_EVENT,
-                    EXTERNAL_PARTITION_RELEASE_EVENT,
-                    EXTERNAL_PARTITION_RELEASE_EVENT,
-                };
-        assertArrayEquals(expectedPartitionEvents, TestShuffleMaster.partitionEvents.toArray());
+        assertThat(TestShuffleMaster.currentInstance.get().closed).isTrue();
+        assertThat(TestShuffleMaster.partitionEvents)
+                .containsExactly(
+                        PARTITION_REGISTRATION_EVENT,
+                        PARTITION_REGISTRATION_EVENT,
+                        EXTERNAL_PARTITION_RELEASE_EVENT,
+                        EXTERNAL_PARTITION_RELEASE_EVENT);
     }
 
     @Test
-    public void testStopTrackingPartition() throws Exception {
+    void testStopTrackingPartition() throws Exception {
         try (MiniCluster cluster = new MiniCluster(createClusterConfiguration(true))) {
             cluster.start();
             cluster.executeJobBlocking(createJobGraph());
         }
-        assertTrue(TestShuffleMaster.currentInstance.get().closed.get());
-
-        String[] expectedPartitionEvents =
-                new String[] {
-                    PARTITION_REGISTRATION_EVENT,
-                    PARTITION_REGISTRATION_EVENT,
-                    PARTITION_REGISTRATION_EVENT,
-                    PARTITION_REGISTRATION_EVENT,
-                    EXTERNAL_PARTITION_RELEASE_EVENT,
-                    EXTERNAL_PARTITION_RELEASE_EVENT,
-                };
-        assertArrayEquals(expectedPartitionEvents, TestShuffleMaster.partitionEvents.toArray());
+        assertThat(TestShuffleMaster.currentInstance.get().closed).isTrue();
+        assertThat(TestShuffleMaster.partitionEvents)
+                .containsExactly(
+                        PARTITION_REGISTRATION_EVENT,
+                        PARTITION_REGISTRATION_EVENT,
+                        PARTITION_REGISTRATION_EVENT,
+                        PARTITION_REGISTRATION_EVENT,
+                        EXTERNAL_PARTITION_RELEASE_EVENT,
+                        EXTERNAL_PARTITION_RELEASE_EVENT);
     }
 
     private MiniClusterConfiguration createClusterConfiguration(boolean stopTrackingPartition) {
         Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS,
                 TestShuffleServiceFactory.class.getName());
-        configuration.setBoolean(STOP_TRACKING_PARTITION_KEY, stopTrackingPartition);
+        configuration.set(
+                getBooleanConfigOption(STOP_TRACKING_PARTITION_KEY), stopTrackingPartition);
         return new MiniClusterConfiguration.Builder()
                 .withRandomPorts()
                 .setNumTaskManagers(1)
@@ -125,13 +117,11 @@ public class ShuffleMasterTest extends TestLogger {
         sink.setParallelism(2);
         sink.setInvokableClass(NoOpInvokable.class);
 
-        sink.connectNewDataSetAsInput(
-                source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                sink, source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
         JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(source, sink);
-        ExecutionConfig config = new ExecutionConfig();
-        config.setRestartStrategy(fixedDelayRestart(2, Time.seconds(2)));
-        jobGraph.setExecutionConfig(config);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, 2, Duration.ofSeconds(2));
         return jobGraph;
     }
 
@@ -162,15 +152,16 @@ public class ShuffleMasterTest extends TestLogger {
         private final boolean stopTrackingPartition;
 
         public TestShuffleMaster(Configuration conf) {
-            super(conf);
-            this.stopTrackingPartition = conf.getBoolean(STOP_TRACKING_PARTITION_KEY, false);
+            super(new ShuffleMasterContextImpl(conf, throwable -> {}));
+            this.stopTrackingPartition =
+                    conf.get(getBooleanConfigOption(STOP_TRACKING_PARTITION_KEY), false);
             currentInstance.set(this);
         }
 
         @Override
         public void start() throws Exception {
-            assertFalse(started.get());
-            assertFalse(closed.get());
+            assertThat(started).isFalse();
+            assertThat(closed).isFalse();
             started.set(true);
             super.start();
         }
@@ -185,7 +176,7 @@ public class ShuffleMasterTest extends TestLogger {
         @Override
         public void registerJob(JobShuffleContext context) {
             assertShuffleMasterAlive();
-            assertTrue(jobContext.compareAndSet(null, context));
+            assertThat(jobContext.compareAndSet(null, context)).isTrue();
             super.registerJob(context);
         }
 
@@ -238,13 +229,13 @@ public class ShuffleMasterTest extends TestLogger {
         }
 
         private void assertShuffleMasterAlive() {
-            assertFalse(closed.get());
-            assertTrue(started.get());
+            assertThat(closed).isFalse();
+            assertThat(started).isTrue();
         }
 
         private void assertJobRegistered() {
             assertShuffleMasterAlive();
-            assertNotNull(jobContext.get());
+            assertThat(jobContext).isNotNull();
         }
     }
 }

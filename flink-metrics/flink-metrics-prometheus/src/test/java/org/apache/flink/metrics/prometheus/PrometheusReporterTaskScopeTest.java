@@ -25,14 +25,13 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
-import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.PortRange;
 
-import com.mashape.unirest.http.exceptions.UnirestException;
-import io.prometheus.client.CollectorRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 import static org.apache.flink.metrics.prometheus.PrometheusReporterTest.pollMetrics;
@@ -60,7 +59,7 @@ class PrometheusReporterTaskScopeTest {
 
     @BeforeEach
     void setupReporter() {
-        reporter = new PrometheusReporter(NetUtils.getPortRangeFromString("9400-9500"));
+        reporter = new PrometheusReporter(new PortRange("9400-9500"));
     }
 
     @AfterEach
@@ -81,11 +80,11 @@ class PrometheusReporterTaskScopeTest {
         reporter.notifyOfAddedMetric(counter2, METRIC_NAME, metricGroup2);
 
         assertThat(
-                        CollectorRegistry.defaultRegistry.getSampleValue(
+                        reporter.registry.getSampleValue(
                                 getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
                 .isEqualTo(1.);
         assertThat(
-                        CollectorRegistry.defaultRegistry.getSampleValue(
+                        reporter.registry.getSampleValue(
                                 getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_2))
                 .isEqualTo(2.);
     }
@@ -99,11 +98,11 @@ class PrometheusReporterTaskScopeTest {
         reporter.notifyOfAddedMetric(gauge2, METRIC_NAME, metricGroup2);
 
         assertThat(
-                        CollectorRegistry.defaultRegistry.getSampleValue(
+                        reporter.registry.getSampleValue(
                                 getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
                 .isEqualTo(3.);
         assertThat(
-                        CollectorRegistry.defaultRegistry.getSampleValue(
+                        reporter.registry.getSampleValue(
                                 getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_2))
                 .isEqualTo(4.);
     }
@@ -117,17 +116,18 @@ class PrometheusReporterTaskScopeTest {
         reporter.notifyOfAddedMetric(meter2, METRIC_NAME, metricGroup2);
 
         assertThat(
-                        CollectorRegistry.defaultRegistry.getSampleValue(
+                        reporter.registry.getSampleValue(
                                 getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
                 .isEqualTo(meter1.getRate());
         assertThat(
-                        CollectorRegistry.defaultRegistry.getSampleValue(
+                        reporter.registry.getSampleValue(
                                 getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_2))
                 .isEqualTo(meter2.getRate());
     }
 
     @Test
-    void histogramsCanBeAddedSeveralTimesIfTheyDifferInLabels() throws UnirestException {
+    void histogramsCanBeAddedSeveralTimesIfTheyDifferInLabels()
+            throws IOException, InterruptedException {
         TestHistogram histogram1 = new TestHistogram();
         histogram1.setCount(1);
         TestHistogram histogram2 = new TestHistogram();
@@ -136,20 +136,20 @@ class PrometheusReporterTaskScopeTest {
         reporter.notifyOfAddedMetric(histogram1, METRIC_NAME, metricGroup1);
         reporter.notifyOfAddedMetric(histogram2, METRIC_NAME, metricGroup2);
 
-        final String exportedMetrics = pollMetrics(reporter.getPort()).getBody();
+        final String exportedMetrics = pollMetrics(reporter.getPort()).body();
         assertThat(exportedMetrics).contains("label2=\"value1_2\",} 1.0");
         assertThat(exportedMetrics).contains("label2=\"value2_2\",} 2.0");
 
         final String[] labelNamesWithQuantile = addToArray(LABEL_NAMES, "quantile");
         for (Double quantile : PrometheusReporter.HistogramSummaryProxy.QUANTILES) {
             assertThat(
-                            CollectorRegistry.defaultRegistry.getSampleValue(
+                            reporter.registry.getSampleValue(
                                     getLogicalScope(METRIC_NAME),
                                     labelNamesWithQuantile,
                                     addToArray(LABEL_VALUES_1, "" + quantile)))
                     .isEqualTo(quantile);
             assertThat(
-                            CollectorRegistry.defaultRegistry.getSampleValue(
+                            reporter.registry.getSampleValue(
                                     getLogicalScope(METRIC_NAME),
                                     labelNamesWithQuantile,
                                     addToArray(LABEL_VALUES_2, "" + quantile)))
@@ -168,23 +168,23 @@ class PrometheusReporterTaskScopeTest {
         reporter.notifyOfAddedMetric(counter2, METRIC_NAME, metricGroup2);
 
         assertThat(
-                        CollectorRegistry.defaultRegistry.getSampleValue(
+                        reporter.registry.getSampleValue(
                                 getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
                 .isEqualTo(1.);
         assertThat(
-                        CollectorRegistry.defaultRegistry.getSampleValue(
+                        reporter.registry.getSampleValue(
                                 getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_2))
                 .isEqualTo(2.);
 
         reporter.notifyOfRemovedMetric(counter2, METRIC_NAME, metricGroup2);
         assertThat(
-                        CollectorRegistry.defaultRegistry.getSampleValue(
+                        reporter.registry.getSampleValue(
                                 getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
                 .isEqualTo(1.);
 
         reporter.notifyOfRemovedMetric(counter1, METRIC_NAME, metricGroup1);
         assertThat(
-                        CollectorRegistry.defaultRegistry.getSampleValue(
+                        reporter.registry.getSampleValue(
                                 getLogicalScope(METRIC_NAME), LABEL_NAMES, LABEL_VALUES_1))
                 .isNull();
     }

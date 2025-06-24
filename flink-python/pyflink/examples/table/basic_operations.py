@@ -20,7 +20,7 @@ import logging
 import sys
 
 from pyflink.common import Row
-from pyflink.table import (DataTypes, TableEnvironment, EnvironmentSettings)
+from pyflink.table import (DataTypes, TableEnvironment, EnvironmentSettings, ExplainDetail)
 from pyflink.table.expressions import *
 from pyflink.table.udf import udtf, udf, udaf, AggregateFunction, TableAggregateFunction, udtaf
 
@@ -160,6 +160,25 @@ def basic_operations():
     # +- Calc(select=[id, JSON_VALUE(data, '$.name', NULL, ON EMPTY, NULL, ON ERROR) AS name, JSON_VALUE(data, '$.tel', NULL, ON EMPTY, NULL, ON ERROR) AS tel, JSON_VALUE(data, '$.addr.country', NULL, ON EMPTY, NULL, ON ERROR) AS country])
     #    +- LegacyTableSourceScan(table=[[default_catalog, default_database, Unregistered_TableSource_249535355, source: [PythonInputFormatTableSource(id, data)]]], fields=[id, data])
 
+    # show execute plan with advice
+    print(table.join_lateral(split.alias('a')).explain(ExplainDetail.PLAN_ADVICE))
+    # == Abstract Syntax Tree ==
+    # LogicalCorrelate(correlation=[$cor2], joinType=[inner], requiredColumns=[{}])
+    # :- LogicalProject(id=[$0], name=[JSON_VALUE($1, _UTF-16LE'$.name', FLAG(NULL), FLAG(ON EMPTY), FLAG(NULL), FLAG(ON ERROR))], tel=[JSON_VALUE($1, _UTF-16LE'$.tel', FLAG(NULL), FLAG(ON EMPTY), FLAG(NULL), FLAG(ON ERROR))], country=[JSON_VALUE($1, _UTF-16LE'$.addr.country', FLAG(NULL), FLAG(ON EMPTY), FLAG(NULL), FLAG(ON ERROR))])
+    # :  +- LogicalTableScan(table=[[*anonymous_python-input-format$1*]])
+    # +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.functions.python.PythonTableFunction$720258394f6a31d31376164d23142f53*($0, $1, $2, $3)], rowType=[RecordType(VARCHAR(2147483647) a)])
+    #
+    # == Optimized Physical Plan With Advice ==
+    # PythonCorrelate(invocation=[*org.apache.flink.table.functions.python.PythonTableFunction$720258394f6a31d31376164d23142f53*($0, $1, $2, $3)], correlate=[table(*org.apache.flink.table.functions.python.PythonTableFunction$720258394f6a31d31376164d23142f53*(id,name,tel,country))], select=[id,name,tel,country,a], rowType=[RecordType(BIGINT id, VARCHAR(2147483647) name, VARCHAR(2147483647) tel, VARCHAR(2147483647) country, VARCHAR(2147483647) a)], joinType=[INNER])
+    # +- Calc(select=[id, JSON_VALUE(data, _UTF-16LE'$.name', FLAG(NULL), FLAG(ON EMPTY), FLAG(NULL), FLAG(ON ERROR)) AS name, JSON_VALUE(data, _UTF-16LE'$.tel', FLAG(NULL), FLAG(ON EMPTY), FLAG(NULL), FLAG(ON ERROR)) AS tel, JSON_VALUE(data, _UTF-16LE'$.addr.country', FLAG(NULL), FLAG(ON EMPTY), FLAG(NULL), FLAG(ON ERROR)) AS country])
+    #    +- TableSourceScan(table=[[*anonymous_python-input-format$1*]], fields=[id, data])
+    #
+    # No available advice...
+    #
+    # == Optimized Execution Plan ==
+    # PythonCorrelate(invocation=[*org.apache.flink.table.functions.python.PythonTableFunction$720258394f6a31d31376164d23142f53*($0, $1, $2, $3)], correlate=[table(*org.apache.flink.table.functions.python.PythonTableFunction$720258394f6a31d31376164d23142f53*(id,name,tel,country))], select=[id,name,tel,country,a], rowType=[RecordType(BIGINT id, VARCHAR(2147483647) name, VARCHAR(2147483647) tel, VARCHAR(2147483647) country, VARCHAR(2147483647) a)], joinType=[INNER])
+    # +- Calc(select=[id, JSON_VALUE(data, '$.name', NULL, ON EMPTY, NULL, ON ERROR) AS name, JSON_VALUE(data, '$.tel', NULL, ON EMPTY, NULL, ON ERROR) AS tel, JSON_VALUE(data, '$.addr.country', NULL, ON EMPTY, NULL, ON ERROR) AS country])
+    #    +- TableSourceScan(table=[[*anonymous_python-input-format$1*]], fields=[id, data])
 
 def sql_operations():
     t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
@@ -228,6 +247,28 @@ def sql_operations():
     # PythonCorrelate(invocation=[parse_data($1)], correlate=[table(parse_data(data))], select=[id,data,f0,f1,f2], rowType=[RecordType(BIGINT id, VARCHAR(2147483647) data, VARCHAR(2147483647) f0, INTEGER f1, VARCHAR(2147483647) f2)], joinType=[INNER])
     # +- LegacyTableSourceScan(table=[[default_catalog, default_database, Unregistered_TableSource_734856049, source: [PythonInputFormatTableSource(id, data)]]], fields=[id, data])
 
+    # explain sql plan with advice
+    print(t_env.explain_sql(
+        """
+        SELECT *
+        FROM %s, LATERAL TABLE(parse_data(`data`)) t(name, tel, country)
+        """ % table, ExplainDetail.PLAN_ADVICE
+    ))
+    # == Abstract Syntax Tree ==
+    # LogicalProject(id=[$0], data=[$1], name=[$2], tel=[$3], country=[$4])
+    # +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{1}])
+    #    :- LogicalTableScan(table=[[*anonymous_python-input-format$10*]])
+    #    +- LogicalTableFunctionScan(invocation=[parse_data($cor2.data)], rowType=[RecordType:peek_no_expand(VARCHAR(2147483647) f0, INTEGER f1, VARCHAR(2147483647) f2)])
+    #
+    # == Optimized Physical Plan With Advice ==
+    # PythonCorrelate(invocation=[parse_data($1)], correlate=[table(parse_data(data))], select=[id,data,f0,f1,f2], rowType=[RecordType(BIGINT id, VARCHAR(2147483647) data, VARCHAR(2147483647) f0, INTEGER f1, VARCHAR(2147483647) f2)], joinType=[INNER])
+    # +- TableSourceScan(table=[[*anonymous_python-input-format$10*]], fields=[id, data])
+    #
+    # No available advice...
+    #
+    # == Optimized Execution Plan ==
+    # PythonCorrelate(invocation=[parse_data($1)], correlate=[table(parse_data(data))], select=[id,data,f0,f1,f2], rowType=[RecordType(BIGINT id, VARCHAR(2147483647) data, VARCHAR(2147483647) f0, INTEGER f1, VARCHAR(2147483647) f2)], joinType=[INNER])
+    # +- TableSourceScan(table=[[*anonymous_python-input-format$10*]], fields=[id, data])
 
 def column_operations():
     t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())

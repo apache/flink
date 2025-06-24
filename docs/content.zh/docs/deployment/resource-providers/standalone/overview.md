@@ -61,7 +61,7 @@ Flink 运行在所有*类 UNIX 环境*下，例如 **Linux**，**Mac OS X** 和 
 
 Flink 需要 master 和所有 worker 节点设置 `JAVA_HOME` 环境变量，并指向你的 Java 安装目录。
 
-你可以在 `conf/flink-conf.yaml` 文件中通过 `env.java.home` 配置项来设置此变量。
+你可以在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}})中通过 `env.java.home` 配置项来设置此变量。 需要注意的是，该配置项必须以 flattened 的格式（即一行键值对格式）在配置文件中。
 
 {{< top >}}
 
@@ -82,11 +82,11 @@ cd flink-*
 
 ### 配置 Flink
 
-在解压完文件后，你需要编辑 *conf/flink-conf.yaml* 文件来为集群配置 Flink。
+在解压完文件后，你需要编辑 [*Flink 配置文件*]({{< ref "docs/deployment/config#flink-配置文件" >}})来为集群配置 Flink。
 
 设置 `jobmanager.rpc.address` 配置项指向 master 节点。你也应该通过设置 `jobmanager.memory.process.size` 和 `taskmanager.memory.process.size` 配置项来定义 Flink 允许在每个节点上分配的最大内存值。
 
-这些值的单位是 MB。如果一些 worker 节点上有你想分配到 Flink 系统的多余内存，你可以在这些特定节点的 *conf/flink-conf.yaml* 文件中重写 `taskmanager.memory.process.size` 或 `taskmanager.memory.flink.size` 的默认值。
+这些值的单位是 MB。如果一些 worker 节点上有你想分配到 Flink 系统的多余内存，你可以在这些特定节点的 [*Flink 配置文件*]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中重写 `taskmanager.memory.process.size` 或 `taskmanager.memory.flink.size` 的默认值。
 
 最后，你必须提供集群上会被用作为 worker 节点的所有节点列表，也就是运行 TaskManager 的节点。编辑文件 *conf/workers* 并输入每个 worker 节点的 IP 或主机名。
 
@@ -99,7 +99,7 @@ cd flink-*
 <div class="col-md-6">
   <div class="row">
     <p class="lead text-center">
-      /path/to/<strong>flink/conf/<br>flink-conf.yaml</strong>
+      /path/to/<strong>flink/conf/<br>config.yaml</strong>
     <pre>jobmanager.rpc.address: 10.0.0.1</pre>
     </p>
   </div>
@@ -116,12 +116,12 @@ cd flink-*
 
 Flink 目录必须放在所有 worker 节点的相同目录下。你可以使用共享的 NFS 目录，或将 Flink 目录复制到每个 worker 节点上。
 
-请参考 [配置参数页面]({{< ref "docs/deployment/config.zh" >}}) 获取更多细节以及额外的配置项。
+请参考 [配置参数页面]({{< ref "docs/deployment/config" >}}) 获取更多细节以及额外的配置项。
 
 特别地，
 
 * 每个 JobManager 的可用内存值（`jobmanager.memory.process.size`），
-* 每个 TaskManager 的可用内存值 （`taskmanager.memory.process.size`，并检查 [内存调优指南]({{< ref "docs/deployment/memory/mem_tuning.zh" >}}#configure-memory-for-standalone-deployment)），
+* 每个 TaskManager 的可用内存值 （`taskmanager.memory.process.size`，并检查 [内存调优指南]({{< ref "docs/deployment/memory/mem_tuning" >}}#configure-memory-for-standalone-deployment)），
 * 每台机器的可用 CPU 数（`taskmanager.numberOfTaskSlots`），
 * 集群中所有 CPU 数（`parallelism.default`）和
 * 临时目录（`io.tmp.dirs`）
@@ -157,7 +157,7 @@ bin/start-cluster.sh
 #### 添加 JobManager
 
 ```bash
-bin/jobmanager.sh ((start|start-foreground) [host] [webui-port])|stop|stop-all
+bin/jobmanager.sh ((start|start-foreground) [args])|stop|stop-all
 ```
 
 <a name="adding-a-taskmanager"></a>
@@ -172,7 +172,7 @@ bin/taskmanager.sh start|start-foreground|stop|stop-all
 
 ## High-Availability with Standalone
 
-In order to enable HA for a standalone cluster, you have to use the [ZooKeeper HA services]({{< ref "docs/deployment/ha/zookeeper_ha.zh" >}}).
+In order to enable HA for a standalone cluster, you have to use the [ZooKeeper HA services]({{< ref "docs/deployment/ha/zookeeper_ha" >}}).
 
 Additionally, you have to configure your cluster to start multiple JobManagers.
 
@@ -183,29 +183,29 @@ In order to start an HA-cluster configure the *masters* file in `conf/masters`:
 - **masters file**: The *masters file* contains all hosts, on which JobManagers are started, and the ports to which the web user interface binds.
 
   <pre>
-jobManagerAddress1:webUIPort1
-[...]
-jobManagerAddressX:webUIPortX
+  jobManagerAddress1:webUIPort1
+  [...]
+  jobManagerAddressX:webUIPortX
   </pre>
 
-By default, the job manager will pick a *random port* for inter process communication. You can change this via the [high-availability.jobmanager.port]({{< ref "docs/deployment/config.zh" >}}#high-availability-jobmanager-port) key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
+By default, the job manager will pick a *random port* for inter process communication. You can change this via the [high-availability.jobmanager.port]({{< ref "docs/deployment/config" >}}#high-availability-jobmanager-port) key. This key accepts single ports (e.g. `50010`), ranges (`50000-50025`), or a combination of both (`50010,50011,50020-50025,50050-50075`).
 
 ### Example: Standalone Cluster with 2 JobManagers
 
-1. **Configure high availability mode and ZooKeeper quorum** in `conf/flink-conf.yaml`:
+1. **Configure high availability mode and ZooKeeper quorum** in [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}):
 
    <pre>
-high-availability: zookeeper
-high-availability.zookeeper.quorum: localhost:2181
-high-availability.zookeeper.path.root: /flink
-high-availability.cluster-id: /cluster_one # important: customize per cluster
-high-availability.storageDir: hdfs:///flink/recovery</pre>
+   high-availability.type: zookeeper
+   high-availability.zookeeper.quorum: localhost:2181
+   high-availability.zookeeper.path.root: /flink
+   high-availability.cluster-id: /cluster_one # important: customize per cluster
+   high-availability.storageDir: hdfs:///flink/recovery</pre>
 
 2. **Configure masters** in `conf/masters`:
 
    <pre>
-localhost:8081
-localhost:8082</pre>
+   localhost:8081
+   localhost:8082</pre>
 
 3. **Configure ZooKeeper server** in `conf/zoo.cfg` (currently it's only possible to run a single ZooKeeper server per machine):
 
@@ -214,27 +214,27 @@ localhost:8082</pre>
 4. **Start ZooKeeper quorum**:
 
    <pre>
-$ bin/start-zookeeper-quorum.sh
-Starting zookeeper daemon on host localhost.</pre>
+   $ bin/start-zookeeper-quorum.sh
+   Starting zookeeper daemon on host localhost.</pre>
 
 5. **Start an HA-cluster**:
 
    <pre>
-$ bin/start-cluster.sh
-Starting HA cluster with 2 masters and 1 peers in ZooKeeper quorum.
-Starting standalonesession daemon on host localhost.
-Starting standalonesession daemon on host localhost.
-Starting taskexecutor daemon on host localhost.</pre>
+   $ bin/start-cluster.sh
+   Starting HA cluster with 2 masters and 1 peers in ZooKeeper quorum.
+   Starting standalonesession daemon on host localhost.
+   Starting standalonesession daemon on host localhost.
+   Starting taskexecutor daemon on host localhost.</pre>
 
 6. **Stop ZooKeeper quorum and cluster**:
 
    <pre>
-$ bin/stop-cluster.sh
-Stopping taskexecutor daemon (pid: 7647) on localhost.
-Stopping standalonesession daemon (pid: 7495) on host localhost.
-Stopping standalonesession daemon (pid: 7349) on host localhost.
-$ bin/stop-zookeeper-quorum.sh
-Stopping zookeeper daemon (pid: 7101) on host localhost.</pre>
+   $ bin/stop-cluster.sh
+   Stopping taskexecutor daemon (pid: 7647) on localhost.
+   Stopping standalonesession daemon (pid: 7495) on host localhost.
+   Stopping standalonesession daemon (pid: 7349) on host localhost.
+   $ bin/stop-zookeeper-quorum.sh
+   Stopping zookeeper daemon (pid: 7101) on host localhost.</pre>
 
 ### User jars & Classpath
 

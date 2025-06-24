@@ -129,6 +129,7 @@ public class RexFactory {
             FlinkContext context, Parser parser) {
         return ExpressionResolver.resolverFor(
                 context.getTableConfig(),
+                context.getClassLoader(),
                 name -> Optional.empty(),
                 context.getFunctionCatalog().asLookup(parser::parseIdentifier),
                 context.getCatalogManager().getDataTypeFactory(),

@@ -22,7 +22,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.util.DataFormatTestUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.data.binary.BinaryRowDataUtil.BYTE_ARRAY_BASE_OFFSET;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,10 +31,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Test for {@link BinarySegmentUtils}, most is covered by {@link
  * org.apache.flink.table.data.BinaryRowDataTest}, this just test some boundary scenarios testing.
  */
-public class BinarySegmentUtilsTest {
+class BinarySegmentUtilsTest {
 
     @Test
-    public void testCopy() {
+    void testCopy() {
         // test copy the content of the latter Seg
         MemorySegment[] segments = new MemorySegment[2];
         segments[0] = MemorySegmentFactory.wrap(new byte[] {0, 2, 5});
@@ -45,7 +45,7 @@ public class BinarySegmentUtilsTest {
     }
 
     @Test
-    public void testEquals() {
+    void testEquals() {
         // test copy the content of the latter Seg
         MemorySegment[] segments1 = new MemorySegment[3];
         segments1[0] = MemorySegmentFactory.wrap(new byte[] {0, 2, 5});
@@ -63,7 +63,7 @@ public class BinarySegmentUtilsTest {
     }
 
     @Test
-    public void testBoundaryByteArrayEquals() {
+    void testBoundaryByteArrayEquals() {
         byte[] bytes1 = new byte[5];
         bytes1[3] = 81;
         byte[] bytes2 = new byte[100];
@@ -76,7 +76,7 @@ public class BinarySegmentUtilsTest {
     }
 
     @Test
-    public void testBoundaryEquals() {
+    void testBoundaryEquals() {
         BinaryRowData row24 = DataFormatTestUtil.get24BytesBinaryRow();
         BinaryRowData row160 = DataFormatTestUtil.get160BytesBinaryRow();
         BinaryRowData varRow160 = DataFormatTestUtil.getMultiSeg160BytesBinaryRow(row160);
@@ -117,7 +117,7 @@ public class BinarySegmentUtilsTest {
     }
 
     @Test
-    public void testBoundaryCopy() {
+    void testBoundaryCopy() {
         MemorySegment[] segments1 = new MemorySegment[2];
         segments1[0] = MemorySegmentFactory.wrap(new byte[32]);
         segments1[1] = MemorySegmentFactory.wrap(new byte[32]);
@@ -150,7 +150,7 @@ public class BinarySegmentUtilsTest {
     }
 
     @Test
-    public void testCopyToUnsafe() {
+    void testCopyToUnsafe() {
         MemorySegment[] segments1 = new MemorySegment[2];
         segments1[0] = MemorySegmentFactory.wrap(new byte[32]);
         segments1[1] = MemorySegmentFactory.wrap(new byte[32]);
@@ -183,7 +183,7 @@ public class BinarySegmentUtilsTest {
     }
 
     @Test
-    public void testFind() {
+    void testFind() {
         MemorySegment[] segments1 = new MemorySegment[2];
         segments1[0] = MemorySegmentFactory.wrap(new byte[32]);
         segments1[1] = MemorySegmentFactory.wrap(new byte[32]);

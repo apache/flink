@@ -61,6 +61,7 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -292,6 +293,36 @@ class FlinkDDLDataTypeTest {
                                 Fixture.RAW_TYPE_INT_SERIALIZER_STRING.substring(1)
                                 + "') NOT NULL",
                         FIXTURE.rawTypeOfInteger),
+                createArgumentsTestItem(
+                        "STRUCTURED<'"
+                                + Fixture.STRUCTURED_TYPE_NAME
+                                + "', age INT, `updated` BOOLEAN NOT NULL>",
+                        nullable(
+                                FIXTURE.createStructuredType(
+                                        Fixture.STRUCTURED_TYPE_NAME,
+                                        List.of(nullable(FIXTURE.intType), FIXTURE.booleanType),
+                                        List.of("age", "updated"))),
+                        "STRUCTURED< '"
+                                + Fixture.STRUCTURED_TYPE_NAME
+                                + "', `age` INTEGER, `updated` BOOLEAN NOT NULL >"),
+                createArgumentsTestItem(
+                        "STRUCTURED<'" + Fixture.STRUCTURED_TYPE_NAME + "'>",
+                        nullable(
+                                FIXTURE.createStructuredType(
+                                        Fixture.STRUCTURED_TYPE_NAME, List.of(), List.of())),
+                        "STRUCTURED< '" + Fixture.STRUCTURED_TYPE_NAME + "' >"),
+                createArgumentsTestItem(
+                        "STRUCTURED<'"
+                                + Fixture.STRUCTURED_TYPE_NAME
+                                + "', age INT 'This is comment', `updated` BOOLEAN NOT NULL 'This as well'>",
+                        nullable(
+                                FIXTURE.createStructuredType(
+                                        Fixture.STRUCTURED_TYPE_NAME,
+                                        List.of(nullable(FIXTURE.intType), FIXTURE.booleanType),
+                                        List.of("age", "updated"))),
+                        "STRUCTURED< '"
+                                + Fixture.STRUCTURED_TYPE_NAME
+                                + "', `age` INTEGER 'This is comment', `updated` BOOLEAN NOT NULL 'This as well' >"),
 
                 // Test parse throws error.
                 createArgumentsTestItem(
@@ -547,12 +578,12 @@ class FlinkDDLDataTypeTest {
         private final SqlParser.Config parserConfig;
 
         TestFactory() {
-            this(DEFAULT_OPTIONS, MockCatalogReaderSimple::new, SqlValidatorUtil::newValidator);
+            this(DEFAULT_OPTIONS, MockCatalogReaderSimple::create, SqlValidatorUtil::newValidator);
         }
 
         TestFactory(
                 Map<String, Object> options,
-                SqlTestFactory.MockCatalogReaderFactory catalogReaderFactory,
+                SqlTestFactory.CatalogReaderFactory catalogReaderFactory,
                 SqlTestFactory.ValidatorFactory validatorFactory) {
             this.options = options;
             this.validatorFactory = validatorFactory;
@@ -560,7 +591,7 @@ class FlinkDDLDataTypeTest {
                     createOperatorTable((SqlOperatorTable) options.get("operatorTable"));
             this.typeFactory = createTypeFactory((SqlConformance) options.get("conformance"));
             Boolean caseSensitive = (Boolean) options.get("caseSensitive");
-            this.catalogReader = catalogReaderFactory.create(typeFactory, caseSensitive).init();
+            this.catalogReader = catalogReaderFactory.create(typeFactory, caseSensitive);
             this.parserConfig = createParserConfig(options);
         }
 
@@ -589,25 +620,24 @@ class FlinkDDLDataTypeTest {
                     catalogReader,
                     typeFactory,
                     SqlValidator.Config.DEFAULT
-                            .withSqlConformance(conformance)
+                            .withConformance(conformance)
                             .withTypeCoercionEnabled(enableTypeCoercion));
         }
 
         private static SqlOperatorTable createOperatorTable(SqlOperatorTable opTab0) {
-            MockSqlOperatorTable opTab = new MockSqlOperatorTable(opTab0);
-            MockSqlOperatorTable.addRamp(opTab);
+            MockSqlOperatorTable opTab = MockSqlOperatorTable.of(opTab0);
+            opTab.extend();
             return opTab;
         }
 
         private static SqlParser.Config createParserConfig(Map<String, Object> options) {
-            return SqlParser.configBuilder()
-                    .setQuoting((Quoting) options.get("quoting"))
-                    .setUnquotedCasing((Casing) options.get("unquotedCasing"))
-                    .setQuotedCasing((Casing) options.get("quotedCasing"))
-                    .setConformance((SqlConformance) options.get("conformance"))
-                    .setCaseSensitive((boolean) options.get("caseSensitive"))
-                    .setParserFactory((SqlParserImplFactory) options.get("parserFactory"))
-                    .build();
+            return SqlParser.config()
+                    .withQuoting((Quoting) options.get("quoting"))
+                    .withUnquotedCasing((Casing) options.get("unquotedCasing"))
+                    .withQuotedCasing((Casing) options.get("quotedCasing"))
+                    .withConformance((SqlConformance) options.get("conformance"))
+                    .withCaseSensitive((boolean) options.get("caseSensitive"))
+                    .withParserFactory((SqlParserImplFactory) options.get("parserFactory"));
         }
 
         private static TestRelDataTypeFactory createTypeFactory(SqlConformance conformance) {

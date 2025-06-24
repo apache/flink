@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
-import org.apache.flink.table.types.logical.LogicalType;
-
 /** Base class for all cast rules. */
 abstract class AbstractCastRule<IN, OUT> implements CastRule<IN, OUT> {
 
@@ -32,10 +30,5 @@ abstract class AbstractCastRule<IN, OUT> implements CastRule<IN, OUT> {
     @Override
     public CastRulePredicate getPredicateDefinition() {
         return predicate;
-    }
-
-    @Override
-    public boolean canFail(LogicalType inputLogicalType, LogicalType targetLogicalType) {
-        return false;
     }
 }

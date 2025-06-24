@@ -108,7 +108,9 @@ public final class ContextResolvedTable {
         return this.anonymous;
     }
 
-    /** @return true if the table is temporary. An anonymous table is always temporary. */
+    /**
+     * @return true if the table is temporary. An anonymous table is always temporary.
+     */
     public boolean isTemporary() {
         return catalog == null;
     }
@@ -143,6 +145,20 @@ public final class ContextResolvedTable {
     }
 
     /**
+     * Convert the {@link ResolvedCatalogMaterializedTable} in {@link ContextResolvedTable} to
+     * {@link ResolvedCatalogTable }.
+     */
+    public ContextResolvedTable toCatalogTable() {
+        if (resolvedTable.getTableKind() == CatalogBaseTable.TableKind.MATERIALIZED_TABLE) {
+            return ContextResolvedTable.permanent(
+                    objectIdentifier,
+                    catalog,
+                    ((ResolvedCatalogMaterializedTable) resolvedTable).toResolvedCatalogTable());
+        }
+        return this;
+    }
+
+    /**
      * Copy the {@link ContextResolvedTable}, replacing the underlying {@link CatalogTable} options.
      */
     public ContextResolvedTable copy(Map<String, String> newOptions) {
@@ -150,10 +166,31 @@ public final class ContextResolvedTable {
             throw new ValidationException(
                     String.format("View '%s' cannot be enriched with new options.", this));
         }
+        if (resolvedTable.getTableKind() == CatalogBaseTable.TableKind.MATERIALIZED_TABLE) {
+            return ContextResolvedTable.permanent(
+                    objectIdentifier,
+                    catalog,
+                    ((ResolvedCatalogMaterializedTable) resolvedTable).copy(newOptions));
+        }
         return new ContextResolvedTable(
                 objectIdentifier,
                 catalog,
                 ((ResolvedCatalogTable) resolvedTable).copy(newOptions),
+                false);
+    }
+
+    /** Copy the {@link ContextResolvedTable}, replacing the underlying {@link ResolvedSchema}. */
+    public ContextResolvedTable copy(ResolvedSchema newSchema) {
+        if (resolvedTable.getTableKind() == CatalogBaseTable.TableKind.MATERIALIZED_TABLE) {
+            throw new ValidationException(
+                    String.format(
+                            "Materialized table '%s' cannot be copied with new schema %s.",
+                            this, newSchema));
+        }
+        return new ContextResolvedTable(
+                objectIdentifier,
+                catalog,
+                new ResolvedCatalogTable((CatalogTable) resolvedTable.getOrigin(), newSchema),
                 false);
     }
 

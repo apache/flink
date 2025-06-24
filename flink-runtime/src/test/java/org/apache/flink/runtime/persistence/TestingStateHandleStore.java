@@ -52,7 +52,6 @@ public class TestingStateHandleStore<T extends Serializable>
             getAllSupplier;
     private final SupplierWithException<Collection<String>, Exception> getAllHandlesSupplier;
     private final FunctionWithException<String, Boolean, Exception> removeFunction;
-    private final RunnableWithException removeAllRunnable;
     private final RunnableWithException clearEntriesRunnable;
     private final ThrowingConsumer<String, Exception> releaseConsumer;
     private final RunnableWithException releaseAllHandlesRunnable;
@@ -66,7 +65,6 @@ public class TestingStateHandleStore<T extends Serializable>
                     getAllSupplier,
             SupplierWithException<Collection<String>, Exception> getAllHandlesSupplier,
             FunctionWithException<String, Boolean, Exception> removeFunction,
-            RunnableWithException removeAllRunnable,
             RunnableWithException clearEntriesRunnable,
             ThrowingConsumer<String, Exception> releaseConsumer,
             RunnableWithException releaseAllHandlesRunnable) {
@@ -77,7 +75,6 @@ public class TestingStateHandleStore<T extends Serializable>
         this.getAllSupplier = getAllSupplier;
         this.getAllHandlesSupplier = getAllHandlesSupplier;
         this.removeFunction = removeFunction;
-        this.removeAllRunnable = removeAllRunnable;
         this.clearEntriesRunnable = clearEntriesRunnable;
         this.releaseConsumer = releaseConsumer;
         this.releaseAllHandlesRunnable = releaseAllHandlesRunnable;
@@ -122,11 +119,6 @@ public class TestingStateHandleStore<T extends Serializable>
     }
 
     @Override
-    public void releaseAndTryRemoveAll() throws Exception {
-        removeAllRunnable.run();
-    }
-
-    @Override
     public void clearEntries() throws Exception {
         clearEntriesRunnable.run();
     }
@@ -161,7 +153,6 @@ public class TestingStateHandleStore<T extends Serializable>
         private SupplierWithException<Collection<String>, Exception> getAllHandlesSupplier =
                 Collections::emptyList;
         private FunctionWithException<String, Boolean, Exception> removeFunction = ignore -> false;
-        private RunnableWithException removeAllRunnable = () -> {};
         private RunnableWithException clearEntriesRunnable = () -> {};
 
         private ThrowingConsumer<String, Exception> releaseConsumer = ignore -> {};
@@ -214,11 +205,6 @@ public class TestingStateHandleStore<T extends Serializable>
             return this;
         }
 
-        public Builder<T> setRemoveAllRunnable(RunnableWithException removeAllRunnable) {
-            this.removeAllRunnable = removeAllRunnable;
-            return this;
-        }
-
         public Builder<T> setClearEntriesRunnable(RunnableWithException clearEntriesRunnable) {
             this.clearEntriesRunnable = clearEntriesRunnable;
             return this;
@@ -244,7 +230,6 @@ public class TestingStateHandleStore<T extends Serializable>
                     getAllSupplier,
                     getAllHandlesSupplier,
                     removeFunction,
-                    removeAllRunnable,
                     clearEntriesRunnable,
                     releaseConsumer,
                     releaseAllHandlesRunnable);

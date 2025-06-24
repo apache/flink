@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -26,8 +27,6 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
@@ -37,6 +36,8 @@ import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.api.Types;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.DataTypeQueryable;
@@ -75,6 +76,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
  * Utility methods for extracting names and indices of fields from different {@link
  * TypeInformation}s.
  */
+@Internal
 public class FieldInfoUtils {
 
     private static final String ATOMIC_FIELD_NAME = "f0";
@@ -88,6 +90,7 @@ public class FieldInfoUtils {
      * @see FieldInfoUtils#getFieldsInfo(TypeInformation)
      * @see FieldInfoUtils#getFieldsInfo(TypeInformation, Expression[])
      */
+    @Internal
     public static class TypeInfoSchema {
         private final String[] fieldNames;
         private final int[] indices;

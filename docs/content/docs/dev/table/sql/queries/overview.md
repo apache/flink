@@ -77,6 +77,7 @@ final Schema schema = Schema.newBuilder()
 
 final TableDescriptor sinkDescriptor = TableDescriptor.forConnector("filesystem")
     .schema(schema)
+    .option("path", "/path/to/file")    
     .format(FormatDescriptor.forFormat("csv")
         .option("field-delimiter", ",")
         .build())
@@ -206,9 +207,9 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val tableEnv = StreamTableEnvironment.create(env, settings)
 // enable checkpointing
 tableEnv.getConfig.set(
-  ExecutionCheckpointingOptions.CHECKPOINTING_MODE, CheckpointingMode.EXACTLY_ONCE)
+  CheckpointingOptions.CHECKPOINTING_MODE, CheckpointingMode.EXACTLY_ONCE)
 tableEnv.getConfig.set(
-  ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(10))
+  CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(10))
 
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 
@@ -258,7 +259,7 @@ Flink parses SQL using [Apache Calcite](https://calcite.apache.org/docs/referenc
 
 The following BNF-grammar describes the superset of supported SQL features in batch and streaming queries. The [Operations](#operations) section shows examples for the supported features and indicates which features are only supported for batch or streaming queries.
 
-{{< expand Grammar >}}
+{{< details Grammar >}}
 ```sql
 query:
     values
@@ -400,7 +401,7 @@ patternQuantifier:
   | '{' { [ minRepeat ], [ maxRepeat ] } '}' ['?']
   | '{' repeat '}'
 ```
-{{< /expand >}}
+{{< /details >}}
 
 Flink SQL uses a lexical policy for identifier (table, attribute, function names) similar to Java:
 
@@ -425,6 +426,21 @@ Unicode characters are supported in string literals. If explicit unicode code po
 - Use the backslash (`\`) as escaping character (default): `SELECT U&'\263A'`
 - Use a custom escaping character: `SELECT U&'#263A' UESCAPE '#'`
 
+Starting Flink 2.0 there is C-style escape available
+
+| Backslash Escape Sequence         | 	Interpretation                                   |
+|:----------------------------------|:--------------------------------------------------|
+| \b                                | 	backspace                                        |
+| \f                                | 	form feed                                        |
+| \n                                | 	newline                                          |
+| \r                                | 	carriage return                                  |
+| \t                                | 	tab                                              |
+| \o, \oo, \ooo (o = 0–7) 	         | octal byte value                                  |
+| \xh, \xhh (h = 0–9, A–F)          | 	hexadecimal byte value                           |
+| \uxxxx, \Uxxxxxxxx (x = 0–9, A–F) | 	16 or 32-bit hexadecimal Unicode character value |
+
+Example: `SELECT e'\u0061\x61\141' AS c` or `SELECT E'\u0061\x61\141' AS c`;
+
 {{< top >}}
 
 ## Operations
@@ -444,5 +460,6 @@ Unicode characters are supported in string literals. If explicit unicode code po
 - [Window Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}})
 - [Deduplication]({{< ref "docs/dev/table/sql/queries/deduplication" >}})
 - [Pattern Recognition]({{< ref "docs/dev/table/sql/queries/match_recognize" >}})
+- [Time Travel]({{< ref "docs/dev/table/sql/queries/time-travel" >}})
 
 {{< top >}}

@@ -18,12 +18,13 @@
 
 package org.apache.flink.state.api.utils;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 
 /**
  * A wrapper class that does not return until explicitly canceled so external processes can perform
@@ -54,9 +55,9 @@ public class WaitingSource<T> extends RichSourceFunction<T> implements ResultTyp
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         if (source instanceof RichSourceFunction) {
-            ((RichSourceFunction<T>) source).open(parameters);
+            ((RichSourceFunction<T>) source).open(DefaultOpenContext.INSTANCE);
         }
     }
 

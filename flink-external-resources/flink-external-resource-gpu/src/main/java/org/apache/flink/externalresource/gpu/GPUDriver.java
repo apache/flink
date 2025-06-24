@@ -18,10 +18,8 @@
 
 package org.apache.flink.externalresource.gpu;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.externalresource.ExternalResourceDriver;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -46,7 +44,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.externalresource.gpu.GPUDriverOptions.DISCOVERY_SCRIPT_ARG;
+import static org.apache.flink.externalresource.gpu.GPUDriverOptions.DISCOVERY_SCRIPT_PATH;
 
 /**
  * Driver takes the responsibility to discover GPU resources and provide the GPU resource
@@ -58,24 +57,11 @@ class GPUDriver implements ExternalResourceDriver {
 
     private static final long DISCOVERY_SCRIPT_TIMEOUT_MS = 10000;
 
-    @VisibleForTesting
-    static final ConfigOption<String> DISCOVERY_SCRIPT_PATH =
-            key("discovery-script.path")
-                    .stringType()
-                    .defaultValue(
-                            String.format(
-                                    "%s/external-resource-gpu/nvidia-gpu-discovery.sh",
-                                    ConfigConstants.DEFAULT_FLINK_PLUGINS_DIRS));
-
-    @VisibleForTesting
-    static final ConfigOption<String> DISCOVERY_SCRIPT_ARG =
-            key("discovery-script.args").stringType().noDefaultValue();
-
     private final File discoveryScriptFile;
     private final String args;
 
     GPUDriver(Configuration config) throws Exception {
-        final String discoveryScriptPathStr = config.getString(DISCOVERY_SCRIPT_PATH);
+        final String discoveryScriptPathStr = config.get(DISCOVERY_SCRIPT_PATH);
         if (StringUtils.isNullOrWhitespaceOnly(discoveryScriptPathStr)) {
             throw new IllegalConfigurationException(
                     String.format(
@@ -106,7 +92,7 @@ class GPUDriver implements ExternalResourceDriver {
                             discoveryScriptFile.getAbsolutePath()));
         }
 
-        args = config.getString(DISCOVERY_SCRIPT_ARG);
+        args = config.get(DISCOVERY_SCRIPT_ARG);
     }
 
     @Override

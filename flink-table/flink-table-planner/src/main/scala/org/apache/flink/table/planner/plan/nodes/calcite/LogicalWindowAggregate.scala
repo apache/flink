@@ -64,6 +64,24 @@ final class LogicalWindowAggregate(
       window,
       namedProperties)
   }
+
+  def copy(
+      traitSet: RelTraitSet,
+      input: RelNode,
+      groupSet: ImmutableBitSet,
+      // retain this to follow "Aggregate#copy"
+      groupSets: util.List[ImmutableBitSet],
+      aggCalls: util.List[AggregateCall],
+      window: LogicalWindow): Aggregate = {
+    new LogicalWindowAggregate(
+      cluster,
+      traitSet,
+      input,
+      groupSet,
+      aggCalls,
+      window,
+      namedProperties)
+  }
 }
 
 object LogicalWindowAggregate {

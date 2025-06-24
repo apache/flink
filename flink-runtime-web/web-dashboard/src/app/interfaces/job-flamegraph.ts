@@ -27,3 +27,9 @@ export interface JobFlameGraphNode {
   value: number;
   children: JobFlameGraphNode[];
 }
+
+export enum FlameGraphType {
+  ON_CPU = 'on_cpu',
+  OFF_CPU = 'off_cpu',
+  FULL = 'full'
+}

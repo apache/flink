@@ -248,9 +248,7 @@ public final class ExternalSerializer<I, E> extends TypeSerializer<E> {
 
         private boolean isInternalInput;
 
-        public ExternalSerializerSnapshot() {
-            super(ExternalSerializer.class);
-        }
+        public ExternalSerializerSnapshot() {}
 
         public ExternalSerializerSnapshot(ExternalSerializer<I, E> externalSerializer) {
             super(externalSerializer);

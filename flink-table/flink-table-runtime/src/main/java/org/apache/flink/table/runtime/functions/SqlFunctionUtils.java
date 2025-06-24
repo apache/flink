@@ -20,14 +20,18 @@ package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.DecimalDataUtils;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.ThreadLocalCache;
+import org.apache.flink.util.CollectionUtil;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
@@ -45,6 +49,7 @@ import java.util.UUID;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import static org.apache.flink.table.data.DecimalDataUtils.castFrom;
 import static org.apache.flink.table.data.DecimalDataUtils.castToIntegral;
@@ -472,6 +477,21 @@ public class SqlFunctionUtils {
     }
 
     /**
+     * Returns a Matcher object that represents the result of matching given StringData against a
+     * specified regular expression pattern.
+     */
+    public static Matcher getRegexpMatcher(@Nullable StringData str, @Nullable StringData regex) {
+        if (str == null || regex == null) {
+            return null;
+        }
+        try {
+            return REGEXP_PATTERN_CACHE.get(regex.toString()).matcher(str.toString());
+        } catch (PatternSyntaxException e) {
+            return null;
+        }
+    }
+
+    /**
      * Parse string as key-value string and return the value matches key name. example:
      * keyvalue('k1=v1;k2=v2', ';', '=', 'k2') = 'v2' keyvalue('k1:v1,k2:v2', ',', ':', 'k3') = NULL
      *
@@ -812,7 +832,7 @@ public class SqlFunctionUtils {
         }
 
         String[] keyValuePairs = text.split(listDelimiter);
-        Map<String, String> ret = new HashMap<>(keyValuePairs.length);
+        Map<String, String> ret = CollectionUtil.newHashMapWithExpectedSize(keyValuePairs.length);
         for (String keyValuePair : keyValuePairs) {
             String[] keyValue = keyValuePair.split(keyValueDelimiter, 2);
             if (keyValue.length < 2) {

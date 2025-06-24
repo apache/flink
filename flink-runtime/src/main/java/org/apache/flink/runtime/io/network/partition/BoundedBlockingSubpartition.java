@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -124,7 +125,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
     public int add(BufferConsumer bufferConsumer, int partialRecordLength) throws IOException {
         if (isFinished()) {
             bufferConsumer.close();
-            return -1;
+            return ADD_BUFFER_ERROR_CODE;
         }
 
         flushCurrentBuffer();
@@ -178,15 +179,17 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
     }
 
     @Override
-    public void finish() throws IOException {
+    public int finish() throws IOException {
         checkState(!isReleased, "data partition already released");
         checkState(!isFinished, "data partition already finished");
 
         isFinished = true;
         flushCurrentBuffer();
-        writeAndCloseBufferConsumer(
-                EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false));
+        BufferConsumer eventBufferConsumer =
+                EventSerializer.toBufferConsumer(EndOfPartitionEvent.INSTANCE, false);
+        writeAndCloseBufferConsumer(eventBufferConsumer);
         data.finishWrite();
+        return eventBufferConsumer.getWrittenBytes();
     }
 
     @Override
@@ -289,6 +292,16 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
     @Override
     protected long getTotalNumberOfBytesUnsafe() {
         return data.getSize();
+    }
+
+    @Override
+    public void alignedBarrierTimeout(long checkpointId) {
+        // Nothing to do.
+    }
+
+    @Override
+    public void abortCheckpoint(long checkpointId, CheckpointException cause) {
+        // Nothing to do.
     }
 
     int getBuffersInBacklogUnsafe() {

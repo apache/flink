@@ -21,7 +21,7 @@ package org.apache.flink.connector.base.source.utils;
 import org.apache.flink.connector.base.source.reader.mocks.TestingSourceSplit;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -30,16 +30,16 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link SerdeUtils}. */
-public class SerdeUtilsTest {
+class SerdeUtilsTest {
 
     private static final int READER0 = 0;
     private static final int READER1 = 1;
 
     @Test
-    public void testSerdeSplitAssignments() throws IOException {
+    void testSerdeSplitAssignments() throws IOException {
         final Map<Integer, Set<TestingSourceSplit>> splitAssignments = new HashMap<>();
 
         final HashSet<TestingSourceSplit> splitsForReader0 = new HashSet<>();
@@ -65,7 +65,7 @@ public class SerdeUtilsTest {
                         new TestingSourceSplitSerializer(),
                         HashSet::new);
 
-        assertEquals(splitAssignments, deseredSplitAssignments);
+        assertThat(deseredSplitAssignments).isEqualTo(splitAssignments);
     }
 
     private static class TestingSourceSplitSerializer

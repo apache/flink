@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 /** Test for {@link ListTypeInfo}. */
-public class ListTypeInfoTest extends TypeInformationTestBase<ListTypeInfo<?>> {
+class ListTypeInfoTest extends TypeInformationTestBase<ListTypeInfo<?>> {
 
     @Override
     protected ListTypeInfo<?>[] getTestData() {

@@ -55,20 +55,22 @@ public class ClassLeakCleaner {
             throws ReflectiveOperationException, SecurityException, ClassCastException {
         Field f = target.getDeclaredField(mapName);
         f.setAccessible(true);
-        Map<?, ?> map = (Map<?, ?>) f.get(null);
-        Iterator<?> keys = map.keySet().iterator();
-        while (keys.hasNext()) {
-            Object key = keys.next();
-            if (key instanceof Reference) {
-                Object clazz = ((Reference<?>) key).get();
-                if (clazz instanceof Class) {
-                    ClassLoader cl = ((Class<?>) clazz).getClassLoader();
-                    while (cl != null) {
-                        if (cl == classLoader) {
-                            keys.remove();
-                            break;
+        Object map = f.get(null);
+        if (map instanceof Map) {
+            Iterator<?> keys = ((Map<?, ?>) map).keySet().iterator();
+            while (keys.hasNext()) {
+                Object key = keys.next();
+                if (key instanceof Reference) {
+                    Object clazz = ((Reference<?>) key).get();
+                    if (clazz instanceof Class) {
+                        ClassLoader cl = ((Class<?>) clazz).getClassLoader();
+                        while (cl != null) {
+                            if (cl == classLoader) {
+                                keys.remove();
+                                break;
+                            }
+                            cl = cl.getParent();
                         }
-                        cl = cl.getParent();
                     }
                 }
             }

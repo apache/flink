@@ -24,6 +24,8 @@ import java.util.concurrent.ExecutorService;
 /** Collection of {@link Executor} and {@link ExecutorService} implementations. */
 public class Executors {
 
+    private Executors() {}
+
     /**
      * Return a direct executor. The direct executor directly executes the runnable in the calling
      * thread.
@@ -31,18 +33,31 @@ public class Executors {
      * @return Direct executor
      */
     public static Executor directExecutor() {
-        return DirectExecutorService.INSTANCE;
+        return DirectExecutor.INSTANCE;
+    }
+
+    /** Creates a more {@link ExecutorService} that runs the passed task in the calling thread. */
+    public static ExecutorService newDirectExecutorService() {
+        return new DirectExecutorService(true);
     }
 
     /**
-     * Return a new direct executor service.
+     * Creates a new {@link ExecutorService} that runs the passed tasks in the calling thread but
+     * doesn't implement proper shutdown behavior. Tasks can be still submitted even after {@link
+     * ExecutorService#shutdown()} is called.
      *
-     * <p>The direct executor service directly executes the runnables and the callables in the
-     * calling thread.
-     *
-     * @return New direct executor service
+     * @see #newDirectExecutorService()
      */
-    public static ExecutorService newDirectExecutorService() {
-        return new DirectExecutorService();
+    public static ExecutorService newDirectExecutorServiceWithNoOpShutdown() {
+        return new DirectExecutorService(false);
+    }
+
+    private enum DirectExecutor implements Executor {
+        INSTANCE;
+
+        @Override
+        public void execute(Runnable command) {
+            command.run();
+        }
     }
 }

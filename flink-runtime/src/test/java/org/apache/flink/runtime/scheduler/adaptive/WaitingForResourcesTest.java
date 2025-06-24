@@ -18,18 +18,13 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.testutils.ScheduledTask;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ErrorInfo;
-import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
-import org.apache.flink.runtime.util.ResourceCounter;
-import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.clock.Clock;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.util.clock.ManualClock;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,280 +37,172 @@ import java.util.Queue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the WaitingForResources state. */
-public class WaitingForResourcesTest extends TestLogger {
-    private static final ResourceCounter RESOURCE_COUNTER =
-            ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1);
+class WaitingForResourcesTest {
 
-    private static final Duration STABILIZATION_TIMEOUT = Duration.ofSeconds(1);
+    private static final Logger LOG = LoggerFactory.getLogger(WaitingForResourcesTest.class);
+
+    private static final Duration DISABLED_RESOURCE_WAIT_TIMEOUT = Duration.ofSeconds(-1);
+
+    @RegisterExtension private MockContext ctx = new MockContext();
 
     /** WaitingForResources is transitioning to Executing if there are enough resources. */
     @Test
-    public void testTransitionToCreatingExecutionGraph() throws Exception {
-        try (MockContext ctx = new MockContext()) {
-            ctx.setHasDesiredResources(() -> true);
+    void testTransitionToCreatingExecutionGraph() {
+        final AtomicBoolean onTriggerCalled = new AtomicBoolean();
+        final Function<StateTransitionManager.Context, StateTransitionManager>
+                stateTransitionManagerFactory =
+                        context ->
+                                new TestingStateTransitionManager(
+                                        () -> {
+                                            assertThat(context.hasDesiredResources()).isTrue();
+                                            assertThat(context.hasSufficientResources()).isTrue();
 
-            ctx.setExpectCreatingExecutionGraph();
+                                            context.transitionToSubsequentState();
+                                        },
+                                        () -> onTriggerCalled.set(true));
 
-            new WaitingForResources(
-                    ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
+        ctx.setHasDesiredResources(() -> true);
+        ctx.setHasSufficientResources(() -> true);
+        ctx.setExpectCreatingExecutionGraph();
 
-            ctx.runScheduledTasks();
-        }
+        new WaitingForResources(
+                ctx, LOG, DISABLED_RESOURCE_WAIT_TIMEOUT, stateTransitionManagerFactory);
+
+        ctx.runScheduledTasks();
+
+        assertThat(onTriggerCalled.get()).isTrue();
     }
 
     @Test
-    public void testNotEnoughResources() throws Exception {
-        try (MockContext ctx = new MockContext()) {
-            ctx.setHasDesiredResources(() -> false);
-            WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
+    void testNotEnoughResources() {
+        final AtomicBoolean onChangeCalled = new AtomicBoolean();
+        final AtomicBoolean onTriggerCalled = new AtomicBoolean();
+        final Function<StateTransitionManager.Context, StateTransitionManager>
+                stateTransitionManagerFactory =
+                        context ->
+                                new TestingStateTransitionManager(
+                                        () -> {
+                                            onChangeCalled.set(true);
 
-            // we expect no state transition.
-            wfr.notifyNewResourcesAvailable();
-        }
+                                            assertThat(context.hasDesiredResources()).isFalse();
+                                            assertThat(context.hasSufficientResources()).isFalse();
+                                        },
+                                        () -> onTriggerCalled.set(true));
+
+        ctx.setHasDesiredResources(() -> false);
+        ctx.setHasSufficientResources(() -> false);
+        WaitingForResources wfr =
+                new WaitingForResources(
+                        ctx, LOG, DISABLED_RESOURCE_WAIT_TIMEOUT, stateTransitionManagerFactory);
+
+        ctx.runScheduledTasks();
+        // we expect no state transition.
+        assertThat(ctx.hasStateTransition()).isFalse();
+        assertThat(onChangeCalled.get()).isTrue();
+        assertThat(onTriggerCalled.get()).isTrue();
     }
 
     @Test
-    public void testNotifyNewResourcesAvailable() throws Exception {
-        try (MockContext ctx = new MockContext()) {
-            ctx.setHasDesiredResources(() -> false); // initially, not enough resources
-            WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
-            ctx.setHasDesiredResources(() -> true); // make resources available
-            ctx.setExpectCreatingExecutionGraph();
-            wfr.notifyNewResourcesAvailable(); // .. and notify
-        }
+    void testNotifyNewResourcesAvailable() {
+        final AtomicInteger callsCounter = new AtomicInteger();
+        final Function<StateTransitionManager.Context, StateTransitionManager>
+                stateTransitionManagerFactory =
+                        context ->
+                                TestingStateTransitionManager.withOnChangeEventOnly(
+                                        () -> {
+                                            if (callsCounter.incrementAndGet() == 0) {
+                                                // initially, not enough resources
+                                                assertThat(context.hasDesiredResources()).isFalse();
+                                                assertThat(context.hasSufficientResources())
+                                                        .isFalse();
+                                            }
+
+                                            if (context.hasDesiredResources()
+                                                    && context.hasSufficientResources()) {
+                                                context.transitionToSubsequentState();
+                                            }
+                                        });
+
+        // initially, not enough resources
+        ctx.setHasDesiredResources(() -> false);
+        ctx.setHasSufficientResources(() -> false);
+
+        WaitingForResources wfr =
+                new WaitingForResources(
+                        ctx, LOG, DISABLED_RESOURCE_WAIT_TIMEOUT, stateTransitionManagerFactory);
+        ctx.runScheduledTasks();
+
+        // make resources available
+        ctx.setHasDesiredResources(() -> true);
+        ctx.setHasSufficientResources(() -> true);
+        ctx.setExpectCreatingExecutionGraph();
+        wfr.onNewResourcesAvailable(); // .. and notify
     }
 
     @Test
-    public void testSchedulingWithSufficientResourcesAndNoStabilizationTimeout() throws Exception {
-        try (MockContext ctx = new MockContext()) {
+    void testSchedulingWithSufficientResources() {
+        final Function<StateTransitionManager.Context, StateTransitionManager>
+                stateTransitionManagerFactory =
+                        context ->
+                                TestingStateTransitionManager.withOnChangeEventOnly(
+                                        () -> {
+                                            assertThat(context.hasDesiredResources()).isFalse();
+                                            if (context.hasSufficientResources()) {
+                                                context.transitionToSubsequentState();
+                                            }
+                                        });
+        WaitingForResources wfr =
+                new WaitingForResources(
+                        ctx, LOG, DISABLED_RESOURCE_WAIT_TIMEOUT, stateTransitionManagerFactory);
+        ctx.runScheduledTasks();
+        // we expect no state transition.
+        assertThat(ctx.hasStateTransition()).isFalse();
 
-            Duration noStabilizationTimeout = Duration.ofMillis(0);
-            WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx,
-                            log,
-                            RESOURCE_COUNTER,
-                            Duration.ofSeconds(1000),
-                            noStabilizationTimeout);
-
-            ctx.setHasDesiredResources(() -> false);
-            ctx.setHasSufficientResources(() -> true);
-            ctx.setExpectCreatingExecutionGraph();
-            wfr.notifyNewResourcesAvailable();
-        }
+        ctx.setHasDesiredResources(() -> false);
+        ctx.setHasSufficientResources(() -> true);
+        ctx.setExpectCreatingExecutionGraph();
+        wfr.onNewResourcesAvailable();
     }
 
     @Test
-    public void testNoSchedulingIfStabilizationTimeoutIsConfigured() throws Exception {
-        try (MockContext ctx = new MockContext()) {
+    void testNoStateTransitionOnNoResourceTimeout() {
+        ctx.setHasDesiredResources(() -> false);
+        ctx.setHasSufficientResources(() -> false);
 
-            Duration stabilizationTimeout = Duration.ofMillis(50000);
+        WaitingForResources wfr =
+                new WaitingForResources(
+                        ctx,
+                        LOG,
+                        DISABLED_RESOURCE_WAIT_TIMEOUT,
+                        context -> TestingStateTransitionManager.withNoOp());
+        ctx.runScheduledTasks();
 
-            WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx,
-                            log,
-                            RESOURCE_COUNTER,
-                            Duration.ofSeconds(1000),
-                            stabilizationTimeout);
-
-            ctx.setHasDesiredResources(() -> false);
-            ctx.setHasSufficientResources(() -> true);
-            wfr.notifyNewResourcesAvailable();
-            // we are not triggering the scheduled tasks, to simulate a long stabilization timeout
-
-            assertThat(ctx.hasStateTransition(), is(false));
-        }
+        assertThat(ctx.hasStateTransition()).isFalse();
     }
 
     @Test
-    public void testSchedulingWithSufficientResourcesAfterStabilizationTimeout() throws Exception {
-        try (MockContext ctx = new MockContext()) {
-
-            Duration initialResourceTimeout = Duration.ofMillis(-1);
-            Duration stabilizationTimeout = Duration.ofMillis(50_000L);
-
-            WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx,
-                            log,
-                            RESOURCE_COUNTER,
-                            initialResourceTimeout,
-                            stabilizationTimeout,
-                            ctx.getClock());
-            // sufficient resources available
-            ctx.setHasDesiredResources(() -> false);
-            ctx.setHasSufficientResources(() -> true);
-
-            // notify about sufficient resources
-            wfr.notifyNewResourcesAvailable();
-
-            ctx.setExpectCreatingExecutionGraph();
-
-            // execute all runnables and trigger expected state transition
-            final Duration afterStabilizationTimeout = stabilizationTimeout.plusMillis(1);
-            ctx.advanceTimeByMillis(afterStabilizationTimeout.toMillis());
-
-            ctx.runScheduledTasks(afterStabilizationTimeout.toMillis());
-
-            assertThat(ctx.hasStateTransition(), is(true));
-        }
+    void testStateTransitionOnResourceTimeout() {
+        WaitingForResources wfr =
+                new WaitingForResources(
+                        ctx,
+                        LOG,
+                        Duration.ZERO,
+                        context -> TestingStateTransitionManager.withNoOp());
+        ctx.setExpectCreatingExecutionGraph();
+        ctx.runScheduledTasks();
     }
 
     @Test
-    public void testStabilizationTimeoutReset() throws Exception {
-        try (MockContext ctx = new MockContext()) {
-
-            Duration initialResourceTimeout = Duration.ofMillis(-1);
-            Duration stabilizationTimeout = Duration.ofMillis(50L);
-
-            WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx,
-                            log,
-                            RESOURCE_COUNTER,
-                            initialResourceTimeout,
-                            stabilizationTimeout,
-                            ctx.getClock());
-
-            ctx.setHasDesiredResources(() -> false);
-
-            // notify about resources, trigger stabilization timeout
-            ctx.setHasSufficientResources(() -> true);
-            ctx.advanceTimeByMillis(40); // advance time, but don't trigger stabilizationTimeout
-            wfr.notifyNewResourcesAvailable();
-
-            // notify again, but insufficient (reset stabilization timeout)
-            ctx.setHasSufficientResources(() -> false);
-            ctx.advanceTimeByMillis(40);
-            wfr.notifyNewResourcesAvailable();
-
-            // notify again, but sufficient, trigger timeout
-            ctx.setHasSufficientResources(() -> true);
-            ctx.advanceTimeByMillis(40);
-            wfr.notifyNewResourcesAvailable();
-
-            // sanity check: no state transition has been triggered so far
-            assertThat(ctx.hasStateTransition(), is(false));
-            assertThat(ctx.getTestDuration(), greaterThan(stabilizationTimeout));
-
-            ctx.setExpectCreatingExecutionGraph();
-
-            ctx.advanceTimeByMillis(1);
-            assertThat(ctx.hasStateTransition(), is(false));
-
-            ctx.advanceTimeByMillis(stabilizationTimeout.toMillis());
-            assertThat(ctx.hasStateTransition(), is(true));
-        }
-    }
-
-    @Test
-    public void testNoStateTransitionOnNoResourceTimeout() throws Exception {
-        try (MockContext ctx = new MockContext()) {
-            ctx.setHasDesiredResources(() -> false);
-            WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx,
-                            log,
-                            RESOURCE_COUNTER,
-                            Duration.ofMillis(-1),
-                            STABILIZATION_TIMEOUT);
-
-            ctx.runScheduledTasks();
-            assertThat(ctx.hasStateTransition(), is(false));
-        }
-    }
-
-    @Test
-    public void testStateTransitionOnResourceTimeout() throws Exception {
-        try (MockContext ctx = new MockContext()) {
-            ctx.setHasDesiredResources(() -> false);
-            WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
-
-            ctx.setExpectCreatingExecutionGraph();
-
-            ctx.runScheduledTasks();
-        }
-    }
-
-    @Test
-    public void testTransitionToFinishedOnGlobalFailure() throws Exception {
-        final String testExceptionString = "This is a test exception";
-        try (MockContext ctx = new MockContext()) {
-            ctx.setHasDesiredResources(() -> false);
-            WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
-
-            ctx.setExpectFinished(
-                    archivedExecutionGraph -> {
-                        assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED));
-                        assertThat(archivedExecutionGraph.getFailureInfo(), notNullValue());
-                        assertTrue(
-                                archivedExecutionGraph
-                                        .getFailureInfo()
-                                        .getExceptionAsString()
-                                        .contains(testExceptionString));
-                    });
-
-            wfr.handleGlobalFailure(new RuntimeException(testExceptionString));
-        }
-    }
-
-    @Test
-    public void testCancel() throws Exception {
-        try (MockContext ctx = new MockContext()) {
-            ctx.setHasDesiredResources(() -> false);
-            WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
-
-            ctx.setExpectFinished(
-                    (archivedExecutionGraph -> {
-                        assertThat(archivedExecutionGraph.getState(), is(JobStatus.CANCELED));
-                    }));
-            wfr.cancel();
-        }
-    }
-
-    @Test
-    public void testSuspend() throws Exception {
-        try (MockContext ctx = new MockContext()) {
-            ctx.setHasDesiredResources(() -> false);
-            WaitingForResources wfr =
-                    new WaitingForResources(
-                            ctx, log, RESOURCE_COUNTER, Duration.ZERO, STABILIZATION_TIMEOUT);
-
-            ctx.setExpectFinished(
-                    (archivedExecutionGraph -> {
-                        assertThat(archivedExecutionGraph.getState(), is(JobStatus.SUSPENDED));
-                        assertThat(archivedExecutionGraph.getFailureInfo(), notNullValue());
-                    }));
-
-            wfr.suspend(new RuntimeException("suspend"));
-        }
-    }
-
-    @Test
-    public void testInternalRunScheduledTasks_correctExecutionOrder() {
-        MockContext ctx = new MockContext();
+    void testInternalRunScheduledTasks_correctExecutionOrder() {
         AtomicBoolean firstRun = new AtomicBoolean(false);
         AtomicBoolean secondRun = new AtomicBoolean(false);
         AtomicBoolean thirdRun = new AtomicBoolean(false);
@@ -323,70 +210,63 @@ public class WaitingForResourcesTest extends TestLogger {
         Runnable runFirstBecauseOfLowDelay = () -> firstRun.set(true);
         Runnable runSecondBecauseOfScheduleOrder =
                 () -> {
-                    if (!firstRun.get()) {
-                        fail("order violated");
-                    }
+                    assertThat(firstRun).as("order violated").isTrue();
                     secondRun.set(true);
                 };
         Runnable runLastBecauseOfHighDelay =
                 () -> {
-                    if (!secondRun.get()) {
-                        fail("order violated");
-                    }
+                    assertThat(secondRun).as("order violated").isTrue();
                     thirdRun.set(true);
                 };
 
         ctx.runIfState(
-                new AdaptiveSchedulerTest.DummyState(),
+                new AdaptiveSchedulerTest.DummyState(ctx),
                 runLastBecauseOfHighDelay,
                 Duration.ofMillis(999));
         ctx.runIfState(
-                new AdaptiveSchedulerTest.DummyState(), runFirstBecauseOfLowDelay, Duration.ZERO);
+                new AdaptiveSchedulerTest.DummyState(ctx),
+                runFirstBecauseOfLowDelay,
+                Duration.ZERO);
         ctx.runIfState(
-                new AdaptiveSchedulerTest.DummyState(),
+                new AdaptiveSchedulerTest.DummyState(ctx),
                 runSecondBecauseOfScheduleOrder,
                 Duration.ZERO);
 
         ctx.runScheduledTasks();
 
-        assertThat(thirdRun.get(), is(true));
+        assertThat(thirdRun).isTrue();
     }
 
     @Test
-    public void testInternalRunScheduledTasks_tasksAreRemovedAfterExecution() {
-        MockContext ctx = new MockContext();
-
+    void testInternalRunScheduledTasks_tasksAreRemovedAfterExecution() {
         AtomicBoolean executed = new AtomicBoolean(false);
         Runnable executeOnce =
                 () -> {
-                    if (executed.get()) {
-                        fail("Multiple executions");
-                    }
+                    assertThat(executed).as("Multiple executions").isFalse();
                     executed.set(true);
                 };
 
-        ctx.runIfState(new AdaptiveSchedulerTest.DummyState(), executeOnce, Duration.ZERO);
+        ctx.runIfState(new AdaptiveSchedulerTest.DummyState(ctx), executeOnce, Duration.ZERO);
 
         // execute at least twice
         ctx.runScheduledTasks();
         ctx.runScheduledTasks();
+        assertThat(executed).isTrue();
     }
 
     @Test
-    public void testInternalRunScheduledTasks_upperBoundRespected() {
-        MockContext ctx = new MockContext();
-
+    void testInternalRunScheduledTasks_upperBoundRespected() {
         Runnable executeNever = () -> fail("Not expected");
 
-        ctx.runIfState(new AdaptiveSchedulerTest.DummyState(), executeNever, Duration.ofMillis(10));
+        ctx.runIfState(
+                new AdaptiveSchedulerTest.DummyState(ctx), executeNever, Duration.ofMillis(10));
 
         ctx.runScheduledTasks(4);
     }
 
     @Test
-    public void testInternalRunScheduledTasks_scheduleTaskFromRunnable() {
-        MockContext ctx = new MockContext();
-        final State state = new AdaptiveSchedulerTest.DummyState();
+    void testInternalRunScheduledTasks_scheduleTaskFromRunnable() {
+        final State state = new AdaptiveSchedulerTest.DummyState(ctx);
 
         AtomicBoolean executed = new AtomicBoolean(false);
         ctx.runIfState(
@@ -399,16 +279,16 @@ public class WaitingForResourcesTest extends TestLogger {
 
         // choose time that includes inner execution as well
         ctx.runScheduledTasks(10);
-        assertThat(executed.get(), is(true));
+        assertThat(executed).isTrue();
     }
 
-    private static class MockContext implements WaitingForResources.Context, AutoCloseable {
+    private static class MockContext extends MockStateWithoutExecutionGraphContext
+            implements WaitingForResources.Context {
+
         private static final Logger LOG = LoggerFactory.getLogger(MockContext.class);
 
         private final StateValidator<Void> creatingExecutionGraphStateValidator =
                 new StateValidator<>("executing");
-        private final StateValidator<ArchivedExecutionGraph> finishedStateValidator =
-                new StateValidator<>("finished");
 
         private Supplier<Boolean> hasDesiredResourcesSupplier = () -> false;
         private Supplier<Boolean> hasSufficientResourcesSupplier = () -> false;
@@ -416,12 +296,8 @@ public class WaitingForResourcesTest extends TestLogger {
         private final Queue<ScheduledTask<Void>> scheduledTasks =
                 new PriorityQueue<>(
                         Comparator.comparingLong(o -> o.getDelay(TimeUnit.MILLISECONDS)));
-        private boolean hasStateTransition = false;
 
-        private final ManualTestTime testTime =
-                new ManualTestTime(
-                        (durationSinceTestStart) ->
-                                runScheduledTasks(durationSinceTestStart.toMillis()));
+        private final ManualClock testingClock = new ManualClock();
 
         public void setHasDesiredResources(Supplier<Boolean> sup) {
             hasDesiredResourcesSupplier = sup;
@@ -429,10 +305,6 @@ public class WaitingForResourcesTest extends TestLogger {
 
         public void setHasSufficientResources(Supplier<Boolean> sup) {
             hasSufficientResourcesSupplier = sup;
-        }
-
-        void setExpectFinished(Consumer<ArchivedExecutionGraph> asserter) {
-            finishedStateValidator.expectInput(asserter);
         }
 
         void setExpectCreatingExecutionGraph() {
@@ -462,22 +334,13 @@ public class WaitingForResourcesTest extends TestLogger {
         }
 
         @Override
-        public void close() throws Exception {
+        public void afterEach(ExtensionContext extensionContext) throws Exception {
+            super.afterEach(extensionContext);
             creatingExecutionGraphStateValidator.close();
-            finishedStateValidator.close();
         }
 
         @Override
-        public ArchivedExecutionGraph getArchivedExecutionGraph(
-                JobStatus jobStatus, @Nullable Throwable cause) {
-            return new ArchivedExecutionGraphBuilder()
-                    .setState(jobStatus)
-                    .setFailureCause(cause == null ? null : new ErrorInfo(cause, 1337))
-                    .build();
-        }
-
-        @Override
-        public boolean hasDesiredResources(ResourceCounter desiredResources) {
+        public boolean hasDesiredResources() {
             return hasDesiredResourcesSupplier.get();
         }
 
@@ -491,17 +354,17 @@ public class WaitingForResourcesTest extends TestLogger {
             LOG.info(
                     "Scheduling work with delay {} for earliest execution at {}",
                     delay.toMillis(),
-                    testTime.getClock().absoluteTimeMillis() + delay.toMillis());
+                    testingClock.absoluteTimeMillis() + delay.toMillis());
             final ScheduledTask<Void> scheduledTask =
                     new ScheduledTask<>(
                             () -> {
-                                if (!hasStateTransition) {
+                                if (!hasStateTransition()) {
                                     action.run();
                                 }
 
                                 return null;
                             },
-                            testTime.getClock().absoluteTimeMillis() + delay.toMillis());
+                            testingClock.absoluteTimeMillis() + delay.toMillis());
 
             scheduledTasks.add(scheduledTask);
 
@@ -509,68 +372,13 @@ public class WaitingForResourcesTest extends TestLogger {
         }
 
         @Override
-        public void goToFinished(ArchivedExecutionGraph archivedExecutionGraph) {
-            finishedStateValidator.validateInput(archivedExecutionGraph);
-            hasStateTransition = true;
-        }
-
-        @Override
-        public void goToCreatingExecutionGraph() {
+        public void goToCreatingExecutionGraph(@Nullable ExecutionGraph previousExecutionGraph) {
             creatingExecutionGraphStateValidator.validateInput(null);
-            hasStateTransition = true;
-        }
-
-        public boolean hasStateTransition() {
-            return hasStateTransition;
-        }
-
-        public Clock getClock() {
-            return testTime.getClock();
-        }
-
-        public void advanceTimeByMillis(long millis) {
-            testTime.advanceMillis(millis);
-        }
-
-        public Duration getTestDuration() {
-            return testTime.getTestDuration();
-        }
-    }
-
-    private static final class ManualTestTime {
-        private static final Logger LOG = LoggerFactory.getLogger(ManualTestTime.class);
-
-        private final ManualClock testingClock = new ManualClock();
-        private final Consumer<Duration> runOnAdvance;
-
-        private Duration durationSinceTestStart = Duration.ZERO;
-
-        private ManualTestTime(Consumer<Duration> runOnAdvance) {
-            this.runOnAdvance = runOnAdvance;
-        }
-
-        private Clock getClock() {
-            return testingClock;
-        }
-
-        public void advanceMillis(long millis) {
-            durationSinceTestStart = durationSinceTestStart.plusMillis(millis);
-
-            LOG.info(
-                    "Advance testing time by {} ms to time {} ms",
-                    millis,
-                    durationSinceTestStart.toMillis());
-
-            testingClock.advanceTime(millis, TimeUnit.MILLISECONDS);
-            runOnAdvance.accept(durationSinceTestStart);
-        }
-
-        public Duration getTestDuration() {
-            return durationSinceTestStart;
+            registerStateTransition();
         }
     }
 
     static <T> Consumer<T> assertNonNull() {
-        return (item) -> assertThat(item, notNullValue());
+        return (item) -> assertThat(item).isNotNull();
     }
 }

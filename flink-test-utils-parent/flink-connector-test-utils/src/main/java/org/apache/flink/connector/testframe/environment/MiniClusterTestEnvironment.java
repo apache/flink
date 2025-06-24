@@ -37,14 +37,15 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL;
+import static org.apache.flink.configuration.StateRecoveryOptions.SAVEPOINT_PATH;
 import static org.apache.flink.connector.testframe.utils.ConnectorTestConstants.METRIC_FETCHER_UPDATE_INTERVAL_MS;
-import static org.apache.flink.runtime.jobgraph.SavepointConfigOptions.SAVEPOINT_PATH;
 
 /** Test environment for running jobs on Flink mini-cluster. */
 @Experimental
@@ -60,17 +61,11 @@ public class MiniClusterTestEnvironment implements TestEnvironment, ClusterContr
     private boolean isStarted = false;
 
     public MiniClusterTestEnvironment() {
-        Configuration conf = new Configuration();
-        conf.set(METRIC_FETCHER_UPDATE_INTERVAL, METRIC_FETCHER_UPDATE_INTERVAL_MS);
-        this.miniCluster =
-                new MiniClusterWithClientResource(
-                        new MiniClusterResourceConfiguration.Builder()
-                                .setConfiguration(conf)
-                                .setNumberTaskManagers(1)
-                                .setNumberSlotsPerTaskManager(6)
-                                .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
-                                .withHaLeadershipControl()
-                                .build());
+        this(defaultMiniClusterResourceConfiguration());
+    }
+
+    public MiniClusterTestEnvironment(MiniClusterResourceConfiguration conf) {
+        this.miniCluster = new MiniClusterWithClientResource(conf);
         try {
             this.checkpointPath = Files.createTempDirectory("minicluster-environment-checkpoint-");
         } catch (IOException e) {
@@ -78,12 +73,26 @@ public class MiniClusterTestEnvironment implements TestEnvironment, ClusterContr
         }
     }
 
+    private static MiniClusterResourceConfiguration defaultMiniClusterResourceConfiguration() {
+        Configuration conf = new Configuration();
+        conf.set(
+                METRIC_FETCHER_UPDATE_INTERVAL,
+                Duration.ofMillis(METRIC_FETCHER_UPDATE_INTERVAL_MS));
+        return new MiniClusterResourceConfiguration.Builder()
+                .setConfiguration(conf)
+                .setNumberTaskManagers(1)
+                .setNumberSlotsPerTaskManager(6)
+                .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
+                .withHaLeadershipControl()
+                .build();
+    }
+
     @Override
     public StreamExecutionEnvironment createExecutionEnvironment(
             TestEnvironmentSettings envOptions) {
         Configuration configuration = new Configuration();
         if (envOptions.getSavepointRestorePath() != null) {
-            configuration.setString(SAVEPOINT_PATH, envOptions.getSavepointRestorePath());
+            configuration.set(SAVEPOINT_PATH, envOptions.getSavepointRestorePath());
         }
         return new TestStreamEnvironment(
                 this.miniCluster.getMiniCluster(),

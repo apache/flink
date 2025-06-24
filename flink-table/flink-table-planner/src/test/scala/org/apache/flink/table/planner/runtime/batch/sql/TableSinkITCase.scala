@@ -18,22 +18,25 @@
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.configuration.MemorySize
-import org.apache.flink.core.testutils.FlinkMatchers
+import org.apache.flink.core.testutils.FlinkAssertions
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory
-import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{BatchAbstractTestBase, BatchTestBase}
+import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.createTempFolder
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData.smallData3
 import org.apache.flink.table.planner.utils.TableTestUtil
 
-import org.hamcrest.MatcherAssert
-import org.junit.{Assert, Test}
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.{BeforeEach, Test}
+
+import scala.collection.convert.ImplicitConversions._
 
 class TableSinkITCase extends BatchTestBase {
 
-  @Test
-  def testTableHints(): Unit = {
+  @BeforeEach
+  override def before(): Unit = {
+    super.before()
     val dataId = TestValuesTableFactory.registerData(smallData3)
     tEnv.executeSql(s"""
                        |CREATE TABLE MyTable (
@@ -46,8 +49,11 @@ class TableSinkITCase extends BatchTestBase {
                        |  'data-id' = '$dataId'
                        |)
        """.stripMargin)
+  }
 
-    val resultPath = BatchAbstractTestBase.TEMPORARY_FOLDER.newFolder().getAbsolutePath
+  @Test
+  def testTableHints(): Unit = {
+    val resultPath = createTempFolder().getAbsolutePath
     tEnv.executeSql(s"""
                        |CREATE TABLE MySink (
                        |  `a` INT,
@@ -60,38 +66,121 @@ class TableSinkITCase extends BatchTestBase {
                        |)
        """.stripMargin)
     val stmtSet = tEnv.createStatementSet()
-    val newPath1 = BatchAbstractTestBase.TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    val newPath1 = createTempFolder().getAbsolutePath
     stmtSet.addInsertSql(
       s"insert into MySink /*+ OPTIONS('path' = '$newPath1') */ select * from MyTable")
-    val newPath2 = BatchAbstractTestBase.TEMPORARY_FOLDER.newFolder().getAbsolutePath
+    val newPath2 = createTempFolder().getAbsolutePath
     stmtSet.addInsertSql(
       s"insert into MySink /*+ OPTIONS('path' = '$newPath2') */ select * from MyTable")
     stmtSet.execute().await()
 
-    Assert.assertTrue(TableTestUtil.readFromFile(resultPath).isEmpty)
+    assertThat(TableTestUtil.readFromFile(resultPath).isEmpty).isTrue
     val expected = Seq("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     val result1 = TableTestUtil.readFromFile(newPath1)
-    Assert.assertEquals(expected.sorted, result1.sorted)
+    assertThat(expected.sorted).isEqualTo(result1.sorted)
     val result2 = TableTestUtil.readFromFile(newPath2)
-    Assert.assertEquals(expected.sorted, result2.sorted)
+    assertThat(expected.sorted).isEqualTo(result2.sorted)
   }
 
   @Test
   def testCollectSinkConfiguration(): Unit = {
     tEnv.getConfig.set(CollectSinkOperatorFactory.MAX_BATCH_SIZE, MemorySize.parse("1b"))
-    try {
-      checkResult("SELECT 1", Seq(row(1)))
-      Assert.fail("Expecting exception thrown from collect sink")
-    } catch {
-      case e: Exception =>
-        MatcherAssert.assertThat(
-          e,
-          FlinkMatchers.containsMessage(
-            "Please consider increasing max bytes per batch value " +
-              "by setting collect-sink.batch-size.max"))
-    }
+    assertThatThrownBy(() => checkResult("SELECT 1", Seq(row(1))))
+      .satisfies(FlinkAssertions.anyCauseMatches(
+        "Please consider increasing max bytes per batch value by setting collect-sink.batch-size.max"))
 
     tEnv.getConfig.set(CollectSinkOperatorFactory.MAX_BATCH_SIZE, MemorySize.parse("1kb"))
     checkResult("SELECT 1", Seq(row(1)))
+  }
+
+  @Test
+  def testCreateTableAsSelect(): Unit = {
+    val resultPath = createTempFolder().getAbsolutePath
+    tEnv
+      .executeSql(s"""
+                     |CREATE TABLE MyCtasTable
+                     | WITH (
+                     |  'connector' = 'filesystem',
+                     |  'format' = 'testcsv',
+                     |  'path' = '$resultPath'
+                     |) AS
+                     | SELECT * FROM MyTable
+       """.stripMargin)
+      .await()
+    val expected = Seq("1,1,Hi", "2,2,Hello", "3,2,Hello world")
+    val result = TableTestUtil.readFromFile(resultPath)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
+
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    val useStatementResultPath =
+      createTempFolder().getAbsolutePath
+    statementSet.addInsertSql(s"""
+                                 |CREATE TABLE MyCtasTableUseStatement
+                                 | WITH (
+                                 |  'connector' = 'filesystem',
+                                 |  'format' = 'testcsv',
+                                 |  'path' = '$useStatementResultPath'
+                                 |) AS
+                                 | SELECT * FROM MyTable
+                                 |""".stripMargin)
+    statementSet.execute().await()
+    val useStatementResult = TableTestUtil.readFromFile(useStatementResultPath)
+    assertThat(useStatementResult.sorted).isEqualTo(expected.sorted)
+  }
+
+  @Test
+  def testCreateTableAsSelectWithSortLimit(): Unit = {
+    val resultPath = createTempFolder().getAbsolutePath
+    tEnv
+      .executeSql(s"""
+                     |CREATE TABLE MyCtasTable
+                     | WITH (
+                     |  'connector' = 'filesystem',
+                     |  'format' = 'testcsv',
+                     |  'path' = '$resultPath'
+                     |) AS
+                     | (SELECT * FROM MyTable order by `a` LIMIT 2)
+       """.stripMargin)
+      .await()
+    val expected = Seq("1,1,Hi", "2,2,Hello")
+    val result = TableTestUtil.readFromFile(resultPath)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
+  }
+
+  @Test
+  def testCreateTableAsSelectWithoutOptions(): Unit = {
+    assertThatThrownBy(
+      () =>
+        tEnv
+          .executeSql("""
+                        |CREATE TABLE MyCtasTable
+                        | AS
+                        | SELECT * FROM MyTable
+                        |""".stripMargin)
+          .await())
+      .hasRootCauseMessage(
+        "Table options do not contain an option key 'connector' for discovering a connector.")
+  }
+
+  @Test
+  def testCreateTableAsSelectWithOrderKeyNotProjected(): Unit = {
+    tEnv
+      .executeSql(s"""
+                     |create table MyCtasTable
+                     |WITH (
+                     |   'connector' = 'values'
+                     |) as select b, c, d from
+                     |  (values
+                     |    (1, 1, 2, 'd1'),
+                     |    (2, 2, 4, 'd2')
+                     |  ) as V(a, b, c, d)
+                     |  order by a
+                     |""".stripMargin)
+      .await()
+
+    val expected = List("+I[1, 2, d1]", "+I[2, 4, d2]")
+    assertThat(TestValuesTableFactory.getResultsAsStrings("MyCtasTable").toSeq)
+      .isEqualTo(expected)
   }
 }

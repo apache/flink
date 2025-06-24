@@ -21,8 +21,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
-import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -32,43 +30,45 @@ import java.util.concurrent.Executors;
  * org.apache.flink.runtime.state.changelog.StateChangelogWriter StateChangelogWriters} of a {@link
  * org.apache.flink.runtime.state.changelog.StateChangelogStorage StateChangelogStorage}.
  *
- * <p>Initially, when {@link #startTracking(StreamStateHandle, Set) starting the tracking}, the
+ * <p>Initially, when {@link #startTracking(StreamStateHandle, long) starting the tracking}, the
  * ownership of a changelog segments is not clear, and it is assumed that JM <strong>might</strong>
- * be the owner. Once the backends are not using the segments, JM can not become an owner anymore.
- * the state is discarded.
+ * be the owner. The refCount of the StateObject refers to the number of changelog segments contains
+ * in the StateObject. {@link #release(StreamStateHandle)} should be called when every changelog
+ * segment become not used, and it will count down the refCount by one. Once the refCount reaches
+ * zero, JM can not become an owner anymore, the state is discarded.
  *
  * <p>However, if at any point it becomes known that JM is the owner, tracking is {@link
  * #stopTracking(StreamStateHandle) stopped} and the state will not be discarded.
  *
- * <p>It is the client responsibility to make sure that JM can not become an owner when calling
- * {@link #notUsed(StreamStateHandle, UUID)}.
+ * <p>It is the client responsibility to call {@link #release(StreamStateHandle)} when every
+ * corresponding changelog segment becomes not used.
  */
 @Internal
 public interface TaskChangelogRegistry {
 
-    /** Start tracking the state uploaded for the given backends. */
-    void startTracking(StreamStateHandle handle, Set<UUID> backendIDs);
+    /** Start tracking the state uploaded. The refCount is the number of StateChangeSets. */
+    void startTracking(StreamStateHandle handle, long refCount);
 
     /** Stop tracking the state, so that it's not tracked (some other component is doing that). */
     void stopTracking(StreamStateHandle handle);
 
     /**
-     * Mark the state as unused by the given backend, e.g. if it was pre-emptively uploaded and
-     * materialized. Once no backend is using the state, it is discarded (unless it was {@link
+     * Decrease the reference count of the state by one, e.g. if it was pre-emptively uploaded and
+     * materialized. Once the reference count reaches zero, it is discarded (unless it was {@link
      * #stopTracking(StreamStateHandle) unregistered} earlier).
      */
-    void notUsed(StreamStateHandle handle, UUID backendId);
+    void release(StreamStateHandle handle);
 
     TaskChangelogRegistry NO_OP =
             new TaskChangelogRegistry() {
                 @Override
-                public void startTracking(StreamStateHandle handle, Set<UUID> backendIDs) {}
+                public void startTracking(StreamStateHandle handle, long refCount) {}
 
                 @Override
                 public void stopTracking(StreamStateHandle handle) {}
 
                 @Override
-                public void notUsed(StreamStateHandle handle, UUID backendId) {}
+                public void release(StreamStateHandle handle) {}
             };
 
     static TaskChangelogRegistry defaultChangelogRegistry(int numAsyncDiscardThreads) {

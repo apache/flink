@@ -318,6 +318,9 @@ public final class SchemaTranslator {
                         key ->
                                 builder.primaryKeyNamed(
                                         key.getConstraintName(), key.getColumnNames()));
+        declaredSchema
+                .getIndexes()
+                .forEach(idx -> builder.indexNamed(idx.getIndexName(), idx.getColumnNames()));
         return builder.build();
     }
 
@@ -473,6 +476,7 @@ public final class SchemaTranslator {
      *
      * <p>The result should be applied as: physical data type -> schema -> projections.
      */
+    @Internal
     public static final class ConsumingResult {
 
         /**
@@ -533,6 +537,7 @@ public final class SchemaTranslator {
      *
      * <p>The result should be applied as: projections -> schema -> physical data type.
      */
+    @Internal
     public static final class ProducingResult {
 
         /**

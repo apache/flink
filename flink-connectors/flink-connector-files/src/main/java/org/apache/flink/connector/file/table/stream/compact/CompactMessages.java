@@ -25,6 +25,7 @@ import java.io.Serializable;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -133,6 +134,25 @@ public class CompactMessages {
                     .map(URI::create)
                     .map(Path::new)
                     .collect(Collectors.toList());
+        }
+    }
+
+    /**
+     * The output of {@link
+     * org.apache.flink.connector.file.table.batch.compact.BatchCompactOperator}.
+     */
+    public static class CompactOutput implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        private final Map<String, List<Path>> compactedFiles;
+
+        public CompactOutput(Map<String, List<Path>> compactedFiles) {
+            this.compactedFiles = compactedFiles;
+        }
+
+        public Map<String, List<Path>> getCompactedFiles() {
+            return compactedFiles;
         }
     }
 

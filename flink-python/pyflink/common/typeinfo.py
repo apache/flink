@@ -439,7 +439,7 @@ class RowTypeInfo(TypeInformation):
                     zip(self.get_field_names(), self._field_types, self._need_conversion))
             elif isinstance(obj, Row) and hasattr(obj, "_fields"):
                 return (obj.get_row_kind().value,) + tuple(
-                    f.to_internal_type(obj.get(n)) if c else obj.get(n)
+                    f.to_internal_type(obj[n]) if c else obj[n]
                     for n, f, c in
                     zip(self.get_field_names(), self._field_types, self._need_conversion))
             elif isinstance(obj, Row):
@@ -463,7 +463,7 @@ class RowTypeInfo(TypeInformation):
                 return (RowKind.INSERT.value,) + tuple(obj.get(n) for n in self.get_field_names())
             elif isinstance(obj, Row) and hasattr(obj, "_fields"):
                 return (obj.get_row_kind().value,) + tuple(
-                    obj.get(n) for n in self.get_field_names())
+                    obj[n] for n in self.get_field_names())
             elif isinstance(obj, Row):
                 return (obj.get_row_kind().value,) + tuple(obj)
             elif isinstance(obj, (list, tuple)):
@@ -718,6 +718,40 @@ class MapTypeInfo(TypeInformation):
 
     def __repr__(self) -> str:
         return 'MapTypeInfo<{}, {}>'.format(self._key_type_info, self._value_type_info)
+
+
+class LocalTimeTypeInfo(TypeInformation):
+
+    class TimeType(Enum):
+        LOCAL_DATE = 0
+        LOCAL_TIME = 1
+        LOCAL_DATE_TIME = 2
+
+    def __init__(self, time_type: TimeType):
+        super(LocalTimeTypeInfo, self).__init__()
+        self._time_type = time_type
+
+    def get_java_type_info(self) -> JavaObject:
+        if self._j_typeinfo is None:
+            jvm = get_gateway().jvm
+            if self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_DATE:
+                self._j_typeinfo = \
+                    jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE
+            elif self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_TIME:
+                self._j_typeinfo = \
+                    jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_TIME
+            elif self._time_type == LocalTimeTypeInfo.TimeType.LOCAL_DATE_TIME:
+                self._j_typeinfo = \
+                    jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE_TIME
+            else:
+                raise TypeError('Unsupported TimeType: {}'.format(self._time_type.name))
+        return self._j_typeinfo
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self._time_type == other._time_type
+
+    def __repr__(self):
+        return 'LocalTimeTypeInfo<{}>'.format(self._time_type.name)
 
 
 class ExternalTypeInfo(TypeInformation):
@@ -1061,6 +1095,18 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
     if _is_instance_of(j_type_info, JListTypeInfo):
         j_element_type_info = j_type_info.getElementTypeInfo()
         return ListTypeInfo(_from_java_type(j_element_type_info))
+
+    JLocalTimeTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo
+    if _is_instance_of(j_type_info, JLocalTimeTypeInfo):
+        if j_type_info.equals(JLocalTimeTypeInfo.LOCAL_DATE):
+            time_type = LocalTimeTypeInfo.TimeType.LOCAL_DATE
+        elif j_type_info.equals(JLocalTimeTypeInfo.LOCAL_TIME):
+            time_type = LocalTimeTypeInfo.TimeType.LOCAL_TIME
+        elif j_type_info.equals(JLocalTimeTypeInfo.LOCAL_DATE_TIME):
+            time_type = LocalTimeTypeInfo.TimeType.LOCAL_DATE_TIME
+        else:
+            raise TypeError("Unsupported LocalTimeTypeInfo: %s." % j_type_info.toString())
+        return LocalTimeTypeInfo(time_type)
 
     JExternalTypeInfo = gateway.jvm.org.apache.flink.table.runtime.typeutils.ExternalTypeInfo
     if _is_instance_of(j_type_info, JExternalTypeInfo):

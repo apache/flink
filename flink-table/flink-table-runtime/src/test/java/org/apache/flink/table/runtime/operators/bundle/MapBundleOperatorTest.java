@@ -25,7 +25,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -37,10 +37,10 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link MapBundleOperator}. */
-public class MapBundleOperatorTest {
+class MapBundleOperatorTest {
 
     @Test
-    public void testSimple() throws Exception {
+    void testSimple() throws Exception {
         @SuppressWarnings("unchecked")
         TestMapBundleFunction func = new TestMapBundleFunction();
         CountBundleTrigger<Tuple2<String, String>> trigger = new CountBundleTrigger<>(3);

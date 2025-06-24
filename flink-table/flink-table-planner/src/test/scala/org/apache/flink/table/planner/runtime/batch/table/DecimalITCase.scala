@@ -25,13 +25,12 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 import java.math.{BigDecimal => JBigDecimal}
 
 import scala.collection.JavaConverters._
-import scala.collection.Seq
 
 /**
  * Conformance test of TableApi type Decimal(p,s). Served also as documentation of our Decimal
@@ -51,16 +50,16 @@ class DecimalITCase extends BatchTestBase {
     // check result schema
     val resultTable = tableTransfer(t)
     val ts2 = resultTable.getResolvedSchema.getColumnDataTypes.asScala
-    assertEquals(expectedColTypes.length, ts2.length)
+    assertThat(expectedColTypes.length).isEqualTo(ts2.length)
 
-    expectedColTypes.zip(ts2).foreach { case (t1, t2) => assertEquals(t1, t2) }
+    expectedColTypes.zip(ts2).foreach { case (t1, t2) => assertThat(t1).isEqualTo(t2) }
 
     def prepareResult(isSorted: Boolean, seq: Seq[Row]) = {
       if (!isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
     }
 
     val resultRows = executeQuery(resultTable)
-    assertEquals(prepareResult(isSorted, expectedRows), prepareResult(isSorted, resultRows))
+    assertThat(prepareResult(isSorted, expectedRows)).isEqualTo(prepareResult(isSorted, resultRows))
   }
 
   // a Seq of one Row

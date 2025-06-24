@@ -26,18 +26,14 @@ import org.apache.flink.table.planner.plan.utils.WindowUtil.convertToWindowingSt
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rex.RexCall
 
 /**
  * Rule to convert a [[FlinkLogicalTableFunctionScan]] with window table function call into a
  * [[BatchPhysicalWindowTableFunction]].
  */
-class BatchPhysicalWindowTableFunctionRule
-  extends ConverterRule(
-    classOf[FlinkLogicalTableFunctionScan],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.BATCH_PHYSICAL,
-    "BatchPhysicalWindowTableFunctionRule") {
+class BatchPhysicalWindowTableFunctionRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: FlinkLogicalTableFunctionScan = call.rel(0)
@@ -54,11 +50,16 @@ class BatchPhysicalWindowTableFunctionRule
       traitSet,
       newInput,
       scan.getRowType,
-      convertToWindowingStrategy(scan.getCall.asInstanceOf[RexCall], newInput.getRowType)
+      convertToWindowingStrategy(scan.getCall.asInstanceOf[RexCall], newInput)
     )
   }
 }
 
 object BatchPhysicalWindowTableFunctionRule {
-  val INSTANCE: RelOptRule = new BatchPhysicalWindowTableFunctionRule
+  val INSTANCE: RelOptRule = new BatchPhysicalWindowTableFunctionRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalTableFunctionScan],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.BATCH_PHYSICAL,
+      "BatchPhysicalWindowTableFunctionRule"))
 }

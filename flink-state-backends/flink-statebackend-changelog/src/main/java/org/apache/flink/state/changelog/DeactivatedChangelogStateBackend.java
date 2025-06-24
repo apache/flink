@@ -19,6 +19,7 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -51,6 +52,7 @@ public class DeactivatedChangelogStateBackend extends AbstractChangelogStateBack
             String operatorIdentifier,
             KeyGroupRange keyGroupRange,
             TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
             Collection<ChangelogStateBackendHandle> stateBackendHandles,
             BaseBackendBuilder<K> baseBackendBuilder)
             throws Exception {
@@ -64,8 +66,11 @@ public class DeactivatedChangelogStateBackend extends AbstractChangelogStateBack
         // So we need to rebound the checkpoint id to the real checkpoint id here.
         stateBackendHandles = reboundCheckpoint(stateBackendHandles);
         ChangelogStateFactory changelogStateFactory = new ChangelogStateFactory();
+
         return ChangelogBackendRestoreOperation.restore(
+                env.getTaskManagerInfo().getConfiguration(),
                 env.getUserCodeClassLoader().asClassLoader(),
+                env.getTaskStateManager(),
                 stateBackendHandles,
                 baseBackendBuilder,
                 (baseBackend, baseState) ->

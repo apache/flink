@@ -27,6 +27,7 @@ import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.table.factories.FactoryUtil;
 
 import java.time.Duration;
+import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -58,6 +59,26 @@ public class FileSystemConnectorOptions {
                                     + "Shorter intervals mean that files are discovered more quickly, "
                                     + "but also imply more frequent listing or directory traversal of the file system / object store. "
                                     + "If this config option is not set, the provided path will be scanned once, hence the source will be bounded.");
+
+    public static final ConfigOption<FileStatisticsType> SOURCE_REPORT_STATISTICS =
+            key("source.report-statistics")
+                    .enumType(FileStatisticsType.class)
+                    .defaultValue(FileStatisticsType.ALL)
+                    .withDescription(
+                            "The file statistics type which the source could provide. "
+                                    + "The statistics reporting is a heavy operation in some cases,"
+                                    + "this config allows users to choose the statistics type according to different situations.");
+
+    public static final ConfigOption<String> SOURCE_PATH_REGEX_PATTERN =
+            key("source.path.regex-pattern")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The regex pattern to filter files or directories in the directory of the `path` option. "
+                                    + "This regex pattern should be matched with the absolute file path."
+                                    + "For example, if we want to get all files under some path like '/dir', "
+                                    + "the table should set 'path'='/dir' and 'source.regex-pattern'='/dir/.*'."
+                                    + "The hidden files and directories will not be matched.");
 
     public static final ConfigOption<MemorySize> SINK_ROLLING_POLICY_FILE_SIZE =
             key("sink.rolling-policy.file-size")
@@ -211,6 +232,18 @@ public class FileSystemConnectorOptions {
                             "The partition commit policy class for implement"
                                     + " PartitionCommitPolicy interface. Only work in custom commit policy");
 
+    public static final ConfigOption<List<String>> SINK_PARTITION_COMMIT_POLICY_CLASS_PARAMETERS =
+            key("sink.partition-commit.policy.class.parameters")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The parameters passed to the constructor of the custom commit policy, "
+                                    + " with multiple parameters separated by semicolons, such as 'param1;param2'."
+                                    + " The configuration value will be split into a list (['param1', 'param2'])"
+                                    + " and passed to the constructor of the custom commit policy class."
+                                    + " This option is optional, if not configured, default constructor will be used.");
+
     public static final ConfigOption<String> SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME =
             key("sink.partition-commit.success-file.name")
                     .stringType()
@@ -236,6 +269,14 @@ public class FileSystemConnectorOptions {
                     .withDescription(
                             "The compaction target file size, the default value is the rolling file size.");
 
+    public static final ConfigOption<Integer> COMPACTION_PARALLELISM =
+            key("compaction.parallelism")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Defines a custom parallelism for the compaction operator in batch mode. By default, if this option is not define, "
+                                    + "the planner will use the parallelism of the sink as the parallelism. ");
+
     public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
 
     // --------------------------------------------------------------------------------------------
@@ -252,13 +293,37 @@ public class FileSystemConnectorOptions {
         PARTITION_TIME(
                 "partition-time",
                 text(
-                        "Based on the  time extracted from partition values, requires watermark generation. "
+                        "Based on the time extracted from partition values, requires watermark generation. "
                                 + "Commits partition once the watermark passes the time extracted from partition values plus delay."));
 
         private final String value;
         private final InlineElement description;
 
         PartitionCommitTriggerType(String value, InlineElement description) {
+            this.value = value;
+            this.description = description;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** Statistics types for file system, see {@link #SOURCE_REPORT_STATISTICS}. */
+    public enum FileStatisticsType implements DescribedEnum {
+        NONE("NONE", text("Do not report any file statistics.")),
+        ALL("ALL", text("Report all file statistics that the format can provide."));
+
+        private final String value;
+        private final InlineElement description;
+
+        FileStatisticsType(String value, InlineElement description) {
             this.value = value;
             this.description = description;
         }

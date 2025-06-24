@@ -18,12 +18,16 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.StateChangelogOptions;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.test.util.MiniClusterPipelineExecutorServiceLoader;
@@ -32,8 +36,9 @@ import java.net.URL;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.configuration.CheckpointingOptions.LOCAL_RECOVERY;
 import static org.apache.flink.runtime.testutils.PseudoRandomValueSelector.randomize;
 
 /** A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}. */
@@ -45,6 +50,12 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             Boolean.parseBoolean(System.getProperty("checkpointing.randomization", "false"));
     private static final String STATE_CHANGE_LOG_CONFIG =
             System.getProperty("checkpointing.changelog", STATE_CHANGE_LOG_CONFIG_UNSET).trim();
+    private static AtomicReference<JobExecutionResult> lastJobExecutionResult =
+            new AtomicReference<>(null);
+    private final MiniCluster miniCluster;
+    private final int parallelism;
+    private final Collection<Path> jarFiles;
+    private final Collection<URL> classPaths;
 
     public TestStreamEnvironment(
             MiniCluster miniCluster,
@@ -59,6 +70,10 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                 null);
 
         setParallelism(parallelism);
+        this.miniCluster = miniCluster;
+        this.parallelism = parallelism;
+        this.jarFiles = jarFiles;
+        this.classPaths = classPaths;
     }
 
     public TestStreamEnvironment(MiniCluster miniCluster, int parallelism) {
@@ -101,6 +116,22 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
         initializeContextEnvironment(factory);
     }
 
+    public void setAsContext() {
+        StreamExecutionEnvironmentFactory factory =
+                conf -> {
+                    TestStreamEnvironment env =
+                            new TestStreamEnvironment(
+                                    miniCluster, conf, parallelism, jarFiles, classPaths);
+
+                    randomizeConfiguration(miniCluster, conf);
+
+                    env.configure(conf, env.getUserClassloader());
+                    return env;
+                };
+
+        initializeContextEnvironment(factory);
+    }
+
     /**
      * This is the place for randomization the configuration that relates to DataStream API such as
      * ExecutionConf, CheckpointConf, StreamExecutionEnvironment. List of the configurations can be
@@ -111,43 +142,70 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
     private static void randomizeConfiguration(MiniCluster miniCluster, Configuration conf) {
         // randomize ITTests for enabling unaligned checkpoint
         if (RANDOMIZE_CHECKPOINTING_CONFIG) {
-            randomize(conf, ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true, false);
+            randomize(conf, CheckpointingOptions.ENABLE_UNALIGNED, true, false);
             randomize(
                     conf,
-                    ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT,
+                    CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT,
                     Duration.ofSeconds(0),
                     Duration.ofMillis(100),
                     Duration.ofSeconds(2));
-        }
-
-        // randomize ITTests for enabling state change log
-        if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
-            if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
-                if (!conf.contains(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)) {
-                    conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
-                    miniCluster.overrideRestoreModeForChangelogStateBackend();
-                }
-            } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_RAND)) {
-                boolean enabled =
-                        randomize(conf, StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true, false);
-                if (enabled) {
-                    randomize(
-                            conf,
-                            StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
-                            Duration.ofMillis(100),
-                            Duration.ofMillis(500),
-                            Duration.ofSeconds(1),
-                            Duration.ofSeconds(5),
-                            Duration.ofSeconds(
-                                    Long.MAX_VALUE / 1000 /* max allowed by Duration.toMillis */));
-                    miniCluster.overrideRestoreModeForChangelogStateBackend();
-                }
+            randomize(conf, CheckpointingOptions.CLEANER_PARALLEL_MODE, true, false);
+            randomize(
+                    conf, CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, true, false);
+            randomize(conf, ExecutionOptions.SNAPSHOT_COMPRESSION, true, false);
+            if (!conf.contains(CheckpointingOptions.FILE_MERGING_ENABLED)) {
+                randomize(conf, CheckpointingOptions.FILE_MERGING_ENABLED, true);
             }
         }
-    }
 
-    private static boolean isConfigurationSupportedByChangelog(Configuration configuration) {
-        return !configuration.get(LOCAL_RECOVERY);
+        randomize(
+                conf,
+                // This config option is defined in the rocksdb module :(
+                ConfigOptions.key("state.backend.rocksdb.use-ingest-db-restore-mode")
+                        .booleanType()
+                        .noDefaultValue(),
+                true,
+                false);
+
+        // randomize ITTests for enabling state change log
+        // TODO: remove the file merging check after FLINK-32085
+        if (!conf.contains(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                && !conf.get(CheckpointingOptions.FILE_MERGING_ENABLED)) {
+            if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
+                conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
+            } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_RAND)) {
+                randomize(conf, StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true, false);
+            }
+        }
+
+        // randomize periodic materialization when enabling state change log
+        if (conf.get(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)) {
+            if (!conf.contains(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED)) {
+                // More situations about enabling periodic materialization should be tested
+                randomize(
+                        conf,
+                        StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED,
+                        true,
+                        true,
+                        true,
+                        false);
+            }
+            if (!conf.contains(StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL)) {
+                randomize(
+                        conf,
+                        StateChangelogOptions.PERIODIC_MATERIALIZATION_INTERVAL,
+                        Duration.ofMillis(100),
+                        Duration.ofMillis(500),
+                        Duration.ofSeconds(1),
+                        Duration.ofSeconds(5));
+            }
+            miniCluster.overrideRestoreModeForChangelogStateBackend();
+        }
+        randomize(
+                conf,
+                ConfigOptions.key("table.exec.unbounded-over.version").intType().noDefaultValue(),
+                1,
+                2);
     }
 
     /**
@@ -164,5 +222,25 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
     /** Resets the streaming context environment to null. */
     public static void unsetAsContext() {
         resetContextEnvironment();
+    }
+
+    @Override
+    public JobExecutionResult execute(String jobName) throws Exception {
+        JobExecutionResult result = super.execute(jobName);
+        this.lastJobExecutionResult.set(result);
+        return result;
+    }
+
+    @Override
+    public JobClient executeAsync(String jobName) throws Exception {
+        JobClient jobClient = super.executeAsync(jobName);
+        CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
+                jobClient.getJobExecutionResult();
+        jobExecutionResultFuture.thenAccept((e) -> this.lastJobExecutionResult.set(e));
+        return jobClient;
+    }
+
+    public JobExecutionResult getLastJobExecutionResult() {
+        return lastJobExecutionResult.get();
     }
 }

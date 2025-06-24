@@ -1,0 +1,88 @@
+{
+  "flinkVersion": "1.15",
+  "nodes": [
+    {
+      "id": 1,
+      "type": "stream-exec-values_1",
+      "tuples": [
+        [
+          {
+            "kind": "LITERAL",
+            "value": "1",
+            "type": "INT NOT NULL"
+          }
+        ],
+        [
+          {
+            "kind": "LITERAL",
+            "value": "2",
+            "type": "INT NOT NULL"
+          }
+        ],
+        [
+          {
+            "kind": "LITERAL",
+            "value": "3",
+            "type": "INT NOT NULL"
+          }
+        ]
+      ],
+      "outputType": "ROW<f0 INT NOT NULL>",
+      "description": "Values(tuples=[[{ 1 }, { 2 }, { 3 }]])",
+      "inputProperties": []
+    },
+    {
+      "id": 2,
+      "type": "stream-exec-sink_1",
+      "configuration": {
+        "table.exec.sink.keyed-shuffle": "AUTO",
+        "table.exec.sink.not-null-enforcer": "ERROR",
+        "table.exec.sink.type-length-enforcer": "IGNORE",
+        "table.exec.sink.upsert-materialize": "AUTO"
+      },
+      "dynamicTableSink": {
+        "table": {
+          "resolvedTable": {
+            "schema": {
+              "columns": [
+                {
+                  "name": "f0",
+                  "dataType": "INT NOT NULL"
+                }
+              ],
+              "watermarkSpecs": []
+            },
+            "partitionKeys": [],
+            "options": {
+              "connector": "blackhole"
+            }
+          }
+        }
+      },
+      "inputChangelogMode": [
+        "INSERT"
+      ],
+      "inputProperties": [
+        {
+          "requiredDistribution": {
+            "type": "UNKNOWN"
+          },
+          "damBehavior": "PIPELINED",
+          "priority": 0
+        }
+      ],
+      "outputType": "ROW<f0 INT NOT NULL>",
+      "description": "Sink(table=[anonymous_blackhole$1], fields=[f0])"
+    }
+  ],
+  "edges": [
+    {
+      "source": 1,
+      "target": 2,
+      "shuffle": {
+        "type": "FORWARD"
+      },
+      "shuffleMode": "PIPELINED"
+    }
+  ]
+}

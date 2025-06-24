@@ -18,7 +18,7 @@
 
 package org.apache.flink.types.parser;
 
-public class DoubleParserTest extends ParserTestBase<Double> {
+class DoubleParserTest extends ParserTestBase<Double> {
 
     @Override
     public String[] getValidTestValues() {

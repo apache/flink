@@ -21,99 +21,102 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.util.clock.ManualClock;
 
-import org.jetbrains.annotations.NotNull;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import javax.annotation.Nonnull;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** The unit test class for {@link ComponentClosingUtils}. */
-public class ComponentClosingUtilsTest {
+class ComponentClosingUtilsTest {
     private ManualClock clock;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         clock = new ManualClock();
         ComponentClosingUtils.setClock(clock);
     }
 
     @Test
-    public void testTryShutdownExecutorElegantlyWithoutForcefulShutdown() {
+    void testTryShutdownExecutorElegantlyWithoutForcefulShutdown() {
         MockExecutorService executor = new MockExecutorService(0);
-        assertTrue(
-                ComponentClosingUtils.tryShutdownExecutorElegantly(executor, Duration.ofDays(1)));
-        assertEquals(0, executor.forcefullyShutdownCount);
+        assertThat(ComponentClosingUtils.tryShutdownExecutorElegantly(executor, Duration.ofDays(1)))
+                .isTrue();
+        assertThat(executor.forcefullyShutdownCount).isZero();
     }
 
     @Test
-    public void testTryShutdownExecutorElegantlyWithForcefulShutdown() {
+    void testTryShutdownExecutorElegantlyWithForcefulShutdown() {
         MockExecutorService executor = new MockExecutorService(5);
-        assertFalse(
-                ComponentClosingUtils.tryShutdownExecutorElegantly(executor, Duration.ofDays(1)));
-        assertEquals(1, executor.forcefullyShutdownCount);
+        assertThat(ComponentClosingUtils.tryShutdownExecutorElegantly(executor, Duration.ofDays(1)))
+                .isFalse();
+        assertThat(executor.forcefullyShutdownCount).isOne();
     }
 
     @Test
-    public void testTryShutdownExecutorElegantlyTimeoutWithForcefulShutdown() {
+    void testTryShutdownExecutorElegantlyTimeoutWithForcefulShutdown() {
         MockExecutorService executor = new MockExecutorService(5);
         executor.timeoutAfterNumForcefulShutdown(clock, 0);
-        assertFalse(
-                ComponentClosingUtils.tryShutdownExecutorElegantly(executor, Duration.ofDays(1)));
-        assertEquals(1, executor.forcefullyShutdownCount);
+        assertThat(ComponentClosingUtils.tryShutdownExecutorElegantly(executor, Duration.ofDays(1)))
+                .isFalse();
+        assertThat(executor.forcefullyShutdownCount).isOne();
     }
 
     @Test
-    public void testTryShutdownExecutorElegantlyInterruptedWithForcefulShutdown() {
+    void testTryShutdownExecutorElegantlyInterruptedWithForcefulShutdown() {
         MockExecutorService executor = new MockExecutorService(5);
         executor.interruptAfterNumForcefulShutdown(0);
-        assertFalse(
-                ComponentClosingUtils.tryShutdownExecutorElegantly(executor, Duration.ofDays(1)));
-        assertEquals(1, executor.forcefullyShutdownCount);
+        assertThat(ComponentClosingUtils.tryShutdownExecutorElegantly(executor, Duration.ofDays(1)))
+                .isFalse();
+        assertThat(executor.forcefullyShutdownCount).isOne();
     }
 
     @Test
-    public void testShutdownExecutorForcefully() {
+    void testShutdownExecutorForcefully() {
         MockExecutorService executor = new MockExecutorService(5);
-        assertTrue(
-                ComponentClosingUtils.shutdownExecutorForcefully(
-                        executor, Duration.ofDays(1), false));
-        assertEquals(5, executor.forcefullyShutdownCount);
+        assertThat(
+                        ComponentClosingUtils.shutdownExecutorForcefully(
+                                executor, Duration.ofDays(1), false))
+                .isTrue();
+        assertThat(executor.forcefullyShutdownCount).isEqualTo(5);
     }
 
     @Test
-    public void testShutdownExecutorForcefullyReachesTimeout() {
+    void testShutdownExecutorForcefullyReachesTimeout() {
         MockExecutorService executor = new MockExecutorService(5);
         executor.timeoutAfterNumForcefulShutdown(clock, 1);
-        assertFalse(
-                ComponentClosingUtils.shutdownExecutorForcefully(
-                        executor, Duration.ofDays(1), false));
-        assertEquals(1, executor.forcefullyShutdownCount);
+        assertThat(
+                        ComponentClosingUtils.shutdownExecutorForcefully(
+                                executor, Duration.ofDays(1), false))
+                .isFalse();
+        assertThat(executor.forcefullyShutdownCount).isOne();
     }
 
     @Test
-    public void testShutdownExecutorForcefullyNotInterruptable() {
+    void testShutdownExecutorForcefullyNotInterruptable() {
         MockExecutorService executor = new MockExecutorService(5);
         executor.interruptAfterNumForcefulShutdown(1);
-        assertTrue(
-                ComponentClosingUtils.shutdownExecutorForcefully(
-                        executor, Duration.ofDays(1), false));
-        assertEquals(5, executor.forcefullyShutdownCount);
+        assertThat(
+                        ComponentClosingUtils.shutdownExecutorForcefully(
+                                executor, Duration.ofDays(1), false))
+                .isTrue();
+        assertThat(executor.forcefullyShutdownCount).isEqualTo(5);
     }
 
     @Test
-    public void testShutdownExecutorForcefullyInterruptable() {
+    void testShutdownExecutorForcefullyInterruptable() {
         MockExecutorService executor = new MockExecutorService(5);
         executor.interruptAfterNumForcefulShutdown(1);
-        assertFalse(
-                ComponentClosingUtils.shutdownExecutorForcefully(
-                        executor, Duration.ofDays(1), true));
-        assertEquals(1, executor.forcefullyShutdownCount);
+        assertThat(
+                        ComponentClosingUtils.shutdownExecutorForcefully(
+                                executor, Duration.ofDays(1), true))
+                .isFalse();
+        assertThat(executor.forcefullyShutdownCount).isOne();
     }
 
     // ============== private class for testing ===============
@@ -133,7 +136,7 @@ public class ComponentClosingUtilsTest {
         }
 
         @Override
-        public @NotNull List<Runnable> shutdownNow() {
+        public @Nonnull List<Runnable> shutdownNow() {
             forcefullyShutdownCount++;
             return super.shutdownNow();
         }

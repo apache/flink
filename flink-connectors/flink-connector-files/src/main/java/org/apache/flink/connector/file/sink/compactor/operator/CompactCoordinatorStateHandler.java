@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Either;
@@ -50,7 +51,11 @@ public class CompactCoordinatorStateHandler
     private final SimpleVersionedSerializer<FileSinkCommittable> committableSerializer;
 
     public CompactCoordinatorStateHandler(
+            StreamOperatorParameters<
+                            Either<CommittableMessage<FileSinkCommittable>, CompactorRequest>>
+                    parameters,
             SimpleVersionedSerializer<FileSinkCommittable> committableSerializer) {
+        super(parameters);
         this.committableSerializer = checkNotNull(committableSerializer);
     }
 

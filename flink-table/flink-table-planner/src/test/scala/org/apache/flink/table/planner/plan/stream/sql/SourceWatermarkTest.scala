@@ -20,14 +20,14 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Tests for watermark push down. */
 class SourceWatermarkTest extends TableTestBase {
 
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.tableEnv.executeSql(s"""
                                 | CREATE TABLE VirtualTable (
@@ -62,7 +62,7 @@ class SourceWatermarkTest extends TableTestBase {
 
     JavaFunc5.closeCalled = false
     JavaFunc5.openCalled = false
-    util.tableEnv.createTemporarySystemFunction("func", new JavaFunc5)
+    util.addTemporarySystemFunction("func", new JavaFunc5)
     util.tableEnv.executeSql(s"""
                                 | CREATE Table UdfTable (
                                 |   a INT,

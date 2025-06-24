@@ -47,6 +47,8 @@ CREATE TABLE MyUserTable (
   'format' = '...',                     -- 必选：文件系统连接器指定 format
                                         -- 有关更多详情，请参考 Table Formats
   'partition.default-name' = '...',     -- 可选：默认的分区名，动态分区模式下分区字段值是 null 或空字符串
+  'source.path.regex-pattern' = '...',  -- 可选: 指定用于匹配需要读取文件的绝对路径的正则表达式，配置后连接器
+                                        -- 会遍历 path 配置项的目录下的全部文件进行匹配
 
   -- 可选：该属性开启了在 sink 阶段通过动态分区字段来 shuffle 数据，该功能可以大大减少文件系统 sink 的文件数，但是可能会导致数据倾斜，默认值是 false
   'sink.shuffle-by-partition.enable' = '...',
@@ -56,10 +58,6 @@ CREATE TABLE MyUserTable (
 
 {{< hint info >}}
 请确保包含 [Flink File System specific dependencies]({{< ref "docs/deployment/filesystems/overview" >}})。
-{{< /hint >}}
-
-{{< hint info >}}
-基于流的文件系统 sources 仍在开发中。未来，社区将增加对常见地流式用例的支持，例如，对分区和目录的监控等。
 {{< /hint >}}
 
 {{< hint warning >}}
@@ -115,9 +113,9 @@ path
 
 ### 目录监控
 
-当运行模式为流模式时，文件系统连接器会自动监控输入目录。
+默认情况下，文件系统连接器是有界的，也就是只会扫描配置路径一遍后就会停止。
 
-可以使用以下属性修改监控时间间隔。
+如果需要，可以通过设置 `source.monitor-interval` 属性来开启目录监控，以便在新文件出现时继续扫描。
 
 <table class="table table-bordered">
   <thead>
@@ -243,8 +241,8 @@ CREATE TABLE MyUserTableWithFilepath (
 
 **注意：** 对于 bulk formats 数据 (parquet、orc、avro)，滚动策略与 checkpoint 间隔（pending 状态的文件会在下个 checkpoint 完成）控制了 part 文件的大小和个数。
 
-**注意：** 对于 row formats 数据 (csv、json)，如果想使得分区文件更快在文件系统中可见，可以设置  `sink.rolling-policy.file-size` 或 `sink.rolling-policy.rollover-interval` 属性以及在 flink-conf.yaml 中的 `execution.checkpointing.interval` 属性。
-对于其他 formats (avro、orc)，可以只设置 flink-conf.yaml 中的 `execution.checkpointing.interval` 属性。
+**注意：** 对于 row formats 数据 (csv、json)，如果想使得分区文件更快在文件系统中可见，可以设置  `sink.rolling-policy.file-size` 或 `sink.rolling-policy.rollover-interval` 属性以及在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中的 `execution.checkpointing.interval` 属性。
+对于其他 formats (avro、orc)，可以只设置 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中的 `execution.checkpointing.interval` 属性。
 
 <a name="file-compaction"></a>
 
@@ -280,7 +278,7 @@ file sink 支持文件合并，允许应用程序使用较小的 checkpoint 间�
 如果启用文件合并功能，会根据目标文件大小，将多个小文件合并成大文件。
 在生产环境中使用文件合并功能时，需要注意：
 - 只有 checkpoint 内部的文件才会被合并，至少生成的文件个数与 checkpoint 个数相同。
-- 合并前文件是可见的，那么文件的可见时间是：checkpoint 间隔时长 + 合并时长。
+- 合并前文件是不可见的，那么文件的可见时间是：checkpoint 间隔时长 + 合并时长。
 - 如果合并时间过长，将导致反压，延长 checkpoint 所需时间。
 
 <a name="partition-commit"></a>
@@ -454,6 +452,13 @@ public class HourPartTimeExtractor implements PartitionTimeExtractor {
         <td style="word-wrap: break-word;">(无)</td>
         <td>String</td>
         <td> 实现 PartitionCommitPolicy 接口的分区提交策略类。只有在 custom 提交策略下才使用该类。</td>
+    </tr>
+    <tr>
+        <td><h5>sink.partition-commit.policy.class.parameters</h5></td>
+        <td style="word-wrap: break-word;">(无)</td>
+        <td>String</td>
+        <td> 传入 custom 提交策略类的字符串参数, 多个参数之间用分号分隔, 比如 'param1;param2',
+        该字符串将被切分为列表(['param1','param2'])并传给 custom 提交策略类的构造器。该项为可选项，不配置的话将使用类的默认构造方法。</td>
     </tr>
     <tr>
         <td><h5>sink.partition-commit.success-file.name</h5></td>

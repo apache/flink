@@ -20,6 +20,8 @@ package org.apache.flink.docs.configuration;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.docs.util.ConfigurationOptionLocator;
+import org.apache.flink.docs.util.OptionWithMetaInfo;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -42,26 +44,22 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.DEFAULT_PATH_PREFIX;
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.LOCATIONS;
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.extractConfigOptions;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.getDescription;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.getDocumentedKey;
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.processConfigOptions;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.stringifyDefault;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.typeToHtml;
 import static org.assertj.core.api.Fail.fail;
 
 /**
- * This test verifies that all {@link ConfigOption ConfigOptions} in the configured {@link
- * ConfigOptionsDocGenerator#LOCATIONS locations} are documented and well-defined (i.e. no 2 options
- * exist for the same key with different descriptions/default values), and that the documentation
- * does not refer to non-existent options.
+ * This test verifies that all {@link ConfigOption ConfigOptions} found by the {@link
+ * ConfigurationOptionLocator} are documented and well-defined (i.e. no 2 options exist for the same
+ * key with different descriptions/default values), and that the documentation does not refer to
+ * non-existent options.
  */
 class ConfigOptionsDocsCompletenessITCase {
 
     @Test
-    void testCompleteness() throws IOException, ClassNotFoundException {
+    void testCompleteness() throws Exception {
         final Map<String, List<DocumentedOption>> documentedOptions = parseDocumentedOptions();
         final Map<String, List<ExistingOption>> existingOptions =
                 findExistingOptions(ignored -> true);
@@ -264,34 +262,32 @@ class ConfigOptionsDocsCompletenessITCase {
     }
 
     private static Map<String, List<ExistingOption>> findExistingOptions(
-            Predicate<ConfigOptionsDocGenerator.OptionWithMetaInfo> predicate)
-            throws IOException, ClassNotFoundException {
+            Predicate<OptionWithMetaInfo> predicate) throws Exception {
         final String rootDir = ConfigOptionsDocGeneratorTest.getProjectRootDir();
-        final Collection<ExistingOption> existingOptions = new ArrayList<>();
 
-        for (OptionsClassLocation location : LOCATIONS) {
-            processConfigOptions(
-                    rootDir,
-                    location.getModule(),
-                    location.getPackage(),
-                    DEFAULT_PATH_PREFIX,
-                    optionsClass ->
-                            extractConfigOptions(optionsClass).stream()
-                                    .filter(predicate)
-                                    .map(
-                                            optionWithMetaInfo ->
-                                                    toExistingOption(
-                                                            optionWithMetaInfo, optionsClass))
-                                    .forEach(existingOptions::add));
-        }
+        final Collection<ExistingOption> existingOptions = new ArrayList<>();
+        new ConfigurationOptionLocator()
+                .discoverOptionsAndApply(
+                        Paths.get(rootDir),
+                        (optionsClass, optionWithMetaInfos) ->
+                                optionWithMetaInfos.stream()
+                                        .filter(
+                                                option ->
+                                                        ConfigOptionsDocGenerator
+                                                                .shouldBeDocumented(option.field))
+                                        .filter(predicate)
+                                        .map(
+                                                optionWithMetaInfo ->
+                                                        toExistingOption(
+                                                                optionWithMetaInfo, optionsClass))
+                                        .forEach(existingOptions::add));
 
         return existingOptions.stream()
                 .collect(Collectors.groupingBy(option -> option.key, Collectors.toList()));
     }
 
     private static ExistingOption toExistingOption(
-            ConfigOptionsDocGenerator.OptionWithMetaInfo optionWithMetaInfo,
-            Class<?> optionsClass) {
+            OptionWithMetaInfo optionWithMetaInfo, Class<?> optionsClass) {
         String key = getDocumentedKey(optionWithMetaInfo);
         String defaultValue = stringifyDefault(optionWithMetaInfo);
         String typeValue = typeToHtml(optionWithMetaInfo);

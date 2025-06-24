@@ -19,12 +19,12 @@
 package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
-import static org.apache.flink.table.codesplit.CodeSplitUtil.newName;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
 
@@ -80,10 +80,12 @@ class RawToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
             String returnVariable,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
+        CodeGeneratorContext codeGeneratorContext = context.getCodeGeneratorContext();
         final String typeSerializer = context.declareTypeSerializer(inputLogicalType);
-        final String deserializedObjTerm = newName("deserializedObj");
+        final String deserializedObjTerm =
+                CodeGenUtils.newName(codeGeneratorContext, "deserializedObj");
 
-        final String resultStringTerm = CodeGenUtils.newName("resultString");
+        final String resultStringTerm = CodeGenUtils.newName(codeGeneratorContext, "resultString");
         final int length = LogicalTypeChecks.getLength(targetLogicalType);
 
         return new CastRuleUtils.CodeWriter()
@@ -100,7 +102,8 @@ class RawToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
                                                 context.legacyBehaviour(),
                                                 length,
                                                 resultStringTerm,
-                                                methodCall(deserializedObjTerm, "toString"))
+                                                methodCall(deserializedObjTerm, "toString"),
+                                                context.getCodeGeneratorContext())
                                         .assignStmt(
                                                 returnVariable,
                                                 CastRuleUtils.staticCall(

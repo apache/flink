@@ -22,23 +22,18 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableList;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
-import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperatorBinding;
-import org.apache.calcite.sql.SqlTableFunction;
-import org.apache.calcite.sql.SqlUtil;
-import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandMetadata;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
@@ -46,44 +41,29 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.validate.SqlValidatorScope;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.apache.calcite.util.Static.RESOURCE;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType;
 
 /**
  * Base class for a table-valued function that computes windows. Examples include {@code TUMBLE},
  * {@code HOP}, {@code CUMULATE} and {@code SESSION}.
  *
- * <p>Note: we copied the implementation from Calcite's {@link
- * org.apache.calcite.sql.SqlWindowTableFunction}, but support return additional {@code window_time}
- * time attribute column which should keep the same type with original time attribute.
+ * <p>Note: we extend Calcite's {@link org.apache.calcite.sql.SqlWindowTableFunction}, to support
+ * additional {@code window_time} time attribute column which should keep the same type with
+ * original time attribute.
  */
-public class SqlWindowTableFunction extends SqlFunction implements SqlTableFunction {
-
-    /** The data source which the table function computes with. */
-    protected static final String PARAM_DATA = "DATA";
-
-    /** The time attribute column. Also known as the event time. */
-    protected static final String PARAM_TIMECOL = "TIMECOL";
-
-    /** The window duration INTERVAL. */
-    protected static final String PARAM_SIZE = "SIZE";
-
-    /** The optional align offset for each window. */
-    protected static final String PARAM_OFFSET = "OFFSET";
-
-    /** The session key(s), only used for SESSION window. */
-    protected static final String PARAM_KEY = "KEY";
-
-    /** The slide interval, only used for HOP window. */
-    protected static final String PARAM_SLIDE = "SLIDE";
+public class SqlWindowTableFunction extends org.apache.calcite.sql.SqlWindowTableFunction {
 
     /** The slide interval, only used for HOP window. */
     protected static final String PARAM_STEP = "STEP";
+
+    /** The gap interval, only used for SESSION window. */
+    protected static final String GAP = "GAP";
 
     /**
      * Type-inference strategy whereby the row type of a table function call is a ROW, which is
@@ -102,13 +82,7 @@ public class SqlWindowTableFunction extends SqlFunction implements SqlTableFunct
 
     /** Creates a window table function with a given name. */
     public SqlWindowTableFunction(String name, SqlOperandMetadata operandMetadata) {
-        super(
-                name,
-                SqlKind.OTHER_FUNCTION,
-                ReturnTypes.CURSOR,
-                null,
-                operandMetadata,
-                SqlFunctionCategory.SYSTEM);
+        super(name, operandMetadata);
     }
 
     @Override
@@ -119,6 +93,27 @@ public class SqlWindowTableFunction extends SqlFunction implements SqlTableFunct
     @Override
     public SqlReturnTypeInference getRowTypeInference() {
         return ARG0_TABLE_FUNCTION_WINDOWING;
+    }
+
+    @Override
+    public void validateCall(
+            SqlCall call,
+            SqlValidator validator,
+            SqlValidatorScope scope,
+            SqlValidatorScope operandScope) {
+        assert call.getOperator() == this;
+        final List<SqlNode> operandList = call.getOperandList();
+        // Validation for DESCRIPTOR or PARTITION BY of SESSION window is broken, and we
+        // make assumptions at different locations those are not validated and not properly scoped.
+        // Theoretically, we should scope identifiers of the above to the result of the subquery
+        // from the first argument. Unfortunately this breaks at other locations which do not expect
+        // it. We run additional validations while deriving the return type, therefore we can skip
+        // it here.
+        SqlNode selectQuery = operandList.get(0);
+        if (selectQuery.getKind().equals(SqlKind.SET_SEMANTICS_TABLE)) {
+            selectQuery = ((SqlCall) selectQuery).getOperandList().get(0);
+        }
+        selectQuery.validate(validator, scope);
     }
 
     /**
@@ -134,27 +129,15 @@ public class SqlWindowTableFunction extends SqlFunction implements SqlTableFunct
 
     /** Helper for {@link #ARG0_TABLE_FUNCTION_WINDOWING}. */
     private static RelDataType inferRowType(SqlOperatorBinding opBinding) {
-        final RelDataTypeFactory typeFactory = opBinding.getTypeFactory();
-        final RelDataType inputRowType = opBinding.getOperandType(0);
-        final RelDataType descriptorType = opBinding.getOperandType(1);
-        final RelDataTypeField timeField = descriptorType.getFieldList().get(0);
-        final RelDataType timeAttributeType;
-        if (timeField.getType().getSqlTypeName() == SqlTypeName.NULL) {
-            // the type is not inferred yet, we should infer the type here,
-            // see org.apache.flink.table.planner.functions.sql.SqlDescriptorOperator.deriveType
-            RelDataTypeField field = inputRowType.getField(timeField.getName(), false, false);
-            if (field == null) {
-                throw new IllegalArgumentException(
-                        String.format(
-                                "Can't find the time attribute field '%s' in the input schema %s.",
-                                timeField.getName(), inputRowType.getFullTypeString()));
-            }
-            timeAttributeType = field.getType();
-        } else {
-            // the type has been inferred, use it directly
-            timeAttributeType = timeField.getType();
-        }
-        return inferRowType(typeFactory, inputRowType, timeAttributeType);
+        final SqlCallBinding callBinding = (SqlCallBinding) opBinding;
+        final RelDataType inputRowType = callBinding.getOperandType(0);
+        final SqlCall descriptorCall = (SqlCall) callBinding.operand(1);
+        final String timeField =
+                ((SqlIdentifier) descriptorCall.getOperandList().get(0)).getSimple();
+        final RelDataTypeField timeAttributeField = inputRowType.getField(timeField, false, false);
+        assert timeAttributeField != null;
+        return inferRowType(
+                callBinding.getTypeFactory(), inputRowType, timeAttributeField.getType());
     }
 
     public static RelDataType inferRowType(
@@ -207,56 +190,6 @@ public class SqlWindowTableFunction extends SqlFunction implements SqlTableFunct
         @Override
         public boolean isOptional(int i) {
             return i > getOperandCountRange().getMin() && i <= getOperandCountRange().getMax();
-        }
-
-        boolean throwValidationSignatureErrorOrReturnFalse(
-                SqlCallBinding callBinding, boolean throwOnFailure) {
-            if (throwOnFailure) {
-                throw callBinding.newValidationSignatureError();
-            } else {
-                return false;
-            }
-        }
-
-        @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-        boolean throwExceptionOrReturnFalse(Optional<RuntimeException> e, boolean throwOnFailure) {
-            if (e.isPresent()) {
-                if (throwOnFailure) {
-                    throw e.get();
-                } else {
-                    return false;
-                }
-            } else {
-                return true;
-            }
-        }
-
-        /**
-         * Checks whether the heading operands are in the form {@code (ROW, DESCRIPTOR, DESCRIPTOR
-         * ..., other params)}, returning whether successful, and throwing if any columns are not
-         * found.
-         *
-         * @param callBinding The call binding
-         * @param descriptorCount The number of descriptors following the first operand (e.g. the
-         *     table)
-         * @return true if validation passes; throws if any columns are not found
-         */
-        boolean checkTableAndDescriptorOperands(SqlCallBinding callBinding, int descriptorCount) {
-            final SqlNode operand0 = callBinding.operand(0);
-            final SqlValidator validator = callBinding.getValidator();
-            final RelDataType type = validator.getValidatedNodeType(operand0);
-            if (type.getSqlTypeName() != SqlTypeName.ROW) {
-                return false;
-            }
-            for (int i = 1; i < descriptorCount + 1; i++) {
-                final SqlNode operand = callBinding.operand(i);
-                if (operand.getKind() != SqlKind.DESCRIPTOR) {
-                    return false;
-                }
-                validateColumnNames(
-                        validator, type.getFieldNames(), ((SqlCall) operand).getOperandList());
-            }
-            return true;
         }
 
         /**
@@ -324,18 +257,6 @@ public class SqlWindowTableFunction extends SqlFunction implements SqlTableFunct
                 }
             }
             return true;
-        }
-
-        void validateColumnNames(
-                SqlValidator validator, List<String> fieldNames, List<SqlNode> columnNames) {
-            final SqlNameMatcher matcher = validator.getCatalogReader().nameMatcher();
-            for (SqlNode columnName : columnNames) {
-                final String name = ((SqlIdentifier) columnName).getSimple();
-                if (matcher.indexOf(fieldNames, name) < 0) {
-                    throw SqlUtil.newContextException(
-                            columnName.getParserPosition(), RESOURCE.unknownIdentifier(name));
-                }
-            }
         }
     }
 }

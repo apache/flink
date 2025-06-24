@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -26,6 +27,7 @@ import org.apache.flink.types.NormalizableKey;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy;
 import org.apache.hadoop.io.Writable;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
@@ -36,6 +38,7 @@ import java.io.IOException;
  *
  * @param <T>
  */
+@Internal
 public class WritableComparator<T extends Writable & Comparable<T>> extends TypeComparator<T> {
 
     private static final long serialVersionUID = 1L;
@@ -172,12 +175,10 @@ public class WritableComparator<T extends Writable & Comparable<T>> extends Type
         if (this.kryo == null) {
             this.kryo = new Kryo();
 
-            Kryo.DefaultInstantiatorStrategy instantiatorStrategy =
-                    new Kryo.DefaultInstantiatorStrategy();
+            DefaultInstantiatorStrategy instantiatorStrategy = new DefaultInstantiatorStrategy();
             instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
             kryo.setInstantiatorStrategy(instantiatorStrategy);
 
-            this.kryo.setAsmEnabled(true);
             this.kryo.register(type);
         }
     }

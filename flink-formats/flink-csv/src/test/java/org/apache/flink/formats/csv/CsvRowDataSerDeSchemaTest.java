@@ -19,7 +19,6 @@
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -29,7 +28,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -40,6 +39,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.function.Consumer;
 
+import static org.apache.flink.connector.testutils.formats.SchemaTestUtils.open;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
@@ -61,17 +62,14 @@ import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.data.TimestampData.fromInstant;
 import static org.apache.flink.table.data.TimestampData.fromLocalDateTime;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CsvRowDataDeserializationSchema} and {@link CsvRowDataSerializationSchema}. */
-public class CsvRowDataSerDeSchemaTest {
+class CsvRowDataSerDeSchemaTest {
 
     @Test
-    public void testSerializeDeserialize() throws Exception {
+    void testSerializeDeserialize() throws Exception {
         testNullableField(BIGINT(), "null", null);
         testNullableField(STRING(), "null", null);
         testNullableField(STRING(), "\"This is a test.\"", "This is a test.");
@@ -86,11 +84,11 @@ public class CsvRowDataSerDeSchemaTest {
         testNullableField(DOUBLE(), "0.33333333332", 0.33333333332d);
         testNullableField(
                 DECIMAL(38, 25),
-                "\"1234.0000000000000000000000001\"",
+                "1234.0000000000000000000000001",
                 new BigDecimal("1234.0000000000000000000000001"));
         testNullableField(
                 DECIMAL(38, 0),
-                "\"123400000000000000000000000001\"",
+                "123400000000000000000000000001",
                 new BigDecimal("123400000000000000000000000001"));
         testNullableField(DATE(), "2018-10-12", Date.valueOf("2018-10-12"));
         testNullableField(TIME(0), "12:12:12", Time.valueOf("12:12:12"));
@@ -119,7 +117,7 @@ public class CsvRowDataSerDeSchemaTest {
     }
 
     @Test
-    public void testSerializeDeserializeCustomizedProperties() throws Exception {
+    void testSerializeDeserializeCustomizedProperties() throws Exception {
 
         Consumer<CsvRowDataSerializationSchema.Builder> serConfig =
                 (serSchemaBuilder) ->
@@ -193,102 +191,107 @@ public class CsvRowDataSerDeSchemaTest {
         testFieldDeserialization(
                 TIME(0), "12:12:12.45", LocalTime.parse("12:12:12"), deserConfig, ";");
         int precision = 5;
-        try {
-            testFieldDeserialization(
-                    TIME(precision), "12:12:12.45", LocalTime.parse("12:12:12"), deserConfig, ";");
-            fail();
-        } catch (Exception e) {
-            assertEquals(
-                    "Csv does not support TIME type with precision: 5, it only supports precision 0 ~ 3.",
-                    e.getMessage());
-        }
+        assertThatThrownBy(
+                        () ->
+                                testFieldDeserialization(
+                                        TIME(precision),
+                                        "12:12:12.45",
+                                        LocalTime.parse("12:12:12"),
+                                        deserConfig,
+                                        ";"))
+                .hasMessage(
+                        "Csv does not support TIME type with precision: 5, it only supports precision 0 ~ 3.");
     }
 
     @Test
-    public void testDeserializeParseError() throws Exception {
-        try {
-            testDeserialization(false, false, "Test,null,Test"); // null not supported
-            fail("Missing field should cause failure.");
-        } catch (IOException e) {
-            // valid exception
-        }
+    void testDeserializeParseError() {
+        assertThatThrownBy(() -> testDeserialization(false, false, "Test,null,Test"))
+                .isInstanceOf(IOException.class);
     }
 
     @Test
-    public void testDeserializeUnsupportedNull() throws Exception {
+    void testDeserializeUnsupportedNull() throws Exception {
         // unsupported null for integer
-        assertEquals(
-                Row.of("Test", null, "Test"), testDeserialization(true, false, "Test,null,Test"));
+        assertThat(testDeserialization(true, false, "Test,null,Test"))
+                .isEqualTo(Row.of("Test", null, "Test"));
     }
 
     @Test
-    public void testDeserializeNullRow() throws Exception {
+    void testDeserializeNullRow() throws Exception {
         // return null for null input
-        assertNull(testDeserialization(false, false, null));
+        assertThat(testDeserialization(false, false, null)).isNull();
     }
 
     @Test
-    public void testDeserializeIncompleteRow() throws Exception {
+    void testDeserializeIncompleteRow() throws Exception {
         // last two columns are missing
-        assertEquals(Row.of("Test", null, null), testDeserialization(true, false, "Test"));
+        assertThat(testDeserialization(true, false, "Test")).isEqualTo(Row.of("Test", null, null));
     }
 
     @Test
-    public void testDeserializeMoreColumnsThanExpected() throws Exception {
+    void testDeserializeMoreColumnsThanExpected() throws Exception {
         // one additional string column
-        assertNull(testDeserialization(true, false, "Test,12,Test,Test"));
+        assertThat(testDeserialization(true, false, "Test,12,Test,Test")).isNull();
     }
 
     @Test
-    public void testDeserializeIgnoreComment() throws Exception {
+    void testDeserializeIgnoreComment() throws Exception {
         // # is part of the string
-        assertEquals(
-                Row.of("#Test", 12, "Test"), testDeserialization(false, false, "#Test,12,Test"));
+        assertThat(testDeserialization(false, false, "#Test,12,Test"))
+                .isEqualTo(Row.of("#Test", 12, "Test"));
     }
 
     @Test
-    public void testDeserializeAllowComment() throws Exception {
+    void testDeserializeAllowComment() throws Exception {
         // entire row is ignored
-        assertNull(testDeserialization(true, true, "#Test,12,Test"));
+        assertThat(testDeserialization(true, true, "#Test,12,Test")).isNull();
     }
 
     @Test
-    public void testSerializationProperties() throws Exception {
+    void testSerializationProperties() throws Exception {
         DataType dataType = ROW(FIELD("f0", STRING()), FIELD("f1", INT()), FIELD("f2", STRING()));
         RowType rowType = (RowType) dataType.getLogicalType();
         CsvRowDataSerializationSchema.Builder serSchemaBuilder =
                 new CsvRowDataSerializationSchema.Builder(rowType);
 
-        assertArrayEquals(
-                "Test,12,Hello".getBytes(),
-                serialize(serSchemaBuilder, rowData("Test", 12, "Hello")));
+        assertThat(serialize(serSchemaBuilder, rowData("Test", 12, "Hello")))
+                .isEqualTo("Test,12,Hello".getBytes());
 
         serSchemaBuilder.setQuoteCharacter('#');
 
-        assertArrayEquals(
-                "Test,12,#2019-12-26 12:12:12#".getBytes(),
-                serialize(serSchemaBuilder, rowData("Test", 12, "2019-12-26 12:12:12")));
+        assertThat(serialize(serSchemaBuilder, rowData("Test", 12, "2019-12-26 12:12:12")))
+                .isEqualTo("Test,12,#2019-12-26 12:12:12#".getBytes());
 
         serSchemaBuilder.disableQuoteCharacter();
 
-        assertArrayEquals(
-                "Test,12,2019-12-26 12:12:12".getBytes(),
-                serialize(serSchemaBuilder, rowData("Test", 12, "2019-12-26 12:12:12")));
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testInvalidNesting() throws Exception {
-        testNullableField(
-                ROW(FIELD("f0", ROW(FIELD("f0", STRING())))), "FAIL", Row.of(Row.of("FAIL")));
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testInvalidType() throws Exception {
-        testNullableField(RAW(Void.class, VoidSerializer.INSTANCE), "FAIL", new java.util.Date());
+        assertThat(serialize(serSchemaBuilder, rowData("Test", 12, "2019-12-26 12:12:12")))
+                .isEqualTo("Test,12,2019-12-26 12:12:12".getBytes());
     }
 
     @Test
-    public void testSerializeDeserializeNestedTypes() throws Exception {
+    void testInvalidNesting() {
+        assertThatThrownBy(
+                        () ->
+                                testNullableField(
+                                        ROW(FIELD("f0", ROW(FIELD("f0", STRING())))),
+                                        "FAIL",
+                                        Row.of(Row.of("FAIL"))))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testInvalidType() {
+        assertThatThrownBy(
+                        () ->
+                                testNullableField(
+                                        RAW(Void.class, VoidSerializer.INSTANCE),
+                                        "FAIL",
+                                        new java.util.Date()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testSerializeDeserializeNestedTypes() throws Exception {
         DataType subDataType0 =
                 ROW(
                         FIELD("f0c0", STRING()),
@@ -342,7 +345,7 @@ public class CsvRowDataSerDeSchemaTest {
     }
 
     @Test
-    public void testDeserializationWithDisableQuoteCharacter() throws Exception {
+    void testDeserializationWithDisableQuoteCharacter() throws Exception {
         Consumer<CsvRowDataDeserializationSchema.Builder> deserConfig =
                 (deserSchemaBuilder) ->
                         deserSchemaBuilder.disableQuoteCharacter().setFieldDelimiter(',');
@@ -351,35 +354,27 @@ public class CsvRowDataSerDeSchemaTest {
     }
 
     @Test
-    public void testSerializationWithTypesMismatch() {
+    void testSerializationWithTypesMismatch() {
         DataType dataType = ROW(FIELD("f0", STRING()), FIELD("f1", INT()), FIELD("f2", INT()));
         RowType rowType = (RowType) dataType.getLogicalType();
         CsvRowDataSerializationSchema.Builder serSchemaBuilder =
                 new CsvRowDataSerializationSchema.Builder(rowType);
         RowData rowData = rowData("Test", 1, "Test");
         String errorMessage = "Fail to serialize at field: f2.";
-        try {
-            serialize(serSchemaBuilder, rowData);
-            fail("expecting exception message:" + errorMessage);
-        } catch (Throwable t) {
-            assertThat(t, FlinkMatchers.containsMessage(errorMessage));
-        }
+        assertThatThrownBy(() -> serialize(serSchemaBuilder, rowData))
+                .satisfies(anyCauseMatches(errorMessage));
     }
 
     @Test
-    public void testDeserializationWithTypesMismatch() {
+    void testDeserializationWithTypesMismatch() {
         DataType dataType = ROW(FIELD("f0", STRING()), FIELD("f1", INT()), FIELD("f2", INT()));
         RowType rowType = (RowType) dataType.getLogicalType();
         CsvRowDataDeserializationSchema.Builder deserSchemaBuilder =
                 new CsvRowDataDeserializationSchema.Builder(rowType, InternalTypeInfo.of(rowType));
         String data = "Test,1,Test";
         String errorMessage = "Fail to deserialize at field: f2.";
-        try {
-            deserialize(deserSchemaBuilder, data);
-            fail("expecting exception message:" + errorMessage);
-        } catch (Throwable t) {
-            assertThat(t, FlinkMatchers.containsMessage(errorMessage));
-        }
+        assertThatThrownBy(() -> deserialize(deserSchemaBuilder, data))
+                .satisfies(anyCauseMatches(errorMessage));
     }
 
     private void testNullableField(DataType fieldType, String string, Object value)
@@ -418,7 +413,7 @@ public class CsvRowDataSerDeSchemaTest {
                 new CsvRowDataSerializationSchema.Builder(rowType);
         serializationConfig.accept(serSchemaBuilder);
         byte[] serializedRow = serialize(serSchemaBuilder, deserializedRow);
-        assertEquals(expectedCsv, new String(serializedRow));
+        assertThat(new String(serializedRow)).isEqualTo(expectedCsv);
     }
 
     @SuppressWarnings("unchecked")
@@ -444,7 +439,7 @@ public class CsvRowDataSerDeSchemaTest {
                 (Row)
                         DataFormatConverters.getConverterForDataType(dataType)
                                 .toExternal(deserializedRow);
-        assertEquals(expectedRow, actualRow);
+        assertThat(actualRow).isEqualTo(expectedRow);
     }
 
     @SuppressWarnings("unchecked")
@@ -469,7 +464,7 @@ public class CsvRowDataSerDeSchemaTest {
         RowData deserializedRow =
                 deserialize(
                         deserSchemaBuilder, new String(serialize(serSchemaBuilder, originalRow)));
-        assertEquals(deserializedRow, originalRow);
+        assertThat(originalRow).isEqualTo(deserializedRow);
     }
 
     private static byte[] serialize(
@@ -479,7 +474,8 @@ public class CsvRowDataSerDeSchemaTest {
         CsvRowDataSerializationSchema schema =
                 InstantiationUtil.deserializeObject(
                         InstantiationUtil.serializeObject(serSchemaBuilder.build()),
-                        CsvRowDeSerializationSchemaTest.class.getClassLoader());
+                        CsvRowDataSerDeSchemaTest.class.getClassLoader());
+        open(schema);
         return schema.serialize(row);
     }
 
@@ -491,7 +487,8 @@ public class CsvRowDataSerDeSchemaTest {
         CsvRowDataDeserializationSchema schema =
                 InstantiationUtil.deserializeObject(
                         InstantiationUtil.serializeObject(deserSchemaBuilder.build()),
-                        CsvRowDeSerializationSchemaTest.class.getClassLoader());
+                        CsvRowDataSerDeSchemaTest.class.getClassLoader());
+        open(schema);
         return schema.deserialize(csv != null ? csv.getBytes() : null);
     }
 

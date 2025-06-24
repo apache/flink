@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import java.util.Collections;
@@ -28,7 +30,8 @@ import java.util.Map;
  * Operation to describe a DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier
  * statement.
  */
-public class DescribeTableOperation implements Operation {
+@Internal
+public class DescribeTableOperation implements Operation, ExecutableOperation {
 
     private final ObjectIdentifier sqlIdentifier;
     private final boolean isExtended;
@@ -53,5 +56,12 @@ public class DescribeTableOperation implements Operation {
         params.put("isExtended", isExtended);
         return OperationUtils.formatWithChildren(
                 "DESCRIBE", params, Collections.emptyList(), Operation::asSummaryString);
+    }
+
+    @Override
+    public TableResultInternal execute(Context ctx) {
+        // DESCRIBE <table> is a synonym for SHOW COLUMNS without LIKE pattern.
+        ShowColumnsOperation showColumns = new ShowColumnsOperation(sqlIdentifier, "FROM", null);
+        return showColumns.execute(ctx);
     }
 }

@@ -24,7 +24,7 @@ import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 
 /** A test for the {@link BinaryRowDataSerializer}. */
-public class BinaryRowSerializerTest extends SerializerTestBase<BinaryRowData> {
+class BinaryRowSerializerTest extends SerializerTestBase<BinaryRowData> {
 
     @Override
     protected BinaryRowDataSerializer createSerializer() {

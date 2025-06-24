@@ -79,10 +79,6 @@ class BatchPhysicalHashAggRule
     val input: RelNode = call.rel(1)
     val inputRowType = input.getRowType
 
-    if (agg.indicator) {
-      throw new UnsupportedOperationException("Not support group sets aggregate now.")
-    }
-
     val groupSet = agg.getGroupSet.toArray
     val (auxGroupSet, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
 
@@ -93,6 +89,12 @@ class BatchPhysicalHashAggRule
 
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggFunctions)
     val aggProvidedTraitSet = agg.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
+
+    // Judge whether this agg operator support adaptive local hash agg.
+    // If all agg function in agg operator can projection, then it support
+    // adaptive local hash agg. Otherwise false.
+    val supportAdaptiveLocalHashAgg =
+      AggregateUtil.doAllAggSupportAdaptiveLocalHashAgg(aggCallToAggFunction.map(_._1))
 
     // create two-phase agg if possible
     if (isTwoPhaseAggWorkable(aggFunctions, tableConfig)) {
@@ -109,7 +111,9 @@ class BatchPhysicalHashAggRule
         auxGroupSet,
         aggBufferTypes,
         aggCallToAggFunction,
-        isLocalHashAgg = true)
+        isLocalHashAgg = true,
+        supportAdaptiveLocalHashAgg
+      )
 
       // create global BatchPhysicalHashAggregate
       val (globalGroupSet, globalAuxGroupSet) = getGlobalAggGroupSetPair(groupSet, auxGroupSet)

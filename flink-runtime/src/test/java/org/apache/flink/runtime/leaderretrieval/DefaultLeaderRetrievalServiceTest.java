@@ -18,29 +18,24 @@
 
 package org.apache.flink.runtime.leaderretrieval;
 
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingListener;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DefaultLeaderElectionService}. */
-public class DefaultLeaderRetrievalServiceTest extends TestLogger {
+class DefaultLeaderRetrievalServiceTest {
 
-    private static final String TEST_URL = "akka//user/jobmanager";
+    private static final String TEST_URL = "pekko://user/jobmanager";
 
     @Test
-    public void testNotifyLeaderAddress() throws Exception {
+    void testNotifyLeaderAddress() throws Exception {
         new Context() {
             {
                 runTest(
@@ -49,18 +44,17 @@ public class DefaultLeaderRetrievalServiceTest extends TestLogger {
                                     LeaderInformation.known(UUID.randomUUID(), TEST_URL);
                             testingLeaderRetrievalDriver.onUpdate(newLeader);
                             testingListener.waitForNewLeader();
-                            assertThat(
-                                    testingListener.getLeaderSessionID(),
-                                    is(newLeader.getLeaderSessionID()));
-                            assertThat(
-                                    testingListener.getAddress(), is(newLeader.getLeaderAddress()));
+                            assertThat(testingListener.getLeaderSessionID())
+                                    .isEqualTo(newLeader.getLeaderSessionID());
+                            assertThat(testingListener.getAddress())
+                                    .isEqualTo(newLeader.getLeaderAddress());
                         });
             }
         };
     }
 
     @Test
-    public void testNotifyLeaderAddressEmpty() throws Exception {
+    void testNotifyLeaderAddressEmpty() throws Exception {
         new Context() {
             {
                 runTest(
@@ -72,15 +66,15 @@ public class DefaultLeaderRetrievalServiceTest extends TestLogger {
 
                             testingLeaderRetrievalDriver.onUpdate(LeaderInformation.empty());
                             testingListener.waitForEmptyLeaderInformation();
-                            assertThat(testingListener.getLeaderSessionID(), is(nullValue()));
-                            assertThat(testingListener.getAddress(), is(nullValue()));
+                            assertThat(testingListener.getLeaderSessionID()).isNull();
+                            assertThat(testingListener.getAddress()).isNull();
                         });
             }
         };
     }
 
     @Test
-    public void testErrorForwarding() throws Exception {
+    void testErrorForwarding() throws Exception {
         new Context() {
             {
                 runTest(
@@ -90,16 +84,14 @@ public class DefaultLeaderRetrievalServiceTest extends TestLogger {
                             testingLeaderRetrievalDriver.onFatalError(testException);
 
                             testingListener.waitForError();
-                            assertThat(
-                                    testingListener.getError(),
-                                    FlinkMatchers.containsCause(testException));
+                            assertThat(testingListener.getError()).hasCause(testException);
                         });
             }
         };
     }
 
     @Test
-    public void testErrorIsIgnoredAfterBeingStop() throws Exception {
+    void testErrorIsIgnoredAfterBeingStop() throws Exception {
         new Context() {
             {
                 runTest(
@@ -109,14 +101,14 @@ public class DefaultLeaderRetrievalServiceTest extends TestLogger {
                             leaderRetrievalService.stop();
                             testingLeaderRetrievalDriver.onFatalError(testException);
 
-                            assertThat(testingListener.getError(), is(nullValue()));
+                            assertThat(testingListener.getError()).isNull();
                         });
             }
         };
     }
 
     @Test
-    public void testNotifyLeaderAddressOnlyWhenLeaderTrulyChanged() throws Exception {
+    void testNotifyLeaderAddressOnlyWhenLeaderTrulyChanged() throws Exception {
         new Context() {
             {
                 runTest(
@@ -124,22 +116,22 @@ public class DefaultLeaderRetrievalServiceTest extends TestLogger {
                             final LeaderInformation newLeader =
                                     LeaderInformation.known(UUID.randomUUID(), TEST_URL);
                             testingLeaderRetrievalDriver.onUpdate(newLeader);
-                            assertThat(testingListener.getLeaderEventQueueSize(), is(1));
+                            assertThat(testingListener.getLeaderEventQueueSize()).isOne();
 
                             // Same leader information should not be notified twice.
                             testingLeaderRetrievalDriver.onUpdate(newLeader);
-                            assertThat(testingListener.getLeaderEventQueueSize(), is(1));
+                            assertThat(testingListener.getLeaderEventQueueSize()).isOne();
 
                             // Leader truly changed.
                             testingLeaderRetrievalDriver.onUpdate(
                                     LeaderInformation.known(UUID.randomUUID(), TEST_URL + 1));
-                            assertThat(testingListener.getLeaderEventQueueSize(), is(2));
+                            assertThat(testingListener.getLeaderEventQueueSize()).isEqualTo(2);
                         });
             }
         };
     }
 
-    private class Context {
+    private static class Context {
         private final TestingLeaderRetrievalDriver.TestingLeaderRetrievalDriverFactory
                 leaderRetrievalDriverFactory =
                         new TestingLeaderRetrievalDriver.TestingLeaderRetrievalDriverFactory();
@@ -153,7 +145,7 @@ public class DefaultLeaderRetrievalServiceTest extends TestLogger {
             leaderRetrievalService.start(testingListener);
 
             testingLeaderRetrievalDriver = leaderRetrievalDriverFactory.getCurrentRetrievalDriver();
-            assertThat(testingLeaderRetrievalDriver, is(notNullValue()));
+            assertThat(testingLeaderRetrievalDriver).isNotNull();
             testMethod.run();
 
             leaderRetrievalService.stop();

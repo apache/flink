@@ -35,7 +35,6 @@ The output will be flattened if the output type is a composite type.
 from pyflink.common import Row
 from pyflink.table import EnvironmentSettings, TableEnvironment
 from pyflink.table.expressions import col
-from pyflink.table.types import DataTypes
 from pyflink.table.udf import udf
 
 env_settings = EnvironmentSettings.in_batch_mode()
@@ -43,8 +42,7 @@ table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
 
-@udf(result_type=DataTypes.ROW([DataTypes.FIELD("id", DataTypes.BIGINT()),
-                                DataTypes.FIELD("data", DataTypes.STRING())]))
+@udf(result_type='ROW<id BIGINT, data STRING>')
 def func1(id: int, data: str) -> Row:
     return Row(id, data * 2)
 
@@ -62,8 +60,7 @@ table.map(func1(col('id'), col('data'))).execute().print()
 It also supports to take a Row object (containing all the columns of the input table) as input.
 
 ```python
-@udf(result_type=DataTypes.ROW([DataTypes.FIELD("id", DataTypes.BIGINT()),
-                                DataTypes.FIELD("data", DataTypes.STRING())]))
+@udf(result_type='ROW<id BIGINT, data STRING>')
 def func2(data: Row) -> Row:
     return Row(data.id, data.data * 2)
 
@@ -85,9 +82,7 @@ It should be noted that the input type and output type should be pandas.DataFram
 
 ```python
 import pandas as pd
-@udf(result_type=DataTypes.ROW([DataTypes.FIELD("id", DataTypes.BIGINT()),
-                                DataTypes.FIELD("data", DataTypes.STRING())]),
-     func_type='pandas')
+@udf(result_type='ROW<id BIGINT, data STRING>', func_type='pandas')
 def func3(data: pd.DataFrame) -> pd.DataFrame:
     res = pd.concat([data.id, data.data * 2], axis=1)
     return res
@@ -109,14 +104,14 @@ Performs a `flat_map` operation with a python [table function]({{< ref "docs/dev
 ```python
 from pyflink.common import Row
 from pyflink.table.udf import udtf
-from pyflink.table import DataTypes, EnvironmentSettings, TableEnvironment
+from pyflink.table import EnvironmentSettings, TableEnvironment
 
 env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi,Flink'), (2, 'Hello')], ['id', 'data'])
 
-@udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+@udtf(result_types=['INT', 'STRING'])
 def split(x: Row) -> Row:
     for s in x.data.split(","):
         yield x.id, s
@@ -154,7 +149,7 @@ Performs an `aggregate` operation with a python [general aggregate function]({{<
 
 ```python
 from pyflink.common import Row
-from pyflink.table import DataTypes, EnvironmentSettings, TableEnvironment
+from pyflink.table import EnvironmentSettings, TableEnvironment
 from pyflink.table.expressions import col
 from pyflink.table.udf import AggregateFunction, udaf
 
@@ -180,14 +175,10 @@ class CountAndSumAggregateFunction(AggregateFunction):
             accumulator[1] += other_acc[1]
 
     def get_accumulator_type(self):
-        return DataTypes.ROW(
-            [DataTypes.FIELD("a", DataTypes.BIGINT()),
-             DataTypes.FIELD("b", DataTypes.BIGINT())])
+        return 'ROW<a BIGINT, b BIGINT>'
 
     def get_result_type(self):
-        return DataTypes.ROW(
-            [DataTypes.FIELD("a", DataTypes.BIGINT()),
-             DataTypes.FIELD("b", DataTypes.BIGINT())])
+        return 'ROW<a BIGINT, b BIGINT>'
 
 function = CountAndSumAggregateFunction()
 agg = udaf(function,
@@ -221,9 +212,7 @@ table_env = TableEnvironment.create(env_settings)
 t = table_env.from_elements([(1, 2), (2, 1), (1, 3)], ['a', 'b'])
 
 pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
-                   result_type=DataTypes.ROW(
-                       [DataTypes.FIELD("a", DataTypes.FLOAT()),
-                        DataTypes.FIELD("b", DataTypes.INT())]),
+                   result_type='ROW<a FLOAT, b INT>',
                    func_type="pandas")
 t.aggregate(pandas_udaf.alias("a", "b")) \
  .select(col('a'), col('b')).execute().print()
@@ -250,7 +239,7 @@ Similar to `aggregate`, you have to close the `flat_aggregate` with a select sta
 
 ```python
 from pyflink.common import Row
-from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
+from pyflink.table import TableEnvironment, EnvironmentSettings
 from pyflink.table.expressions import col
 from pyflink.table.udf import udtaf, TableAggregateFunction
 
@@ -272,11 +261,10 @@ class Top2(TableAggregateFunction):
                 accumulator[1] = row.a
 
     def get_accumulator_type(self):
-        return DataTypes.ARRAY(DataTypes.BIGINT())
+        return 'ARRAY<BIGINT>'
 
     def get_result_type(self):
-        return DataTypes.ROW(
-            [DataTypes.FIELD("a", DataTypes.BIGINT())])
+        return 'ROW<a BIGINT>'
 
 
 env_settings = EnvironmentSettings.in_streaming_mode()

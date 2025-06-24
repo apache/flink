@@ -328,7 +328,7 @@ class DecomposeGroupingSetsRule
         val res: Long = call.getArgList.foldLeft(0L)(
           (res, arg) => (res << 1L) + (if (groups.contains(arg)) 0L else 1L))
         builder.makeLiteral(res, call.getType, false)
-      case _ => builder.constantNull()
+      case _ => builder.makeNullLiteral(call.getType)
     }
   }
 }

@@ -20,16 +20,12 @@ package org.apache.flink.streaming.api.operators.collect;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.collect.utils.CollectSinkFunctionTestWrapper;
 import org.apache.flink.streaming.api.operators.collect.utils.TestJobClient;
 import org.apache.flink.util.OptionalFailure;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,19 +35,20 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.CompletableFuture;
+import java.util.UUID;
 
 import static org.apache.flink.streaming.api.operators.collect.utils.CollectSinkFunctionTestWrapper.ACCUMULATOR_NAME;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Random IT cases for {@link CollectSinkFunction}. It will perform random insert, random checkpoint
  * and random restart.
  */
-public class CollectSinkFunctionRandomITCase extends TestLogger {
+class CollectSinkFunctionRandomITCase {
 
     private static final int MAX_RESULTS_PER_BATCH = 3;
     private static final JobID TEST_JOB_ID = new JobID();
-    private static final OperatorID TEST_OPERATOR_ID = new OperatorID();
+    private static final String UID = UUID.randomUUID().toString();
 
     private static final TypeSerializer<Integer> serializer = IntSerializer.INSTANCE;
 
@@ -59,7 +56,7 @@ public class CollectSinkFunctionRandomITCase extends TestLogger {
     private boolean jobFinished;
 
     @Test
-    public void testUncheckpointedFunction() throws Exception {
+    void testUncheckpointedFunction() throws Exception {
         // run multiple times for this random test
         for (int testCount = 30; testCount > 0; testCount--) {
             functionWrapper =
@@ -80,7 +77,7 @@ public class CollectSinkFunctionRandomITCase extends TestLogger {
     }
 
     @Test
-    public void testCheckpointedFunction() throws Exception {
+    void testCheckpointedFunction() throws Exception {
         // run multiple times for this random test
         for (int testCount = 30; testCount > 0; testCount--) {
             functionWrapper =
@@ -124,7 +121,7 @@ public class CollectSinkFunctionRandomITCase extends TestLogger {
     private void assertResultsEqualAfterSort(List<Integer> expected, List<Integer> actual) {
         Collections.sort(expected);
         Collections.sort(actual);
-        Assert.assertThat(actual, CoreMatchers.is(expected));
+        assertThat(actual).isEqualTo(expected);
     }
 
     /**
@@ -295,7 +292,7 @@ public class CollectSinkFunctionRandomITCase extends TestLogger {
             this.iterator =
                     new CollectResultIterator<>(
                             new CheckpointedCollectResultBuffer<>(serializer),
-                            CompletableFuture.completedFuture(TEST_OPERATOR_ID),
+                            UID,
                             ACCUMULATOR_NAME,
                             0);
 
@@ -320,10 +317,7 @@ public class CollectSinkFunctionRandomITCase extends TestLogger {
 
             TestJobClient jobClient =
                     new TestJobClient(
-                            TEST_JOB_ID,
-                            TEST_OPERATOR_ID,
-                            functionWrapper.getCoordinator(),
-                            infoProvider);
+                            TEST_JOB_ID, UID, functionWrapper.getCoordinator(), infoProvider);
 
             iterator.setJobClient(jobClient);
         }

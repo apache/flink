@@ -17,7 +17,7 @@
 # limitations under the License.
 ################################################################################
 
-echo "Creating build artifact dir $FLINK_ARTIFACT_DIR"
+echo "Copying build artifacts to directory $FLINK_ARTIFACT_DIR"
 
 cp -r . "$FLINK_ARTIFACT_DIR"
 
@@ -28,7 +28,7 @@ echo "Minimizing artifact files"
 # by removing files not required for subsequent stages
 
 # jars are re-built in subsequent stages, so no need to cache them (cannot be avoided)
-find "$FLINK_ARTIFACT_DIR" -maxdepth 8 -type f -name '*.jar' | xargs rm -rf
+find "$FLINK_ARTIFACT_DIR" -maxdepth 8 -type f -name '*.jar' -exec rm -rf {} \;
 
 # .git directory
 # not deleting this can cause build stability issues
@@ -36,7 +36,7 @@ find "$FLINK_ARTIFACT_DIR" -maxdepth 8 -type f -name '*.jar' | xargs rm -rf
 rm -rf "$FLINK_ARTIFACT_DIR/.git"
 
 # AZ Pipelines has a problem with links.
-rm "$FLINK_ARTIFACT_DIR/build-target"
+rm -f "$FLINK_ARTIFACT_DIR/build-target"
 
 # Remove javadocs because they are not used in later stages
 rm -rf "$FLINK_ARTIFACT_DIR/target/site"
@@ -45,3 +45,9 @@ rm -rf "$FLINK_ARTIFACT_DIR/target/site"
 rm -rf "$FLINK_ARTIFACT_DIR/flink-runtime-web/web-dashboard/node"
 rm -rf "$FLINK_ARTIFACT_DIR/flink-runtime-web/web-dashboard/node_modules"
 
+if [ -n "${FLINK_ARTIFACT_FILENAME}" ]; then
+  # GitHub Actions doesn't create an archive automatically - packaging the files improves the performance of artifact uploads
+  echo "Archives artifacts into ${FLINK_ARTIFACT_DIR}/${FLINK_ARTIFACT_FILENAME}"
+  tar --create --gzip --exclude "${FLINK_ARTIFACT_DIR}/${FLINK_ARTIFACT_FILENAME}" --file "${FLINK_ARTIFACT_FILENAME}" -C "${FLINK_ARTIFACT_DIR}" .
+  mv "${FLINK_ARTIFACT_FILENAME}" "${FLINK_ARTIFACT_DIR}"
+fi

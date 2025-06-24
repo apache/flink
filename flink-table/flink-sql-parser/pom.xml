@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<artifactId>flink-table</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.16-SNAPSHOT</version>
+		<version>2.1-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-sql-parser</artifactId>
@@ -35,6 +35,12 @@ under the License.
 	<properties>
 		<!-- override parent pom -->
 		<test.excludedGroups/>
+		<surefire.module.config><!--
+			FlinkSqlParserImplTest has to override Calcite's SqlParserTest
+			JUnit changed this behavior since 5.11.x, to restore it back need this flag as mentioned at
+			https://junit.org/junit5/docs/current/user-guide/#extensions-supported-utilities-search-semantics
+			-->-Djunit.platform.reflection.search.useLegacySemantics=true
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>
@@ -48,6 +54,12 @@ under the License.
 			<artifactId>guava</artifactId>
 			<version>${guava.version}</version>
 			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.checkerframework</groupId>
+					<artifactId>checker-qual</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.calcite</groupId>
@@ -56,11 +68,13 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.26.0:
+				"mvn dependency:tree" as of Calcite 1.34.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.26.0:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.17.0:compile
-				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.34.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.23.0:compile
+				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.2:compile
+				[INFO] |  +- org.checkerframework:checker-qual:jar:3.12.0:compile
+				[INFO] |  \- org.apache.commons:commons-math3:jar:3.6.1:runtime
 
 				Dependencies that are not needed for how we use Calcite right now.
 				-->
@@ -93,8 +107,16 @@ under the License.
 					<artifactId>commons-dbcp2</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>com.esri.geometry</groupId>
-					<artifactId>esri-geometry-api</artifactId>
+					<groupId>org.locationtech.jts</groupId>
+					<artifactId>jts-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.locationtech.jts.io</groupId>
+					<artifactId>jts-io-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.locationtech.proj4j</groupId>
+					<artifactId>proj4j</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.fasterxml.jackson.dataformat</groupId>
@@ -156,46 +178,73 @@ under the License.
 					<groupId>com.google.uzaygezen</groupId>
 					<artifactId>uzaygezen-core</artifactId>
 				</exclusion>
-				<!-- Excluding org.apiguardian:apiguardian-api v1.1.0 because org.junit.jupiter:junit-jupiter contains newer version v1.1.2 -->
 				<exclusion>
-					<groupId>org.apiguardian</groupId>
-					<artifactId>apiguardian-api</artifactId>
+					<groupId>com.google.errorprone</groupId>
+					<artifactId>error_prone_annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.jetbrains</groupId>
+					<artifactId>annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.jetbrains.kotlin</groupId>
+					<artifactId>kotlin-stdlib-jdk8</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents.client5</groupId>
+					<artifactId>httpclient5</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents.core5</groupId>
+					<artifactId>httpcore5</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.calcite</groupId>
-			<artifactId>calcite-core</artifactId>
+			<artifactId>calcite-testkit</artifactId>
 			<version>${calcite.version}</version>
+			<scope>test</scope>
 			<exclusions>
 				<exclusion>
-					<groupId>org.apache.calcite.avatica</groupId>
-					<artifactId>avatica-server</artifactId>
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-dbcp2</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-core</artifactId>
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-lang3</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-databind</artifactId>
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-pool2</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>jackson-annotations</artifactId>
+					<groupId>org.jetbrains.kotlin</groupId>
+					<artifactId>kotlin-stdlib-jdk8</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>com.google.uzaygezen</groupId>
-					<artifactId>uzaygezen-core</artifactId>
+					<groupId>net.hydromatic</groupId>
+					<artifactId>quidem</artifactId>
 				</exclusion>
-				<!-- Excluding org.apiguardian:apiguardian-api v1.1.0 because org.junit.jupiter:junit-jupiter contains newer version v1.1.2 -->
 				<exclusion>
-					<groupId>org.apiguardian</groupId>
-					<artifactId>apiguardian-api</artifactId>
+					<groupId>net.hydromatic</groupId>
+					<artifactId>foodmart-data-hsqldb</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>net.hydromatic</groupId>
+					<artifactId>foodmart-queries</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>net.hydromatic</groupId>
+					<artifactId>scott-data-hsqldb</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.calcite</groupId>
+			<artifactId>calcite-linq4j</artifactId>
+			<version>${calcite.version}</version>
 			<scope>test</scope>
-			<type>test-jar</type>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -223,7 +272,8 @@ under the License.
 									<groupId>org.apache.calcite</groupId>
 									<artifactId>calcite-core</artifactId>
 									<type>jar</type>
-									<overWrite>true</overWrite>
+									<!-- this lets us overwrite some of the Calcite's methods -->
+									<overWrite>false</overWrite>
 									<outputDirectory>${project.build.directory}/</outputDirectory>
 									<includes>**/Parser.jj</includes>
 								</artifactItem>
@@ -254,34 +304,27 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			<plugin>
-				<groupId>com.googlecode.fmpp-maven-plugin</groupId>
-				<artifactId>fmpp-maven-plugin</artifactId>
-				<version>1.0</version>
-				<dependencies>
-					<dependency>
-						<groupId>org.freemarker</groupId>
-						<artifactId>freemarker</artifactId>
-						<version>2.3.28</version>
-					</dependency>
-				</dependencies>
+			<plugin> <!-- generate sources from fmpp -->
+				<groupId>org.apache.drill.tools</groupId>
+				<artifactId>drill-fmpp-maven-plugin</artifactId>
+				<version>1.21.2</version>
 				<executions>
 					<execution>
-						<id>generate-fmpp-sources</id>
+						<id>generate-fmpp</id>
 						<phase>generate-sources</phase>
 						<goals>
 							<goal>generate</goal>
 						</goals>
 						<configuration>
-							<cfgFile>${project.build.directory}/codegen/config.fmpp</cfgFile>
-							<outputDirectory>target/generated-sources</outputDirectory>
-							<templateDirectory>${project.build.directory}/codegen/templates</templateDirectory>
+							<config>${project.build.directory}/codegen/config.fmpp</config>
+							<output>${project.build.directory}/generated-sources</output>
+							<templates>${project.build.directory}/codegen/templates</templates>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
 			<plugin>
-				<!-- This must be run AFTER the fmpp-maven-plugin -->
+				<!-- This must be run AFTER the drill-fmpp-maven-plugin -->
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>javacc-maven-plugin</artifactId>
 				<version>2.4</version>

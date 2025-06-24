@@ -46,7 +46,7 @@ import java.io.Serializable;
  * public class MyFilter extends FilterFunction&lt;Double&gt; {
  *     private LongSumAggregator agg;
  *
- *     public void open(Configuration parameters) {
+ *     public void open(OpenContext openContext) {
  *         agg = getIterationRuntimeContext().getIterationAggregator("numFiltered");
  *     }
  *

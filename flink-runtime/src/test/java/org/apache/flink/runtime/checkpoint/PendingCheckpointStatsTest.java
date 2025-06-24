@@ -21,16 +21,12 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.HashMap;
 
-import static junit.framework.TestCase.assertFalse;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -38,7 +34,7 @@ public class PendingCheckpointStatsTest {
 
     /** Tests reporting of subtask stats. */
     @Test
-    public void testReportSubtaskStats() throws Exception {
+    void testReportSubtaskStats() {
         long checkpointId = Integer.MAX_VALUE + 1222L;
         long triggerTimestamp = Integer.MAX_VALUE - 1239L;
         CheckpointProperties props =
@@ -57,63 +53,67 @@ public class PendingCheckpointStatsTest {
                         checkpointId, triggerTimestamp, props, totalSubtaskCount, taskStats);
 
         // Check initial state
-        assertEquals(checkpointId, pending.getCheckpointId());
-        assertEquals(triggerTimestamp, pending.getTriggerTimestamp());
-        assertEquals(props, pending.getProperties());
-        assertEquals(CheckpointStatsStatus.IN_PROGRESS, pending.getStatus());
-        assertEquals(0, pending.getNumberOfAcknowledgedSubtasks());
-        assertEquals(0, pending.getStateSize());
-        assertEquals(totalSubtaskCount, pending.getNumberOfSubtasks());
-        assertNull(pending.getLatestAcknowledgedSubtaskStats());
-        assertEquals(-1, pending.getLatestAckTimestamp());
-        assertEquals(-1, pending.getEndToEndDuration());
-        assertEquals(task1, pending.getTaskStateStats(task1.getJobVertexId()));
-        assertEquals(task2, pending.getTaskStateStats(task2.getJobVertexId()));
-        assertNull(pending.getTaskStateStats(new JobVertexID()));
+        assertThat(pending.getCheckpointId()).isEqualTo(checkpointId);
+        assertThat(pending.getTriggerTimestamp()).isEqualTo(triggerTimestamp);
+        assertThat(pending.getProperties()).isEqualTo(props);
+        assertThat(pending.getStatus()).isEqualTo(CheckpointStatsStatus.IN_PROGRESS);
+        assertThat(pending.getNumberOfAcknowledgedSubtasks()).isZero();
+        assertThat(pending.getStateSize()).isZero();
+        assertThat(pending.getNumberOfSubtasks()).isEqualTo(totalSubtaskCount);
+        assertThat(pending.getLatestAcknowledgedSubtaskStats()).isNull();
+        assertThat(pending.getLatestAckTimestamp()).isEqualTo(-1);
+        assertThat(pending.getEndToEndDuration()).isEqualTo(-1);
+        assertThat(pending.getTaskStateStats(task1.getJobVertexId())).isEqualTo(task1);
+        assertThat(pending.getTaskStateStats(task2.getJobVertexId())).isEqualTo(task2);
+        assertThat(pending.getTaskStateStats(new JobVertexID())).isNull();
 
         // Report subtasks and check getters
-        assertFalse(pending.reportSubtaskStats(new JobVertexID(), createSubtaskStats(0)));
+        assertThat(pending.reportSubtaskStats(new JobVertexID(), createSubtaskStats(0, false)))
+                .isFalse();
 
         long stateSize = 0;
 
         // Report 1st task
         for (int i = 0; i < task1.getNumberOfSubtasks(); i++) {
-            SubtaskStateStats subtask = createSubtaskStats(i);
+            SubtaskStateStats subtask = createSubtaskStats(i, false);
             stateSize += subtask.getStateSize();
 
             pending.reportSubtaskStats(task1.getJobVertexId(), subtask);
 
-            assertEquals(subtask, pending.getLatestAcknowledgedSubtaskStats());
-            assertEquals(subtask.getAckTimestamp(), pending.getLatestAckTimestamp());
-            assertEquals(
-                    subtask.getAckTimestamp() - triggerTimestamp, pending.getEndToEndDuration());
-            assertEquals(stateSize, pending.getStateSize());
+            assertThat(pending.isUnalignedCheckpoint()).isFalse();
+            assertThat(pending.getLatestAcknowledgedSubtaskStats()).isEqualTo(subtask);
+            assertThat(pending.getLatestAckTimestamp()).isEqualTo(subtask.getAckTimestamp());
+            assertThat(pending.getEndToEndDuration())
+                    .isEqualTo(subtask.getAckTimestamp() - triggerTimestamp);
+            assertThat(pending.getStateSize()).isEqualTo(stateSize);
         }
 
         // Don't allow overwrite
-        assertFalse(pending.reportSubtaskStats(task1.getJobVertexId(), task1.getSubtaskStats()[0]));
+        assertThat(pending.reportSubtaskStats(task1.getJobVertexId(), task1.getSubtaskStats()[0]))
+                .isFalse();
 
         // Report 2nd task
         for (int i = 0; i < task2.getNumberOfSubtasks(); i++) {
-            SubtaskStateStats subtask = createSubtaskStats(i);
+            SubtaskStateStats subtask = createSubtaskStats(i, true);
             stateSize += subtask.getStateSize();
 
             pending.reportSubtaskStats(task2.getJobVertexId(), subtask);
 
-            assertEquals(subtask, pending.getLatestAcknowledgedSubtaskStats());
-            assertEquals(subtask.getAckTimestamp(), pending.getLatestAckTimestamp());
-            assertEquals(
-                    subtask.getAckTimestamp() - triggerTimestamp, pending.getEndToEndDuration());
-            assertEquals(stateSize, pending.getStateSize());
+            assertThat(pending.isUnalignedCheckpoint()).isTrue();
+            assertThat(pending.getLatestAcknowledgedSubtaskStats()).isEqualTo(subtask);
+            assertThat(pending.getLatestAckTimestamp()).isEqualTo(subtask.getAckTimestamp());
+            assertThat(pending.getEndToEndDuration())
+                    .isEqualTo(subtask.getAckTimestamp() - triggerTimestamp);
+            assertThat(pending.getStateSize()).isEqualTo(stateSize);
         }
 
-        assertEquals(task1.getNumberOfSubtasks(), task1.getNumberOfAcknowledgedSubtasks());
-        assertEquals(task2.getNumberOfSubtasks(), task2.getNumberOfAcknowledgedSubtasks());
+        assertThat(task1.getNumberOfAcknowledgedSubtasks()).isEqualTo(task1.getNumberOfSubtasks());
+        assertThat(task2.getNumberOfAcknowledgedSubtasks()).isEqualTo(task2.getNumberOfSubtasks());
     }
 
     /** Test reporting of a completed checkpoint. */
     @Test
-    public void testReportCompletedCheckpoint() throws Exception {
+    void testReportCompletedCheckpoint() {
         TaskStateStats task1 = new TaskStateStats(new JobVertexID(), 3);
         TaskStateStats task2 = new TaskStateStats(new JobVertexID(), 4);
 
@@ -134,11 +134,13 @@ public class PendingCheckpointStatsTest {
 
         // Report subtasks
         for (int i = 0; i < task1.getNumberOfSubtasks(); i++) {
-            pending.reportSubtaskStats(task1.getJobVertexId(), createSubtaskStats(i));
+            pending.reportSubtaskStats(task1.getJobVertexId(), createSubtaskStats(i, false));
+            assertThat(pending.isUnalignedCheckpoint()).isFalse();
         }
 
         for (int i = 0; i < task2.getNumberOfSubtasks(); i++) {
-            pending.reportSubtaskStats(task2.getJobVertexId(), createSubtaskStats(i));
+            pending.reportSubtaskStats(task2.getJobVertexId(), createSubtaskStats(i, true));
+            assertThat(pending.isUnalignedCheckpoint()).isTrue();
         }
 
         // Report completed
@@ -152,30 +154,29 @@ public class PendingCheckpointStatsTest {
 
         CompletedCheckpointStats completed = args.getValue();
 
-        assertNotNull(completed);
-        assertEquals(CheckpointStatsStatus.COMPLETED, completed.getStatus());
-        assertFalse(completed.isDiscarded());
+        assertThat(completed).isNotNull();
+        assertThat(completed.getStatus()).isEqualTo(CheckpointStatsStatus.COMPLETED);
+        assertThat(completed.isDiscarded()).isFalse();
         completed.discard();
-        assertTrue(completed.isDiscarded());
-        assertEquals(externalPath, completed.getExternalPath());
+        assertThat(completed.isDiscarded()).isTrue();
+        assertThat(completed.getExternalPath()).isEqualTo(externalPath);
 
-        assertEquals(pending.getCheckpointId(), completed.getCheckpointId());
-        assertEquals(
-                pending.getNumberOfAcknowledgedSubtasks(),
-                completed.getNumberOfAcknowledgedSubtasks());
-        assertEquals(
-                pending.getLatestAcknowledgedSubtaskStats(),
-                completed.getLatestAcknowledgedSubtaskStats());
-        assertEquals(pending.getLatestAckTimestamp(), completed.getLatestAckTimestamp());
-        assertEquals(pending.getEndToEndDuration(), completed.getEndToEndDuration());
-        assertEquals(pending.getStateSize(), completed.getStateSize());
-        assertEquals(task1, completed.getTaskStateStats(task1.getJobVertexId()));
-        assertEquals(task2, completed.getTaskStateStats(task2.getJobVertexId()));
+        assertThat(completed.getCheckpointId()).isEqualTo(pending.getCheckpointId());
+        assertThat(completed.getNumberOfAcknowledgedSubtasks())
+                .isEqualTo(pending.getNumberOfAcknowledgedSubtasks());
+        assertThat(completed.getLatestAcknowledgedSubtaskStats())
+                .isEqualTo(pending.getLatestAcknowledgedSubtaskStats());
+        assertThat(completed.getLatestAckTimestamp()).isEqualTo(pending.getLatestAckTimestamp());
+        assertThat(completed.getEndToEndDuration()).isEqualTo(pending.getEndToEndDuration());
+        assertThat(completed.getStateSize()).isEqualTo(pending.getStateSize());
+        assertThat(completed.isUnalignedCheckpoint()).isTrue();
+        assertThat(completed.getTaskStateStats(task1.getJobVertexId())).isEqualTo(task1);
+        assertThat(completed.getTaskStateStats(task2.getJobVertexId())).isEqualTo(task2);
     }
 
     /** Test reporting of a failed checkpoint. */
     @Test
-    public void testReportFailedCheckpoint() throws Exception {
+    void testReportFailedCheckpoint() {
         TaskStateStats task1 = new TaskStateStats(new JobVertexID(), 3);
         TaskStateStats task2 = new TaskStateStats(new JobVertexID(), 4);
 
@@ -197,11 +198,13 @@ public class PendingCheckpointStatsTest {
 
         // Report subtasks
         for (int i = 0; i < task1.getNumberOfSubtasks(); i++) {
-            pending.reportSubtaskStats(task1.getJobVertexId(), createSubtaskStats(i));
+            pending.reportSubtaskStats(task1.getJobVertexId(), createSubtaskStats(i, false));
+            assertThat(pending.isUnalignedCheckpoint()).isFalse();
         }
 
         for (int i = 0; i < task2.getNumberOfSubtasks(); i++) {
-            pending.reportSubtaskStats(task2.getJobVertexId(), createSubtaskStats(i));
+            pending.reportSubtaskStats(task2.getJobVertexId(), createSubtaskStats(i, true));
+            assertThat(pending.isUnalignedCheckpoint()).isTrue();
         }
 
         // Report failed
@@ -215,27 +218,26 @@ public class PendingCheckpointStatsTest {
 
         FailedCheckpointStats failed = args.getValue();
 
-        assertNotNull(failed);
-        assertEquals(CheckpointStatsStatus.FAILED, failed.getStatus());
-        assertEquals(failureTimestamp, failed.getFailureTimestamp());
-        assertEquals(cause.getMessage(), failed.getFailureMessage());
+        assertThat(failed).isNotNull();
+        assertThat(failed.getStatus()).isEqualTo(CheckpointStatsStatus.FAILED);
+        assertThat(failed.getFailureTimestamp()).isEqualTo(failureTimestamp);
+        assertThat(failed.getFailureMessage()).isEqualTo(cause.getMessage());
 
-        assertEquals(pending.getCheckpointId(), failed.getCheckpointId());
-        assertEquals(
-                pending.getNumberOfAcknowledgedSubtasks(),
-                failed.getNumberOfAcknowledgedSubtasks());
-        assertEquals(
-                pending.getLatestAcknowledgedSubtaskStats(),
-                failed.getLatestAcknowledgedSubtaskStats());
-        assertEquals(pending.getLatestAckTimestamp(), failed.getLatestAckTimestamp());
-        assertEquals(failureTimestamp - triggerTimestamp, failed.getEndToEndDuration());
-        assertEquals(pending.getStateSize(), failed.getStateSize());
-        assertEquals(task1, failed.getTaskStateStats(task1.getJobVertexId()));
-        assertEquals(task2, failed.getTaskStateStats(task2.getJobVertexId()));
+        assertThat(failed.getCheckpointId()).isEqualTo(pending.getCheckpointId());
+        assertThat(failed.getNumberOfAcknowledgedSubtasks())
+                .isEqualTo(pending.getNumberOfAcknowledgedSubtasks());
+        assertThat(failed.getLatestAcknowledgedSubtaskStats())
+                .isEqualTo(pending.getLatestAcknowledgedSubtaskStats());
+        assertThat(failed.getLatestAckTimestamp()).isEqualTo(pending.getLatestAckTimestamp());
+        assertThat(failed.getEndToEndDuration()).isEqualTo(failureTimestamp - triggerTimestamp);
+        assertThat(failed.getStateSize()).isEqualTo(pending.getStateSize());
+        assertThat(failed.isUnalignedCheckpoint()).isTrue();
+        assertThat(failed.getTaskStateStats(task1.getJobVertexId())).isEqualTo(task1);
+        assertThat(failed.getTaskStateStats(task2.getJobVertexId())).isEqualTo(task2);
     }
 
     @Test
-    public void testIsJavaSerializable() throws Exception {
+    void testIsJavaSerializable() throws Exception {
         TaskStateStats task1 = new TaskStateStats(new JobVertexID(), 3);
         TaskStateStats task2 = new TaskStateStats(new JobVertexID(), 4);
 
@@ -254,23 +256,22 @@ public class PendingCheckpointStatsTest {
 
         PendingCheckpointStats copy = CommonTestUtils.createCopySerializable(pending);
 
-        assertEquals(pending.getCheckpointId(), copy.getCheckpointId());
-        assertEquals(pending.getTriggerTimestamp(), copy.getTriggerTimestamp());
-        assertEquals(pending.getProperties(), copy.getProperties());
-        assertEquals(pending.getNumberOfSubtasks(), copy.getNumberOfSubtasks());
-        assertEquals(
-                pending.getNumberOfAcknowledgedSubtasks(), copy.getNumberOfAcknowledgedSubtasks());
-        assertEquals(pending.getEndToEndDuration(), copy.getEndToEndDuration());
-        assertEquals(pending.getStateSize(), copy.getStateSize());
-        assertEquals(
-                pending.getLatestAcknowledgedSubtaskStats(),
-                copy.getLatestAcknowledgedSubtaskStats());
-        assertEquals(pending.getStatus(), copy.getStatus());
+        assertThat(copy.getCheckpointId()).isEqualTo(pending.getCheckpointId());
+        assertThat(copy.getTriggerTimestamp()).isEqualTo(pending.getTriggerTimestamp());
+        assertThat(copy.getProperties()).isEqualTo(pending.getProperties());
+        assertThat(copy.getNumberOfSubtasks()).isEqualTo(pending.getNumberOfSubtasks());
+        assertThat(copy.getNumberOfAcknowledgedSubtasks())
+                .isEqualTo(pending.getNumberOfAcknowledgedSubtasks());
+        assertThat(copy.getEndToEndDuration()).isEqualTo(pending.getEndToEndDuration());
+        assertThat(copy.getStateSize()).isEqualTo(pending.getStateSize());
+        assertThat(copy.getLatestAcknowledgedSubtaskStats())
+                .isEqualTo(pending.getLatestAcknowledgedSubtaskStats());
+        assertThat(copy.getStatus()).isEqualTo(pending.getStatus());
     }
 
     // ------------------------------------------------------------------------
 
-    private SubtaskStateStats createSubtaskStats(int index) {
+    private SubtaskStateStats createSubtaskStats(int index, boolean unalignedCheckpoint) {
         return new SubtaskStateStats(
                 index,
                 Integer.MAX_VALUE + (long) index,
@@ -282,7 +283,7 @@ public class PendingCheckpointStatsTest {
                 Integer.MAX_VALUE + (long) index,
                 Integer.MAX_VALUE + (long) index,
                 Integer.MAX_VALUE + (long) index,
-                false,
+                unalignedCheckpoint,
                 true);
     }
 }

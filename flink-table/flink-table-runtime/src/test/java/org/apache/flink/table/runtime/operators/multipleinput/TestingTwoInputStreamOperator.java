@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.multipleinput;
 
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -51,7 +52,17 @@ public class TestingTwoInputStreamOperator extends AbstractStreamOperator<RowDat
         this(false);
     }
 
+    public TestingTwoInputStreamOperator(StreamOperatorParameters<RowData> parameters) {
+        this(parameters, false);
+    }
+
     public TestingTwoInputStreamOperator(boolean emitDataInEndInput) {
+        this(null, emitDataInEndInput);
+    }
+
+    public TestingTwoInputStreamOperator(
+            StreamOperatorParameters<RowData> parameters, boolean emitDataInEndInput) {
+        super(parameters);
         this.emitDataInEndInput = emitDataInEndInput;
     }
 

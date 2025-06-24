@@ -23,7 +23,6 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
-import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
@@ -36,6 +35,7 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.SqlOperator;
+import org.immutables.value.Value;
 
 import java.util.List;
 import java.util.function.Predicate;
@@ -47,17 +47,18 @@ import java.util.function.Predicate;
  * argument list with a non-null type.
  */
 @Internal
+@Value.Enclosing
 public class RemoveUnreachableCoalesceArgumentsRule
         extends RelRule<RemoveUnreachableCoalesceArgumentsRule.Config> {
 
-    public static final RelOptRule PROJECT_INSTANCE =
-            Config.EMPTY.as(Config.class).withProject().toRule();
-    public static final RelOptRule FILTER_INSTANCE =
-            Config.EMPTY.as(Config.class).withFilter().toRule();
-    public static final RelOptRule JOIN_INSTANCE =
-            Config.EMPTY.as(Config.class).withJoin().toRule();
-    public static final RelOptRule CALC_INSTANCE =
-            Config.EMPTY.as(Config.class).withCalc().toRule();
+    public static final RelRule<RemoveUnreachableCoalesceArgumentsRule.Config> PROJECT_INSTANCE =
+            Config.DEFAULT.withProject().toRule();
+    public static final RelRule<RemoveUnreachableCoalesceArgumentsRule.Config> FILTER_INSTANCE =
+            Config.DEFAULT.withFilter().toRule();
+    public static final RelRule<RemoveUnreachableCoalesceArgumentsRule.Config> JOIN_INSTANCE =
+            Config.DEFAULT.withJoin().toRule();
+    public static final RelRule<RemoveUnreachableCoalesceArgumentsRule.Config> CALC_INSTANCE =
+            Config.DEFAULT.withCalc().toRule();
 
     public RemoveUnreachableCoalesceArgumentsRule(Config config) {
         super(config);
@@ -137,10 +138,16 @@ public class RemoveUnreachableCoalesceArgumentsRule
     // ---------------------------------------------------------------------------------------------
 
     /** Configuration for {@link RemoveUnreachableCoalesceArgumentsRule}. */
+    @Value.Immutable(singleton = false)
     public interface Config extends RelRule.Config {
 
+        Config DEFAULT =
+                ImmutableRemoveUnreachableCoalesceArgumentsRule.Config.builder()
+                        .build()
+                        .as(Config.class);
+
         @Override
-        default RelOptRule toRule() {
+        default RemoveUnreachableCoalesceArgumentsRule toRule() {
             return new RemoveUnreachableCoalesceArgumentsRule(this);
         }
 

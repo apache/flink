@@ -19,28 +19,24 @@
 package org.apache.flink.connector.file.sink.compactor;
 
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
 /** Test base for compact operators. */
-public abstract class AbstractCompactTestBase extends TestLogger {
-
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+abstract class AbstractCompactTestBase {
 
     public static final int TARGET_SIZE = 9;
 
     Path folder;
 
-    @Before
-    public void before() throws IOException {
-        folder = new Path(TEMP_FOLDER.newFolder().getPath());
+    @BeforeEach
+    void before(@TempDir java.nio.file.Path tmpDir) {
+        folder = new Path(tmpDir.toString());
     }
 
     Path newFile(String name, int len) throws IOException {

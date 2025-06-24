@@ -22,25 +22,25 @@ import org.apache.flink.connector.file.table.LegacyTableFactory;
 import org.apache.flink.table.planner.utils.JavaStreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for usages of {@link LegacyTableFactory}. */
-public class LegacyTableFactoryTest extends TableTestBase {
+class LegacyTableFactoryTest extends TableTestBase {
 
     private final JavaStreamTableTestUtil util;
 
-    public LegacyTableFactoryTest() {
+    LegacyTableFactoryTest() {
         util = javaStreamTestUtil();
         util.tableEnv().executeSql("CREATE TABLE T (a INT) WITH ('type'='legacy')");
     }
 
     @Test
-    public void testSelect() {
+    void testSelect() {
         util.verifyExecPlan("SELECT * FROM T");
     }
 
     @Test
-    public void testInsert() {
+    void testInsert() {
         util.verifyExecPlanInsert("INSERT INTO T VALUES (1)");
     }
 }

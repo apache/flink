@@ -26,31 +26,30 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.datastream.CoGroupedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /** Integration tests for windowed join / coGroup operators. */
 @SuppressWarnings("serial")
-public class CoGroupJoinITCase extends AbstractTestBase {
+public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
 
     private static List<String> testResults;
 
@@ -119,7 +118,7 @@ public class CoGroupJoinITCase extends AbstractTestBase {
         source1.coGroup(source2)
                 .where(new Tuple2KeyExtractor())
                 .equalTo(new Tuple2KeyExtractor())
-                .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+                .window(TumblingEventTimeWindows.of(Duration.ofMillis(3)))
                 .apply(
                         new CoGroupFunction<
                                 Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
@@ -229,7 +228,7 @@ public class CoGroupJoinITCase extends AbstractTestBase {
         source1.join(source2)
                 .where(new Tuple3KeyExtractor())
                 .equalTo(new Tuple3KeyExtractor())
-                .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+                .window(TumblingEventTimeWindows.of(Duration.ofMillis(3)))
                 .apply(
                         new JoinFunction<
                                 Tuple3<String, String, Integer>,
@@ -318,7 +317,7 @@ public class CoGroupJoinITCase extends AbstractTestBase {
         source1.join(source1)
                 .where(new Tuple3KeyExtractor())
                 .equalTo(new Tuple3KeyExtractor())
-                .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+                .window(TumblingEventTimeWindows.of(Duration.ofMillis(3)))
                 .apply(
                         new JoinFunction<
                                 Tuple3<String, String, Integer>,
@@ -387,15 +386,15 @@ public class CoGroupJoinITCase extends AbstractTestBase {
         env.setParallelism(1);
 
         DataStream<Tuple2<String, Integer>> source1 =
-                env.fromElements(Tuple2.of("a", 0), Tuple2.of("b", 3));
+                env.fromData(Tuple2.of("a", 0), Tuple2.of("b", 3));
         DataStream<Tuple2<String, Integer>> source2 =
-                env.fromElements(Tuple2.of("a", 1), Tuple2.of("b", 6));
+                env.fromData(Tuple2.of("a", 1), Tuple2.of("b", 6));
 
         DataStream<String> coGroupWindow =
                 source1.coGroup(source2)
                         .where(new Tuple2KeyExtractor())
                         .equalTo(new Tuple2KeyExtractor())
-                        .window(TumblingEventTimeWindows.of(Time.of(3, TimeUnit.MILLISECONDS)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(3)))
                         .apply(
                                 new CoGroupFunction<
                                         Tuple2<String, Integer>,
@@ -426,7 +425,7 @@ public class CoGroupJoinITCase extends AbstractTestBase {
     }
 
     private static class Tuple2TimestampExtractor
-            implements AssignerWithPunctuatedWatermarks<Tuple2<String, Integer>> {
+            implements WatermarkStrategyWithPunctuatedWatermarks<Tuple2<String, Integer>> {
 
         @Override
         public long extractTimestamp(Tuple2<String, Integer> element, long previousTimestamp) {
@@ -441,7 +440,7 @@ public class CoGroupJoinITCase extends AbstractTestBase {
     }
 
     private static class Tuple3TimestampExtractor
-            implements AssignerWithPunctuatedWatermarks<Tuple3<String, String, Integer>> {
+            implements WatermarkStrategyWithPunctuatedWatermarks<Tuple3<String, String, Integer>> {
 
         @Override
         public long extractTimestamp(

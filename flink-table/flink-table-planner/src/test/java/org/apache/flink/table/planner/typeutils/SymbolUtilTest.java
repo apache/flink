@@ -25,7 +25,7 @@ import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.sql.SqlJsonQueryEmptyOrErrorBehavior;
 import org.apache.calcite.sql.fun.SqlTrimFunction;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.planner.typeutils.SymbolUtil.calciteToCommon;
 import static org.apache.flink.table.planner.typeutils.SymbolUtil.calciteToSerializable;
@@ -34,10 +34,10 @@ import static org.apache.flink.table.planner.typeutils.SymbolUtil.serializableTo
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SymbolUtil}. */
-public class SymbolUtilTest {
+class SymbolUtilTest {
 
     @Test
-    public void testCalciteToSerializable() {
+    void testCalciteToSerializable() {
         final SerializableSymbol trimString = SerializableSymbol.of("TRIM", "LEADING");
         assertThat(calciteToSerializable(SqlTrimFunction.Flag.LEADING)).isEqualTo(trimString);
         assertThat(SymbolUtil.serializableToCalcite(SqlTrimFunction.Flag.class, "LEADING"))
@@ -52,7 +52,7 @@ public class SymbolUtilTest {
     }
 
     @Test
-    public void testCommonToCalcite() {
+    void testCommonToCalcite() {
         // public symbol
         assertThat(commonToCalcite(TimeIntervalUnit.QUARTER)).isEqualTo(TimeUnitRange.QUARTER);
         assertThat(calciteToCommon(TimeUnitRange.QUARTER, false))

@@ -33,15 +33,19 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource.ScanRuntimeProvider;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.connector.source.abilities.SupportsRowLevelModificationScan;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
+import org.apache.flink.table.planner.plan.abilities.source.ReadingMetadataSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.utils.RowLevelModificationContextUtils;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.types.DataType;
@@ -58,6 +62,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -118,12 +123,25 @@ public final class DynamicSourceUtils {
         final String tableDebugName = contextResolvedTable.getIdentifier().asSummaryString();
         final ResolvedCatalogTable resolvedCatalogTable = contextResolvedTable.getResolvedTable();
 
+        final List<SourceAbilitySpec> sourceAbilities = new ArrayList<>();
         // 1. prepare table source
         prepareDynamicSource(
-                tableDebugName, resolvedCatalogTable, tableSource, isBatchMode, config);
+                tableDebugName,
+                resolvedCatalogTable,
+                tableSource,
+                isBatchMode,
+                config,
+                sourceAbilities);
 
         // 2. push table scan
-        pushTableScan(isBatchMode, relBuilder, contextResolvedTable, statistic, hints, tableSource);
+        pushTableScan(
+                isBatchMode,
+                relBuilder,
+                contextResolvedTable,
+                statistic,
+                hints,
+                tableSource,
+                sourceAbilities);
 
         // 3. push project for non-physical columns
         final ResolvedSchema schema = contextResolvedTable.getResolvedSchema();
@@ -149,14 +167,16 @@ public final class DynamicSourceUtils {
             ResolvedCatalogTable table,
             DynamicTableSource source,
             boolean isBatchMode,
-            ReadableConfig config) {
+            ReadableConfig config,
+            List<SourceAbilitySpec> sourceAbilities) {
         final ResolvedSchema schema = table.getResolvedSchema();
 
-        validateAndApplyMetadata(tableDebugName, schema, source);
+        validateAndApplyMetadata(tableDebugName, schema, source, sourceAbilities);
 
         if (source instanceof ScanTableSource) {
             validateScanSource(
                     tableDebugName, schema, (ScanTableSource) source, isBatchMode, config);
+            prepareRowLevelModificationScan(source);
         }
 
         // lookup table source is validated in LookupJoin node
@@ -170,10 +190,28 @@ public final class DynamicSourceUtils {
      *
      * <p>This method assumes that source and schema have been validated via {@link
      * #prepareDynamicSource(String, ResolvedCatalogTable, DynamicTableSource, boolean,
-     * ReadableConfig)}.
+     * ReadableConfig, List)}.
      */
     public static List<MetadataColumn> createRequiredMetadataColumns(
             ResolvedSchema schema, DynamicTableSource source) {
+
+        final Map<String, MetadataColumn> metadataKeysToMetadataColumns =
+                createMetadataKeysToMetadataColumnsMap(schema);
+        final Map<String, DataType> metadataMap = extractMetadataMap(source);
+
+        // reorder the column
+        return metadataMap.keySet().stream()
+                .filter(metadataKeysToMetadataColumns::containsKey)
+                .map(metadataKeysToMetadataColumns::get)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Returns a map record the mapping relation between metadataKeys to metadataColumns in input
+     * schema.
+     */
+    public static Map<String, MetadataColumn> createMetadataKeysToMetadataColumnsMap(
+            ResolvedSchema schema) {
         final List<MetadataColumn> metadataColumns = extractMetadataColumns(schema);
 
         Map<String, MetadataColumn> metadataKeysToMetadataColumns = new HashMap<>();
@@ -184,13 +222,7 @@ public final class DynamicSourceUtils {
             metadataKeysToMetadataColumns.put(metadataKey, column);
         }
 
-        final Map<String, DataType> metadataMap = extractMetadataMap(source);
-
-        // reorder the column
-        return metadataMap.keySet().stream()
-                .filter(metadataKeysToMetadataColumns::containsKey)
-                .map(metadataKeysToMetadataColumns::get)
-                .collect(Collectors.toList());
+        return metadataKeysToMetadataColumns;
     }
 
     /**
@@ -253,6 +285,17 @@ public final class DynamicSourceUtils {
                 tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE);
         boolean hasPrimaryKey = resolvedSchema.getPrimaryKey().isPresent();
         return isCDCSource && changeEventsDuplicate && hasPrimaryKey;
+    }
+
+    /** Returns true if the changelogNormalize should be enabled. */
+    public static boolean changelogNormalizeEnabled(
+            boolean eventTimeSnapshotRequired,
+            ResolvedSchema resolvedSchema,
+            DynamicTableSource tableSource,
+            TableConfig tableConfig) {
+        return !eventTimeSnapshotRequired
+                && (isUpsertSource(resolvedSchema, tableSource)
+                        || isSourceChangeEventsDuplicate(resolvedSchema, tableSource, tableConfig));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -341,7 +384,8 @@ public final class DynamicSourceUtils {
             ContextResolvedTable contextResolvedTable,
             FlinkStatistic statistic,
             List<RelHint> hints,
-            DynamicTableSource tableSource) {
+            DynamicTableSource tableSource,
+            List<SourceAbilitySpec> sourceAbilities) {
         final RowType producedType =
                 createProducedType(contextResolvedTable.getResolvedSchema(), tableSource);
         final RelDataType producedRelDataType =
@@ -357,29 +401,32 @@ public final class DynamicSourceUtils {
                         contextResolvedTable,
                         ShortcutUtils.unwrapContext(relBuilder),
                         ShortcutUtils.unwrapTypeFactory(relBuilder),
-                        new SourceAbilitySpec[0]);
+                        sourceAbilities.toArray(new SourceAbilitySpec[0]));
 
         final LogicalTableScan scan =
                 LogicalTableScan.create(relBuilder.getCluster(), tableSourceTable, hints);
         relBuilder.push(scan);
     }
 
-    private static Map<String, DataType> extractMetadataMap(DynamicTableSource source) {
+    public static Map<String, DataType> extractMetadataMap(DynamicTableSource source) {
         if (source instanceof SupportsReadingMetadata) {
             return ((SupportsReadingMetadata) source).listReadableMetadata();
         }
         return Collections.emptyMap();
     }
 
-    private static List<MetadataColumn> extractMetadataColumns(ResolvedSchema schema) {
+    public static List<MetadataColumn> extractMetadataColumns(ResolvedSchema schema) {
         return schema.getColumns().stream()
                 .filter(MetadataColumn.class::isInstance)
                 .map(MetadataColumn.class::cast)
                 .collect(Collectors.toList());
     }
 
-    private static void validateAndApplyMetadata(
-            String tableDebugName, ResolvedSchema schema, DynamicTableSource source) {
+    public static void validateAndApplyMetadata(
+            String tableDebugName,
+            ResolvedSchema schema,
+            DynamicTableSource source,
+            List<SourceAbilitySpec> sourceAbilities) {
         final List<MetadataColumn> metadataColumns = extractMetadataColumns(schema);
 
         if (metadataColumns.isEmpty()) {
@@ -445,11 +492,15 @@ public final class DynamicSourceUtils {
                     }
                 });
 
-        metadataSource.applyReadableMetadata(
+        final List<String> metadataKeys =
                 createRequiredMetadataColumns(schema, source).stream()
                         .map(column -> column.getMetadataKey().orElse(column.getName()))
-                        .collect(Collectors.toList()),
-                TypeConversions.fromLogicalToDataType(createProducedType(schema, source)));
+                        .collect(Collectors.toList());
+        final DataType producedDataType =
+                TypeConversions.fromLogicalToDataType(createProducedType(schema, source));
+        sourceAbilities.add(
+                new ReadingMetadataSpec(metadataKeys, (RowType) producedDataType.getLogicalType()));
+        metadataSource.applyReadableMetadata(metadataKeys, producedDataType);
     }
 
     private static void validateScanSource(
@@ -458,14 +509,12 @@ public final class DynamicSourceUtils {
             ScanTableSource scanSource,
             boolean isBatchMode,
             ReadableConfig config) {
-        final ScanRuntimeProvider provider =
-                scanSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         final ChangelogMode changelogMode = scanSource.getChangelogMode();
 
         validateWatermarks(tableDebugName, schema);
 
         if (isBatchMode) {
-            validateScanSourceForBatch(tableDebugName, changelogMode, provider);
+            validateScanSourceForBatch(tableDebugName, scanSource, changelogMode);
         } else {
             validateScanSourceForStreaming(
                     tableDebugName, schema, scanSource, changelogMode, config);
@@ -479,8 +528,11 @@ public final class DynamicSourceUtils {
             ChangelogMode changelogMode,
             ReadableConfig config) {
         // sanity check for produced ChangelogMode
-        final boolean hasUpdateBefore = changelogMode.contains(RowKind.UPDATE_BEFORE);
-        final boolean hasUpdateAfter = changelogMode.contains(RowKind.UPDATE_AFTER);
+        final boolean hasChangelogMode = changelogMode != null;
+        final boolean hasUpdateBefore =
+                hasChangelogMode && changelogMode.contains(RowKind.UPDATE_BEFORE);
+        final boolean hasUpdateAfter =
+                hasChangelogMode && changelogMode.contains(RowKind.UPDATE_AFTER);
         if (!hasUpdateBefore && hasUpdateAfter) {
             // only UPDATE_AFTER
             if (!schema.getPrimaryKey().isPresent()) {
@@ -499,7 +551,7 @@ public final class DynamicSourceUtils {
                             tableDebugName,
                             ScanTableSource.class.getSimpleName(),
                             scanSource.getClass().getName()));
-        } else if (!changelogMode.containsOnly(RowKind.INSERT)) {
+        } else if (hasChangelogMode && !changelogMode.containsOnly(RowKind.INSERT)) {
             // CDC mode (non-upsert mode and non-insert-only mode)
             final boolean changeEventsDuplicate =
                     config.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE);
@@ -515,7 +567,9 @@ public final class DynamicSourceUtils {
     }
 
     private static void validateScanSourceForBatch(
-            String tableDebugName, ChangelogMode changelogMode, ScanRuntimeProvider provider) {
+            String tableDebugName, ScanTableSource scanSource, ChangelogMode changelogMode) {
+        final ScanRuntimeProvider provider =
+                scanSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         // batch only supports bounded source
         if (!provider.isBounded()) {
             throw new ValidationException(
@@ -552,6 +606,26 @@ public final class DynamicSourceUtils {
                     String.format(
                             "A nested field '%s' cannot be declared as rowtime attribute for table '%s' right now.",
                             rowtimeAttribute, tableDebugName));
+        }
+    }
+
+    private static void prepareRowLevelModificationScan(DynamicTableSource dynamicTableSource) {
+        // if the modification type has been set and the dynamic source supports row-level
+        // modification scan
+        if (RowLevelModificationContextUtils.getModificationType() != null
+                && dynamicTableSource instanceof SupportsRowLevelModificationScan) {
+            SupportsRowLevelModificationScan modificationScan =
+                    (SupportsRowLevelModificationScan) dynamicTableSource;
+            // get the previous scan context
+            RowLevelModificationScanContext scanContext =
+                    RowLevelModificationContextUtils.getScanContext();
+            // pass the previous scan context to current table soruce and
+            // get a new scan context
+            RowLevelModificationScanContext newScanContext =
+                    modificationScan.applyRowLevelModificationScan(
+                            RowLevelModificationContextUtils.getModificationType(), scanContext);
+            // set the scan context
+            RowLevelModificationContextUtils.setScanContext(newScanContext);
         }
     }
 

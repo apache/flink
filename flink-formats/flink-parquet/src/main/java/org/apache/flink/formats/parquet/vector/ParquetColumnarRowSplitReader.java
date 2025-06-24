@@ -18,14 +18,15 @@
 
 package org.apache.flink.formats.parquet.vector;
 
-import org.apache.flink.formats.parquet.vector.reader.AbstractColumnReader;
 import org.apache.flink.formats.parquet.vector.reader.ColumnReader;
+import org.apache.flink.formats.parquet.vector.type.ParquetField;
 import org.apache.flink.table.data.columnar.ColumnarRowData;
 import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.hadoop.conf.Configuration;
@@ -36,6 +37,8 @@ import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
+import org.apache.parquet.io.ColumnIOFactory;
+import org.apache.parquet.io.MessageColumnIO;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.Type;
@@ -49,6 +52,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.buildFieldsList;
 import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.createColumnReader;
 import static org.apache.flink.formats.parquet.vector.ParquetSplitReaderUtil.createWritableColumnVector;
 import static org.apache.parquet.filter2.compat.RowGroupFilter.filterRowGroups;
@@ -80,6 +84,8 @@ public class ParquetColumnarRowSplitReader implements Closeable {
     private final LogicalType[] selectedTypes;
 
     private final int batchSize;
+
+    private final List<ParquetField> fieldList;
 
     private ParquetFileReader reader;
 
@@ -143,6 +149,11 @@ public class ParquetColumnarRowSplitReader implements Closeable {
         this.writableVectors = createWritableVectors();
         this.columnarBatch = generator.generate(createReadableVectors());
         this.row = new ColumnarRowData(columnarBatch);
+
+        MessageColumnIO columnIO = new ColumnIOFactory().getColumnIO(requestedSchema);
+        RowType selectedType = RowType.of(selectedTypes, selectedFieldNames);
+        this.fieldList =
+                buildFieldsList(selectedType.getFields(), selectedType.getFieldNames(), columnIO);
     }
 
     /** Clips `parquetSchema` according to `fieldNames`. */
@@ -186,12 +197,15 @@ public class ParquetColumnarRowSplitReader implements Closeable {
 
     private WritableColumnVector[] createWritableVectors() {
         WritableColumnVector[] columns = new WritableColumnVector[selectedTypes.length];
+        List<Type> types = requestedSchema.getFields();
         for (int i = 0; i < selectedTypes.length; i++) {
             columns[i] =
                     createWritableColumnVector(
                             batchSize,
                             selectedTypes[i],
-                            requestedSchema.getColumns().get(i).getPrimitiveType());
+                            types.get(i),
+                            requestedSchema.getColumns(),
+                            0);
         }
         return columns;
     }
@@ -221,11 +235,6 @@ public class ParquetColumnarRowSplitReader implements Closeable {
          * Check that the requested schema is supported.
          */
         for (int i = 0; i < requestedSchema.getFieldCount(); ++i) {
-            Type t = requestedSchema.getFields().get(i);
-            if (!t.isPrimitive() || t.isRepetition(Type.Repetition.REPEATED)) {
-                throw new UnsupportedOperationException("Complex types not supported.");
-            }
-
             String[] colPath = requestedSchema.getPaths().get(i);
             if (fileSchema.containsPath(colPath)) {
                 ColumnDescriptor fd = fileSchema.getColumnDescription(colPath);
@@ -314,15 +323,18 @@ public class ParquetColumnarRowSplitReader implements Closeable {
                             + " out of "
                             + totalRowCount);
         }
-        List<ColumnDescriptor> columns = requestedSchema.getColumns();
-        columnReaders = new AbstractColumnReader[columns.size()];
-        for (int i = 0; i < columns.size(); ++i) {
+        List<Type> types = requestedSchema.getFields();
+        columnReaders = new ColumnReader[types.size()];
+        for (int i = 0; i < types.size(); ++i) {
             columnReaders[i] =
                     createColumnReader(
                             utcTimestamp,
                             selectedTypes[i],
-                            columns.get(i),
-                            pages.getPageReader(columns.get(i)));
+                            types.get(i),
+                            requestedSchema.getColumns(),
+                            pages,
+                            fieldList.get(i),
+                            0);
         }
         totalCountLoadedSoFar += pages.getRowCount();
     }

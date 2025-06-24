@@ -28,7 +28,7 @@ import org.apache.flink.util.Visitor;
 import java.util.List;
 
 /**
- * Abstract superclass for for all operators that have one input like "map" or "reduce".
+ * Abstract superclass for all operators that have one input like "map" or "reduce".
  *
  * @param <IN> Input type of the user function
  * @param <OUT> Output type of the user function
@@ -110,58 +110,6 @@ public abstract class SingleInputOperator<IN, OUT, FT extends Function>
      */
     public void setInput(Operator<IN> input) {
         this.input = input;
-    }
-
-    /**
-     * Sets the input to the union of the given operators.
-     *
-     * @param input The operator(s) that form the input.
-     * @deprecated This method will be removed in future versions. Use the {@link Union} operator
-     *     instead.
-     */
-    @Deprecated
-    public void setInput(Operator<IN>... input) {
-        this.input = Operator.createUnionCascade(null, input);
-    }
-
-    /**
-     * Sets the input to the union of the given operators.
-     *
-     * @param inputs The operator(s) that form the input.
-     * @deprecated This method will be removed in future versions. Use the {@link Union} operator
-     *     instead.
-     */
-    @Deprecated
-    @SuppressWarnings("unchecked")
-    public void setInputs(List<Operator<IN>> inputs) {
-        this.input = Operator.createUnionCascade(null, inputs.toArray(new Operator[inputs.size()]));
-    }
-
-    /**
-     * Adds to the input the union of the given operators.
-     *
-     * @param input The operator(s) that form the input.
-     * @deprecated This method will be removed in future versions. Use the {@link Union} operator
-     *     instead.
-     */
-    @Deprecated
-    public void addInput(Operator<IN>... input) {
-        this.input = Operator.createUnionCascade(this.input, input);
-    }
-
-    /**
-     * Adds to the input the union of the given operators.
-     *
-     * @param inputs The operator(s) that form the input.
-     * @deprecated This method will be removed in future versions. Use the {@link Union} operator
-     *     instead.
-     */
-    @Deprecated
-    @SuppressWarnings("unchecked")
-    public void addInput(List<Operator<IN>> inputs) {
-        this.input =
-                Operator.createUnionCascade(
-                        this.input, inputs.toArray(new Operator[inputs.size()]));
     }
 
     // --------------------------------------------------------------------------------------------

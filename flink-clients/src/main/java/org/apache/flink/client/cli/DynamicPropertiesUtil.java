@@ -29,7 +29,7 @@ import java.util.Properties;
  * Helper class for supporting dynamic property commandline options in {@link CustomCommandLine
  * CustomCommandLines}.
  */
-class DynamicPropertiesUtil {
+public class DynamicPropertiesUtil {
 
     /**
      * Dynamic properties allow the user to specify additional configuration values with -D, such as
@@ -49,7 +49,7 @@ class DynamicPropertiesUtil {
      * Parses dynamic properties from the given {@link CommandLine} and sets them on the {@link
      * Configuration}.
      */
-    static void encodeDynamicProperties(
+    public static void encodeDynamicProperties(
             final CommandLine commandLine, final Configuration effectiveConfiguration) {
 
         final Properties properties = commandLine.getOptionProperties(DYNAMIC_PROPERTIES.getOpt());

@@ -18,11 +18,17 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.StateConfigUtil;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +46,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
             RankType rankType,
             RankRange rankRange,
             boolean generateUpdateBefore,
-            boolean outputRankNumber) {
+            boolean outputRankNumber,
+            boolean enableAsyncState) {
         return new RetractableTopNFunction(
                 ttlConfig,
                 inputRowType,
@@ -53,8 +60,13 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 outputRankNumber);
     }
 
-    @Test
-    public void testProcessRetractMessageWithNotGenerateUpdateBefore() throws Exception {
+    @Override
+    boolean supportedAsyncState() {
+        return false;
+    }
+
+    @TestTemplate
+    void testProcessRetractMessageWithNotGenerateUpdateBefore() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -92,8 +104,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testProcessRetractMessageWithGenerateUpdateBefore() throws Exception {
+    @TestTemplate
+    void testProcessRetractMessageWithGenerateUpdateBefore() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -136,8 +148,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testConstantRankRangeWithoutOffsetWithRowNumber() throws Exception {
+    @TestTemplate
+    void testConstantRankRangeWithoutOffsetWithRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -192,8 +204,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
         testHarness.close();
     }
 
-    @Test
-    public void testConstantRankRangeWithoutOffsetWithoutRowNumber() throws Exception {
+    @TestTemplate
+    void testConstantRankRangeWithoutOffsetWithoutRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -236,8 +248,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
         testHarness.close();
     }
 
-    @Test
-    public void testVariableRankRangeWithRowNumber() throws Exception {
+    @TestTemplate
+    void testVariableRankRangeWithRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -273,8 +285,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testVariableRankRangeWithoutRowNumber() throws Exception {
+    @TestTemplate
+    void testVariableRankRangeWithoutRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -299,8 +311,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testDisableGenerateUpdateBeforeWithRowNumber() throws Exception {
+    @TestTemplate
+    void testDisableGenerateUpdateBeforeWithRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -332,8 +344,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testDisableGenerateUpdateBeforeWithoutRowNumber() throws Exception {
+    @TestTemplate
+    void testDisableGenerateUpdateBeforeWithoutRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -359,8 +371,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testCleanIdleState() throws Exception {
+    @TestTemplate
+    void testCleanIdleState() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -402,8 +414,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testConstantRankRangeWithoutRowNumber() throws Exception {
+    @TestTemplate
+    void testConstantRankRangeWithoutRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 3), false, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -427,8 +439,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testConstantRankRangeWithRowNumber() throws Exception {
+    @TestTemplate
+    void testConstantRankRangeWithRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 3), false, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -452,8 +464,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testRetractRecordOutOfRankRangeWithoutRowNumber() throws Exception {
+    @TestTemplate
+    void testRetractRecordOutOfRankRangeWithoutRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -481,8 +493,8 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
-    public void testRetractRecordOutOfRankRangeWithRowNumber() throws Exception {
+    @TestTemplate
+    void testRetractRecordOutOfRankRangeWithRowNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, true);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -506,6 +518,83 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
         expectedOutput.add(updateAfterRecord("a", 3L, 2, 2L));
         expectedOutput.add(updateAfterRecord("a", 3L, 2, 1L));
         expectedOutput.add(updateAfterRecord("a", 5L, 4, 2L));
+        assertorWithRowNumber.assertOutputEquals(
+                "output wrong.", expectedOutput, testHarness.getOutput());
+    }
+
+    @TestTemplate
+    void testRetractAndThenDeleteRecordWithoutRowNumber() throws Exception {
+        AbstractTopNFunction func =
+                new RetractableTopNFunction(
+                        ttlConfig,
+                        InternalTypeInfo.ofFields(
+                                VarCharType.STRING_TYPE,
+                                new BigIntType(),
+                                new IntType(),
+                                new IntType()),
+                        comparableRecordComparator,
+                        sortKeySelector,
+                        RankType.ROW_NUMBER,
+                        new ConstantRankRange(1, 1),
+                        generatedEqualiser,
+                        true,
+                        false);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.processElement(insertRecord("a", 1L, 10, 0));
+        testHarness.processElement(insertRecord("a", 1L, 9, 0));
+        testHarness.processElement(deleteRecord("a", 1L, 10, 0));
+        testHarness.processElement(deleteRecord("a", 1L, 9, 0));
+        testHarness.processElement(insertRecord("a", 1L, 10, 1));
+        testHarness.processElement(insertRecord("a", 1L, 9, 1));
+        testHarness.close();
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("a", 1L, 10, 0));
+        expectedOutput.add(deleteRecord("a", 1L, 10, 0));
+        expectedOutput.add(insertRecord("a", 1L, 9, 0));
+        expectedOutput.add(deleteRecord("a", 1L, 9, 0));
+        expectedOutput.add(insertRecord("a", 1L, 10, 1));
+        expectedOutput.add(deleteRecord("a", 1L, 10, 1));
+        expectedOutput.add(insertRecord("a", 1L, 9, 1));
+
+        assertorWithRowNumber.assertOutputEquals(
+                "output wrong.", expectedOutput, testHarness.getOutput());
+    }
+
+    @TestTemplate
+    void testRetractAnStaledRecordWithRowNumber() throws Exception {
+        StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(1_000);
+        AbstractTopNFunction func =
+                new RetractableTopNFunction(
+                        ttlConfig,
+                        InternalTypeInfo.ofFields(
+                                VarCharType.STRING_TYPE, new BigIntType(), new IntType()),
+                        comparableRecordComparator,
+                        sortKeySelector,
+                        RankType.ROW_NUMBER,
+                        new ConstantRankRange(1, 2),
+                        generatedEqualiser,
+                        true,
+                        true);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.setStateTtlProcessingTime(0);
+        testHarness.processElement(insertRecord("a", 1L, 10));
+        testHarness.setStateTtlProcessingTime(1001);
+        testHarness.processElement(insertRecord("a", 2L, 11));
+        testHarness.processElement(deleteRecord("a", 1L, 10));
+        testHarness.close();
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("a", 1L, 10, 1L));
+        expectedOutput.add(insertRecord("a", 2L, 11, 1L));
+        // the following delete record should not be sent because the left row is null which is
+        // illegal.
+        // -D{row1=null, row2=+I(1)};
+
         assertorWithRowNumber.assertOutputEquals(
                 "output wrong.", expectedOutput, testHarness.getOutput());
     }

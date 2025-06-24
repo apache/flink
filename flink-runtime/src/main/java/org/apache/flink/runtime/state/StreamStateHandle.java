@@ -35,9 +35,21 @@ public interface StreamStateHandle extends StateObject {
      */
     FSDataInputStream openInputStream() throws IOException;
 
-    /** @return Content of this handle as bytes array if it is already in memory. */
+    /**
+     * @return Content of this handle as bytes array if it is already in memory.
+     */
     Optional<byte[]> asBytesIfInMemory();
 
-    /** @return a unique identifier of this handle. */
+    /**
+     * @return Path to an underlying file represented by this {@link StreamStateHandle} or {@link
+     *     Optional#empty()} if there is no such file.
+     */
+    default Optional<org.apache.flink.core.fs.Path> maybeGetPath() {
+        return Optional.empty();
+    }
+
+    /**
+     * @return a unique identifier of this handle.
+     */
     PhysicalStateHandleID getStreamStateHandleID();
 }

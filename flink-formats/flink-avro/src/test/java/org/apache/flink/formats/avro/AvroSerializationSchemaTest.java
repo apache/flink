@@ -19,16 +19,20 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.UnionLogicalType;
 import org.apache.flink.formats.avro.utils.TestDataGenerator;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.avro.generic.GenericRecord;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.Instant;
 import java.util.Random;
 
+import static org.apache.flink.formats.avro.utils.AvroTestUtils.getSmallSchema;
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,35 +41,55 @@ class AvroSerializationSchemaTest {
 
     private static final Address address = TestDataGenerator.generateRandomAddress(new Random());
 
-    @Test
-    void testGenericRecord() throws Exception {
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testGenericRecord(AvroEncoding encoding) throws Exception {
         SerializationSchema<GenericRecord> serializationSchema =
-                AvroSerializationSchema.forGeneric(address.getSchema());
+                AvroSerializationSchema.forGeneric(address.getSchema(), encoding);
 
-        byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
+        byte[] encodedAddress = writeRecord(address, Address.getClassSchema(), encoding);
         byte[] dataSerialized = serializationSchema.serialize(address);
         assertThat(dataSerialized).isEqualTo(encodedAddress);
     }
 
-    @Test
-    void testSpecificRecord() throws Exception {
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testSpecificRecord(AvroEncoding encoding) throws Exception {
         SerializationSchema<Address> serializer =
-                AvroSerializationSchema.forSpecific(Address.class);
+                AvroSerializationSchema.forSpecific(Address.class, encoding);
 
-        byte[] encodedAddress = writeRecord(address, Address.getClassSchema());
+        byte[] encodedAddress = writeRecord(address, Address.getClassSchema(), encoding);
         byte[] serializedAddress = serializer.serialize(address);
         assertThat(serializedAddress).isEqualTo(encodedAddress);
     }
 
-    @Test
-    void testSpecificRecordWithUnionLogicalType() throws Exception {
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testSpecificRecordWithUnionLogicalType(AvroEncoding encoding) throws Exception {
         Random rnd = new Random();
         UnionLogicalType data = new UnionLogicalType(Instant.ofEpochMilli(rnd.nextLong()));
         AvroSerializationSchema<UnionLogicalType> serializer =
-                AvroSerializationSchema.forSpecific(UnionLogicalType.class);
+                AvroSerializationSchema.forSpecific(UnionLogicalType.class, encoding);
 
-        byte[] encodedData = writeRecord(data);
+        byte[] encodedData = writeRecord(data, encoding);
         byte[] serializedData = serializer.serialize(data);
         assertThat(serializedData).isEqualTo(encodedData);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testSerializability(AvroEncoding encoding) throws Exception {
+        AvroSerializationSchema<GenericRecord> ser =
+                AvroSerializationSchema.forGeneric(getSmallSchema(), encoding);
+        final byte[] serBytes = InstantiationUtil.serializeObject(ser);
+
+        final AvroSerializationSchema<GenericRecord> serCopy =
+                InstantiationUtil.deserializeObject(
+                        serBytes, Thread.currentThread().getContextClassLoader());
+
+        assertThat(serCopy.getSchema()).isNull();
+        serCopy.open(null);
+        assertThat(serCopy.getSchema()).isNotNull();
+        assertThat(serCopy.getSchema()).isEqualTo(getSmallSchema());
     }
 }

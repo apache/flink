@@ -50,14 +50,17 @@ import java.util.List;
 public class StreamPhysicalPythonGroupWindowAggregateRule extends ConverterRule {
 
     public static final StreamPhysicalPythonGroupWindowAggregateRule INSTANCE =
-            new StreamPhysicalPythonGroupWindowAggregateRule();
+            new StreamPhysicalPythonGroupWindowAggregateRule(
+                    Config.INSTANCE
+                            .withConversion(
+                                    FlinkLogicalWindowAggregate.class,
+                                    FlinkConventions.LOGICAL(),
+                                    FlinkConventions.STREAM_PHYSICAL(),
+                                    "StreamPhysicalPythonGroupWindowAggregateRule")
+                            .withRuleFactory(StreamPhysicalPythonGroupWindowAggregateRule::new));
 
-    private StreamPhysicalPythonGroupWindowAggregateRule() {
-        super(
-                FlinkLogicalWindowAggregate.class,
-                FlinkConventions.LOGICAL(),
-                FlinkConventions.STREAM_PHYSICAL(),
-                "StreamPhysicalPythonGroupWindowAggregateRule");
+    private StreamPhysicalPythonGroupWindowAggregateRule(Config config) {
+        super(config);
     }
 
     @Override
@@ -66,7 +69,7 @@ public class StreamPhysicalPythonGroupWindowAggregateRule extends ConverterRule 
         List<AggregateCall> aggCalls = agg.getAggCallList();
 
         // check if we have grouping sets
-        if (agg.getGroupType() != Aggregate.Group.SIMPLE || agg.indicator) {
+        if (agg.getGroupType() != Aggregate.Group.SIMPLE) {
             throw new TableException("GROUPING SETS are currently not supported.");
         }
 

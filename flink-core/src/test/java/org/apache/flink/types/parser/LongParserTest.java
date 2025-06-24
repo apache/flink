@@ -18,7 +18,7 @@
 
 package org.apache.flink.types.parser;
 
-public class LongParserTest extends ParserTestBase<Long> {
+class LongParserTest extends ParserTestBase<Long> {
 
     @Override
     public String[] getValidTestValues() {
@@ -59,8 +59,8 @@ public class LongParserTest extends ParserTestBase<Long> {
             "1569a86",
             "-57-6",
             "7-877678",
-            String.valueOf(Long.MAX_VALUE) + "0",
-            String.valueOf(Long.MIN_VALUE) + "0",
+            Long.MAX_VALUE + "0",
+            Long.MIN_VALUE + "0",
             "9223372036854775808",
             "-9223372036854775809",
             " 1",

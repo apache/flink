@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.python.scalar;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.streaming.api.utils.ProtoUtils;
+import org.apache.flink.python.util.ProtoUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -117,16 +117,12 @@ public abstract class AbstractPythonScalarFunctionOperator
 
     /** Gets the proto representation of the Python user-defined functions to be executed. */
     @Override
-    public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
-        FlinkFnApi.UserDefinedFunctions.Builder builder =
-                FlinkFnApi.UserDefinedFunctions.newBuilder();
-        // add udf proto
-        for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
-            builder.addUdfs(ProtoUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
-        }
-        builder.setMetricEnabled(config.get(PYTHON_METRIC_ENABLED));
-        builder.setProfileEnabled(config.get(PYTHON_PROFILE_ENABLED));
-        return builder.build();
+    public FlinkFnApi.UserDefinedFunctions createUserDefinedFunctionsProto() {
+        return ProtoUtils.createUserDefinedFunctionsProto(
+                getRuntimeContext(),
+                scalarFunctions,
+                config.get(PYTHON_METRIC_ENABLED),
+                config.get(PYTHON_PROFILE_ENABLED));
     }
 
     @Override

@@ -25,12 +25,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.delegation.Executor;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
@@ -38,17 +38,15 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link DefaultExecutor}. */
-public class DefaultExecutorTest {
+class DefaultExecutorTest {
 
     @Test
-    public void testJobName() {
+    void testJobName() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final Executor executor = new DefaultExecutor(env);
         final List<Transformation<?>> dummyTransformations =
                 Collections.singletonList(
-                        env.fromElements(1, 2, 3)
-                                .addSink(new DiscardingSink<>())
-                                .getTransformation());
+                        env.fromData(1, 2, 3).sinkTo(new DiscardingSink<>()).getTransformation());
 
         final Configuration configuration = new Configuration();
         configuration.set(PipelineOptions.NAME, "Custom Name");
@@ -71,15 +69,13 @@ public class DefaultExecutorTest {
     }
 
     @Test
-    public void testDefaultBatchProperties() {
+    void testDefaultBatchProperties() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final Executor executor = new DefaultExecutor(env);
 
         final List<Transformation<?>> dummyTransformations =
                 Collections.singletonList(
-                        env.fromElements(1, 2, 3)
-                                .addSink(new DiscardingSink<>())
-                                .getTransformation());
+                        env.fromData(1, 2, 3).sinkTo(new DiscardingSink<>()).getTransformation());
 
         final Configuration configuration = new Configuration();
         configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);

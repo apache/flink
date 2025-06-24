@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.utils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
@@ -32,6 +33,7 @@ import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DescriptorType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
@@ -60,6 +62,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /** A converter between {@link LogicalType} and {@link DataType}. */
+@Internal
 public final class LogicalTypeDataTypeConverter {
 
     private static final DefaultDataTypeCreator dataTypeCreator = new DefaultDataTypeCreator();
@@ -249,6 +252,11 @@ public final class LogicalTypeDataTypeConverter {
         @Override
         public DataType visit(SymbolType<?> symbolType) {
             return new AtomicDataType(symbolType);
+        }
+
+        @Override
+        public DataType visit(DescriptorType descriptorType) {
+            return new AtomicDataType(descriptorType);
         }
 
         @Override

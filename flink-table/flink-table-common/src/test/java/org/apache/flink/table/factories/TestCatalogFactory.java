@@ -206,8 +206,10 @@ public class TestCatalogFactory implements CatalogFactory {
         @Override
         public List<CatalogPartitionSpec> listPartitions(
                 ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-                throws TableNotExistException, TableNotPartitionedException,
-                        PartitionSpecInvalidException, CatalogException {
+                throws TableNotExistException,
+                        TableNotPartitionedException,
+                        PartitionSpecInvalidException,
+                        CatalogException {
             throw new UnsupportedOperationException();
         }
 
@@ -237,8 +239,10 @@ public class TestCatalogFactory implements CatalogFactory {
                 CatalogPartitionSpec partitionSpec,
                 CatalogPartition partition,
                 boolean ignoreIfExists)
-                throws TableNotExistException, TableNotPartitionedException,
-                        PartitionSpecInvalidException, PartitionAlreadyExistsException,
+                throws TableNotExistException,
+                        TableNotPartitionedException,
+                        PartitionSpecInvalidException,
+                        PartitionAlreadyExistsException,
                         CatalogException {
             throw new UnsupportedOperationException();
         }
@@ -311,14 +315,27 @@ public class TestCatalogFactory implements CatalogFactory {
 
         @Override
         public CatalogTableStatistics getPartitionStatistics(
-                ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-                throws PartitionNotExistException, CatalogException {
+                ObjectPath tablePath, CatalogPartitionSpec partitionSpec) throws CatalogException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<CatalogTableStatistics> bulkGetPartitionStatistics(
+                ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
+                throws CatalogException {
             throw new UnsupportedOperationException();
         }
 
         @Override
         public CatalogColumnStatistics getPartitionColumnStatistics(
                 ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
+                throws PartitionNotExistException, CatalogException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<CatalogColumnStatistics> bulkGetPartitionColumnStatistics(
+                ObjectPath tablePath, List<CatalogPartitionSpec> partitionSpecs)
                 throws PartitionNotExistException, CatalogException {
             throw new UnsupportedOperationException();
         }

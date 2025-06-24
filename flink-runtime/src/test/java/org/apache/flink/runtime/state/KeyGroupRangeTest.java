@@ -18,45 +18,47 @@
 
 package org.apache.flink.runtime.state;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class KeyGroupRangeTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class KeyGroupRangeTest {
 
     @Test
-    public void testKeyGroupIntersection() {
+    void testKeyGroupIntersection() {
         KeyGroupRange keyGroupRange1 = KeyGroupRange.of(0, 10);
         KeyGroupRange keyGroupRange2 = KeyGroupRange.of(3, 7);
         KeyGroupRange intersection = keyGroupRange1.getIntersection(keyGroupRange2);
-        Assert.assertEquals(3, intersection.getStartKeyGroup());
-        Assert.assertEquals(7, intersection.getEndKeyGroup());
-        Assert.assertEquals(intersection, keyGroupRange2.getIntersection(keyGroupRange1));
+        assertThat(intersection.getStartKeyGroup()).isEqualTo(3);
+        assertThat(intersection.getEndKeyGroup()).isEqualTo(7);
+        assertThat(keyGroupRange2.getIntersection(keyGroupRange1)).isEqualTo(intersection);
 
-        Assert.assertEquals(keyGroupRange1, keyGroupRange1.getIntersection(keyGroupRange1));
+        assertThat(keyGroupRange1.getIntersection(keyGroupRange1)).isEqualTo(keyGroupRange1);
 
         keyGroupRange1 = KeyGroupRange.of(0, 5);
         keyGroupRange2 = KeyGroupRange.of(6, 10);
         intersection = keyGroupRange1.getIntersection(keyGroupRange2);
-        Assert.assertEquals(KeyGroupRange.EMPTY_KEY_GROUP_RANGE, intersection);
-        Assert.assertEquals(intersection, keyGroupRange2.getIntersection(keyGroupRange1));
+        assertThat(intersection).isEqualTo(KeyGroupRange.EMPTY_KEY_GROUP_RANGE);
+        assertThat(intersection).isEqualTo(keyGroupRange2.getIntersection(keyGroupRange1));
 
         keyGroupRange1 = KeyGroupRange.of(0, 10);
         keyGroupRange2 = KeyGroupRange.of(5, 20);
         intersection = keyGroupRange1.getIntersection(keyGroupRange2);
-        Assert.assertEquals(5, intersection.getStartKeyGroup());
-        Assert.assertEquals(10, intersection.getEndKeyGroup());
-        Assert.assertEquals(intersection, keyGroupRange2.getIntersection(keyGroupRange1));
+        assertThat(intersection.getStartKeyGroup()).isEqualTo(5);
+        assertThat(intersection.getEndKeyGroup()).isEqualTo(10);
+        assertThat(keyGroupRange2.getIntersection(keyGroupRange1)).isEqualTo(intersection);
 
         keyGroupRange1 = KeyGroupRange.of(3, 12);
         keyGroupRange2 = KeyGroupRange.of(0, 10);
         intersection = keyGroupRange1.getIntersection(keyGroupRange2);
-        Assert.assertEquals(3, intersection.getStartKeyGroup());
-        Assert.assertEquals(10, intersection.getEndKeyGroup());
-        Assert.assertEquals(intersection, keyGroupRange2.getIntersection(keyGroupRange1));
+        assertThat(intersection.getStartKeyGroup()).isEqualTo(3);
+        assertThat(intersection.getEndKeyGroup()).isEqualTo(10);
+        assertThat(keyGroupRange2.getIntersection(keyGroupRange1)).isEqualTo(intersection);
     }
 
     @Test
-    public void testKeyGroupRangeBasics() {
+    void testKeyGroupRangeBasics() {
         testKeyGroupRangeBasicsInternal(0, 0);
         testKeyGroupRangeBasicsInternal(0, 1);
         testKeyGroupRangeBasicsInternal(1, 2);
@@ -65,33 +67,29 @@ public class KeyGroupRangeTest {
         testKeyGroupRangeBasicsInternal(0, Short.MAX_VALUE);
         testKeyGroupRangeBasicsInternal(Short.MAX_VALUE - 1, Short.MAX_VALUE);
 
-        try {
-            testKeyGroupRangeBasicsInternal(-3, 2);
-            Assert.fail();
-        } catch (IllegalArgumentException ex) {
-            // expected
-        }
+        assertThatThrownBy(() -> testKeyGroupRangeBasicsInternal(-3, 2))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private void testKeyGroupRangeBasicsInternal(int startKeyGroup, int endKeyGroup) {
         KeyGroupRange keyGroupRange = KeyGroupRange.of(startKeyGroup, endKeyGroup);
         int numberOfKeyGroup = keyGroupRange.getNumberOfKeyGroups();
-        Assert.assertEquals(Math.max(0, endKeyGroup - startKeyGroup + 1), numberOfKeyGroup);
+        assertThat(numberOfKeyGroup).isEqualTo(Math.max(0, endKeyGroup - startKeyGroup + 1));
         if (keyGroupRange.getNumberOfKeyGroups() > 0) {
-            Assert.assertEquals(startKeyGroup, keyGroupRange.getStartKeyGroup());
-            Assert.assertEquals(endKeyGroup, keyGroupRange.getEndKeyGroup());
+            assertThat(keyGroupRange.getStartKeyGroup()).isEqualTo(startKeyGroup);
+            assertThat(keyGroupRange.getEndKeyGroup()).isEqualTo(endKeyGroup);
             int c = startKeyGroup;
             for (int i : keyGroupRange) {
-                Assert.assertEquals(c, i);
-                Assert.assertTrue(keyGroupRange.contains(i));
+                assertThat(i).isEqualTo(c);
+                assertThat(keyGroupRange.contains(i)).isTrue();
                 ++c;
             }
 
-            Assert.assertEquals(endKeyGroup + 1, c);
-            Assert.assertFalse(keyGroupRange.contains(startKeyGroup - 1));
-            Assert.assertFalse(keyGroupRange.contains(endKeyGroup + 1));
+            assertThat(c).isEqualTo(endKeyGroup + 1);
+            assertThat(keyGroupRange.contains(startKeyGroup - 1)).isFalse();
+            assertThat(keyGroupRange.contains(endKeyGroup + 1)).isFalse();
         } else {
-            Assert.assertEquals(KeyGroupRange.EMPTY_KEY_GROUP_RANGE, keyGroupRange);
+            assertThat(keyGroupRange).isEqualTo(KeyGroupRange.EMPTY_KEY_GROUP_RANGE);
         }
     }
 }

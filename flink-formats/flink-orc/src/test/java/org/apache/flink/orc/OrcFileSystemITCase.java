@@ -20,7 +20,7 @@ package org.apache.flink.orc;
 
 import org.apache.flink.orc.vector.RowDataVectorizer;
 import org.apache.flink.orc.writer.OrcBulkWriterFactory;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.TableResult;
@@ -39,6 +39,10 @@ import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
@@ -46,12 +50,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -67,23 +69,19 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** ITCase for {@link OrcFileFormatFactory}. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir public static java.nio.file.Path temporaryFolder;
 
-    private final boolean configure;
+    @Parameter public boolean configure;
 
-    @Parameterized.Parameters(name = "{0}")
+    @Parameters(name = "configure={0}")
     public static Collection<Boolean> parameters() {
         return Arrays.asList(false, true);
-    }
-
-    public OrcFileSystemITCase(boolean configure) {
-        this.configure = configure;
     }
 
     @Override
@@ -97,6 +95,7 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
     }
 
     @Override
+    @TestTemplate
     public void testNonPartition() {
         super.testNonPartition();
 
@@ -104,15 +103,15 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
         File directory = new File(URI.create(resultPath()).getPath());
         File[] files =
                 directory.listFiles((dir, name) -> !name.startsWith(".") && !name.startsWith("_"));
-        Assert.assertNotNull(files);
+        assertThat(files).isNotNull();
         Path path = new Path(URI.create(files[0].getAbsolutePath()));
 
         try {
             Reader reader = OrcFile.createReader(path, OrcFile.readerOptions(new Configuration()));
             if (configure) {
-                Assert.assertEquals("SNAPPY", reader.getCompressionKind().toString());
+                assertThat(reader.getCompressionKind().toString()).isEqualTo("SNAPPY");
             } else {
-                Assert.assertEquals("ZLIB", reader.getCompressionKind().toString());
+                assertThat(reader.getCompressionKind().toString()).isEqualTo("ZLIB");
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -120,6 +119,7 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
     }
 
     @Override
+    @BeforeEach
     public void before() {
         super.before();
         super.tableEnv()
@@ -154,8 +154,8 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
                                 super.resultPath(), String.join(",\n", formatProperties())));
     }
 
-    @Test
-    public void testOrcFilterPushDown() throws ExecutionException, InterruptedException {
+    @TestTemplate
+    void testOrcFilterPushDown() throws ExecutionException, InterruptedException {
         super.tableEnv()
                 .executeSql(
                         "insert into orcFilterTable select x, y, a, b, "
@@ -208,8 +208,19 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
                 Collections.singletonList(Row.of("x10", "10")));
     }
 
-    @Test
-    public void testNestedTypes() throws Exception {
+    @TestTemplate
+    void testOrcFilterPushDownLiteralFirst() throws ExecutionException, InterruptedException {
+        super.tableEnv()
+                .executeSql("insert into orcLimitTable values('a', 10, 10), ('b', 11, 11)")
+                .await();
+        check("select y from orcLimitTable where 10 >= y", Collections.singletonList(Row.of(10)));
+        check("select y from orcLimitTable where 11 <= y", Collections.singletonList(Row.of(11)));
+        check("select y from orcLimitTable where 11 > y", Collections.singletonList(Row.of(10)));
+        check("select y from orcLimitTable where 10 < y", Collections.singletonList(Row.of(11)));
+    }
+
+    @TestTemplate
+    void testNestedTypes() throws Exception {
         String path = initNestedTypesFile(initNestedTypesData());
         super.tableEnv()
                 .executeSql(
@@ -227,15 +238,15 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
 
         TableResult tableResult = super.tableEnv().executeSql("SELECT * FROM orcNestedTypesTable");
         List<Row> rows = CollectionUtil.iteratorToList(tableResult.collect());
-        assertEquals(4, rows.size());
-        assertEquals(
-                "+I[_col_0_string_1, 1, [+I[_col_2_row_0_string_1], +I[_col_2_row_1_string_1]], {_col_3_map_key_1=+I[_col_3_map_value_string_1, "
-                        + new Timestamp(3600000).toLocalDateTime()
-                        + "]}]",
-                rows.get(0).toString());
-        assertEquals("+I[_col_0_string_2, 2, null, null]", rows.get(1).toString());
-        assertEquals("+I[_col_0_string_3, 3, [], {}]", rows.get(2).toString());
-        assertEquals("+I[_col_0_string_4, 4, [], {null=null}]", rows.get(3).toString());
+        assertThat(rows).hasSize(4);
+        assertThat(rows.get(0).toString())
+                .isEqualTo(
+                        "+I[_col_0_string_1, 1, [+I[_col_2_row_0_string_1], +I[_col_2_row_1_string_1]], {_col_3_map_key_1=+I[_col_3_map_value_string_1, "
+                                + new Timestamp(3600000).toLocalDateTime()
+                                + "]}]");
+        assertThat(rows.get(1).toString()).isEqualTo("+I[_col_0_string_2, 2, null, null]");
+        assertThat(rows.get(2).toString()).isEqualTo("+I[_col_0_string_3, 3, [], {}]");
+        assertThat(rows.get(3).toString()).isEqualTo("+I[_col_0_string_4, 4, [], {null=null}]");
     }
 
     private List<RowData> initNestedTypesData() {
@@ -310,7 +321,7 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
                 "struct<_col0:string,_col1:int,_col2:array<struct<_col2_col0:string>>,"
                         + "_col3:map<string,struct<_col3_col0:string,_col3_col1:timestamp>>>";
 
-        File outDir = TEMPORARY_FOLDER.newFolder();
+        File outDir = TempDirUtils.newFolder(temporaryFolder);
         Properties writerProps = new Properties();
         writerProps.setProperty("orc.compress", "LZ4");
 
@@ -342,8 +353,8 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
         return outDir.getAbsolutePath();
     }
 
-    @Test
-    public void testLimitableBulkFormat() throws ExecutionException, InterruptedException {
+    @TestTemplate
+    void testLimitableBulkFormat() throws ExecutionException, InterruptedException {
         super.tableEnv()
                 .executeSql(
                         "insert into orcLimitTable select x, y, " + "1 as a " + "from originalT")
@@ -351,7 +362,7 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
         TableResult tableResult1 =
                 super.tableEnv().executeSql("SELECT * FROM orcLimitTable limit 5");
         List<Row> rows1 = CollectionUtil.iteratorToList(tableResult1.collect());
-        assertEquals(5, rows1.size());
+        assertThat(rows1).hasSize(5);
 
         check(
                 "select a from orcLimitTable limit 5",

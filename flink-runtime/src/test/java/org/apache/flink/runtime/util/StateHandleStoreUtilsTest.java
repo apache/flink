@@ -20,55 +20,50 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
 import org.apache.flink.runtime.state.StateObject;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * {@code StateHandleStoreUtilsTest} tests the utility classes collected in {@link
  * StateHandleStoreUtils}.
  */
-public class StateHandleStoreUtilsTest extends TestLogger {
+class StateHandleStoreUtilsTest {
 
     @Test
-    public void testSerializationAndDeserialization() throws Exception {
+    void testSerializationAndDeserialization() throws Exception {
         final TestingLongStateHandleHelper.LongStateHandle original =
                 new TestingLongStateHandleHelper.LongStateHandle(42L);
         byte[] serializedData = StateHandleStoreUtils.serializeOrDiscard(original);
 
         final TestingLongStateHandleHelper.LongStateHandle deserializedInstance =
                 StateHandleStoreUtils.deserialize(serializedData);
-        assertThat(deserializedInstance.getStateSize(), is(original.getStateSize()));
-        assertThat(deserializedInstance.getValue(), is(original.getValue()));
+        assertThat(deserializedInstance.getStateSize()).isEqualTo(original.getStateSize());
+        assertThat(deserializedInstance.getValue()).isEqualTo(original.getValue());
     }
 
     @Test
-    public void testSerializeOrDiscardFailureHandling() throws Exception {
+    void testSerializeOrDiscardFailureHandling() throws Exception {
         final AtomicBoolean discardCalled = new AtomicBoolean(false);
         final StateObject original =
                 new FailingSerializationStateObject(() -> discardCalled.set(true));
 
-        try {
-            StateHandleStoreUtils.serializeOrDiscard(original);
-            fail("An IOException is expected to be thrown.");
-        } catch (IOException e) {
-            // IOException is expected
-        }
+        assertThatThrownBy(() -> StateHandleStoreUtils.serializeOrDiscard(original))
+                .withFailMessage("An IOException is expected to be thrown.")
+                .isInstanceOf(IOException.class);
 
-        assertThat(discardCalled.get(), is(true));
+        assertThat(discardCalled).isTrue();
     }
 
     @Test
-    public void testSerializationOrDiscardWithDiscardFailure() throws Exception {
+    void testSerializationOrDiscardWithDiscardFailure() throws Exception {
         final Exception discardException =
                 new IllegalStateException(
                         "Expected IllegalStateException that should be suppressed.");
@@ -78,14 +73,14 @@ public class StateHandleStoreUtilsTest extends TestLogger {
                             throw discardException;
                         });
 
-        try {
-            StateHandleStoreUtils.serializeOrDiscard(original);
-            fail("An IOException is expected to be thrown.");
-        } catch (IOException e) {
-            // IOException is expected
-            assertThat(e.getSuppressed().length, is(1));
-            assertThat(e.getSuppressed()[0], is(discardException));
-        }
+        assertThatThrownBy(() -> StateHandleStoreUtils.serializeOrDiscard(original))
+                .withFailMessage("An IOException is expected to be thrown.")
+                .isInstanceOf(IOException.class)
+                .satisfies(
+                        e -> {
+                            assertThat(e.getSuppressed()).hasSize(1);
+                            assertThat(e.getSuppressed()[0]).isEqualTo(discardException);
+                        });
     }
 
     private static class FailingSerializationStateObject implements StateObject {

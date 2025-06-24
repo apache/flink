@@ -56,6 +56,10 @@ public class CmdJobManagerDecorator extends AbstractKubernetesStepDecorator {
                 KubernetesDeploymentTarget.fromConfig(
                         kubernetesJobManagerParameters.getFlinkConfiguration());
         return KubernetesUtils.getStartCommandWithBashWrapper(
-                Constants.KUBERNETES_JOB_MANAGER_SCRIPT_PATH + " " + deploymentTarget.getName());
+                Constants.KUBERNETES_JOB_MANAGER_SCRIPT_PATH
+                        + " "
+                        + deploymentTarget.getName()
+                        + " "
+                        + kubernetesJobManagerParameters.getEntrypointArgs());
     }
 }

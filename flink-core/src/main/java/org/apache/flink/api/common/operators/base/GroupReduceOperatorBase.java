@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators.base;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -49,7 +50,9 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/** @see org.apache.flink.api.common.functions.GroupReduceFunction */
+/**
+ * @see org.apache.flink.api.common.functions.GroupReduceFunction
+ */
 @Internal
 public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN, OUT>>
         extends SingleInputOperator<IN, OUT, FT> {
@@ -222,15 +225,18 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
         }
 
         FunctionUtils.setFunctionRuntimeContext(function, ctx);
-        FunctionUtils.openFunction(function, this.parameters);
+        FunctionUtils.openFunction(function, DefaultOpenContext.INSTANCE);
 
         ArrayList<OUT> result = new ArrayList<OUT>();
 
         if (inputData.size() > 0) {
-            final TypeSerializer<IN> inputSerializer = inputType.createSerializer(executionConfig);
+            final TypeSerializer<IN> inputSerializer =
+                    inputType.createSerializer(executionConfig.getSerializerConfig());
             if (keyColumns.length == 0) {
                 TypeSerializer<OUT> outSerializer =
-                        getOperatorInfo().getOutputType().createSerializer(executionConfig);
+                        getOperatorInfo()
+                                .getOutputType()
+                                .createSerializer(executionConfig.getSerializerConfig());
                 List<IN> inputDataCopy = new ArrayList<IN>(inputData.size());
                 for (IN in : inputData) {
                     inputDataCopy.add(inputSerializer.copy(in));
@@ -248,7 +254,9 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
                         new ListKeyGroupedIterator<IN>(inputData, inputSerializer, comparator);
 
                 TypeSerializer<OUT> outSerializer =
-                        getOperatorInfo().getOutputType().createSerializer(executionConfig);
+                        getOperatorInfo()
+                                .getOutputType()
+                                .createSerializer(executionConfig.getSerializerConfig());
                 CopyingListCollector<OUT> collector =
                         new CopyingListCollector<OUT>(result, outSerializer);
 

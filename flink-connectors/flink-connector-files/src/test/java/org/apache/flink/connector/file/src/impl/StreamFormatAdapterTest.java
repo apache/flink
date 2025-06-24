@@ -27,18 +27,20 @@ import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.reader.SimpleStreamFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.Path;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit and behavior tests for the {@link StreamFormatAdapter}. */
 @SuppressWarnings("serial")
-public class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Integer>> {
+class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Integer>> {
 
     // ------------------------------------------------------------------------
     //  Factories for Shared Tests
@@ -69,18 +71,38 @@ public class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Intege
     // ------------------------------------------------------------------------
 
     @Test
-    public void testReadSmallBatchSize() throws IOException {
+    void testReadSmallBatchSize() throws IOException {
         simpleReadTest(1);
     }
 
     @Test
-    public void testBatchSizeMatchesOneRecord() throws IOException {
+    void testBatchSizeMatchesOneRecord() throws IOException {
         simpleReadTest(4);
     }
 
     @Test
-    public void testBatchSizeIsRecordMultiple() throws IOException {
+    void testBatchSizeIsRecordMultiple() throws IOException {
         simpleReadTest(20);
+    }
+
+    @Test
+    void testReadEmptyFile() throws IOException {
+        final StreamFormatAdapter<Integer> format =
+                new StreamFormatAdapter<>(new CheckpointedIntFormat());
+
+        final File emptyFile = new File(tmpDir.toFile(), "testFile-empty");
+        emptyFile.createNewFile();
+        Path emptyFilePath = Path.fromLocalFile(emptyFile);
+
+        final BulkFormat.Reader<Integer> reader =
+                format.createReader(
+                        new Configuration(),
+                        new FileSourceSplit("test-id", emptyFilePath, 0L, 0, 0L, 0));
+
+        final List<Integer> result = new ArrayList<>();
+        readNumbers(reader, result, 0);
+
+        assertThat(result).isEmpty();
     }
 
     private void simpleReadTest(int batchSize) throws IOException {
@@ -110,7 +132,7 @@ public class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Intege
                 Configuration config, FSDataInputStream stream, long fileLen, long splitEnd)
                 throws IOException {
 
-            assertEquals("invalid file length", 0, fileLen % 4);
+            assertThat(fileLen % 4).as("invalid file length").isEqualTo(0);
 
             // round all positions to the next integer boundary
             // to simulate common split behavior, we round up to the next int boundary even when we
@@ -132,7 +154,7 @@ public class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Intege
                 long splitEnd)
                 throws IOException {
 
-            assertEquals("invalid file length", 0, fileLen % 4);
+            assertThat(fileLen % 4).as("invalid file length").isEqualTo(0);
 
             // round end position to the next integer boundary
             final long end = splitEnd == fileLen ? fileLen : splitEnd + 4 - splitEnd % 4;

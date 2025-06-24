@@ -19,12 +19,12 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.SerializableSerializer;
 import org.apache.flink.util.Preconditions;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
-import com.esotericsoftware.kryo.factories.ReflectionSerializerFactory;
+import com.esotericsoftware.kryo.SerializerFactory.ReflectionSerializerFactory;
 
 import javax.annotation.Nullable;
 
@@ -46,36 +46,21 @@ public class KryoRegistration implements Serializable {
         INSTANCE
     }
 
-    /**
-     * The registered class.
-     *
-     * <p>This can be a dummy class {@link
-     * KryoRegistrationSerializerConfigSnapshot.DummyRegisteredClass} if the class no longer exists
-     * when this registration instance was restored.
-     */
+    /** The registered class. */
     private final Class<?> registeredClass;
 
     /**
      * Class of the serializer to use for the registered class. Exists only if the serializer
      * definition type is {@link SerializerDefinitionType#CLASS}.
-     *
-     * <p>This can be a dummy serializer {@link
-     * KryoRegistrationSerializerConfigSnapshot.DummyKryoSerializerClass} if the serializer class no
-     * longer exists when this registration instance was restored.
      */
     @Nullable private final Class<? extends Serializer<?>> serializerClass;
 
     /**
      * A serializable instance of the serializer to use for the registered class. Exists only if the
      * serializer definition type is {@link SerializerDefinitionType#INSTANCE}.
-     *
-     * <p>This can be a dummy serializer {@link
-     * KryoRegistrationSerializerConfigSnapshot.DummyKryoSerializerClass} if the serializer class no
-     * longer exists or is no longer valid when this registration instance was restored.
      */
     @Nullable
-    private final ExecutionConfig.SerializableSerializer<? extends Serializer<?>>
-            serializableSerializerInstance;
+    private final SerializableSerializer<? extends Serializer<?>> serializableSerializerInstance;
 
     private final SerializerDefinitionType serializerDefinitionType;
 
@@ -100,8 +85,7 @@ public class KryoRegistration implements Serializable {
 
     public KryoRegistration(
             Class<?> registeredClass,
-            ExecutionConfig.SerializableSerializer<? extends Serializer<?>>
-                    serializableSerializerInstance) {
+            SerializableSerializer<? extends Serializer<?>> serializableSerializerInstance) {
         this.registeredClass = Preconditions.checkNotNull(registeredClass);
 
         this.serializerClass = null;
@@ -125,8 +109,7 @@ public class KryoRegistration implements Serializable {
     }
 
     @Nullable
-    public ExecutionConfig.SerializableSerializer<? extends Serializer<?>>
-            getSerializableSerializerInstance() {
+    public SerializableSerializer<? extends Serializer<?>> getSerializableSerializerInstance() {
         return serializableSerializerInstance;
     }
 
@@ -135,7 +118,7 @@ public class KryoRegistration implements Serializable {
             case UNSPECIFIED:
                 return null;
             case CLASS:
-                return ReflectionSerializerFactory.makeSerializer(
+                return ReflectionSerializerFactory.newSerializer(
                         kryo, serializerClass, registeredClass);
             case INSTANCE:
                 return serializableSerializerInstance.getSerializer();
@@ -145,19 +128,6 @@ public class KryoRegistration implements Serializable {
                         "Unrecognized Kryo registration serializer definition type: "
                                 + serializerDefinitionType);
         }
-    }
-
-    public boolean isDummy() {
-        return registeredClass.equals(
-                        KryoRegistrationSerializerConfigSnapshot.DummyRegisteredClass.class)
-                || (serializerClass != null
-                        && serializerClass.equals(
-                                KryoRegistrationSerializerConfigSnapshot.DummyKryoSerializerClass
-                                        .class))
-                || (serializableSerializerInstance != null
-                        && serializableSerializerInstance.getSerializer()
-                                instanceof
-                                KryoRegistrationSerializerConfigSnapshot.DummyKryoSerializerClass);
     }
 
     @Override

@@ -17,27 +17,26 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
+import org.apache.flink.table.planner.calcite.RexTableArgCall
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowTableFunction
 import org.apache.flink.table.planner.plan.utils.WindowUtil
 import org.apache.flink.table.planner.plan.utils.WindowUtil.{convertToWindowingStrategy, validateTimeFieldWithTimeAttribute}
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.convert.ConverterRule.Config
 import org.apache.calcite.rex.RexCall
 
 /**
  * Rule to convert a [[FlinkLogicalTableFunctionScan]] with window table function call into a
  * [[StreamPhysicalWindowTableFunction]].
  */
-class StreamPhysicalWindowTableFunctionRule
-  extends ConverterRule(
-    classOf[FlinkLogicalTableFunctionScan],
-    FlinkConventions.LOGICAL,
-    FlinkConventions.STREAM_PHYSICAL,
-    "StreamPhysicalWindowTableFunctionRule") {
+class StreamPhysicalWindowTableFunctionRule(config: Config) extends ConverterRule(config) {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: FlinkLogicalTableFunctionScan = call.rel(0)
@@ -46,8 +45,14 @@ class StreamPhysicalWindowTableFunctionRule
 
   def convert(rel: RelNode): RelNode = {
     val scan: FlinkLogicalTableFunctionScan = rel.asInstanceOf[FlinkLogicalTableFunctionScan]
-    val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val newInput = RelOptRule.convert(scan.getInput(0), FlinkConventions.STREAM_PHYSICAL)
+
+    val requiredDistribution = getDistribution(scan.getCall.asInstanceOf[RexCall])
+    val requiredTraitSet = rel.getCluster.getPlanner
+      .emptyTraitSet()
+      .replace(requiredDistribution)
+      .replace(FlinkConventions.STREAM_PHYSICAL)
+    val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
+    val newInput = RelOptRule.convert(scan.getInput(0), requiredTraitSet)
 
     val windowTableFunction = scan.getCall.asInstanceOf[RexCall]
     val inputRowType = newInput.getRowType
@@ -55,14 +60,34 @@ class StreamPhysicalWindowTableFunctionRule
     validateTimeFieldWithTimeAttribute(windowTableFunction, inputRowType)
     new StreamPhysicalWindowTableFunction(
       scan.getCluster,
-      traitSet,
+      providedTraitSet,
       newInput,
       scan.getRowType,
-      convertToWindowingStrategy(windowTableFunction, inputRowType)
+      convertToWindowingStrategy(windowTableFunction, newInput)
     )
+  }
+
+  private def getDistribution(windowCall: RexCall): FlinkRelDistribution = {
+    windowCall.getOperator match {
+      case FlinkSqlOperatorTable.SESSION =>
+        val tableArgCall = windowCall.operands.get(0).asInstanceOf[RexTableArgCall]
+        val partitionKeys = tableArgCall.getPartitionKeys
+        if (partitionKeys.nonEmpty) {
+          FlinkRelDistribution.hash(partitionKeys, requireStrict = true)
+        } else {
+          FlinkRelDistribution.SINGLETON
+        }
+      case _ =>
+        FlinkRelDistribution.DEFAULT
+    }
   }
 }
 
 object StreamPhysicalWindowTableFunctionRule {
-  val INSTANCE = new StreamPhysicalWindowTableFunctionRule
+  val INSTANCE = new StreamPhysicalWindowTableFunctionRule(
+    Config.INSTANCE.withConversion(
+      classOf[FlinkLogicalTableFunctionScan],
+      FlinkConventions.LOGICAL,
+      FlinkConventions.STREAM_PHYSICAL,
+      "StreamPhysicalWindowTableFunctionRule"))
 }

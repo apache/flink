@@ -37,6 +37,10 @@ public enum HashJoinType {
         return this.equals(PROBE_OUTER) || this.equals(FULL_OUTER);
     }
 
+    public boolean leftSemiOrAnti() {
+        return this.equals(SEMI) || this.equals(ANTI);
+    }
+
     public boolean buildLeftSemiOrAnti() {
         return this.equals(BUILD_LEFT_SEMI) || this.equals(BUILD_LEFT_ANTI);
     }

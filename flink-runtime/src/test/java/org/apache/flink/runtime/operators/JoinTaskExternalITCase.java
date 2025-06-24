@@ -29,11 +29,12 @@ import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
-public class JoinTaskExternalITCase
-        extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
+class JoinTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
 
     private static final long HASH_MEM = 4 * 1024 * 1024;
 
@@ -57,14 +58,14 @@ public class JoinTaskExternalITCase
 
     private final CountingOutputCollector output = new CountingOutputCollector();
 
-    public JoinTaskExternalITCase(ExecutionConfig config) {
+    JoinTaskExternalITCase(ExecutionConfig config) {
         super(config, HASH_MEM, 2, SORT_MEM);
         bnljn_frac = (double) BNLJN_MEM / this.getMemoryManager().getMemorySize();
         hash_frac = (double) HASH_MEM / this.getMemoryManager().getMemorySize();
     }
 
-    @Test
-    public void testExternalSort1MatchTask() {
+    @TestTemplate
+    void testExternalSort1MatchTask() {
         final int keyCnt1 = 16384 * 4;
         final int valCnt1 = 2;
 
@@ -93,14 +94,16 @@ public class JoinTaskExternalITCase
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            fail("The test caused an exception.");
         }
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        assertThat(this.output.getNumberOfRecords())
+                .withFailMessage("Wrong result set size.")
+                .isEqualTo(expCnt);
     }
 
-    @Test
-    public void testExternalHash1MatchTask() {
+    @TestTemplate
+    void testExternalHash1MatchTask() {
         final int keyCnt1 = 32768;
         final int valCnt1 = 8;
 
@@ -124,14 +127,16 @@ public class JoinTaskExternalITCase
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test caused an exception.");
+            fail("Test caused an exception.");
         }
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        assertThat(this.output.getNumberOfRecords())
+                .withFailMessage("Wrong result set size.")
+                .isEqualTo(expCnt);
     }
 
-    @Test
-    public void testExternalHash2MatchTask() {
+    @TestTemplate
+    void testExternalHash2MatchTask() {
         final int keyCnt1 = 32768;
         final int valCnt1 = 8;
 
@@ -155,10 +160,12 @@ public class JoinTaskExternalITCase
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test caused an exception.");
+            fail("Test caused an exception.");
         }
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        assertThat(this.output.getNumberOfRecords())
+                .withFailMessage("Wrong result set size.")
+                .isEqualTo(expCnt);
     }
 
     public static final class MockMatchStub implements FlatJoinFunction<Record, Record, Record> {

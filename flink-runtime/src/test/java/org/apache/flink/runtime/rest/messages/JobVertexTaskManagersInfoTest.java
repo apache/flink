@@ -21,8 +21,12 @@ package org.apache.flink.runtime.rest.messages;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +35,8 @@ import java.util.Random;
 import static org.apache.flink.runtime.rest.messages.JobVertexTaskManagersInfo.TaskManagersInfo;
 
 /** Tests that the {@link JobVertexTaskManagersInfo} can be marshalled and unmarshalled. */
-public class JobVertexTaskManagersInfoTest
+@ExtendWith(NoOpTestExtension.class)
+class JobVertexTaskManagersInfoTest
         extends RestResponseMarshallingTestBase<JobVertexTaskManagersInfo> {
     @Override
     protected Class<JobVertexTaskManagersInfo> getTestResponseClass() {
@@ -54,21 +59,25 @@ public class JobVertexTaskManagersInfoTest
                         random.nextLong(),
                         random.nextBoolean(),
                         random.nextLong(),
-                        random.nextBoolean());
+                        random.nextBoolean(),
+                        Math.abs(random.nextLong()),
+                        Math.abs(random.nextLong()),
+                        Math.abs(random.nextDouble()));
         int count = 100;
         for (ExecutionState executionState : ExecutionState.values()) {
             statusCounts.put(executionState, count++);
         }
         taskManagersInfoList.add(
                 new TaskManagersInfo(
-                        "host1",
+                        "host1:123",
                         ExecutionState.CANCELING,
                         1L,
                         2L,
                         3L,
                         jobVertexMetrics,
                         statusCounts,
-                        "taskmanagerId"));
+                        "taskmanagerId",
+                        AggregatedTaskDetailsInfo.create(Collections.emptyList())));
 
         return new JobVertexTaskManagersInfo(
                 new JobVertexID(), "test", System.currentTimeMillis(), taskManagersInfoList);

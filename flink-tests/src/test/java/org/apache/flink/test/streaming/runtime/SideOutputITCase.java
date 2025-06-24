@@ -24,11 +24,11 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
@@ -37,11 +37,11 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -52,6 +52,7 @@ import org.junit.rules.ExpectedException;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -60,7 +61,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 /** Integration test for streaming programs using side outputs. */
-public class SideOutputITCase extends AbstractTestBase implements Serializable {
+public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializable {
 
     @Rule public transient ExpectedException expectedException = ExpectedException.none();
 
@@ -231,7 +232,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(3);
 
-        DataStream<Integer> dataStream = env.fromCollection(elements);
+        DataStream<Integer> dataStream = env.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 dataStream.process(
@@ -273,7 +274,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         env.getConfig().enableObjectReuse();
         env.setParallelism(3);
 
-        DataStream<Integer> dataStream = env.fromCollection(elements);
+        DataStream<Integer> dataStream = env.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 dataStream.process(
@@ -316,7 +317,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         env.getConfig().enableObjectReuse();
         env.setParallelism(3);
 
-        DataStream<Integer> dataStream = env.fromCollection(elements);
+        DataStream<Integer> dataStream = env.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 dataStream.process(
@@ -356,7 +357,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 dataStream.process(
@@ -390,7 +391,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 dataStream.process(
@@ -427,8 +428,8 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> ds1 = see.fromCollection(elements);
-        DataStream<Integer> ds2 = see.fromCollection(elements);
+        DataStream<Integer> ds1 = see.fromData(elements);
+        DataStream<Integer> ds2 = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 ds1.connect(ds2)
@@ -482,8 +483,8 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> ds1 = see.fromCollection(elements);
-        DataStream<Integer> ds2 = see.fromCollection(elements);
+        DataStream<Integer> ds1 = see.fromData(elements);
+        DataStream<Integer> ds2 = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 ds1.connect(ds2)
@@ -538,7 +539,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 dataStream
@@ -552,13 +553,13 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
                                     }
                                 })
                         .process(
-                                new ProcessFunction<Integer, Integer>() {
-                                    private static final long serialVersionUID = 1L;
-
+                                new KeyedProcessFunction<Integer, Integer, Integer>() {
                                     @Override
                                     public void processElement(
-                                            Integer value, Context ctx, Collector<Integer> out)
-                                            throws Exception {
+                                            Integer value,
+                                            KeyedProcessFunction<Integer, Integer, Integer>.Context
+                                                    ctx,
+                                            Collector<Integer> out) {
                                         out.collect(value);
                                         ctx.output(
                                                 sideOutputTag, "sideout-" + String.valueOf(value));
@@ -586,8 +587,8 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> ds1 = see.fromCollection(elements);
-        DataStream<Integer> ds2 = see.fromCollection(elements);
+        DataStream<Integer> ds1 = see.fromData(elements);
+        DataStream<Integer> ds2 = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 ds1.keyBy(i -> i)
@@ -640,8 +641,8 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> ds1 = see.fromCollection(elements);
-        DataStream<Integer> ds2 = see.fromCollection(elements);
+        DataStream<Integer> ds1 = see.fromData(elements);
+        DataStream<Integer> ds2 = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 ds1.keyBy(i -> i)
@@ -707,8 +708,8 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> ds1 = see.fromCollection(elements);
-        DataStream<Integer> ds2 = see.fromCollection(elements);
+        DataStream<Integer> ds1 = see.fromData(elements);
+        DataStream<Integer> ds2 = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 ds1.keyBy(i -> i)
@@ -766,8 +767,8 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> ds1 = see.fromCollection(elements);
-        DataStream<Integer> ds2 = see.fromCollection(elements);
+        DataStream<Integer> ds1 = see.fromData(elements);
+        DataStream<Integer> ds2 = see.fromData(elements);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 ds1.keyBy(i -> i)
@@ -830,7 +831,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         dataStream
                 .process(
@@ -854,7 +855,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
     }
 
     private static class TestWatermarkAssigner
-            implements AssignerWithPunctuatedWatermarks<Integer> {
+            implements WatermarkStrategyWithPunctuatedWatermarks<Integer> {
         private static final long serialVersionUID = 1L;
 
         @Nullable
@@ -886,7 +887,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(1);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         OutputTag<Integer> lateDataTag = new OutputTag<Integer>("late") {};
 
@@ -895,7 +896,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
                         .assignTimestampsAndWatermarks(new TestWatermarkAssigner())
                         .windowAll(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(1), Time.milliseconds(1)))
+                                        Duration.ofMillis(1), Duration.ofMillis(1)))
                         .sideOutputLateData(lateDataTag)
                         .apply(
                                 new AllWindowFunction<Integer, Integer, TimeWindow>() {
@@ -939,7 +940,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         OutputTag<Integer> lateDataTag = new OutputTag<Integer>("late") {};
 
@@ -949,8 +950,8 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
                         .keyBy(new TestKeySelector())
                         .window(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(1), Time.milliseconds(1)))
-                        .allowedLateness(Time.milliseconds(2))
+                                        Duration.ofMillis(1), Duration.ofMillis(1)))
+                        .allowedLateness(Duration.ofMillis(2))
                         .sideOutputLateData(lateDataTag)
                         .apply(
                                 new WindowFunction<Integer, String, Integer, TimeWindow>() {
@@ -989,7 +990,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(3);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
@@ -999,7 +1000,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
                         .keyBy(new TestKeySelector())
                         .window(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(1), Time.milliseconds(1)))
+                                        Duration.ofMillis(1), Duration.ofMillis(1)))
                         .process(
                                 new ProcessWindowFunction<Integer, Integer, Integer, TimeWindow>() {
                                     private static final long serialVersionUID = 1L;
@@ -1036,7 +1037,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
         see.setParallelism(1);
 
-        DataStream<Integer> dataStream = see.fromCollection(elements);
+        DataStream<Integer> dataStream = see.fromData(elements);
 
         OutputTag<String> sideOutputTag = new OutputTag<String>("side") {};
 
@@ -1045,7 +1046,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
                         .assignTimestampsAndWatermarks(new TestWatermarkAssigner())
                         .windowAll(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(1), Time.milliseconds(1)))
+                                        Duration.ofMillis(1), Duration.ofMillis(1)))
                         .process(
                                 new ProcessAllWindowFunction<Integer, Integer, TimeWindow>() {
                                     private static final long serialVersionUID = 1L;
@@ -1088,7 +1089,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(3);
 
-        DataStream<Integer> input = env.fromElements(1, 2, 3, 4);
+        DataStream<Integer> input = env.fromData(1, 2, 3, 4);
 
         OutputTag<Integer> oddTag = new OutputTag<Integer>("odds") {};
         OutputTag<Integer> evenTag = new OutputTag<Integer>("even") {};
@@ -1122,7 +1123,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         odds.union(odds).addSink(oddsUOddsResultSink);
         evens.union(evens).addSink(evensUEvensResultSink);
 
-        odds.union(env.fromElements(2, 4)).addSink(oddsUEvensExternalResultSink);
+        odds.union(env.fromData(2, 4)).addSink(oddsUEvensExternalResultSink);
 
         env.execute();
 

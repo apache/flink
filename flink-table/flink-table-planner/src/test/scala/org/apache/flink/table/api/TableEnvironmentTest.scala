@@ -19,79 +19,127 @@ package org.apache.flink.table.api
 
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.Types.STRING
-import org.apache.flink.api.scala._
 import org.apache.flink.configuration.{Configuration, CoreOptions, ExecutionOptions}
 import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
+import org.apache.flink.sql.parser.error.SqlValidateException
+import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactoryContextImpl}
 import org.apache.flink.table.functions.TestGenericUDF
+import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.module.ModuleEntry
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory._
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
+import org.apache.flink.table.planner.runtime.utils.StreamingEnvUtil
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.utils.UserDefinedFunctions.{GENERATED_LOWER_UDF_CLASS, GENERATED_LOWER_UDF_CODE}
+import org.apache.flink.testutils.junit.utils.TempDirUtils
 import org.apache.flink.types.Row
+import org.apache.flink.util.UserClassLoaderJarTestUtils
 
 import _root_.java.util
 import _root_.scala.collection.JavaConverters._
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
-import org.junit.{Rule, Test}
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
-import org.junit.rules.ExpectedException
+import org.junit.jupiter.api.Assertions.{assertEquals, assertFalse, assertTrue, fail}
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+
+import java.io.File
+import java.nio.file.Path
+import java.util.{Collections, UUID}
 
 class TableEnvironmentTest {
 
-  // used for accurate exception information checking.
-  val expectedException: ExpectedException = ExpectedException.none()
+  @TempDir
+  var tempFolder: Path = _
 
-  @Rule
-  def thrown: ExpectedException = expectedException
-
-  val env = new StreamExecutionEnvironment(new LocalStreamEnvironment())
+  val env = new LocalStreamEnvironment()
   val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+  val batchTableEnv = StreamTableEnvironment.create(env, TableTestUtil.BATCH_SETTING)
 
   @Test
   def testScanNonExistTable(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("Table `MyTable` was not found")
-    tableEnv.from("MyTable")
+    assertThatThrownBy(() => tableEnv.from("MyTable"))
+      .hasMessageContaining("Table `MyTable` was not found")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testRegisterDataStream(): Unit = {
-    val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
-    tableEnv.registerTable("MyTable", table)
+    val table = StreamingEnvUtil
+      .fromElements[(Int, Long, String, Boolean)](env)
+      .toTable(tableEnv, 'a, 'b, 'c, 'd)
+    tableEnv.createTemporaryView("MyTable", table)
     val scanTable = tableEnv.from("MyTable")
     val relNode = TableTestUtil.toRelNode(scanTable)
     val actual = RelOptUtil.toString(relNode)
     val expected = "LogicalTableScan(table=[[default_catalog, default_database, MyTable]])\n"
     assertEquals(expected, actual)
 
-    // register on a conflict name
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Temporary table '`default_catalog`.`default_database`.`MyTable`' already exists")
-    tableEnv.createTemporaryView("MyTable", env.fromElements[(Int, Long)]())
+    assertThatThrownBy(
+      () =>
+        tableEnv.createTemporaryView(
+          "MyTable",
+          StreamingEnvUtil
+            .fromElements[(Int, Long)](env)))
+      .hasMessageContaining(
+        "Temporary table '`default_catalog`.`default_database`.`MyTable`' already exists")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testSimpleQuery(): Unit = {
-    val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
-    tableEnv.registerTable("MyTable", table)
+    val table = StreamingEnvUtil
+      .fromElements[(Int, Long, String, Boolean)](env)
+      .toTable(tableEnv, 'a, 'b, 'c, 'd)
+    tableEnv.createTemporaryView("MyTable", table)
     val queryTable = tableEnv.sqlQuery("SELECT a, c, d FROM MyTable")
     val relNode = TableTestUtil.toRelNode(queryTable)
     val actual = RelOptUtil.toString(relNode, SqlExplainLevel.NO_ATTRIBUTES)
     val expected = "LogicalProject\n" +
       "  LogicalTableScan\n"
     assertEquals(expected, actual)
+  }
+
+  @Test
+  def testCreateTableWithEnforcedMode(): Unit = {
+    // check column constraint
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |CREATE TABLE MyTable (
+                                                   |  a bigint primary key,
+                                                   |  b int,
+                                                   |  c varchar
+                                                   |) with (
+                                                   |  'connector' = 'COLLECTION',
+                                                   |  'is-bounded' = 'false'
+                                                   |)
+    """.stripMargin))
+      .hasMessageContaining("Flink doesn't support ENFORCED mode for PRIMARY KEY constraint.")
+      .isInstanceOf[ValidationException]
+
+    // check table constraint
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |CREATE TABLE MyTable (
+                                                   |  a bigint,
+                                                   |  b int,
+                                                   |  c varchar,
+                                                   |  primary key(a)
+                                                   |) with (
+                                                   |  'connector' = 'COLLECTION',
+                                                   |  'is-bounded' = 'false'
+                                                   |)
+    """.stripMargin))
+      .hasMessageContaining("Flink doesn't support ENFORCED mode for PRIMARY KEY constraint.")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -152,6 +200,48 @@ class TableEnvironmentTest {
     val tEnv = StreamTableEnvironment.create(execEnv, settings)
 
     verifyTableEnvironmentExecutionExplain(tEnv)
+  }
+
+  @Test
+  def testAddJarWithFullPath(): Unit = {
+    validateAddJar(true)
+  }
+
+  @Test
+  def testAddJarWithRelativePath(): Unit = {
+    validateAddJar(false)
+  }
+
+  @Test
+  def testAddIllegalJar(): Unit = {
+    try {
+      tableEnv.executeSql(String.format("ADD JAR '%s'", "/path/to/illegal.jar"))
+      fail("Should fail.")
+    } catch {
+      case _: TableException => // expected
+    }
+  }
+
+  private def validateAddJar(useFullPath: Boolean): Unit = {
+    val udfJar = UserClassLoaderJarTestUtils
+      .createJarFile(
+        TempDirUtils.newFolder(tempFolder, String.format("test-jar-%s", UUID.randomUUID)),
+        "test-classloader-udf.jar",
+        GENERATED_LOWER_UDF_CLASS,
+        String.format(GENERATED_LOWER_UDF_CODE, GENERATED_LOWER_UDF_CLASS)
+      )
+
+    val jarPath = if (useFullPath) {
+      udfJar.getPath
+    } else {
+      new File(".").getCanonicalFile.toPath.relativize(udfJar.toPath).toString
+    }
+
+    tableEnv.executeSql(String.format("ADD JAR '%s'", jarPath))
+    val tableResult = tableEnv.executeSql("SHOW JARS")
+
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(util.Arrays.asList(Row.of(udfJar.getPath)).iterator(), tableResult.collect())
   }
 
   private def verifyTableEnvironmentExecutionExplain(tEnv: TableEnvironment): Unit = {
@@ -245,9 +335,9 @@ class TableEnvironmentTest {
         |)
       """.stripMargin
     tableEnv.executeSql(statement)
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("ALTER TABLE RESET does not support empty key")
-    tableEnv.executeSql("ALTER TABLE MyTable RESET ()")
+    assertThatThrownBy(() => tableEnv.executeSql("ALTER TABLE MyTable RESET ()"))
+      .hasMessageContaining("ALTER TABLE RESET does not support empty key")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -347,22 +437,24 @@ class TableEnvironmentTest {
         .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.MyTable"))
         .getOptions
     )
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Unable to create a source for reading table 'default_catalog.default_database.MyTable'.")
-    assertEquals(
-      ResultKind.SUCCESS_WITH_CONTENT,
-      tableEnv.executeSql("explain plan for select * from MyTable where a > 10").getResultKind)
+
+    assertThatThrownBy(
+      () =>
+        tableEnv.executeSql("explain plan for select * from MyTable where a > 10").getResultKind)
+      .hasMessageContaining(
+        "Unable to create a source for reading table 'default_catalog.default_database.MyTable'.")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
-  def testAlterTableCompactOnNonManagedTable(): Unit = {
+  def testAlterTableAddColumn(): Unit = {
     val statement =
       """
         |CREATE TABLE MyTable (
-        |  a bigint,
-        |  b int,
-        |  c varchar
+        |  a BIGINT,
+        |  b INT PRIMARY KEY NOT ENFORCED,
+        |  c STRING METADATA VIRTUAL,
+        |  d TIMESTAMP(3)
         |) WITH (
         |  'connector' = 'COLLECTION',
         |  'is-bounded' = 'false'
@@ -370,11 +462,552 @@ class TableEnvironmentTest {
       """.stripMargin
     tableEnv.executeSql(statement)
 
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "ALTER TABLE COMPACT operation is not supported for " +
-        "non-managed table `default_catalog`.`default_database`.`MyTable`")
-    tableEnv.executeSql("alter table MyTable compact")
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable ADD (
+                                                   |  PRIMARY KEY (a) NOT ENFORCED
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining(
+        """Failed to execute ALTER TABLE statement.
+          |The base table has already defined the primary key constraint [`b`]. You might want to drop it before adding a new one.""".stripMargin)
+      .isInstanceOf[ValidationException]
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable ADD (
+                                                   |  a STRING
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining(
+        """Failed to execute ALTER TABLE statement.
+          |Try to add a column `a` which already exists in the table.""".stripMargin)
+      .isInstanceOf[ValidationException]
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable ADD (
+                                                   |  e STRING AFTER h
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining(
+        """Failed to execute ALTER TABLE statement.
+          |Referenced column `h` by 'AFTER' does not exist in the table.""".stripMargin
+      )
+      .isInstanceOf[ValidationException]
+
+    tableEnv.executeSql(
+      """
+        |ALTER TABLE MyTable ADD (
+        |  e AS UPPER(c) FIRST,
+        |  WATERMARK FOR d AS d - INTERVAL '2' SECOND,
+        |  f DOUBLE NOT NULL COMMENT 'f is double' AFTER e,
+        |  g ARRAY<INT NOT NULL> NOT NULL,
+        |  h MAP<STRING NOT NULL, INT NOT NULL> NOT NULL COMMENT 'a map' after c,
+        |  j ROW<j1 ROW<j11 STRING, j12 INT>, j2 MULTISET<DOUBLE NOT NULL>> NOT NULL FIRST
+        |)
+        |""".stripMargin)
+
+    val expectedResult = util.Arrays.asList(
+      Row.of(
+        "j",
+        "ROW<`j1` ROW<`j11` STRING, `j12` INT>, `j2` MULTISET<DOUBLE NOT NULL>>",
+        Boolean.box(false),
+        null,
+        null,
+        null,
+        null),
+      Row.of("e", "STRING", Boolean.box(true), null, "AS UPPER(`c`)", null, null),
+      Row.of("f", "DOUBLE", Boolean.box(false), null, null, null, "f is double"),
+      Row.of("a", "BIGINT", Boolean.box(true), null, null, null, null),
+      Row.of("b", "INT", Boolean.box(false), "PRI(b)", null, null, null),
+      Row.of("c", "STRING", Boolean.box(true), null, "METADATA VIRTUAL", null, null),
+      Row.of(
+        "h",
+        "MAP<STRING NOT NULL, INT NOT NULL>",
+        Boolean.box(false),
+        null,
+        null,
+        null,
+        "a map"),
+      Row.of(
+        "d",
+        "TIMESTAMP(3) *ROWTIME*",
+        Boolean.box(true),
+        null,
+        null,
+        "`d` - INTERVAL '2' SECOND",
+        null),
+      Row.of("g", "ARRAY<INT NOT NULL>", Boolean.box(false), null, null, null, null)
+    )
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    assertThatThrownBy(() => tableEnv.executeSql("ALTER TABLE MyTable ADD WATERMARK FOR ts AS ts"))
+      .hasMessageContaining(
+        """Failed to execute ALTER TABLE statement.
+          |The base table has already defined the watermark strategy `d` AS `d` - INTERVAL '2' SECOND. You might want to drop it before adding a new one.""".stripMargin)
+      .isInstanceOf[ValidationException]
+  }
+
+  @Test
+  def testAlterTableAddConstraint(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a BIGINT,
+        |  b INT,
+        |  c STRING METADATA VIRTUAL,
+        |  d TIMESTAMP(3)
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable ADD (
+                                                   |  f STRING PRIMARY KEY NOT ENFORCED,
+                                                   |  PRIMARY KEY (a) NOT ENFORCED
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining("Duplicate primary key definition")
+      .isInstanceOf[org.apache.flink.sql.parser.error.SqlValidateException]
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable ADD (
+                                                   |  PRIMARY KEY (c) NOT ENFORCED
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining(
+        """Failed to execute ALTER TABLE statement.
+          |Invalid primary key 'PK_c'. Column 'c' is not a physical column.""".stripMargin)
+      .isInstanceOf[ValidationException]
+
+    tableEnv.executeSql("""
+                          |ALTER TABLE MyTable ADD (
+                          |  CONSTRAINT my_ct PRIMARY KEY(b) NOT ENFORCED
+                          |)
+                          |""".stripMargin)
+
+    val expectedResult = util.Arrays.asList(
+      Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
+      Row.of("b", "INT", Boolean.box(false), "PRI(b)", null, null),
+      Row.of("c", "STRING", Boolean.box(true), null, "METADATA VIRTUAL", null),
+      Row.of("d", "TIMESTAMP(3)", Boolean.box(true), null, null, null)
+    )
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult.iterator(), tableResult.collect())
+  }
+
+  @Test
+  def testAlterTableAddWatermark(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a BIGINT,
+        |  b INT,
+        |  c STRING METADATA VIRTUAL,
+        |  d TIMESTAMP(3),
+        |  e ROW<e0 STRING, e1 TIMESTAMP(3)>
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable ADD (
+                                                   |  WATERMARK FOR e.e1 AS e.e1
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining(
+        """Failed to execute ALTER TABLE statement.
+          |Watermark strategy on nested column is not supported yet.""".stripMargin)
+      .isInstanceOf[ValidationException]
+
+    tableEnv.executeSql("""
+                          |ALTER TABLE MyTable ADD (
+                          |  WATERMARK FOR d AS d
+                          |)
+                          |""".stripMargin)
+
+    val expectedResult = util.Arrays.asList(
+      Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
+      Row.of("b", "INT", Boolean.box(true), null, null, null),
+      Row.of("c", "STRING", Boolean.box(true), null, "METADATA VIRTUAL", null),
+      Row.of("d", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, null, "`d`"),
+      Row.of("e", "ROW<`e0` STRING, `e1` TIMESTAMP(3)>", Boolean.box(true), null, null, null)
+    )
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult.iterator(), tableResult.collect())
+  }
+
+  @Test
+  def testAlterTableModifyColumn(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a BIGINT,
+        |  b INT,
+        |  c STRING METADATA VIRTUAL,
+        |  d STRING,
+        |  e AS a * 2 + b,
+        |  ts1 TIMESTAMP(3),
+        |  ts2 TIMESTAMP(3),
+        |  PRIMARY KEY(d, b) NOT ENFORCED,
+        |  WATERMARK FOR ts2 AS ts2 - INTERVAL '1' SECOND
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable MODIFY (
+                                                   |  x STRING FIRST
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining(
+        """Failed to execute ALTER TABLE statement.
+          |Try to modify a column `x` which does not exist in the table.""".stripMargin)
+      .isInstanceOf[ValidationException]
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable MODIFY (
+                                                   |  b INT FIRST,
+                                                   |  a BIGINT AFTER x
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining(
+        """Failed to execute ALTER TABLE statement.
+          |Referenced column `x` by 'AFTER' does not exist in the table.""".stripMargin)
+      .isInstanceOf[ValidationException]
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable MODIFY (
+                                                   |  b BOOLEAN first
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining("""Failed to execute ALTER TABLE statement.
+                              |Invalid expression for computed column 'e'.""".stripMargin)
+      .isInstanceOf[ValidationException]
+
+    tableEnv.executeSql("""
+                          |ALTER TABLE MyTable MODIFY (
+                          |  b BOOLEAN first,
+                          |  e AS a * 2
+                          |)
+                          |""".stripMargin)
+    val expectedResult1 = util.Arrays.asList(
+      Row.of("b", "BOOLEAN", Boolean.box(false), "PRI(d, b)", null, null),
+      Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
+      Row.of("c", "STRING", Boolean.box(true), null, "METADATA VIRTUAL", null),
+      Row.of("d", "STRING", Boolean.box(false), "PRI(d, b)", null, null),
+      Row.of("e", "BIGINT", Boolean.box(true), null, "AS `a` * 2", null),
+      Row.of("ts1", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
+      Row.of(
+        "ts2",
+        "TIMESTAMP(3) *ROWTIME*",
+        Boolean.box(true),
+        null,
+        null,
+        "`ts2` - INTERVAL '1' SECOND")
+    )
+    val tableResult1 = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
+    checkData(expectedResult1.iterator(), tableResult1.collect())
+
+    tableEnv.executeSql("""
+                          |ALTER TABLE MyTable MODIFY (
+                          |  e AS UPPER(c) FIRST,
+                          |  WATERMARK FOR ts1 AS ts1,
+                          |  a DOUBLE NOT NULL AFTER ts2,
+                          |  PRIMARY KEY(d) NOT ENFORCED
+                          |)
+                          |""".stripMargin)
+
+    val expectedResult2 = util.Arrays.asList(
+      Row.of("e", "STRING", Boolean.box(true), null, "AS UPPER(`c`)", null),
+      Row.of("b", "BOOLEAN", Boolean.box(false), null, null, null),
+      Row.of("c", "STRING", Boolean.box(true), null, "METADATA VIRTUAL", null),
+      Row.of("d", "STRING", Boolean.box(false), "PRI(d)", null, null),
+      Row.of("ts1", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, null, "`ts1`"),
+      Row.of("ts2", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
+      Row.of("a", "DOUBLE", Boolean.box(false), null, null, null)
+    )
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult2.iterator(), tableResult.collect())
+  }
+
+  @Test
+  def testAlterTableModifyConstraint(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a BIGINT,
+        |  b INT,
+        |  c STRING METADATA VIRTUAL
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable MODIFY (
+                                                   |  PRIMARY KEY (x) NOT ENFORCED
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining(
+        """Failed to execute ALTER TABLE statement.
+          |The base table does not define any primary key constraint. You might want to add a new one.""".stripMargin)
+      .isInstanceOf[ValidationException]
+
+    tableEnv.executeSql("""
+                          |ALTER TABLE MyTable ADD (
+                          |  PRIMARY KEY(a) NOT ENFORCED
+                          |)
+                          |""".stripMargin)
+
+    tableEnv.executeSql("""
+                          |ALTER TABLE MyTable MODIFY (
+                          |  PRIMARY KEY(b) NOT ENFORCED
+                          |)
+                          |""".stripMargin)
+    val expectedResult = util.Arrays.asList(
+      Row.of("a", "BIGINT", Boolean.box(false), null, null, null),
+      Row.of("b", "INT", Boolean.box(false), "PRI(b)", null, null),
+      Row.of("c", "STRING", Boolean.box(true), null, "METADATA VIRTUAL", null)
+    )
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult.iterator(), tableResult.collect())
+  }
+
+  @Test
+  def testAlterTableModifyWatermark(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a BIGINT,
+        |  b INT,
+        |  d TIMESTAMP(3),
+        |  e ROW<e0 STRING, e1 TIMESTAMP(3)>,
+        |  WATERMARK FOR d AS d - INTERVAL '1' MINUTE
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    assertThatThrownBy(() => tableEnv.executeSql("""
+                                                   |ALTER TABLE MyTable MODIFY (
+                                                   |  WATERMARK FOR e.e1 AS e.e1
+                                                   |)
+                                                   |""".stripMargin))
+      .hasMessageContaining(
+        """Failed to execute ALTER TABLE statement.
+          |Watermark strategy on nested column is not supported yet.""".stripMargin)
+      .isInstanceOf[ValidationException]
+
+    tableEnv.executeSql("""
+                          |ALTER TABLE MyTable MODIFY (
+                          |  WATERMARK FOR d AS d
+                          |)
+                          |""".stripMargin)
+
+    val expectedResult = util.Arrays.asList(
+      Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
+      Row.of("b", "INT", Boolean.box(true), null, null, null),
+      Row.of("d", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, null, "`d`"),
+      Row.of("e", "ROW<`e0` STRING, `e1` TIMESTAMP(3)>", Boolean.box(true), null, null, null)
+    )
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult.iterator(), tableResult.collect())
+  }
+
+  @Test
+  def testAlterRenameColumn(): Unit = {
+    tableEnv.executeSql("""
+                          |CREATE TABLE MyTable (
+                          | a bigint
+                          |) WITH (
+                          |  'connector' = 'COLLECTION',
+                          |  'is-bounded' = 'false'
+                          |)
+                          |""".stripMargin)
+    tableEnv.executeSql("""
+                          |ALTER TABLE MyTable RENAME a TO b
+                          |""".stripMargin)
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(
+      Collections
+        .singletonList(Row.of("b", "BIGINT", Boolean.box(true), null, null, null))
+        .iterator(),
+      tableResult.collect())
+  }
+
+  @Test
+  def testAlterTableDropColumn(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a BIGINT,
+        |  b INT,
+        |  d TIMESTAMP(3),
+        |  e ROW<e0 STRING, e1 TIMESTAMP(3)>,
+        |  WATERMARK FOR d AS d - INTERVAL '1' MINUTE
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    tableEnv.executeSql("ALTER TABLE MyTable DROP (e, a)")
+
+    val expectedResult = util.Arrays.asList(
+      Row.of("b", "INT", Boolean.box(true), null, null, null),
+      Row.of(
+        "d",
+        "TIMESTAMP(3) *ROWTIME*",
+        Boolean.box(true),
+        null,
+        null,
+        "`d` - INTERVAL '1' MINUTE")
+    )
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult.iterator(), tableResult.collect())
+  }
+
+  @Test
+  def testAlterTableDropConstraint(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a BIGINT,
+        |  b INT,
+        |  d TIMESTAMP(3),
+        |  e ROW<e0 STRING, e1 TIMESTAMP(3)>,
+        |  CONSTRAINT ct PRIMARY KEY(a, b) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    tableEnv.executeSql("ALTER TABLE MyTable DROP CONSTRAINT ct")
+
+    val expectedResult = util.Arrays.asList(
+      Row.of("a", "BIGINT", Boolean.box(false), null, null, null),
+      Row.of("b", "INT", Boolean.box(false), null, null, null),
+      Row.of("d", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
+      Row.of("e", "ROW<`e0` STRING, `e1` TIMESTAMP(3)>", Boolean.box(true), null, null, null)
+    )
+    val tableResult1 = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
+    checkData(expectedResult.iterator(), tableResult1.collect())
+
+    tableEnv.executeSql("ALTER TABLE MyTable ADD CONSTRAINT ct PRIMARY KEY(a) NOT ENFORCED")
+    tableEnv.executeSql("ALTER TABLE MyTable DROP PRIMARY KEY")
+    val tableResult2 = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    checkData(expectedResult.iterator(), tableResult2.collect())
+  }
+
+  @Test
+  def testAlterTableDropWatermark(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a BIGINT,
+        |  b INT,
+        |  d TIMESTAMP(3),
+        |  e ROW<e0 STRING, e1 TIMESTAMP(3)>,
+        |  WATERMARK FOR d AS d - INTERVAL '1' MINUTE
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    tableEnv.executeSql("ALTER TABLE MyTable DROP WATERMARK")
+
+    val expectedResult = util.Arrays.asList(
+      Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
+      Row.of("b", "INT", Boolean.box(true), null, null, null),
+      Row.of("d", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
+      Row.of("e", "ROW<`e0` STRING, `e1` TIMESTAMP(3)>", Boolean.box(true), null, null, null)
+    )
+    val tableResult = tableEnv.executeSql("DESCRIBE MyTable")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
+    checkData(expectedResult.iterator(), tableResult.collect())
+  }
+
+  @Test
+  def testAlterTableDropPartitions(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl (
+        |  a INT,
+        |  b BIGINT,
+        |  c DATE
+        |) PARTITIONED BY (b, c)
+        |WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+          """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    val catalog = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+    val spec1 = new CatalogPartitionSpec(Map("b" -> "1000", "c" -> "2020-05-01").asJava)
+    val part1 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+    val spec2 = new CatalogPartitionSpec(Map("b" -> "2000", "c" -> "2020-01-01").asJava)
+    val part2 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+    val tablePath = new ObjectPath("default_database", "tbl")
+    // create partition
+    catalog.createPartition(tablePath, spec1, part1, false)
+    catalog.createPartition(tablePath, spec2, part2, false)
+
+    // check the partitions
+    assertThat(catalog.listPartitions(tablePath).toString)
+      .isEqualTo(
+        "[CatalogPartitionSpec{{b=1000, c=2020-05-01}}," +
+          " CatalogPartitionSpec{{b=2000, c=2020-01-01}}]")
+
+    // drop the partitions
+    var tableResult =
+      tableEnv.executeSql("alter table tbl drop partition(b='1000', c ='2020-05-01')")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertThat(catalog.listPartitions(tablePath).toString)
+      .isEqualTo("[CatalogPartitionSpec{{b=2000, c=2020-01-01}}]")
+
+    // drop the partition again with if exists
+    tableResult =
+      tableEnv.executeSql("alter table tbl drop if exists partition(b='1000', c='2020-05-01')")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertThat(catalog.listPartitions(tablePath).toString)
+      .isEqualTo("[CatalogPartitionSpec{{b=2000, c=2020-01-01}}]")
+
+    // drop the partition again without if exists,
+    // should throw exception then
+    assertThatThrownBy(
+      () => tableEnv.executeSql("alter table tbl drop partition (b=1000,c='2020-05-01')"))
+      .isInstanceOf(classOf[TableException])
+      .hasMessageContaining("Could not execute ALTER TABLE default_catalog.default_database.tbl" +
+        " DROP PARTITION (b=1000, c=2020-05-01)")
   }
 
   @Test
@@ -418,61 +1051,33 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testAlterTableCompactOnManagedTableUnderStreamingMode(): Unit = {
-    val statement =
-      """
-        |CREATE TABLE MyTable (
-        |  a bigint,
-        |  b int,
-        |  c varchar
-        |)
-      """.stripMargin
-    tableEnv.executeSql(statement)
-
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Compact managed table only works under batch mode.")
-    tableEnv.executeSql("alter table MyTable compact")
-  }
-
-  @Test
   def testExecuteSqlWithCreateAlterDropTable(): Unit = {
-    val createTableStmt =
-      """
-        |CREATE TABLE tbl1 (
-        |  a bigint,
-        |  b int,
-        |  c varchar
-        |) with (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
-        |)
-      """.stripMargin
-    val tableResult1 = tableEnv.executeSql(createTableStmt)
-    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    createTableForTests()
+
     assertTrue(
       tableEnv
         .getCatalog(tableEnv.getCurrentCatalog)
         .get()
-        .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")))
+        .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.T1")))
 
-    val tableResult2 = tableEnv.executeSql("ALTER TABLE tbl1 SET ('k1' = 'a', 'k2' = 'b')")
+    val tableResult2 = tableEnv.executeSql("ALTER TABLE T1 SET ('k1' = 'a', 'k2' = 'b')")
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
     assertEquals(
       Map("connector" -> "COLLECTION", "is-bounded" -> "false", "k1" -> "a", "k2" -> "b").asJava,
       tableEnv
         .getCatalog(tableEnv.getCurrentCatalog)
         .get()
-        .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1"))
+        .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.T1"))
         .getOptions
     )
 
-    val tableResult3 = tableEnv.executeSql("DROP TABLE tbl1")
+    val tableResult3 = tableEnv.executeSql("DROP TABLE T1")
     assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
     assertFalse(
       tableEnv
         .getCatalog(tableEnv.getCurrentCatalog)
         .get()
-        .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.tbl1")))
+        .tableExists(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.T1")))
   }
 
   @Test
@@ -581,7 +1186,7 @@ class TableEnvironmentTest {
     assert(tableEnv.listTables().sameElements(Array.empty[String]))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testExecuteSqlWithDropTemporaryTableTwice(): Unit = {
     val createTableStmt =
       """
@@ -603,7 +1208,8 @@ class TableEnvironmentTest {
     assert(tableEnv.listTables().sameElements(Array.empty[String]))
 
     // fail the case
-    tableEnv.executeSql("DROP TEMPORARY TABLE tbl1")
+    assertThatThrownBy(() => tableEnv.executeSql("DROP TEMPORARY TABLE tbl1"))
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -629,7 +1235,7 @@ class TableEnvironmentTest {
     assert(tableEnv.listTables().sameElements(Array.empty[String]))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDropTemporaryTableWithInvalidPath(): Unit = {
     val createTableStmt =
       """
@@ -647,7 +1253,9 @@ class TableEnvironmentTest {
     assert(tableEnv.listTables().sameElements(Array[String]("tbl1")))
 
     // fail the case
-    tableEnv.executeSql("DROP TEMPORARY TABLE invalid_catalog.invalid_database.tbl1")
+    assertThatThrownBy(
+      () => tableEnv.executeSql("DROP TEMPORARY TABLE invalid_catalog.invalid_database.tbl1"))
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -717,6 +1325,12 @@ class TableEnvironmentTest {
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
     assertEquals("my_catalog", tableEnv.getCurrentCatalog)
 
+    assertThatThrownBy(() => tableEnv.executeSql("DROP CATALOG my_catalog"))
+      .isInstanceOf(classOf[ValidationException])
+      .hasRootCauseMessage("Cannot drop a catalog which is currently in use.")
+
+    tableEnv.executeSql("USE CATALOG default_catalog")
+
     val tableResult3 = tableEnv.executeSql("DROP CATALOG my_catalog")
     assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
     assertFalse(tableEnv.getCatalog("my_catalog").isPresent)
@@ -757,32 +1371,20 @@ class TableEnvironmentTest {
       ResolvedSchema.of(Column.physical("database name", DataTypes.STRING())),
       tableResult2.getResolvedSchema)
     checkData(
-      util.Arrays.asList(Row.of("default_database"), Row.of("db1")).iterator(),
+      util.Arrays.asList(Row.of("db1"), Row.of("default_database")).iterator(),
       tableResult2.collect())
   }
 
   @Test
   def testExecuteSqlWithShowTables(): Unit = {
-    val createTableStmt =
-      """
-        |CREATE TABLE tbl1 (
-        |  a bigint,
-        |  b int,
-        |  c varchar
-        |) with (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
-        |)
-      """.stripMargin
-    val tableResult1 = tableEnv.executeSql(createTableStmt)
-    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    createTableForTests()
 
     val tableResult2 = tableEnv.executeSql("SHOW TABLES")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     assertEquals(
       ResolvedSchema.of(Column.physical("table name", DataTypes.STRING())),
       tableResult2.getResolvedSchema)
-    checkData(util.Arrays.asList(Row.of("tbl1")).iterator(), tableResult2.collect())
+    checkData(util.Arrays.asList(Row.of("T1")).iterator(), tableResult2.collect())
   }
 
   @Test
@@ -829,6 +1431,37 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExecuteSqlWithEnhancedShowViews(): Unit = {
+    val createCatalogResult =
+      tableEnv.executeSql("CREATE CATALOG catalog1 WITH('type'='generic_in_memory')")
+    assertEquals(ResultKind.SUCCESS, createCatalogResult.getResultKind)
+
+    val createDbResult = tableEnv.executeSql("CREATE database catalog1.db1")
+    assertEquals(ResultKind.SUCCESS, createDbResult.getResultKind)
+
+    val createTableStmt =
+      """
+        |CREATE VIEW catalog1.db1.view1 AS SELECT 1, 'abc'
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val createTableStmt2 =
+      """
+        |CREATE VIEW catalog1.db1.view2 AS SELECT 123
+      """.stripMargin
+    val tableResult2 = tableEnv.executeSql(createTableStmt2)
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    val tableResult3 = tableEnv.executeSql("SHOW VIEWS FROM catalog1.db1 like '%w1'")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    assertEquals(
+      ResolvedSchema.of(Column.physical("view name", DataTypes.STRING())),
+      tableResult3.getResolvedSchema)
+    checkData(util.Arrays.asList(Row.of("view1")).iterator(), tableResult3.collect())
+  }
+
+  @Test
   def testExecuteSqlWithShowFunctions(): Unit = {
     val tableResult = tableEnv.executeSql("SHOW FUNCTIONS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
@@ -863,10 +1496,11 @@ class TableEnvironmentTest {
         |  'type' = 'dummy'
         |)
       """.stripMargin
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Option 'type' = 'dummy' is not supported since module name is used to find module")
-    tableEnv.executeSql(statement)
+
+    assertThatThrownBy(() => tableEnv.executeSql(statement))
+      .hasMessageContaining(
+        "Option 'type' = 'dummy' is not supported since module name is used to find module")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -888,11 +1522,10 @@ class TableEnvironmentTest {
         |  'dummy-version' = '2'
         |)
       """.stripMargin
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Could not execute LOAD MODULE `dummy` WITH ('dummy-version' = '2')." +
+    assertThatThrownBy(() => tableEnv.executeSql(statement2))
+      .hasMessageContaining("Could not execute LOAD MODULE `dummy` WITH ('dummy-version' = '2')." +
         " A module with name 'dummy' already exists")
-    tableEnv.executeSql(statement2)
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -932,11 +1565,10 @@ class TableEnvironmentTest {
     checkListModules("core")
     checkListFullModules(("core", true))
 
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Could not execute UNLOAD MODULE dummy." +
+    assertThatThrownBy(() => tableEnv.executeSql("UNLOAD MODULE dummy"))
+      .hasMessageContaining("Could not execute UNLOAD MODULE dummy." +
         " No module with name 'dummy' exists")
-    tableEnv.executeSql("UNLOAD MODULE dummy")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -968,20 +1600,18 @@ class TableEnvironmentTest {
 
   @Test
   def testExecuteSqlWithUseUnloadedModules(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Could not execute USE MODULES: [core, dummy]. " +
+    assertThatThrownBy(() => tableEnv.executeSql("USE MODULES core, dummy"))
+      .hasMessageContaining("Could not execute USE MODULES: [core, dummy]. " +
         "No module with name 'dummy' exists")
-    tableEnv.executeSql("USE MODULES core, dummy")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testExecuteSqlWithUseDuplicateModuleNames(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Could not execute USE MODULES: [core, core]. " +
+    assertThatThrownBy(() => tableEnv.executeSql("USE MODULES core, core"))
+      .hasMessageContaining("Could not execute USE MODULES: [core, core]. " +
         "Module 'core' appears more than once")
-    tableEnv.executeSql("USE MODULES core, core")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -1003,27 +1633,10 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testLegacyModule(): Unit = {
-    tableEnv.executeSql("LOAD MODULE LegacyModule")
-    validateShowModules(("core", true), ("LegacyModule", true))
-  }
-
-  @Test
   def testExecuteSqlWithCreateDropView(): Unit = {
-    val createTableStmt =
-      """
-        |CREATE TABLE tbl1 (
-        |  a bigint,
-        |  b int,
-        |  c varchar
-        |) with (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
-        |)
-      """.stripMargin
-    tableEnv.executeSql(createTableStmt)
+    createTableForTests()
 
-    val viewResult1 = tableEnv.executeSql("CREATE VIEW IF NOT EXISTS v1 AS SELECT * FROM tbl1")
+    val viewResult1 = tableEnv.executeSql("CREATE VIEW IF NOT EXISTS v1 AS SELECT * FROM T1")
     assertEquals(ResultKind.SUCCESS, viewResult1.getResultKind)
     assertTrue(
       tableEnv
@@ -1042,36 +1655,20 @@ class TableEnvironmentTest {
 
   @Test
   def testExecuteSqlWithCreateDropTemporaryView(): Unit = {
-    val createTableStmt =
-      """
-        |CREATE TABLE tbl1 (
-        |  a bigint,
-        |  b int,
-        |  c varchar
-        |) with (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
-        |)
-      """.stripMargin
-    tableEnv.executeSql(createTableStmt)
+    createTableForTests()
 
     val viewResult1 =
-      tableEnv.executeSql("CREATE TEMPORARY VIEW IF NOT EXISTS v1 AS SELECT * FROM tbl1")
+      tableEnv.executeSql("CREATE TEMPORARY VIEW IF NOT EXISTS v1 AS SELECT * FROM T1")
     assertEquals(ResultKind.SUCCESS, viewResult1.getResultKind)
-    assert(tableEnv.listTables().sameElements(Array[String]("tbl1", "v1")))
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "v1")))
 
     val viewResult2 = tableEnv.executeSql("DROP TEMPORARY VIEW IF EXISTS v1")
     assertEquals(ResultKind.SUCCESS, viewResult2.getResultKind)
-    assert(tableEnv.listTables().sameElements(Array[String]("tbl1")))
+    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
   }
 
   @Test
   def testCreateViewWithWrongFieldList(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "VIEW definition and input fields not match:\n" +
-        "\tDef fields: [d].\n" +
-        "\tInput fields: [a, b, c].")
     val sourceDDL =
       """
         |CREATE TABLE T1(
@@ -1099,16 +1696,21 @@ class TableEnvironmentTest {
         |CREATE VIEW IF NOT EXISTS T3(d) AS SELECT * FROM T1
       """.stripMargin
 
-    tableEnv.executeSql(sourceDDL)
-    tableEnv.executeSql(sinkDDL)
-    tableEnv.executeSql(viewDDL)
+    assertThatThrownBy(
+      () => {
+        tableEnv.executeSql(sourceDDL)
+        tableEnv.executeSql(sinkDDL)
+        tableEnv.executeSql(viewDDL)
+      })
+      .hasMessageContaining(
+        "VIEW definition and input fields not match:\n" +
+          "\tDef fields: [d].\n" +
+          "\tInput fields: [a, b, c].")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testCreateViewTwice(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Could not execute CreateTable in path `default_catalog`.`default_database`.`T3`")
     val sourceDDL =
       """
         |CREATE TABLE T1(
@@ -1144,186 +1746,158 @@ class TableEnvironmentTest {
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(sinkDDL)
     tableEnv.executeSql(viewWith3ColumnDDL)
-    tableEnv.executeSql(viewWith2ColumnDDL) // fail the case
+
+    assertThatThrownBy(() => tableEnv.executeSql(viewWith2ColumnDDL))
+      .hasMessageContaining(
+        "Could not execute CreateTable in path `default_catalog`.`default_database`.`T3`")
+      .isInstanceOf[ValidationException]
   }
 
-  @Test
-  def testDropViewWithFullPath(): Unit = {
-    val sourceDDL =
-      """
-        |CREATE TABLE T1(
-        |  a int,
-        |  b varchar,
-        |  c int
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-
-    val view1DDL =
-      """
-        |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
-      """.stripMargin
-
-    val view2DDL =
-      """
-        |CREATE VIEW T3(x, y, z) AS SELECT a, b, c FROM T1
-      """.stripMargin
-
-    tableEnv.executeSql(sourceDDL)
-    tableEnv.executeSql(view1DDL)
-    tableEnv.executeSql(view2DDL)
+  @ParameterizedTest
+  @ValueSource(booleans = Array[Boolean](true, false))
+  def testDropViewWithFullPath(isSql: Boolean): Unit = {
+    createViewsForDropTests()
 
     assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2", "T3")))
 
-    tableEnv.executeSql("DROP VIEW default_catalog.default_database.T2")
+    dropView("default_catalog.default_database.T2", isSql)
     assert(tableEnv.listTables().sameElements(Array[String]("T1", "T3")))
 
-    tableEnv.executeSql("DROP VIEW default_catalog.default_database.T3")
+    dropView("default_catalog.default_database.T3", isSql)
     assert(tableEnv.listTables().sameElements(Array[String]("T1")))
   }
 
-  @Test
-  def testDropViewWithPartialPath(): Unit = {
-    val sourceDDL =
-      """
-        |CREATE TABLE T1(
-        |  a int,
-        |  b varchar,
-        |  c int
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-
-    val view1DDL =
-      """
-        |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
-      """.stripMargin
-
-    val view2DDL =
-      """
-        |CREATE VIEW T3(x, y, z) AS SELECT a, b, c FROM T1
-      """.stripMargin
-
-    tableEnv.executeSql(sourceDDL)
-    tableEnv.executeSql(view1DDL)
-    tableEnv.executeSql(view2DDL)
+  @ParameterizedTest
+  @ValueSource(booleans = Array[Boolean](true, false))
+  def testDropViewWithPartialPath(isSql: Boolean): Unit = {
+    createViewsForDropTests()
 
     assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2", "T3")))
 
-    tableEnv.executeSql("DROP VIEW T2")
+    dropView("T2", isSql)
     assert(tableEnv.listTables().sameElements(Array[String]("T1", "T3")))
 
-    tableEnv.executeSql("DROP VIEW default_database.T3")
+    dropView("T3", isSql)
     assert(tableEnv.listTables().sameElements(Array[String]("T1")))
   }
 
   @Test
   def testDropViewIfExistsTwice(): Unit = {
-    val sourceDDL =
-      """
-        |CREATE TABLE T1(
-        |  a int,
-        |  b varchar,
-        |  c int
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
+    createViewsForDropTests()
 
-    val viewDDL =
-      """
-        |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
-      """.stripMargin
-
-    tableEnv.executeSql(sourceDDL)
-    tableEnv.executeSql(viewDDL)
-
-    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2")))
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2", "T3")))
 
     tableEnv.executeSql("DROP VIEW IF EXISTS default_catalog.default_database.T2")
-    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T3")))
 
     tableEnv.executeSql("DROP VIEW IF EXISTS default_catalog.default_database.T2")
-    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T3")))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDropViewTwice(): Unit = {
-    val sourceDDL =
-      """
-        |CREATE TABLE T1(
-        |  a int,
-        |  b varchar,
-        |  c int
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
+    createViewsForDropTests()
 
-    val viewDDL =
-      """
-        |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
-      """.stripMargin
-
-    tableEnv.executeSql(sourceDDL)
-    tableEnv.executeSql(viewDDL)
-
-    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2")))
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2", "T3")))
 
     tableEnv.executeSql("DROP VIEW default_catalog.default_database.T2")
-    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T3")))
 
-    tableEnv.executeSql("DROP VIEW default_catalog.default_database.T2")
+    assertThatThrownBy(() => tableEnv.executeSql("DROP VIEW default_catalog.default_database.T2"))
+      .isInstanceOf(classOf[ValidationException])
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testDropViewWithInvalidPath(): Unit = {
-    val sourceDDL =
-      """
-        |CREATE TABLE T1(
-        |  a int,
-        |  b varchar,
-        |  c int
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
+  @Test
+  def testDropView(): Unit = {
+    createViewsForDropTests()
 
-    val viewDDL =
-      """
-        |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
-      """.stripMargin
-    tableEnv.executeSql(sourceDDL)
-    tableEnv.executeSql(viewDDL)
-    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2")))
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2", "T3")))
+
+    assertTrue(tableEnv.dropView("default_catalog.default_database.T2"))
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T3")))
+
+    assertFalse(tableEnv.dropView("default_catalog.default_database.T2"))
+    assertFalse(tableEnv.dropView("invalid.default_database.T2"))
+    assertFalse(tableEnv.dropView("default_catalog.invalid.T2"))
+    assertFalse(tableEnv.dropView("default_catalog.default_database.invalid"))
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T3")))
+
+    tableEnv.createTemporaryView("T3", tableEnv.sqlQuery("SELECT 123"))
+
+    assertThatThrownBy(() => tableEnv.dropView("T3"))
+      .hasMessageContaining(
+        "Temporary view with identifier '`default_catalog`.`default_database`.`T3`' exists. " +
+          "Drop it first before removing the permanent view.")
+      .isInstanceOf[ValidationException]
+
+    tableEnv.dropTemporaryView("T3")
+
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T3")))
+    // Now can drop permanent view
+    tableEnv.dropView("T3")
+    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+  }
+
+  @Test
+  def testDropTable(): Unit = {
+    createTableForTests()
+
+    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+
+    assertFalse(tableEnv.dropTable("default_catalog.default_database.T2"))
+    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+
+    assertThatThrownBy(() => tableEnv.dropTable("default_catalog.default_database.T2", false))
+      .hasMessageContaining(
+        "Table with identifier 'default_catalog.default_database.T2' does not exist.")
+      .isInstanceOf[ValidationException]
+
+    assertFalse(tableEnv.dropTable("default_catalog.default_database.T2"))
+    assertFalse(tableEnv.dropTable("invalid.default_database.T2"))
+    assertFalse(tableEnv.dropTable("default_catalog.invalid.T2"))
+    assertFalse(tableEnv.dropTable("default_catalog.default_database.invalid"))
+    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+
+    assertTrue(tableEnv.dropTable("default_catalog.default_database.T1"))
+    assert(tableEnv.listTables().sameElements(Array[String]()))
+    createTableForTests()
+    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+
+    tableEnv.createTemporaryTable(
+      "T1",
+      TableDescriptor
+        .forConnector("values")
+        .schema(Schema.newBuilder().column("col1", DataTypes.INT()).build())
+        .build())
+    assertThatThrownBy(() => tableEnv.dropTable("T1"))
+      .hasMessageContaining(
+        "Temporary table with identifier '`default_catalog`.`default_database`.`T1`' exists. " +
+          "Drop it first before removing the permanent table.")
+      .isInstanceOf[ValidationException]
+
+    tableEnv.dropTemporaryTable("T1")
+
+    assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+    // Now can drop permanent table
+    tableEnv.dropTable("T1")
+    assert(tableEnv.listTables().sameElements(Array[String]()))
+  }
+
+  @Test
+  def testDropViewWithInvalidPath(): Unit = {
+    createViewsForDropTests()
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2", "T3")))
     // failed since 'default_catalog1.default_database1.T2' is invalid path
-    tableEnv.executeSql("DROP VIEW default_catalog1.default_database1.T2")
+    assertThatThrownBy(() => tableEnv.executeSql("DROP VIEW default_catalog1.default_database1.T2"))
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testDropViewWithInvalidPathIfExists(): Unit = {
-    val sourceDDL =
-      """
-        |CREATE TABLE T1(
-        |  a int,
-        |  b varchar,
-        |  c int
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-
-    val viewDDL =
-      """
-        |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
-      """.stripMargin
-    tableEnv.executeSql(sourceDDL)
-    tableEnv.executeSql(viewDDL)
-    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2")))
+    createViewsForDropTests()
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2", "T3")))
     tableEnv.executeSql("DROP VIEW IF EXISTS default_catalog1.default_database1.T2")
-    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2")))
+    assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2", "T3")))
   }
 
   @Test
@@ -1356,7 +1930,7 @@ class TableEnvironmentTest {
     assert(tableEnv.listTemporaryViews().sameElements(Array[String]()))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDropTemporaryViewTwice(): Unit = {
     val sourceDDL =
       """
@@ -1385,26 +1959,16 @@ class TableEnvironmentTest {
     assert(tableEnv.listTemporaryViews().sameElements(Array[String]()))
 
     // throws ValidationException since default_catalog.default_database.T2 is not exists
-    tableEnv.executeSql("DROP TEMPORARY VIEW default_catalog.default_database.T2")
+    assertThatThrownBy(
+      () => tableEnv.executeSql("DROP TEMPORARY VIEW default_catalog.default_database.T2"))
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testExecuteSqlWithShowViews(): Unit = {
-    val createTableStmt =
-      """
-        |CREATE TABLE tbl1 (
-        |  a bigint,
-        |  b int,
-        |  c varchar
-        |) with (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
-        |)
-      """.stripMargin
-    val tableResult1 = tableEnv.executeSql(createTableStmt)
-    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    createTableForTests()
 
-    val tableResult2 = tableEnv.executeSql("CREATE VIEW view1 AS SELECT * FROM tbl1")
+    val tableResult2 = tableEnv.executeSql("CREATE VIEW view1 AS SELECT * FROM T1")
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
 
     val tableResult3 = tableEnv.executeSql("SHOW VIEWS")
@@ -1414,7 +1978,7 @@ class TableEnvironmentTest {
       tableResult3.getResolvedSchema)
     checkData(util.Arrays.asList(Row.of("view1")).iterator(), tableResult3.collect())
 
-    val tableResult4 = tableEnv.executeSql("CREATE TEMPORARY VIEW view2 AS SELECT * FROM tbl1")
+    val tableResult4 = tableEnv.executeSql("CREATE TEMPORARY VIEW view2 AS SELECT * FROM T1")
     assertEquals(ResultKind.SUCCESS, tableResult4.getResultKind)
 
     // SHOW VIEWS also shows temporary views
@@ -1482,6 +2046,51 @@ class TableEnvironmentTest {
     checkExplain(
       "explain plan for insert into MySink(d) select a from MyTable where a > 10",
       "/explain/testExecuteSqlWithExplainInsertPartialColumn.out")
+  }
+
+  @Test
+  def testExecuteSqlWithExplainInsertStaticPartition(): Unit = {
+    val createTableStmt1 =
+      """
+        |CREATE TABLE MyTable (
+        |  f0 BIGINT,
+        |  f1 INT,
+        |  f2 STRING
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'true'
+        |)
+      """.stripMargin
+    val tableResult1 = batchTableEnv.executeSql(createTableStmt1)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val createTableStmt2 =
+      """
+        |CREATE TABLE MySink (
+        |  f0 BIGINT,
+        |  f1 INT,
+        |  f2 STRING
+        |) PARTITIONED BY (f2)
+        |WITH (
+        |  'connector' = 'filesystem',
+        |  'path' = '/tmp',
+        |  'format' = 'testcsv'
+        |)
+      """.stripMargin
+    val tableResult2 = batchTableEnv.executeSql(createTableStmt2)
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    checkExplain(
+      "EXPLAIN PLAN FOR INSERT INTO MySink PARTITION (f2 = '123') SELECT f0, f1 FROM MyTable",
+      "/explain/testExecuteSqlWithExplainInsertIntoStaticPartition.out",
+      streaming = false
+    )
+
+    checkExplain(
+      "EXPLAIN PLAN FOR INSERT OVERWRITE MySink PARTITION (f2 = '123') SELECT f0, f1 FROM MyTable",
+      "/explain/testExecuteSqlWithExplainInsertOverwriteStaticPartition.out",
+      streaming = false
+    )
   }
 
   @Test
@@ -1835,6 +2444,813 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testDescribeTableWithComment(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE TABLE T1(
+        |  c0 char(10) comment 'this is the first column',
+        |  c1 varchar(10) comment 'this is the second column',
+        |  c2 string,
+        |  c3 BOOLEAN,
+        |  c4 BINARY(10),
+        |  c5 VARBINARY(10),
+        |  c6 BYTES,
+        |  c7 DECIMAL(10, 3),
+        |  c8 TINYINT,
+        |  c9 SMALLINT,
+        |  c10 INTEGER,
+        |  c11 BIGINT,
+        |  c12 FLOAT,
+        |  c13 DOUBLE,
+        |  c14 DATE,
+        |  c15 TIME,
+        |  c16 TIMESTAMP,
+        |  c17 TIMESTAMP(3),
+        |  c18 TIMESTAMP WITHOUT TIME ZONE,
+        |  c19 TIMESTAMP(3) WITH LOCAL TIME ZONE,
+        |  c20 TIMESTAMP WITH LOCAL TIME ZONE,
+        |  c21 ARRAY<INT>,
+        |  c22 MAP<INT, STRING>,
+        |  c23 ROW<f0 INT, f1 STRING>,
+        |  c24 int not null comment 'this is c24 and part of pk',
+        |  c25 varchar not null,
+        |  c26 row<f0 int not null, f1 int> not null comment 'this is c26 and part of pk',
+        |  c27 AS LOCALTIME,
+        |  c28 AS CURRENT_TIME,
+        |  c29 AS LOCALTIMESTAMP,
+        |  c30 AS CURRENT_TIMESTAMP comment 'notice: computed column',
+        |  c31 AS CURRENT_ROW_TIMESTAMP(),
+        |  ts AS to_timestamp(c25) comment 'notice: watermark',
+        |  PRIMARY KEY(c24, c26) NOT ENFORCED,
+        |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedResult1 = util.Arrays.asList(
+      Row.of("c0", "CHAR(10)", Boolean.box(true), null, null, null, "this is the first column"),
+      Row.of("c1", "VARCHAR(10)", Boolean.box(true), null, null, null, "this is the second column"),
+      Row.of("c2", "STRING", Boolean.box(true), null, null, null, null),
+      Row.of("c3", "BOOLEAN", Boolean.box(true), null, null, null, null),
+      Row.of("c4", "BINARY(10)", Boolean.box(true), null, null, null, null),
+      Row.of("c5", "VARBINARY(10)", Boolean.box(true), null, null, null, null),
+      Row.of("c6", "BYTES", Boolean.box(true), null, null, null, null),
+      Row.of("c7", "DECIMAL(10, 3)", Boolean.box(true), null, null, null, null),
+      Row.of("c8", "TINYINT", Boolean.box(true), null, null, null, null),
+      Row.of("c9", "SMALLINT", Boolean.box(true), null, null, null, null),
+      Row.of("c10", "INT", Boolean.box(true), null, null, null, null),
+      Row.of("c11", "BIGINT", Boolean.box(true), null, null, null, null),
+      Row.of("c12", "FLOAT", Boolean.box(true), null, null, null, null),
+      Row.of("c13", "DOUBLE", Boolean.box(true), null, null, null, null),
+      Row.of("c14", "DATE", Boolean.box(true), null, null, null, null),
+      Row.of("c15", "TIME(0)", Boolean.box(true), null, null, null, null),
+      Row.of("c16", "TIMESTAMP(6)", Boolean.box(true), null, null, null, null),
+      Row.of("c17", "TIMESTAMP(3)", Boolean.box(true), null, null, null, null),
+      Row.of("c18", "TIMESTAMP(6)", Boolean.box(true), null, null, null, null),
+      Row.of("c19", "TIMESTAMP_LTZ(3)", Boolean.box(true), null, null, null, null),
+      Row.of("c20", "TIMESTAMP_LTZ(6)", Boolean.box(true), null, null, null, null),
+      Row.of("c21", "ARRAY<INT>", Boolean.box(true), null, null, null, null),
+      Row.of("c22", "MAP<INT, STRING>", Boolean.box(true), null, null, null, null),
+      Row.of("c23", "ROW<`f0` INT, `f1` STRING>", Boolean.box(true), null, null, null, null),
+      Row.of(
+        "c24",
+        "INT",
+        Boolean.box(false),
+        "PRI(c24, c26)",
+        null,
+        null,
+        "this is c24 and part of pk"),
+      Row.of("c25", "STRING", Boolean.box(false), null, null, null, null),
+      Row.of(
+        "c26",
+        "ROW<`f0` INT NOT NULL, `f1` INT>",
+        Boolean.box(false),
+        "PRI(c24, c26)",
+        null,
+        null,
+        "this is c26 and part of pk"),
+      Row.of("c27", "TIME(0)", Boolean.box(false), null, "AS LOCALTIME", null, null),
+      Row.of("c28", "TIME(0)", Boolean.box(false), null, "AS CURRENT_TIME", null, null),
+      Row.of("c29", "TIMESTAMP(3)", Boolean.box(false), null, "AS LOCALTIMESTAMP", null, null),
+      Row.of(
+        "c30",
+        "TIMESTAMP_LTZ(3)",
+        Boolean.box(false),
+        null,
+        "AS CURRENT_TIMESTAMP",
+        null,
+        "notice: computed column"),
+      Row.of(
+        "c31",
+        "TIMESTAMP_LTZ(3)",
+        Boolean.box(false),
+        null,
+        "AS CURRENT_ROW_TIMESTAMP()",
+        null,
+        null),
+      Row.of(
+        "ts",
+        "TIMESTAMP(3) *ROWTIME*",
+        Boolean.box(true),
+        null,
+        "AS TO_TIMESTAMP(`c25`)",
+        "`ts` - INTERVAL '1' SECOND",
+        "notice: watermark")
+    )
+    val tableResult1 = tableEnv.executeSql("describe T1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
+    checkData(expectedResult1.iterator(), tableResult1.collect())
+    val tableResult2 = tableEnv.executeSql("desc T1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    checkData(expectedResult1.iterator(), tableResult2.collect())
+  }
+
+  @Test
+  def testAlterModelOptions(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(sourceDDL)
+
+    val alterDDL =
+      """
+        |ALTER MODEL M1
+        |SET(
+        |  'openai.endpoint' = 'openai-endpoint',
+        |  'task' = 'embedding'
+        |)
+        |""".stripMargin
+    tableEnv.executeSql(alterDDL)
+
+    assertEquals(
+      Map(
+        "provider" -> "openai",
+        "task" -> "embedding",
+        "openai.endpoint" -> "openai-endpoint").asJava,
+      tableEnv
+        .getCatalog(tableEnv.getCurrentCatalog)
+        .get()
+        .getModel(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.M1"))
+        .getOptions
+    )
+  }
+
+  @Test
+  def testAlterModelEmptyOptions(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(sourceDDL)
+
+    assertThatThrownBy(
+      () =>
+        tableEnv
+          .executeSql("ALTER MODEL M1 SET ()"))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining("ALTER MODEL SET does not support empty option.");
+  }
+
+  @Test
+  def testAlterNonExistModel(): Unit = {
+    val alterDDL =
+      """
+        |ALTER MODEL M1
+        |SET(
+        |  'provider' = 'azureml',
+        |  'azueml.endpoint' = 'azure-endpoint',
+        |  'task' = 'clustering'
+        |)
+        |""".stripMargin
+    assertThatThrownBy(() => tableEnv.executeSql(alterDDL))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining("Model `default_catalog`.`default_database`.`M1` doesn't exist.")
+  }
+
+  @Test
+  def testAlterNonExistModelWithIfExist(): Unit = {
+    val alterDDL =
+      """
+        |ALTER MODEL IF EXISTS M1
+        |SET(
+        |  'provider' = 'azureml',
+        |  'azueml.endpoint' = 'azure-endpoint',
+        |  'task' = 'clustering'
+        |)
+        |""".stripMargin
+    tableEnv.executeSql(alterDDL)
+  }
+
+  @Test
+  def testAlterModelRename(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(sourceDDL)
+
+    val alterDDL =
+      """
+        |ALTER MODEL M1 RENAME TO M2
+        |""".stripMargin
+    tableEnv.executeSql(alterDDL)
+  }
+
+  @Test
+  def testAlterModelRenameNonExist(): Unit = {
+    val alterDDL =
+      """
+        |ALTER MODEL M1 RENAME TO M2
+        |""".stripMargin
+    assertThatThrownBy(() => tableEnv.executeSql(alterDDL))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining("Model `default_catalog`.`default_database`.`M1` doesn't exist.")
+  }
+
+  @Test
+  def testAlterModelRenameDifferentCatalog(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(sourceDDL)
+
+    val alterDDL =
+      """
+        |ALTER MODEL `default_catalog`.`default_database`.`M1` RENAME TO `other_catalog`.`default_database`.`M2`
+        |""".stripMargin
+    assertThatThrownBy(() => tableEnv.executeSql(alterDDL))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining(
+        "The catalog name of the new model name 'other_catalog.default_database.M2' must be the same as the old model name 'default_catalog.default_database.M1'.")
+  }
+
+  @Test
+  def testAlterModelRenameWithIfExists(): Unit = {
+    val alterDDL =
+      """
+        |ALTER MODEL IF EXISTS M1 RENAME TO M2
+        |""".stripMargin
+    tableEnv.executeSql(alterDDL)
+  }
+
+  @Test
+  def testAlterModelReset(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(sourceDDL)
+
+    tableEnv.executeSql("ALTER MODEL M1 RESET ('task')");
+
+    assertEquals(
+      Map("provider" -> "openai", "openai.endpoint" -> "some-endpoint").asJava,
+      tableEnv
+        .getCatalog(tableEnv.getCurrentCatalog)
+        .get()
+        .getModel(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.M1"))
+        .getOptions
+    )
+  }
+
+  @Test
+  def testAlterModelResetNonExist(): Unit = {
+    assertThatThrownBy(() => tableEnv.executeSql("ALTER MODEL M1 RESET ('task')"))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining("Model `default_catalog`.`default_database`.`M1` doesn't exist.")
+  }
+
+  @Test
+  def testAlterModelResetWithIfExists(): Unit = {
+    tableEnv.executeSql("ALTER MODEL IF EXISTS M1 RESET ('task')");
+  }
+
+  @Test
+  def testAlterModelRestEmptyOptionKey(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(sourceDDL)
+
+    assertThatThrownBy(
+      () =>
+        tableEnv
+          .executeSql("ALTER MODEL M1 RESET ()"))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining("ALTER MODEL RESET does not support empty key.");
+  }
+
+  @Test
+  def testCreateModelMissingInput(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+    assertThatThrownBy(() => tableEnv.executeSql(sourceDDL))
+      .isInstanceOf(classOf[SqlValidateException])
+      .hasMessageContaining("Input column list can not be empty with non-empty output column list.")
+
+  }
+
+  @Test
+  def testCreateModelDuplicateInputColumn(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f1 string, f1 string)
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+    assertThatThrownBy(() => tableEnv.executeSql(sourceDDL))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining("Duplicate input column name: 'f1'.")
+
+  }
+
+  @Test
+  def testCreateModelDuplicateOutputColumn(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f1 string)
+        |  OUTPUT(f2 string, f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+    assertThatThrownBy(() => tableEnv.executeSql(sourceDDL))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining("Duplicate output column name: 'f2'.")
+
+  }
+
+  @Test
+  def testCreateModelMissingOutput(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f1 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+    assertThatThrownBy(() => tableEnv.executeSql(sourceDDL))
+      .isInstanceOf(classOf[SqlValidateException])
+      .hasMessageContaining("")
+  }
+
+  @Test
+  def testCreateModelMissingOption(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f1 string)
+        |  OUTPUT(f2 string)
+        |with ()
+      """.stripMargin
+    assertThatThrownBy(() => tableEnv.executeSql(sourceDDL))
+      .isInstanceOf(classOf[SqlValidateException])
+      .hasMessageContaining("Model property list can not be empty.")
+  }
+
+  @Test
+  def testDescribeModelWithComment(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10) COMMENT 'comment', f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedResult1 = util.Arrays.asList(
+      Row.of("f0", "CHAR(10)", Boolean.box(true), Boolean.box(true), "comment"),
+      Row.of("f1", "VARCHAR(10)", Boolean.box(true), Boolean.box(true), null),
+      Row.of("f2", "STRING", Boolean.box(true), Boolean.box(false), null)
+    )
+    val modelResult1 = tableEnv.executeSql("describe MODEL M1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, modelResult1.getResultKind)
+    checkData(expectedResult1.iterator(), modelResult1.collect())
+    val modelResult2 = tableEnv.executeSql("desc model M1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, modelResult2.getResultKind)
+    checkData(expectedResult1.iterator(), modelResult2.collect())
+  }
+
+  @Test
+  def testDescribeModel(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedResult1 = util.Arrays.asList(
+      Row.of("f0", "CHAR(10)", Boolean.box(true), Boolean.box(true)),
+      Row.of("f1", "VARCHAR(10)", Boolean.box(true), Boolean.box(true)),
+      Row.of("f2", "STRING", Boolean.box(true), Boolean.box(false))
+    )
+    val modelResult1 = tableEnv.executeSql("describe MODEL M1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, modelResult1.getResultKind)
+    checkData(expectedResult1.iterator(), modelResult1.collect())
+    val modelResult2 = tableEnv.executeSql("desc model M1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, modelResult2.getResultKind)
+    checkData(expectedResult1.iterator(), modelResult2.collect())
+  }
+
+  @Test
+  def testDescribeModelWithNoInputOutput(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  COMMENT 'this is a model'
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedResult1 = new util.ArrayList[Row]()
+    val modelResult1 = tableEnv.executeSql("describe model M1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, modelResult1.getResultKind)
+    checkData(expectedResult1.iterator(), modelResult1.collect())
+    val modelResult2 = tableEnv.executeSql("desc model M1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, modelResult2.getResultKind)
+    checkData(expectedResult1.iterator(), modelResult2.collect())
+  }
+
+  @Test
+  def testShowCreateModel(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |COMMENT 'this is a model'
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedDDL =
+      """|CREATE MODEL `default_catalog`.`default_database`.`M1`
+         |INPUT (`f0` CHAR(10), `f1` VARCHAR(10))
+         |OUTPUT (`f2` VARCHAR(2147483647))
+         |COMMENT 'this is a model'
+         |WITH (
+         |  'openai.endpoint' = 'some-endpoint',
+         |  'provider' = 'openai',
+         |  'task' = 'clustering'
+         |)
+         |""".stripMargin
+    val row = tableEnv.executeSql("SHOW CREATE MODEL M1").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
+  def testShowCreateModelComplexTypes(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(
+        |    f0 ARRAY<INT>,
+        |    f1 MAP<STRING, INT>,
+        |    f2 ROW<name STRING, age INT>,
+        |    f3 ROW<name STRING, address ROW<street STRING, city STRING>>,
+        |    f4 ARRAY<ROW<id INT, details ROW<color STRING, size INT>>>
+        |  )
+        |  OUTPUT(
+        |    f5 ARRAY<MAP<STRING, INT>>,
+        |    f6 ARRAY<ARRAY<STRING>>
+        |  )
+        |COMMENT 'this is a model'
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedDDL =
+      """|CREATE MODEL `default_catalog`.`default_database`.`M1`
+         |INPUT (`f0` ARRAY<INT>, `f1` MAP<VARCHAR(2147483647), INT>, `f2` ROW<`name` VARCHAR(2147483647), `age` INT>, `f3` ROW<`name` VARCHAR(2147483647), `address` ROW<`street` VARCHAR(2147483647), `city` VARCHAR(2147483647)>>, `f4` ARRAY<ROW<`id` INT, `details` ROW<`color` VARCHAR(2147483647), `size` INT>>>)
+         |OUTPUT (`f5` ARRAY<MAP<VARCHAR(2147483647), INT>>, `f6` ARRAY<ARRAY<VARCHAR(2147483647)>>)
+         |COMMENT 'this is a model'
+         |WITH (
+         |  'openai.endpoint' = 'some-endpoint',
+         |  'provider' = 'openai',
+         |  'task' = 'clustering'
+         |)
+         |""".stripMargin
+    val row = tableEnv.executeSql("SHOW CREATE MODEL M1").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
+  def testShowCreateTemporaryModel(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE TEMPORARY MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |COMMENT 'this is a model'
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedDDL =
+      """|CREATE TEMPORARY MODEL `default_catalog`.`default_database`.`M1`
+         |INPUT (`f0` CHAR(10), `f1` VARCHAR(10))
+         |OUTPUT (`f2` VARCHAR(2147483647))
+         |COMMENT 'this is a model'
+         |WITH (
+         |  'openai.endpoint' = 'some-endpoint',
+         |  'provider' = 'openai',
+         |  'task' = 'clustering'
+         |)
+         |""".stripMargin
+    val row = tableEnv.executeSql("SHOW CREATE MODEL M1").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
+  def testShowCreateNonExistModel(): Unit = {
+    assertThatThrownBy(() => tableEnv.executeSql("SHOW CREATE MODEL M1"))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessage(
+        "Could not execute SHOW CREATE MODEL. Model with identifier `default_catalog`.`default_database`.`M1` does not exist.")
+  }
+
+  @Test
+  def testShowCreateModelNoInputOutput(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  COMMENT 'this is a model'
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedDDL =
+      """|CREATE MODEL `default_catalog`.`default_database`.`M1`
+         |COMMENT 'this is a model'
+         |WITH (
+         |  'openai.endpoint' = 'some-endpoint',
+         |  'provider' = 'openai',
+         |  'task' = 'clustering'
+         |)
+         |""".stripMargin
+    val row = tableEnv.executeSql("SHOW CREATE MODEL M1").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
+  def testShowCreateModelNoComment(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+
+    tableEnv.executeSql(sourceDDL)
+
+    val expectedDDL =
+      """|CREATE MODEL `default_catalog`.`default_database`.`M1`
+         |INPUT (`f0` CHAR(10), `f1` VARCHAR(10))
+         |OUTPUT (`f2` VARCHAR(2147483647))
+         |WITH (
+         |  'openai.endpoint' = 'some-endpoint',
+         |  'provider' = 'openai',
+         |  'task' = 'clustering'
+         |)
+         |""".stripMargin
+    val row = tableEnv.executeSql("SHOW CREATE MODEL M1").collect().next()
+    assertEquals(expectedDDL, row.getField(0))
+  }
+
+  @Test
+  def testDropModel(): Unit = {
+    val sourceDDL =
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(sourceDDL)
+
+    val dropDDL =
+      """
+        |DROP MODEL M1
+        |""".stripMargin
+    tableEnv.executeSql(dropDDL)
+
+    // Alter shouldn't find model now
+    val alterDDL =
+      """
+        |ALTER MODEL M1 RENAME TO M2
+        |""".stripMargin
+    assertThatThrownBy(() => tableEnv.executeSql(alterDDL))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining("Model `default_catalog`.`default_database`.`M1` doesn't exist.")
+  }
+
+  @Test
+  def testDropNonExistModel(): Unit = {
+    val dropDDL =
+      """
+        |DROP MODEL M1
+        |""".stripMargin
+    assertThatThrownBy(() => tableEnv.executeSql(dropDDL))
+      .isInstanceOf(classOf[ValidationException])
+      .hasMessageContaining(
+        "Model with identifier 'default_catalog.default_database.M1' does not exist.")
+  }
+
+  @Test
+  def testDropNonExistModelWithIfExist(): Unit = {
+    val dropDDL =
+      """
+        |DROP MODEL IF EXISTS M1
+        |""".stripMargin
+    tableEnv.executeSql(dropDDL)
+  }
+
+  @Test
+  def testExecuteSqlWithShowModels(): Unit = {
+    val createModelStmt = {
+      """
+        |CREATE MODEL M1
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |  with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+        |""".stripMargin
+    }
+    val tableResult1 = tableEnv.executeSql(createModelStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val tableResult2 = tableEnv.executeSql("SHOW MODELS")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    assertEquals(
+      ResolvedSchema.of(Column.physical("model name", DataTypes.STRING())),
+      tableResult2.getResolvedSchema)
+    checkData(util.Arrays.asList(Row.of("M1")).iterator(), tableResult2.collect())
+  }
+
+  def testExecuteSqlWithEnhancedShowModels(): Unit = {
+    val createCatalogResult =
+      tableEnv.executeSql("CREATE CATALOG catalog1 WITH('type'='generic_in_memory')")
+    assertEquals(ResultKind.SUCCESS, createCatalogResult.getResultKind)
+
+    val createDbResult = tableEnv.executeSql("CREATE database catalog1.db1")
+    assertEquals(ResultKind.SUCCESS, createDbResult.getResultKind)
+
+    val createModelStmt =
+      """
+        |CREATE MODEL catalog1.db1.my_model
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |  with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+        |""".stripMargin
+    val tableResult1 = tableEnv.executeSql(createModelStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val createTableStmt2 =
+      """
+        |CREATE MODEL catalog1.db1.your_model
+        |  INPUT(f0 char(10), f1 varchar(10))
+        |  OUTPUT(f2 string)
+        |  with (
+        |  'task' = 'clustering',
+        |  'provider' = 'openai',
+        |  'openai.endpoint' = 'some-endpoint'
+        |)
+        |""".stripMargin
+
+    val tableResult2 = tableEnv.executeSql(createTableStmt2)
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    val tableResult3 = tableEnv.executeSql("SHOW MODELS FROM catalog1.db1 like 'you_mo%'")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    assertEquals(
+      ResolvedSchema.of(Column.physical("model name", DataTypes.STRING())),
+      tableResult3.getResolvedSchema)
+    checkData(util.Arrays.asList(Row.of("your_model")).iterator(), tableResult3.collect())
+  }
+
+  @Test
   def testTemporaryOperationListener(): Unit = {
     val listener = new ListenerCatalog("listener_cat")
     val currentCat = tableEnv.getCurrentCatalog
@@ -1932,6 +3348,179 @@ class TableEnvironmentTest {
           "Please instantiate a new TableEnvironment if necessary.")
   }
 
+  @Test
+  def testAddPartitions(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl (
+        |  a INT,
+        |  b BIGINT,
+        |  c DATE
+        |) PARTITIONED BY (b, c)
+        |WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    // test add partition
+    var tableResult = tableEnv.executeSql(
+      "alter table tbl add partition " +
+        "(b=1000,c='2020-05-01') partition (b=2000,c='2020-01-01') with ('k'='v')")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+
+    val spec1 = new CatalogPartitionSpec(Map("b" -> "1000", "c" -> "2020-05-01").asJava)
+    val spec2 = new CatalogPartitionSpec(Map("b" -> "2000", "c" -> "2020-01-01").asJava)
+
+    val catalog = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+
+    val tablePath = new ObjectPath("default_database", "tbl")
+    val actual = catalog.listPartitions(tablePath)
+    // assert partition spec
+    assertEquals(List(spec1, spec2).asJava, actual)
+
+    val part1 = catalog.getPartition(tablePath, spec1)
+    val part2 = catalog.getPartition(tablePath, spec2)
+    // assert partition properties
+    assertEquals(Collections.emptyMap(), part1.getProperties)
+    assertEquals(Collections.singletonMap("k", "v"), part2.getProperties)
+
+    // add existed partition with if not exists
+    tableResult =
+      tableEnv.executeSql("alter table tbl add if not exists partition (b=1000,c='2020-05-01')")
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+
+    // add existed partition without if not exists
+    assertThatThrownBy(
+      () => tableEnv.executeSql("alter table tbl add partition (b=1000,c='2020-05-01')"))
+      .isInstanceOf(classOf[TableException])
+      .hasMessageContaining("Could not execute ALTER TABLE default_catalog.default_database.tbl" +
+        " ADD PARTITION (b=1000, c=2020-05-01)")
+
+  }
+
+  @Test
+  def testShowPartitions(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE tbl (
+        |  a INT,
+        |  b BIGINT,
+        |  c DATE
+        |) PARTITIONED BY (b, c)
+        |WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+          """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    // partitions
+    val catalog = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+    val spec1 = new CatalogPartitionSpec(Map("b" -> "1000", "c" -> "2020-05-01").asJava)
+    val part1 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+    val spec2 = new CatalogPartitionSpec(Map("b" -> "2000", "c" -> "2020-01-01").asJava)
+    val part2 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+    val spec3 = new CatalogPartitionSpec(Map("b" -> "2000", "c" -> "2020-05-01").asJava)
+    val part3 = new CatalogPartitionImpl(Map("k1" -> "v1").asJava, "")
+
+    val tablePath = new ObjectPath("default_database", "tbl")
+    // create partition
+    catalog.createPartition(tablePath, spec1, part1, false)
+    catalog.createPartition(tablePath, spec2, part2, false)
+    catalog.createPartition(tablePath, spec3, part3, false)
+
+    // test show all partitions
+    var tableResult =
+      tableEnv.executeSql("show partitions tbl")
+
+    var expectedResult = util.Arrays.asList(
+      Row.of("b=1000/c=2020-05-01"),
+      Row.of("b=2000/c=2020-01-01"),
+      Row.of("b=2000/c=2020-05-01")
+    )
+
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    // test show partitions with partition spec
+    tableResult = tableEnv.executeSql("show partitions tbl partition (b=2000)")
+    expectedResult = util.Arrays.asList(
+      Row.of("b=2000/c=2020-01-01"),
+      Row.of("b=2000/c=2020-05-01")
+    )
+    checkData(expectedResult.iterator(), tableResult.collect())
+  }
+
+  @Test
+  def testShowColumnsWithLike(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE TestTb1 (
+        |  abc bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+    """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    var sql = "SHOW COLUMNS from TestTb1 LIKE 'abc'"
+    var tableResult = tableEnv.executeSql(sql)
+
+    val expectedResult = util.Arrays.asList(
+      Row.of("abc", "BIGINT", Boolean.box(true), null, null, null)
+    )
+
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    sql = "SHOW COLUMNS from TestTb1 LIKE 'a.c'"
+    tableResult = tableEnv.executeSql(sql)
+
+    checkData(Collections.emptyList().iterator(), tableResult.collect());
+  }
+
+  private def dropView(viewName: String, isSql: Boolean): Unit = {
+    if (isSql) {
+      tableEnv.executeSql("DROP VIEW " + viewName)
+    } else {
+      tableEnv.dropView(viewName)
+    }
+  }
+
+  private def createViewsForDropTests(): Unit = {
+    createTableForTests()
+    val viewDdls = Array[String](
+      """
+        |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
+      """.stripMargin,
+      """
+        |CREATE VIEW T3(x, y, z) AS SELECT a, b, c FROM T1
+      """.stripMargin
+    )
+
+    for (viewSql <- viewDdls) {
+      val view = tableEnv.executeSql(viewSql)
+      assertEquals(ResultKind.SUCCESS, view.getResultKind)
+    }
+  }
+
+  private def createTableForTests(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE T1 (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+  }
+
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
     while (expected.hasNext && actual.hasNext) {
       assertEquals(expected.next(), actual.next())
@@ -1998,8 +3587,12 @@ class TableEnvironmentTest {
     assertEquals(expectToBeBounded, source.asInstanceOf[CollectionTableSource].isBounded)
   }
 
-  private def checkExplain(sql: String, resultPath: String): Unit = {
-    val tableResult2 = tableEnv.executeSql(sql)
+  private def checkExplain(sql: String, resultPath: String, streaming: Boolean = true): Unit = {
+    val tableResult2 = if (streaming) {
+      tableEnv.executeSql(sql)
+    } else {
+      batchTableEnv.executeSql(sql)
+    }
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     val it = tableResult2.collect()
     assertTrue(it.hasNext)
@@ -2017,9 +3610,11 @@ class TableEnvironmentTest {
     with TemporaryOperationListener {
 
     val tableComment: String = "listener_comment"
+    val modelComment: String = "listener_comment"
     val funcClzName: String = classOf[TestGenericUDF].getName
 
     var numTempTable = 0
+    var numTempModel = 0
     var numTempFunc = 0
 
     override def onCreateTemporaryTable(
@@ -2027,19 +3622,33 @@ class TableEnvironmentTest {
         table: CatalogBaseTable): CatalogBaseTable = {
       numTempTable += 1
       if (table.isInstanceOf[CatalogTable]) {
-        new CatalogTableImpl(table.getSchema, table.getOptions, tableComment)
+        CatalogTable
+          .newBuilder()
+          .schema(table.getUnresolvedSchema)
+          .comment(tableComment)
+          .options(table.getOptions)
+          .build()
       } else {
         val view = table.asInstanceOf[CatalogView]
-        new CatalogViewImpl(
+        CatalogView.of(
+          view.getUnresolvedSchema,
+          tableComment,
           view.getOriginalQuery,
           view.getExpandedQuery,
-          view.getSchema,
-          view.getOptions,
-          tableComment)
+          view.getOptions)
       }
     }
 
+    override def onCreateTemporaryModel(
+        modelPath: ObjectPath,
+        model: CatalogModel): CatalogModel = {
+      numTempModel += 1
+      CatalogModel.of(model.getInputSchema, model.getOutputSchema, model.getOptions, modelComment)
+    }
+
     override def onDropTemporaryTable(tablePath: ObjectPath): Unit = numTempTable -= 1
+
+    override def onDropTemporaryModel(modelPath: ObjectPath): Unit = numTempModel -= 1
 
     override def onCreateTemporaryFunction(
         functionPath: ObjectPath,

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.sort;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -40,24 +41,22 @@ import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
-public class LargeRecordHandlerITCase extends TestLogger {
+class LargeRecordHandlerITCase {
 
     @Test
-    public void testRecordHandlerCompositeKey() {
+    void testRecordHandlerCompositeKey() {
         final int PAGE_SIZE = 4 * 1024;
         final int NUM_PAGES = 1000;
         final int NUM_RECORDS = 10;
@@ -84,7 +83,7 @@ public class LargeRecordHandlerITCase extends TestLogger {
                     new TupleTypeInfo<Tuple3<Long, SomeVeryLongValue, Byte>>(types);
 
             final TypeSerializer<Tuple3<Long, SomeVeryLongValue, Byte>> serializer =
-                    typeInfo.createSerializer(new ExecutionConfig());
+                    typeInfo.createSerializer(new SerializerConfigImpl());
             final TypeComparator<Tuple3<Long, SomeVeryLongValue, Byte>> comparator =
                     typeInfo.createComparator(
                             new int[] {2, 0}, new boolean[] {true, true}, 0, new ExecutionConfig());
@@ -100,61 +99,54 @@ public class LargeRecordHandlerITCase extends TestLogger {
                             128,
                             owner.getExecutionConfig());
 
-            assertFalse(handler.hasData());
+            assertThat(handler.hasData()).isFalse();
 
             // add the test data
             Random rnd = new Random();
 
             for (int i = 0; i < NUM_RECORDS; i++) {
                 long val = rnd.nextLong();
-                handler.addRecord(
-                        new Tuple3<Long, SomeVeryLongValue, Byte>(
-                                val, new SomeVeryLongValue((int) val), (byte) val));
-                assertTrue(handler.hasData());
+                handler.addRecord(new Tuple3<>(val, new SomeVeryLongValue((int) val), (byte) val));
+                assertThat(handler.hasData()).isTrue();
             }
 
             MutableObjectIterator<Tuple3<Long, SomeVeryLongValue, Byte>> sorted =
                     handler.finishWriteAndSortKeys(sortMemory);
 
-            try {
-                handler.addRecord(new Tuple3<Long, SomeVeryLongValue, Byte>(92L, null, (byte) 1));
-                fail("should throw an exception");
-            } catch (IllegalStateException e) {
-                // expected
-            }
+            assertThatThrownBy(() -> handler.addRecord(new Tuple3<>(92L, null, (byte) 1)))
+                    .withFailMessage("should throw an exception")
+                    .isInstanceOf(IllegalStateException.class);
 
             Tuple3<Long, SomeVeryLongValue, Byte> previous = null;
             Tuple3<Long, SomeVeryLongValue, Byte> next;
 
             while ((next = sorted.next(null)) != null) {
                 // key and value must be equal
-                assertTrue(next.f0.intValue() == next.f1.val());
-                assertTrue(next.f0.byteValue() == next.f2);
+                assertThat(next.f0.intValue()).isEqualTo(next.f1.val());
+                assertThat(next.f0.byteValue()).isEqualTo(next.f2);
 
                 // order must be correct
                 if (previous != null) {
-                    assertTrue(previous.f2 <= next.f2);
-                    assertTrue(
-                            previous.f2.byteValue() != next.f2.byteValue()
-                                    || previous.f0 <= next.f0);
+                    assertThat(previous.f2).isLessThanOrEqualTo(next.f2);
+                    assertThat(
+                                    previous.f2.byteValue() != next.f2.byteValue()
+                                            || previous.f0 <= next.f0)
+                            .isTrue();
                 }
                 previous = next;
             }
 
             handler.close();
 
-            assertFalse(handler.hasData());
+            assertThat(handler.hasData()).isFalse();
 
             handler.close();
 
-            try {
-                handler.addRecord(new Tuple3<Long, SomeVeryLongValue, Byte>(92L, null, (byte) 1));
-                fail("should throw an exception");
-            } catch (IllegalStateException e) {
-                // expected
-            }
+            assertThatThrownBy(() -> handler.addRecord(new Tuple3<>(92L, null, (byte) 1)))
+                    .withFailMessage("should throw an exception")
+                    .isInstanceOf(IllegalStateException.class);
 
-            assertTrue(memMan.verifyEmpty());
+            assertThat(memMan.verifyEmpty()).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -190,7 +182,7 @@ public class LargeRecordHandlerITCase extends TestLogger {
             val = in.readInt();
             for (byte bufferByte : BUFFER) {
                 byte b = in.readByte();
-                assertEquals(bufferByte, b);
+                assertThat(b).isEqualTo(bufferByte);
             }
         }
 
@@ -202,7 +194,7 @@ public class LargeRecordHandlerITCase extends TestLogger {
     }
 
     @Test
-    public void fileTest() {
+    void fileTest() {
         final int PAGE_SIZE = 4 * 1024;
         final int NUM_PAGES = 4;
         final int NUM_RECORDS = 10;
@@ -230,7 +222,7 @@ public class LargeRecordHandlerITCase extends TestLogger {
                     new TupleTypeInfo<Tuple3<Long, SomeVeryLongValue, Byte>>(types);
 
             final TypeSerializer<Tuple3<Long, SomeVeryLongValue, Byte>> serializer =
-                    typeInfo.createSerializer(new ExecutionConfig());
+                    typeInfo.createSerializer(new SerializerConfigImpl());
 
             channel = ioMan.createChannel();
             FileChannelOutputView out =
@@ -253,7 +245,7 @@ public class LargeRecordHandlerITCase extends TestLogger {
             out.close();
 
             for (int i = 1; i < offsets.size(); i++) {
-                assertTrue(offsets.get(i) > offsets.get(i - 1));
+                assertThat(offsets.get(i)).isGreaterThan(offsets.get(i - 1));
             }
 
             memMan.allocatePages(owner, memory, NUM_PAGES);
@@ -267,8 +259,8 @@ public class LargeRecordHandlerITCase extends TestLogger {
                 Tuple3<Long, SomeVeryLongValue, Byte> next = serializer.deserialize(in);
 
                 // key and value must be equal
-                assertTrue(next.f0.intValue() == next.f1.val());
-                assertTrue(next.f0.byteValue() == next.f2);
+                assertThat(next.f0.intValue()).isEqualTo(next.f1.val());
+                assertThat(next.f0.byteValue()).isEqualTo(next.f2);
             }
 
             in.closeAndDelete();

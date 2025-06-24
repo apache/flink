@@ -27,8 +27,8 @@ import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, LESS_THAN}
 import org.apache.calcite.util.ImmutableBitSet
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 
 import java.util.Collections
 
@@ -104,6 +104,11 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
   @Test
   def testGetUniqueKeysOnWatermark(): Unit = {
     assertEquals(uniqueKeys(Array(0)), mq.getUniqueKeys(logicalWatermarkAssigner).toSet)
+  }
+
+  @Test
+  def testGetUniqueKeysOnMiniBatchAssigner(): Unit = {
+    assertEquals(uniqueKeys(Array(0)), mq.getUniqueKeys(streamMiniBatchAssigner).toSet)
   }
 
   @Test
@@ -338,6 +343,21 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
   @Test
   def testGetUniqueKeysOnLookupJoin(): Unit = {
     Array(batchLookupJoin, streamLookupJoin).foreach {
+      join => assertEquals(uniqueKeys(), mq.getUniqueKeys(join).toSet)
+    }
+  }
+
+  @Test
+  def testGetUniqueKeysOnLookupJoinWithPk(): Unit = {
+    Array(batchLookupJoinWithPk, streamLookupJoinWithPk).foreach {
+      join =>
+        assertEquals(uniqueKeys(Array(7), Array(0, 7), Array(0)), mq.getUniqueKeys(join).toSet)
+    }
+  }
+
+  @Test
+  def testGetUniqueKeysOnLookupJoinNotContainsPk(): Unit = {
+    Array(batchLookupJoinNotContainsPk, streamLookupJoinNotContainsPk).foreach {
       join => assertEquals(uniqueKeys(), mq.getUniqueKeys(join).toSet)
     }
   }

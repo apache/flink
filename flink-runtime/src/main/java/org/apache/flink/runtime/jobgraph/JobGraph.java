@@ -22,12 +22,15 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.JobStatusHook;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.SerializedValue;
@@ -35,7 +38,6 @@ import org.apache.flink.util.SerializedValue;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -63,18 +65,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The JobGraph defines the job-wide configuration settings, while each vertex and intermediate
  * result define the characteristics of the concrete operation and intermediate data.
  */
-public class JobGraph implements Serializable {
+public class JobGraph implements ExecutionPlan {
 
     private static final long serialVersionUID = 1L;
 
     // --- job and configuration ---
+
+    private long initialClientHeartbeatTimeout;
 
     /** List of task vertices included in this job graph. */
     private final Map<JobVertexID, JobVertex> taskVertices =
             new LinkedHashMap<JobVertexID, JobVertex>();
 
     /** The job configuration attached to this job. */
-    private final Configuration jobConfiguration = new Configuration();
+    private Configuration jobConfiguration = new Configuration();
 
     /** ID of this job. May be set if specific job id is desired (e.g. session management) */
     private JobID jobID;
@@ -83,6 +87,8 @@ public class JobGraph implements Serializable {
     private final String jobName;
 
     private JobType jobType = JobType.BATCH;
+
+    private boolean dynamic;
 
     /**
      * Whether approximate local recovery is enabled. This flag will be removed together with legacy
@@ -115,6 +121,9 @@ public class JobGraph implements Serializable {
 
     /** List of classpaths required to run this job. */
     private List<URL> classpaths = Collections.emptyList();
+
+    /** List of user-defined job status change hooks. */
+    private List<JobStatusHook> jobStatusHooks = Collections.emptyList();
 
     // --------------------------------------------------------------------------------------------
 
@@ -172,6 +181,7 @@ public class JobGraph implements Serializable {
      *
      * @return the ID of the job
      */
+    @Override
     public JobID getJobID() {
         return this.jobID;
     }
@@ -186,8 +196,38 @@ public class JobGraph implements Serializable {
      *
      * @return the name assigned to the job graph
      */
+    @Override
     public String getName() {
         return this.jobName;
+    }
+
+    @Override
+    public boolean isPartialResourceConfigured() {
+        boolean hasVerticesWithUnknownResource = false;
+        boolean hasVerticesWithConfiguredResource = false;
+
+        for (JobVertex jobVertex : getVertices()) {
+            if (jobVertex.getMinResources() == ResourceSpec.UNKNOWN) {
+                hasVerticesWithUnknownResource = true;
+            } else {
+                hasVerticesWithConfiguredResource = true;
+            }
+
+            if (hasVerticesWithUnknownResource && hasVerticesWithConfiguredResource) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return getNumberOfVertices() == 0;
+    }
+
+    public void setJobConfiguration(Configuration jobConfiguration) {
+        this.jobConfiguration = jobConfiguration;
     }
 
     /**
@@ -196,6 +236,7 @@ public class JobGraph implements Serializable {
      *
      * @return The configuration object for this job.
      */
+    @Override
     public Configuration getJobConfiguration() {
         return this.jobConfiguration;
     }
@@ -205,6 +246,7 @@ public class JobGraph implements Serializable {
      *
      * @return ExecutionConfig
      */
+    @Override
     public SerializedValue<ExecutionConfig> getSerializedExecutionConfig() {
         return serializedExecutionConfig;
     }
@@ -213,8 +255,18 @@ public class JobGraph implements Serializable {
         this.jobType = type;
     }
 
+    @Override
     public JobType getJobType() {
         return jobType;
+    }
+
+    public void setDynamic(boolean dynamic) {
+        this.dynamic = dynamic;
+    }
+
+    @Override
+    public boolean isDynamic() {
+        return dynamic;
     }
 
     public void enableApproximateLocalRecovery(boolean enabled) {
@@ -230,6 +282,7 @@ public class JobGraph implements Serializable {
      *
      * @param settings The savepoint restore settings.
      */
+    @Override
     public void setSavepointRestoreSettings(SavepointRestoreSettings settings) {
         this.savepointRestoreSettings = checkNotNull(settings, "Savepoint restore settings");
     }
@@ -239,6 +292,7 @@ public class JobGraph implements Serializable {
      *
      * @return The configured savepoint restore settings.
      */
+    @Override
     public SavepointRestoreSettings getSavepointRestoreSettings() {
         return savepointRestoreSettings;
     }
@@ -256,7 +310,8 @@ public class JobGraph implements Serializable {
         setSerializedExecutionConfig(new SerializedValue<>(executionConfig));
     }
 
-    void setSerializedExecutionConfig(SerializedValue<ExecutionConfig> serializedExecutionConfig) {
+    public void setSerializedExecutionConfig(
+            SerializedValue<ExecutionConfig> serializedExecutionConfig) {
         this.serializedExecutionConfig =
                 checkNotNull(
                         serializedExecutionConfig,
@@ -346,24 +401,9 @@ public class JobGraph implements Serializable {
      *
      * @return The snapshot settings
      */
+    @Override
     public JobCheckpointingSettings getCheckpointingSettings() {
         return snapshotSettings;
-    }
-
-    /**
-     * Checks if the checkpointing was enabled for this job graph.
-     *
-     * @return true if checkpointing enabled
-     */
-    public boolean isCheckpointingEnabled() {
-
-        if (snapshotSettings == null) {
-            return false;
-        }
-
-        long checkpointInterval =
-                snapshotSettings.getCheckpointCoordinatorConfiguration().getCheckpointInterval();
-        return checkpointInterval > 0 && checkpointInterval < Long.MAX_VALUE;
     }
 
     /**
@@ -386,6 +426,7 @@ public class JobGraph implements Serializable {
         classpaths = paths;
     }
 
+    @Override
     public List<URL> getClasspaths() {
         return classpaths;
     }
@@ -395,6 +436,7 @@ public class JobGraph implements Serializable {
      *
      * @return The maximum parallelism of this job graph
      */
+    @Override
     public int getMaximumParallelism() {
         int maxParallelism = -1;
         for (JobVertex vertex : taskVertices.values()) {
@@ -424,7 +466,7 @@ public class JobGraph implements Serializable {
             while (iter.hasNext()) {
                 JobVertex vertex = iter.next();
 
-                if (vertex.hasNoConnectedInputs()) {
+                if (vertex.isInputVertex()) {
                     sorted.add(vertex);
                     iter.remove();
                 }
@@ -452,10 +494,9 @@ public class JobGraph implements Serializable {
     private void addNodesThatHaveNoNewPredecessors(
             JobVertex start, List<JobVertex> target, Set<JobVertex> remaining) {
 
-        // forward traverse over all produced data sets
+        // forward traverse over all produced data sets and all their consumers
         for (IntermediateDataSet dataSet : start.getProducedDataSets()) {
-            JobEdge edge = dataSet.getConsumer();
-            if (edge != null) {
+            for (JobEdge edge : dataSet.getConsumers()) {
 
                 // a vertex can be added, if it has no predecessors that are still in the
                 // 'remaining' set
@@ -529,6 +570,7 @@ public class JobGraph implements Serializable {
      *
      * @return The list of assigned user jar paths
      */
+    @Override
     public List<Path> getUserJars() {
         return userJars;
     }
@@ -553,6 +595,7 @@ public class JobGraph implements Serializable {
      *
      * @return The list of assigned user jar paths
      */
+    @Override
     public Map<String, DistributedCache.DistributedCacheEntry> getUserArtifacts() {
         return userArtifacts;
     }
@@ -562,6 +605,7 @@ public class JobGraph implements Serializable {
      *
      * @param key path of the JAR file required to run the job on a task manager
      */
+    @Override
     public void addUserJarBlobKey(PermanentBlobKey key) {
         if (key == null) {
             throw new IllegalArgumentException();
@@ -586,6 +630,7 @@ public class JobGraph implements Serializable {
      *
      * @return set of BLOB keys referring to the JAR files required to run this job
      */
+    @Override
     public List<PermanentBlobKey> getUserJarBlobKeys() {
         return this.userJarBlobKeys;
     }
@@ -595,6 +640,7 @@ public class JobGraph implements Serializable {
         return "JobGraph(jobId: " + jobID + ")";
     }
 
+    @Override
     public void setUserArtifactBlobKey(String entryName, PermanentBlobKey blobKey)
             throws IOException {
         byte[] serializedBlobKey;
@@ -621,11 +667,30 @@ public class JobGraph implements Serializable {
                                 originalEntry.isZipped));
     }
 
+    @Override
     public void writeUserArtifactEntriesToConfiguration() {
         for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact :
                 userArtifacts.entrySet()) {
             DistributedCache.writeFileInfoToConfig(
                     userArtifact.getKey(), userArtifact.getValue(), jobConfiguration);
         }
+    }
+
+    public void setJobStatusHooks(List<JobStatusHook> hooks) {
+        checkNotNull(hooks, "Setting the JobStatusHook list to null is not allowed.");
+        this.jobStatusHooks = hooks;
+    }
+
+    public List<JobStatusHook> getJobStatusHooks() {
+        return this.jobStatusHooks;
+    }
+
+    public void setInitialClientHeartbeatTimeout(long initialClientHeartbeatTimeout) {
+        this.initialClientHeartbeatTimeout = initialClientHeartbeatTimeout;
+    }
+
+    @Override
+    public long getInitialClientHeartbeatTimeout() {
+        return initialClientHeartbeatTimeout;
     }
 }

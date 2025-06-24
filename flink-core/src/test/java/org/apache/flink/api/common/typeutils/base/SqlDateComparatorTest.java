@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.sql.Date;
 
-public class SqlDateComparatorTest extends ComparatorTestBase<Date> {
+class SqlDateComparatorTest extends ComparatorTestBase<Date> {
 
     @SuppressWarnings("unchecked")
     @Override

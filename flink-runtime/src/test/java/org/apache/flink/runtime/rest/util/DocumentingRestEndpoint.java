@@ -25,6 +25,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -49,5 +50,12 @@ public interface DocumentingRestEndpoint {
                                         spec1.getTargetRestEndpointURL(),
                                         spec2.getTargetRestEndpointURL()))
                 .collect(Collectors.toList());
+    }
+
+    static DocumentingRestEndpoint forRestHandlerSpecifications(RestHandlerSpecification... specs) {
+        return localAddressFuture ->
+                Arrays.stream(specs)
+                        .map(spec -> Tuple2.of(spec, (ChannelInboundHandler) null))
+                        .collect(Collectors.toList());
     }
 }

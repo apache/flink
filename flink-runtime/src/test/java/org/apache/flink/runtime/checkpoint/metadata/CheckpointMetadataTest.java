@@ -21,20 +21,18 @@ package org.apache.flink.runtime.checkpoint.metadata;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Simple tests for the {@link CheckpointMetadata} data holder class. */
-public class CheckpointMetadataTest {
+class CheckpointMetadataTest {
 
     @Test
-    public void testConstructAndDispose() throws Exception {
+    void testConstructAndDispose() throws Exception {
         final Random rnd = new Random();
 
         final long checkpointId = rnd.nextInt(Integer.MAX_VALUE) + 1;
@@ -52,16 +50,16 @@ public class CheckpointMetadataTest {
         CheckpointMetadata checkpoint =
                 new CheckpointMetadata(checkpointId, taskStates, masterStates);
 
-        assertEquals(checkpointId, checkpoint.getCheckpointId());
-        assertEquals(taskStates, checkpoint.getOperatorStates());
-        assertEquals(masterStates, checkpoint.getMasterStates());
+        assertThat(checkpoint.getCheckpointId()).isEqualTo(checkpointId);
+        assertThat(checkpoint.getOperatorStates()).isEqualTo(taskStates);
+        assertThat(checkpoint.getMasterStates()).isEqualTo(masterStates);
 
-        assertFalse(checkpoint.getOperatorStates().isEmpty());
-        assertFalse(checkpoint.getMasterStates().isEmpty());
+        assertThat(checkpoint.getOperatorStates()).isNotEmpty();
+        assertThat(checkpoint.getMasterStates()).isNotEmpty();
 
         checkpoint.dispose();
 
-        assertTrue(checkpoint.getOperatorStates().isEmpty());
-        assertTrue(checkpoint.getMasterStates().isEmpty());
+        assertThat(checkpoint.getOperatorStates()).isEmpty();
+        assertThat(checkpoint.getMasterStates()).isEmpty();
     }
 }

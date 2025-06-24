@@ -20,21 +20,24 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
+import org.apache.flink.runtime.deployment.CachedShuffleDescriptors;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.adaptivebatch.ExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
-import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -59,20 +62,23 @@ public class IntermediateResult {
 
     private final int numParallelProducers;
 
+    private final ExecutionPlanSchedulingContext executionPlanSchedulingContext;
+    private final boolean singleSubpartitionContainsAllData;
+
     private int partitionsAssigned;
 
     private final int connectionIndex;
 
     private final ResultPartitionType resultType;
 
-    private final Map<ConsumedPartitionGroup, MaybeOffloaded<ShuffleDescriptor[]>>
-            shuffleDescriptorCache;
+    private final Map<ConsumedPartitionGroup, CachedShuffleDescriptors> shuffleDescriptorCache;
 
     public IntermediateResult(
             IntermediateDataSet intermediateDataSet,
             ExecutionJobVertex producer,
             int numParallelProducers,
-            ResultPartitionType resultType) {
+            ResultPartitionType resultType,
+            ExecutionPlanSchedulingContext executionPlanSchedulingContext) {
 
         this.intermediateDataSet = checkNotNull(intermediateDataSet);
         this.id = checkNotNull(intermediateDataSet.getId());
@@ -95,6 +101,14 @@ public class IntermediateResult {
         this.resultType = checkNotNull(resultType);
 
         this.shuffleDescriptorCache = new HashMap<>();
+
+        this.executionPlanSchedulingContext = checkNotNull(executionPlanSchedulingContext);
+
+        this.singleSubpartitionContainsAllData = intermediateDataSet.isBroadcast();
+    }
+
+    public boolean areAllConsumerVerticesCreated() {
+        return intermediateDataSet.areAllConsumerVerticesCreated();
     }
 
     public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
@@ -122,6 +136,12 @@ public class IntermediateResult {
 
     public IntermediateResultPartition[] getPartitions() {
         return partitions;
+    }
+
+    public List<JobVertexID> getConsumerVertices() {
+        return intermediateDataSet.getConsumers().stream()
+                .map(jobEdge -> jobEdge.getTarget().getID())
+                .collect(Collectors.toList());
     }
 
     /**
@@ -162,20 +182,54 @@ public class IntermediateResult {
         return numParallelProducers;
     }
 
-    ExecutionJobVertex getConsumerExecutionJobVertex() {
-        final JobEdge consumer = checkNotNull(intermediateDataSet.getConsumer());
-        final JobVertexID consumerJobVertexId = consumer.getTarget().getID();
-        return checkNotNull(getProducer().getGraph().getJobVertex(consumerJobVertexId));
+    /**
+     * Currently, this method is only used to compute the maximum number of consumers. For dynamic
+     * graph, it should be called before adaptively deciding the downstream consumer parallelism.
+     */
+    int getConsumersParallelism() {
+        return executionPlanSchedulingContext.getConsumersParallelism(
+                jobVertexId -> producer.getGraph().getJobVertex(jobVertexId).getParallelism(),
+                intermediateDataSet);
+    }
+
+    int getConsumersMaxParallelism() {
+        return executionPlanSchedulingContext.getConsumersMaxParallelism(
+                jobVertexId -> producer.getGraph().getJobVertex(jobVertexId).getMaxParallelism(),
+                intermediateDataSet);
     }
 
     public DistributionPattern getConsumingDistributionPattern() {
-        final JobEdge consumer = checkNotNull(intermediateDataSet.getConsumer());
-        return consumer.getDistributionPattern();
+        return intermediateDataSet.getDistributionPattern();
     }
 
+    /**
+     * Determines whether the associated intermediate data set uses a broadcast distribution
+     * pattern.
+     *
+     * <p>A broadcast distribution pattern indicates that all data produced by this intermediate
+     * data set should be broadcast to every downstream consumer.
+     *
+     * @return true if the intermediate data set is using a broadcast distribution pattern; false
+     *     otherwise.
+     */
     public boolean isBroadcast() {
-        final JobEdge consumer = checkNotNull(intermediateDataSet.getConsumer());
-        return consumer.isBroadcast();
+        return intermediateDataSet.isBroadcast();
+    }
+
+    public boolean isForward() {
+        return intermediateDataSet.isForward();
+    }
+
+    /**
+     * Checks if a single subpartition contains all the produced data. This condition indicate that
+     * the data was intended to be broadcast to all consumers. If the decision to broadcast was made
+     * before the data production, this flag would likely be set accordingly. Conversely, if the
+     * broadcasting decision was made post-production, this flag will be false.
+     *
+     * @return true if a single subpartition contains all the data; false otherwise.
+     */
+    public boolean isSingleSubpartitionContainsAllData() {
+        return singleSubpartitionContainsAllData;
     }
 
     public int getConnectionIndex() {
@@ -189,15 +243,35 @@ public class IntermediateResult {
         }
     }
 
-    public MaybeOffloaded<ShuffleDescriptor[]> getCachedShuffleDescriptors(
+    public CachedShuffleDescriptors getCachedShuffleDescriptors(
             ConsumedPartitionGroup consumedPartitionGroup) {
         return shuffleDescriptorCache.get(consumedPartitionGroup);
     }
 
-    public void cacheShuffleDescriptors(
+    public CachedShuffleDescriptors cacheShuffleDescriptors(
             ConsumedPartitionGroup consumedPartitionGroup,
-            MaybeOffloaded<ShuffleDescriptor[]> shuffleDescriptors) {
-        this.shuffleDescriptorCache.put(consumedPartitionGroup, shuffleDescriptors);
+            ShuffleDescriptorAndIndex[] shuffleDescriptors) {
+        CachedShuffleDescriptors cachedShuffleDescriptors =
+                new CachedShuffleDescriptors(consumedPartitionGroup, shuffleDescriptors);
+        shuffleDescriptorCache.put(consumedPartitionGroup, cachedShuffleDescriptors);
+        return cachedShuffleDescriptors;
+    }
+
+    public void markPartitionFinished(
+            ConsumedPartitionGroup consumedPartitionGroup,
+            IntermediateResultPartition resultPartition) {
+        // only hybrid result partition need this notification.
+        if (!resultPartition.getResultType().isHybridResultPartition()) {
+            return;
+        }
+        // if this consumedPartitionGroup is not cached, ignore partition finished notification.
+        // In this case, shuffle descriptor will be computed directly by
+        // TaskDeploymentDescriptorFactory#getConsumedPartitionShuffleDescriptors.
+        if (shuffleDescriptorCache.containsKey(consumedPartitionGroup)) {
+            CachedShuffleDescriptors cachedShuffleDescriptors =
+                    shuffleDescriptorCache.get(consumedPartitionGroup);
+            cachedShuffleDescriptors.markPartitionFinished(resultPartition);
+        }
     }
 
     public void clearCachedInformationForPartitionGroup(
@@ -211,11 +285,21 @@ public class IntermediateResult {
 
         // Remove the cache for the ConsumedPartitionGroup and notify the BLOB writer to delete the
         // cache if it is offloaded
-        final MaybeOffloaded<ShuffleDescriptor[]> cache =
+        final CachedShuffleDescriptors cache =
                 this.shuffleDescriptorCache.remove(consumedPartitionGroup);
-        if (cache instanceof Offloaded) {
-            PermanentBlobKey blobKey = ((Offloaded<ShuffleDescriptor[]>) cache).serializedValueKey;
-            this.producer.getGraph().deleteBlobs(Collections.singletonList(blobKey));
+        if (cache != null) {
+            cache.getAllSerializedShuffleDescriptorGroups()
+                    .forEach(
+                            shuffleDescriptors -> {
+                                if (shuffleDescriptors instanceof Offloaded) {
+                                    PermanentBlobKey blobKey =
+                                            ((Offloaded<ShuffleDescriptorGroup>) shuffleDescriptors)
+                                                    .serializedValueKey;
+                                    this.producer
+                                            .getGraph()
+                                            .deleteBlobs(Collections.singletonList(blobKey));
+                                }
+                            });
         }
     }
 

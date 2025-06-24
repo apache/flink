@@ -176,7 +176,11 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         RowType returnType = (RowType) getOutputType();
 
         TwoInputStreamOperator<RowData, RowData, RowData> joinOperator =
-                getJoinOperator(config, leftInputType, rightInputType);
+                getJoinOperator(
+                        config,
+                        planner.getFlinkContext().getClassLoader(),
+                        leftInputType,
+                        rightInputType);
         Transformation<RowData> leftTransform =
                 (Transformation<RowData>) leftInputEdge.translateToPlan(planner);
         Transformation<RowData> rightTransform =
@@ -189,32 +193,39 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                         createTransformationMeta(TEMPORAL_JOIN_TRANSFORMATION, config),
                         joinOperator,
                         InternalTypeInfo.of(returnType),
-                        leftTransform.getParallelism());
+                        leftTransform.getParallelism(),
+                        false);
 
         // set KeyType and Selector for state
-        RowDataKeySelector leftKeySelector = getLeftKeySelector(leftInputType);
-        RowDataKeySelector rightKeySelector = getRightKeySelector(rightInputType);
+        RowDataKeySelector leftKeySelector =
+                getLeftKeySelector(planner.getFlinkContext().getClassLoader(), leftInputType);
+        RowDataKeySelector rightKeySelector =
+                getRightKeySelector(planner.getFlinkContext().getClassLoader(), rightInputType);
         ret.setStateKeySelectors(leftKeySelector, rightKeySelector);
         ret.setStateKeyType(leftKeySelector.getProducedType());
         return ret;
     }
 
-    private RowDataKeySelector getLeftKeySelector(RowType leftInputType) {
+    private RowDataKeySelector getLeftKeySelector(ClassLoader classLoader, RowType leftInputType) {
         return KeySelectorUtil.getRowDataSelector(
-                joinSpec.getLeftKeys(), InternalTypeInfo.of(leftInputType));
+                classLoader, joinSpec.getLeftKeys(), InternalTypeInfo.of(leftInputType));
     }
 
-    private RowDataKeySelector getRightKeySelector(RowType rightInputType) {
+    private RowDataKeySelector getRightKeySelector(
+            ClassLoader classLoader, RowType rightInputType) {
         return KeySelectorUtil.getRowDataSelector(
-                joinSpec.getRightKeys(), InternalTypeInfo.of(rightInputType));
+                classLoader, joinSpec.getRightKeys(), InternalTypeInfo.of(rightInputType));
     }
 
     private TwoInputStreamOperator<RowData, RowData, RowData> getJoinOperator(
-            ExecNodeConfig config, RowType leftInputType, RowType rightInputType) {
+            ExecNodeConfig config,
+            ClassLoader classLoader,
+            RowType leftInputType,
+            RowType rightInputType) {
 
         // input must not be nullable, because the runtime join function will make sure
         // the code-generated function won't process null inputs
-        final CodeGeneratorContext ctx = new CodeGeneratorContext(config);
+        final CodeGeneratorContext ctx = new CodeGeneratorContext(config, classLoader);
         final ExprCodeGenerator exprGenerator =
                 new ExprCodeGenerator(ctx, false)
                         .bindInput(

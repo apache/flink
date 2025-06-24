@@ -18,8 +18,8 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.AggregatePhaseStrategy
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
 

@@ -57,14 +57,6 @@ public interface SupportsProjectionPushDown {
     /** Returns whether this source supports nested projection. */
     boolean supportsNestedProjection();
 
-    /** @deprecated Please implement {@link #applyProjection(int[][], DataType)} */
-    @Deprecated
-    default void applyProjection(int[][] projectedFields) {
-        throw new UnsupportedOperationException(
-                "No implementation provided for SupportsProjectionPushDown. "
-                        + "Please implement SupportsProjectionPushDown#applyProjection(int[][], DataType)");
-    }
-
     /**
      * Provides the field index paths that should be used for a projection. The indices are 0-based
      * and support fields within (possibly nested) structures if this is enabled via {@link
@@ -86,7 +78,5 @@ public interface SupportsProjectionPushDown {
      *     produced data
      * @param producedDataType the final output type of the source, with the projection applied
      */
-    default void applyProjection(int[][] projectedFields, DataType producedDataType) {
-        applyProjection(projectedFields);
-    }
+    void applyProjection(int[][] projectedFields, DataType producedDataType);
 }

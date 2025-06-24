@@ -22,9 +22,9 @@ import org.junit.AfterClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for the RetryOnFailure annotation. */
+/** Tests for the {@link RetryOnFailure} annotation on JUnit4 {@link RetryRule}. */
 public class RetryOnFailureTest {
 
     @Rule public RetryRule retryRule = new RetryRule();
@@ -39,8 +39,8 @@ public class RetryOnFailureTest {
 
     @AfterClass
     public static void verify() throws Exception {
-        assertEquals(NUMBER_OF_RUNS + 1, numberOfFailedRuns);
-        assertEquals(3, numberOfSuccessfulRuns);
+        assertThat(numberOfFailedRuns).isEqualTo(NUMBER_OF_RUNS + 1);
+        assertThat(numberOfSuccessfulRuns).isEqualTo(3);
     }
 
     @Test

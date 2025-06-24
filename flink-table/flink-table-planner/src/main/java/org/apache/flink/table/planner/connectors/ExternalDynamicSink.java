@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.TransformationSinkProvider;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -113,7 +114,8 @@ final class ExternalDynamicSink implements DynamicTableSink, SupportsWritingMeta
                                     transformationContext.getRowtimeIndex(),
                                     consumeRowtimeMetadata),
                             ExternalTypeInfo.of(physicalDataType),
-                            input.getParallelism());
+                            input.getParallelism(),
+                            false);
                 };
     }
 

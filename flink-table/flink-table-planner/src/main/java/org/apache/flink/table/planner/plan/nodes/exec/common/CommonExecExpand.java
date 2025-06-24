@@ -87,7 +87,8 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData>
 
         final CodeGenOperatorFactory<RowData> operatorFactory =
                 ExpandCodeGenerator.generateExpandOperator(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(
+                                config, planner.getFlinkContext().getClassLoader()),
                         (RowType) inputEdge.getOutputType(),
                         (RowType) getOutputType(),
                         projects,
@@ -99,6 +100,7 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData>
                 createTransformationMeta(EXPAND_TRANSFORMATION, config),
                 operatorFactory,
                 InternalTypeInfo.of(getOutputType()),
-                inputTransform.getParallelism());
+                inputTransform.getParallelism(),
+                false);
     }
 }

@@ -30,8 +30,8 @@ import org.apache.flink.util.SerializedValue;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Gateway to send an {@link OperatorEvent} or {@link CoordinationRequest} from a Task to to the
- * {@link OperatorCoordinator} JobManager side.
+ * Gateway to send an {@link OperatorEvent} or {@link CoordinationRequest} from a Task to the {@link
+ * OperatorCoordinator} JobManager side.
  *
  * <p>This is the first step in the chain of sending Operator Events and Requests from Operator to
  * Coordinator. Each layer adds further context, so that the inner layers do not need to know about

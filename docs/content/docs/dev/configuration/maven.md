@@ -30,7 +30,7 @@ publish, and deploy projects. You can use it to manage the entire lifecycle of y
 
 ## Requirements
 
-- Maven 3.0.4 (or higher)
+- Maven 3.8.6
 - Java 11
 
 ## Importing the project into your IDE
@@ -82,7 +82,7 @@ For example, you can add the Kafka connector as a dependency like this:
 
 Then execute `mvn install` on the command line. 
 
-Projects created from the `Java Project Template`, the `Scala Project Template`, or Gradle are configured
+Projects created from the `Java Project Template` or Gradle are configured
 to automatically include the application dependencies into the application JAR when you run `mvn clean package`.
 For projects that are not set up from those templates, we recommend adding the Maven Shade Plugin to
 build the application jar with all required dependencies.

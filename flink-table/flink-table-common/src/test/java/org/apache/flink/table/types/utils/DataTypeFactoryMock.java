@@ -57,7 +57,9 @@ public class DataTypeFactoryMock implements DataTypeFactory {
 
     @Override
     public DataType createDataType(String typeString) {
-        return TypeConversions.fromLogicalToDataType(LogicalTypeParser.parse(typeString));
+        return TypeConversions.fromLogicalToDataType(
+                LogicalTypeParser.parse(
+                        typeString, Thread.currentThread().getContextClassLoader()));
     }
 
     @Override

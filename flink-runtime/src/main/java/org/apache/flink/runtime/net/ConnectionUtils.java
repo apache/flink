@@ -58,7 +58,6 @@ public class ConnectionUtils {
      * state failed to determine the address.
      */
     private enum AddressDetectionState {
-        LOOPBACK(100),
         /** Connect from interface returned by InetAddress.getLocalHost(). * */
         LOCAL_HOST(200),
         /** Detect own IP address based on the target IP address. Look for common prefix */
@@ -116,7 +115,6 @@ public class ConnectionUtils {
         final List<AddressDetectionState> strategies =
                 Collections.unmodifiableList(
                         Arrays.asList(
-                                AddressDetectionState.LOOPBACK,
                                 AddressDetectionState.LOCAL_HOST,
                                 AddressDetectionState.ADDRESS,
                                 AddressDetectionState.FAST_CONNECT,
@@ -227,18 +225,6 @@ public class ConnectionUtils {
     private static InetAddress findAddressUsingStrategy(
             AddressDetectionState strategy, InetSocketAddress targetAddress, boolean logging)
             throws IOException {
-        if (strategy == AddressDetectionState.LOOPBACK) {
-            InetAddress loopback = InetAddress.getLoopbackAddress();
-
-            if (tryToConnect(loopback, targetAddress, strategy.getTimeout(), logging)) {
-                LOG.debug(
-                        "Using InetAddress.getLoopbackAddress() immediately for connecting address");
-                return loopback;
-            } else {
-                return null;
-            }
-        }
-
         // try LOCAL_HOST strategy independent of the network interfaces
         if (strategy == AddressDetectionState.LOCAL_HOST) {
             InetAddress localhostName;
@@ -395,7 +381,7 @@ public class ConnectionUtils {
 
         private final Object retrievalLock = new Object();
 
-        private String akkaURL;
+        private String rpcURL;
         private LeaderRetrievalState retrievalState = LeaderRetrievalState.NOT_RETRIEVED;
         private Exception exception;
 
@@ -430,12 +416,12 @@ public class ConnectionUtils {
                                                 + "while waiting for the leader retrieval.");
                             }
                         } else if (retrievalState == LeaderRetrievalState.NEWLY_RETRIEVED) {
-                            targetAddress = rpcSystemUtils.getInetSocketAddressFromRpcUrl(akkaURL);
+                            targetAddress = rpcSystemUtils.getInetSocketAddressFromRpcUrl(rpcURL);
 
                             LOG.debug(
-                                    "Retrieved new target address {} for akka URL {}.",
+                                    "Retrieved new target address {} for RPC URL {}.",
                                     targetAddress,
-                                    akkaURL);
+                                    rpcURL);
 
                             retrievalState = LeaderRetrievalState.RETRIEVED;
 
@@ -446,7 +432,7 @@ public class ConnectionUtils {
                     }
 
                     if (targetAddress != null) {
-                        AddressDetectionState strategy = AddressDetectionState.LOOPBACK;
+                        AddressDetectionState strategy = AddressDetectionState.LOCAL_HOST;
 
                         boolean logging = elapsedTimeMillis >= startLoggingAfter.toMillis();
                         if (logging) {
@@ -463,9 +449,6 @@ public class ConnectionUtils {
 
                             // pick the next strategy
                             switch (strategy) {
-                                case LOOPBACK:
-                                    strategy = AddressDetectionState.LOCAL_HOST;
-                                    break;
                                 case LOCAL_HOST:
                                     strategy = AddressDetectionState.ADDRESS;
                                     break;
@@ -526,8 +509,8 @@ public class ConnectionUtils {
             } catch (Exception e) {
                 throw new LeaderRetrievalException(
                         "Could not retrieve the connecting address to the "
-                                + "current leader with the akka URL "
-                                + akkaURL
+                                + "current leader with the pekko URL "
+                                + rpcURL
                                 + ".",
                         e);
             }
@@ -537,7 +520,7 @@ public class ConnectionUtils {
         public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
             if (leaderAddress != null && !leaderAddress.isEmpty()) {
                 synchronized (retrievalLock) {
-                    akkaURL = leaderAddress;
+                    rpcURL = leaderAddress;
                     retrievalState = LeaderRetrievalState.NEWLY_RETRIEVED;
 
                     retrievalLock.notifyAll();

@@ -17,18 +17,20 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.planner.JList
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.hint.StateTtlHint
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
-import org.apache.flink.table.planner.plan.utils.JoinUtil
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.plan.utils.{JoinUtil, MinibatchUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapClassLoader, unwrapTableConfig}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.{Join, JoinRelType}
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 
@@ -46,8 +48,9 @@ class StreamPhysicalJoin(
     leftRel: RelNode,
     rightRel: RelNode,
     condition: RexNode,
-    joinType: JoinRelType)
-  extends CommonPhysicalJoin(cluster, traitSet, leftRel, rightRel, condition, joinType)
+    joinType: JoinRelType,
+    hints: JList[RelHint])
+  extends CommonPhysicalJoin(cluster, traitSet, leftRel, rightRel, condition, joinType, hints)
   with StreamPhysicalRel {
 
   /**
@@ -68,7 +71,7 @@ class StreamPhysicalJoin(
   def inputUniqueKeyContainsJoinKey(inputOrdinal: Int): Boolean = {
     val input = getInput(inputOrdinal)
     val joinKeys = if (inputOrdinal == 0) joinSpec.getLeftKeys else joinSpec.getRightKeys
-    val inputUniqueKeys = getUniqueKeys(input, joinKeys)
+    val inputUniqueKeys = getUpsertKeys(input, joinKeys)
     if (inputUniqueKeys != null) {
       inputUniqueKeys.exists(uniqueKey => joinKeys.forall(uniqueKey.contains(_)))
     } else {
@@ -85,7 +88,7 @@ class StreamPhysicalJoin(
       right: RelNode,
       joinType: JoinRelType,
       semiJoinDone: Boolean): Join = {
-    new StreamPhysicalJoin(cluster, traitSet, left, right, conditionExpr, joinType)
+    new StreamPhysicalJoin(cluster, traitSet, left, right, conditionExpr, joinType, getHints)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -94,29 +97,22 @@ class StreamPhysicalJoin(
       .item(
         "leftInputSpec",
         JoinUtil.analyzeJoinInput(
+          unwrapClassLoader(left),
           InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(left.getRowType)),
           joinSpec.getLeftKeys,
-          getUniqueKeys(left, joinSpec.getLeftKeys))
+          getUpsertKeys(left, joinSpec.getLeftKeys)
+        )
       )
       .item(
         "rightInputSpec",
         JoinUtil.analyzeJoinInput(
+          unwrapClassLoader(right),
           InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(right.getRowType)),
           joinSpec.getRightKeys,
-          getUniqueKeys(right, joinSpec.getRightKeys))
+          getUpsertKeys(right, joinSpec.getRightKeys)
+        )
       )
-  }
-
-  private def getUniqueKeys(input: RelNode, keys: Array[Int]): List[Array[Int]] = {
-    val upsertKeys = FlinkRelMetadataQuery
-      .reuseOrCreate(cluster.getMetadataQuery)
-      .getUpsertKeysInKeyGroupRange(input, keys)
-    if (upsertKeys == null || upsertKeys.isEmpty) {
-      List.empty
-    } else {
-      upsertKeys.map(_.asList.map(_.intValue).toArray).toList
-    }
-
+      .itemIf("miniBatch", "true", MinibatchUtil.isMiniBatchEnabled(unwrapTableConfig(this)))
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -128,10 +124,11 @@ class StreamPhysicalJoin(
     new StreamExecJoin(
       unwrapTableConfig(this),
       joinSpec,
-      getUniqueKeys(left, joinSpec.getLeftKeys),
-      getUniqueKeys(right, joinSpec.getRightKeys),
+      getUpsertKeys(left, joinSpec.getLeftKeys),
+      getUpsertKeys(right, joinSpec.getRightKeys),
       InputProperty.DEFAULT,
       InputProperty.DEFAULT,
+      StateTtlHint.getStateTtlFromHintOnBiRel(getHints),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
   }

@@ -18,8 +18,8 @@
 
 package org.apache.flink.test.scheduling;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -28,26 +28,40 @@ import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
 import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory;
+import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory.RootExceptionInfo;
 import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointStoppingException;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.DiscardingSink;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -60,22 +74,19 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.apache.flink.util.ExceptionUtils.assertThrowable;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.either;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeTrue;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Integration tests for the adaptive scheduler. */
 public class AdaptiveSchedulerITCase extends TestLogger {
@@ -91,8 +102,8 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     private static Configuration getConfiguration() {
         final Configuration conf = new Configuration();
         conf.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
-        conf.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 1_000L);
-        conf.set(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 5_000L);
+        conf.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, Duration.ofMillis(1_000L));
+        conf.set(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, Duration.ofMillis(5_000L));
         return conf;
     }
 
@@ -107,7 +118,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
     @Before
     public void ensureAdaptiveSchedulerEnabled() {
-        assumeTrue(ClusterOptions.isAdaptiveSchedulerEnabled(configuration));
+        assumeThat(ClusterOptions.isAdaptiveSchedulerEnabled(configuration)).isTrue();
     }
 
     @After
@@ -125,6 +136,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         env.enableCheckpointing(20L, CheckpointingMode.EXACTLY_ONCE);
         final DataStreamSource<Integer> input = env.addSource(new SimpleSource());
 
+        // TODO replace this by sink v2 after source is ported to FLIP-27.
         input.addSink(new DiscardingSink<>());
 
         env.execute();
@@ -154,31 +166,29 @@ public class AdaptiveSchedulerITCase extends TestLogger {
                                 savepointDirectory.getAbsolutePath(),
                                 SavepointFormatType.CANONICAL)
                         .get();
-        assertThat(savepoint, containsString(savepointDirectory.getAbsolutePath()));
-        assertThat(client.getJobStatus().get(), is(JobStatus.FINISHED));
+        assertThat(savepoint).contains(savepointDirectory.getAbsolutePath());
+        assertThat(client.getJobStatus().get()).isSameAs(JobStatus.FINISHED);
     }
 
     @Test
     public void testStopWithSavepointFailOnCheckpoint() throws Exception {
         StreamExecutionEnvironment env =
                 getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
 
         DummySource.resetForParallelism(PARALLELISM);
 
         JobClient client = env.executeAsync();
 
         DummySource.awaitRunning();
-        try {
-            client.stopWithSavepoint(
-                            false,
-                            tempFolder.newFolder("savepoint").getAbsolutePath(),
-                            SavepointFormatType.CANONICAL)
-                    .get();
-            fail("Expect exception");
-        } catch (ExecutionException e) {
-            assertThat(e, containsCause(FlinkException.class));
-        }
+        assertThatThrownBy(
+                        () ->
+                                client.stopWithSavepoint(
+                                                false,
+                                                tempFolder.newFolder("savepoint").getAbsolutePath(),
+                                                SavepointFormatType.CANONICAL)
+                                        .get())
+                .hasCauseInstanceOf(FlinkException.class);
         // expect job to run again (maybe restart)
         CommonTestUtils.waitUntilCondition(() -> client.getJobStatus().get() == JobStatus.RUNNING);
     }
@@ -187,7 +197,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     public void testStopWithSavepointFailOnStop() throws Throwable {
         StreamExecutionEnvironment env =
                 getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT_COMPLETE);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
 
         DummySource.resetForParallelism(PARALLELISM);
 
@@ -199,28 +209,29 @@ public class AdaptiveSchedulerITCase extends TestLogger {
                         false,
                         tempFolder.newFolder("savepoint").getAbsolutePath(),
                         SavepointFormatType.CANONICAL);
-        final Throwable savepointException =
-                assertThrows(ExecutionException.class, savepointCompleted::get).getCause();
-        assertThrowable(
-                savepointException,
-                throwable ->
-                        throwable instanceof StopWithSavepointStoppingException
-                                && throwable
-                                        .getMessage()
-                                        .startsWith("A savepoint has been created at: "));
-        assertThat(
-                client.getJobStatus().get(),
-                either(is(JobStatus.FAILED)).or(is(JobStatus.FAILING)));
+        assertThatThrownBy(savepointCompleted::get)
+                .isInstanceOf(ExecutionException.class)
+                .satisfies(
+                        e ->
+                                assertThat(
+                                                ExceptionUtils.findThrowable(
+                                                                e,
+                                                                StopWithSavepointStoppingException
+                                                                        .class)
+                                                        .get())
+                                        .hasMessageContaining("A savepoint has been created at: "));
+        assertThat(client.getJobStatus().get()).isIn(JobStatus.FAILED, JobStatus.FAILING);
     }
 
     @Test
     public void testStopWithSavepointFailOnFirstSavepointSucceedOnSecond() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
         env.setParallelism(PARALLELISM);
 
         env.addSource(new DummySource(StopWithSavepointTestBehavior.FAIL_ON_FIRST_CHECKPOINT_ONLY))
+                // TODO replace this by sink v2 after source is ported to FLIP-27.
                 .addSink(new DiscardingSink<>());
         DummySource.resetForParallelism(PARALLELISM);
 
@@ -229,16 +240,14 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         DummySource.awaitRunning();
         DummySource.resetForParallelism(PARALLELISM);
         final File savepointDirectory = tempFolder.newFolder("savepoint");
-        try {
-            client.stopWithSavepoint(
-                            false,
-                            savepointDirectory.getAbsolutePath(),
-                            SavepointFormatType.CANONICAL)
-                    .get();
-            fail("Expect failure of operation");
-        } catch (ExecutionException e) {
-            assertThat(e, containsCause(FlinkException.class));
-        }
+        assertThatThrownBy(
+                        () ->
+                                client.stopWithSavepoint(
+                                                false,
+                                                savepointDirectory.getAbsolutePath(),
+                                                SavepointFormatType.CANONICAL)
+                                        .get())
+                .hasCauseInstanceOf(FlinkException.class);
 
         DummySource.awaitRunning();
 
@@ -254,7 +263,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
                                 savepointDirectory.getAbsolutePath(),
                                 SavepointFormatType.CANONICAL)
                         .get();
-        assertThat(savepoint, containsString(savepointDirectory.getAbsolutePath()));
+        assertThat(savepoint).contains(savepointDirectory.getAbsolutePath());
     }
 
     @Test
@@ -262,27 +271,77 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
         env.enableCheckpointing(20L, CheckpointingMode.EXACTLY_ONCE);
-        env.addSource(new FailOnCompletedCheckpointSource()).addSink(new DiscardingSink<>());
+        env.addSource(new FailOnCompletedCheckpointSource())
+                // TODO replace this by sink v2 after source is ported to FLIP-27.
+                .addSink(new DiscardingSink<>());
         final JobClient jobClient = env.executeAsync();
         CommonTestUtils.waitUntilCondition(
                 () -> {
-                    final RestClusterClient<?> restClusterClient =
-                            MINI_CLUSTER_WITH_CLIENT_RESOURCE.getRestClusterClient();
-                    final JobExceptionsMessageParameters params =
-                            new JobExceptionsMessageParameters();
-                    params.jobPathParameter.resolve(jobClient.getJobID());
-                    final CompletableFuture<JobExceptionsInfoWithHistory> exceptionsFuture =
-                            restClusterClient.sendRequest(
-                                    JobExceptionsHeaders.getInstance(),
-                                    params,
-                                    EmptyRequestBody.getInstance());
-                    final JobExceptionsInfoWithHistory jobExceptionsInfoWithHistory =
-                            exceptionsFuture.get();
-                    return jobExceptionsInfoWithHistory.getExceptionHistory().getEntries().size()
-                            > 0;
+                    final List<RootExceptionInfo> exceptions =
+                            getJobExceptions(
+                                            jobClient.getJobID(), MINI_CLUSTER_WITH_CLIENT_RESOURCE)
+                                    .get()
+                                    .getExceptionHistory()
+                                    .getEntries();
+                    return !exceptions.isEmpty();
                 });
         jobClient.cancel().get();
         CommonTestUtils.waitForJobStatus(jobClient, Collections.singletonList(JobStatus.CANCELED));
+    }
+
+    @Test
+    public void testGlobalFailureOnRestart() throws Exception {
+        final MiniCluster miniCluster = MINI_CLUSTER_WITH_CLIENT_RESOURCE.getMiniCluster();
+
+        final JobVertexID jobVertexId = new JobVertexID();
+        final JobVertex jobVertex = new JobVertex("jobVertex", jobVertexId);
+        jobVertex.setInvokableClass(FailingInvokable.class);
+        jobVertex.addOperatorCoordinator(
+                new SerializedValue<>(
+                        new FailingCoordinatorProvider(OperatorID.fromJobVertexID(jobVertexId))));
+        jobVertex.setParallelism(1);
+
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .addJobVertices(Collections.singletonList(jobVertex))
+                        .build();
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, 1, Duration.ofHours(1L));
+        miniCluster.submitJob(jobGraph).join();
+
+        // We rely on waiting in restarting state (see the restart strategy above)
+        CommonTestUtils.waitUntilCondition(
+                () -> miniCluster.getJobStatus(jobGraph.getJobID()).join() == JobStatus.RESTARTING);
+        FailingCoordinatorProvider.JOB_RESTARTING.countDown();
+
+        assertThatFuture(getJobExceptions(jobGraph.getJobID(), MINI_CLUSTER_WITH_CLIENT_RESOURCE))
+                .eventuallySucceeds();
+
+        miniCluster.cancelJob(jobGraph.getJobID());
+        CommonTestUtils.waitUntilCondition(
+                () -> miniCluster.getJobStatus(jobGraph.getJobID()).join() == JobStatus.CANCELED);
+
+        final JobExceptionsInfoWithHistory jobExceptions =
+                getJobExceptions(jobGraph.getJobID(), MINI_CLUSTER_WITH_CLIENT_RESOURCE).get();
+
+        // there should be exactly 1 root exception in the history from the failing vertex,
+        // as the global coordinator failure should be treated as a concurrent exception
+        assertThat(jobExceptions.getExceptionHistory().getEntries())
+                .hasSize(1)
+                .allSatisfy(
+                        rootExceptionInfo ->
+                                assertThat(rootExceptionInfo.getStacktrace())
+                                        .contains(FailingInvokable.localExceptionMsg)
+                                        .doesNotContain(
+                                                FailingCoordinatorProvider.globalExceptionMsg))
+                .allSatisfy(
+                        rootExceptionInfo ->
+                                assertThat(rootExceptionInfo.getConcurrentExceptions())
+                                        .anySatisfy(
+                                                exceptionInfo ->
+                                                        assertThat(exceptionInfo.getStacktrace())
+                                                                .contains(
+                                                                        FailingCoordinatorProvider
+                                                                                .globalExceptionMsg)));
     }
 
     private boolean isDirectoryEmpty(File directory) {
@@ -302,8 +361,108 @@ public class AdaptiveSchedulerITCase extends TestLogger {
             StopWithSavepointTestBehavior behavior) {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
-        env.addSource(new DummySource(behavior)).addSink(new DiscardingSink<>());
+        env.addSource(new DummySource(behavior))
+                // TODO replace this by sink v2 after source is ported to FLIP-27.
+                .addSink(new DiscardingSink<>());
         return env;
+    }
+
+    private static CompletableFuture<JobExceptionsInfoWithHistory> getJobExceptions(
+            JobID jobId, MiniClusterWithClientResource minClusterRes) throws Exception {
+        final RestClusterClient<?> restClusterClient = minClusterRes.getRestClusterClient();
+        final JobExceptionsMessageParameters params = new JobExceptionsMessageParameters();
+        params.jobPathParameter.resolve(jobId);
+        return restClusterClient.sendRequest(
+                JobExceptionsHeaders.getInstance(), params, EmptyRequestBody.getInstance());
+    }
+
+    /** Simple invokable which fails immediately after being invoked. */
+    public static class FailingInvokable extends AbstractInvokable {
+        private static final String localExceptionMsg = "Local exception.";
+
+        public FailingInvokable(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void invoke() throws Exception {
+            throw new Exception(localExceptionMsg);
+        }
+    }
+
+    private static class FailingCoordinatorProvider implements OperatorCoordinator.Provider {
+
+        private static final CountDownLatch JOB_RESTARTING = new CountDownLatch(1);
+
+        private final OperatorID operatorId;
+        private static final String globalExceptionMsg = "Global exception.";
+
+        FailingCoordinatorProvider(OperatorID operatorId) {
+            this.operatorId = operatorId;
+        }
+
+        @Override
+        public OperatorID getOperatorId() {
+            return operatorId;
+        }
+
+        @Override
+        public OperatorCoordinator create(OperatorCoordinator.Context context) {
+            return new OperatorCoordinator() {
+
+                @Nullable private Thread thread;
+
+                @Override
+                public void start() {
+                    thread =
+                            new Thread(
+                                    () -> {
+                                        try {
+                                            JOB_RESTARTING.await();
+                                            context.failJob(new Exception(globalExceptionMsg));
+                                        } catch (InterruptedException e) {
+                                            Thread.currentThread().interrupt();
+                                        }
+                                    });
+                    thread.setName(AdaptiveSchedulerITCase.class + "_failing-coordinator");
+                    thread.setDaemon(true);
+                    thread.start();
+                }
+
+                @Override
+                public void close() throws Exception {
+                    if (thread != null) {
+                        thread.interrupt();
+                        thread.join();
+                    }
+                }
+
+                @Override
+                public void handleEventFromOperator(
+                        int subtask, int attemptNumber, OperatorEvent event) {}
+
+                @Override
+                public void checkpointCoordinator(
+                        long checkpointId, CompletableFuture<byte[]> resultFuture) {}
+
+                @Override
+                public void notifyCheckpointComplete(long checkpointId) {}
+
+                @Override
+                public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) {}
+
+                @Override
+                public void subtaskReset(int subtask, long checkpointId) {}
+
+                @Override
+                public void executionAttemptFailed(
+                        int subtask, int attemptNumber, @Nullable Throwable reason) {}
+
+                @Override
+                public void executionAttemptReady(
+                        int subtask, int attemptNumber, SubtaskGateway gateway) {}
+            };
+        }
     }
 
     private static final class DummySource extends RichParallelSourceFunction<Integer>
@@ -387,7 +546,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         public void run(SourceContext<Integer> ctx) throws Exception {
             while (running && !hasFailedBefore) {
                 synchronized (ctx.getCheckpointLock()) {
-                    ctx.collect(getRuntimeContext().getIndexOfThisSubtask());
+                    ctx.collect(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
 
                     Thread.sleep(5L);
                 }
@@ -420,8 +579,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
                 hasFailedBefore |= previousState;
             }
 
-            unionListState.clear();
-            unionListState.add(true);
+            unionListState.update(Collections.singletonList(true));
         }
     }
 
@@ -435,7 +593,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         public void run(SourceContext<Integer> ctx) throws Exception {
             while (running) {
                 synchronized (ctx.getCheckpointLock()) {
-                    ctx.collect(getRuntimeContext().getIndexOfThisSubtask());
+                    ctx.collect(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
                     Thread.sleep(5L);
                 }
             }

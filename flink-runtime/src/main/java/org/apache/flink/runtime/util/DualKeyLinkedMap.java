@@ -50,9 +50,9 @@ public class DualKeyLinkedMap<A, B, V> {
 
     private Collection<V> values;
 
-    public DualKeyLinkedMap(int initialCapacity) {
-        this.aMap = new LinkedHashMap<>(initialCapacity);
-        this.bMap = new HashMap<>(initialCapacity);
+    public DualKeyLinkedMap() {
+        this.aMap = new LinkedHashMap<>();
+        this.bMap = new HashMap<>();
     }
 
     public int size() {

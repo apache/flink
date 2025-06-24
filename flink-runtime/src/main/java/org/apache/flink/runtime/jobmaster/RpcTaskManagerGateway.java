@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -34,7 +33,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
-import java.util.Collections;
+import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -56,13 +55,14 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
+    public CompletableFuture<Acknowledge> submitTask(
+            TaskDeploymentDescriptor tdd, Duration timeout) {
         return taskExecutorGateway.submitTask(tdd, jobMasterId, timeout);
     }
 
     @Override
     public CompletableFuture<Acknowledge> cancelTask(
-            ExecutionAttemptID executionAttemptID, Time timeout) {
+            ExecutionAttemptID executionAttemptID, Duration timeout) {
         return taskExecutorGateway.cancelTask(executionAttemptID, timeout);
     }
 
@@ -70,13 +70,13 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
     public CompletableFuture<Acknowledge> updatePartitions(
             ExecutionAttemptID executionAttemptID,
             Iterable<PartitionInfo> partitionInfos,
-            Time timeout) {
+            Duration timeout) {
         return taskExecutorGateway.updatePartitions(executionAttemptID, partitionInfos, timeout);
     }
 
     @Override
     public void releasePartitions(JobID jobId, Set<ResultPartitionID> partitionIds) {
-        taskExecutorGateway.releaseOrPromotePartitions(jobId, partitionIds, Collections.emptySet());
+        taskExecutorGateway.releasePartitions(jobId, partitionIds);
     }
 
     @Override
@@ -117,7 +117,7 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 
     @Override
     public CompletableFuture<Acknowledge> freeSlot(
-            AllocationID allocationId, Throwable cause, Time timeout) {
+            AllocationID allocationId, Throwable cause, Duration timeout) {
         return taskExecutorGateway.freeSlot(allocationId, cause, timeout);
     }
 

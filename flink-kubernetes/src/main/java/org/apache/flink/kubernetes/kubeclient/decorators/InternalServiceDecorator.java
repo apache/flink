@@ -61,7 +61,7 @@ public class InternalServiceDecorator extends AbstractKubernetesStepDecorator {
         final String namespace = kubernetesJobManagerParameters.getNamespace();
         kubernetesJobManagerParameters
                 .getFlinkConfiguration()
-                .setString(
+                .set(
                         JobManagerOptions.ADDRESS,
                         getNamespacedInternalServiceName(serviceName, namespace));
 

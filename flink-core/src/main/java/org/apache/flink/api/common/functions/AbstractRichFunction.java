@@ -1,5 +1,5 @@
 /*
-c * Licensed to the Apache Software Foundation (ASF) under one
+ * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
@@ -19,14 +19,13 @@ c * Licensed to the Apache Software Foundation (ASF) under one
 package org.apache.flink.api.common.functions;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.configuration.Configuration;
 
 import java.io.Serializable;
 
 /**
  * An abstract stub implementation for rich user-defined functions. Rich functions have additional
- * methods for initialization ({@link #open(Configuration)}) and teardown ({@link #close()}), as
- * well as access to their runtime execution context via {@link #getRuntimeContext()}.
+ * methods for initialization ({@link #open(OpenContext)}) and teardown ({@link #close()}), as well
+ * as access to their runtime execution context via {@link #getRuntimeContext()}.
  */
 @Public
 public abstract class AbstractRichFunction implements RichFunction, Serializable {
@@ -69,7 +68,7 @@ public abstract class AbstractRichFunction implements RichFunction, Serializable
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public void open(Configuration parameters) throws Exception {}
+    public void open(OpenContext openContext) throws Exception {}
 
     @Override
     public void close() throws Exception {}

@@ -60,7 +60,7 @@ public class DefaultCompletedCheckpointStoreUtils {
      */
     public static int getMaximumNumberOfRetainedCheckpoints(Configuration config, Logger logger) {
         final int maxNumberOfCheckpointsToRetain =
-                config.getInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS);
+                config.get(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS);
 
         if (maxNumberOfCheckpointsToRetain <= 0) {
             // warning and use 1 as the default value if the setting in

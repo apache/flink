@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.CleanupWhenUnsuccessful;
 import org.apache.flink.api.common.io.OutputFormat;
+import org.apache.flink.api.common.io.OutputFormat.InitializationContext;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -215,8 +216,22 @@ public class DataSinkTask<IT> extends AbstractInvokable {
 
             // open
             format.open(
-                    this.getEnvironment().getTaskInfo().getIndexOfThisSubtask(),
-                    this.getEnvironment().getTaskInfo().getNumberOfParallelSubtasks());
+                    new InitializationContext() {
+                        @Override
+                        public int getNumTasks() {
+                            return getEnvironment().getTaskInfo().getNumberOfParallelSubtasks();
+                        }
+
+                        @Override
+                        public int getTaskNumber() {
+                            return getEnvironment().getTaskInfo().getIndexOfThisSubtask();
+                        }
+
+                        @Override
+                        public int getAttemptNumber() {
+                            return getEnvironment().getTaskInfo().getAttemptNumber();
+                        }
+                    });
 
             if (objectReuseEnabled) {
                 IT record = serializer.createInstance();
@@ -437,6 +452,7 @@ public class DataSinkTask<IT> extends AbstractInvokable {
         Environment env = getEnvironment();
 
         return new DistributedRuntimeUDFContext(
+                env.getJobInfo(),
                 env.getTaskInfo(),
                 env.getUserCodeClassLoader(),
                 getExecutionConfig(),
@@ -445,7 +461,6 @@ public class DataSinkTask<IT> extends AbstractInvokable {
                 getEnvironment()
                         .getMetricGroup()
                         .getOrAddOperator(getEnvironment().getTaskInfo().getTaskName()),
-                env.getExternalResourceInfoProvider(),
-                env.getJobID());
+                env.getExternalResourceInfoProvider());
     }
 }

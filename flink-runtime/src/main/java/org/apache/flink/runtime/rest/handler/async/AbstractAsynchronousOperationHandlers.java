@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.async;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -33,6 +32,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nonnull;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
@@ -87,7 +87,8 @@ import java.util.concurrent.CompletableFuture;
  * @param <K> type of the operation key under which the result future is stored
  * @param <R> type of the operation result
  */
-public abstract class AbstractAsynchronousOperationHandlers<K extends OperationKey, R> {
+public abstract class AbstractAsynchronousOperationHandlers<
+        K extends OperationKey, R extends Serializable> {
 
     private final CompletedOperationCache<K, R> completedOperationCache;
 
@@ -109,7 +110,7 @@ public abstract class AbstractAsynchronousOperationHandlers<K extends OperationK
 
         protected TriggerHandler(
                 GatewayRetriever<? extends T> leaderRetriever,
-                Time timeout,
+                Duration timeout,
                 Map<String, String> responseHeaders,
                 MessageHeaders<B, TriggerResponse, M> messageHeaders) {
             super(leaderRetriever, timeout, responseHeaders, messageHeaders);
@@ -165,7 +166,7 @@ public abstract class AbstractAsynchronousOperationHandlers<K extends OperationK
 
         protected StatusHandler(
                 GatewayRetriever<? extends T> leaderRetriever,
-                Time timeout,
+                Duration timeout,
                 Map<String, String> responseHeaders,
                 MessageHeaders<EmptyRequestBody, AsynchronousOperationResult<V>, M>
                         messageHeaders) {

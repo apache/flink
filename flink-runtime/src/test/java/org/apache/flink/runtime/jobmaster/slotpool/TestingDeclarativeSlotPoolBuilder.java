@@ -27,10 +27,10 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
-import org.apache.flink.util.function.QuadConsumer;
 import org.apache.flink.util.function.QuadFunction;
 import org.apache.flink.util.function.TriFunction;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.function.BiFunction;
@@ -54,10 +54,12 @@ public class TestingDeclarativeSlotPoolBuilder {
                     Collection<SlotOffer>>
             offerSlotsFunction =
                     (ignoredA, ignoredB, ignoredC, ignoredD) -> Collections.emptyList();
-    private Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier =
+    private Supplier<Collection<PhysicalSlot>> getFreeSlotsInformationSupplier =
             Collections::emptyList;
     private Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier =
             Collections::emptyList;
+    private Supplier<FreeSlotTracker> getFreeSlotTrackerSupplier =
+            () -> TestingFreeSlotTracker.newBuilder().build();
     private BiFunction<ResourceID, Exception, ResourceCounter> releaseSlotsFunction =
             (ignoredA, ignoredB) -> ResourceCounter.empty();
     private BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction =
@@ -70,9 +72,14 @@ public class TestingDeclarativeSlotPoolBuilder {
     private LongConsumer returnIdleSlotsConsumer = ignored -> {};
     private Consumer<ResourceCounter> setResourceRequirementsConsumer = ignored -> {};
     private Function<AllocationID, Boolean> containsFreeSlotFunction = ignored -> false;
-    private QuadConsumer<
-                    Collection<? extends SlotOffer>, TaskManagerLocation, TaskManagerGateway, Long>
-            registerSlotsFunction = (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
+    private QuadFunction<
+                    Collection<? extends SlotOffer>,
+                    TaskManagerLocation,
+                    TaskManagerGateway,
+                    Long,
+                    Collection<SlotOffer>>
+            registerSlotsFunction =
+                    (slotOffers, ignoredB, ignoredC, ignoredD) -> new ArrayList<>(slotOffers);
 
     public TestingDeclarativeSlotPoolBuilder setIncreaseResourceRequirementsByConsumer(
             Consumer<ResourceCounter> increaseResourceRequirementsByConsumer) {
@@ -111,19 +118,26 @@ public class TestingDeclarativeSlotPoolBuilder {
     }
 
     public TestingDeclarativeSlotPoolBuilder setRegisterSlotsFunction(
-            QuadConsumer<
+            QuadFunction<
                             Collection<? extends SlotOffer>,
                             TaskManagerLocation,
                             TaskManagerGateway,
-                            Long>
+                            Long,
+                            Collection<SlotOffer>>
                     registerSlotsFunction) {
         this.registerSlotsFunction = registerSlotsFunction;
         return this;
     }
 
     public TestingDeclarativeSlotPoolBuilder setGetFreeSlotsInformationSupplier(
-            Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier) {
+            Supplier<Collection<PhysicalSlot>> getFreeSlotsInformationSupplier) {
         this.getFreeSlotsInformationSupplier = getFreeSlotsInformationSupplier;
+        return this;
+    }
+
+    public TestingDeclarativeSlotPoolBuilder setGetFreeSlotTrackerSupplier(
+            Supplier<FreeSlotTracker> getFreeSlotTrackerSupplier) {
+        this.getFreeSlotTrackerSupplier = getFreeSlotTrackerSupplier;
         return this;
     }
 
@@ -184,6 +198,7 @@ public class TestingDeclarativeSlotPoolBuilder {
                 offerSlotsFunction,
                 registerSlotsFunction,
                 getFreeSlotsInformationSupplier,
+                getFreeSlotTrackerSupplier,
                 getAllSlotsInformationSupplier,
                 releaseSlotsFunction,
                 releaseSlotFunction,

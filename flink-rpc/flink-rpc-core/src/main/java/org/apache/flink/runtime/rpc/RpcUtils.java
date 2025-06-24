@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -41,11 +40,12 @@ import java.util.stream.Collectors;
 public class RpcUtils {
 
     /**
-     * <b>HACK:</b> Set to 21474835 seconds, Akka's maximum delay (Akka 2.4.20). The value cannot be
-     * higher or an {@link IllegalArgumentException} will be thrown during an RPC. Check the private
-     * method {@code checkMaxDelay()} in {@link akka.actor.LightArrayRevolverScheduler}.
+     * <b>HACK:</b> Set to 21474835 seconds, Pekko's maximum delay (Akka 2.4.20). The value cannot
+     * be higher or an {@link IllegalArgumentException} will be thrown during an RPC. Check the
+     * private method {@code checkMaxDelay()} in {@link
+     * org.apache.pekko.actor.LightArrayRevolverScheduler}.
      */
-    public static final Time INF_TIMEOUT = Time.seconds(21474835);
+    public static final Duration INF_TIMEOUT = Duration.ofSeconds(21474835);
 
     public static final Duration INF_DURATION = Duration.ofSeconds(21474835);
 
@@ -96,7 +96,7 @@ public class RpcUtils {
             throws InterruptedException, ExecutionException {
         terminateAsyncCloseables(
                 Arrays.stream(rpcServices)
-                        .map(rpcService -> (AutoCloseableAsync) rpcService::stopService)
+                        .map(rpcService -> (AutoCloseableAsync) rpcService::closeAsync)
                         .collect(Collectors.toList()));
     }
 

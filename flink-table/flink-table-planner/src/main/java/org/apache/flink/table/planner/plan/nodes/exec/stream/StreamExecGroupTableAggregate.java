@@ -65,10 +65,13 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
 
     private final int[] grouping;
     private final AggregateCall[] aggCalls;
+
     /** Each element indicates whether the corresponding agg call needs `retract` method. */
     private final boolean[] aggCallNeedRetractions;
+
     /** Whether this node will generate UPDATE_BEFORE messages. */
     private final boolean generateUpdateBefore;
+
     /** Whether this node consumes retraction messages. */
     private final boolean needRetraction;
 
@@ -117,7 +120,8 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
 
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(config),
+                                new CodeGeneratorContext(
+                                        config, planner.getFlinkContext().getClassLoader()),
                                 planner.createRelBuilder(),
                                 JavaScalaConversionUtil.toScala(inputRowType.getChildren()),
                                 // TODO: heap state backend do not copy key currently,
@@ -155,6 +159,7 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
                         accTypes,
                         inputCountIndex,
                         generateUpdateBefore,
+                        generator.isIncrementalUpdate(),
                         config.getStateRetentionTime());
         final OneInputStreamOperator<RowData, RowData> operator =
                 new KeyedProcessOperator<>(aggFunction);
@@ -166,11 +171,15 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
                         createTransformationMeta(GROUP_TABLE_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
-                        inputTransform.getParallelism());
+                        inputTransform.getParallelism(),
+                        false);
 
         // set KeyType and Selector for state
         final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
+                KeySelectorUtil.getRowDataSelector(
+                        planner.getFlinkContext().getClassLoader(),
+                        grouping,
+                        InternalTypeInfo.of(inputRowType));
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.tests.util.flink;
 
+import org.apache.flink.test.util.JobSubmission;
 import org.apache.flink.tests.util.util.FactoryUtils;
 import org.apache.flink.util.ExternalResource;
 
@@ -44,6 +45,15 @@ public interface FlinkResource extends ExternalResource {
      * @param numTaskManagers number of task managers
      */
     ClusterController startCluster(int numTaskManagers) throws IOException;
+
+    /**
+     * Starts a sqlserver and returns the {@link GatewayController} which can be used to shut down
+     * the process.
+     *
+     * @return controller for interacting with the cluster
+     * @throws IOException
+     */
+    GatewayController startSqlGateway() throws IOException;
 
     /**
      * Searches the logs of all processes for the given pattern, and applies the given processor for

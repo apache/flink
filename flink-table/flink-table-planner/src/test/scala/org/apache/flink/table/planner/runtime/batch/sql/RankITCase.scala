@@ -21,13 +21,11 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 
-import org.junit._
-
-import scala.collection.Seq
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class RankITCase extends BatchTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
@@ -234,4 +232,23 @@ class RankITCase extends BatchTestBase {
     )
   }
 
+  @Test
+  def testRankFunctionsWithQualify(): Unit = {
+    checkResult(
+      "SELECT a, b, c FROM Table3 " +
+        "QUALIFY RANK() OVER (PARTITION BY b ORDER BY a) > 2 ",
+      Seq(
+        row(6, 3, "Luke Skywalker"),
+        row(9, 4, "Comment#3"),
+        row(10, 4, "Comment#4"),
+        row(13, 5, "Comment#7"),
+        row(14, 5, "Comment#8"),
+        row(15, 5, "Comment#9"),
+        row(18, 6, "Comment#12"),
+        row(19, 6, "Comment#13"),
+        row(20, 6, "Comment#14"),
+        row(21, 6, "Comment#15")
+      )
+    )
+  }
 }

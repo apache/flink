@@ -19,7 +19,7 @@
 package org.apache.flink.api.common.functions;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
  * An base interface for all rich user-defined functions. This class defines methods for the life
@@ -35,17 +35,17 @@ public interface RichFunction extends Function {
      * part of an iteration, this method will be invoked at the beginning of each iteration
      * superstep.
      *
-     * <p>The configuration object passed to the function can be used for configuration and
-     * initialization. The configuration contains all parameters that were configured on the
-     * function in the program composition.
+     * <p>The openContext object passed to the function can be used for configuration and
+     * initialization. The openContext contains some necessary information that were configured on
+     * the function in the program composition.
      *
      * <pre>{@code
      * public class MyFilter extends RichFilterFunction<String> {
      *
      *     private String searchString;
      *
-     *     public void open(Configuration parameters) {
-     *         this.searchString = parameters.getString("foo");
+     *     public void open(OpenContext openContext) {
+     *         // initialize the value of searchString
      *     }
      *
      *     public boolean filter(String value) {
@@ -54,15 +54,14 @@ public interface RichFunction extends Function {
      * }
      * }</pre>
      *
-     * <p>By default, this method does nothing.
-     *
-     * @param parameters The configuration containing the parameters attached to the contract.
+     * @param openContext The context containing information about the context in which the function
+     *     is opened.
      * @throws Exception Implementations may forward exceptions, which are caught by the runtime.
      *     When the runtime catches an exception, it aborts the task and lets the fail-over logic
      *     decide whether to retry the task execution.
-     * @see org.apache.flink.configuration.Configuration
      */
-    void open(Configuration parameters) throws Exception;
+    @PublicEvolving
+    void open(OpenContext openContext) throws Exception;
 
     /**
      * Tear-down method for the user code. It is called after the last call to the main working

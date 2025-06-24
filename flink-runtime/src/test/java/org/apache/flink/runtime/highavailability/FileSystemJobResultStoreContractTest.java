@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.io.TempDir;
 
@@ -35,6 +36,7 @@ public class FileSystemJobResultStoreContractTest implements JobResultStoreContr
     @Override
     public JobResultStore createJobResultStore() throws IOException {
         Path path = new Path(temporaryFolder.toURI());
-        return new FileSystemJobResultStore(path.getFileSystem(), path, false);
+        return new FileSystemJobResultStore(
+                path.getFileSystem(), path, false, Executors.directExecutor());
     }
 }

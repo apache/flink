@@ -24,22 +24,23 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.BasePathBucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 
-/** Integration tests for {@link BucketAssigner bucket assigners}. */
-public class BucketAssignerTest {
+import static org.assertj.core.api.Assertions.assertThat;
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+/** Integration tests for {@link BucketAssigner bucket assigners}. */
+class BucketAssignerTest {
+
+    @TempDir private static java.nio.file.Path tempDir;
 
     @Test
-    public void testAssembleBucketPath() throws Exception {
-        final File outDir = TEMP_FOLDER.newFolder();
+    void testAssembleBucketPath() throws Exception {
+        final File outDir = TempDirUtils.newFolder(tempDir);
         final Path basePath = new Path(outDir.toURI());
         final long time = 1000L;
 
@@ -60,6 +61,6 @@ public class BucketAssignerTest {
 
         Bucket<String, String> bucket =
                 buckets.onElement("abc", new TestUtils.MockSinkContext(time, time, time));
-        Assert.assertEquals(new Path(basePath.toUri()), bucket.getBucketPath());
+        assertThat(bucket.getBucketPath()).isEqualTo(new Path(basePath.toUri()));
     }
 }

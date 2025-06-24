@@ -18,21 +18,21 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(Parameterized.class)
-public class DefaultFilterTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class DefaultFilterTest {
     @Parameters
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     {"file.txt", false},
@@ -53,16 +53,15 @@ public class DefaultFilterTest {
     private final boolean shouldFilter;
     private final String filePath;
 
-    public DefaultFilterTest(String filePath, boolean shouldFilter) {
+    DefaultFilterTest(String filePath, boolean shouldFilter) {
         this.filePath = filePath;
         this.shouldFilter = shouldFilter;
     }
 
-    @Test
-    public void test() {
+    @TestTemplate
+    void test() {
         FilePathFilter defaultFilter = FilePathFilter.createDefaultFilter();
         Path path = new Path(filePath);
-        assertEquals(
-                String.format("File: %s", filePath), shouldFilter, defaultFilter.filterPath(path));
+        assertThat(defaultFilter.filterPath(path)).as("File: " + filePath).isEqualTo(shouldFilter);
     }
 }

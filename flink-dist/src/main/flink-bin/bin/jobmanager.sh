@@ -18,11 +18,23 @@
 ################################################################################
 
 # Start/stop a Flink JobManager.
-USAGE="Usage: jobmanager.sh ((start|start-foreground) [host] [webui-port])|stop|stop-all"
+USAGE="Usage: jobmanager.sh ((start|start-foreground) [args])|stop|stop-all"
 
 STARTSTOP=$1
-HOST=$2 # optional when starting multiple instances
-WEBUIPORT=$3 # optional when starting multiple instances
+
+if [ -z $2 ] || [[ $2 == "-D" ]]; then
+    # start [-D ...]
+    args=("${@:2}")
+elif [ -z $3 ] || [[ $3 == "-D" ]]; then
+    # legacy path: start <host> [-D ...]
+    HOST=$2
+    args=("${@:3}")
+else
+    # legacy path: start <host> <port> [-D ...]
+    HOST=$2
+    WEBUIPORT=$3
+    args=("${@:4}")
+fi
 
 if [[ $STARTSTOP != "start" ]] && [[ $STARTSTOP != "start-foreground" ]] && [[ $STARTSTOP != "stop" ]] && [[ $STARTSTOP != "stop-all" ]]; then
   echo $USAGE
@@ -39,21 +51,21 @@ ENTRYPOINT=standalonesession
 if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     # Add JobManager-specific JVM options
     export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_JM}"
-    parseJmArgsAndExportLogs "${ARGS[@]}"
+    parseJmArgsAndExportLogs "${args[@]}"
 
-    args=("--configDir" "${FLINK_CONF_DIR}" "--executionMode" "cluster")
+    args=("--configDir" "${FLINK_CONF_DIR}" "${args[@]}")
     if [ ! -z $HOST ]; then
-        args+=("--host")
-        args+=("${HOST}")
+        args+=("-D")
+        args+=("jobmanager.rpc.address=${HOST}")
     fi
 
     if [ ! -z $WEBUIPORT ]; then
-        args+=("--webui-port")
-        args+=("${WEBUIPORT}")
+        args+=("-D")
+        args+=("rest.port=${WEBUIPORT}")
     fi
 
     if [ ! -z "${DYNAMIC_PARAMETERS}" ]; then
-        args+=(${DYNAMIC_PARAMETERS[@]})
+        args=(${DYNAMIC_PARAMETERS[@]} "${args[@]}")
     fi
 fi
 

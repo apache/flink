@@ -21,23 +21,25 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
 
-public class AllVerticesIteratorTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+class AllVerticesIteratorTest {
+
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     @Test
-    public void testAllVertices() {
+    void testAllVertices() {
         try {
 
             JobVertex v1 = new JobVertex("v1");
@@ -69,14 +71,14 @@ public class AllVerticesIteratorTest {
             int numReturned = 0;
             while (iter.hasNext()) {
                 iter.hasNext();
-                Assert.assertNotNull(iter.next());
+                assertThat(iter.next()).isNotNull();
                 numReturned++;
             }
 
-            Assert.assertEquals(13, numReturned);
+            assertThat(numReturned).isEqualTo(13);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 }

@@ -19,7 +19,12 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.TransportException;
@@ -38,10 +43,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.SocketAddress;
+import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Channel handler to read the messages of buffer response or error response from the producer, to
@@ -73,6 +82,8 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
      * during releasing resources.
      */
     private volatile ChannelHandlerContext ctx;
+
+    private ConnectionID connectionID;
 
     // ------------------------------------------------------------------------
     // Input channel/receiver registration
@@ -119,19 +130,18 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        // Unexpected close. In normal operation, the client closes the connection after all input
-        // channels have been removed. This indicates a problem with the remote task manager.
-        if (!inputChannels.isEmpty()) {
-            final SocketAddress remoteAddr = ctx.channel().remoteAddress();
+        final SocketAddress remoteAddr = ctx.channel().remoteAddress();
 
-            notifyAllChannelsOfErrorAndClose(
-                    new RemoteTransportException(
-                            "Connection unexpectedly closed by remote task manager '"
-                                    + remoteAddr
-                                    + "'. "
-                                    + "This might indicate that the remote task manager was lost.",
-                            remoteAddr));
-        }
+        notifyAllChannelsOfErrorAndClose(
+                new RemoteTransportException(
+                        "Connection unexpectedly closed by remote task manager '"
+                                + remoteAddr
+                                + " [ "
+                                + connectionID.getResourceID().getStringWithMetadata()
+                                + " ] "
+                                + "'. "
+                                + "This might indicate that the remote task manager was lost.",
+                        remoteAddr));
 
         super.channelInactive(ctx);
     }
@@ -157,6 +167,9 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                         new RemoteTransportException(
                                 "Lost connection to task manager '"
                                         + remoteAddr
+                                        + " [ "
+                                        + connectionID.getResourceID().getStringWithMetadata()
+                                        + " ] "
                                         + "'. "
                                         + "This indicates that the remote task manager was lost.",
                                 remoteAddr,
@@ -166,7 +179,10 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                 tex =
                         new LocalTransportException(
                                 String.format(
-                                        "%s (connection to '%s')", cause.getMessage(), remoteAddr),
+                                        "%s (connection to '%s [%s]')",
+                                        cause.getMessage(),
+                                        remoteAddr,
+                                        connectionID.getResourceID().getStringWithMetadata()),
                                 localAddr,
                                 cause);
             }
@@ -213,6 +229,11 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
     }
 
     @Override
+    public void setConnectionId(ConnectionID connectionId) {
+        this.connectionID = checkNotNull(connectionId);
+    }
+
+    @Override
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
         writeAndFlushNextMessageIfPossible(ctx.channel());
     }
@@ -256,7 +277,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         }
     }
 
-    private void decodeMsg(Object msg) throws Throwable {
+    private void decodeMsg(Object msg) {
         final Class<?> msgClazz = msg.getClass();
 
         // ---- Buffer --------------------------------------------------------
@@ -287,7 +308,12 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             if (error.isFatalError()) {
                 notifyAllChannelsOfErrorAndClose(
                         new RemoteTransportException(
-                                "Fatal error at remote task manager '" + remoteAddr + "'.",
+                                "Fatal error at remote task manager '"
+                                        + remoteAddr
+                                        + " [ "
+                                        + connectionID.getResourceID().getStringWithMetadata()
+                                        + " ] "
+                                        + "'.",
                                 remoteAddr,
                                 error.cause));
             } else {
@@ -299,7 +325,14 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                     } else {
                         inputChannel.onError(
                                 new RemoteTransportException(
-                                        "Error at remote task manager '" + remoteAddr + "'.",
+                                        "Error at remote task manager '"
+                                                + remoteAddr
+                                                + " [ "
+                                                + connectionID
+                                                        .getResourceID()
+                                                        .getStringWithMetadata()
+                                                + " ] "
+                                                + "'.",
                                         remoteAddr,
                                         error.cause));
                     }
@@ -331,12 +364,99 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         if (bufferOrEvent.isBuffer() && bufferOrEvent.bufferSize == 0) {
             inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
         } else if (bufferOrEvent.getBuffer() != null) {
-            inputChannel.onBuffer(
-                    bufferOrEvent.getBuffer(), bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
+            if (bufferOrEvent.numOfPartialBuffers > 0) {
+                int offset = 0;
+
+                int seq = bufferOrEvent.sequenceNumber;
+                AtomicInteger waitToBeReleased =
+                        new AtomicInteger(bufferOrEvent.numOfPartialBuffers);
+                AtomicInteger processedPartialBuffers = new AtomicInteger(0);
+                try {
+                    for (int i = 0; i < bufferOrEvent.numOfPartialBuffers; i++) {
+                        int size = bufferOrEvent.getPartialBufferSizes().get(i);
+
+                        processedPartialBuffers.incrementAndGet();
+                        inputChannel.onBuffer(
+                                sliceBuffer(
+                                        bufferOrEvent,
+                                        memorySegment -> {
+                                            if (waitToBeReleased.decrementAndGet() == 0) {
+                                                bufferOrEvent.getBuffer().recycleBuffer();
+                                            }
+                                        },
+                                        offset,
+                                        size),
+                                seq++,
+                                i == bufferOrEvent.numOfPartialBuffers - 1
+                                        ? bufferOrEvent.backlog
+                                        : -1,
+                                -1);
+                        offset += size;
+                    }
+                } catch (Throwable throwable) {
+                    LOG.error("Failed to process partial buffers.", throwable);
+                    if (processedPartialBuffers.get() != bufferOrEvent.numOfPartialBuffers) {
+                        bufferOrEvent.getBuffer().recycleBuffer();
+                    }
+                    throw throwable;
+                }
+            } else {
+                inputChannel.onBuffer(
+                        bufferOrEvent.getBuffer(),
+                        bufferOrEvent.sequenceNumber,
+                        bufferOrEvent.backlog,
+                        bufferOrEvent.subpartitionId);
+            }
+
         } else {
             throw new IllegalStateException(
                     "The read buffer is null in credit-based input channel.");
         }
+    }
+
+    /**
+     * Creates a {@link NetworkBuffer} by wrapping the specified portion of a given buffer's
+     * underlying memory segment rather than creating a slice of the buffer.
+     *
+     * <p>Currently, there is an assumption that each buffer received from a {@link
+     * RemoteInputChannel} exclusively holds a single memory segment object.
+     *
+     * <p>If this assumption were violated and multiple buffers were allowed to share a single
+     * segment, it could introduce instability and unpredictable behavior.
+     *
+     * <p>For instance, the BufferManager releases buffers by directly operating on their underlying
+     * memory segments and adding them to a list designated for release. If buffers share the same
+     * segment, the segment might be added to the buffer pool multiple times, and subsequent buffers
+     * may inadvertently be allocated to the same segment for reading and writing.
+     *
+     * <p>Therefore, to avoid introducing potential risks, this method operates directly on the
+     * segment instead of slicing the buffer.
+     *
+     * @param bufferOrEvent the buffer or event containing the data to be wrapped into a network
+     *     buffer
+     * @param recycler the buffer recycler used to manage the lifecycle of the network buffer
+     * @param offset the offset within the buffer where the data begins
+     * @param size the size of the data to be wrapped
+     * @return a new {@link NetworkBuffer} wrapping the specified portion of the buffer's memory
+     *     segment
+     */
+    private static NetworkBuffer sliceBuffer(
+            NettyMessage.BufferResponse bufferOrEvent,
+            BufferRecycler recycler,
+            int offset,
+            int size) {
+        ByteBuffer nioBuffer = bufferOrEvent.getBuffer().getNioBuffer(offset, size);
+
+        MemorySegment segment;
+        if (nioBuffer.isDirect()) {
+            segment = MemorySegmentFactory.wrapOffHeapMemory(nioBuffer);
+        } else {
+            byte[] bytes = nioBuffer.array();
+            segment = MemorySegmentFactory.wrap(bytes);
+        }
+
+        return new NetworkBuffer(
+                segment, recycler, bufferOrEvent.dataType, bufferOrEvent.isCompressed, size);
     }
 
     /**

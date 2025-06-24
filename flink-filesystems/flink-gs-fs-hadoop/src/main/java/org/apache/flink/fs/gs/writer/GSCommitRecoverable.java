@@ -73,8 +73,11 @@ class GSCommitRecoverable implements RecoverableWriter.CommitRecoverable {
                 componentObjectIds.stream()
                         .map(
                                 temporaryObjectId ->
-                                        BlobUtils.getTemporaryObjectName(
-                                                finalBlobIdentifier, temporaryObjectId))
+                                        options.isFileSinkEntropyEnabled()
+                                                ? BlobUtils.getTemporaryObjectNameWithEntropy(
+                                                        finalBlobIdentifier, temporaryObjectId)
+                                                : BlobUtils.getTemporaryObjectName(
+                                                        finalBlobIdentifier, temporaryObjectId))
                         .map(
                                 temporaryObjectName ->
                                         new GSBlobIdentifier(

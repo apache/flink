@@ -19,9 +19,10 @@
 package org.apache.flink.test.classloading.jar;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
@@ -31,15 +32,17 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.util.Collector;
 
@@ -60,8 +63,9 @@ public class CheckpointingCustomKvStateProgram {
 
         env.setParallelism(parallelism);
         env.enableCheckpointing(100);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1000));
-        env.setStateBackend(new FsStateBackend(checkpointPath));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 1000L);
+        StateBackendUtils.configureHashMapStateBackend(env);
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(env, checkpointPath);
 
         DataStream<Integer> source = env.addSource(new InfiniteIntegerSource());
         source.map(
@@ -84,7 +88,10 @@ public class CheckpointingCustomKvStateProgram {
                             }
                         })
                 .flatMap(new ReducingStateFlatMap())
-                .writeAsText(outputPath, FileSystem.WriteMode.OVERWRITE);
+                .sinkTo(
+                        FileSink.forRowFormat(
+                                        new Path(outputPath), new SimpleStringEncoder<Integer>())
+                                .build());
 
         env.execute();
     }
@@ -129,7 +136,7 @@ public class CheckpointingCustomKvStateProgram {
         private boolean restored = false;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             ReducingStateDescriptor<Integer> stateDescriptor =
                     new ReducingStateDescriptor<>(
                             "reducing-state", new ReduceSum(), CustomIntSerializer.INSTANCE);

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.MapData;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -127,14 +128,16 @@ class MapToMapAndMultisetToMultisetCastRule
             innerTargetValueType = ((MapType) targetLogicalType).getValueType();
         }
 
+        CodeGeneratorContext codeGeneratorContext = context.getCodeGeneratorContext();
+
         final String innerTargetKeyTypeTerm = boxedTypeTermForType(innerTargetKeyType);
         final String innerTargetValueTypeTerm = boxedTypeTermForType(innerTargetValueType);
         final String keyArrayTerm = methodCall(inputTerm, "keyArray");
         final String valueArrayTerm = methodCall(inputTerm, "valueArray");
         final String size = methodCall(inputTerm, "size");
-        final String map = newName("map");
-        final String key = newName("key");
-        final String value = newName("value");
+        final String map = newName(codeGeneratorContext, "map");
+        final String key = newName(codeGeneratorContext, "key");
+        final String value = newName(codeGeneratorContext, "value");
 
         return new CastRuleUtils.CodeWriter()
                 .declStmt(className(Map.class), map, constructorCall(HashMap.class))
@@ -192,7 +195,8 @@ class MapToMapAndMultisetToMultisetCastRule
                                         .assignStmt(value, valueCodeBlock.getReturnTerm());
                             }
                             codeWriter.stmt(methodCall(map, "put", key, value));
-                        })
+                        },
+                        codeGeneratorContext)
                 .assignStmt(returnVariable, constructorCall(GenericMapData.class, map))
                 .toString();
     }

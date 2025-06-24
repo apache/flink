@@ -21,7 +21,8 @@ package org.apache.flink.table.factories;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.descriptors.Descriptor;
+import org.apache.flink.table.legacy.descriptors.Descriptor;
+import org.apache.flink.table.legacy.factories.TableFactory;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -452,13 +453,5 @@ public class TableFactoryService {
                 .filter(p -> p.endsWith("*"))
                 .map(s -> s.substring(0, s.length() - 1))
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Performs filtering for special cases (i.e. table format factories with schema derivation).
-     */
-    private static List<String> filterSupportedPropertiesFactorySpecific(
-            TableFactory factory, List<String> keys) {
-        return keys;
     }
 }

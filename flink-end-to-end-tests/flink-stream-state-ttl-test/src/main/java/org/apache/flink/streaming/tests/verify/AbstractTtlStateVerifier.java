@@ -106,7 +106,7 @@ abstract class AbstractTtlStateVerifier<
     abstract GV expected(@Nonnull List<ValueWithTs<UV>> updates, long currentTimestamp);
 
     boolean expired(long lastTimestamp, long currentTimestamp) {
-        return lastTimestamp + stateDesc.getTtlConfig().getTtl().toMilliseconds()
+        return lastTimestamp + stateDesc.getTtlConfig().getTimeToLive().toMillis()
                 <= currentTimestamp;
     }
 }

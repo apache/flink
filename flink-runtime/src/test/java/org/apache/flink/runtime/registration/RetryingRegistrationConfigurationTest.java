@@ -20,21 +20,19 @@ package org.apache.flink.runtime.registration;
 
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.apache.flink.configuration.ClusterOptions.REFUSED_REGISTRATION_DELAY;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link RetryingRegistrationConfiguration}. */
-public class RetryingRegistrationConfigurationTest extends TestLogger {
+class RetryingRegistrationConfigurationTest {
 
     @Test
-    public void testConfigurationParsing() {
+    void testConfigurationParsing() {
         final Configuration configuration = new Configuration();
 
         final long initialRegistrationTimeout = 1L;
@@ -42,54 +40,25 @@ public class RetryingRegistrationConfigurationTest extends TestLogger {
         final long refusedRegistrationDelay = 3L;
         final long errorRegistrationDelay = 4L;
 
-        configuration.setLong(
-                ClusterOptions.INITIAL_REGISTRATION_TIMEOUT, initialRegistrationTimeout);
-        configuration.setLong(ClusterOptions.MAX_REGISTRATION_TIMEOUT, maxRegistrationTimeout);
-        configuration.setLong(ClusterOptions.REFUSED_REGISTRATION_DELAY, refusedRegistrationDelay);
-        configuration.setLong(ClusterOptions.ERROR_REGISTRATION_DELAY, errorRegistrationDelay);
+        configuration.set(
+                ClusterOptions.INITIAL_REGISTRATION_TIMEOUT,
+                Duration.ofMillis(initialRegistrationTimeout));
+        configuration.set(
+                ClusterOptions.MAX_REGISTRATION_TIMEOUT, Duration.ofMillis(maxRegistrationTimeout));
+        configuration.set(REFUSED_REGISTRATION_DELAY, Duration.ofMillis(refusedRegistrationDelay));
+        configuration.set(
+                ClusterOptions.ERROR_REGISTRATION_DELAY, Duration.ofMillis(errorRegistrationDelay));
 
         final RetryingRegistrationConfiguration retryingRegistrationConfiguration =
                 RetryingRegistrationConfiguration.fromConfiguration(configuration);
 
-        assertThat(
-                retryingRegistrationConfiguration.getInitialRegistrationTimeoutMillis(),
-                is(initialRegistrationTimeout));
-        assertThat(
-                retryingRegistrationConfiguration.getMaxRegistrationTimeoutMillis(),
-                is(maxRegistrationTimeout));
-        assertThat(
-                retryingRegistrationConfiguration.getRefusedDelayMillis(),
-                is(refusedRegistrationDelay));
-        assertThat(
-                retryingRegistrationConfiguration.getErrorDelayMillis(),
-                is(errorRegistrationDelay));
-    }
-
-    @Test
-    public void testConfigurationWithDeprecatedOptions() {
-        final Configuration configuration = new Configuration();
-
-        final Duration refusedRegistrationBackoff = Duration.ofMinutes(42L);
-        final Duration registrationMaxBackoff = Duration.ofSeconds(1L);
-        final Duration initialRegistrationBackoff = Duration.ofHours(1337L);
-
-        configuration.set(
-                TaskManagerOptions.REFUSED_REGISTRATION_BACKOFF, refusedRegistrationBackoff);
-        configuration.set(TaskManagerOptions.REGISTRATION_MAX_BACKOFF, registrationMaxBackoff);
-        configuration.set(
-                TaskManagerOptions.INITIAL_REGISTRATION_BACKOFF, initialRegistrationBackoff);
-
-        final RetryingRegistrationConfiguration retryingRegistrationConfiguration =
-                RetryingRegistrationConfiguration.fromConfiguration(configuration);
-
-        assertThat(
-                retryingRegistrationConfiguration.getInitialRegistrationTimeoutMillis(),
-                is(ClusterOptions.INITIAL_REGISTRATION_TIMEOUT.defaultValue()));
-        assertThat(
-                retryingRegistrationConfiguration.getRefusedDelayMillis(),
-                is(ClusterOptions.REFUSED_REGISTRATION_DELAY.defaultValue()));
-        assertThat(
-                retryingRegistrationConfiguration.getMaxRegistrationTimeoutMillis(),
-                is(ClusterOptions.MAX_REGISTRATION_TIMEOUT.defaultValue()));
+        assertThat(retryingRegistrationConfiguration.getInitialRegistrationTimeoutMillis())
+                .isEqualTo(initialRegistrationTimeout);
+        assertThat(retryingRegistrationConfiguration.getMaxRegistrationTimeoutMillis())
+                .isEqualTo(maxRegistrationTimeout);
+        assertThat(retryingRegistrationConfiguration.getRefusedDelayMillis())
+                .isEqualTo(refusedRegistrationDelay);
+        assertThat(retryingRegistrationConfiguration.getErrorDelayMillis())
+                .isEqualTo(errorRegistrationDelay);
     }
 }

@@ -62,12 +62,16 @@ public abstract class Either<L, R> {
      */
     public abstract R right() throws IllegalStateException;
 
-    /** @return true if this is a Left value, false if this is a Right value */
+    /**
+     * @return true if this is a Left value, false if this is a Right value
+     */
     public final boolean isLeft() {
         return getClass() == Left.class;
     }
 
-    /** @return true if this is a Right value, false if this is a Left value */
+    /**
+     * @return true if this is a Right value, false if this is a Left value
+     */
     public final boolean isRight() {
         return getClass() == Right.class;
     }

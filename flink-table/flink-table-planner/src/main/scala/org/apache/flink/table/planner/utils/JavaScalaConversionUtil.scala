@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.utils
 
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 
-import java.util.{List => JList, Optional}
+import java.util.{List => JList, Optional, Set => JSet}
 import java.util.function.{BiConsumer, Consumer, Function}
 
 import scala.collection.JavaConverters._
@@ -51,4 +51,12 @@ object JavaScalaConversionUtil {
 
   def toScala[T](list: JList[T]): Seq[T] =
     list.asScala
+
+  def toScala[T0, T1](tuple: JTuple2[T0, T1]): (T0, T1) =
+    (tuple.f0, tuple.f1)
+
+  def toScala(set: JSet[Integer]): Set[Int] = set.asScala.map(_.toInt).toSet
+
+  def toJava(set: Set[Int]): JSet[Integer] =
+    set.map(_.asInstanceOf[Integer]).asJava
 }

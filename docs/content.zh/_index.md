@@ -62,6 +62,7 @@ under the License.
 
 {{< columns >}}
 * [DataStream API]({{< ref "docs/dev/datastream/overview" >}})
+* [DataStream API (V2)]({{< ref "docs/dev/datastream-v2/overview" >}})
 * [Table API & SQL]({{< ref "docs/dev/table/overview" >}})
 * [Stateful Functions](https://nightlies.apache.org/flink/flink-statefun-docs-stable/)
 
@@ -85,7 +86,21 @@ under the License.
 For some reason Hugo will only allow linking to the 
 release notes if there is a leading '/' and file extension.
 -->
-请参阅 [Flink 1.14]({{< ref "/release-notes/flink-1.14.md" >}}), [Flink 1.13]({{< ref "/release-notes/flink-1.13.md" >}}), [Flink 1.12]({{< ref "/release-notes/flink-1.12.md" >}})，[Flink 1.11]({{< ref "/release-notes/flink-1.11.md" >}})，[Flink 1.10]({{< ref "/release-notes/flink-1.10.md" >}})，[Flink 1.9]({{< ref "/release-notes/flink-1.9.md" >}})，[Flink 1.8]({{< ref "/release-notes/flink-1.8.md" >}})，或者 [Flink 1.7]({{< ref "/release-notes/flink-1.7.md" >}}) 的发行说明。
+请参阅 [Flink 2.0]({{< ref "/release-notes/flink-2.0.md" >}})，
+[Flink 1.20]({{< ref "/release-notes/flink-1.20.md" >}})，
+[Flink 1.19]({{< ref "/release-notes/flink-1.19.md" >}})，
+[Flink 1.18]({{< ref "/release-notes/flink-1.18.md" >}})，
+[Flink 1.17]({{< ref "/release-notes/flink-1.17.md" >}})，
+[Flink 1.16]({{< ref "/release-notes/flink-1.16.md" >}})，
+[Flink 1.15]({{< ref "/release-notes/flink-1.15.md" >}})，
+[Flink 1.14]({{< ref "/release-notes/flink-1.14.md" >}})，
+[Flink 1.13]({{< ref "/release-notes/flink-1.13.md" >}})， 
+[Flink 1.12]({{< ref "/release-notes/flink-1.12.md" >}})，
+[Flink 1.11]({{< ref "/release-notes/flink-1.11.md" >}})，
+[Flink 1.10]({{< ref "/release-notes/flink-1.10.md" >}})，
+[Flink 1.9]({{< ref "/release-notes/flink-1.9.md" >}})，
+[Flink 1.8]({{< ref "/release-notes/flink-1.8.md" >}})，或者 
+[Flink 1.7]({{< ref "/release-notes/flink-1.7.md" >}}) 的发行说明。
 
 {{< /columns >}}
 

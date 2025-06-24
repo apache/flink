@@ -1,0 +1,36 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>slow-task-detector.check-interval</h5></td>
+            <td style="word-wrap: break-word;">1 s</td>
+            <td>Duration</td>
+            <td>The interval to check slow tasks.</td>
+        </tr>
+        <tr>
+            <td><h5>slow-task-detector.execution-time.baseline-lower-bound</h5></td>
+            <td style="word-wrap: break-word;">1 min</td>
+            <td>Duration</td>
+            <td>The lower bound of slow task detection baseline.</td>
+        </tr>
+        <tr>
+            <td><h5>slow-task-detector.execution-time.baseline-multiplier</h5></td>
+            <td style="word-wrap: break-word;">1.5</td>
+            <td>Double</td>
+            <td>The multiplier to calculate the slow tasks detection baseline. Given that the parallelism is N and the ratio is R, define T as the median of the first N*R finished tasks' execution time. The baseline will be T*M, where M is the multiplier of the baseline. Note that the execution time will be weighted with the task's input bytes to ensure the accuracy of the detection if data skew occurs.</td>
+        </tr>
+        <tr>
+            <td><h5>slow-task-detector.execution-time.baseline-ratio</h5></td>
+            <td style="word-wrap: break-word;">0.75</td>
+            <td>Double</td>
+            <td>The finished execution ratio threshold to calculate the slow tasks detection baseline. Given that the parallelism is N and the ratio is R, define T as the median of the first N*R finished tasks' execution time. The baseline will be T*M, where M is the multiplier of the baseline. Note that the execution time will be weighted with the task's input bytes to ensure the accuracy of the detection if data skew occurs.</td>
+        </tr>
+    </tbody>
+</table>

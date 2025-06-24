@@ -18,25 +18,47 @@
 
 package org.apache.flink.sql.parser.dql;
 
-import org.apache.calcite.sql.SqlCall;
+import org.apache.flink.sql.parser.impl.ParseException;
+
+import org.apache.calcite.sql.SqlCharStringLiteral;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import java.util.Collections;
-import java.util.List;
-
-/** SHOW Databases sql call. */
-public class SqlShowDatabases extends SqlCall {
+/**
+ * SHOW Databases sql call. The full syntax for show databases is as followings:
+ *
+ * <pre>{@code
+ * SHOW DATABASES [ ( FROM | IN ) catalog_name] [ [NOT] (LIKE | ILIKE)
+ * <sql_like_pattern> ] statement
+ * }</pre>
+ */
+public class SqlShowDatabases extends SqlShowCall {
 
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("SHOW DATABASES", SqlKind.OTHER);
 
-    public SqlShowDatabases(SqlParserPos pos) {
-        super(pos);
+    public SqlShowDatabases(
+            SqlParserPos pos,
+            String preposition,
+            SqlIdentifier catalogName,
+            String likeType,
+            SqlCharStringLiteral likeLiteral,
+            boolean notLike)
+            throws ParseException {
+        super(pos, preposition, catalogName, likeType, likeLiteral, notLike);
+        if (catalogName != null && catalogName.names.size() > 1) {
+            throw new ParseException(
+                    String.format(
+                            "Show databases from/in identifier [ %s ] format error, catalog must be a single part identifier.",
+                            String.join(".", catalogName.names)));
+        }
+    }
+
+    public String getCatalogName() {
+        return getSqlIdentifierNameList().isEmpty() ? null : getSqlIdentifierNameList().get(0);
     }
 
     @Override
@@ -45,12 +67,7 @@ public class SqlShowDatabases extends SqlCall {
     }
 
     @Override
-    public List<SqlNode> getOperandList() {
-        return Collections.EMPTY_LIST;
-    }
-
-    @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("SHOW DATABASES");
+    String getOperationName() {
+        return "SHOW DATABASES";
     }
 }

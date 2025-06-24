@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.functions.DeclarativeAggregateFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -55,13 +56,13 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
 
     @Override
     public Expression[] initialValuesExpressions() {
-        return new Expression[] {/* max = */ nullOf(getResultType())};
+        return new Expression[] {/* max= */ nullOf(getResultType())};
     }
 
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* max = */ ifThenElse(
+            /* max= */ ifThenElse(
                     isNull(operand(0)),
                     max,
                     ifThenElse(
@@ -85,7 +86,7 @@ public abstract class MaxAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] mergeExpressions() {
         return new Expression[] {
-            /* max = */ ifThenElse(
+            /* max= */ ifThenElse(
                     isNull(mergeOperand(max)),
                     max,
                     ifThenElse(

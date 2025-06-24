@@ -21,23 +21,20 @@ package org.apache.flink.fs.s3presto;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopFileSystemITTest;
 import org.apache.flink.testutils.s3.S3TestCredentials;
 
 import com.amazonaws.SdkClientException;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 
 import static com.facebook.presto.hive.s3.S3ConfigurationUpdater.S3_USE_INSTANCE_CREDENTIALS;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit tests for the S3 file system support via Presto's {@link
@@ -47,20 +44,12 @@ import static org.junit.Assert.fail;
  * href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency
  * guarantees</a> and what the {@link com.facebook.presto.hive.s3.PrestoS3FileSystem} offers.
  */
-@RunWith(Parameterized.class)
-public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
-
-    @Parameterized.Parameter public String scheme;
-
-    @Parameterized.Parameters(name = "Scheme = {0}")
-    public static List<String> parameters() {
-        return Arrays.asList("s3", "s3p");
-    }
+class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
 
     private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-    @BeforeClass
-    public static void setup() throws IOException {
+    @BeforeAll
+    static void setup() throws IOException {
         S3TestCredentials.assumeCredentialsAvailable();
         // initialize configuration with valid credentials
         final Configuration conf = new Configuration();
@@ -74,11 +63,11 @@ public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
 
         // check for uniqueness of the test directory
         // directory must not yet exist
-        assertFalse(fs.exists(basePath));
+        assertThat(fs.exists(basePath)).isFalse();
     }
 
     @Test
-    public void testConfigKeysForwarding() throws Exception {
+    void testConfigKeysForwarding() throws Exception {
         final Path path = basePath;
 
         // access without credentials should fail
@@ -88,11 +77,8 @@ public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
             conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
             FileSystem.initialize(conf);
 
-            try {
-                path.getFileSystem().exists(path);
-                fail("should fail with an exception");
-            } catch (SdkClientException ignored) {
-            }
+            assertThatThrownBy(() -> path.getFileSystem().exists(path))
+                    .isInstanceOf(SdkClientException.class);
         }
 
         // standard Presto-style credential keys
@@ -110,8 +96,8 @@ public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
         {
             Configuration conf = new Configuration();
             conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
-            conf.setString("s3.access-key", S3TestCredentials.getS3AccessKey());
-            conf.setString("s3.secret-key", S3TestCredentials.getS3SecretKey());
+            conf.set(AbstractS3FileSystemFactory.ACCESS_KEY, S3TestCredentials.getS3AccessKey());
+            conf.set(AbstractS3FileSystemFactory.SECRET_KEY, S3TestCredentials.getS3SecretKey());
 
             FileSystem.initialize(conf);
             path.getFileSystem().exists(path);

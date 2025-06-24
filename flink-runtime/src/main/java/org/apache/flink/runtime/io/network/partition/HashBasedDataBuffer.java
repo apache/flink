@@ -23,7 +23,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 
@@ -32,6 +32,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
+import java.util.LinkedList;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -47,14 +48,20 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class HashBasedDataBuffer implements DataBuffer {
 
-    /** A buffer pool to request memory segments from. */
-    private final BufferPool bufferPool;
+    /** A list of {@link MemorySegment}s used to store data in memory. */
+    private final LinkedList<MemorySegment> freeSegments;
+
+    /** {@link BufferRecycler} used to recycle {@link #freeSegments}. */
+    private final BufferRecycler bufferRecycler;
 
     /** Number of guaranteed buffers can be allocated from the buffer pool for data sort. */
     private final int numGuaranteedBuffers;
 
     /** Buffers containing data for all subpartitions. */
     private final ArrayDeque<BufferConsumer>[] buffers;
+
+    /** Size of buffers requested from buffer pool. All buffers must be of the same size. */
+    private final int bufferSize;
 
     // ---------------------------------------------------------------------------------------------
     // Statistics and states
@@ -66,9 +73,6 @@ public class HashBasedDataBuffer implements DataBuffer {
     /** Total number of records already appended to this sort buffer. */
     private long numTotalRecords;
 
-    /** Whether this sort buffer is full and ready to read data from. */
-    private boolean isFull;
-
     /** Whether this sort buffer is finished. One can only read a finished sort buffer. */
     private boolean isFinished;
 
@@ -79,7 +83,7 @@ public class HashBasedDataBuffer implements DataBuffer {
     // For writing
     // ---------------------------------------------------------------------------------------------
 
-    /** Partial buffers to be appended data for each channel. */
+    /** Partial buffers to be appended data for each subpartition. */
     private final BufferBuilder[] builders;
 
     /** Total number of network buffers already occupied currently by this sort buffer. */
@@ -89,7 +93,7 @@ public class HashBasedDataBuffer implements DataBuffer {
     // For reading
     // ---------------------------------------------------------------------------------------------
 
-    /** Used to index the current available channel to read data from. */
+    /** Used to index the current available subpartition to read data from. */
     private int readOrderIndex;
 
     /** Data of different subpartitions in this sort buffer will be read in this order. */
@@ -99,19 +103,24 @@ public class HashBasedDataBuffer implements DataBuffer {
     private long numTotalBytesRead;
 
     public HashBasedDataBuffer(
-            BufferPool bufferPool,
+            LinkedList<MemorySegment> freeSegments,
+            BufferRecycler bufferRecycler,
             int numSubpartitions,
+            int bufferSize,
             int numGuaranteedBuffers,
             @Nullable int[] customReadOrder) {
         checkArgument(numGuaranteedBuffers > 0, "No guaranteed buffers for sort.");
 
-        this.bufferPool = checkNotNull(bufferPool);
+        this.freeSegments = checkNotNull(freeSegments);
+        this.bufferRecycler = checkNotNull(bufferRecycler);
+        this.bufferSize = bufferSize;
         this.numGuaranteedBuffers = numGuaranteedBuffers;
+        checkState(numGuaranteedBuffers <= freeSegments.size(), "Wrong number of free segments.");
 
         this.builders = new BufferBuilder[numSubpartitions];
         this.buffers = new ArrayDeque[numSubpartitions];
-        for (int channel = 0; channel < numSubpartitions; ++channel) {
-            this.buffers[channel] = new ArrayDeque<>();
+        for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
+            this.buffers[subpartition] = new ArrayDeque<>();
         }
 
         this.subpartitionReadOrder = new int[numSubpartitions];
@@ -119,8 +128,8 @@ public class HashBasedDataBuffer implements DataBuffer {
             checkArgument(customReadOrder.length == numSubpartitions, "Illegal data read order.");
             System.arraycopy(customReadOrder, 0, this.subpartitionReadOrder, 0, numSubpartitions);
         } else {
-            for (int channel = 0; channel < numSubpartitions; ++channel) {
-                this.subpartitionReadOrder[channel] = channel;
+            for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
+                this.subpartitionReadOrder[subpartition] = subpartition;
             }
         }
     }
@@ -131,35 +140,33 @@ public class HashBasedDataBuffer implements DataBuffer {
      * buffer or this data buffer after reset).
      */
     @Override
-    public boolean append(ByteBuffer source, int targetChannel, Buffer.DataType dataType)
+    public boolean append(ByteBuffer source, int targetSubpartition, Buffer.DataType dataType)
             throws IOException {
         checkArgument(source.hasRemaining(), "Cannot append empty data.");
-        checkState(!isFull, "Sort buffer is already full.");
         checkState(!isFinished, "Sort buffer is already finished.");
         checkState(!isReleased, "Sort buffer is already released.");
 
         int totalBytes = source.remaining();
         if (dataType.isBuffer()) {
-            writeRecord(source, targetChannel);
+            writeRecord(source, targetSubpartition);
         } else {
-            writeEvent(source, targetChannel, dataType);
+            writeEvent(source, targetSubpartition, dataType);
         }
 
-        isFull = source.hasRemaining();
-        if (!isFull) {
-            ++numTotalRecords;
+        if (source.hasRemaining()) {
+            return true;
         }
+        ++numTotalRecords;
         numTotalBytes += totalBytes - source.remaining();
-        return isFull;
+        return false;
     }
 
-    private void writeEvent(ByteBuffer source, int targetChannel, Buffer.DataType dataType) {
-        BufferBuilder builder = builders[targetChannel];
+    private void writeEvent(ByteBuffer source, int targetSubpartition, Buffer.DataType dataType) {
+        BufferBuilder builder = builders[targetSubpartition];
         if (builder != null) {
             builder.finish();
-            buffers[targetChannel].add(builder.createBufferConsumerFromBeginning());
             builder.close();
-            builders[targetChannel] = null;
+            builders[targetSubpartition] = null;
         }
 
         MemorySegment segment =
@@ -169,59 +176,51 @@ public class HashBasedDataBuffer implements DataBuffer {
                 new BufferConsumer(
                         new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE, dataType),
                         segment.size());
-        buffers[targetChannel].add(consumer);
+        buffers[targetSubpartition].add(consumer);
     }
 
-    private void writeRecord(ByteBuffer source, int targetChannel) throws IOException {
+    private void writeRecord(ByteBuffer source, int targetSubpartition) {
+        BufferBuilder builder = builders[targetSubpartition];
+        int availableBytes = builder != null ? builder.getWritableBytes() : 0;
+        if (source.remaining()
+                > availableBytes
+                        + (numGuaranteedBuffers - numBuffersOccupied) * (long) bufferSize) {
+            return;
+        }
+
         do {
-            BufferBuilder builder = builders[targetChannel];
             if (builder == null) {
-                builder = requestBufferFromPool();
-                if (builder == null) {
-                    break;
-                }
+                builder = new BufferBuilder(freeSegments.poll(), bufferRecycler);
+                buffers[targetSubpartition].add(builder.createBufferConsumer());
                 ++numBuffersOccupied;
-                builders[targetChannel] = builder;
+                builders[targetSubpartition] = builder;
             }
 
             builder.append(source);
             if (builder.isFull()) {
                 builder.finish();
-                buffers[targetChannel].add(builder.createBufferConsumerFromBeginning());
                 builder.close();
-                builders[targetChannel] = null;
+                builders[targetSubpartition] = null;
+                builder = null;
             }
         } while (source.hasRemaining());
     }
 
-    private BufferBuilder requestBufferFromPool() throws IOException {
-        try {
-            // blocking request buffers if there is still guaranteed memory
-            if (numBuffersOccupied < numGuaranteedBuffers) {
-                return bufferPool.requestBufferBuilderBlocking();
-            }
-        } catch (InterruptedException e) {
-            throw new IOException("Interrupted while requesting buffer.", e);
-        }
-
-        return bufferPool.requestBufferBuilder();
-    }
-
     @Override
-    public BufferWithChannel getNextBuffer(MemorySegment transitBuffer) {
-        checkState(isFull, "Sort buffer is not ready to be read.");
+    public BufferWithSubpartition getNextBuffer(MemorySegment transitBuffer) {
+        checkState(isFinished, "Sort buffer is not ready to be read.");
         checkState(!isReleased, "Sort buffer is already released.");
 
-        BufferWithChannel buffer = null;
+        BufferWithSubpartition buffer = null;
         if (!hasRemaining() || readOrderIndex >= subpartitionReadOrder.length) {
             return null;
         }
 
-        int targetChannel = subpartitionReadOrder[readOrderIndex];
+        int targetSubpartition = subpartitionReadOrder[readOrderIndex];
         while (buffer == null) {
-            BufferConsumer consumer = buffers[targetChannel].poll();
+            BufferConsumer consumer = buffers[targetSubpartition].poll();
             if (consumer != null) {
-                buffer = new BufferWithChannel(consumer.build(), targetChannel);
+                buffer = new BufferWithSubpartition(consumer.build(), targetSubpartition);
                 numBuffersOccupied -= buffer.getBuffer().isBuffer() ? 1 : 0;
                 numTotalBytesRead += buffer.getBuffer().readableBytes();
                 consumer.close();
@@ -229,7 +228,7 @@ public class HashBasedDataBuffer implements DataBuffer {
                 if (++readOrderIndex >= subpartitionReadOrder.length) {
                     break;
                 }
-                targetChannel = subpartitionReadOrder[readOrderIndex];
+                targetSubpartition = subpartitionReadOrder[readOrderIndex];
             }
         }
         return buffer;
@@ -251,28 +250,16 @@ public class HashBasedDataBuffer implements DataBuffer {
     }
 
     @Override
-    public void reset() {
-        checkState(!isFinished, "Sort buffer has been finished.");
-        checkState(!isReleased, "Sort buffer has been released.");
-
-        isFull = false;
-        readOrderIndex = 0;
-    }
-
-    @Override
     public void finish() {
-        checkState(!isFull, "DataBuffer must not be full.");
         checkState(!isFinished, "DataBuffer is already finished.");
 
-        isFull = true;
         isFinished = true;
-        for (int channel = 0; channel < builders.length; ++channel) {
-            BufferBuilder builder = builders[channel];
+        for (int subpartition = 0; subpartition < builders.length; ++subpartition) {
+            BufferBuilder builder = builders[subpartition];
             if (builder != null) {
                 builder.finish();
-                buffers[channel].add(builder.createBufferConsumerFromBeginning());
                 builder.close();
-                builders[channel] = null;
+                builders[subpartition] = null;
             }
         }
     }
@@ -289,11 +276,11 @@ public class HashBasedDataBuffer implements DataBuffer {
         }
         isReleased = true;
 
-        for (int channel = 0; channel < builders.length; ++channel) {
-            BufferBuilder builder = builders[channel];
+        for (int subpartition = 0; subpartition < builders.length; ++subpartition) {
+            BufferBuilder builder = builders[subpartition];
             if (builder != null) {
                 builder.close();
-                builders[channel] = null;
+                builders[subpartition] = null;
             }
         }
 

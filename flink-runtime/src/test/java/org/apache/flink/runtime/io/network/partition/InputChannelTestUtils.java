@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
@@ -44,8 +45,7 @@ import java.util.Collections;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -75,7 +75,7 @@ public class InputChannelTestUtils {
         ResultPartitionManager manager = mock(ResultPartitionManager.class);
         when(manager.createSubpartitionView(
                         any(ResultPartitionID.class),
-                        anyInt(),
+                        any(ResultSubpartitionIndexSet.class),
                         any(BufferAvailabilityListener.class)))
                 .thenAnswer(viewCreator);
 
@@ -236,11 +236,12 @@ public class InputChannelTestUtils {
                                 NoOpFileChannelManager.INSTANCE,
                                 true,
                                 bufferSize);
+        parent.setChannelStateWriter(ChannelStateWriter.NO_OP);
         ResultSubpartition subpartition = parent.getAllPartitions()[0];
         for (BufferConsumer buffer : buffers) {
             subpartition.add(buffer);
         }
-        return subpartition.createReadView(() -> {});
+        return subpartition.createReadView((ResultSubpartitionView view) -> {});
     }
 
     /** Test stub for {@link MemorySegmentProvider}. */

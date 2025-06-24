@@ -18,54 +18,50 @@
 
 package org.apache.flink.util;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Tests for the {@link ResourceGuard}. */
-public class ResourceGuardTest extends TestLogger {
+class ResourceGuardTest {
 
     @Test
-    public void testClose() {
+    void testClose() {
         ResourceGuard resourceGuard = new ResourceGuard();
-        Assert.assertFalse(resourceGuard.isClosed());
+        assertThat(resourceGuard.isClosed()).isFalse();
         resourceGuard.close();
-        Assert.assertTrue(resourceGuard.isClosed());
-        try {
-            resourceGuard.acquireResource();
-            Assert.fail();
-        } catch (IOException ignore) {
-        }
+        assertThat(resourceGuard.isClosed()).isTrue();
+        assertThatThrownBy(resourceGuard::acquireResource).isInstanceOf(IOException.class);
     }
 
     @Test
-    public void testAcquireReleaseClose() throws IOException {
+    void testAcquireReleaseClose() throws IOException {
         ResourceGuard resourceGuard = new ResourceGuard();
         ResourceGuard.Lease lease = resourceGuard.acquireResource();
-        Assert.assertEquals(1, resourceGuard.getLeaseCount());
+        assertThat(resourceGuard.getLeaseCount()).isOne();
         lease.close();
-        Assert.assertEquals(0, resourceGuard.getLeaseCount());
+        assertThat(resourceGuard.getLeaseCount()).isZero();
         resourceGuard.close();
-        Assert.assertTrue(resourceGuard.isClosed());
+        assertThat(resourceGuard.isClosed()).isTrue();
     }
 
     @Test
-    public void testCloseBlockIfAcquired() throws Exception {
+    void testCloseBlockIfAcquired() throws Exception {
         ResourceGuard resourceGuard = new ResourceGuard();
         ResourceGuard.Lease lease = resourceGuard.acquireResource();
         AtomicBoolean checker = new AtomicBoolean(true);
 
         Thread closerThread =
-                new Thread() {
-                    @Override
-                    public void run() {
-                        // this line should block until all acquires are matched by releases.
-                        resourceGuard.close();
-                        checker.set(false);
-                    }
-                };
+                new Thread(
+                        () -> {
+                            // this line should block until all acquires are matched by releases.
+                            resourceGuard.close();
+                            checker.set(false);
+                        });
 
         closerThread.start();
 
@@ -75,36 +71,30 @@ public class ResourceGuardTest extends TestLogger {
         }
 
         // validate that the close()-call is still blocked.
-        Assert.assertTrue(checker.get());
+        assertThat(checker.get()).isTrue();
 
         // validate that the closed-status is already effective.
-        try {
-            resourceGuard.acquireResource();
-            Assert.fail("Resource guard is expected to be already closed.");
-        } catch (IOException ignore) {
-        }
+        assertThatThrownBy(resourceGuard::acquireResource).isInstanceOf(IOException.class);
 
         // this matches the first acquire and will unblock the close()-call in the other thread.
         lease.close();
         closerThread.join(60_000);
-        Assert.assertFalse(checker.get());
+        assertThat(checker.get()).isFalse();
     }
 
     @Test
-    public void testInterruptHandledCorrectly() throws Exception {
+    void testInterruptHandledCorrectly() throws Exception {
         ResourceGuard resourceGuard = new ResourceGuard();
         ResourceGuard.Lease lease = resourceGuard.acquireResource();
         AtomicBoolean checker = new AtomicBoolean(true);
 
         Thread closerThread =
-                new Thread() {
-                    @Override
-                    public void run() {
-                        // this line should block until all acquires are matched by releases.
-                        resourceGuard.close();
-                        checker.set(false);
-                    }
-                };
+                new Thread(
+                        () -> {
+                            // this line should block until all acquires are matched by releases.
+                            resourceGuard.close();
+                            checker.set(false);
+                        });
 
         closerThread.start();
 
@@ -120,32 +110,32 @@ public class ResourceGuardTest extends TestLogger {
         closerThread.join(100);
 
         // check that unblock through interrupting failed.
-        Assert.assertTrue(checker.get());
+        assertThat(checker.get()).isTrue();
 
         // proper unblocking by closing the lease.
         lease.close();
         closerThread.join(60_000);
-        Assert.assertFalse(checker.get());
+        assertThat(checker.get()).isFalse();
     }
 
     @Test
-    public void testLeaseCloseIsIdempotent() throws Exception {
+    void testLeaseCloseIsIdempotent() throws Exception {
         ResourceGuard resourceGuard = new ResourceGuard();
         ResourceGuard.Lease lease1 = resourceGuard.acquireResource();
         ResourceGuard.Lease lease2 = resourceGuard.acquireResource();
-        Assert.assertEquals(2, resourceGuard.getLeaseCount());
+        assertThat(resourceGuard.getLeaseCount()).isEqualTo(2);
         lease1.close();
-        Assert.assertEquals(1, resourceGuard.getLeaseCount());
+        assertThat(resourceGuard.getLeaseCount()).isOne();
         lease1.close();
-        Assert.assertEquals(1, resourceGuard.getLeaseCount());
+        assertThat(resourceGuard.getLeaseCount()).isOne();
         lease2.close();
-        Assert.assertEquals(0, resourceGuard.getLeaseCount());
+        assertThat(resourceGuard.getLeaseCount()).isZero();
         ResourceGuard.Lease lease3 = resourceGuard.acquireResource();
-        Assert.assertEquals(1, resourceGuard.getLeaseCount());
+        assertThat(resourceGuard.getLeaseCount()).isOne();
         lease2.close();
-        Assert.assertEquals(1, resourceGuard.getLeaseCount());
+        assertThat(resourceGuard.getLeaseCount()).isOne();
         lease3.close();
-        Assert.assertEquals(0, resourceGuard.getLeaseCount());
+        assertThat(resourceGuard.getLeaseCount()).isZero();
         resourceGuard.close();
     }
 }

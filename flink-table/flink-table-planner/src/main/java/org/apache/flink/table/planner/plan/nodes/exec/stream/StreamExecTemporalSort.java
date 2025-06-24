@@ -119,9 +119,11 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
         RowType inputType = (RowType) inputEdge.getOutputType();
         LogicalType timeType = inputType.getTypeAt(sortSpec.getFieldSpec(0).getFieldIndex());
         if (isRowtimeAttribute(timeType)) {
-            return createSortRowTime(inputType, inputTransform, config);
+            return createSortRowTime(
+                    inputType, inputTransform, config, planner.getFlinkContext().getClassLoader());
         } else if (isProctimeAttribute(timeType)) {
-            return createSortProcTime(inputType, inputTransform, config);
+            return createSortProcTime(
+                    inputType, inputTransform, config, planner.getFlinkContext().getClassLoader());
         } else {
             throw new TableException(
                     String.format(
@@ -133,7 +135,10 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
 
     /** Create Sort logic based on processing time. */
     private Transformation<RowData> createSortProcTime(
-            RowType inputType, Transformation<RowData> inputTransform, ExecNodeConfig config) {
+            RowType inputType,
+            Transformation<RowData> inputTransform,
+            ExecNodeConfig config,
+            ClassLoader classLoader) {
         // if the order has secondary sorting fields in addition to the proctime
         if (sortSpec.getFieldSize() > 1) {
             // skip the first field which is the proctime field and would be ordered by timer.
@@ -141,7 +146,11 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
 
             GeneratedRecordComparator rowComparator =
                     ComparatorCodeGenerator.gen(
-                            config, "ProcTimeSortComparator", inputType, specExcludeTime);
+                            config,
+                            classLoader,
+                            "ProcTimeSortComparator",
+                            inputType,
+                            specExcludeTime);
             ProcTimeSortOperator sortOperator =
                     new ProcTimeSortOperator(InternalTypeInfo.of(inputType), rowComparator);
 
@@ -151,7 +160,8 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
                             createTransformationMeta(TEMPORAL_SORT_TRANSFORMATION, config),
                             sortOperator,
                             InternalTypeInfo.of(inputType),
-                            inputTransform.getParallelism());
+                            inputTransform.getParallelism(),
+                            false);
 
             // as input node is singleton exchange, its parallelism is 1.
             if (inputsContainSingleton()) {
@@ -171,14 +181,21 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
 
     /** Create Sort logic based on row time. */
     private Transformation<RowData> createSortRowTime(
-            RowType inputType, Transformation<RowData> inputTransform, ExecNodeConfig config) {
+            RowType inputType,
+            Transformation<RowData> inputTransform,
+            ExecNodeConfig config,
+            ClassLoader classLoader) {
         GeneratedRecordComparator rowComparator = null;
         if (sortSpec.getFieldSize() > 1) {
             // skip the first field which is the rowtime field and would be ordered by timer.
             SortSpec specExcludeTime = sortSpec.createSubSortSpec(1);
             rowComparator =
                     ComparatorCodeGenerator.gen(
-                            config, "RowTimeSortComparator", inputType, specExcludeTime);
+                            config,
+                            classLoader,
+                            "RowTimeSortComparator",
+                            inputType,
+                            specExcludeTime);
         }
         RowTimeSortOperator sortOperator =
                 new RowTimeSortOperator(
@@ -192,7 +209,8 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
                         createTransformationMeta(TEMPORAL_SORT_TRANSFORMATION, config),
                         sortOperator,
                         InternalTypeInfo.of(inputType),
-                        inputTransform.getParallelism());
+                        inputTransform.getParallelism(),
+                        false);
 
         if (inputsContainSingleton()) {
             transform.setParallelism(1);

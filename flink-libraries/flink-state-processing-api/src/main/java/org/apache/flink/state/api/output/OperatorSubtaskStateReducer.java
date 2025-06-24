@@ -19,11 +19,11 @@
 package org.apache.flink.state.api.output;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.state.api.OperatorIdentifier;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
@@ -41,21 +41,21 @@ public class OperatorSubtaskStateReducer
 
     private static final long serialVersionUID = 1L;
 
-    private final OperatorID operatorID;
+    private final OperatorIdentifier operatorIdentifier;
 
     private final int maxParallelism;
 
-    public OperatorSubtaskStateReducer(OperatorID operatorID, int maxParallelism) {
-        Preconditions.checkNotNull(operatorID, "Operator id must not be null.");
+    public OperatorSubtaskStateReducer(OperatorIdentifier operatorIdentifier, int maxParallelism) {
+        Preconditions.checkNotNull(operatorIdentifier, "Operator identifier must not be null.");
         Preconditions.checkState(maxParallelism > 1);
 
-        this.operatorID = operatorID;
+        this.operatorIdentifier = operatorIdentifier;
         this.maxParallelism = maxParallelism;
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
     }
 
     @Override
@@ -64,7 +64,12 @@ public class OperatorSubtaskStateReducer
                 StreamSupport.stream(values.spliterator(), false).collect(Collectors.toList());
 
         OperatorState operatorState =
-                new OperatorState(operatorID, subtasks.size(), maxParallelism);
+                new OperatorState(
+                        "ReducedOperatorState",
+                        operatorIdentifier.getUid().orElse(null),
+                        operatorIdentifier.getOperatorId(),
+                        subtasks.size(),
+                        maxParallelism);
 
         for (TaggedOperatorSubtaskState value : subtasks) {
             operatorState.putState(value.index, value.state);

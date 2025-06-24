@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.FactoryUtil;
@@ -30,6 +31,7 @@ import static org.apache.flink.table.catalog.GenericInMemoryCatalogFactoryOption
 import static org.apache.flink.table.factories.FactoryUtil.PROPERTY_VERSION;
 
 /** Catalog factory for {@link GenericInMemoryCatalog}. */
+@Internal
 public class GenericInMemoryCatalogFactory implements CatalogFactory {
 
     @Override

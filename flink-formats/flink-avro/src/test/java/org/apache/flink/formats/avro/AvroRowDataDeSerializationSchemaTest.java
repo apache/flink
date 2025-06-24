@@ -19,24 +19,37 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.formats.avro.generated.LogicalTimeRecord;
+import org.apache.flink.formats.avro.generated.Timestamps;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
+import org.apache.flink.formats.avro.utils.AvroTestUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.specific.SpecificRecord;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
@@ -50,6 +63,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.formats.avro.utils.AvroTestUtils.createEncoder;
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
@@ -73,17 +87,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Test for the Avro serialization and deserialization schema. */
 class AvroRowDataDeSerializationSchemaTest {
 
-    @Test
-    void testDeserializeNullRow() throws Exception {
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testDeserializeNullRow(AvroEncoding encoding) throws Exception {
         final DataType dataType = ROW(FIELD("bool", BOOLEAN())).nullable();
         AvroRowDataDeserializationSchema deserializationSchema =
-                createDeserializationSchema(dataType);
+                createDeserializationSchema(dataType, encoding, true);
 
         assertThat(deserializationSchema.deserialize(null)).isNull();
     }
 
-    @Test
-    void testSerializeDeserialize() throws Exception {
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testSerializeDeserialize(AvroEncoding encoding) throws Exception {
         final DataType dataType =
                 ROW(
                                 FIELD("bool", BOOLEAN()),
@@ -157,13 +173,14 @@ class AvroRowDataDeSerializationSchemaTest {
         map2.put("key1", null);
         record.put(18, map2);
 
-        AvroRowDataSerializationSchema serializationSchema = createSerializationSchema(dataType);
+        AvroRowDataSerializationSchema serializationSchema =
+                createSerializationSchema(dataType, encoding, true);
         AvroRowDataDeserializationSchema deserializationSchema =
-                createDeserializationSchema(dataType);
+                createDeserializationSchema(dataType, encoding, true);
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(schema);
-        Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
+        Encoder encoder = createEncoder(encoding, schema, byteArrayOutputStream);
         datumWriter.write(record, encoder);
         encoder.flush();
         byte[] input = byteArrayOutputStream.toByteArray();
@@ -174,8 +191,95 @@ class AvroRowDataDeSerializationSchemaTest {
         assertThat(output).isEqualTo(input);
     }
 
-    @Test
-    void testSpecificType() throws Exception {
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testSerializeDeserializeBasedOnNestedSchema(AvroEncoding encoding) throws Exception {
+        final Schema innerSchema = AvroTestUtils.getSmallSchema();
+        final DataType dataType = AvroSchemaConverter.convertToDataType(innerSchema.toString());
+
+        SchemaBuilder.FieldAssembler<Schema> outerSchemaBuilder =
+                SchemaBuilder.builder().record("outerSchemaName").fields();
+        outerSchemaBuilder
+                .name("before")
+                .type(Schema.createUnion(SchemaBuilder.builder().nullType(), innerSchema))
+                .withDefault(null);
+        outerSchemaBuilder
+                .name("after")
+                .type(Schema.createUnion(SchemaBuilder.builder().nullType(), innerSchema))
+                .withDefault(null);
+        outerSchemaBuilder
+                .name("op")
+                .type(
+                        Schema.createUnion(
+                                SchemaBuilder.builder().nullType(),
+                                SchemaBuilder.builder().stringType()))
+                .withDefault(null);
+
+        Schema outerSchema = outerSchemaBuilder.endRecord();
+        final Schema nullableOuterSchema =
+                Schema.createUnion(SchemaBuilder.builder().nullType(), outerSchema);
+
+        final GenericRecord innerRecord = new GenericData.Record(innerSchema);
+        innerRecord.put(0, "test");
+        final GenericRecord outerRecord = new GenericData.Record(outerSchema);
+        outerRecord.put(0, null);
+        outerRecord.put(1, innerRecord);
+        outerRecord.put(2, "c");
+
+        RowType rowType =
+                (RowType)
+                        ROW(
+                                        FIELD("before", dataType.nullable()),
+                                        FIELD("after", dataType.nullable()),
+                                        FIELD("op", STRING()))
+                                .getLogicalType();
+
+        AvroRowDataSerializationSchema serializationSchema =
+                new AvroRowDataSerializationSchema(
+                        rowType,
+                        AvroSerializationSchema.forGeneric(nullableOuterSchema, encoding),
+                        RowDataToAvroConverters.createConverter(rowType));
+
+        AvroRowDataDeserializationSchema deserializationSchema =
+                new AvroRowDataDeserializationSchema(
+                        AvroDeserializationSchema.forGeneric(nullableOuterSchema, encoding),
+                        AvroToRowDataConverters.createRowConverter(rowType),
+                        InternalTypeInfo.of(rowType));
+
+        final byte[] serBytes = InstantiationUtil.serializeObject(serializationSchema);
+        final byte[] deserBytes = InstantiationUtil.serializeObject(deserializationSchema);
+
+        final AvroRowDataSerializationSchema serCopy =
+                InstantiationUtil.deserializeObject(
+                        serBytes, Thread.currentThread().getContextClassLoader());
+        final AvroRowDataDeserializationSchema deserCopy =
+                InstantiationUtil.deserializeObject(
+                        deserBytes, Thread.currentThread().getContextClassLoader());
+
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        GenericDatumWriter<IndexedRecord> datumWriter =
+                new GenericDatumWriter<>(nullableOuterSchema);
+        Encoder encoder = null;
+        if (encoding == AvroEncoding.BINARY) {
+            encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
+        } else if (encoding == AvroEncoding.JSON) {
+            encoder = EncoderFactory.get().jsonEncoder(nullableOuterSchema, byteArrayOutputStream);
+        }
+        datumWriter.write(outerRecord, encoder);
+        encoder.flush();
+        byte[] input = byteArrayOutputStream.toByteArray();
+
+        RowData rowData = deserCopy.deserialize(input);
+
+        serCopy.open(null);
+        byte[] output = serCopy.serialize(rowData);
+
+        assertThat(output).isEqualTo(input);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testSpecificType(AvroEncoding encoding) throws Exception {
         LogicalTimeRecord record = new LogicalTimeRecord();
         Instant timestamp = Instant.parse("2010-06-30T01:20:20Z");
         record.setTypeTimestampMillis(timestamp);
@@ -184,7 +288,7 @@ class AvroRowDataDeSerializationSchemaTest {
         SpecificDatumWriter<LogicalTimeRecord> datumWriter =
                 new SpecificDatumWriter<>(LogicalTimeRecord.class);
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
+        Encoder encoder = createEncoder(encoding, record.getSchema(), byteArrayOutputStream);
         datumWriter.write(record, encoder);
         encoder.flush();
         byte[] input = byteArrayOutputStream.toByteArray();
@@ -195,9 +299,10 @@ class AvroRowDataDeSerializationSchemaTest {
                                 FIELD("type_date", DATE().notNull()),
                                 FIELD("type_time_millis", TIME(3).notNull()))
                         .notNull();
-        AvroRowDataSerializationSchema serializationSchema = createSerializationSchema(dataType);
+        AvroRowDataSerializationSchema serializationSchema =
+                createSerializationSchema(dataType, encoding, true);
         AvroRowDataDeserializationSchema deserializationSchema =
-                createDeserializationSchema(dataType);
+                createDeserializationSchema(dataType, encoding, true);
 
         RowData rowData = deserializationSchema.deserialize(input);
         byte[] output = serializationSchema.serialize(rowData);
@@ -217,10 +322,12 @@ class AvroRowDataDeSerializationSchemaTest {
                 .isEqualTo("12:12:12");
     }
 
-    @Test
-    void testSerializationWithTypesMismatch() throws Exception {
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testSerializationWithTypesMismatch(AvroEncoding encoding) throws Exception {
         AvroRowDataSerializationSchema serializationSchema =
-                createSerializationSchema(ROW(FIELD("f0", INT()), FIELD("f1", STRING())).notNull());
+                createSerializationSchema(
+                        ROW(FIELD("f0", INT()), FIELD("f1", STRING())).notNull(), encoding, true);
         GenericRowData rowData = new GenericRowData(2);
         rowData.setField(0, 1);
         rowData.setField(1, 2); // This should be a STRING
@@ -231,23 +338,90 @@ class AvroRowDataDeSerializationSchemaTest {
                 .hasStackTraceContaining("Fail to serialize at field: f1");
     }
 
-    private AvroRowDataSerializationSchema createSerializationSchema(DataType dataType)
+    @Test
+    void testTimestampTypeLegacyMapping() throws Exception {
+        final Tuple4<Class<? extends SpecificRecord>, SpecificRecord, GenericRecord, Row> testData =
+                AvroTestUtils.getTimestampTestData();
+
+        SpecificDatumWriter<Timestamps> datumWriter = new SpecificDatumWriter<>(Timestamps.class);
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
+        datumWriter.write((Timestamps) testData.f1, encoder);
+        encoder.flush();
+
+        DataType dataType =
+                AvroSchemaConverter.convertToDataType(
+                        SpecificData.get().getSchema(Timestamps.class).toString());
+
+        // Timestamp with local timezone is converted to BigIntType
+        assertThat(dataType.getChildren().get(2))
+                .isEqualTo(new AtomicDataType(new BigIntType(false)));
+        assertThat(dataType.getChildren().get(3))
+                .isEqualTo(new AtomicDataType(new BigIntType(false)));
+
+        assertThatThrownBy(() -> createSerializationSchema(dataType, AvroEncoding.BINARY, true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "Avro does not support TIMESTAMP type with precision: 6, it only supports precision less than 3.");
+
+        assertThatThrownBy(() -> createDeserializationSchema(dataType, AvroEncoding.BINARY, true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "Avro does not support TIMESTAMP type with precision: 6, it only supports precision less than 3.");
+    }
+
+    @Test
+    void testTimestampTypeNewMapping() throws Exception {
+        final Tuple4<Class<? extends SpecificRecord>, SpecificRecord, GenericRecord, Row> testData =
+                AvroTestUtils.getTimestampTestData();
+
+        SpecificDatumWriter<Timestamps> datumWriter = new SpecificDatumWriter<>(Timestamps.class);
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
+        datumWriter.write((Timestamps) testData.f1, encoder);
+        encoder.flush();
+        byte[] input = byteArrayOutputStream.toByteArray();
+
+        DataType dataType =
+                AvroSchemaConverter.convertToDataType(
+                        SpecificData.get().getSchema(Timestamps.class).toString(), false);
+
+        AvroRowDataSerializationSchema serializationSchema =
+                createSerializationSchema(dataType, AvroEncoding.BINARY, false);
+        AvroRowDataDeserializationSchema deserializationSchema =
+                createDeserializationSchema(dataType, AvroEncoding.BINARY, false);
+
+        RowData rowData = deserializationSchema.deserialize(input);
+        byte[] output = serializationSchema.serialize(rowData);
+        RowData rowData2 = deserializationSchema.deserialize(output);
+        assertThat(rowData2).isEqualTo(rowData);
+
+        assertThat(rowData.getTimestamp(2, 3).toLocalDateTime().toString())
+                .isEqualTo("2014-03-01T12:12:12.321");
+        assertThat(rowData.getTimestamp(3, 6).toLocalDateTime().toString())
+                .isEqualTo("1970-01-01T00:02:03.456");
+    }
+
+    private AvroRowDataSerializationSchema createSerializationSchema(
+            DataType dataType, AvroEncoding encoding, boolean legacyTimestampMapping)
             throws Exception {
         final RowType rowType = (RowType) dataType.getLogicalType();
 
         AvroRowDataSerializationSchema serializationSchema =
-                new AvroRowDataSerializationSchema(rowType);
+                new AvroRowDataSerializationSchema(rowType, encoding, legacyTimestampMapping);
         serializationSchema.open(null);
         return serializationSchema;
     }
 
-    private AvroRowDataDeserializationSchema createDeserializationSchema(DataType dataType)
+    private AvroRowDataDeserializationSchema createDeserializationSchema(
+            DataType dataType, AvroEncoding encoding, boolean legacyTimestampMapping)
             throws Exception {
         final RowType rowType = (RowType) dataType.getLogicalType();
         final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
 
         AvroRowDataDeserializationSchema deserializationSchema =
-                new AvroRowDataDeserializationSchema(rowType, typeInfo);
+                new AvroRowDataDeserializationSchema(
+                        rowType, typeInfo, encoding, legacyTimestampMapping);
         deserializationSchema.open(null);
         return deserializationSchema;
     }

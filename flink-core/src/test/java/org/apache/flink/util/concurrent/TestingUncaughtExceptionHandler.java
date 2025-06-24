@@ -18,6 +18,7 @@
 
 package org.apache.flink.util.concurrent;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -35,5 +36,9 @@ public class TestingUncaughtExceptionHandler implements Thread.UncaughtException
 
     public Throwable waitForUncaughtException() {
         return uncaughtExceptionFuture.join();
+    }
+
+    public Optional<Throwable> findUncaughtExceptionNow() {
+        return Optional.ofNullable(uncaughtExceptionFuture.getNow(null));
     }
 }

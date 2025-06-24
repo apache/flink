@@ -18,6 +18,9 @@
 
 package org.apache.flink.sql.parser;
 
+import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
+
+import org.apache.calcite.sql.parser.SqlParserFixture;
 import org.junit.jupiter.api.parallel.Execution;
 
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
@@ -34,13 +37,9 @@ class FlinkSqlUnParserTest extends FlinkSqlParserImplTest {
 
     // ~ Methods ----------------------------------------------------------------
 
-    @Override
-    protected boolean isUnparserTest() {
-        return true;
-    }
-
-    @Override
-    protected Tester getTester() {
-        return new UnparsingTesterImpl();
+    public SqlParserFixture fixture() {
+        return super.fixture()
+                .withTester(new UnparsingTesterImpl())
+                .withConfig(c -> c.withParserFactory(FlinkSqlParserImpl.FACTORY));
     }
 }

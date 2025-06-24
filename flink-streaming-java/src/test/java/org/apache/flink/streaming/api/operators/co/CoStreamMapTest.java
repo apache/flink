@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.operators.co;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoMapFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -25,11 +25,12 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link org.apache.flink.streaming.api.operators.co.CoStreamMap}. These test that:
@@ -40,7 +41,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *   <li>Watermarks are correctly forwarded
  * </ul>
  */
-public class CoStreamMapTest implements Serializable {
+class CoStreamMapTest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private static final class MyCoMap implements CoMapFunction<Double, Integer, String> {
@@ -58,7 +59,7 @@ public class CoStreamMapTest implements Serializable {
     }
 
     @Test
-    public void testCoMap() throws Exception {
+    void testCoMap() throws Exception {
         CoStreamMap<Double, Integer, String> operator =
                 new CoStreamMap<Double, Integer, String>(new MyCoMap());
 
@@ -102,7 +103,7 @@ public class CoStreamMapTest implements Serializable {
     }
 
     @Test
-    public void testOpenClose() throws Exception {
+    void testOpenClose() throws Exception {
         CoStreamMap<Double, Integer, String> operator =
                 new CoStreamMap<Double, Integer, String>(new TestOpenCloseCoMapFunction());
 
@@ -118,9 +119,10 @@ public class CoStreamMapTest implements Serializable {
 
         testHarness.close();
 
-        Assert.assertTrue(
-                "RichFunction methods where not called.", TestOpenCloseCoMapFunction.closeCalled);
-        Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
+        assertThat(TestOpenCloseCoMapFunction.closeCalled)
+                .as("RichFunction methods where not called.")
+                .isTrue();
+        assertThat(testHarness.getOutput()).isNotEmpty();
     }
 
     // This must only be used in one test, otherwise the static fields will be changed
@@ -133,36 +135,28 @@ public class CoStreamMapTest implements Serializable {
         public static boolean closeCalled = false;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
-            if (closeCalled) {
-                Assert.fail("Close called before open.");
-            }
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
+            assertThat(closeCalled).as("Close was called before open.").isFalse();
             openCalled = true;
         }
 
         @Override
         public void close() throws Exception {
             super.close();
-            if (!openCalled) {
-                Assert.fail("Open was not called before close.");
-            }
+            assertThat(openCalled).as("Open was not called before close.").isTrue();
             closeCalled = true;
         }
 
         @Override
         public String map1(Double value) throws Exception {
-            if (!openCalled) {
-                Assert.fail("Open was not called before run.");
-            }
+            assertThat(openCalled).as("Open was not called before run.").isTrue();
             return value.toString();
         }
 
         @Override
         public String map2(Integer value) throws Exception {
-            if (!openCalled) {
-                Assert.fail("Open was not called before run.");
-            }
+            assertThat(openCalled).as("Open was not called before run.").isTrue();
             return value.toString();
         }
     }
