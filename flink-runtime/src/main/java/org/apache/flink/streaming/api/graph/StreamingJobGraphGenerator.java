@@ -531,6 +531,7 @@ public class StreamingJobGraphGenerator {
         if (checkpointConfig.isUnalignedCheckpointsEnabled()
                 && streamGraph.getCheckpointingMode() != CheckpointingMode.EXACTLY_ONCE) {
             LOG.warn("Unaligned checkpoints can only be used with checkpointing mode EXACTLY_ONCE");
+            streamGraph.getJobConfiguration().set(CheckpointingOptions.ENABLE_UNALIGNED, false);
             checkpointConfig.enableUnalignedCheckpoints(false);
         }
     }
@@ -1257,12 +1258,6 @@ public class StreamingJobGraphGenerator {
                         CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
                         streamGraph.isEnableCheckpointsAfterTasksFinish());
         config.setCheckpointMode(StreamGraph.getCheckpointingMode(checkpointCfg));
-        config.setUnalignedCheckpointsEnabled(checkpointCfg.isUnalignedCheckpointsEnabled());
-        config.setUnalignedCheckpointsSplittableTimersEnabled(
-                checkpointCfg.isUnalignedCheckpointsInterruptibleTimersEnabled());
-        config.setAlignedCheckpointTimeout(checkpointCfg.getAlignedCheckpointTimeout());
-        config.setMaxSubtasksPerChannelStateFile(checkpointCfg.getMaxSubtasksPerChannelStateFile());
-        config.setMaxConcurrentCheckpoints(checkpointCfg.getMaxConcurrentCheckpoints());
 
         for (int i = 0; i < vertex.getStatePartitioners().length; i++) {
             config.setStatePartitioner(i, vertex.getStatePartitioners()[i]);

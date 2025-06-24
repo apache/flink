@@ -21,6 +21,7 @@ package org.apache.flink.state.api.output.operators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.state.api.functions.BroadcastStateBootstrapFunction;
 import org.apache.flink.state.api.output.SnapshotUtils;
@@ -84,7 +85,9 @@ public class BroadcastStateBootstrapOperator<IN>
                         getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                         timestamp,
                         getContainingTask().getConfiguration().isExactlyOnceCheckpointMode(),
-                        getContainingTask().getConfiguration().isUnalignedCheckpointsEnabled(),
+                        getContainingTask()
+                                .getJobConfiguration()
+                                .get(CheckpointingOptions.ENABLE_UNALIGNED),
                         getContainingTask().getConfiguration().getConfiguration(),
                         savepointPath);
 

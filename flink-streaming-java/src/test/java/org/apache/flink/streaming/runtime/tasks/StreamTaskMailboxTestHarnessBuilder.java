@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
@@ -127,6 +128,12 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
     public <T> StreamTaskMailboxTestHarnessBuilder<OUT> modifyStreamConfig(
             Consumer<StreamConfig> action) {
         action.accept(streamConfig);
+        return this;
+    }
+
+    public <T> StreamTaskMailboxTestHarnessBuilder<OUT> addJobConfig(
+            ConfigOption<T> option, T value) {
+        jobConfig.set(option, value);
         return this;
     }
 

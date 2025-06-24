@@ -37,6 +37,7 @@ import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -1007,13 +1008,11 @@ class MultipleInputStreamTaskTest {
                             .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
                             .addAdditionalOutput(partitionWriters)
                             .setCheckpointResponder(checkpointResponder)
-                            .modifyStreamConfig(
-                                    config -> {
-                                        config.setCheckpointingEnabled(true);
-                                        config.setUnalignedCheckpointsEnabled(
-                                                checkpointOptions.isUnalignedCheckpoint()
-                                                        || checkpointOptions.isTimeoutable());
-                                    })
+                            .addJobConfig(
+                                    CheckpointingOptions.ENABLE_UNALIGNED,
+                                    checkpointOptions.isUnalignedCheckpoint()
+                                            || checkpointOptions.isTimeoutable())
+                            .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                             .setupOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                             .build()) {
@@ -1293,8 +1292,8 @@ class MultipleInputStreamTaskTest {
         return new StreamTaskMailboxTestHarnessBuilder<>(
                         MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                 .modifyExecutionConfig(applyObjectReuse(objectReuse))
-                .modifyStreamConfig(config -> config.setUnalignedCheckpointsEnabled(unaligned))
-                .modifyStreamConfig(config -> config.setAlignedCheckpointTimeout(Duration.ZERO))
+                .addJobConfig(CheckpointingOptions.ENABLE_UNALIGNED, unaligned)
+                .addJobConfig(CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT, Duration.ZERO)
                 .addInput(BasicTypeInfo.STRING_TYPE_INFO)
                 .addSourceInput(
                         new SourceOperatorFactory<>(
