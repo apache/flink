@@ -42,9 +42,9 @@ public class TextGenerationEvaluatorAccumulatorTest {
         accumulator.accumulate(text, text);
         Map<String, Double> result = accumulator.getValue();
         assertThat(result).isNotNull();
-        assertThat(result.get("Mean BLEU")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean ROUGE")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean Semantic Similarity")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MB")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MR")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MSS")).isEqualTo(1.0, offset(DELTA));
     }
 
     @Test
@@ -54,9 +54,9 @@ public class TextGenerationEvaluatorAccumulatorTest {
         accumulator.accumulate(reference, hypothesis);
         Map<String, Double> result = accumulator.getValue();
         assertThat(result).isNotNull();
-        assertThat(result.get("Mean BLEU")).isGreaterThan(0.5);
-        assertThat(result.get("Mean ROUGE")).isGreaterThan(0.5);
-        assertThat(result.get("Mean Semantic Similarity")).isGreaterThan(0.5);
+        assertThat(result.get("MB")).isGreaterThan(0.5);
+        assertThat(result.get("MR")).isGreaterThan(0.5);
+        assertThat(result.get("MSS")).isGreaterThan(0.5);
     }
 
     @Test
@@ -66,9 +66,9 @@ public class TextGenerationEvaluatorAccumulatorTest {
         accumulator.accumulate(reference, hypothesis);
         Map<String, Double> result = accumulator.getValue();
         assertThat(result).isNotNull();
-        assertThat(result.get("Mean BLEU")).isLessThan(0.3);
-        assertThat(result.get("Mean ROUGE")).isLessThan(0.3);
-        assertThat(result.get("Mean Semantic Similarity")).isLessThan(0.3);
+        assertThat(result.get("MB")).isLessThan(0.3);
+        assertThat(result.get("MR")).isLessThan(0.3);
+        assertThat(result.get("MSS")).isLessThan(0.3);
     }
 
     @Test
@@ -80,9 +80,9 @@ public class TextGenerationEvaluatorAccumulatorTest {
         accumulator.retract(text1, text2);
         Map<String, Double> result = accumulator.getValue();
         assertThat(result).isNotNull();
-        assertThat(result.get("Mean BLEU")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean ROUGE")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean Semantic Similarity")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MB")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MR")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MSS")).isEqualTo(1.0, offset(DELTA));
     }
 
     @Test
@@ -112,9 +112,9 @@ public class TextGenerationEvaluatorAccumulatorTest {
         Map<String, Double> result = accumulator.getValue();
         assertThat(result).isNotNull();
         // Verify merged scores
-        assertThat(result.get("Mean BLEU")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean ROUGE")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean Semantic Similarity")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MB")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MR")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MSS")).isEqualTo(1.0, offset(DELTA));
     }
 
     @Test
@@ -130,9 +130,9 @@ public class TextGenerationEvaluatorAccumulatorTest {
         accumulator.accumulate(text, text);
         Map<String, Double> result = accumulator.getValue();
         assertThat(result).isNotNull();
-        assertThat(result.get("Mean BLEU")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean ROUGE")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean Semantic Similarity")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MB")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MR")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MSS")).isEqualTo(1.0, offset(DELTA));
     }
 
     @Test

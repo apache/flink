@@ -120,6 +120,8 @@ import java.util.TreeMap;
  */
 @Internal
 public class ClassificationEvaluatorAccumulator extends ModelEvaluatorAccumulator {
+    private static final long serialVersionUID = 1L;
+
     // Confusion matrix: outer map key is actual class, inner map key is predicted class
     private final Map<String, Map<String, Integer>> confusionMatrix =
             new TreeMap<>(String.CASE_INSENSITIVE_ORDER);

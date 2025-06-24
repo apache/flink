@@ -43,6 +43,8 @@ import java.util.Set;
  */
 @Internal
 public class TextGenerationEvaluatorAccumulator extends ModelEvaluatorAccumulator {
+    private static final long serialVersionUID = 1L;
+
     // Accumulated sum of BLEU scores
     private double totalBleuScore = 0.0;
     // Accumulated sum of ROUGE scores
@@ -201,11 +203,11 @@ public class TextGenerationEvaluatorAccumulator extends ModelEvaluatorAccumulato
             return null;
         }
         return ImmutableMap.of(
-                "Mean BLEU",
+                "MB", // Mean BLEU Score
                 totalBleuScore / count,
-                "Mean ROUGE",
+                "MR", // Mean ROUGE Score
                 totalRougeScore / count,
-                "Mean Semantic Similarity",
+                "MSS", // Mean Semantic Similarity Score
                 totalSemanticSimilarity / count);
     }
 

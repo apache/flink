@@ -155,11 +155,11 @@ public class MLEvaluateITCase extends StreamingTestBase {
 
         List<String> expected =
                 Arrays.asList(
-                        "+I[{Mean Euclidean Distance=0.0, Mean Jaccard Similarity=1.0, Mean Cosine Similarity=1.0}]",
-                        "-U[{Mean Euclidean Distance=0.0, Mean Jaccard Similarity=1.0, Mean Cosine Similarity=1.0}]",
-                        "+U[{Mean Euclidean Distance=0.0, Mean Jaccard Similarity=1.0, Mean Cosine Similarity=1.0}]",
-                        "-U[{Mean Euclidean Distance=0.0, Mean Jaccard Similarity=1.0, Mean Cosine Similarity=1.0}]",
-                        "+U[{Mean Euclidean Distance=0.47140452079103173, Mean Jaccard Similarity=0.9259259259259259, Mean Cosine Similarity=0.999837358695693}]");
+                        "+I[{MJS=1.0, MCS=1.0, MED=0.0}]",
+                        "-U[{MJS=1.0, MCS=1.0, MED=0.0}]",
+                        "+U[{MJS=1.0, MCS=1.0, MED=0.0}]",
+                        "-U[{MJS=1.0, MCS=1.0, MED=0.0}]",
+                        "+U[{MJS=0.9259259259259259, MCS=0.999837358695693, MED=0.47140452079103173}]");
         List<String> actual = result.stream().map(Objects::toString).collect(Collectors.toList());
         assertThat(actual).isEqualTo(expected);
     }
@@ -182,11 +182,11 @@ public class MLEvaluateITCase extends StreamingTestBase {
 
         List<String> expected =
                 Arrays.asList(
-                        "+I[{Mean ROUGE=1.0, Mean Semantic Similarity=1.0, Mean BLEU=1.0}]",
-                        "-U[{Mean ROUGE=1.0, Mean Semantic Similarity=1.0, Mean BLEU=1.0}]",
-                        "+U[{Mean ROUGE=1.0, Mean Semantic Similarity=1.0, Mean BLEU=1.0}]",
-                        "-U[{Mean ROUGE=1.0, Mean Semantic Similarity=1.0, Mean BLEU=1.0}]",
-                        "+U[{Mean ROUGE=0.6666666666666666, Mean Semantic Similarity=0.6666666666666666, Mean BLEU=0.6666666666666666}]");
+                        "+I[{MB=1.0, MR=1.0, MSS=1.0}]",
+                        "-U[{MB=1.0, MR=1.0, MSS=1.0}]",
+                        "+U[{MB=1.0, MR=1.0, MSS=1.0}]",
+                        "-U[{MB=1.0, MR=1.0, MSS=1.0}]",
+                        "+U[{MB=0.6666666666666666, MR=0.6666666666666666, MSS=0.6666666666666666}]");
 
         List<String> actual = result.stream().map(Objects::toString).collect(Collectors.toList());
         assertThat(actual).isEqualTo(expected);

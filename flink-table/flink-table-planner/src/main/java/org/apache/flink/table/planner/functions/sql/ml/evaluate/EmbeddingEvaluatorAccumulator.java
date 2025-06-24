@@ -66,6 +66,8 @@ import java.util.Map;
  */
 @Internal
 public class EmbeddingEvaluatorAccumulator extends ModelEvaluatorAccumulator {
+    private static final long serialVersionUID = 1L;
+
     // Accumulated sum of cosine similarity scores between embeddings
     private double totalCosineSimilarity = 0.0;
     // Accumulated sum of Jaccard similarity scores between embeddings
@@ -232,11 +234,11 @@ public class EmbeddingEvaluatorAccumulator extends ModelEvaluatorAccumulator {
             return null;
         }
         return ImmutableMap.of(
-                "Mean Cosine Similarity",
+                "MCS", // Mean Cosine Similarity
                 totalCosineSimilarity / count,
-                "Mean Jaccard Similarity",
+                "MJS", // Mean Jaccard Similarity
                 totalJaccardSimilarity / count,
-                "Mean Euclidean Distance",
+                "MED", // Mean Euclidean Distance
                 totalEuclideanDistance / count);
     }
 

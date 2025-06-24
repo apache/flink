@@ -46,9 +46,9 @@ public class EmbeddingEvaluatorAccumulatorTest {
         accumulator.accumulate(actual, predicted);
         Map<String, Double> result = accumulator.getValue();
 
-        assertThat(result.get("Mean Cosine Similarity")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean Jaccard Similarity")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean Euclidean Distance")).isEqualTo(0.0, offset(DELTA));
+        assertThat(result.get("MCS")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MJS")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MED")).isEqualTo(0.0, offset(DELTA));
     }
 
     @Test
@@ -60,9 +60,9 @@ public class EmbeddingEvaluatorAccumulatorTest {
         accumulator.accumulate(actual, predicted);
         Map<String, Double> result = accumulator.getValue();
 
-        assertThat(result.get("Mean Cosine Similarity")).isEqualTo(0.0, offset(DELTA));
-        assertThat(result.get("Mean Jaccard Similarity")).isEqualTo(0.0, offset(DELTA));
-        assertThat(result.get("Mean Euclidean Distance")).isEqualTo(Math.sqrt(2.0), offset(DELTA));
+        assertThat(result.get("MCS")).isEqualTo(0.0, offset(DELTA));
+        assertThat(result.get("MJS")).isEqualTo(0.0, offset(DELTA));
+        assertThat(result.get("MED")).isEqualTo(Math.sqrt(2.0), offset(DELTA));
     }
 
     @Test
@@ -74,7 +74,7 @@ public class EmbeddingEvaluatorAccumulatorTest {
         accumulator.accumulate(actual, predicted);
         Map<String, Double> result = accumulator.getValue();
         assertThat(result).isNotNull();
-        assertThat(result.get("Mean Euclidean Distance")).isEqualTo(2.0, offset(DELTA));
+        assertThat(result.get("MED")).isEqualTo(2.0, offset(DELTA));
     }
 
     @Test
@@ -89,9 +89,9 @@ public class EmbeddingEvaluatorAccumulatorTest {
         accumulator.accumulate(actual2, predicted2);
         Map<String, Double> result = accumulator.getValue();
 
-        assertThat(result.get("Mean Cosine Similarity")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean Jaccard Similarity")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean Euclidean Distance")).isEqualTo(0.0, offset(DELTA));
+        assertThat(result.get("MCS")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MJS")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MED")).isEqualTo(0.0, offset(DELTA));
     }
 
     @Test
@@ -107,9 +107,9 @@ public class EmbeddingEvaluatorAccumulatorTest {
         accumulator.retract(actual2, predicted2);
         Map<String, Double> result = accumulator.getValue();
 
-        assertThat(result.get("Mean Cosine Similarity")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean Jaccard Similarity")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean Euclidean Distance")).isEqualTo(0.0, offset(DELTA));
+        assertThat(result.get("MCS")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MJS")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MED")).isEqualTo(0.0, offset(DELTA));
     }
 
     @Test
@@ -128,9 +128,9 @@ public class EmbeddingEvaluatorAccumulatorTest {
         accumulator.accumulate(actual, predicted);
         Map<String, Double> result = accumulator.getValue();
 
-        assertThat(result.get("Mean Cosine Similarity")).isPositive();
-        assertThat(result.get("Mean Jaccard Similarity")).isPositive();
-        assertThat(result.get("Mean Euclidean Distance")).isNotNegative();
+        assertThat(result.get("MCS")).isPositive();
+        assertThat(result.get("MJS")).isPositive();
+        assertThat(result.get("MED")).isNotNegative();
     }
 
     @Test
@@ -165,9 +165,9 @@ public class EmbeddingEvaluatorAccumulatorTest {
         Map<String, Double> result = acc1.getValue();
         assertThat(result).isNotNull();
         // Verify merged similarity scores
-        assertThat(result.get("Mean Cosine Similarity")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean Jaccard Similarity")).isEqualTo(1.0, offset(DELTA));
-        assertThat(result.get("Mean Euclidean Distance")).isEqualTo(0.0, offset(DELTA));
+        assertThat(result.get("MCS")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MJS")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MED")).isEqualTo(0.0, offset(DELTA));
     }
 
     @Test
@@ -184,7 +184,7 @@ public class EmbeddingEvaluatorAccumulatorTest {
         accumulator.accumulate(actual, actual);
         Map<String, Double> result = accumulator.getValue();
         assertThat(result).isNotNull();
-        assertThat(result.get("Mean Cosine Similarity")).isEqualTo(1.0, offset(DELTA));
+        assertThat(result.get("MCS")).isEqualTo(1.0, offset(DELTA));
     }
 
     @Test
@@ -202,8 +202,8 @@ public class EmbeddingEvaluatorAccumulatorTest {
         accumulator.accumulate(v1, v2);
         Map<String, Double> result = accumulator.getValue();
 
-        assertThat(result.get("Mean Cosine Similarity")).isEqualTo(-1.0, offset(DELTA));
-        assertThat(result.get("Mean Jaccard Similarity")).isEqualTo(0.0, offset(DELTA));
-        assertThat(result.get("Mean Euclidean Distance")).isEqualTo(Math.sqrt(8), offset(DELTA));
+        assertThat(result.get("MCS")).isEqualTo(-1.0, offset(DELTA));
+        assertThat(result.get("MJS")).isEqualTo(0.0, offset(DELTA));
+        assertThat(result.get("MED")).isEqualTo(Math.sqrt(8), offset(DELTA));
     }
 }

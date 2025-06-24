@@ -81,6 +81,8 @@ import java.util.Map;
  */
 @Internal
 public class RegressionEvaluatorAccumulator extends ModelEvaluatorAccumulator {
+    private static final long serialVersionUID = 1L;
+
     private double sumActual = 0.0; // Sum of actual values (Σy_i)
     private double sumSquaredActual = 0.0; // Sum of squared actual values (Σy_i²)
     private double sumSquaredError = 0.0; // Sum of squared errors (Σ(y_i - ŷ_i)²)
