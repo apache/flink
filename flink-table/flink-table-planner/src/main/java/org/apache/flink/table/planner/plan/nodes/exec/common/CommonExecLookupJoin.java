@@ -69,7 +69,7 @@ import org.apache.flink.table.runtime.generated.GeneratedFilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.TableKeyedAsyncWaitOperatorFactory;
+import org.apache.flink.table.runtime.operators.AsyncKeyOrderedLookupOperatorFactory;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinRunner;
 import org.apache.flink.table.runtime.operators.join.lookup.AsyncLookupJoinWithCalcRunner;
@@ -527,7 +527,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         if (asyncLookupOptions.keyOrdered) {
             Preconditions.checkState(
                     AsyncDataStream.OutputMode.ORDERED.equals(asyncLookupOptions.asyncOutputMode));
-            return new TableKeyedAsyncWaitOperatorFactory<>(
+            return new AsyncKeyOrderedLookupOperatorFactory<>(
                     asyncFunc,
                     keySelector,
                     asyncLookupOptions.asyncTimeout,

@@ -407,6 +407,18 @@ public class AsyncExecutionController<K, REQUEST extends AsyncRequest<?>> implem
     }
 
     /**
+     * Make a completable future that is wired with the current context and mailbox executor, which
+     * can be used to complete the future later, and trigger the mailbox executor to run the
+     * callbacks.
+     *
+     * @return a completable future that is wired with the current context and mailbox executor.
+     * @param <T> the type of the result of the future.
+     */
+    public <T> InternalAsyncFuture<T> makeCompletableFuture() {
+        return asyncFutureFactory.create(currentContext);
+    }
+
+    /**
      * A helper to request a sync point and run a callback if it finishes (once the record is not
      * blocked).
      *

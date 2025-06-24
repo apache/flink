@@ -214,19 +214,23 @@ public class AsyncWaitOperatorTest {
         @Override
         public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture)
                 throws Exception {
-            executorService.submit(
-                    () -> {
-                        try {
-                            waitLatch();
-                        } catch (InterruptedException e) {
-                            // do nothing
-                        }
-
-                        resultFuture.complete(Collections.singletonList(input));
-                    });
+            executorService.submit(getRunnable(input, resultFuture));
         }
 
-        protected void waitLatch() throws InterruptedException {
+        protected Runnable getRunnable(
+                final Integer input, final ResultFuture<Integer> resultFuture) {
+            return () -> {
+                try {
+                    waitLatch();
+                } catch (InterruptedException e) {
+                    // do nothing
+                }
+
+                resultFuture.complete(Collections.singletonList(input));
+            };
+        }
+
+        public void waitLatch() throws InterruptedException {
             latch.await();
         }
 
