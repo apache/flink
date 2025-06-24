@@ -166,6 +166,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         checkpointBarrierHandler =
                 InputProcessorUtil.createCheckpointBarrierHandler(
                         this,
+                        getJobConfiguration(),
                         configuration,
                         getCheckpointCoordinator(),
                         getTaskNameWithSubtaskAndId(),

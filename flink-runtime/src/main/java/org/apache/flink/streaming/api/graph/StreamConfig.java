@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.attribute.Attribute;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -47,7 +46,6 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -68,6 +66,11 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * Internal configuration for a {@link StreamOperator}. This is created and populated by the {@link
  * StreamingJobGraphGenerator}.
+ *
+ * <p>NOTE TO IMPLEMENTERS: Please do not set public ConfigOption to this class. Use the job
+ * Configuration instead! See {@link
+ * org.apache.flink.configuration.CheckpointingOptions#ENABLE_UNALIGNED} for a reference
+ * implementation.
  */
 @Internal
 public class StreamConfig implements Serializable {
@@ -555,52 +558,8 @@ public class StreamConfig implements Serializable {
         }
     }
 
-    public void setUnalignedCheckpointsEnabled(boolean enabled) {
-        config.set(CheckpointingOptions.ENABLE_UNALIGNED, enabled);
-    }
-
-    public boolean isUnalignedCheckpointsEnabled() {
-        return config.get(CheckpointingOptions.ENABLE_UNALIGNED, false);
-    }
-
-    public void setUnalignedCheckpointsSplittableTimersEnabled(boolean enabled) {
-        config.set(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, enabled);
-    }
-
-    public boolean isUnalignedCheckpointsSplittableTimersEnabled() {
-        return config.get(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS);
-    }
-
     public boolean isExactlyOnceCheckpointMode() {
         return getCheckpointMode() == CheckpointingMode.EXACTLY_ONCE;
-    }
-
-    public Duration getAlignedCheckpointTimeout() {
-        return config.get(CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT);
-    }
-
-    public void setAlignedCheckpointTimeout(Duration alignedCheckpointTimeout) {
-        config.set(CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT, alignedCheckpointTimeout);
-    }
-
-    public void setMaxConcurrentCheckpoints(int maxConcurrentCheckpoints) {
-        config.set(CheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS, maxConcurrentCheckpoints);
-    }
-
-    public int getMaxConcurrentCheckpoints() {
-        return config.get(
-                CheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS,
-                CheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS.defaultValue());
-    }
-
-    public int getMaxSubtasksPerChannelStateFile() {
-        return config.get(CheckpointingOptions.UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE);
-    }
-
-    public void setMaxSubtasksPerChannelStateFile(int maxSubtasksPerChannelStateFile) {
-        config.set(
-                CheckpointingOptions.UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE,
-                maxSubtasksPerChannelStateFile);
     }
 
     /**

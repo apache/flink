@@ -48,6 +48,7 @@ import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
@@ -256,19 +257,21 @@ abstract class JobGraphGeneratorTestBase {
     @Test
     void testEnabledUnalignedCheckAndDisabledCheckpointing() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.getCheckpointConfig().enableUnalignedCheckpoints(true);
         env.fromData(0).print();
         StreamGraph streamGraph = env.getStreamGraph();
         assertThat(streamGraph.getCheckpointConfig().isCheckpointingEnabled())
                 .withFailMessage("Checkpointing enabled")
                 .isFalse();
-        env.getCheckpointConfig().enableUnalignedCheckpoints(true);
 
         JobGraph jobGraph = createJobGraph(streamGraph);
 
         List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
         StreamConfig streamConfig = new StreamConfig(verticesSorted.get(0).getConfiguration());
         assertThat(streamConfig.getCheckpointMode()).isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
-        assertThat(streamConfig.isUnalignedCheckpointsEnabled()).isFalse();
+        assertThat(streamGraph.getCheckpointConfig().isUnalignedCheckpointsEnabled()).isFalse();
+        assertThat(jobGraph.getJobConfiguration().get(CheckpointingOptions.ENABLE_UNALIGNED))
+                .isFalse();
     }
 
     @Test
@@ -417,17 +420,19 @@ abstract class JobGraphGeneratorTestBase {
     @Test
     void testUnalignedCheckAndAtLeastOnce() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromData(0).print();
-        StreamGraph streamGraph = env.getStreamGraph();
         env.enableCheckpointing(1000, CheckpointingMode.AT_LEAST_ONCE);
         env.getCheckpointConfig().enableUnalignedCheckpoints(true);
+        env.fromData(0).print();
+        StreamGraph streamGraph = env.getStreamGraph();
 
         JobGraph jobGraph = createJobGraph(streamGraph);
 
         List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
         StreamConfig streamConfig = new StreamConfig(verticesSorted.get(0).getConfiguration());
         assertThat(streamConfig.getCheckpointMode()).isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
-        assertThat(streamConfig.isUnalignedCheckpointsEnabled()).isFalse();
+        assertThat(streamGraph.getCheckpointConfig().isUnalignedCheckpointsEnabled()).isFalse();
+        assertThat(jobGraph.getJobConfiguration().get(CheckpointingOptions.ENABLE_UNALIGNED))
+                .isFalse();
     }
 
     @Test

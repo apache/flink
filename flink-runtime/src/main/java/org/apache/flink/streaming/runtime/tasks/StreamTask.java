@@ -445,7 +445,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             getEnvironment().getJobID(),
                             new ThreadPoolExecutor(
                                     0,
-                                    configuration.getMaxConcurrentCheckpoints() + 1,
+                                    getJobConfiguration()
+                                                    .get(
+                                                            CheckpointingOptions
+                                                                    .MAX_CONCURRENT_CHECKPOINTS)
+                                            + 1,
                                     60L,
                                     TimeUnit.SECONDS,
                                     new LinkedBlockingQueue<>(),
@@ -488,7 +492,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             final CheckpointStorageAccess finalCheckpointStorageAccess = checkpointStorageAccess;
 
             ChannelStateWriter channelStateWriter =
-                    configuration.isUnalignedCheckpointsEnabled()
+                    getJobConfiguration().get(CheckpointingOptions.ENABLE_UNALIGNED)
                             ? openChannelStateWriter(
                                     getName(),
                                     // Note: don't pass checkpointStorageAccess directly to channel
@@ -513,7 +517,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                         }
                                     },
                                     environment,
-                                    configuration.getMaxSubtasksPerChannelStateFile())
+                                    getJobConfiguration()
+                                            .get(
+                                                    CheckpointingOptions
+                                                            .UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE))
                             : ChannelStateWriter.NO_OP;
             this.subtaskCheckpointCoordinator =
                     new SubtaskCheckpointCoordinatorImpl(
@@ -524,7 +531,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             environment,
                             this,
                             this::prepareInputSnapshot,
-                            configuration.getMaxConcurrentCheckpoints(),
+                            getJobConfiguration()
+                                    .get(CheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS),
                             channelStateWriter,
                             configuration
                                     .getConfiguration()
