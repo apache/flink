@@ -155,7 +155,10 @@ class HadoopUtilsTest {
             Method getContextMethod = callerContextClass.getMethod("getContext");
             String contextValue = (String) getContextMethod.invoke(currentContext);
 
-            assertEquals(testContext, contextValue, "The CallerContext should be set correctly.");
+            assertEquals(
+                    testContext.getContext(),
+                    contextValue,
+                    "The CallerContext should be set correctly.");
         } catch (Exception e) {
             e.printStackTrace();
             assert false : "setCallerContext threw an unexpected exception.";
