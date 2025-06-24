@@ -58,6 +58,7 @@ public class FunctionDefinitionConvertRule implements CallExpressionConvertRule 
             case SCALAR:
             case ASYNC_SCALAR:
             case TABLE:
+            case ASYNC_TABLE:
                 final List<RexNode> args =
                         call.getChildren().stream()
                                 .map(context::toRexNode)
