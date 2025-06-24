@@ -173,4 +173,13 @@ object ScanUtil {
     }
     Some(tableSource.asInstanceOf[SupportsPartitioning].outputPartitioning)
   }
+
+  def applyPartitionedRead(tableSourceTable: TableSourceTable): Unit = {
+    val tableSource = tableSourceTable.tableSource
+    tableSource match {
+      case partitioning: SupportsPartitioning =>
+        partitioning.applyPartitionedRead()
+      case _ =>
+    }
+  }
 }

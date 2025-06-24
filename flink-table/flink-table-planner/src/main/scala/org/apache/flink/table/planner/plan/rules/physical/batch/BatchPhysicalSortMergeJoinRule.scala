@@ -36,6 +36,7 @@ import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.rel.core.Join
 import org.apache.calcite.util.ImmutableIntList
+import org.apache.flink.table.connector.source.abilities.SupportsPartitioning
 
 import java.lang.{Boolean => JBoolean}
 import java.util
@@ -85,11 +86,18 @@ class BatchPhysicalSortMergeJoinRule
       partition: KeyGroupedPartitioning,
       fieldNames: util.List[String]): Boolean = {
     val partitionKeys = partition.keys()
-    partitionKeys.length == fieldNames.size() &&
-    partitionKeys.zip(fieldNames).forall {
-      case (partitionKey, fieldName) =>
-        partitionKey.getKey == fieldName
-    }
+    // Example: query with both tables partitioned by [dt, user_id]:
+    // SELECT count(*) FROM t1 JOIN t2 ON t1.dt = t2.dt AND t1.user_id = t2.user_id
+    // WHERE t1.dt = '2025-05-01' AND t2.dt = '2025-05-01'
+    //
+    // After filter pushdown optimization, the constant filter WHERE dt = '2025-05-01'
+    // may cause the 'dt' field to be pruned from fieldNames
+    // leaving only fieldNames = [user_id]. However, the original partition spec still
+    // contains [dt, user_id]. So we must check that the joinKey's remaining are still part
+    // of the partitionSpec
+    fieldNames.forall(fieldName =>
+      partitionKeys.exists(partitionKey => partitionKey.getKey == fieldName)
+    )
   }
 
   private def canApplyStoragePartitionJoin(join: Join): Boolean = {
@@ -153,7 +161,6 @@ class BatchPhysicalSortMergeJoinRule
     }
     val leftKeyGroupedPartitioning = leftPartition.get.asInstanceOf[KeyGroupedPartitioning]
     val rightKeyGroupedPartitioning = rightPartition.get.asInstanceOf[KeyGroupedPartitioning]
-
     isPartitionBy(leftKeyGroupedPartitioning, leftJoinFields) &&
     isPartitionBy(rightKeyGroupedPartitioning, rightJoinFields) &&
     leftKeyGroupedPartitioning.isCompatible(rightKeyGroupedPartitioning)
@@ -169,6 +176,10 @@ class BatchPhysicalSortMergeJoinRule
     val canApplyPartitionJoin =
       tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_STORAGE_PARTITION_JOIN_ENABLED) &&
         canApplyStoragePartitionJoin(join)
+    if (canApplyPartitionJoin) {
+      ScanUtil.applyPartitionedRead(getTableScan(join.getLeft).get.relOptTable)
+      ScanUtil.applyPartitionedRead(getTableScan(join.getRight).get.relOptTable)
+    }
 
     def getTraitSetByShuffleKeys(
         shuffleKeys: ImmutableIntList,
