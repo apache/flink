@@ -73,8 +73,8 @@ public class Epoch<OUT> {
     }
 
     public void decrementCount() {
+        Preconditions.checkState(ongoingRecordCount > 0);
         ongoingRecordCount--;
-        Preconditions.checkState(ongoingRecordCount >= 0);
     }
 
     public void incrementCount() {
