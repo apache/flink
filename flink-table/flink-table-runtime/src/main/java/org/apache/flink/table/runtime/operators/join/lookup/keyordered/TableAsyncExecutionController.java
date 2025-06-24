@@ -161,6 +161,7 @@ public class TableAsyncExecutionController<IN, OUT, KEY> {
         if (epoch != null) {
             // only for recovery in case finding proper epoch in epochManager
             currentEpoch = epoch;
+            epoch.incrementCount();
         } else {
             currentEpoch = epochManager.onRecord();
         }
@@ -199,6 +200,11 @@ public class TableAsyncExecutionController<IN, OUT, KEY> {
     @VisibleForTesting
     public Epoch<OUT> getActiveEpoch() {
         return epochManager.getActiveEpoch();
+    }
+
+    @VisibleForTesting
+    public EpochManager<OUT> getEpochManager() {
+        return epochManager;
     }
 
     @VisibleForTesting
