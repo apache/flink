@@ -162,4 +162,81 @@ class CheckpointingOptionsTest {
                 .as("Unaligned checkpoints should be disabled when checkpointing is disabled")
                 .isFalse();
     }
+
+    @Test
+    void testIsUnalignedCheckpointInterruptibleTimersEnabled() {
+        // Test when unaligned checkpoints are disabled - should always return false
+        Configuration disabledUnalignedConfig = new Configuration();
+        disabledUnalignedConfig.set(
+                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        disabledUnalignedConfig.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.EXACTLY_ONCE);
+        disabledUnalignedConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, false);
+        disabledUnalignedConfig.set(
+                CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, true);
+        assertThat(
+                        CheckpointingOptions.isUnalignedCheckpointInterruptibleTimersEnabled(
+                                disabledUnalignedConfig))
+                .as(
+                        "Interruptible timers should be disabled when unaligned checkpoints are disabled")
+                .isFalse();
+
+        // Test when unaligned checkpoints are enabled but interruptible timers are disabled
+        Configuration enabledUnalignedDisabledTimersConfig = new Configuration();
+        enabledUnalignedDisabledTimersConfig.set(
+                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        enabledUnalignedDisabledTimersConfig.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.EXACTLY_ONCE);
+        enabledUnalignedDisabledTimersConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, true);
+        enabledUnalignedDisabledTimersConfig.set(
+                CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, false);
+        assertThat(
+                        CheckpointingOptions.isUnalignedCheckpointInterruptibleTimersEnabled(
+                                enabledUnalignedDisabledTimersConfig))
+                .as("Interruptible timers should be disabled when explicitly set to false")
+                .isFalse();
+
+        // Test when unaligned checkpoints are enabled and interruptible timers are enabled
+        Configuration enabledBothConfig = new Configuration();
+        enabledBothConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        enabledBothConfig.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.EXACTLY_ONCE);
+        enabledBothConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, true);
+        enabledBothConfig.set(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, true);
+        assertThat(
+                        CheckpointingOptions.isUnalignedCheckpointInterruptibleTimersEnabled(
+                                enabledBothConfig))
+                .as(
+                        "Interruptible timers should be enabled when both unaligned checkpoints and interruptible timers are enabled")
+                .isTrue();
+
+        // Test when checkpointing mode is AT_LEAST_ONCE - should return false
+        Configuration atLeastOnceConfig = new Configuration();
+        atLeastOnceConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        atLeastOnceConfig.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.AT_LEAST_ONCE);
+        atLeastOnceConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, true);
+        atLeastOnceConfig.set(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, true);
+        assertThat(
+                        CheckpointingOptions.isUnalignedCheckpointInterruptibleTimersEnabled(
+                                atLeastOnceConfig))
+                .as(
+                        "Interruptible timers should be disabled when checkpointing mode is AT_LEAST_ONCE")
+                .isFalse();
+
+        // Test when checkpointing is disabled - should return false
+        Configuration checkpointingDisabledConfig = new Configuration();
+        checkpointingDisabledConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, true);
+        checkpointingDisabledConfig.set(
+                CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, true);
+        assertThat(
+                        CheckpointingOptions.isUnalignedCheckpointInterruptibleTimersEnabled(
+                                checkpointingDisabledConfig))
+                .as("Interruptible timers should be disabled when checkpointing is disabled")
+                .isFalse();
+    }
 }

@@ -592,6 +592,14 @@ public class CheckpointingOptions {
                                             "Forces unaligned checkpoints, particularly allowing them for iterative jobs.")
                                     .build());
 
+    /**
+     * Allows unaligned checkpoints to skip timers that are currently being fired.
+     *
+     * <p><strong>Note:</strong> Instead of accessing this configuration option directly with {@code
+     * config.get(ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS)}, use {@link
+     * #isUnalignedCheckpointInterruptibleTimersEnabled(Configuration)} which validates that
+     * unaligned checkpoints are enabled before checking this setting.
+     */
     @Experimental
     public static final ConfigOption<Boolean> ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS =
             ConfigOptions.key("execution.checkpointing.unaligned.interruptible-timers.enabled")
@@ -700,5 +708,33 @@ public class CheckpointingOptions {
             return false;
         }
         return config.get(ENABLE_UNALIGNED);
+    }
+
+    /**
+     * Determines whether unaligned checkpoints with interruptible timers are enabled based on the
+     * configuration.
+     *
+     * <p>Unaligned checkpoints with interruptible timers can only be enabled when:
+     *
+     * <ol>
+     *   <li>Unaligned checkpoints are enabled (see {@link
+     *       #isUnalignedCheckpointEnabled(Configuration)})
+     *   <li>The {@link #ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS} option is set to {@code true}
+     * </ol>
+     *
+     * <p>If unaligned checkpoints are not enabled, this method will return {@code false} regardless
+     * of the interruptible timers setting.
+     *
+     * @param config the configuration to check
+     * @return {@code true} if unaligned checkpoints with interruptible timers are enabled, {@code
+     *     false} otherwise
+     * @see #isUnalignedCheckpointEnabled(Configuration)
+     */
+    @Internal
+    public static boolean isUnalignedCheckpointInterruptibleTimersEnabled(Configuration config) {
+        if (!isUnalignedCheckpointEnabled(config)) {
+            return false;
+        }
+        return config.get(ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS);
     }
 }

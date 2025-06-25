@@ -466,7 +466,7 @@ public class CheckpointConfig implements java.io.Serializable {
 
     @Experimental
     public boolean isUnalignedCheckpointsInterruptibleTimersEnabled() {
-        return configuration.get(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS);
+        return CheckpointingOptions.isUnalignedCheckpointInterruptibleTimersEnabled(configuration);
     }
 
     /**
