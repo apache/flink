@@ -115,7 +115,7 @@ public class InputProcessorUtil {
                         clock,
                         numberOfChannels);
             case AT_LEAST_ONCE:
-                if (jobConf.get(CheckpointingOptions.ENABLE_UNALIGNED)) {
+                if (CheckpointingOptions.isUnalignedCheckpointEnabled(jobConf)) {
                     throw new IllegalStateException(
                             "Cannot use unaligned checkpoints with AT_LEAST_ONCE "
                                     + "checkpointing mode");
@@ -150,7 +150,7 @@ public class InputProcessorUtil {
         boolean enableCheckpointAfterTasksFinished =
                 config.getConfiguration()
                         .get(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH);
-        if (jobConf.get(CheckpointingOptions.ENABLE_UNALIGNED)) {
+        if (CheckpointingOptions.isUnalignedCheckpointEnabled(jobConf)) {
             return SingleCheckpointBarrierHandler.alternating(
                     taskName,
                     toNotifyOnCheckpoint,
