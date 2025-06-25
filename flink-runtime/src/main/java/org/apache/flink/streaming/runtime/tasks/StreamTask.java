@@ -492,7 +492,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             final CheckpointStorageAccess finalCheckpointStorageAccess = checkpointStorageAccess;
 
             ChannelStateWriter channelStateWriter =
-                    getJobConfiguration().get(CheckpointingOptions.ENABLE_UNALIGNED)
+                    CheckpointingOptions.isUnalignedCheckpointEnabled(getJobConfiguration())
                             ? openChannelStateWriter(
                                     getName(),
                                     // Note: don't pass checkpointStorageAccess directly to channel

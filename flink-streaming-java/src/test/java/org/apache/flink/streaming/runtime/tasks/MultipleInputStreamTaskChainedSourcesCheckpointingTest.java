@@ -69,6 +69,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -387,6 +388,9 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                     new StreamTaskMailboxTestHarnessBuilder<>(
                                     MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                             .addJobConfig(
+                                    CheckpointingOptions.CHECKPOINTING_INTERVAL,
+                                    Duration.ofSeconds(1))
+                            .addJobConfig(
                                     CheckpointingOptions.ENABLE_UNALIGNED,
                                     checkpointOptions.isUnalignedCheckpoint()
                                             || checkpointOptions.isTimeoutable())
@@ -554,7 +558,7 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                         CheckpointType.CHECKPOINT,
                         CheckpointStorageLocationReference.getDefault(),
                         config.isExactlyOnceCheckpointMode(),
-                        jobConf.get(CheckpointingOptions.ENABLE_UNALIGNED),
+                        CheckpointingOptions.isUnalignedCheckpointEnabled(jobConf),
                         jobConf.get(CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT).toMillis());
 
         return new CheckpointBarrier(

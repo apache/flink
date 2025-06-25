@@ -189,9 +189,8 @@ public final class StateBootstrapWrapperOperator<
                         operator.getContainingTask()
                                 .getConfiguration()
                                 .isExactlyOnceCheckpointMode(),
-                        operator.getContainingTask()
-                                .getJobConfiguration()
-                                .get(CheckpointingOptions.ENABLE_UNALIGNED),
+                        CheckpointingOptions.isUnalignedCheckpointEnabled(
+                                operator.getContainingTask().getJobConfiguration()),
                         operator.getContainingTask().getConfiguration().getConfiguration(),
                         savepointPath);
 

@@ -1009,6 +1009,9 @@ class MultipleInputStreamTaskTest {
                             .addAdditionalOutput(partitionWriters)
                             .setCheckpointResponder(checkpointResponder)
                             .addJobConfig(
+                                    CheckpointingOptions.CHECKPOINTING_INTERVAL,
+                                    Duration.ofSeconds(1))
+                            .addJobConfig(
                                     CheckpointingOptions.ENABLE_UNALIGNED,
                                     checkpointOptions.isUnalignedCheckpoint()
                                             || checkpointOptions.isTimeoutable())
@@ -1292,6 +1295,7 @@ class MultipleInputStreamTaskTest {
         return new StreamTaskMailboxTestHarnessBuilder<>(
                         MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                 .modifyExecutionConfig(applyObjectReuse(objectReuse))
+                .addJobConfig(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                 .addJobConfig(CheckpointingOptions.ENABLE_UNALIGNED, unaligned)
                 .addJobConfig(CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT, Duration.ZERO)
                 .addInput(BasicTypeInfo.STRING_TYPE_INFO)
