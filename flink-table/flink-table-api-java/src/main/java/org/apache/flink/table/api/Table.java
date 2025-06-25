@@ -1104,7 +1104,7 @@ public interface Table extends Explainable<Table>, Executable {
      *
      * <p>Currently, partitioned table objects are intended for table arguments of process table
      * functions (PTFs) that take table arguments with set semantics (see {@link
-     * ArgumentTrait#TABLE_AS_SET}).
+     * ArgumentTrait#SET_SEMANTIC_TABLE}).
      *
      * <p>Example:
      *

@@ -81,7 +81,7 @@ import static org.apache.flink.table.api.Expressions.*;
 // A PTF that takes a table argument, conceptually viewing the table as a row.
 // The result is never stateful and derived purely based on the current row.
 public static class Greeting extends ProcessTableFunction<String> {
-    public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row input) {
+    public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
         collect("Hello " + input.getFieldAs("name") + "!");
     }
 }
@@ -140,7 +140,7 @@ public static class GreetingWithMemory extends ProcessTableFunction<String> {
     public long counter = 0L;
   }
 
-  public void eval(@StateHint CountState state, @ArgumentHint(ArgumentTrait.TABLE_AS_SET) Row input) {
+  public void eval(@StateHint CountState state, @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
     state.counter++;
     collect("Hello " + input.getFieldAs("name") + ", your " + state.counter + " time?");
   }
@@ -204,7 +204,7 @@ public static class GreetingWithFollowUp extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
     @StateHint StayState state,
-    @ArgumentHint(ArgumentTrait.TABLE_AS_SET) Row input
+    @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input
   ) {
     state.name = input.getFieldAs("name");
     state.counter++;
@@ -276,7 +276,7 @@ Table Semantics and Virtual Processors
 PTFs can produce a new table by consuming tables as arguments. For scalability, input tables are distributed across
 so-called "virtual processors". A virtual processor, as defined by the SQL standard, executes a PTF instance and has
 access only to a portion of the entire table. The argument declaration decides about the size of the portion and
-co-location of data. Conceptually, tables can be processed either "as row" (i.e. with row semantics) or "as set"
+co-location of data. Conceptually, tables can be processed either "per row" (i.e. with row semantics) or "per set"
 (i.e. with set semantics).
 
 {{<img alt="PTF Table Semantics" src="/fig/table-streaming/ptf_table_semantics.png" width="80%">}}
@@ -313,7 +313,7 @@ Given a PTF `TableFilter` that has been implemented as:
 ```java
 @DataTypeHint("ROW<threshold INT, score BIGINT>")
 public static class TableFilter extends ProcessTableFunction<Row> {
-  public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row input, int threshold) {
+  public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input, int threshold) {
     long score = input.getFieldAs("score");
     if (score > threshold) {
       collect(Row.of(threshold, score));
@@ -326,7 +326,7 @@ public static class TableFilter extends ProcessTableFunction<Row> {
 
 The effective call signature is:
 ```text
-TableFilter(input => {TABLE, TABLE AS ROW}, threshold => INT NOT NULL, on_time => DESCRIPTOR, uid => STRING)
+TableFilter(input => {TABLE, ROW SEMANTIC TABLE}, threshold => INT NOT NULL, on_time => DESCRIPTOR, uid => STRING)
 ```
 
 Both `on_time` and `uid` are optional by default. The `on_time` is required if time semantics are needed. The `uid` must
@@ -472,7 +472,7 @@ The `@ArgumentHint` annotation enables declaring the name, data type, and traits
 
 In most cases, the system can automatically infer the name and data type reflectively, so they do not need to be
 specified. However, traits must be provided explicitly, particularly when defining the argument's kind. The argument
-of a PTF can be set to `ArgumentTrait.SCALAR`, `ArgumentTrait.TABLE_AS_SET`, or `ArgumentTrait.TABLE_AS_ROW`. By default,
+of a PTF can be set to `ArgumentTrait.SCALAR`, `ArgumentTrait.ROW_SEMANTIC_TABLE`, or `ArgumentTrait.SET_SEMANTIC_TABLE`. By default,
 arguments are treated as scalar values.
 
 The following examples show usages of the `@ArgumentHint` annotation:
@@ -485,7 +485,7 @@ The following examples show usages of the `@ArgumentHint` annotation:
 class ThresholdFunction extends ProcessTableFunction<Integer> {
   public void eval(
     // For table arguments, a data type for Row is optional (leading to polymorphic behavior)
-    @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET, name = "input_table") Row t,
+    @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE, name = "input_table") Row t,
     // Scalar arguments require a data type either explicit or via reflection
     @ArgumentHint(value = ArgumentTrait.SCALAR, name = "threshold") Integer threshold
   ) {
@@ -501,7 +501,7 @@ class ThresholdFunction extends ProcessTableFunction<Integer> {
 
 #### Table Arguments
 
-The traits `ArgumentTrait.TABLE_AS_SET` and `ArgumentTrait.TABLE_AS_ROW` define table arguments.
+The traits `ArgumentTrait.SET_SEMANTIC_TABLE` and `ArgumentTrait.ROW_SEMANTIC_TABLE` define table arguments.
 
 Table arguments can declare a concrete data type (of either row or structured type) or accept any type of row in a
 polymorphic fashion.
@@ -523,7 +523,7 @@ e.g. `f(my_table_arg => TABLE t)`.
 class MyPTF extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
-    @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET, type = @DataTypeHint("ROW<s STRING>")) Row t
+    @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE, type = @DataTypeHint("ROW<s STRING>")) Row t
   ) {
     TableSemantics semantics = ctx.tableSemanticsFor("t");
     // Always returns "ROW < s STRING >"
@@ -536,7 +536,7 @@ class MyPTF extends ProcessTableFunction<String> {
 class MyPTF extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
-    @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET) Customer c
+    @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE) Customer c
   ) {
     TableSemantics semantics = ctx.tableSemanticsFor("c");
     // Always returns structured type of "Customer"
@@ -549,7 +549,7 @@ class MyPTF extends ProcessTableFunction<String> {
 class MyPTF extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
-    @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET) Row t
+    @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE) Row t
   ) {
     TableSemantics semantics = ctx.tableSemanticsFor("t");
     // Always returns "ROW" but content depends on the table that is passed into the call
@@ -572,7 +572,7 @@ information about the input tables and other services provided by the framework.
 // Function that accesses the Context for reading the PARTITION BY columns and
 // excluding them when building a result string
 class ConcatNonKeysFunction extends ProcessTableFunction<String> {
-  public void eval(Context ctx, @ArgumentHint(ArgumentTrait.TABLE_AS_SET) Row inputTable) {
+  public void eval(Context ctx, @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row inputTable) {
     TableSemantics semantics = ctx.tableSemanticsFor("inputTable");
 
     List<Integer> keys = Arrays.asList(semantics.partitionByColumns());
@@ -626,7 +626,7 @@ class CountingFunction extends ProcessTableFunction<String> {
 
   public void eval(
     @StateHint CountState memory,
-    @ArgumentHint(TABLE_AS_SET) Row input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
   ) {
     memory.count++;
     collect("Seen rows: " + memory.count);
@@ -641,7 +641,7 @@ class CountingFunction extends ProcessTableFunction<String> {
 
   public void eval(
     @StateHint SeenState memory,
-    @ArgumentHint(TABLE_AS_SET) Row input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
   ) {
     if (memory.first == null) {
       memory.first = input.toString();
@@ -655,7 +655,7 @@ class CountingFunction extends ProcessTableFunction<String> {
 class CountingFunction extends ProcessTableFunction<String> {
   public void eval(
     @StateHint(type = @DataTypeHint("ROW<count BIGINT>")) Row memory,
-    @ArgumentHint(TABLE_AS_SET) Row input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
   ) {
     Long newCount = 1L;
     if (memory.getField("count") != null) {
@@ -699,7 +699,7 @@ class CountingFunction extends ProcessTableFunction<String> {
     @StateHint(ttl = "1 hour") SomeState shortTermState,
     @StateHint(ttl = "1 day") SomeState longTermState,
     @StateHint SomeState infiniteState, // potentially influenced by table.exec.state.ttl
-    @ArgumentHint(TABLE_AS_SET) Row input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
   ) {
     ...
   }
@@ -749,7 +749,7 @@ large state is stored as a map state.
 class LargeHistoryFunction extends ProcessTableFunction<String> {
   public void eval(
     @StateHint MapView<String, Integer> largeMemory,
-    @ArgumentHint(TABLE_AS_SET) Row input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
   ) {
     String eventId = input.getFieldAs("eventId");
     Integer count = largeMemory.get(eventId);
@@ -778,7 +778,7 @@ and the `MAP` data type for map views.
 class LargeHistoryFunction extends ProcessTableFunction<String> {
   public void eval(
     @StateHint(type = @DataTypeHint("ARRAY<ROW<s STRING, i INT>>")) ListView<Row> largeMemory,
-    @ArgumentHint(TABLE_AS_SET) Row input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
   ) {
     ...
   }
@@ -806,7 +806,7 @@ class CountingFunction extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
     @StateHint(ttl = "1 day") SeenState memory,
-    @ArgumentHint(TABLE_AS_SET) Row input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
   ) {
     if (memory.first == null) {
       memory.first = input.toString();
@@ -866,7 +866,7 @@ Once an `on_time` argument is provided, timers can be used. The following motiva
 public static class PingLaterFunction extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
-    @ArgumentHint({ArgumentTrait.TABLE_AS_SET, ArgumentTrait.REQUIRE_ON_TIME}) Row input
+    @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME}) Row input
     ) {
       TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
       // Replaces an existing timer and thus potentially resets the minute if necessary
@@ -986,7 +986,7 @@ class TimerFunction extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
     @StateHint SeenState memory,
-    @ArgumentHint({TABLE_AS_SET, REQUIRE_ON_TIME}) Row input
+    @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row input
   ) {
     TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
       if (memory.seen == null) {
@@ -1068,11 +1068,11 @@ public static class GreetingWithLastPurchase extends ProcessTableFunction<String
     public String lastItem;
   }
 
-  // The eval() method takes two @ArgumentHint(TABLE_AS_SET) arguments
+  // The eval() method takes two @ArgumentHint(SET_SEMANTIC_TABLE) arguments
   public void eval(
       @StateHint LastItemState state,
-      @ArgumentHint(TABLE_AS_SET) Row visit,
-      @ArgumentHint(TABLE_AS_SET) Row purchase) {
+      @ArgumentHint(SET_SEMANTIC_TABLE) Row visit,
+      @ArgumentHint(SET_SEMANTIC_TABLE) Row purchase) {
 
     // Process row from table Purchases
     if (purchase != null) {
@@ -1374,7 +1374,7 @@ upsertsOnly.execute().print();
 
 @DataTypeHint("ROW<flag STRING, sum INT>")
 public static class ToChangelogFunction extends ProcessTableFunction<Row> {
-  public void eval(@ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES}) Row input) {
+  public void eval(@ArgumentHint({SET_SEMANTIC_TABLE, SUPPORT_UPDATES}) Row input) {
     // Forwards the sum column and includes the row's kind as a string column.
     Row changelogRow =
       Row.of(
@@ -1434,7 +1434,7 @@ called for each step:
    regardless of nullability constraints. {@link ChangelogContext#getRequiredChangelogMode()}
    indicates whether a downstream operator requires full deletes.
 
-Emitting changelogs is only valid for PTFs that take table arguments with set semantics (see `ArgumentTrait.TABLE_AS_SET`).
+Emitting changelogs is only valid for PTFs that take table arguments with set semantics (see `ArgumentTrait.SET_SEMANTIC_TABLE`).
 In case of upserts, the upsert key must be equal to the PARTITION BY key.
 
 It is perfectly valid for a `ChangelogFunction` implementation to return a fixed `ChangelogMode`, regardless of the
@@ -1493,7 +1493,7 @@ public static class CustomAggregation
     public Integer sum = 0;
   }
 
-  public void eval(@StateHint Accumulator state, @ArgumentHint(TABLE_AS_SET) Row input) {
+  public void eval(@StateHint Accumulator state, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
     int score = input.getFieldAs("score");
 
     // A negative state indicates that the partition
@@ -1614,7 +1614,7 @@ public static class CheckoutProcessor extends ProcessTableFunction<Row> {
   public void eval(
     Context ctx,
     @StateHint ShoppingCart cart,
-    @ArgumentHint({TABLE_AS_SET, REQUIRE_ON_TIME}) Row events,
+    @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row events,
     Duration reminderInterval,
     Duration timeoutInterval
   ) {
@@ -1808,24 +1808,24 @@ public static class Joiner extends ProcessTableFunction<JoinResult> {
   public void eval(
     Context ctx,
     @StateHint(ttl = "1 hour") JoinResult seen,
-    @ArgumentHint(TABLE_AS_SET) Order order,
-    @ArgumentHint(TABLE_AS_SET) Payment payment
+    @ArgumentHint(SET_SEMANTIC_TABLE) Order order,
+    @ArgumentHint(SET_SEMANTIC_TABLE) Payment payment
   ) {
-    if (input.order != null) {
+    if (order != null) {
       if (seen.order != null) {
         // skip duplicates
         return;
       } else {
         // wait for matching payment
-        seen.order = input.order;
+        seen.order = order;
       }
-    } else if (input.payment != null) {
+    } else if (payment != null) {
       if (seen.payment != null) {
         // skip duplicates
         return;
       } else {
         // wait for matching order
-        seen.payment = input.payment;
+        seen.payment = payment;
       }
     }
 

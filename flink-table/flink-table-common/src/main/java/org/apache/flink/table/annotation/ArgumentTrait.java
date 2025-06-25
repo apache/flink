@@ -28,7 +28,8 @@ import org.apache.flink.types.RowKind;
  * Declares traits for {@link ArgumentHint}. They enable basic validation by the framework.
  *
  * <p>Some traits have dependencies to other traits, which is why this enum reflects a hierarchy in
- * which {@link #SCALAR}, {@link #TABLE_AS_ROW}, and {@link #TABLE_AS_SET} are the top-level roots.
+ * which {@link #SCALAR}, {@link #ROW_SEMANTIC_TABLE}, and {@link #SET_SEMANTIC_TABLE} are the
+ * top-level roots.
  */
 @PublicEvolving
 public enum ArgumentTrait {
@@ -41,30 +42,30 @@ public enum ArgumentTrait {
     SCALAR(true, StaticArgumentTrait.SCALAR),
 
     /**
-     * An argument that accepts a table "as row" (i.e. with row semantics). This trait only applies
-     * to {@link ProcessTableFunction} (PTF).
+     * An argument that accepts a table with row semantics. This trait only applies to {@link
+     * ProcessTableFunction} (PTF).
      *
      * <p>For scalability, input tables are distributed across so-called "virtual processors". A
      * virtual processor, as defined by the SQL standard, executes a PTF instance and has access
      * only to a portion of the entire table. The argument declaration decides about the size of the
-     * portion and co-location of data. Conceptually, tables can be processed either "as row" (i.e.
-     * with row semantics) or "as set" (i.e. with set semantics).
+     * portion and co-location of data. Conceptually, tables can be processed either "per row" (i.e.
+     * with row semantics) or "per set" (i.e. with set semantics).
      *
      * <p>A table with row semantics assumes that there is no correlation between rows and each row
      * can be processed independently. The framework is free in how to distribute rows across
      * virtual processors and each virtual processor has access only to the currently processed row.
      */
-    TABLE_AS_ROW(true, StaticArgumentTrait.TABLE_AS_ROW),
+    ROW_SEMANTIC_TABLE(true, StaticArgumentTrait.ROW_SEMANTIC_TABLE),
 
     /**
-     * An argument that accepts a table "as set" (i.e. with set semantics). This trait only applies
-     * to {@link ProcessTableFunction} (PTF).
+     * An argument that accepts a table with set semantics. This trait only applies to {@link
+     * ProcessTableFunction} (PTF).
      *
      * <p>For scalability, input tables are distributed across so-called "virtual processors". A
      * virtual processor, as defined by the SQL standard, executes a PTF instance and has access
      * only to a portion of the entire table. The argument declaration decides about the size of the
-     * portion and co-location of data. Conceptually, tables can be processed either "as row" (i.e.
-     * with row semantics) or "as set" (i.e. with set semantics).
+     * portion and co-location of data. Conceptually, tables can be processed either "per row" (i.e.
+     * with row semantics) or "per set" (i.e. with set semantics).
      *
      * <p>A table with set semantics assumes that there is a correlation between rows. When calling
      * the function, the PARTITION BY clause defines the columns for correlation. The framework
@@ -75,19 +76,19 @@ public enum ArgumentTrait {
      * <p>It is also possible not to provide a key ({@link #OPTIONAL_PARTITION_BY}), in which case
      * only one virtual processor handles the entire table, thereby losing scalability benefits.
      */
-    TABLE_AS_SET(true, StaticArgumentTrait.TABLE_AS_SET),
+    SET_SEMANTIC_TABLE(true, StaticArgumentTrait.SET_SEMANTIC_TABLE),
 
     /**
-     * Defines that a PARTITION BY clause is optional for {@link #TABLE_AS_SET}. By default, it is
-     * mandatory for improving the parallel execution by distributing the table by key.
+     * Defines that a PARTITION BY clause is optional for {@link #SET_SEMANTIC_TABLE}. By default,
+     * it is mandatory for improving the parallel execution by distributing the table by key.
      *
-     * <p>Note: This trait is only valid for {@link #TABLE_AS_SET} arguments.
+     * <p>Note: This trait is only valid for {@link #SET_SEMANTIC_TABLE} arguments.
      */
     OPTIONAL_PARTITION_BY(false, StaticArgumentTrait.OPTIONAL_PARTITION_BY),
 
     /**
-     * Defines that all columns of a table argument (i.e. {@link #TABLE_AS_ROW} or {@link
-     * #TABLE_AS_SET}) are included in the output of the PTF. By default, only columns of the
+     * Defines that all columns of a table argument (i.e. {@link #ROW_SEMANTIC_TABLE} or {@link
+     * #SET_SEMANTIC_TABLE}) are included in the output of the PTF. By default, only columns of the
      * PARTITION BY clause are passed through.
      *
      * <p>Given a table t (containing columns k and v), and a PTF f() (producing columns c1 and c2),
@@ -102,7 +103,8 @@ public enum ArgumentTrait {
      * <p>Pass-through columns are only available for append-only PTFs taking a single table
      * argument and don't use timers.
      *
-     * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
+     * <p>Note: This trait is valid for {@link #ROW_SEMANTIC_TABLE} and {@link #SET_SEMANTIC_TABLE}
+     * arguments.
      */
     PASS_COLUMNS_THROUGH(false, StaticArgumentTrait.PASS_COLUMNS_THROUGH),
 
@@ -147,7 +149,8 @@ public enum ArgumentTrait {
      *
      * <p>The `on_time` argument is not supported if the PTF receives updates.
      *
-     * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
+     * <p>Note: This trait is valid for {@link #ROW_SEMANTIC_TABLE} and {@link #SET_SEMANTIC_TABLE}
+     * arguments.
      *
      * @see #REQUIRE_UPDATE_BEFORE
      * @see #REQUIRE_FULL_DELETE
@@ -179,7 +182,7 @@ public enum ArgumentTrait {
      * // In both encodings, a materialized table would only contain a row for Alice.
      * </pre>
      *
-     * <p>Note: This trait is valid for {@link #TABLE_AS_SET} arguments that {@link
+     * <p>Note: This trait is valid for {@link #SET_SEMANTIC_TABLE} arguments that {@link
      * #SUPPORT_UPDATES}.
      *
      * @see #SUPPORT_UPDATES
@@ -211,7 +214,7 @@ public enum ArgumentTrait {
      * // In both encodings, a materialized table would only contain a row for Alice.
      * </pre>
      *
-     * <p>Note: This trait is valid for {@link #TABLE_AS_SET} arguments that {@link
+     * <p>Note: This trait is valid for {@link #SET_SEMANTIC_TABLE} arguments that {@link
      * #SUPPORT_UPDATES}.
      *
      * @see #SUPPORT_UPDATES
@@ -241,7 +244,8 @@ public enum ArgumentTrait {
      *     SELECT v, rowtime FROM f(table_arg => TABLE t, on_time => DESCRIPTOR(ts));
      * </pre>
      *
-     * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
+     * <p>Note: This trait is valid for {@link #ROW_SEMANTIC_TABLE} and {@link #SET_SEMANTIC_TABLE}
+     * arguments.
      */
     REQUIRE_ON_TIME(false, StaticArgumentTrait.REQUIRE_ON_TIME);
 

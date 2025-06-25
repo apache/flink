@@ -54,7 +54,7 @@ import java.time.LocalDateTime;
  * are distributed across so-called "virtual processors". A virtual processor, as defined by the SQL
  * standard, executes a PTF instance and has access only to a portion of the entire table. The
  * argument declaration decides about the size of the portion and co-location of data. Conceptually,
- * tables can be processed either "as row" (i.e. with row semantics) or "as set" (i.e. with set
+ * tables can be processed either "per row" (i.e. with row semantics) or "per set" (i.e. with set
  * semantics).
  *
  * <h2>Table Argument with Row Semantics</h2>
@@ -127,8 +127,8 @@ import java.time.LocalDateTime;
  * <h2>Arguments</h2>
  *
  * <p>The {@link ArgumentHint} annotation enables declaring the name, data type, and kind of each
- * argument (i.e. ArgumentTrait.SCALAR, ArgumentTrait.TABLE_AS_SET, or ArgumentTrait.TABLE_AS_ROW).
- * It allows specifying other traits for table arguments as well:
+ * argument (i.e. ArgumentTrait.SCALAR, ArgumentTrait.ROW_SEMANTIC_TABLE, or
+ * ArgumentTrait.SET_SEMANTIC_TABLE). It allows specifying other traits for table arguments as well:
  *
  * <pre>{@code
  * // Function that has two arguments:
@@ -136,7 +136,7 @@ import java.time.LocalDateTime;
  * class ThresholdFunction extends ProcessTableFunction<Integer> {
  *   public void eval(
  *       // For table arguments, a data type for Row is optional (leading to polymorphic behavior)
- *       @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET, name = "input_table") Row t,
+ *       @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE, name = "input_table") Row t,
  *       // Scalar arguments require a data type either explicit or via reflection
  *       @ArgumentHint(value = ArgumentTrait.SCALAR, name = "threshold") Integer threshold) {
  *     int amount = t.getFieldAs("amount");
@@ -153,7 +153,7 @@ import java.time.LocalDateTime;
  * <pre>{@code
  * // Function with explicit table argument type of row
  * class MyPTF extends ProcessTableFunction<String> {
- *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET, type = @DataTypeHint("ROW < s STRING >")) Row t) {
+ *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE, type = @DataTypeHint("ROW < s STRING >")) Row t) {
  *     TableSemantics semantics = ctx.tableSemanticsFor("t");
  *     // Always returns "ROW < s STRING >"
  *     semantics.dataType();
@@ -163,7 +163,7 @@ import java.time.LocalDateTime;
  *
  * // Function with explicit table argument type of structured type "Customer"
  * class MyPTF extends ProcessTableFunction<String> {
- *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET) Customer c) {
+ *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE) Customer c) {
  *     TableSemantics semantics = ctx.tableSemanticsFor("c");
  *     // Always returns structured type of "Customer"
  *     semantics.dataType();
@@ -173,7 +173,7 @@ import java.time.LocalDateTime;
  *
  * // Function with polymorphic table argument
  * class MyPTF extends ProcessTableFunction<String> {
- *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET) Row t) {
+ *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE) Row t) {
  *     TableSemantics semantics = ctx.tableSemanticsFor("t");
  *     // Always returns "ROW" but content depends on the table that is passed into the call
  *     semantics.dataType();
@@ -191,7 +191,7 @@ import java.time.LocalDateTime;
  * // Function that accesses the Context for reading the PARTITION BY columns and
  * // excluding them when building a result string
  * class ConcatNonKeysFunction extends ProcessTableFunction<String> {
- *   public void eval(Context ctx, @ArgumentHint(ArgumentTrait.TABLE_AS_SET) Row inputTable) {
+ *   public void eval(Context ctx, @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row inputTable) {
  *     TableSemantics semantics = ctx.tableSemanticsFor("inputTable");
  *     List<Integer> keys = Arrays.asList(semantics.partitionByColumns());
  *     return IntStream.range(0, inputTable.getArity())
@@ -234,7 +234,7 @@ import java.time.LocalDateTime;
  *     public long count = 0L;
  *   }
  *
- *   public void eval(@StateHint CountState memory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *   public void eval(@StateHint CountState memory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
  *     memory.count++;
  *     collect("Seen rows: " + memory.count);
  *   }
@@ -246,7 +246,7 @@ import java.time.LocalDateTime;
  *     public String first;
  *   }
  *
- *   public void eval(@StateHint SeenState memory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *   public void eval(@StateHint SeenState memory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
  *     if (memory.first == null) {
  *       memory.first = input.toString();
  *     } else {
@@ -257,7 +257,7 @@ import java.time.LocalDateTime;
  *
  * // Function that uses Row for state
  * class CountingFunction extends ProcessTableFunction<String> {
- *   public void eval(@StateHint(type = @DataTypeHint("ROW < count BIGINT >")) Row memory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *   public void eval(@StateHint(type = @DataTypeHint("ROW < count BIGINT >")) Row memory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
  *     Long newCount = 1L;
  *     if (memory.getField("count") != null) {
  *       newCount += memory.getFieldAs("count");
@@ -282,7 +282,7 @@ import java.time.LocalDateTime;
  *     public String first;
  *   }
  *
- *   public void eval(Context ctx, @StateHint(ttl = "1 day") SeenState memory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *   public void eval(Context ctx, @StateHint(ttl = "1 day") SeenState memory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
  *     if (memory.first == null) {
  *       memory.first = input.toString();
  *     } else {
@@ -326,7 +326,7 @@ import java.time.LocalDateTime;
  * <pre>{@code
  * // Function that uses a map view for storing a large map for an event history per user
  * class HistoryFunction extends ProcessTableFunction<String> {
- *   public void eval(@StateHint MapView<String, Integer> largeMemory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *   public void eval(@StateHint MapView<String, Integer> largeMemory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
  *     String eventId = input.getFieldAs("eventId");
  *     Integer count = largeMemory.get(eventId);
  *     if (count == null) {
@@ -385,7 +385,7 @@ import java.time.LocalDateTime;
  *     public String seen = null;
  *   }
  *
- *   public void eval(Context ctx, @StateHint SeenState memory, @ArgumentHint( { TABLE_AS_SET, REQUIRE_ON_TIME } ) Row input) {
+ *   public void eval(Context ctx, @StateHint SeenState memory, @ArgumentHint( { SET_SEMANTIC_TABLE, REQUIRE_ON_TIME } ) Row input) {
  *     TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
  *     if (memory.seen == null) {
  *       memory.seen = input.getField(0).toString();
@@ -592,8 +592,8 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
          * Registering a timer under the same name twice will replace an existing timer.
          *
          * <p>Note: Because only PTFs taking set semantic tables support state, and timers are a
-         * special kind of state, at least one {@link ArgumentTrait#TABLE_AS_SET} table argument
-         * must be declared.
+         * special kind of state, at least one {@link ArgumentTrait#SET_SEMANTIC_TABLE} table
+         * argument must be declared.
          *
          * @param name identifier of the timer
          * @param time timestamp when the timer should fire
@@ -611,8 +611,8 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
          * <p>Only one timer can be registered for a given time.
          *
          * <p>Note: Because only PTFs taking set semantic tables support state, and timers are a
-         * special kind of state, at least one {@link ArgumentTrait#TABLE_AS_SET} table argument
-         * must be declared.
+         * special kind of state, at least one {@link ArgumentTrait#SET_SEMANTIC_TABLE} table
+         * argument must be declared.
          *
          * @param time timestamp when the timer should fire
          */

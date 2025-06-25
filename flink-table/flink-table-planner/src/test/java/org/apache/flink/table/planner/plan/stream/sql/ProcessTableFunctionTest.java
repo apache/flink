@@ -31,13 +31,13 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidUpdatingSemanticsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiInputFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RequiredTimeFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTablePassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowPassThroughFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetPassThroughFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsRowFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsSetFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTablePassThroughFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedRowSemanticTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedSetSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingUpsertFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.User;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -59,9 +59,9 @@ import java.util.stream.Stream;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
 import static org.apache.flink.table.annotation.ArgumentTrait.PASS_COLUMNS_THROUGH;
+import static org.apache.flink.table.annotation.ArgumentTrait.ROW_SEMANTIC_TABLE;
+import static org.apache.flink.table.annotation.ArgumentTrait.SET_SEMANTIC_TABLE;
 import static org.apache.flink.table.annotation.ArgumentTrait.SUPPORT_UPDATES;
-import static org.apache.flink.table.annotation.ArgumentTrait.TABLE_AS_ROW;
-import static org.apache.flink.table.annotation.ArgumentTrait.TABLE_AS_SET;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the type inference and planning part of {@link ProcessTableFunction}. */
@@ -117,8 +117,8 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
-    void testTypedTableAsRowIgnoringColumnNames() {
-        util.addTemporarySystemFunction("f", TypedTableAsRowFunction.class);
+    void testTypedRowSemanticTableIgnoringColumnNames() {
+        util.addTemporarySystemFunction("f", TypedRowSemanticTableFunction.class);
         // function expects <STRING name, INT score>
         // but table is <STRING name, INT different>
         util.verifyRelPlan("SELECT * FROM f(u => TABLE t_name_diff, i => 1)");
@@ -126,7 +126,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
 
     @Test
     void testDifferentPartitionKey() {
-        util.addTemporarySystemFunction("f", TableAsSetFunction.class);
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
         util.verifyRelPlan("SELECT * FROM f(r => TABLE t PARTITION BY score, i => 1)");
     }
 
@@ -137,14 +137,14 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
-    void testTableAsSetPassThroughColumns() {
-        util.addTemporarySystemFunction("f", TableAsSetPassThroughFunction.class);
+    void testSetSemanticTablePassThroughColumns() {
+        util.addTemporarySystemFunction("f", SetSemanticTablePassThroughFunction.class);
         util.verifyRelPlan("SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1)");
     }
 
     @Test
-    void testTableAsRowPassThroughColumns() {
-        util.addTemporarySystemFunction("f", TableAsRowPassThroughFunction.class);
+    void testRowSemanticTablePassThroughColumns() {
+        util.addTemporarySystemFunction("f", RowSemanticTablePassThroughFunction.class);
         util.verifyRelPlan("SELECT * FROM f(r => TABLE t, i => 1)");
     }
 
@@ -168,7 +168,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
     @Test
     void testMissingUid() {
         // Function name contains special characters and can thus not be used as UID
-        util.addTemporarySystemFunction("f*", TableAsSetFunction.class);
+        util.addTemporarySystemFunction("f*", SetSemanticTableFunction.class);
         assertThatThrownBy(
                         () ->
                                 util.verifyRelPlan(
@@ -183,7 +183,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
 
     @Test
     void testUidPipelineSplitIntoTwoFunctions() {
-        util.addTemporarySystemFunction("f", TableAsSetFunction.class);
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
         util.verifyExecPlan(
                 util.tableEnv()
                         .createStatementSet()
@@ -195,7 +195,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
 
     @Test
     void testUidPipelineMergeIntoOneFunction() {
-        util.addTemporarySystemFunction("f", TableAsSetFunction.class);
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
         util.verifyExecPlan(
                 util.tableEnv()
                         .createStatementSet()
@@ -207,7 +207,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
 
     @Test
     void testUidPipelineMergeWithFanOut() {
-        util.addTemporarySystemFunction("f", TableAsSetFunction.class);
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
         util.verifyExecPlan(
                 util.tableEnv()
                         .createStatementSet()
@@ -218,8 +218,8 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
-    void testTableAsRowOptionalUid() {
-        util.addTemporarySystemFunction("f", TableAsRowFunction.class);
+    void testRowSemanticTableOptionalUid() {
+        util.addTemporarySystemFunction("f", RowSemanticTableFunction.class);
         util.verifyExecPlan(
                 util.tableEnv()
                         .createStatementSet()
@@ -256,19 +256,19 @@ public class ProcessTableFunctionTest extends TableTestBase {
                                 + "But found: %"),
                 ErrorSpec.ofSelect(
                         "typed table as row with invalid input",
-                        TypedTableAsRowFunction.class,
+                        TypedRowSemanticTableFunction.class,
                         // function expects <STRING name, INT score>
                         "SELECT * FROM f(u => TABLE t_type_diff, i => 1)",
                         "No match found for function signature "
                                 + "f(<RecordType(CHAR(3) name, BOOLEAN isValid)>, <NUMERIC>, <COLUMN_LIST>, <CHARACTER>)"),
                 ErrorSpec.ofSelect(
                         "table as set with missing partition by",
-                        TableAsSetFunction.class,
+                        SetSemanticTableFunction.class,
                         "SELECT * FROM f(r => TABLE t, i => 1)",
                         "Table argument 'r' requires a PARTITION BY clause for parallel processing."),
                 ErrorSpec.ofSelect(
                         "typed table as set with invalid input",
-                        TypedTableAsSetFunction.class,
+                        TypedSetSemanticTableFunction.class,
                         // function expects <STRING name, INT score>
                         "SELECT * FROM f(u => TABLE t_type_diff PARTITION BY name, i => 1)",
                         "No match found for function signature "
@@ -278,7 +278,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         NoProcessTableFunction.class,
                         "SELECT * FROM f(r => TABLE t)",
                         "Only scalar arguments are supported at this location. "
-                                + "But argument 'r' declared the following traits: [TABLE, TABLE_AS_ROW]"),
+                                + "But argument 'r' declared the following traits: [TABLE, ROW_SEMANTIC_TABLE]"),
                 ErrorSpec.ofSelect(
                         "reserved args",
                         ReservedArgFunction.class,
@@ -291,28 +291,28 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         "All table arguments must use set semantics if multiple table arguments are declared."),
                 ErrorSpec.ofSelect(
                         "row instead of table",
-                        TableAsRowFunction.class,
+                        RowSemanticTableFunction.class,
                         "SELECT * FROM f(r => ROW(42), i => 1)",
                         "Invalid argument value. Argument 'r' expects a table to be passed."),
                 ErrorSpec.ofSelect(
                         "table as row partition by",
-                        TableAsRowFunction.class,
+                        RowSemanticTableFunction.class,
                         "SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1)",
                         "Only tables with set semantics may be partitioned. "
                                 + "Invalid PARTITION BY clause in the 0-th operand of table function 'f'"),
                 ErrorSpec.ofSelect(
                         "invalid partition by clause",
-                        TableAsSetFunction.class,
+                        SetSemanticTableFunction.class,
                         "SELECT * FROM f(r => TABLE t PARTITION BY invalid, i => 1)",
                         "Invalid column 'invalid' for PARTITION BY clause. Available columns are: [name, score]"),
                 ErrorSpec.ofSelect(
                         "unsupported order by",
-                        TableAsSetFunction.class,
+                        SetSemanticTableFunction.class,
                         "SELECT * FROM f(r => TABLE t PARTITION BY name ORDER BY score, i => 1)",
                         "ORDER BY clause is currently not supported."),
                 ErrorSpec.ofSelect(
                         "updates into insert-only table arg",
-                        TableAsSetFunction.class,
+                        SetSemanticTableFunction.class,
                         "SELECT * FROM f(r => TABLE t_updating PARTITION BY name, i => 1)",
                         "StreamPhysicalProcessTableFunction doesn't support consuming update changes"),
                 ErrorSpec.ofSelect(
@@ -322,7 +322,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         "Table arguments that support updates must use a row type."),
                 ErrorSpec.ofSelect(
                         "uid conflict",
-                        TableAsSetFunction.class,
+                        SetSemanticTableFunction.class,
                         "SELECT * FROM f(r => TABLE t PARTITION BY name, i => 42, uid => 'same') "
                                 + "UNION ALL SELECT * FROM f(r => TABLE t PARTITION BY name, i => 999, uid => 'same')",
                         "Duplicate unique identifier 'same' detected among process table functions. "
@@ -339,7 +339,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
                         "column alias must be a simple identifier"),
                 ErrorSpec.ofSelect(
                         "ambiguous on_time reference",
-                        TableAsRowFunction.class,
+                        RowSemanticTableFunction.class,
                         "WITH duplicate_ts AS (SELECT ts AS ts1, ts AS ts2 FROM t_watermarked) "
                                 + "SELECT * FROM f(r => TABLE duplicate_ts, i => 1, on_time => DESCRIPTOR(ts1, ts2))",
                         "Ambiguous time attribute found. The `on_time` argument must reference at "
@@ -354,7 +354,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
                                 + "For example: myFunction(..., on_time => DESCRIPTOR(`my_timestamp`)"),
                 ErrorSpec.ofSelect(
                         "invalid on_time column",
-                        TableAsRowFunction.class,
+                        RowSemanticTableFunction.class,
                         "SELECT * FROM f(r => TABLE t_watermarked, i => 1, on_time => DESCRIPTOR(ts, INVALID))",
                         "Invalid time attribute declaration. Each column in the `on_time` argument must "
                                 + "reference at least one column in one of the table arguments. "
@@ -433,15 +433,15 @@ public class ProcessTableFunctionTest extends TableTestBase {
     /** Testing function. */
     public static class InvalidTypedUpdatingArgFunction extends ProcessTableFunction<String> {
         @SuppressWarnings("unused")
-        public void eval(@ArgumentHint({TABLE_AS_ROW, SUPPORT_UPDATES}) User u, Integer i) {}
+        public void eval(@ArgumentHint({ROW_SEMANTIC_TABLE, SUPPORT_UPDATES}) User u, Integer i) {}
     }
 
     /** Testing function. */
     public static class InvalidMultiTableWithRowFunction extends ProcessTableFunction<String> {
         @SuppressWarnings("unused")
         public void eval(
-                @ArgumentHint({TABLE_AS_SET, OPTIONAL_PARTITION_BY}) Row r1,
-                @ArgumentHint(TABLE_AS_ROW) Row r2) {}
+                @ArgumentHint({SET_SEMANTIC_TABLE, OPTIONAL_PARTITION_BY}) Row r1,
+                @ArgumentHint(ROW_SEMANTIC_TABLE) Row r2) {}
     }
 
     /** Testing function. */
@@ -455,7 +455,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
                                     "r",
                                     Row.class,
                                     false,
-                                    EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
+                                    EnumSet.of(StaticArgumentTrait.ROW_SEMANTIC_TABLE)))
                     .outputTypeStrategy(callContext -> Optional.of(DataTypes.STRING()))
                     .build();
         }
@@ -474,48 +474,48 @@ public class ProcessTableFunctionTest extends TableTestBase {
     public static class UpdatingPassThrough extends ProcessTableFunction<String> {
         @SuppressWarnings("unused")
         public void eval(
-                @ArgumentHint({TABLE_AS_SET, SUPPORT_UPDATES, PASS_COLUMNS_THROUGH}) Row r) {}
+                @ArgumentHint({SET_SEMANTIC_TABLE, SUPPORT_UPDATES, PASS_COLUMNS_THROUGH}) Row r) {}
     }
 
     /** Testing function. */
     public static class OptionalUntypedTable extends ProcessTableFunction<String> {
         @SuppressWarnings("unused")
-        public void eval(@ArgumentHint(value = TABLE_AS_ROW, isOptional = true) Row r) {}
+        public void eval(@ArgumentHint(value = ROW_SEMANTIC_TABLE, isOptional = true) Row r) {}
     }
 
     /** Testing function. */
     public static class InvalidPassThroughTables extends ProcessTableFunction<String> {
         @SuppressWarnings("unused")
         public void eval(
-                @ArgumentHint({TABLE_AS_SET, PASS_COLUMNS_THROUGH}) Row r1,
-                @ArgumentHint({TABLE_AS_SET, PASS_COLUMNS_THROUGH}) Row r2) {}
+                @ArgumentHint({SET_SEMANTIC_TABLE, PASS_COLUMNS_THROUGH}) Row r1,
+                @ArgumentHint({SET_SEMANTIC_TABLE, PASS_COLUMNS_THROUGH}) Row r2) {}
     }
 
     /** Testing function. */
     public static class HighMultiInputFunction extends AppendProcessTableFunctionBase {
         @SuppressWarnings("unused")
         public void eval(
-                @ArgumentHint(TABLE_AS_SET) Row in1,
-                @ArgumentHint(TABLE_AS_SET) Row in2,
-                @ArgumentHint(TABLE_AS_SET) Row in3,
-                @ArgumentHint(TABLE_AS_SET) Row in4,
-                @ArgumentHint(TABLE_AS_SET) Row in5,
-                @ArgumentHint(TABLE_AS_SET) Row in6,
-                @ArgumentHint(TABLE_AS_SET) Row in7,
-                @ArgumentHint(TABLE_AS_SET) Row in8,
-                @ArgumentHint(TABLE_AS_SET) Row in9,
-                @ArgumentHint(TABLE_AS_SET) Row in10,
-                @ArgumentHint(TABLE_AS_SET) Row in11,
-                @ArgumentHint(TABLE_AS_SET) Row in12,
-                @ArgumentHint(TABLE_AS_SET) Row in13,
-                @ArgumentHint(TABLE_AS_SET) Row in14,
-                @ArgumentHint(TABLE_AS_SET) Row in15,
-                @ArgumentHint(TABLE_AS_SET) Row in16,
-                @ArgumentHint(TABLE_AS_SET) Row in17,
-                @ArgumentHint(TABLE_AS_SET) Row in18,
-                @ArgumentHint(TABLE_AS_SET) Row in19,
-                @ArgumentHint(TABLE_AS_SET) Row in20,
-                @ArgumentHint(TABLE_AS_SET) Row in21)
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in1,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in2,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in3,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in4,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in5,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in6,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in7,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in8,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in9,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in10,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in11,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in12,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in13,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in14,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in15,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in16,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in17,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in18,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in19,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in20,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in21)
                 throws Exception {}
     }
 

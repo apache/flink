@@ -284,7 +284,7 @@ public class StreamExecProcessTableFunction extends ExecNodeBase<RowData>
                 tableArgCall.getPartitionKeys(),
                 consumedChangelogMode,
                 tableArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH),
-                tableArg.is(StaticArgumentTrait.TABLE_AS_SET),
+                tableArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE),
                 timeColumn);
     }
 

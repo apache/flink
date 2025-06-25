@@ -28,7 +28,7 @@ import org.apache.flink.table.functions.UserDefinedFunction;
  *
  * <p>Currently, partitioned table objects are intended for table arguments of process table
  * functions (PTFs) that take table arguments with set semantics ({@link
- * ArgumentTrait#TABLE_AS_SET}).
+ * ArgumentTrait#SET_SEMANTIC_TABLE}).
  *
  * @see ProcessTableFunction
  */
