@@ -96,18 +96,15 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
                 }
             };
 
-    private static void validateClassInput(
-            final CallContext callContext, final DataType firstArgumentDataType) {
+    private static void validateClassArgument(final DataType firstArgumentDataType) {
         final LogicalType classArgumentType = firstArgumentDataType.getLogicalType();
 
         final String errorMessage =
-                "The first argument must be a STRING/VARCHAR type representing the class name.";
-        if (!classArgumentType.is(LogicalTypeFamily.CHARACTER_STRING)) {
+                "The first argument must be a non-nullable STRING/VARCHAR type representing the class name.";
+        if (classArgumentType.isNullable()
+                || !classArgumentType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             throw new ValidationException(errorMessage);
         }
-
-        final Optional<String> className = callContext.getArgumentValue(0, String.class);
-        className.orElseThrow(() -> new ValidationException(errorMessage));
     }
 
     private static void validateKeyArguments(
@@ -129,23 +126,25 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
             throw new ValidationException(
                     "The field key at position "
                             + keyIndex
-                            + " must be a STRING/VARCHAR type, but was "
+                            + " must be a non-nullable STRING/VARCHAR type, but was "
                             + logicalType.asSummaryString()
                             + ".");
         }
+
+        if (logicalType.isNullable()) {
+            throw new ValidationException(
+                    "The field key at position "
+                            + keyIndex
+                            + " must be a non-nullable STRING/VARCHAR type.");
+        }
+
         final String fieldName =
                 callContext
                         .getArgumentValue(idx, String.class)
-                        .orElseThrow(
-                                () ->
-                                        new ValidationException(
-                                                "Field name at position "
-                                                        + keyIndex
-                                                        + " must be a non null STRING/VARCHAR type."));
-
+                        .orElseThrow(IllegalStateException::new);
         if (!fieldNames.add(fieldName)) {
             throw new ValidationException(
-                    "The field name " + fieldName + " at position " + keyIndex + " is repeated.");
+                    "The field name '" + fieldName + "' at position " + keyIndex + " is repeated.");
         }
     }
 
@@ -159,7 +158,7 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
             final CallContext callContext, final boolean throwOnFailure) {
         final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
 
-        validateClassInput(callContext, argumentDataTypes.get(0));
+        validateClassArgument(argumentDataTypes.get(0));
         validateKeyArguments(callContext, argumentDataTypes);
 
         return Optional.of(argumentDataTypes);

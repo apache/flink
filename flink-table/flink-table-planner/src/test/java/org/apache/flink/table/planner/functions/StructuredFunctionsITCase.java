@@ -161,11 +161,11 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                 "OBJECT_OF('"
                                         + Type1.class.getName()
                                         + "', CAST(NULL AS STRING), 42, 'b', 'Bob')",
-                                "Field name at position 2 must be a non null STRING/VARCHAR type.")
+                                "The field key at position 2 must be a non-nullable STRING/VARCHAR type.")
                         // Invalid Test - first argument is type string but null
                         .testSqlValidationError(
                                 "OBJECT_OF(CAST(NULL AS STRING), 'a', '12', 'b', 'Alice')",
-                                "The first argument must be a STRING/VARCHAR type representing the class name."));
+                                "The first argument must be a non-nullable STRING/VARCHAR type representing the class name."));
     }
 
     // --------------------------------------------------------------------------------------------
