@@ -43,6 +43,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -68,6 +69,8 @@ class UnalignedCheckpointsInterruptibleTimersTest {
 
         try (final StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, Types.STRING)
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .addJobConfig(CheckpointingOptions.ENABLE_UNALIGNED, true)
                         .addJobConfig(
                                 CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, true)
@@ -110,6 +113,8 @@ class UnalignedCheckpointsInterruptibleTimersTest {
 
         try (final StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, Types.STRING)
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .addJobConfig(CheckpointingOptions.ENABLE_UNALIGNED, true)
                         .addJobConfig(
                                 CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, true)

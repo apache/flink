@@ -100,9 +100,8 @@ public class KeyedStateBootstrapOperator<K, IN>
                         getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                         timestamp,
                         getContainingTask().getConfiguration().isExactlyOnceCheckpointMode(),
-                        getContainingTask()
-                                .getJobConfiguration()
-                                .get(CheckpointingOptions.ENABLE_UNALIGNED),
+                        CheckpointingOptions.isUnalignedCheckpointEnabled(
+                                getContainingTask().getJobConfiguration()),
                         getContainingTask().getConfiguration().getConfiguration(),
                         savepointPath);
 

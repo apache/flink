@@ -63,6 +63,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -229,6 +230,8 @@ class StreamTaskFinalCheckpointsTest {
         StreamTaskMailboxTestHarness<String> testHarness =
                 testHarnessBuilder
                         .addInput(STRING_TYPE_INFO, 3)
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .addJobConfig(
                                 CheckpointingOptions.ENABLE_UNALIGNED, enableUnalignedCheckpoint)
                         .modifyStreamConfig(
@@ -849,6 +852,8 @@ class StreamTaskFinalCheckpointsTest {
         try (StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .addJobConfig(CheckpointingOptions.ENABLE_UNALIGNED, true)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
                         .setCollectNetworkEvents()

@@ -363,9 +363,11 @@ public abstract class AbstractStreamOperator<OUT>
         return areSplittableTimersConfigured(config, getContainingTask().getJobConfiguration());
     }
 
+    // todo extract a static method for  ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS in
+    // CheckpointingOptions
     static boolean areSplittableTimersConfigured(StreamConfig config, Configuration conf) {
         return config.isCheckpointingEnabled()
-                && conf.get(CheckpointingOptions.ENABLE_UNALIGNED)
+                && CheckpointingOptions.isUnalignedCheckpointEnabled(conf)
                 && conf.get(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS);
     }
 

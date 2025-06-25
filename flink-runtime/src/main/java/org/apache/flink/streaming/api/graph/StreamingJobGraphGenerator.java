@@ -31,7 +31,6 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -526,13 +525,6 @@ public class StreamingJobGraphGenerator {
                     }
                 }
             }
-        }
-
-        if (checkpointConfig.isUnalignedCheckpointsEnabled()
-                && streamGraph.getCheckpointingMode() != CheckpointingMode.EXACTLY_ONCE) {
-            LOG.warn("Unaligned checkpoints can only be used with checkpointing mode EXACTLY_ONCE");
-            streamGraph.getJobConfiguration().set(CheckpointingOptions.ENABLE_UNALIGNED, false);
-            checkpointConfig.enableUnalignedCheckpoints(false);
         }
     }
 

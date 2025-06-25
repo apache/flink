@@ -1,0 +1,165 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.configuration;
+
+import org.apache.flink.core.execution.CheckpointingMode;
+
+import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** Tests for the {@link CheckpointingOptions}. */
+class CheckpointingOptionsTest {
+
+    @Test
+    void testIsCheckpointingEnabled() {
+        // Test with no checkpointing interval configured
+        Configuration emptyConfig = new Configuration();
+        assertThat(CheckpointingOptions.isCheckpointingEnabled(emptyConfig))
+                .as("Checkpointing should be disabled when no interval is configured")
+                .isFalse();
+
+        // Test with checkpointing interval set to 0
+        Configuration zeroIntervalConfig = new Configuration();
+        zeroIntervalConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ZERO);
+        assertThat(CheckpointingOptions.isCheckpointingEnabled(zeroIntervalConfig))
+                .as("Checkpointing should be disabled when interval is 0")
+                .isFalse();
+
+        // Test with negative checkpointing interval
+        Configuration negativeIntervalConfig = new Configuration();
+        negativeIntervalConfig.set(
+                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofMillis(-1000));
+        assertThat(CheckpointingOptions.isCheckpointingEnabled(negativeIntervalConfig))
+                .as("Checkpointing should be disabled when interval is negative")
+                .isFalse();
+
+        // Test with positive checkpointing interval
+        Configuration positiveIntervalConfig = new Configuration();
+        positiveIntervalConfig.set(
+                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        assertThat(CheckpointingOptions.isCheckpointingEnabled(positiveIntervalConfig))
+                .as("Checkpointing should be enabled when interval is positive")
+                .isTrue();
+
+        // Test with very small positive interval (10 millisecond)
+        Configuration smallIntervalConfig = new Configuration();
+        smallIntervalConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofMillis(10));
+        assertThat(CheckpointingOptions.isCheckpointingEnabled(smallIntervalConfig))
+                .as("Checkpointing should be enabled when interval is 1 millisecond")
+                .isTrue();
+    }
+
+    @Test
+    void testGetCheckpointingMode() {
+        // Test when checkpointing is disabled - should return AT_LEAST_ONCE
+        Configuration disabledConfig = new Configuration();
+        assertThat(CheckpointingOptions.getCheckpointingMode(disabledConfig))
+                .as("Should return AT_LEAST_ONCE when checkpointing is disabled")
+                .isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
+
+        // Test when checkpointing is enabled with default mode
+        Configuration enabledDefaultConfig = new Configuration();
+        enabledDefaultConfig.set(
+                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        assertThat(CheckpointingOptions.getCheckpointingMode(enabledDefaultConfig))
+                .as("Should return EXACTLY_ONCE as default when checkpointing is enabled")
+                .isEqualTo(CheckpointingMode.EXACTLY_ONCE);
+
+        // Test when checkpointing is enabled with EXACTLY_ONCE explicitly set
+        Configuration exactlyOnceConfig = new Configuration();
+        exactlyOnceConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        exactlyOnceConfig.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.EXACTLY_ONCE);
+        assertThat(CheckpointingOptions.getCheckpointingMode(exactlyOnceConfig))
+                .as("Should return EXACTLY_ONCE when explicitly configured")
+                .isEqualTo(CheckpointingMode.EXACTLY_ONCE);
+
+        // Test when checkpointing is enabled with AT_LEAST_ONCE explicitly set
+        Configuration atLeastOnceConfig = new Configuration();
+        atLeastOnceConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        atLeastOnceConfig.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.AT_LEAST_ONCE);
+        assertThat(CheckpointingOptions.getCheckpointingMode(atLeastOnceConfig))
+                .as("Should return AT_LEAST_ONCE when explicitly configured")
+                .isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
+    }
+
+    @Test
+    void testIsUnalignedCheckpointEnabled() {
+        // Test when checkpointing mode is AT_LEAST_ONCE - should always return false
+        Configuration atLeastOnceConfig = new Configuration();
+        atLeastOnceConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        atLeastOnceConfig.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.AT_LEAST_ONCE);
+        atLeastOnceConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, true);
+        assertThat(CheckpointingOptions.isUnalignedCheckpointEnabled(atLeastOnceConfig))
+                .as("Unaligned checkpoints should be disabled when mode is AT_LEAST_ONCE")
+                .isFalse();
+
+        // Test when checkpointing mode is EXACTLY_ONCE and ENABLE_UNALIGNED is false (default)
+        Configuration exactlyOnceDefaultConfig = new Configuration();
+        exactlyOnceDefaultConfig.set(
+                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        exactlyOnceDefaultConfig.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.EXACTLY_ONCE);
+        assertThat(CheckpointingOptions.isUnalignedCheckpointEnabled(exactlyOnceDefaultConfig))
+                .as(
+                        "Unaligned checkpoints should be disabled by default even with EXACTLY_ONCE mode")
+                .isFalse();
+
+        // Test when checkpointing mode is EXACTLY_ONCE and ENABLE_UNALIGNED is explicitly false
+        Configuration exactlyOnceFalseConfig = new Configuration();
+        exactlyOnceFalseConfig.set(
+                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        exactlyOnceFalseConfig.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.EXACTLY_ONCE);
+        exactlyOnceFalseConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, false);
+        assertThat(CheckpointingOptions.isUnalignedCheckpointEnabled(exactlyOnceFalseConfig))
+                .as("Unaligned checkpoints should be disabled when explicitly set to false")
+                .isFalse();
+
+        // Test when checkpointing mode is EXACTLY_ONCE and ENABLE_UNALIGNED is true
+        Configuration exactlyOnceTrueConfig = new Configuration();
+        exactlyOnceTrueConfig.set(
+                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        exactlyOnceTrueConfig.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.EXACTLY_ONCE);
+        exactlyOnceTrueConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, true);
+        assertThat(CheckpointingOptions.isUnalignedCheckpointEnabled(exactlyOnceTrueConfig))
+                .as(
+                        "Unaligned checkpoints should be enabled when mode is EXACTLY_ONCE and explicitly enabled")
+                .isTrue();
+
+        // Test when checkpointing is disabled - should return false
+        Configuration disabledConfig = new Configuration();
+        disabledConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, true);
+        assertThat(CheckpointingOptions.isUnalignedCheckpointEnabled(disabledConfig))
+                .as("Unaligned checkpoints should be disabled when checkpointing is disabled")
+                .isFalse();
+    }
+}

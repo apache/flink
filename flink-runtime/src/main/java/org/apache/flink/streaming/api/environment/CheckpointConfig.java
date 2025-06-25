@@ -456,7 +456,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @PublicEvolving
     public boolean isUnalignedCheckpointsEnabled() {
-        return configuration.get(CheckpointingOptions.ENABLE_UNALIGNED);
+        return CheckpointingOptions.isUnalignedCheckpointEnabled(configuration);
     }
 
     @Experimental

@@ -142,7 +142,8 @@ public class SourceStreamTask<
                                             CheckpointType.CHECKPOINT,
                                             CheckpointStorageLocationReference.getDefault(),
                                             configuration.isExactlyOnceCheckpointMode(),
-                                            jobConf.get(CheckpointingOptions.ENABLE_UNALIGNED),
+                                            CheckpointingOptions.isUnalignedCheckpointEnabled(
+                                                    jobConf),
                                             jobConf.get(
                                                             CheckpointingOptions
                                                                     .ALIGNED_CHECKPOINT_TIMEOUT)
