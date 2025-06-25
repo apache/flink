@@ -20,21 +20,26 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
+import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.connector.source.partitioning.KeyGroupedPartitioning
 import org.apache.flink.table.planner.hint.JoinStrategy
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSortMergeJoin
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalTableSourceScan}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalSortMergeJoin, BatchPhysicalTableSourceScan}
+import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, ScanUtil}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
+import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.rel.core.Join
 import org.apache.calcite.util.ImmutableIntList
+import org.apache.flink.table.connector.source.abilities.SupportsPartitioning
 
 import java.lang.{Boolean => JBoolean}
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -54,20 +59,148 @@ class BatchPhysicalSortMergeJoinRule
     canUseJoinStrategy(join, tableConfig, JoinStrategy.SHUFFLE_MERGE)
   }
 
+  // TODO confirm this is the best practice for getting the table scan from a RelNode
+  private def getTableScan(relNode: RelNode): Option[FlinkLogicalTableSourceScan] = {
+    relNode match {
+      // Handle RelSubset by getting the best input
+      case subset: RelSubset =>
+        // Get the best input or first input if no best is set
+        val best = Option(subset.getBest).orElse(
+          if (!subset.getRelList.isEmpty) Some(subset.getRelList.get(0))
+          else None
+        )
+        best.flatMap(getTableScan)
+
+      // Handle different types of table scan nodes
+      case scan: FlinkLogicalTableSourceScan => Some(scan)
+
+      // For other nodes with a single input
+      case node if node.getInputs.size() == 1 && !node.getInput(0).equals(node) =>
+        getTableScan(node.getInput(0))
+
+      case _ => None
+    }
+  }
+
+  private def isPartitionBy(
+      partition: KeyGroupedPartitioning,
+      fieldNames: util.List[String]): Boolean = {
+    val partitionKeys = partition.keys()
+    // Example: query with both tables partitioned by [dt, user_id]:
+    // SELECT count(*) FROM t1 JOIN t2 ON t1.dt = t2.dt AND t1.user_id = t2.user_id
+    // WHERE t1.dt = '2025-05-01' AND t2.dt = '2025-05-01'
+    //
+    // After filter pushdown optimization, the constant filter WHERE dt = '2025-05-01'
+    // may cause the 'dt' field to be pruned from fieldNames
+    // leaving only fieldNames = [user_id]. However, the original partition spec still
+    // contains [dt, user_id]. So we must check that the joinKey's remaining are still part
+    // of the partitionSpec
+    fieldNames.forall(fieldName =>
+      partitionKeys.exists(partitionKey => partitionKey.getKey == fieldName)
+    )
+  }
+
+  private def canApplyStoragePartitionJoin(join: Join): Boolean = {
+    // TODO ensure the join condition is equal join, not like col1 + 1 = col2, or func(col1) = func(col2)
+    val joinInfo = join.analyzeCondition()
+
+    // Return false if it's not an equi-join
+    if (joinInfo.nonEquiConditions != null && !joinInfo.nonEquiConditions.isEmpty) {
+      return false
+    }
+
+    // Return false if there are no equi-join conditions
+    if (joinInfo.leftKeys.isEmpty || joinInfo.rightKeys.isEmpty) {
+      return false
+    }
+
+    // Find all table scans in both branches
+    val leftTableScan = getTableScan(join.getLeft)
+    val rightTableScan = getTableScan(join.getRight)
+
+    if (leftTableScan.isEmpty || rightTableScan.isEmpty) {
+      return false
+    }
+
+    // Get the field names from the table scans
+    val leftFieldNames = leftTableScan.get.getRowType.getFieldNames
+    val rightFieldNames = rightTableScan.get.getRowType.getFieldNames
+
+    // TODO: this won't work in case there is a projection in between join and table and adds extra columns
+    // for example: in testCannotPushDownProbeSideWithCalc,
+    //   "select * from dim inner join (select fact_date_sk, RAND(10) as random from fact) "
+    //                        + "as factSide on dim.amount = factSide.random and dim.price < 500";
+    // the join condition is dim.amount = factSide.random, but the right side table doesn't contains random
+
+    // Map join keys to field names
+    val leftJoinFields = (0 until joinInfo.leftKeys.size()).map {
+      i => leftFieldNames.get(joinInfo.leftKeys.get(i))
+    }
+
+    val rightJoinFields = (0 until joinInfo.rightKeys.size()).map {
+      i => rightFieldNames.get(joinInfo.rightKeys.get(i))
+    }
+
+    // conditions:
+    // 1. leftPartition is partitioned by leftFieldNames
+    // 2. rightPartition is partitioned by rightFieldNames
+    // 3. leftPartition is compatible with rightPartition
+
+    val leftPartition = ScanUtil.getPartition(leftTableScan.get.relOptTable)
+    val rightPartition = ScanUtil.getPartition(rightTableScan.get.relOptTable)
+
+    // ensure both leftPartition and rightPartition are KeyGroupedPartitioning class
+    if (leftPartition.isEmpty || rightPartition.isEmpty) {
+      return false
+    }
+    if (
+      !leftPartition.get.isInstanceOf[KeyGroupedPartitioning] ||
+      !rightPartition.get.isInstanceOf[KeyGroupedPartitioning]
+    ) {
+      return false
+    }
+    val leftKeyGroupedPartitioning = leftPartition.get.asInstanceOf[KeyGroupedPartitioning]
+    val rightKeyGroupedPartitioning = rightPartition.get.asInstanceOf[KeyGroupedPartitioning]
+    isPartitionBy(leftKeyGroupedPartitioning, leftJoinFields) &&
+    isPartitionBy(rightKeyGroupedPartitioning, rightJoinFields) &&
+    leftKeyGroupedPartitioning.isCompatible(rightKeyGroupedPartitioning)
+  }
+
   override def onMatch(call: RelOptRuleCall): Unit = {
     val join: Join = call.rel(0)
     val joinInfo = join.analyzeCondition
     val left = join.getLeft
     val right = join.getRight
 
+    val tableConfig = unwrapTableConfig(join)
+    val canApplyPartitionJoin =
+      tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_STORAGE_PARTITION_JOIN_ENABLED) &&
+        canApplyStoragePartitionJoin(join)
+    if (canApplyPartitionJoin) {
+      ScanUtil.applyPartitionedRead(getTableScan(join.getLeft).get.relOptTable)
+      ScanUtil.applyPartitionedRead(getTableScan(join.getRight).get.relOptTable)
+    }
+
     def getTraitSetByShuffleKeys(
         shuffleKeys: ImmutableIntList,
         requireStrict: Boolean,
         requireCollation: Boolean): RelTraitSet = {
-      var traitSet = call.getPlanner
-        .emptyTraitSet()
-        .replace(FlinkConventions.BATCH_PHYSICAL)
-        .replace(FlinkRelDistribution.hash(shuffleKeys, requireStrict))
+      var traitSet = if (canApplyPartitionJoin) {
+        // precondition requireCollation is always false when using ANY distribution
+        // this is related to TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED
+        // this can only be true if that is set
+        assert(!requireCollation, "requireCollation should be false when using ANY distribution")
+        call.getPlanner
+          .emptyTraitSet()
+          .replace(FlinkConventions.BATCH_PHYSICAL)
+          .replace(FlinkRelDistribution.ANY)
+      } else {
+        call.getPlanner
+          .emptyTraitSet()
+          .replace(FlinkConventions.BATCH_PHYSICAL)
+          .replace(FlinkRelDistribution.hash(shuffleKeys, requireStrict))
+      }
+
       if (requireCollation) {
         val fieldCollations = shuffleKeys.map(FlinkRelOptUtil.ofRelFieldCollation(_))
         val relCollation = RelCollations.of(fieldCollations)
@@ -105,7 +238,6 @@ class BatchPhysicalSortMergeJoinRule
       call.transformTo(newJoin)
     }
 
-    val tableConfig = unwrapTableConfig(join)
     val candidates =
       if (tableConfig.get(BatchPhysicalSortMergeJoinRule.TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED)) {
         // add more possibility to remove redundant sort, and longer optimization time

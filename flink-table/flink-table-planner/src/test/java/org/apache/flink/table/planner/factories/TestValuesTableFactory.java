@@ -29,6 +29,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.source.DynamicFilteringValuesSource;
+import org.apache.flink.connector.source.PartitionSerializer;
 import org.apache.flink.connector.source.ValuesSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -49,7 +50,6 @@ import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
-import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
@@ -65,6 +65,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsDynamicFilterin
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
@@ -79,6 +80,7 @@ import org.apache.flink.table.connector.source.lookup.cache.DefaultLookupCache;
 import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
 import org.apache.flink.table.connector.source.lookup.cache.trigger.CacheReloadTrigger;
 import org.apache.flink.table.connector.source.lookup.cache.trigger.PeriodicCacheReloadTrigger;
+import org.apache.flink.table.connector.source.partitioning.Partitioning;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -413,6 +415,12 @@ public final class TestValuesTableFactory
                             "Option to specify the amount of time to sleep after processing every N elements. "
                                     + "The default value is 0, which means that no sleep is performed");
 
+    private static final ConfigOption<String> SOURCE_PARTITIONING =
+            ConfigOptions.key("source.partitioning")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("specify the partitioning");
+
     /**
      * Parse partition list from Options with the format as
      * "key1:val1,key2:val2;key1:val3,key2:val4".
@@ -453,6 +461,15 @@ public final class TestValuesTableFactory
         int lookupThreshold = helper.getOptions().get(LOOKUP_THRESHOLD);
         int sleepAfterElements = helper.getOptions().get(SOURCE_SLEEP_AFTER_ELEMENTS);
         long sleepTimeMillis = helper.getOptions().get(SOURCE_SLEEP_TIME).toMillis();
+        String partitioning = helper.getOptions().get(SOURCE_PARTITIONING);
+        Partitioning sourcePartitioning = null;
+        if (partitioning != null) {
+            try {
+                sourcePartitioning = PartitionSerializer.deserialize(partitioning);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
         DefaultLookupCache cache = null;
         if (helper.getOptions().get(CACHE_TYPE).equals(LookupOptions.LookupCacheType.PARTIAL)) {
             cache = DefaultLookupCache.fromConfig(helper.getOptions());
@@ -516,7 +533,8 @@ public final class TestValuesTableFactory
                         Long.MAX_VALUE,
                         partitions,
                         readableMetadata,
-                        null);
+                        null,
+                        sourcePartitioning);
             }
 
             if (disableLookup) {
@@ -537,7 +555,8 @@ public final class TestValuesTableFactory
                             Long.MAX_VALUE,
                             partitions,
                             readableMetadata,
-                            null);
+                            null,
+                            sourcePartitioning);
                 } else {
                     return new TestValuesScanTableSource(
                             producedDataType,
@@ -555,7 +574,8 @@ public final class TestValuesTableFactory
                             Long.MAX_VALUE,
                             partitions,
                             readableMetadata,
-                            null);
+                            null,
+                            sourcePartitioning);
                 }
             } else {
                 return new TestValuesScanLookupTableSource(
@@ -580,7 +600,8 @@ public final class TestValuesTableFactory
                         null,
                         cache,
                         reloadTrigger,
-                        lookupThreshold);
+                        lookupThreshold,
+                        sourcePartitioning);
             }
         } else {
             try {
@@ -697,7 +718,8 @@ public final class TestValuesTableFactory
                         FULL_CACHE_PERIODIC_RELOAD_INTERVAL,
                         FULL_CACHE_PERIODIC_RELOAD_SCHEDULE_MODE,
                         FULL_CACHE_TIMED_RELOAD_ISO_TIME,
-                        FULL_CACHE_TIMED_RELOAD_INTERVAL_IN_DAYS));
+                        FULL_CACHE_TIMED_RELOAD_INTERVAL_IN_DAYS,
+                        SOURCE_PARTITIONING));
     }
 
     private static int validateAndExtractRowtimeIndex(
@@ -833,7 +855,8 @@ public final class TestValuesTableFactory
                     SupportsPartitionPushDown,
                     SupportsReadingMetadata,
                     SupportsAggregatePushDown,
-                    SupportsDynamicFiltering {
+                    SupportsDynamicFiltering,
+                    SupportsPartitioning {
 
         protected DataType producedDataType;
         protected final ChangelogMode changelogMode;
@@ -852,6 +875,7 @@ public final class TestValuesTableFactory
         protected List<Map<String, String>> allPartitions;
         protected final Map<String, DataType> readableMetadata;
         protected @Nullable int[] projectedMetadataFields;
+        protected final @Nullable Partitioning partitioning;
 
         private @Nullable int[] groupingSet;
         private List<AggregateExpression> aggregateExpressions;
@@ -873,7 +897,8 @@ public final class TestValuesTableFactory
                 long limit,
                 List<Map<String, String>> allPartitions,
                 Map<String, DataType> readableMetadata,
-                @Nullable int[] projectedMetadataFields) {
+                @Nullable int[] projectedMetadataFields,
+                @Nullable Partitioning partitioning) {
             this.producedDataType = producedDataType;
             this.changelogMode = changelogMode;
             this.bounded = bounded;
@@ -890,6 +915,7 @@ public final class TestValuesTableFactory
             this.allPartitions = allPartitions;
             this.readableMetadata = readableMetadata;
             this.projectedMetadataFields = projectedMetadataFields;
+            this.partitioning = partitioning;
             this.groupingSet = null;
             this.aggregateExpressions = Collections.emptyList();
         }
@@ -1025,7 +1051,8 @@ public final class TestValuesTableFactory
                     limit,
                     allPartitions,
                     readableMetadata,
-                    projectedMetadataFields);
+                    projectedMetadataFields,
+                    partitioning);
         }
 
         @Override
@@ -1342,6 +1369,16 @@ public final class TestValuesTableFactory
         public void applyDynamicFiltering(List<String> candidateFilterFields) {
             acceptedPartitionFilterFields = candidateFilterFields;
         }
+
+        @Override
+        public Partitioning outputPartitioning() {
+            return partitioning;
+        }
+
+        @Override
+        public void applyPartitionedRead() {
+            // Do nothing as per requirement
+        }
     }
 
     /** Values {@link ScanTableSource} for testing that supports projection push down. */
@@ -1365,7 +1402,8 @@ public final class TestValuesTableFactory
                 long limit,
                 List<Map<String, String>> allPartitions,
                 Map<String, DataType> readableMetadata,
-                @Nullable int[] projectedMetadataFields) {
+                @Nullable int[] projectedMetadataFields,
+                @Nullable Partitioning partitioning) {
             super(
                     producedDataType,
                     changelogMode,
@@ -1382,7 +1420,8 @@ public final class TestValuesTableFactory
                     limit,
                     allPartitions,
                     readableMetadata,
-                    projectedMetadataFields);
+                    projectedMetadataFields,
+                    partitioning);
         }
 
         @Override
@@ -1403,7 +1442,8 @@ public final class TestValuesTableFactory
                     limit,
                     allPartitions,
                     readableMetadata,
-                    projectedMetadataFields);
+                    projectedMetadataFields,
+                    partitioning);
         }
 
         @Override
@@ -1444,7 +1484,8 @@ public final class TestValuesTableFactory
                 long limit,
                 List<Map<String, String>> allPartitions,
                 Map<String, DataType> readableMetadata,
-                @Nullable int[] projectedMetadataFields) {
+                @Nullable int[] projectedMetadataFields,
+                @Nullable Partitioning partitioning) {
             super(
                     producedDataType,
                     changelogMode,
@@ -1461,7 +1502,8 @@ public final class TestValuesTableFactory
                     limit,
                     allPartitions,
                     readableMetadata,
-                    projectedMetadataFields);
+                    projectedMetadataFields,
+                    partitioning);
             this.tableName = tableName;
         }
 
@@ -1514,7 +1556,8 @@ public final class TestValuesTableFactory
                             limit,
                             allPartitions,
                             readableMetadata,
-                            projectedMetadataFields);
+                            projectedMetadataFields,
+                            partitioning);
             newSource.watermarkStrategy = watermarkStrategy;
             return newSource;
         }
@@ -1559,7 +1602,8 @@ public final class TestValuesTableFactory
                 @Nullable int[] projectedMetadataFields,
                 @Nullable LookupCache cache,
                 @Nullable CacheReloadTrigger reloadTrigger,
-                int lookupThreshold) {
+                int lookupThreshold,
+                @Nullable Partitioning partitioning) {
             super(
                     producedDataType,
                     changelogMode,
@@ -1576,7 +1620,8 @@ public final class TestValuesTableFactory
                     limit,
                     allPartitions,
                     readableMetadata,
-                    projectedMetadataFields);
+                    projectedMetadataFields,
+                    partitioning);
             this.originType = originType;
             this.lookupFunctionClass = lookupFunctionClass;
             this.isAsync = isAsync;
@@ -1765,7 +1810,8 @@ public final class TestValuesTableFactory
                     projectedMetadataFields,
                     cache,
                     reloadTrigger,
-                    lookupThreshold);
+                    lookupThreshold,
+                    partitioning);
         }
     }
 
@@ -1836,7 +1882,7 @@ public final class TestValuesTableFactory
 
     /** Values {@link DynamicTableSink} for testing. */
     private static class TestValuesTableSink
-            implements DynamicTableSink, SupportsWritingMetadata, SupportsPartitioning {
+            implements DynamicTableSink, SupportsWritingMetadata, org.apache.flink.table.connector.sink.abilities.SupportsPartitioning {
 
         private DataType consumedDataType;
         private int[] primaryKeyIndices;
