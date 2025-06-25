@@ -29,11 +29,10 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 
-import javax.validation.constraints.NotNull;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -55,8 +54,9 @@ public class StateSizeEstimates {
     }
 
     public static StateSizeEstimates fromGraphAndState(
-            @NotNull final ExecutionGraph executionGraph,
-            @NotNull final CompletedCheckpoint latestCheckpoint) {
+            final ExecutionGraph executionGraph, final CompletedCheckpoint latestCheckpoint) {
+        Objects.requireNonNull(executionGraph);
+        Objects.requireNonNull(latestCheckpoint);
         return new StateSizeEstimates(
                 merge(
                         fromCompletedCheckpoint(latestCheckpoint),
