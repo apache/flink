@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.generated.GeneratedFunction;
  */
 public class AsyncFunctionRunner extends RichAsyncFunction<RowData, RowData> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -7198305381139008806L;
 
     private final GeneratedFunction<AsyncFunction<RowData, RowData>> generatedFetcher;
 
