@@ -367,97 +367,94 @@ class TwoInputStreamTaskTest {
     @Test
     void testOvertakingCheckpointBarriers() throws Exception {
 
-        final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
-                new TwoInputStreamTaskTestHarness<>(
-                        TwoInputStreamTask::new,
-                        2,
-                        2,
-                        new int[] {1, 2},
-                        BasicTypeInfo.STRING_TYPE_INFO,
-                        BasicTypeInfo.INT_TYPE_INFO,
-                        BasicTypeInfo.STRING_TYPE_INFO);
-        testHarness.jobConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofHours(1));
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO, 2)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO, 2)
+                        .setupOutputForSingletonOperatorChain(
+                                new MultipleInputStreamTaskTest
+                                        .MapToStringMultipleInputOperatorFactory(2))
+                        .build()) {
 
-        testHarness.setupOutputForSingletonOperatorChain();
+            ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+            long initialTime = 0L;
 
-        StreamConfig streamConfig = testHarness.getStreamConfig();
-        CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<>(new IdentityMap());
-        streamConfig.setStreamOperator(coMapOperator);
-        streamConfig.setOperatorID(new OperatorID());
+            testHarness.processEvent(
+                    new CheckpointBarrier(
+                            0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()),
+                    0,
+                    0);
 
-        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-        long initialTime = 0L;
+            // These elements should be forwarded, since we did not yet receive a checkpoint barrier
+            // on that input, only add to same input, otherwise we would not know the ordering
+            // of the output since the Task might read the inputs in any order
+            testHarness.processElement(new StreamRecord<>(42, initialTime), 1, 1);
+            testHarness.processElement(new StreamRecord<>(1337, initialTime), 1, 1);
+            expectedOutput.add(new StreamRecord<>("42", initialTime));
+            expectedOutput.add(new StreamRecord<>("1337", initialTime));
 
-        testHarness.invoke();
-        testHarness.waitForTaskRunning();
+            testHarness.processAll();
+            // we should not yet see the barrier, only the two elements from non-blocked input
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        testHarness.processEvent(
-                new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()),
-                0,
-                0);
+            // Now give a later barrier to all inputs, this should unblock the first channel
+            testHarness.processEvent(
+                    new CheckpointBarrier(
+                            1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()),
+                    0,
+                    1);
+            testHarness.processEvent(
+                    new CheckpointBarrier(
+                            1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()),
+                    0,
+                    0);
+            testHarness.processEvent(
+                    new CheckpointBarrier(
+                            1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()),
+                    1,
+                    0);
+            testHarness.processEvent(
+                    new CheckpointBarrier(
+                            1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()),
+                    1,
+                    1);
 
-        // These elements should be forwarded, since we did not yet receive a checkpoint barrier
-        // on that input, only add to same input, otherwise we would not know the ordering
-        // of the output since the Task might read the inputs in any order
-        testHarness.processElement(new StreamRecord<>(42, initialTime), 1, 1);
-        testHarness.processElement(new StreamRecord<>(1337, initialTime), 1, 1);
-        expectedOutput.add(new StreamRecord<>("42", initialTime));
-        expectedOutput.add(new StreamRecord<>("1337", initialTime));
+            expectedOutput.add(new CancelCheckpointMarker(0));
+            expectedOutput.add(
+                    new CheckpointBarrier(
+                            1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()));
 
-        testHarness.waitForInputProcessing();
-        // we should not yet see the barrier, only the two elements from non-blocked input
-        TestHarnessUtil.assertOutputEquals(
-                "Output was not correct.", expectedOutput, testHarness.getOutput());
+            testHarness.processAll();
 
-        // Now give a later barrier to all inputs, this should unblock the first channel
-        testHarness.processEvent(
-                new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()),
-                0,
-                1);
-        testHarness.processEvent(
-                new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()),
-                0,
-                0);
-        testHarness.processEvent(
-                new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()),
-                1,
-                0);
-        testHarness.processEvent(
-                new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()),
-                1,
-                1);
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct.", expectedOutput, testHarness.getOutput());
 
-        expectedOutput.add(new CancelCheckpointMarker(0));
-        expectedOutput.add(
-                new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()));
+            // Then give the earlier barrier, these should be ignored
+            testHarness.processEvent(
+                    new CheckpointBarrier(
+                            0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()),
+                    0,
+                    1);
+            testHarness.processEvent(
+                    new CheckpointBarrier(
+                            0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()),
+                    1,
+                    0);
+            testHarness.processEvent(
+                    new CheckpointBarrier(
+                            0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()),
+                    1,
+                    1);
 
-        testHarness.waitForInputProcessing();
+            testHarness.waitForTaskCompletion();
 
-        TestHarnessUtil.assertOutputEquals(
-                "Output was not correct.", expectedOutput, testHarness.getOutput());
-
-        // Then give the earlier barrier, these should be ignored
-        testHarness.processEvent(
-                new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()),
-                0,
-                1);
-        testHarness.processEvent(
-                new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()),
-                1,
-                0);
-        testHarness.processEvent(
-                new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()),
-                1,
-                1);
-
-        testHarness.waitForInputProcessing();
-
-        testHarness.endInput();
-
-        testHarness.waitForTaskCompletion();
-
-        TestHarnessUtil.assertOutputEquals(
-                "Output was not correct.", expectedOutput, testHarness.getOutput());
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct.", expectedOutput, testHarness.getOutput());
+        }
     }
 
     @Test
@@ -537,7 +534,8 @@ class TwoInputStreamTaskTest {
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 TwoInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .setCollectNetworkEvents()
-                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
                         .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)

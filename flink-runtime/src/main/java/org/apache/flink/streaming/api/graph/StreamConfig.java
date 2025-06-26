@@ -117,9 +117,6 @@ public class StreamConfig implements Serializable {
     private static final ConfigOption<Boolean> GRAPH_CONTAINING_LOOPS =
             ConfigOptions.key("graphContainingLoops").booleanType().defaultValue(false);
 
-    private static final ConfigOption<Boolean> CHECKPOINTING_ENABLED =
-            ConfigOptions.key("checkpointing").booleanType().defaultValue(false);
-
     private static final String CHECKPOINT_STORAGE = "checkpointstorage";
     private static final String STATE_BACKEND = "statebackend";
     private static final String TIMER_SERVICE_PROVIDER = "timerservice";
@@ -528,16 +525,6 @@ public class StreamConfig implements Serializable {
         }
     }
 
-    // --------------------- checkpointing -----------------------
-
-    public void setCheckpointingEnabled(boolean enabled) {
-        config.set(CHECKPOINTING_ENABLED, enabled);
-    }
-
-    public boolean isCheckpointingEnabled() {
-        return config.get(CHECKPOINTING_ENABLED);
-    }
-
     /**
      * Sets the job vertex level non-chained outputs. The given output list must have the same order
      * with {@link JobVertex#getProducedDataSets()}.
@@ -750,7 +737,6 @@ public class StreamConfig implements Serializable {
         } catch (Exception e) {
             builder.append("\nOperator: Missing");
         }
-        builder.append("\nState Monitoring: ").append(isCheckpointingEnabled());
         if (isChainStart() && getChainedOutputs(cl).size() > 0) {
             builder.append(
                     "\n\n\n---------------------\nChained task configs\n---------------------\n");

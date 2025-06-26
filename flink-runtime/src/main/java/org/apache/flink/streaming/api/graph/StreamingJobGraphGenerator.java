@@ -1244,7 +1244,6 @@ public class StreamingJobGraphGenerator {
                 streamGraph.getCheckpointingSettings().getDefaultCheckpointStorage());
         config.setGraphContainingLoops(streamGraph.isIterative());
         config.setTimerServiceProvider(streamGraph.getTimerServiceProvider());
-        config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
         config.getConfiguration()
                 .set(
                         CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
