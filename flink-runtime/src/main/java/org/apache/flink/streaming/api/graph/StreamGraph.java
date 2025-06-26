@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.attribute.Attribute;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.Function;
@@ -36,6 +37,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
@@ -1178,6 +1180,13 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
 
     public void setJobType(JobType jobType) {
         this.jobType = jobType;
+        if (jobType == JobType.STREAMING) {
+            jobConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+        } else if (jobType == JobType.BATCH) {
+            jobConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        } else {
+            throw new IllegalArgumentException("Unsupported job type: " + jobType);
+        }
     }
 
     @Override

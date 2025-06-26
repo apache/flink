@@ -119,7 +119,9 @@ class StreamTaskFinalCheckpointsTest {
             try (StreamTaskMailboxTestHarness<String> testHarness =
                     new StreamTaskMailboxTestHarnessBuilder<>(
                                     OneInputStreamTask::new, STRING_TYPE_INFO)
-                            .modifyStreamConfig(config -> config.setCheckpointingEnabled(false))
+                            .addJobConfig(
+                                    CheckpointingOptions.CHECKPOINTING_INTERVAL,
+                                    Duration.ofSeconds(1))
                             .addInput(STRING_TYPE_INFO)
                             .addAdditionalOutput(partitionWriters)
                             .setupOperatorChain(new EmptyOperator())
@@ -234,10 +236,6 @@ class StreamTaskFinalCheckpointsTest {
                                 CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .addJobConfig(
                                 CheckpointingOptions.ENABLE_UNALIGNED, enableUnalignedCheckpoint)
-                        .modifyStreamConfig(
-                                config -> {
-                                    config.setCheckpointingEnabled(true);
-                                })
                         .setCheckpointResponder(checkpointResponder)
                         .setupOperatorChain(new EmptyOperator())
                         .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
@@ -456,10 +454,8 @@ class StreamTaskFinalCheckpointsTest {
 
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
-                        .modifyStreamConfig(
-                                config -> {
-                                    config.setCheckpointingEnabled(true);
-                                })
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .setCheckpointResponder(checkpointResponder)
                         .setupOutputForSingletonOperatorChain(
                                 new StreamSource<>(new ImmediatelyFinishingSource()))
@@ -623,7 +619,9 @@ class StreamTaskFinalCheckpointsTest {
                             .addInput(BasicTypeInfo.STRING_TYPE_INFO, 1)
                             .addAdditionalOutput(partitionWriters)
                             .setCheckpointResponder(checkpointResponder)
-                            .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                            .addJobConfig(
+                                    CheckpointingOptions.CHECKPOINTING_INTERVAL,
+                                    Duration.ofSeconds(1))
                             .setupOperatorChain(new StatefulOperator())
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                             .build()) {

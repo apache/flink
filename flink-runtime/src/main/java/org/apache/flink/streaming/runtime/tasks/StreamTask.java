@@ -1064,7 +1064,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         return configuration
                         .getConfiguration()
                         .get(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
-                && configuration.isCheckpointingEnabled();
+                && CheckpointingOptions.isCheckpointingEnabled(getJobConfiguration());
     }
 
     @Override

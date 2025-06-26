@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 import org.apache.flink.core.execution.CheckpointingMode;
@@ -657,6 +658,9 @@ public class CheckpointingOptions {
      */
     @Internal
     public static boolean isCheckpointingEnabled(Configuration config) {
+        if (config.get(ExecutionOptions.RUNTIME_MODE) == RuntimeExecutionMode.BATCH) {
+            return false;
+        }
         return config.getOptional(CheckpointingOptions.CHECKPOINTING_INTERVAL)
                 .map(Duration::toMillis)
                 .map(interval -> interval > 0)

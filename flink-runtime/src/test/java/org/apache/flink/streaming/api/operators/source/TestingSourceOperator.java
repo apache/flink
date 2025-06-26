@@ -114,7 +114,7 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
 
     @Override
     public StreamingRuntimeContext getRuntimeContext() {
-        return new MockStreamingRuntimeContext(false, parallelism, subtaskIndex);
+        return new MockStreamingRuntimeContext(parallelism, subtaskIndex);
     }
 
     // this is overridden to avoid complex mock injection through the "containingTask"

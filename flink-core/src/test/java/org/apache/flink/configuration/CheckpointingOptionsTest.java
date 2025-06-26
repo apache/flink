@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.core.execution.CheckpointingMode;
 
 import org.junit.jupiter.api.Test;
@@ -66,6 +67,42 @@ class CheckpointingOptionsTest {
         assertThat(CheckpointingOptions.isCheckpointingEnabled(smallIntervalConfig))
                 .as("Checkpointing should be enabled when interval is 1 millisecond")
                 .isTrue();
+
+        // Test with RUNTIME_MODE set to BATCH - should always return false
+        Configuration batchModeConfig = new Configuration();
+        batchModeConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        batchModeConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        assertThat(CheckpointingOptions.isCheckpointingEnabled(batchModeConfig))
+                .as(
+                        "Checkpointing should be disabled when runtime mode is BATCH, even with valid interval")
+                .isFalse();
+
+        // Test with RUNTIME_MODE set to STREAMING - should depend on interval
+        Configuration streamingModeConfig = new Configuration();
+        streamingModeConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        streamingModeConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+        assertThat(CheckpointingOptions.isCheckpointingEnabled(streamingModeConfig))
+                .as(
+                        "Checkpointing should be enabled when runtime mode is STREAMING with valid interval")
+                .isTrue();
+
+        // Test with RUNTIME_MODE set to STREAMING but no interval
+        Configuration streamingModeNoIntervalConfig = new Configuration();
+        streamingModeNoIntervalConfig.set(
+                ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+        assertThat(CheckpointingOptions.isCheckpointingEnabled(streamingModeNoIntervalConfig))
+                .as(
+                        "Checkpointing should be disabled when runtime mode is STREAMING but no interval configured")
+                .isFalse();
+
+        // Test with RUNTIME_MODE set to AUTOMATIC - should depend on interval
+        Configuration automaticModeConfig = new Configuration();
+        automaticModeConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        automaticModeConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.AUTOMATIC);
+        assertThat(CheckpointingOptions.isCheckpointingEnabled(automaticModeConfig))
+                .as(
+                        "Checkpointing should be enabled when runtime mode is AUTOMATIC with valid interval")
+                .isTrue();
     }
 
     @Test
@@ -103,6 +140,31 @@ class CheckpointingOptionsTest {
         assertThat(CheckpointingOptions.getCheckpointingMode(atLeastOnceConfig))
                 .as("Should return AT_LEAST_ONCE when explicitly configured")
                 .isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
+
+        // Test when RUNTIME_MODE is BATCH - should return AT_LEAST_ONCE regardless of other
+        // settings
+        Configuration batchModeConfig = new Configuration();
+        batchModeConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        batchModeConfig.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.EXACTLY_ONCE);
+        batchModeConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        assertThat(CheckpointingOptions.getCheckpointingMode(batchModeConfig))
+                .as(
+                        "Should return AT_LEAST_ONCE when runtime mode is BATCH, regardless of other settings")
+                .isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
+
+        // Test when RUNTIME_MODE is STREAMING - should follow normal logic
+        Configuration streamingModeConfig = new Configuration();
+        streamingModeConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        streamingModeConfig.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.EXACTLY_ONCE);
+        streamingModeConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+        assertThat(CheckpointingOptions.getCheckpointingMode(streamingModeConfig))
+                .as(
+                        "Should return EXACTLY_ONCE when runtime mode is STREAMING and explicitly configured")
+                .isEqualTo(CheckpointingMode.EXACTLY_ONCE);
     }
 
     @Test
@@ -160,6 +222,18 @@ class CheckpointingOptionsTest {
         disabledConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, true);
         assertThat(CheckpointingOptions.isUnalignedCheckpointEnabled(disabledConfig))
                 .as("Unaligned checkpoints should be disabled when checkpointing is disabled")
+                .isFalse();
+
+        // Test when RUNTIME_MODE is BATCH - should always return false
+        Configuration batchModeConfig = new Configuration();
+        batchModeConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        batchModeConfig.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.EXACTLY_ONCE);
+        batchModeConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, true);
+        batchModeConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        assertThat(CheckpointingOptions.isUnalignedCheckpointEnabled(batchModeConfig))
+                .as("Unaligned checkpoints should be disabled when runtime mode is BATCH")
                 .isFalse();
     }
 
@@ -237,6 +311,21 @@ class CheckpointingOptionsTest {
                         CheckpointingOptions.isUnalignedCheckpointInterruptibleTimersEnabled(
                                 checkpointingDisabledConfig))
                 .as("Interruptible timers should be disabled when checkpointing is disabled")
+                .isFalse();
+
+        // Test when RUNTIME_MODE is BATCH - should return false
+        Configuration batchModeConfig = new Configuration();
+        batchModeConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(5));
+        batchModeConfig.set(
+                CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE,
+                CheckpointingMode.EXACTLY_ONCE);
+        batchModeConfig.set(CheckpointingOptions.ENABLE_UNALIGNED, true);
+        batchModeConfig.set(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, true);
+        batchModeConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        assertThat(
+                        CheckpointingOptions.isUnalignedCheckpointInterruptibleTimersEnabled(
+                                batchModeConfig))
+                .as("Interruptible timers should be disabled when runtime mode is BATCH")
                 .isFalse();
     }
 }
