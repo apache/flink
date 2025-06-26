@@ -24,6 +24,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="create statements"></a>
+
 # CREATE 语句
 
 
@@ -39,6 +41,8 @@ CREATE 语句用于向当前或指定的 [Catalog]({{< ref "docs/dev/table/catal
 - CREATE VIEW
 - CREATE FUNCTION
 - CREATE MODEL
+
+<a name="run-a-create-statement"></a>
 
 ## 执行 CREATE 语句
 
@@ -415,33 +419,40 @@ Flink 假设声明了主键的列都是不包含 Null 值的，Connector 在处�
 
 ### `DISTRIBUTED`
 
-Buckets enable load balancing in an external storage system by splitting data into disjoint subsets. These subsets group rows with potentially "infinite" keyspace into smaller and more manageable chunks that allow for efficient parallel processing.
+分桶通过将数据拆分为互不相交的子集，实现外部存储系统的负载均衡。
+这些子集将理论上具有 “无限 ”键空间的行划分为更小且更易于管理的块，从而实现高效的并行处理。
 
-Bucketing depends heavily on the semantics of the underlying connector. However, a user can influence the bucketing behavior by specifying the number of buckets, the bucketing algorithm, and (if the algorithm allows it) the columns which are used for target bucket calculation.
+分桶行为在很大程度上取决于底层连接器的具体实现。不过用户仍然可以通过以下方式影响分桶行为：
 
-All bucketing components (i.e. bucket number, distribution algorithm, bucket key columns) are
-optional from a SQL syntax perspective.
+ 1. 指定桶的数量。
+ 2. 选择分桶算法。
+ 3. 指定用于计算目标桶的列（如果分桶算法支持）。
 
-Given the following SQL statements:
+从 SQL 语法角度来看，所有分桶要素（即桶数量、分桶算法、分桶键列）均为可选配置。
+
+给定以下 SQL 语句：
 
 ```sql
--- Example 1
+-- 示例 1
 CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY HASH(uid) INTO 4 BUCKETS;
 
--- Example 2
+-- 示例 2
 CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY (uid) INTO 4 BUCKETS;
 
--- Example 3
+-- 示例 3
 CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY (uid);
 
--- Example 4
+-- 示例 4
 CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED INTO 4 BUCKETS;
 ```
 
-Example 1 declares a hash function on a fixed number of 4 buckets (i.e. HASH(uid) % 4 = target
-bucket). Example 2 leaves the selection of an algorithm up to the connector. Additionally,
-Example 3 leaves the number of buckets up  to the connector.
-In contrast, Example 4 only defines the number of buckets.
+示例 1 完整声明了一个分桶，根据 uid 列的哈希值分配到 4 个桶（即 目标桶 = HASH(uid) % 4）。
+
+示例 2 仅声明了分桶列和桶的数量，剩余要素即分桶算法则由连接器决定。
+
+示例 3 则仅声明了分桶列，剩余要素即分桶算法和桶的数量由连接器决定。
+
+示例 4 仅限定了桶的数量，其余要素依赖连接器决定。
 
 ### `WITH` Options
 
@@ -502,7 +513,7 @@ CREATE TABLE Orders_with_watermark (
 * CONSTRAINTS - 主键和唯一键约束
 * GENERATED - 计算列
 * OPTIONS - 连接器信息、格式化方式等配置项
-* DISTRIBUTION - distribution definition
+* DISTRIBUTION - 分布定义
 * PARTITIONS - 表分区信息
 * WATERMARKS - watermark 定义
 
@@ -684,6 +695,8 @@ INSERT INTO my_ctas_table (order_time, price, quantity, id)
 * 暂不支持创建分区表。
 
 **注意：** 默认情况下，CTAS 是非原子性的，这意味着如果在向表中插入数据时发生错误，该表不会被自动删除。
+
+<a name="atomicity"></a>
 
 #### 原子性
 
