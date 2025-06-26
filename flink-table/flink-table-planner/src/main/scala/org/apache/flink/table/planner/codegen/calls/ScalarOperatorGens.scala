@@ -1423,7 +1423,7 @@ object ScalarOperatorGens {
          |    $resultTerm = $nullTerm ? $defaultValue : $arrayGet;
          |    break;
          |  default:
-         |    throw new RuntimeException("Array has more than one element.");
+         |    throw new TableRuntimeException("Array has more than one element.");
          |}
          |""".stripMargin
 
