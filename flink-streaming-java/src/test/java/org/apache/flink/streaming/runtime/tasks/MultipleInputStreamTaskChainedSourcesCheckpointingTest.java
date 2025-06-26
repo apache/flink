@@ -27,6 +27,7 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -44,7 +45,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
@@ -551,13 +551,13 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
     }
 
     private CheckpointBarrier createBarrier(StreamTaskMailboxTestHarness<String> testHarness) {
-        StreamConfig config = testHarness.getStreamTask().getConfiguration();
         Configuration jobConf = testHarness.getStreamTask().getJobConfiguration();
         CheckpointOptions checkpointOptions =
                 CheckpointOptions.forConfig(
                         CheckpointType.CHECKPOINT,
                         CheckpointStorageLocationReference.getDefault(),
-                        config.isExactlyOnceCheckpointMode(),
+                        CheckpointingOptions.getCheckpointingMode(jobConf)
+                                == CheckpointingMode.EXACTLY_ONCE,
                         CheckpointingOptions.isUnalignedCheckpointEnabled(jobConf),
                         jobConf.get(CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT).toMillis());
 

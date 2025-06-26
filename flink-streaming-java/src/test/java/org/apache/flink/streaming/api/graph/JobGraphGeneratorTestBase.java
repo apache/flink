@@ -48,6 +48,7 @@ import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
@@ -249,9 +250,8 @@ abstract class JobGraphGeneratorTestBase {
         assertThat(snapshottingSettings.getCheckpointCoordinatorConfiguration().isExactlyOnce())
                 .isFalse();
 
-        List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
-        StreamConfig streamConfig = new StreamConfig(verticesSorted.get(0).getConfiguration());
-        assertThat(streamConfig.getCheckpointMode()).isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
+        assertThat(CheckpointingOptions.getCheckpointingMode(jobGraph.getJobConfiguration()))
+                .isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
     }
 
     @Test
@@ -266,9 +266,8 @@ abstract class JobGraphGeneratorTestBase {
 
         JobGraph jobGraph = createJobGraph(streamGraph);
 
-        List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
-        StreamConfig streamConfig = new StreamConfig(verticesSorted.get(0).getConfiguration());
-        assertThat(streamConfig.getCheckpointMode()).isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
+        assertThat(CheckpointingOptions.getCheckpointingMode(jobGraph.getJobConfiguration()))
+                .isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
         assertThat(streamGraph.getCheckpointConfig().isUnalignedCheckpointsEnabled()).isFalse();
         assertThat(isUnalignedCheckpointEnabled(jobGraph.getJobConfiguration())).isFalse();
     }
@@ -426,9 +425,8 @@ abstract class JobGraphGeneratorTestBase {
 
         JobGraph jobGraph = createJobGraph(streamGraph);
 
-        List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
-        StreamConfig streamConfig = new StreamConfig(verticesSorted.get(0).getConfiguration());
-        assertThat(streamConfig.getCheckpointMode()).isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
+        assertThat(CheckpointingOptions.getCheckpointingMode(jobGraph.getJobConfiguration()))
+                .isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
         assertThat(streamGraph.getCheckpointConfig().isUnalignedCheckpointsEnabled()).isFalse();
         assertThat(isUnalignedCheckpointEnabled(jobGraph.getJobConfiguration())).isFalse();
     }

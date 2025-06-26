@@ -18,11 +18,10 @@
 
 package org.apache.flink.streaming.graph;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 
 import org.junit.jupiter.api.Test;
 
@@ -37,26 +36,26 @@ class TranslationTest {
         // with deactivated fault tolerance, the checkpoint mode should be at-least-once
         StreamExecutionEnvironment deactivated = getSimpleJob();
 
-        for (JobVertex vertex : deactivated.getStreamGraph().getJobGraph().getVertices()) {
-            assertThat(new StreamConfig(vertex.getConfiguration()).getCheckpointMode())
-                    .isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
-        }
+        assertThat(
+                        CheckpointingOptions.getCheckpointingMode(
+                                deactivated.getStreamGraph().getJobGraph().getJobConfiguration()))
+                .isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
 
         // with activated fault tolerance, the checkpoint mode should be by default exactly once
         StreamExecutionEnvironment activated = getSimpleJob();
         activated.enableCheckpointing(1000L);
-        for (JobVertex vertex : activated.getStreamGraph().getJobGraph().getVertices()) {
-            assertThat(new StreamConfig(vertex.getConfiguration()).getCheckpointMode())
-                    .isEqualTo(CheckpointingMode.EXACTLY_ONCE);
-        }
+        assertThat(
+                        CheckpointingOptions.getCheckpointingMode(
+                                activated.getStreamGraph().getJobGraph().getJobConfiguration()))
+                .isEqualTo(CheckpointingMode.EXACTLY_ONCE);
 
         // explicitly setting the mode
         StreamExecutionEnvironment explicit = getSimpleJob();
         explicit.enableCheckpointing(1000L, CheckpointingMode.AT_LEAST_ONCE);
-        for (JobVertex vertex : explicit.getStreamGraph().getJobGraph().getVertices()) {
-            assertThat(new StreamConfig(vertex.getConfiguration()).getCheckpointMode())
-                    .isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
-        }
+        assertThat(
+                        CheckpointingOptions.getCheckpointingMode(
+                                explicit.getStreamGraph().getJobGraph().getJobConfiguration()))
+                .isEqualTo(CheckpointingMode.AT_LEAST_ONCE);
     }
 
     private static StreamExecutionEnvironment getSimpleJob() {

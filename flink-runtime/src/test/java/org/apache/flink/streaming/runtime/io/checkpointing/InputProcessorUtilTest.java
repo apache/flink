@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
@@ -66,7 +65,6 @@ class InputProcessorUtilTest {
             jobConf.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1));
             jobConf.set(CheckpointingOptions.ENABLE_UNALIGNED, true);
             StreamConfig streamConfig = new StreamConfig(environment.getJobConfiguration());
-            streamConfig.setCheckpointMode(CheckpointingMode.EXACTLY_ONCE);
 
             // First input gate has index larger than the second
             List<IndexedInputGate>[] inputGates =

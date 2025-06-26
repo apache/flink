@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -489,6 +490,7 @@ class OneInputStreamTaskTest {
                         BasicTypeInfo.STRING_TYPE_INFO);
 
         testHarness.setupOutputForSingletonOperatorChain();
+        testHarness.jobConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofHours(1));
 
         StreamConfig streamConfig = testHarness.getStreamConfig();
         StreamMap<String, String> mapOperator = new StreamMap<>(new IdentityMap());

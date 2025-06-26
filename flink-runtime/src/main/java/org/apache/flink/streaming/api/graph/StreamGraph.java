@@ -113,7 +113,6 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
 import static org.apache.flink.streaming.util.watermark.WatermarkUtils.getInternalWatermarkDeclarationsFromStreamGraph;
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -248,24 +247,7 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
     }
 
     public CheckpointingMode getCheckpointingMode() {
-        return getCheckpointingMode(this.checkpointConfig);
-    }
-
-    public static CheckpointingMode getCheckpointingMode(CheckpointConfig checkpointConfig) {
-        CheckpointingMode checkpointingMode = checkpointConfig.getCheckpointingConsistencyMode();
-
-        checkArgument(
-                checkpointingMode == CheckpointingMode.EXACTLY_ONCE
-                        || checkpointingMode == CheckpointingMode.AT_LEAST_ONCE,
-                "Unexpected checkpointing mode.");
-
-        if (checkpointConfig.isCheckpointingEnabled()) {
-            return checkpointingMode;
-        } else {
-            // the "at-least-once" input handler is slightly cheaper (in the absence of
-            // checkpoints), so we use that one if checkpointing is not enabled
-            return CheckpointingMode.AT_LEAST_ONCE;
-        }
+        return this.checkpointConfig.getCheckpointingConsistencyMode();
     }
 
     /**

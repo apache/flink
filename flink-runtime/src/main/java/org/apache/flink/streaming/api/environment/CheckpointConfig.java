@@ -110,7 +110,7 @@ public class CheckpointConfig implements java.io.Serializable {
     @Deprecated
     public org.apache.flink.streaming.api.CheckpointingMode getCheckpointingMode() {
         return org.apache.flink.streaming.api.CheckpointingMode.convertFromCheckpointingMode(
-                configuration.get(CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE));
+                getCheckpointingConsistencyMode());
     }
 
     /**
@@ -134,7 +134,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * @return The checkpointing mode.
      */
     public CheckpointingMode getCheckpointingConsistencyMode() {
-        return configuration.get(CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE);
+        return CheckpointingOptions.getCheckpointingMode(configuration);
     }
 
     /**

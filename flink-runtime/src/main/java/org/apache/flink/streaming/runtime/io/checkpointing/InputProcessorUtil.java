@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -96,7 +97,8 @@ public class InputProcessorUtil {
                         .toArray(CheckpointableInput[]::new);
 
         Clock clock = SystemClock.getInstance();
-        switch (config.getCheckpointMode()) {
+        CheckpointingMode checkpointingMode = CheckpointingOptions.getCheckpointingMode(jobConf);
+        switch (checkpointingMode) {
             case EXACTLY_ONCE:
                 int numberOfChannels =
                         (int)
@@ -132,7 +134,7 @@ public class InputProcessorUtil {
                                 .get(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH));
             default:
                 throw new UnsupportedOperationException(
-                        "Unrecognized Checkpointing Mode: " + config.getCheckpointMode());
+                        "Unrecognized Checkpointing Mode: " + checkpointingMode);
         }
     }
 

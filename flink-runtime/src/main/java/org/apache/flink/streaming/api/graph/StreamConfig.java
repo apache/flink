@@ -25,7 +25,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -121,9 +120,6 @@ public class StreamConfig implements Serializable {
     private static final ConfigOption<Boolean> CHECKPOINTING_ENABLED =
             ConfigOptions.key("checkpointing").booleanType().defaultValue(false);
 
-    private static final ConfigOption<Integer> CHECKPOINT_MODE =
-            ConfigOptions.key("checkpointMode").intType().defaultValue(-1);
-
     private static final String CHECKPOINT_STORAGE = "checkpointstorage";
     private static final String STATE_BACKEND = "statebackend";
     private static final String TIMER_SERVICE_PROVIDER = "timerservice";
@@ -154,9 +150,6 @@ public class StreamConfig implements Serializable {
     // ------------------------------------------------------------------------
     //  Default Values
     // ------------------------------------------------------------------------
-
-    private static final CheckpointingMode DEFAULT_CHECKPOINTING_MODE =
-            CheckpointingMode.EXACTLY_ONCE;
 
     private static final double DEFAULT_MANAGED_MEMORY_FRACTION = 0.0;
 
@@ -543,23 +536,6 @@ public class StreamConfig implements Serializable {
 
     public boolean isCheckpointingEnabled() {
         return config.get(CHECKPOINTING_ENABLED);
-    }
-
-    public void setCheckpointMode(CheckpointingMode mode) {
-        config.set(CHECKPOINT_MODE, mode.ordinal());
-    }
-
-    public CheckpointingMode getCheckpointMode() {
-        int ordinal = config.get(CHECKPOINT_MODE, -1);
-        if (ordinal >= 0) {
-            return CheckpointingMode.values()[ordinal];
-        } else {
-            return DEFAULT_CHECKPOINTING_MODE;
-        }
-    }
-
-    public boolean isExactlyOnceCheckpointMode() {
-        return getCheckpointMode() == CheckpointingMode.EXACTLY_ONCE;
     }
 
     /**
