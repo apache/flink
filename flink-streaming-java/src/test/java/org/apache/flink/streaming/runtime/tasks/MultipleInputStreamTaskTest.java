@@ -1017,7 +1017,6 @@ class MultipleInputStreamTaskTest {
                                     CheckpointingOptions.ENABLE_UNALIGNED,
                                     checkpointOptions.isUnalignedCheckpoint()
                                             || checkpointOptions.isTimeoutable())
-                            .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                             .setupOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                             .build()) {
@@ -1088,7 +1087,8 @@ class MultipleInputStreamTaskTest {
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .setCollectNetworkEvents()
-                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .modifyExecutionConfig(applyObjectReuse(objectReuse))
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
@@ -1141,7 +1141,8 @@ class MultipleInputStreamTaskTest {
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .setCollectNetworkEvents()
-                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .modifyExecutionConfig(applyObjectReuse(objectReuse))
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
