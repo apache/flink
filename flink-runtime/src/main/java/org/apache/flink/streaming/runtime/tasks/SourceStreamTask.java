@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
@@ -141,7 +142,8 @@ public class SourceStreamTask<
                                     CheckpointOptions.forConfig(
                                             CheckpointType.CHECKPOINT,
                                             CheckpointStorageLocationReference.getDefault(),
-                                            configuration.isExactlyOnceCheckpointMode(),
+                                            CheckpointingOptions.getCheckpointingMode(jobConf)
+                                                    == CheckpointingMode.EXACTLY_ONCE,
                                             CheckpointingOptions.isUnalignedCheckpointEnabled(
                                                     jobConf),
                                             jobConf.get(

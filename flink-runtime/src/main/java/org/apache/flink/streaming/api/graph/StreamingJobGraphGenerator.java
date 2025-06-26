@@ -1249,7 +1249,6 @@ public class StreamingJobGraphGenerator {
                 .set(
                         CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
                         streamGraph.isEnableCheckpointsAfterTasksFinish());
-        config.setCheckpointMode(StreamGraph.getCheckpointingMode(checkpointCfg));
 
         for (int i = 0; i < vertex.getStatePartitioners().length; i++) {
             config.setStatePartitioner(i, vertex.getStatePartitioners()[i]);

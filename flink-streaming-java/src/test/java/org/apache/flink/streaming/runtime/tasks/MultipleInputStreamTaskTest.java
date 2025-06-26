@@ -294,6 +294,8 @@ class MultipleInputStreamTaskTest {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofHours(1))
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 2)
                         .addInput(BasicTypeInfo.INT_TYPE_INFO, 2)
                         .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, 2)

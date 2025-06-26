@@ -40,6 +40,7 @@ class CheckpointConfigTests(PyFlinkTestCase):
 
     def test_get_set_checkpointing_mode(self):
 
+        self.env.enable_checkpointing(1000)
         self.assertEqual(self.checkpoint_config.get_checkpointing_mode(),
                          CheckpointingMode.EXACTLY_ONCE)
 

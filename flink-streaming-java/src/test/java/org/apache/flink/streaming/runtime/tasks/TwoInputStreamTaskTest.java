@@ -24,6 +24,7 @@ import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
@@ -68,6 +69,7 @@ import org.apache.flink.util.OutputTag;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -374,6 +376,7 @@ class TwoInputStreamTaskTest {
                         BasicTypeInfo.STRING_TYPE_INFO,
                         BasicTypeInfo.INT_TYPE_INFO,
                         BasicTypeInfo.STRING_TYPE_INFO);
+        testHarness.jobConfig.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofHours(1));
 
         testHarness.setupOutputForSingletonOperatorChain();
 
