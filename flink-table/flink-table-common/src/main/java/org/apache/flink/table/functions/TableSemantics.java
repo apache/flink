@@ -30,8 +30,8 @@ import java.util.Optional;
  * Provides call information about the table that has been passed to a table argument.
  *
  * <p>This class is only available for table arguments (i.e. arguments of a {@link
- * ProcessTableFunction} that are annotated with {@code @ArgumentHint(TABLE_AS_SET)} or
- * {@code @ArgumentHint(TABLE_AS_ROW)}).
+ * ProcessTableFunction} that are annotated with {@code @ArgumentHint(SET_SEMANTIC_TABLE)} or
+ * {@code @ArgumentHint(ROW_SEMANTIC_TABLE)}).
  */
 @PublicEvolving
 public interface TableSemantics {
@@ -47,7 +47,7 @@ public interface TableSemantics {
      * <pre>{@code
      * // Function with explicit table argument type of row
      * class MyPTF extends ProcessTableFunction<String> {
-     *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET, type = "ROW < s STRING >") Row t) {
+     *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE, type = "ROW < s STRING >") Row t) {
      *     TableSemantics semantics = ctx.tableSemanticsFor("t");
      *     // Always returns "ROW < s STRING >"
      *     semantics.dataType();
@@ -57,7 +57,7 @@ public interface TableSemantics {
      *
      * // Function with explicit table argument type of structured type "Customer"
      * class MyPTF extends ProcessTableFunction<String> {
-     *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET) Customer c) {
+     *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE) Customer c) {
      *     TableSemantics semantics = ctx.tableSemanticsFor("c");
      *     // Always returns structured type of "Customer"
      *     semantics.dataType();
@@ -67,7 +67,7 @@ public interface TableSemantics {
      *
      * // Function with polymorphic table argument
      * class MyPTF extends ProcessTableFunction<String> {
-     *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET) Row t) {
+     *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE) Row t) {
      *     TableSemantics semantics = ctx.tableSemanticsFor("t");
      *     // Always returns "ROW" but content depends on the table that is passed into the call
      *     semantics.dataType();

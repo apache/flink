@@ -23,7 +23,7 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions;
 import org.apache.flink.table.test.program.SinkTestStep;
@@ -1024,9 +1024,9 @@ public class QueryOperationTestPrograms {
                             "sink")
                     .build();
 
-    public static final TableTestProgram TABLE_AS_ROW_PTF =
+    public static final TableTestProgram ROW_SEMANTIC_TABLE_PTF =
             TableTestProgram.of("process-row-table-api", "table with row semantics")
-                    .setupTemporarySystemFunction("f", TableAsRowFunction.class)
+                    .setupTemporarySystemFunction("f", RowSemanticTableFunction.class)
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -1049,7 +1049,7 @@ public class QueryOperationTestPrograms {
                             "sink")
                     .build();
 
-    static final TableTestProgram TABLE_AS_SET_PTF =
+    static final TableTestProgram SET_SEMANTIC_TABLE_PTF =
             TableTestProgram.of("partitioned-ptf", "verifies SQL serialization")
                     .setupTemporarySystemFunction("f1", ChainedSendingFunction.class)
                     .setupTemporarySystemFunction("f2", ChainedReceivingFunction.class)

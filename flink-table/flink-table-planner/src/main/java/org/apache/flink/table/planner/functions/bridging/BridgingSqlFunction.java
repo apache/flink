@@ -270,9 +270,9 @@ public class BridgingSqlFunction extends SqlFunction {
             }
             final StaticArgument arg = args.get(ordinal);
             final TableCharacteristic.Semantics semantics;
-            if (arg.is(StaticArgumentTrait.TABLE_AS_ROW)) {
+            if (arg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)) {
                 semantics = TableCharacteristic.Semantics.ROW;
-            } else if (arg.is(StaticArgumentTrait.TABLE_AS_SET)) {
+            } else if (arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
                 semantics = TableCharacteristic.Semantics.SET;
             } else {
                 return null;

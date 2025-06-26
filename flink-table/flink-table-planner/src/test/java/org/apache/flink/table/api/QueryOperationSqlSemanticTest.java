@@ -56,8 +56,8 @@ public class QueryOperationSqlSemanticTest extends SemanticTestBase {
                 QueryOperationTestPrograms.OVER_WINDOW_ROWS_UNBOUNDED_NO_PARTITION,
                 QueryOperationTestPrograms.OVER_WINDOW_LAG,
                 QueryOperationTestPrograms.ACCESSING_NESTED_COLUMN,
-                QueryOperationTestPrograms.TABLE_AS_ROW_PTF,
-                QueryOperationTestPrograms.TABLE_AS_SET_PTF);
+                QueryOperationTestPrograms.ROW_SEMANTIC_TABLE_PTF,
+                QueryOperationTestPrograms.SET_SEMANTIC_TABLE_PTF);
     }
 
     @Override

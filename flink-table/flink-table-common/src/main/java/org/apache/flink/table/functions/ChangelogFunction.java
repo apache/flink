@@ -61,8 +61,8 @@ import org.apache.flink.types.RowKind;
  * </ol>
  *
  * <p>Emitting changelogs is only valid for PTFs that take table arguments with set semantics (see
- * {@link ArgumentTrait#TABLE_AS_SET}). In case of upserts, the upsert key must be equal to the
- * PARTITION BY key.
+ * {@link ArgumentTrait#SET_SEMANTIC_TABLE}). In case of upserts, the upsert key must be equal to
+ * the PARTITION BY key.
  *
  * <p>It is perfectly valid for a {@link ChangelogFunction} implementation to return a fixed {@link
  * ChangelogMode}, regardless of the {@link ChangelogContext}. This approach may be appropriate when
