@@ -33,11 +33,9 @@ import org.apache.flink.table.ml.PredictRuntimeProvider;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -59,6 +57,9 @@ public class TestValuesModelFactory implements ModelProviderFactory {
 
     public static final ConfigOption<Boolean> ASYNC =
             ConfigOptions.key("async").booleanType().defaultValue(false);
+
+    public static final ConfigOption<String> TASK =
+            ConfigOptions.key("task").stringType().noDefaultValue();
 
     public static String registerData(Map<Row, List<Row>> data) {
         String id = String.valueOf(idCounter.incrementAndGet());
@@ -109,7 +110,7 @@ public class TestValuesModelFactory implements ModelProviderFactory {
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return new HashSet<>(Arrays.asList(ASYNC, DATA_ID));
+        return Set.of(ASYNC, DATA_ID, TASK);
     }
 
     private static Map<RowData, List<RowData>> toInternal(

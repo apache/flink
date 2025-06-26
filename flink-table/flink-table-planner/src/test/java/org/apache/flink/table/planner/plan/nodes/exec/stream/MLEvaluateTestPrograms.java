@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.planner.functions.sql.ml.SqlMLEvaluateTableFunction;
 import org.apache.flink.table.test.program.ModelTestStep;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -30,22 +30,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Programs for verifying {@link StreamExecMLPredictTableFunction}. */
-public class MLPredictTestPrograms {
+/** Programs for verifying {@link SqlMLEvaluateTableFunction}. */
+public class MLEvaluateTestPrograms {
 
     static final String[] FEATURES_SCHEMA =
-            new String[] {"id INT PRIMARY KEY NOT ENFORCED", "feature STRING"};
+            new String[] {"id INT PRIMARY KEY NOT ENFORCED", "feature STRING", "label STRING"};
 
     static final Row[] FEATURES_BEFORE_DATA =
             new Row[] {
-                Row.ofKind(RowKind.INSERT, 1, "Flink"),
-                Row.ofKind(RowKind.INSERT, 2, "Spark"),
-                Row.ofKind(RowKind.INSERT, 3, "Hive")
+                Row.ofKind(RowKind.INSERT, 1, "Flink", "positive"),
+                Row.ofKind(RowKind.INSERT, 2, "Spark", "negative"),
             };
 
     static final Row[] FEATURES_AFTER_DATA =
             new Row[] {
-                Row.ofKind(RowKind.INSERT, 4, "Mysql"), Row.ofKind(RowKind.INSERT, 5, "Postgres")
+                Row.ofKind(RowKind.INSERT, 3, "Mysql", "positive"),
+                Row.ofKind(RowKind.INSERT, 4, "Postgres", "negative")
             };
 
     static final SourceTestStep FEATURES_TABLE =
@@ -59,26 +59,21 @@ public class MLPredictTestPrograms {
 
     static final String[] MODEL_INPUT_SCHEMA = new String[] {"feature STRING"};
     static final String[] MODEL_OUTPUT_SCHEMA = new String[] {"category STRING"};
-
     static final Map<Row, List<Row>> MODEL_DATA =
             new HashMap<>() {
                 {
                     put(
                             Row.ofKind(RowKind.INSERT, "Flink"),
-                            List.of(Row.ofKind(RowKind.INSERT, "Big Data")));
+                            List.of(Row.ofKind(RowKind.INSERT, "positive")));
                     put(
                             Row.ofKind(RowKind.INSERT, "Spark"),
-                            List.of(Row.ofKind(RowKind.INSERT, "Big Data")));
-                    put(
-                            Row.ofKind(RowKind.INSERT, "Hive"),
-                            List.of(Row.ofKind(RowKind.INSERT, "Big Data")));
-
+                            List.of(Row.ofKind(RowKind.INSERT, "positive")));
                     put(
                             Row.ofKind(RowKind.INSERT, "Mysql"),
-                            List.of(Row.ofKind(RowKind.INSERT, "Database")));
+                            List.of(Row.ofKind(RowKind.INSERT, "positive")));
                     put(
                             Row.ofKind(RowKind.INSERT, "Postgres"),
-                            List.of(Row.ofKind(RowKind.INSERT, "Database")));
+                            List.of(Row.ofKind(RowKind.INSERT, "positive")));
                 }
             };
 
@@ -99,51 +94,41 @@ public class MLPredictTestPrograms {
 
     // -------------------------------------------------------------------------------------------
 
-    static final String[] SINK_SCHEMA =
-            new String[] {"id INT PRIMARY KEY NOT ENFORCED", "feature STRING", "category STRING"};
+    static final String[] SINK_SCHEMA = new String[] {"`result` MAP<STRING, DOUBLE>"};
 
     static final SinkTestStep SINK_TABLE =
             SinkTestStep.newBuilder("sink_t")
                     .addSchema(SINK_SCHEMA)
                     .consumedBeforeRestore(
-                            "+I[1, Flink, Big Data]",
-                            "+I[2, Spark, Big Data]",
-                            "+I[3, Hive, Big Data]")
-                    .consumedAfterRestore("+I[4, Mysql, Database]", "+I[5, Postgres, Database]")
+                            "+I[{Accuracy=1.0, Precision=1.0, Recall=1.0, F1=1.0}]",
+                            "-U[{Accuracy=1.0, Precision=1.0, Recall=1.0, F1=1.0}]",
+                            "+U[{Accuracy=0.5, Precision=0.25, Recall=0.5, F1=0.3333333333333333}]")
+                    .consumedAfterRestore(
+                            "-U[{Accuracy=0.5, Precision=0.25, Recall=0.5, F1=0.3333333333333333}]",
+                            "+U[{Accuracy=0.6666666666666666, Precision=0.3333333333333333, Recall=0.5, F1=0.4}]",
+                            "-U[{Accuracy=0.6666666666666666, Precision=0.3333333333333333, Recall=0.5, F1=0.4}]",
+                            "+U[{Accuracy=0.5, Precision=0.25, Recall=0.5, F1=0.3333333333333333}]")
                     .build();
 
     // -------------------------------------------------------------------------------------------
 
-    public static final TableTestProgram SYNC_ML_PREDICT =
-            TableTestProgram.of("sync-ml-predict", "ml-predict in sync mode.")
+    public static final TableTestProgram SYNC_ML_EVALUATE =
+            TableTestProgram.of("sync-ml-evaluate", "ml-evaluate in sync mode.")
                     .setupTableSource(FEATURES_TABLE)
                     .setupModel(SYNC_MODEL)
                     .setupTableSink(SINK_TABLE)
                     .runSql(
-                            "INSERT INTO sink_t SELECT * FROM ML_PREDICT(TABLE features, MODEL chatgpt, DESCRIPTOR(feature))")
+                            "INSERT INTO sink_t SELECT * FROM ML_EVALUATE(TABLE features, MODEL chatgpt, DESCRIPTOR(label), DESCRIPTOR(feature), 'classification')")
                     .build();
 
-    public static final TableTestProgram ASYNC_UNORDERED_ML_PREDICT =
-            TableTestProgram.of("async-unordered-ml-predict", "ml-predict in async unordered mode.")
-                    .setupTableSource(FEATURES_TABLE)
-                    .setupModel(ASYNC_MODEL)
-                    .setupTableSink(SINK_TABLE)
-                    .setupConfig(
-                            ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE,
-                            ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED)
-                    .runSql(
-                            "INSERT INTO sink_t SELECT * FROM ML_PREDICT(TABLE features, MODEL chatgpt, DESCRIPTOR(feature))")
-                    .build();
-
-    public static final TableTestProgram SYNC_ML_PREDICT_WITH_RUNTIME_CONFIG =
+    public static final TableTestProgram SYNC_ML_EVALUATE_WITH_RUNTIME_CONFIG =
             TableTestProgram.of(
-                            "sync-ml-predict-with-runtime-options",
-                            "ml-predict in sync mode with runtime config.")
+                            "sync-ml-evaluate-with-runtime-config",
+                            "ml-evaluate in sync mode with runtime config.")
                     .setupTableSource(FEATURES_TABLE)
                     .setupModel(ASYNC_MODEL)
                     .setupTableSink(SINK_TABLE)
                     .runSql(
-                            "INSERT INTO sink_t SELECT * FROM ML_PREDICT(TABLE features, MODEL chatgpt, DESCRIPTOR(feature), MAP['async', 'false'])")
+                            "INSERT INTO sink_t SELECT * FROM ML_EVALUATE(TABLE features, MODEL chatgpt, DESCRIPTOR(label), DESCRIPTOR(feature), 'classification', MAP['async', 'true'])")
                     .build();
-    ;
 }
