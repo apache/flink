@@ -30,8 +30,9 @@ import org.apache.calcite.sql.SqlSpecialOperator;
  * Marker for table arguments in a signature of {@link StaticArgument}s inserted by {@link
  * FlinkConvertletTable}.
  *
- * <p>The table argument describes a {@link StaticArgumentTrait#TABLE_AS_SET} or {@link
- * StaticArgumentTrait#TABLE_AS_ROW}. It is represented as {@link RexTableArgCall} going forward.
+ * <p>The table argument describes a {@link StaticArgumentTrait#SET_SEMANTIC_TABLE} or {@link
+ * StaticArgumentTrait#ROW_SEMANTIC_TABLE}. It is represented as {@link RexTableArgCall} going
+ * forward.
  */
 public class SqlTableArgOperator extends SqlSpecialOperator {
 

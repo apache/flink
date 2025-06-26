@@ -72,7 +72,7 @@ public interface CallContext {
      * <p>This method applies only to {@link ProcessTableFunction}s.
      *
      * <p>Semantics are only available for table arguments that are annotated with
-     * {@code @ArgumentHint(TABLE_AS_SET)} or {@code @ArgumentHint(TABLE_AS_ROW)}).
+     * {@code @ArgumentHint(SET_SEMANTIC_TABLE)} or {@code @ArgumentHint(ROW_SEMANTIC_TABLE)}).
      */
     default Optional<TableSemantics> getTableSemantics(int pos) {
         return Optional.empty();

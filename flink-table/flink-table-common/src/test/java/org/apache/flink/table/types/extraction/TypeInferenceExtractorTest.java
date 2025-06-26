@@ -309,7 +309,7 @@ class TypeInferenceExtractorTest {
                 TestSpec.forScalarFunction(TableArgScalarFunction.class)
                         .expectErrorMessage(
                                 "Only scalar arguments are supported at this location. "
-                                        + "But argument 't' declared the following traits: [TABLE_AS_ROW]"),
+                                        + "But argument 't' declared the following traits: [ROW_SEMANTIC_TABLE]"),
                 // ---
                 // different accumulator depending on input
                 TestSpec.forAggregateFunction(InputDependentAccumulatorFunction.class)
@@ -641,7 +641,7 @@ class TypeInferenceExtractorTest {
                                         "t",
                                         Row.class,
                                         false,
-                                        EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
+                                        EnumSet.of(StaticArgumentTrait.ROW_SEMANTIC_TABLE)))
                         .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
                 // ---
                 TestSpec.forProcessTableFunction(TypedTableArgProcessTableFunction.class)
@@ -650,7 +650,7 @@ class TypeInferenceExtractorTest {
                                         "t",
                                         TypedTableArgProcessTableFunction.Customer.TYPE,
                                         false,
-                                        EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
+                                        EnumSet.of(StaticArgumentTrait.ROW_SEMANTIC_TABLE)))
                         .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
                 // ---
                 TestSpec.forProcessTableFunction(ComplexProcessTableFunction.class)
@@ -660,7 +660,7 @@ class TypeInferenceExtractorTest {
                                         RowData.class,
                                         false,
                                         EnumSet.of(
-                                                StaticArgumentTrait.TABLE_AS_SET,
+                                                StaticArgumentTrait.SET_SEMANTIC_TABLE,
                                                 StaticArgumentTrait.OPTIONAL_PARTITION_BY)))
                         .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
                         .expectStaticArgument(
@@ -668,7 +668,7 @@ class TypeInferenceExtractorTest {
                                         "rowTable",
                                         Row.class,
                                         false,
-                                        EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
+                                        EnumSet.of(StaticArgumentTrait.ROW_SEMANTIC_TABLE)))
                         .expectStaticArgument(StaticArgument.scalar("s", DataTypes.STRING(), true))
                         .expectState("s1", TypeStrategies.explicit(MyFirstState.TYPE))
                         .expectState(
@@ -686,7 +686,7 @@ class TypeInferenceExtractorTest {
                                         RowData.class,
                                         false,
                                         EnumSet.of(
-                                                StaticArgumentTrait.TABLE_AS_SET,
+                                                StaticArgumentTrait.SET_SEMANTIC_TABLE,
                                                 StaticArgumentTrait.OPTIONAL_PARTITION_BY)))
                         .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
                         .expectStaticArgument(
@@ -694,7 +694,7 @@ class TypeInferenceExtractorTest {
                                         "rowTable",
                                         Row.class,
                                         false,
-                                        EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
+                                        EnumSet.of(StaticArgumentTrait.ROW_SEMANTIC_TABLE)))
                         .expectStaticArgument(StaticArgument.scalar("s", DataTypes.STRING(), true))
                         .expectState("s1", TypeStrategies.explicit(MyFirstState.TYPE))
                         .expectState(
@@ -739,7 +739,7 @@ class TypeInferenceExtractorTest {
                 TestSpec.forProcessTableFunction(WrongArgumentTraitsProcessTableFunction.class)
                         .expectErrorMessage(
                                 "Invalid argument traits for argument 'r'. "
-                                        + "Trait OPTIONAL_PARTITION_BY requires TABLE_AS_SET."),
+                                        + "Trait OPTIONAL_PARTITION_BY requires SET_SEMANTIC_TABLE."),
                 // ---
                 TestSpec.forProcessTableFunction(
                                 MixingStaticAndInputGroupProcessTableFunction.class)
@@ -2295,7 +2295,7 @@ class TypeInferenceExtractorTest {
     }
 
     private static class UntypedTableArgProcessTableFunction extends ProcessTableFunction<Integer> {
-        public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row t) {}
+        public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row t) {}
     }
 
     private static class TypedTableArgProcessTableFunction extends ProcessTableFunction<Integer> {
@@ -2309,7 +2309,7 @@ class TypeInferenceExtractorTest {
             public Integer age;
         }
 
-        public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Customer t) {}
+        public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Customer t) {}
     }
 
     @DataTypeHint("ROW<b BOOLEAN>")
@@ -2320,14 +2320,14 @@ class TypeInferenceExtractorTest {
                 @StateHint(name = "other", type = @DataTypeHint("ROW<f FLOAT>")) Row s2,
                 @ArgumentHint(
                                 value = {
-                                    ArgumentTrait.TABLE_AS_SET,
+                                    ArgumentTrait.SET_SEMANTIC_TABLE,
                                     ArgumentTrait.OPTIONAL_PARTITION_BY
                                 },
                                 name = "setTable")
                         RowData t1,
                 @ArgumentHint(name = "i") Integer i,
                 @ArgumentHint(
-                                value = {ArgumentTrait.TABLE_AS_ROW},
+                                value = {ArgumentTrait.ROW_SEMANTIC_TABLE},
                                 name = "rowTable")
                         Row t2,
                 @ArgumentHint(isOptional = true, name = "s") String s) {}
@@ -2341,12 +2341,15 @@ class TypeInferenceExtractorTest {
             arguments = {
                 @ArgumentHint(
                         name = "setTable",
-                        value = {ArgumentTrait.TABLE_AS_SET, ArgumentTrait.OPTIONAL_PARTITION_BY},
+                        value = {
+                            ArgumentTrait.SET_SEMANTIC_TABLE,
+                            ArgumentTrait.OPTIONAL_PARTITION_BY
+                        },
                         type = @DataTypeHint(bridgedTo = RowData.class)),
                 @ArgumentHint(name = "i", type = @DataTypeHint("INT")),
                 @ArgumentHint(
                         name = "rowTable",
-                        value = {ArgumentTrait.TABLE_AS_ROW}),
+                        value = {ArgumentTrait.ROW_SEMANTIC_TABLE}),
                 @ArgumentHint(name = "s", isOptional = true, type = @DataTypeHint("STRING"))
             },
             output = @DataTypeHint("ROW<b BOOLEAN>"))
@@ -2395,20 +2398,23 @@ class TypeInferenceExtractorTest {
     }
 
     private static class WrongTypedTableProcessTableFunction extends ProcessTableFunction<Integer> {
-        public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_SET) Integer i) {}
+        public void eval(@ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Integer i) {}
     }
 
     private static class WrongArgumentTraitsProcessTableFunction
             extends ProcessTableFunction<Integer> {
         public void eval(
-                @ArgumentHint({ArgumentTrait.TABLE_AS_ROW, ArgumentTrait.OPTIONAL_PARTITION_BY})
+                @ArgumentHint({
+                            ArgumentTrait.ROW_SEMANTIC_TABLE,
+                            ArgumentTrait.OPTIONAL_PARTITION_BY
+                        })
                         Row r) {}
     }
 
     private static class MixingStaticAndInputGroupProcessTableFunction
             extends ProcessTableFunction<Integer> {
         public void eval(
-                @ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row r,
+                @ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row r,
                 @DataTypeHint(inputGroup = InputGroup.ANY) Object o) {}
     }
 
@@ -2416,7 +2422,7 @@ class TypeInferenceExtractorTest {
             extends ProcessTableFunction<Integer> {
         public void eval(
                 @ArgumentHint(
-                                value = ArgumentTrait.TABLE_AS_ROW,
+                                value = ArgumentTrait.ROW_SEMANTIC_TABLE,
                                 type = @DataTypeHint(inputGroup = InputGroup.ANY))
                         Row r) {}
     }
@@ -2439,7 +2445,7 @@ class TypeInferenceExtractorTest {
             }
         }
 
-        public int eval(@StateHint Score s, @ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row t) {
+        public int eval(@StateHint Score s, @ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row t) {
             return 0;
         }
     }
@@ -2447,13 +2453,14 @@ class TypeInferenceExtractorTest {
     private static class NonCompositeStateProcessTableFunction
             extends ProcessTableFunction<Integer> {
 
-        public int eval(@StateHint Integer i, @ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row t) {
+        public int eval(
+                @StateHint Integer i, @ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row t) {
             return 0;
         }
     }
 
     private static class TableArgScalarFunction extends ScalarFunction {
-        public int eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row t) {
+        public int eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row t) {
             return 0;
         }
     }
