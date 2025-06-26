@@ -861,6 +861,7 @@ public class Task
                 // remove all of the tasks resources
                 fileCache.releaseJob(jobId, executionId);
 
+                FileSystemContext.clearContext();
                 // close and de-activate safety net for task thread
                 LOG.debug("Ensuring all FileSystem streams are closed for task {}", this);
                 FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();

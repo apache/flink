@@ -32,7 +32,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Experimental
 public class FileSystemContext {
-    private static final ThreadLocal<FileSystemContext> CONTEXTS = new InheritableThreadLocal<>();
+    private static final ThreadLocal<FileSystemContext> CONTEXTS = new ThreadLocal<>();
 
     @Internal
     public static void initializeContextForThread(String context) {
@@ -49,11 +49,17 @@ public class FileSystemContext {
         CONTEXTS.set(newContext);
     }
 
+    @Internal
+    public static void clearContext() {
+        FileSystemContext context1 = CONTEXTS.get();
+        if (null != context1) {
+            CONTEXTS.remove();
+        }
+    }
+
     public static FileSystem addContext(FileSystem fs) {
         final FileSystemContext ctx = CONTEXTS.get();
-        return ctx != null && fs instanceof ContextFileSystem
-                ? ((ContextFileSystem) fs).addContext(fs, ctx)
-                : fs;
+        return ctx != null ? ((ContextFileSystem) fs).addContext(fs, ctx) : fs;
     }
 
     private final String context;

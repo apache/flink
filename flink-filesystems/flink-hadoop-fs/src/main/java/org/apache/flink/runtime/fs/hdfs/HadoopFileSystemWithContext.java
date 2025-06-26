@@ -32,13 +32,15 @@ import java.net.URI;
 import static org.apache.flink.runtime.util.HadoopUtils.setCallerContext;
 
 /** {@link FileSystem} implementation wrapping an {@link HadoopFileSystem} with context. */
-public class HadoopFileSystemWithContext extends FileSystem implements WrappingProxy<FileSystem> {
+public class HadoopFileSystemWithContext extends HadoopFileSystem
+        implements WrappingProxy<FileSystem> {
 
     private final HadoopFileSystem hadoopFileSystem;
     private final FileSystemContext context;
 
     public HadoopFileSystemWithContext(
             HadoopFileSystem hadoopFileSystem, FileSystemContext context) {
+        super(hadoopFileSystem.getHadoopFileSystem());
         this.hadoopFileSystem = hadoopFileSystem;
         this.context = context;
     }

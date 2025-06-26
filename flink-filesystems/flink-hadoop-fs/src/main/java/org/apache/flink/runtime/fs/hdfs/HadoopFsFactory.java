@@ -177,12 +177,13 @@ public class HadoopFsFactory implements FileSystemFactory {
             }
 
             HadoopFileSystem fs = new HadoopFileSystem(hadoopFs);
+            if (hadoopConfig.getBoolean("hadoop.caller.context.enabled", false)) {
+                fs = (HadoopFileSystem) FileSystemContext.addContext(fs);
+            }
 
             // create the Flink file system, optionally limiting the open connections
             if (flinkConfig != null) {
                 return limitIfConfigured(fs, scheme, flinkConfig);
-            } else if (hadoopConfig.getBoolean("hadoop.caller.context.enabled", false)) {
-                return FileSystemContext.addContext(fs);
             } else {
                 return fs;
             }

@@ -161,6 +161,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
             finishedFuture.completeExceptionally(e);
         } finally {
             unregisterConsumer.accept(this);
+            FileSystemContext.clearContext();
             FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
         }
     }
