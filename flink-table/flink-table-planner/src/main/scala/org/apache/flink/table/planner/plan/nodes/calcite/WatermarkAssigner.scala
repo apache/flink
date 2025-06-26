@@ -20,11 +20,11 @@ package org.apache.flink.table.planner.plan.nodes.calcite
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{RelOptCluster, RelOptPredicateList, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFieldImpl}
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rel.hint.{Hintable, RelHint}
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexNode, RexSimplify}
 import org.apache.calcite.sql.`type`.SqlTypeName
 
 import java.util
@@ -90,4 +90,13 @@ abstract class WatermarkAssigner(
   }
 
   def withHints(hintList: util.List[RelHint]): RelNode
+}
+
+object WatermarkUtils {
+  def simplify(cluster: RelOptCluster, watermarkExpr: RexNode): RexNode = {
+    new RexSimplify(
+      cluster.getRexBuilder,
+      RelOptPredicateList.EMPTY,
+      cluster.getPlanner.getExecutor).simplify(watermarkExpr)
+  }
 }
