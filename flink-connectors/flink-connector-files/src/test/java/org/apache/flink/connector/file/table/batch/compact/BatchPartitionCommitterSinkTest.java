@@ -127,7 +127,7 @@ public class BatchPartitionCommitterSinkTest {
             };
 
     private static RuntimeContext getMockRuntimeContext() {
-        return new MockStreamingRuntimeContext(false, 1, 0) {
+        return new MockStreamingRuntimeContext(1, 0) {
             @Override
             public ClassLoader getUserCodeClassLoader() {
                 return Thread.currentThread().getContextClassLoader();

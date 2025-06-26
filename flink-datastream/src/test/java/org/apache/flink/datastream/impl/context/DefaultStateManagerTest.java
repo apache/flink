@@ -51,7 +51,7 @@ class DefaultStateManagerTest {
                 new DefaultStateManager(
                         () -> key,
                         (r, k) -> r.run(),
-                        new MockStreamingRuntimeContext(false, 1, 0),
+                        new MockStreamingRuntimeContext(1, 0),
                         new MockOperatorStateStore());
         assertThat((String) stateManager.getCurrentKey()).isEqualTo(key);
     }
@@ -64,7 +64,7 @@ class DefaultStateManagerTest {
                             throw new RuntimeException("Expected Error");
                         },
                         (r, k) -> r.run(),
-                        new MockStreamingRuntimeContext(false, 1, 0),
+                        new MockStreamingRuntimeContext(1, 0),
                         new MockOperatorStateStore());
         assertThatThrownBy(stateManager::getCurrentKey)
                 .isInstanceOf(RuntimeException.class)
@@ -85,7 +85,7 @@ class DefaultStateManagerTest {
                             r.run();
                             setKey.set(oldKey);
                         },
-                        new MockStreamingRuntimeContext(false, 1, 0),
+                        new MockStreamingRuntimeContext(1, 0),
                         new MockOperatorStateStore());
         stateManager.executeInKeyContext(() -> assertThat(setKey).hasValue(newKey), newKey);
         assertThat(setKey).hasValue(oldKey);

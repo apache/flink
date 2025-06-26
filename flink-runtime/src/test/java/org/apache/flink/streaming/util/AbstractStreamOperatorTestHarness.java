@@ -290,7 +290,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
         Configuration underlyingConfig = env.getTaskConfiguration();
         this.config = new StreamConfig(underlyingConfig);
-        this.config.setCheckpointingEnabled(true);
         this.config.setOperatorID(operatorID);
         this.config.setStateBackendUsesManagedMemory(true);
         this.config.setManagedMemoryFractionOperatorOfUseCase(

@@ -256,7 +256,8 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .setCollectNetworkEvents()
                         .modifyExecutionConfig(applyObjectReuse(objectReuse))
-                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO)
                         .addSourceInput(
                                 new SourceOperatorFactory<>(
@@ -394,7 +395,6 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                     CheckpointingOptions.ENABLE_UNALIGNED,
                                     checkpointOptions.isUnalignedCheckpoint()
                                             || checkpointOptions.isTimeoutable())
-                            .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                             .modifyExecutionConfig(applyObjectReuse(objectReuse))
                             .setCheckpointResponder(checkpointResponder)
                             .addInput(BasicTypeInfo.INT_TYPE_INFO)
@@ -480,7 +480,8 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .modifyExecutionConfig(applyObjectReuse(objectReuse))
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
                         .addAdditionalOutput(

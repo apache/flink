@@ -218,7 +218,6 @@ public class StateBootstrapTransformation<T> {
 
         final StreamConfig config = new StreamConfig(deepCopy);
         config.setChainStart();
-        config.setCheckpointingEnabled(true);
 
         if (keyType != null) {
             TypeSerializer<?> keySerializer =

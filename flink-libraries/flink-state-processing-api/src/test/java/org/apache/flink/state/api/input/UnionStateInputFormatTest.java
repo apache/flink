@@ -71,7 +71,7 @@ public class UnionStateInputFormatTest {
                     new UnionStateInputFormat<>(
                             state, new Configuration(), null, descriptor, new ExecutionConfig());
 
-            format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+            format.setRuntimeContext(new MockStreamingRuntimeContext(1, 0));
             format.open(split);
 
             List<Integer> results = new ArrayList<>();
