@@ -113,6 +113,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(interval, 30000)
 
     def test_get_set_checkpointing_mode(self):
+        self.env.enable_checkpointing(1000)
         mode = self.env.get_checkpointing_mode()
         self.assertEqual(mode, CheckpointingMode.EXACTLY_ONCE)
 

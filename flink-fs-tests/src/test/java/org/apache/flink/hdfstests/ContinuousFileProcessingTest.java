@@ -943,7 +943,7 @@ public class ContinuousFileProcessingTest {
             FileInputFormat<OUT> format, FileProcessingMode fileProcessingMode) {
         ContinuousFileMonitoringFunction<OUT> monitoringFunction =
                 new ContinuousFileMonitoringFunction<>(format, fileProcessingMode, 1, INTERVAL);
-        monitoringFunction.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+        monitoringFunction.setRuntimeContext(new MockStreamingRuntimeContext(1, 0));
         return monitoringFunction;
     }
 }

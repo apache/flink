@@ -19,6 +19,9 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
@@ -134,13 +137,19 @@ public class SourceStreamTask<
                             // between the trigger
                             // TODO -   message from the master, and the source's trigger
                             // notification
+                            Configuration jobConf = getJobConfiguration();
                             final CheckpointOptions checkpointOptions =
                                     CheckpointOptions.forConfig(
                                             CheckpointType.CHECKPOINT,
                                             CheckpointStorageLocationReference.getDefault(),
-                                            configuration.isExactlyOnceCheckpointMode(),
-                                            configuration.isUnalignedCheckpointsEnabled(),
-                                            configuration.getAlignedCheckpointTimeout().toMillis());
+                                            CheckpointingOptions.getCheckpointingMode(jobConf)
+                                                    == CheckpointingMode.EXACTLY_ONCE,
+                                            CheckpointingOptions.isUnalignedCheckpointEnabled(
+                                                    jobConf),
+                                            jobConf.get(
+                                                            CheckpointingOptions
+                                                                    .ALIGNED_CHECKPOINT_TIMEOUT)
+                                                    .toMillis());
                             final long timestamp = System.currentTimeMillis();
 
                             final CheckpointMetaData checkpointMetaData =
