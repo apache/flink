@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static java.util.Collections.unmodifiableMap;
 import static java.util.Collections.unmodifiableSet;
@@ -305,7 +306,7 @@ public class MetricStore {
 
             switch (info.getCategory()) {
                 case INFO_CATEGORY_JM:
-                    addMetric(jobManager.metrics, name, metric);
+                    addMetric(jobManager, name, metric);
                     break;
                 case INFO_CATEGORY_TM:
                     String tmID = ((QueryScopeInfo.TaskManagerQueryScopeInfo) info).taskManagerID;
@@ -317,13 +318,13 @@ public class MetricStore {
                                         name.lastIndexOf('.'));
                         tm.addGarbageCollectorName(gcName);
                     }
-                    addMetric(tm.metrics, name, metric);
+                    addMetric(tm, name, metric);
                     break;
                 case INFO_CATEGORY_JOB:
                     QueryScopeInfo.JobQueryScopeInfo jobInfo =
                             (QueryScopeInfo.JobQueryScopeInfo) info;
                     job = jobs.computeIfAbsent(jobInfo.jobID, k -> new JobMetricStore());
-                    addMetric(job.metrics, name, metric);
+                    addMetric(job, name, metric);
                     break;
                 case INFO_CATEGORY_TASK:
                     QueryScopeInfo.TaskQueryScopeInfo taskInfo =
@@ -346,7 +347,7 @@ public class MetricStore {
                     attempt =
                             subtask.attempts.computeIfAbsent(
                                     taskInfo.attemptNumber, k -> new ComponentMetricStore());
-                    addMetric(attempt.metrics, name, metric);
+                    addMetric(attempt, name, metric);
                     // If the attempt is representative one, its metrics can be updated to the
                     // subtask and task metric store.
                     if (isRepresentativeAttempt) {
@@ -357,8 +358,8 @@ public class MetricStore {
                          * instead use the concatenation of subtask index and metric name as the
                          * name for those.
                          */
-                        addMetric(subtask.metrics, name, metric);
-                        addMetric(task.metrics, taskInfo.subtaskIndex + "." + name, metric);
+                        addMetric(subtask, name, metric);
+                        addMetric(task, taskInfo.subtaskIndex + "." + name, metric);
                     }
                     break;
                 case INFO_CATEGORY_OPERATOR:
@@ -382,7 +383,7 @@ public class MetricStore {
                     attempt =
                             subtask.attempts.computeIfAbsent(
                                     operatorInfo.attemptNumber, k -> new ComponentMetricStore());
-                    addMetric(attempt.metrics, operatorInfo.operatorName + "." + name, metric);
+                    addMetric(attempt, operatorInfo.operatorName + "." + name, metric);
 
                     // If the attempt is representative one, its metrics can be updated to the
                     // subtask and task metric store.
@@ -392,9 +393,9 @@ public class MetricStore {
                          * don't divide by operator and instead use the concatenation of subtask
                          * index, operator name and metric name as the name.
                          */
-                        addMetric(subtask.metrics, operatorInfo.operatorName + "." + name, metric);
+                        addMetric(subtask, operatorInfo.operatorName + "." + name, metric);
                         addMetric(
-                                task.metrics,
+                                task,
                                 operatorInfo.subtaskIndex
                                         + "."
                                         + operatorInfo.operatorName
@@ -413,7 +414,7 @@ public class MetricStore {
                     jmOperator =
                             task.jmOperator == null ? new ComponentMetricStore() : task.jmOperator;
                     addMetric(
-                            jmOperator.metrics,
+                            jmOperator,
                             // to distinguish between operators
                             jmOperatorInfo.operatorName + "." + name,
                             metric);
@@ -439,40 +440,35 @@ public class MetricStore {
                 == attemptNumber;
     }
 
-    private void addMetric(Map<String, String> target, String name, MetricDump metric) {
+    private void addMetric(ComponentMetricStore target, String name, MetricDump metric) {
         switch (metric.getCategory()) {
             case METRIC_CATEGORY_COUNTER:
                 MetricDump.CounterDump counter = (MetricDump.CounterDump) metric;
-                target.put(name, String.valueOf(counter.count));
+                target.addMetric(name, String.valueOf(counter.count));
                 break;
             case METRIC_CATEGORY_GAUGE:
                 MetricDump.GaugeDump gauge = (MetricDump.GaugeDump) metric;
-                target.put(name, gauge.value);
+                target.addMetric(name, gauge.value);
                 break;
             case METRIC_CATEGORY_HISTOGRAM:
                 MetricDump.HistogramDump histogram = (MetricDump.HistogramDump) metric;
-                target.put(name + "_min", String.valueOf(histogram.min));
-                target.put(name + "_max", String.valueOf(histogram.max));
-                target.put(name + "_mean", String.valueOf(histogram.mean));
-                target.put(name + "_median", String.valueOf(histogram.median));
-                target.put(name + "_stddev", String.valueOf(histogram.stddev));
-                target.put(name + "_p75", String.valueOf(histogram.p75));
-                target.put(name + "_p90", String.valueOf(histogram.p90));
-                target.put(name + "_p95", String.valueOf(histogram.p95));
-                target.put(name + "_p98", String.valueOf(histogram.p98));
-                target.put(name + "_p99", String.valueOf(histogram.p99));
-                target.put(name + "_p999", String.valueOf(histogram.p999));
+                target.addMetric(name + "_min", String.valueOf(histogram.min));
+                target.addMetric(name + "_max", String.valueOf(histogram.max));
+                target.addMetric(name + "_mean", String.valueOf(histogram.mean));
+                target.addMetric(name + "_median", String.valueOf(histogram.median));
+                target.addMetric(name + "_stddev", String.valueOf(histogram.stddev));
+                target.addMetric(name + "_p75", String.valueOf(histogram.p75));
+                target.addMetric(name + "_p90", String.valueOf(histogram.p90));
+                target.addMetric(name + "_p95", String.valueOf(histogram.p95));
+                target.addMetric(name + "_p98", String.valueOf(histogram.p98));
+                target.addMetric(name + "_p99", String.valueOf(histogram.p99));
+                target.addMetric(name + "_p999", String.valueOf(histogram.p999));
                 break;
             case METRIC_CATEGORY_METER:
                 MetricDump.MeterDump meter = (MetricDump.MeterDump) metric;
-                target.put(name, String.valueOf(meter.rate));
+                target.addMetric(name, String.valueOf(meter.rate));
                 break;
         }
-    }
-
-    private static boolean isTransientMetric(String fullMetricName) {
-        String metricName = fullMetricName.substring(fullMetricName.lastIndexOf('.') + 1);
-        return TRANSIENT_METRIC_NAMES.contains(metricName);
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -483,6 +479,7 @@ public class MetricStore {
     @ThreadSafe
     public static class ComponentMetricStore {
         public final Map<String, String> metrics;
+        public final Set<String> transientMetrics;
 
         private ComponentMetricStore() {
             this(new ConcurrentHashMap<>());
@@ -490,6 +487,7 @@ public class MetricStore {
 
         private ComponentMetricStore(Map<String, String> metrics) {
             this.metrics = checkNotNull(metrics);
+            this.transientMetrics = ConcurrentHashMap.newKeySet();
         }
 
         public String getMetric(String name) {
@@ -506,6 +504,28 @@ public class MetricStore {
                 return null;
             }
             return new ComponentMetricStore(unmodifiableMap(source.metrics));
+        }
+
+        void addMetric(String name, String value) {
+            metrics.put(name, value);
+            if (isTransientMetric(name)) {
+                transientMetrics.add(name);
+            }
+        }
+
+        boolean isTransientMetric(String name) {
+            String metricName = name.substring(name.lastIndexOf('.') + 1);
+            return TRANSIENT_METRIC_NAMES.contains(metricName);
+        }
+
+        void removeTransientMetrics(Set<String> metricsToRemove) {
+            metricsToRemove.stream()
+                    .filter(metrics::containsKey)
+                    .forEach(
+                            key -> {
+                                metrics.remove(key);
+                                transientMetrics.remove(key);
+                            });
         }
     }
 
@@ -574,6 +594,11 @@ public class MetricStore {
             return unmodifiableMap(subtasks);
         }
 
+        @Override
+        boolean isTransientMetric(String name) {
+            return name.matches("^\\d+\\..*") && super.isTransientMetric(name);
+        }
+
         void retainSubtasks(Set<Integer> activeSubtasks) {
             // Retain metrics of pattern subtaskIndex.metricName which are directly stored in
             // TaskMetricStore
@@ -595,11 +620,11 @@ public class MetricStore {
             if (subtasks.containsKey(subtaskIndex)) {
                 // Remove in both places as task metrics are duplicated in task metric store and
                 // subtask metric store.
-                metrics.keySet()
-                        .removeIf(
-                                key ->
-                                        key.startsWith(subtaskIndex + ".")
-                                                && isTransientMetric(key));
+                Set<String> metricsToRemove =
+                        transientMetrics.stream()
+                                .filter(k -> k.startsWith(subtaskIndex + "."))
+                                .collect(Collectors.toSet());
+                removeTransientMetrics(metricsToRemove);
                 subtasks.get(subtaskIndex).removeTransientMetrics();
             }
         }
@@ -652,12 +677,8 @@ public class MetricStore {
 
         void removeTransientMetrics() {
             attempts.values()
-                    .forEach(
-                            attempt ->
-                                    attempt.metrics
-                                            .keySet()
-                                            .removeIf(MetricStore::isTransientMetric));
-            metrics.keySet().removeIf(MetricStore::isTransientMetric);
+                    .forEach(attempt -> attempt.removeTransientMetrics(attempt.transientMetrics));
+            removeTransientMetrics(transientMetrics);
         }
 
         private static SubtaskMetricStore unmodifiable(SubtaskMetricStore source) {

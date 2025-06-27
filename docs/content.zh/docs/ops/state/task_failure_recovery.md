@@ -64,15 +64,6 @@ config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.o
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-  3, // 尝试重启的次数
-  Duration.ofSeconds(10) // 延时
-))
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 config = Configuration()
@@ -119,15 +110,6 @@ config.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
 config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 3); // 尝试重启次数
 config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofSeconds(10)); // 延时
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-  3, // 尝试重启的次数
-  Duration.ofSeconds(10) // 延时
-))
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -178,18 +160,6 @@ env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
   Duration.ofMillis(2000), // 重置延迟时间到初始值的阈值
   0.1 // jitter
 ));
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
-  Duration.ofMillis(1), // initial delay between restarts
-  Duration.ofMillis(1000), // maximum delay between restarts
-  1.1, // exponential multiplier
-  Duration.ofSeconds(2), // 重置延迟时间到初始值的阈值
-  0.1 // jitter
-))
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -274,16 +244,6 @@ config.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY, Duration.
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.setRestartStrategy(RestartStrategies.failureRateRestart(
-  3, // 每个时间间隔的最大故障次数
-  Duration.ofMinutes(5), // 测量故障率的时间间隔
-  Duration.ofSeconds(10) // 延时
-))
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 config = Configuration()
@@ -313,12 +273,6 @@ restart-strategy.type: none
 Configuration config = new Configuration();
 config.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.setRestartStrategy(RestartStrategies.noRestart())
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

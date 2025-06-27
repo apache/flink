@@ -35,7 +35,7 @@ under the License.
 
 首先需要准备源码。可以[从发布版本下载源码]({{< downloads >}}) 或者[从 Git 库克隆 Flink 源码]({{< github_repo >}})。
 
-还需要准备 **Maven 3.8.6** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 8 (deprecated) 或 Java 11** 来进行构建。
+还需要准备 **Maven 3.8.6** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 11** 来进行构建。
 
 输入以下命令从 Git 克隆代码
 
@@ -73,11 +73,11 @@ mvn clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
 
     如果想构建一个可用于 pip 安装的 PyFlink 包，需要先构建 Flink 工程，如 [构建 Flink](#build-flink) 中所述。
 
-2. Python 的版本为 3.8, 3.9 或者 3.10.
+2. Python 的版本为 3.9, 3.10, 3.11 或者 3.12.
 
     ```shell
     $ python --version
-    # the version printed here must be 3.8, 3.9 or 3.10
+    # the version printed here must be 3.9, 3.10, 3.11 or 3.12
     ```
 
 3. 构建 PyFlink 的 Cython 扩展模块（可选的）

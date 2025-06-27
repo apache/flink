@@ -38,7 +38,9 @@ public final class FileCopyFunction implements OutputFormat<Path> {
 
     private final String path;
 
-    /** @param path the destination path to copy file */
+    /**
+     * @param path the destination path to copy file
+     */
     public FileCopyFunction(String path) {
         this.path = Preconditions.checkNotNull(path, "The destination path cannot be null");
     }

@@ -39,7 +39,8 @@ class WindowTableFunctionTest extends TableTestBase {
                                 |  b bigint,
                                 |  c as proctime()
                                 |) with (
-                                |  'connector' = 'COLLECTION'
+                                |  'connector' = 'values',
+                                |  'bounded' = 'true'
                                 |)
                                 |""".stripMargin)
   }

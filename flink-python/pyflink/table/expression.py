@@ -21,6 +21,7 @@ from typing import Union, TypeVar, Generic, Any
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, DataTypes, _to_java_data_type
+from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_jarray
 
 __all__ = [
@@ -192,7 +193,7 @@ def _make_string_doc():
     ]
 
     for func in string_funcs:
-        func.__doc__ = func.__doc__.replace('  ', '') + _string_doc_seealso
+        func.__doc__ = func.__doc__ + _string_doc_seealso
 
 
 def _make_temporal_doc():
@@ -202,7 +203,7 @@ def _make_temporal_doc():
     ]
 
     for func in temporal_funcs:
-        func.__doc__ = func.__doc__.replace('  ', '') + _temporal_doc_seealso
+        func.__doc__ = func.__doc__ + _temporal_doc_seealso
 
 
 def _make_time_doc():
@@ -454,6 +455,7 @@ class JsonOnNull(Enum):
 T = TypeVar('T')
 
 
+@PublicEvolving()
 class Expression(Generic[T]):
     """
     Expressions represent a logical tree for producing a computation result.
@@ -630,6 +632,12 @@ class Expression(Generic[T]):
         `lit(646.646).round(0)` leads to `647`, `lit(646.646).round(-2)` leads to `600`.
         """
         return _binary_op("round")(self, places)
+
+    def concat(self, other: Union[str, 'Expression[str]']) -> 'Expression[str]':
+        """
+        Concatenates two strings.
+        """
+        return _binary_op("concat")(self, other)
 
     def between(self, lower_bound, upper_bound) -> 'Expression[bool]':
         """
@@ -852,6 +860,31 @@ class Expression(Generic[T]):
         """
         gateway = get_gateway()
         return _ternary_op("as")(self, name, to_jarray(gateway.jvm.String, extra_names))
+
+    def as_argument(self, name: str) -> 'Expression':
+        """
+        Converts this expression into a named argument.
+
+        If the function declares a static signature (usually indicated by the "=>" assignment
+        operator), the framework is able to reorder named arguments and consider optional arguments
+        accordingly, before passing them into the function call.
+
+        .. note::
+            Not every function supports named arguments. Named arguments are not available for
+            signatures that are overloaded, use varargs, or any other kind of input type strategy.
+
+        Example:
+        ::
+
+            >>> table.select(
+            ...     call(
+            ...         "MyFunction",
+            ...         col("my_column").as_argument("input"),
+            ...         lit(42).as_argument("threshold")
+            ...     )
+            ... )
+        """
+        return _binary_op("asArgument")(self, name)
 
     def cast(self, data_type: DataType) -> 'Expression':
         """

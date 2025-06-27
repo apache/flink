@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.{DefaultOpenContext, MapFunction, OpenContext, RichMapFunction, WithConfigurationOpenContext}
+import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction, WithConfigurationOpenContext}
 import org.apache.flink.configuration.{Configuration, PipelineOptions, ReadableConfig}
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.{DecimalData, GenericRowData, TimestampData}
@@ -25,8 +25,9 @@ import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUti
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.FunctionCodeGenerator.generateFunction
+import org.apache.flink.table.planner.codegen.JsonGenerateUtils.isJsonFunctionOperand
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.{JSON_ARRAY, JSON_OBJECT}
-import org.apache.flink.table.planner.plan.utils.{AsyncUtil, ConstantFoldingUtil}
+import org.apache.flink.table.planner.plan.utils.{AsyncScalarUtil, ConstantFoldingUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.planner.utils.Logging
@@ -137,13 +138,16 @@ class ExpressionReducer(
         reducedValues.add(unreduced)
       } else
         unreduced match {
-          case call: RexCall if nonReducibleJsonFunctions.contains(call.getOperator) =>
+          case call: RexCall
+              if (nonReducibleJsonFunctions.contains(call.getOperator) || isJsonFunctionOperand(
+                call)) =>
             reducedValues.add(unreduced)
           case _ =>
             unreduced.getType.getSqlTypeName match {
               // we insert the original expression for object literals
               case SqlTypeName.ANY | SqlTypeName.OTHER | SqlTypeName.ROW | SqlTypeName.STRUCTURED |
-                  SqlTypeName.ARRAY | SqlTypeName.MAP | SqlTypeName.MULTISET =>
+                  SqlTypeName.ARRAY | SqlTypeName.MAP | SqlTypeName.MULTISET |
+                  SqlTypeName.VARIANT =>
                 reducedValues.add(unreduced)
               case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
                 val escapeVarchar = BinaryStringDataUtil.safeToString(
@@ -262,7 +266,7 @@ class ExpressionReducer(
         // Skip expressions that contain python or async functions because it's quite expensive to
         // call async UDFs during optimization phase. They will be optimized during the runtime.
         case (_, e)
-            if containsPythonCall(e) || AsyncUtil.containsAsyncCall(e) ||
+            if containsPythonCall(e) || AsyncScalarUtil.containsAsyncCall(e) ||
               !ConstantFoldingUtil.supportsConstantFolding(e) =>
           nonReducibleExprs += e
           None
@@ -293,7 +297,7 @@ class ExpressionReducer(
           }
           // Exclude some JSON functions which behave differently
           // when called as an argument of another call of one of these functions.
-          if (nonReducibleJsonFunctions.contains(call.getOperator)) {
+          if (nonReducibleJsonFunctions.contains(call.getOperator) || isJsonFunctionOperand(call)) {
             None
           } else {
             Some(call)

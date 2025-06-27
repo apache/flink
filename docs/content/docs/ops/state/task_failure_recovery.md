@@ -68,15 +68,6 @@ config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.o
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-  3, // number of restart attempts
-  Duration.ofSeconds(10) // delay
-))
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 config = Configuration()
@@ -124,15 +115,6 @@ config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.o
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-  3, // number of restart attempts
-  Duration.ofSeconds(10) // delay
-))
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 config = Configuration()
@@ -176,24 +158,12 @@ The exponential delay restart strategy can also be set programmatically:
 ```java
 Configuration config = new Configuration();
 config.set(RestartStrategyOptions.RESTART_STRATEGY, "exponential-delay");
-config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF, Durartion.ofMillis(1));
-config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF, Durartion.ofMillis(1000));
+config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF, Duration.ofMillis(1));
+config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF, Duration.ofMillis(1000));
 config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER, 1.1); // exponential multiplier
-config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_RESET_BACKOFF_THRESHOLD, Durartion.ofMillis(2000)); // threshold duration to reset delay to its initial value
+config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_RESET_BACKOFF_THRESHOLD, Duration.ofMillis(2000)); // threshold duration to reset delay to its initial value
 config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR, 0.1); // jitter        
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
-  Duration.ofMillis(1), // initial delay between restarts
-  Duration.ofMillis(1000), // maximum delay between restarts
-  1.1, // exponential multiplier
-  Duration.ofSeconds(2), // threshold duration to reset delay to its initial value
-  0.1 // jitter
-))
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -276,16 +246,6 @@ config.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY, Duration.
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.setRestartStrategy(RestartStrategies.failureRateRestart(
-  3, // max failures per unit
-  Duration.ofMinutes(5), //time interval for measuring failure rate
-  Duration.ofSeconds(10) // delay
-))
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 config = Configuration()
@@ -315,12 +275,6 @@ The no restart strategy can also be set programmatically:
 Configuration config = new Configuration();
 config.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.setRestartStrategy(RestartStrategies.noRestart())
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

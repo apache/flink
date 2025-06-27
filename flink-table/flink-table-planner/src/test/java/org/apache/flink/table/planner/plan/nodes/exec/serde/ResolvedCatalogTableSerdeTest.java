@@ -24,6 +24,7 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.ExternalCatalogTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -53,11 +54,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.createJsonObjectReader;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.assertThatJsonContains;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.assertThatJsonDoesNotContain;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.configuredSerdeContext;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.testJsonRoundTrip;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.createObjectReader;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
@@ -93,7 +94,9 @@ class ResolvedCatalogTableSerdeTest {
                             Column.metadata("e", DataTypes.DOUBLE(), null, false),
                             Column.computed("f", REX_NODE_EXPRESSION)),
                     Collections.singletonList(WatermarkSpec.of("b", REX_NODE_EXPRESSION)),
-                    UniqueConstraint.primaryKey("myPrimaryKey", Arrays.asList("a", "c")));
+                    UniqueConstraint.primaryKey("myPrimaryKey", Arrays.asList("a", "c")),
+                    Collections.singletonList(
+                            DefaultIndex.newIndex("idx", Collections.singletonList("b"))));
 
     private static final ResolvedCatalogTable FULL_RESOLVED_CATALOG_TABLE =
             new ResolvedCatalogTable(
@@ -121,7 +124,9 @@ class ResolvedCatalogTableSerdeTest {
                                 Column.metadata("e", DataTypes.DOUBLE(), null, false),
                                 Column.computed("f", REX_NODE_EXPRESSION)),
                         Collections.emptyList(),
-                        null);
+                        null,
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
 
         return Stream.of(
                 FULL_RESOLVED_CATALOG_TABLE,
@@ -151,11 +156,11 @@ class ResolvedCatalogTableSerdeTest {
         SerdeContext serdeCtx = configuredSerdeContext();
 
         byte[] actualSerialized =
-                JsonSerdeUtil.createObjectWriter(serdeCtx)
+                CompiledPlanSerdeUtil.createJsonObjectWriter(serdeCtx)
                         .withAttribute(ResolvedCatalogTableJsonSerializer.SERIALIZE_OPTIONS, false)
                         .writeValueAsBytes(FULL_RESOLVED_CATALOG_TABLE);
 
-        final ObjectReader objectReader = createObjectReader(serdeCtx);
+        final ObjectReader objectReader = createJsonObjectReader(serdeCtx);
         JsonNode actualJson = objectReader.readTree(actualSerialized);
         assertThatJsonContains(actualJson, ResolvedCatalogTableJsonSerializer.RESOLVED_SCHEMA);
         assertThatJsonContains(actualJson, ResolvedCatalogTableJsonSerializer.PARTITION_KEYS);
@@ -187,7 +192,7 @@ class ResolvedCatalogTableSerdeTest {
     @Test
     void testDontSerializeExternalInlineTable() {
         SerdeContext serdeCtx = configuredSerdeContext();
-        ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
+        ObjectWriter objectWriter = CompiledPlanSerdeUtil.createJsonObjectWriter(serdeCtx);
 
         assertThatThrownBy(
                         () ->

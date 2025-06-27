@@ -52,10 +52,14 @@ public class MetricNames {
     public static final String NUM_PENDING_TASK_MANAGERS = "numPendingTaskManagers";
 
     public static final String NUM_RESTARTS = "numRestarts";
+    public static final String NUM_RESCALES = "numRescales";
 
     public static final String MEMORY_USED = "Used";
     public static final String MEMORY_COMMITTED = "Committed";
     public static final String MEMORY_MAX = "Max";
+
+    public static final String FILE_DESCRIPTOR_MAX = "Max";
+    public static final String FILE_DESCRIPTOR_OPEN = "Open";
 
     public static final String IS_BACK_PRESSURED = "isBackPressured";
 
@@ -144,4 +148,13 @@ public class MetricNames {
     public static final String FAILED_COMMITTABLES = "failedCommittables";
     public static final String RETRIED_COMMITTABLES = "retriedCommittables";
     public static final String PENDING_COMMITTABLES = "pendingCommittables";
+
+    // FLIP-513 split level metrics
+    public static final String SPLIT_CURRENT_WATERMARK = "currentWatermark";
+    public static final String SPLIT_ACTIVE_TIME = "activeTimeMs" + SUFFIX_RATE;
+    public static final String SPLIT_PAUSED_TIME = "pausedTimeMs" + SUFFIX_RATE;
+    public static final String SPLIT_IDLE_TIME = "idleTimeMs" + SUFFIX_RATE;
+    public static final String ACC_SPLIT_PAUSED_TIME = "accumulatedPausedTimeMs";
+    public static final String ACC_SPLIT_ACTIVE_TIME = "accumulatedActiveTimeMs";
+    public static final String ACC_SPLIT_IDLE_TIME = "accumulatedIdleTimeMs";
 }

@@ -24,7 +24,9 @@ import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.columnar.ColumnarRowData;
 import org.apache.flink.table.data.columnar.vector.BytesColumnVector.Bytes;
+import org.apache.flink.types.variant.BinaryVariant;
 
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -132,5 +134,10 @@ public class VectorizedColumnBatch implements Serializable {
 
     public MapData getMap(int rowId, int colId) {
         return ((MapColumnVector) columns[colId]).getMap(rowId);
+    }
+
+    public BinaryVariant getVariant(int rowId, int colId) {
+        ColumnarRowData valueAndMeta = ((RowColumnVector) columns[colId]).getRow(rowId);
+        return new BinaryVariant(valueAndMeta.getBinary(0), valueAndMeta.getBinary(1));
     }
 }

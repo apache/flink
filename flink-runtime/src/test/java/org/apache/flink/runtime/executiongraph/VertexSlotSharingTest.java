@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -70,10 +71,10 @@ class VertexSlotSharingTest {
             v4.setInvokableClass(AbstractInvokable.class);
             v5.setInvokableClass(AbstractInvokable.class);
 
-            v2.connectNewDataSetAsInput(
-                    v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            v5.connectNewDataSetAsInput(
-                    v4, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    v2, v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    v5, v4, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
             SlotSharingGroup jg1 = new SlotSharingGroup();
             v2.setSlotSharingGroup(jg1);

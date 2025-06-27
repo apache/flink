@@ -40,6 +40,7 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TaggedUnion;
 
 import javax.annotation.Nullable;
 
@@ -47,7 +48,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -392,58 +392,8 @@ public class CoGroupedStreams<T1, T2> {
     }
 
     // ------------------------------------------------------------------------
-    //  Data type and type information for Tagged Union
+    //  Type information for Tagged Union
     // ------------------------------------------------------------------------
-
-    /** Internal class for implementing tagged union co-group. */
-    @Internal
-    public static class TaggedUnion<T1, T2> {
-        private final T1 one;
-        private final T2 two;
-
-        private TaggedUnion(T1 one, T2 two) {
-            this.one = one;
-            this.two = two;
-        }
-
-        public boolean isOne() {
-            return one != null;
-        }
-
-        public boolean isTwo() {
-            return two != null;
-        }
-
-        public T1 getOne() {
-            return one;
-        }
-
-        public T2 getTwo() {
-            return two;
-        }
-
-        public static <T1, T2> TaggedUnion<T1, T2> one(T1 one) {
-            return new TaggedUnion<>(one, null);
-        }
-
-        public static <T1, T2> TaggedUnion<T1, T2> two(T2 two) {
-            return new TaggedUnion<>(null, two);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj == this) {
-                return true;
-            }
-
-            if (!(obj instanceof TaggedUnion)) {
-                return false;
-            }
-
-            TaggedUnion other = (TaggedUnion) obj;
-            return Objects.equals(one, other.one) && Objects.equals(two, other.two);
-        }
-    }
 
     private static class UnionTypeInfo<T1, T2> extends TypeInformation<TaggedUnion<T1, T2>> {
         private static final long serialVersionUID = 1L;

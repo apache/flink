@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
@@ -32,33 +34,37 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.planner.factories.TableFactoryHarness;
+import org.apache.flink.table.planner.functions.BuiltInFunctionTestBase.TestCase;
+import org.apache.flink.table.planner.functions.BuiltInFunctionTestBase.TestCaseWithClusterClient;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedThrowable;
 
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -86,14 +92,15 @@ abstract class BuiltInAggregateFunctionTestBase {
 
     abstract Stream<TestSpec> getTestCaseSpecs();
 
-    final Stream<BuiltInFunctionTestBase.TestCase> getTestCases() {
+    final Stream<TestCase> getTestCases() {
         return this.getTestCaseSpecs().flatMap(TestSpec::getTestCases);
     }
 
     @ParameterizedTest
     @MethodSource("getTestCases")
-    final void test(BuiltInFunctionTestBase.TestCase testCase) throws Throwable {
-        testCase.execute();
+    final void test(TestCase testCase, @InjectMiniCluster MiniCluster miniCluster)
+            throws Throwable {
+        testCase.execute(new MiniClusterClient(miniCluster.getConfiguration(), miniCluster));
     }
 
     protected static Table asTable(TableEnvironment tEnv, DataType sourceRowType, List<Row> rows) {
@@ -308,8 +315,9 @@ abstract class BuiltInAggregateFunctionTestBase {
             return this;
         }
 
-        private Executable createTestItemExecutable(TestItem testItem, String stateBackend) {
-            return () -> {
+        private TestCaseWithClusterClient createTestItemExecutable(
+                TestItem testItem, String stateBackend) {
+            return (clusterClient) -> {
                 Configuration conf = new Configuration();
                 conf.set(StateBackendOptions.STATE_BACKEND, stateBackend);
                 final TableEnvironment tEnv =
@@ -320,23 +328,23 @@ abstract class BuiltInAggregateFunctionTestBase {
                                         .build());
                 final Table sourceTable = asTable(tEnv, sourceRowType, sourceRows);
 
-                testItem.execute(tEnv, sourceTable);
+                testItem.execute(tEnv, sourceTable, clusterClient);
             };
         }
 
-        Stream<BuiltInFunctionTestBase.TestCase> getTestCases() {
+        Stream<TestCase> getTestCases() {
             return Stream.concat(
                     testItems.stream()
                             .map(
                                     testItem ->
-                                            new BuiltInFunctionTestBase.TestCase(
+                                            new TestCase(
                                                     testItem.toString(),
                                                     createTestItemExecutable(
                                                             testItem, HASHMAP_STATE_BACKEND_NAME))),
                     testItems.stream()
                             .map(
                                     testItem ->
-                                            new BuiltInFunctionTestBase.TestCase(
+                                            new TestCase(
                                                     testItem.toString(),
                                                     createTestItemExecutable(
                                                             testItem,
@@ -362,7 +370,7 @@ abstract class BuiltInAggregateFunctionTestBase {
     // ---------------------------------------------------------------------------------------------
 
     private interface TestItem {
-        void execute(TableEnvironment tEnv, Table sourceTable);
+        void execute(TableEnvironment tEnv, Table sourceTable, MiniClusterClient clusterClient);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -377,7 +385,8 @@ abstract class BuiltInAggregateFunctionTestBase {
         }
 
         @Override
-        public void execute(TableEnvironment tEnv, Table sourceTable) {
+        public void execute(
+                TableEnvironment tEnv, Table sourceTable, MiniClusterClient clusterClient) {
             final TableResult tableResult = getResult(tEnv, sourceTable);
 
             if (expectedRowType != null) {
@@ -495,7 +504,6 @@ abstract class BuiltInAggregateFunctionTestBase {
             return tEnv.sqlQuery(stringBuilder.toString()).execute();
         }
 
-        @Nonnull
         private static List<ResolvedExpression> recreateSelectList(
                 AggregateQueryOperation aggQueryOperation,
                 ProjectQueryOperation projectQueryOperation) {
@@ -529,7 +537,10 @@ abstract class BuiltInAggregateFunctionTestBase {
 
         private static String toSerializableExpr(List<ResolvedExpression> expressions) {
             return expressions.stream()
-                    .map(ResolvedExpression::asSerializableString)
+                    .map(
+                            resolvedExpression ->
+                                    resolvedExpression.asSerializableString(
+                                            DefaultSqlFactory.INSTANCE))
                     .collect(Collectors.joining(", "));
         }
 
@@ -579,7 +590,8 @@ abstract class BuiltInAggregateFunctionTestBase {
         }
 
         @Override
-        public void execute(TableEnvironment tEnv, Table sourceTable) {
+        public void execute(
+                TableEnvironment tEnv, Table sourceTable, MiniClusterClient clusterClient) {
             AtomicReference<TableResult> tableResult = new AtomicReference<>();
 
             Throwable t =
@@ -604,9 +616,25 @@ abstract class BuiltInAggregateFunctionTestBase {
                         .containsExactlyElementsOf(getFieldDataTypes(expectedRowType));
             }
 
-            assertThatThrownBy(() -> tableResult.get().await())
+            assertThatThrownBy(() -> runAndWaitForFailure(clusterClient, tableResult))
                     .isNotNull()
                     .satisfies(this.errorMatcher());
+        }
+
+        private void runAndWaitForFailure(
+                final MiniClusterClient clusterClient,
+                final AtomicReference<TableResult> tableResult)
+                throws Throwable {
+            final TableResult result = tableResult.get();
+            result.await();
+            final Optional<SerializedThrowable> serializedThrowable =
+                    clusterClient
+                            .requestJobResult(result.getJobClient().get().getJobID())
+                            .get()
+                            .getSerializedThrowable();
+            if (serializedThrowable.isPresent()) {
+                throw serializedThrowable.get().deserializeError(getClass().getClassLoader());
+            }
         }
 
         protected abstract Table query(TableEnvironment tEnv, @Nullable Table inputTable);

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.runtime.execution.ExecutionState;
+
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -75,7 +77,8 @@ public class PartialFinishedInputConsumableDecider implements InputConsumableDec
         @Override
         public InputConsumableDecider createInstance(
                 SchedulingTopology schedulingTopology,
-                Function<ExecutionVertexID, Boolean> scheduledVertexRetriever) {
+                Function<ExecutionVertexID, Boolean> scheduledVertexRetriever,
+                Function<ExecutionVertexID, ExecutionState> executionStateRetriever) {
             return new PartialFinishedInputConsumableDecider();
         }
     }

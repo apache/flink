@@ -21,6 +21,8 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
+import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -31,6 +33,7 @@ import java.util.Map;
 @Internal
 public class FilterQueryOperation implements QueryOperation {
 
+    private static final String INPUT_ALIAS = "$$T_FILTER";
     private final ResolvedExpression condition;
     private final QueryOperation child;
 
@@ -58,12 +61,14 @@ public class FilterQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         return String.format(
-                "SELECT %s FROM (%s\n) WHERE %s",
-                OperationUtils.formatSelectColumns(getResolvedSchema()),
-                OperationUtils.indent(child.asSerializableString()),
-                condition.asSerializableString());
+                "SELECT %s FROM (%s\n) %s WHERE %s",
+                OperationUtils.formatSelectColumns(getResolvedSchema(), INPUT_ALIAS),
+                OperationUtils.indent(child.asSerializableString(sqlFactory)),
+                INPUT_ALIAS,
+                OperationExpressionsUtils.scopeReferencesWithAlias(INPUT_ALIAS, condition)
+                        .asSerializableString(sqlFactory));
     }
 
     @Override

@@ -21,9 +21,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.RawValue
 import org.apache.flink.table.api.{DataTypes, JsonOnNull}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, rowFieldReadAccess, typeTerm, ARRAY_DATA, MAP_DATA}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON
+import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.{JSON_ARRAY, JSON_OBJECT}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapFunctionDefinition
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isCharacterString
 import org.apache.flink.table.types.logical._
@@ -49,7 +51,7 @@ object JsonGenerateUtils {
       ctx: CodeGeneratorContext,
       expression: GeneratedExpression,
       operand: RexNode): String = {
-    if (isJsonFunctionOperand(operand)) {
+    if (isJsonObjectOrArrayOperand(operand) || isJsonFunctionOperand(operand)) {
       createRawNodeTerm(expression)
     } else {
       createNodeTerm(ctx, expression)
@@ -171,11 +173,35 @@ object JsonGenerateUtils {
     }
   }
 
+  /** Determines whether the given operand is a call to a JSON_OBJECT */
+  def isJsonObjectOperand(operand: RexNode): Boolean = {
+    operand match {
+      case rexCall: RexCall =>
+        rexCall.getOperator match {
+          case JSON_OBJECT => true
+          case _ => false
+        }
+      case _ => false
+    }
+  }
+
+  /** Determines whether the given operand is a call to a JSON_ARRAY */
+  def isJsonArrayOperand(operand: RexNode): Boolean = {
+    operand match {
+      case rexCall: RexCall =>
+        rexCall.getOperator match {
+          case JSON_ARRAY => true
+          case _ => false
+        }
+      case _ => false
+    }
+  }
+
   /**
-   * Determines whether the given operand is a call to a JSON function whose result should be
-   * inserted as a raw value instead of as a character string.
+   * Determines whether the given operand is a call to a JSON_OBJECT or JSON_ARRAY whose result
+   * should be inserted as a raw value instead of as a character string.
    */
-  def isJsonFunctionOperand(operand: RexNode): Boolean = {
+  def isJsonObjectOrArrayOperand(operand: RexNode): Boolean = {
     operand match {
       case rexCall: RexCall =>
         rexCall.getOperator match {
@@ -184,6 +210,32 @@ object JsonGenerateUtils {
         }
       case _ => false
     }
+  }
+
+  /**
+   * Determines whether the given operand is a call to JSON function whose call currently just
+   * passes through the input value as output value
+   */
+  def isJsonFunctionOperand(operand: RexNode): Boolean = {
+    operand match {
+      case rexCall: RexCall =>
+        unwrapFunctionDefinition(rexCall) match {
+          case JSON => true
+          case _ => false
+        }
+      case _ => false
+    }
+  }
+
+  /**
+   * Determines whether a JSON function is allowed in the current context. JSON functions are
+   * allowed as values in JSON_ARRAY calls or as value parameters in JSON_OBJECT calls. In the case
+   * of a JSON_OBJECT call, we do (i % 2) == 0 to check if it's being used in second parameter, the
+   * values' parameter.
+   */
+  def isSupportedJsonOperand(operand: RexNode, call: RexNode, i: Int): Boolean = {
+    isJsonFunctionOperand(operand) &&
+    (isJsonArrayOperand(call) || isJsonObjectOperand(call) && (i % 2) == 0)
   }
 
   /** Generates a method to convert arrays into [[ArrayNode]]. */

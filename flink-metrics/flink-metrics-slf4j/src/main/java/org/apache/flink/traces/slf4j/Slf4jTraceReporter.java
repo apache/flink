@@ -33,13 +33,13 @@ public class Slf4jTraceReporter implements TraceReporter {
     private static final Logger LOG = LoggerFactory.getLogger(Slf4jTraceReporter.class);
 
     @Override
-    public void notifyOfAddedSpan(Span span) {
-        LOG.info("Reported span: {}", span);
-    }
-
-    @Override
     public void open(MetricConfig metricConfig) {}
 
     @Override
     public void close() {}
+
+    @Override
+    public void notifyOfAddedSpan(Span span) {
+        LOG.info("Reported span: {}", span);
+    }
 }

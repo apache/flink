@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.DynamicFilteringInfo;
@@ -290,6 +291,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                         };
                 final SourceCoordinator<?, ?> coordinator =
                         new SourceCoordinator<>(
+                                new JobID(),
                                 OPERATOR_NAME,
                                 new EnumeratorCreatingSource<>(() -> splitEnumerator),
                                 context,
@@ -312,6 +314,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 
         final SourceCoordinator<?, ?> coordinator =
                 new SourceCoordinator<>(
+                        new JobID(),
                         OPERATOR_NAME,
                         new EnumeratorCreatingSource<>(
                                 () -> {
@@ -342,6 +345,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                         };
                 final SourceCoordinator<?, ?> coordinator =
                         new SourceCoordinator<>(
+                                new JobID(),
                                 OPERATOR_NAME,
                                 new EnumeratorCreatingSource<>(() -> splitEnumerator),
                                 context,
@@ -562,6 +566,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         CoordinatorStore store = new CoordinatorStoreImpl();
         final SourceCoordinator<?, ?> coordinator =
                 new SourceCoordinator<>(
+                        new JobID(),
                         OPERATOR_NAME,
                         createMockSource(),
                         context,
@@ -583,6 +588,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         store.putIfAbsent(listeningID, new SourceEventWrapper(new TestDynamicFilteringEvent()));
         final SourceCoordinator<?, ?> coordinator =
                 new SourceCoordinator<>(
+                        new JobID(),
                         OPERATOR_NAME,
                         createMockSource(),
                         context,

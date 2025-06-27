@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 import org.apache.flink.table.operations.QueryOperation;
@@ -78,7 +79,7 @@ public class PlannerQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         try {
             return toSqlString.get();
         } catch (Exception e) {

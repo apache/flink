@@ -35,7 +35,9 @@ import java.time.ZoneId;
 @Internal
 public interface CastRule<IN, OUT> {
 
-    /** @see CastRulePredicate for more details about a cast rule predicate definition. */
+    /**
+     * @see CastRulePredicate for more details about a cast rule predicate definition.
+     */
     CastRulePredicate getPredicateDefinition();
 
     /**

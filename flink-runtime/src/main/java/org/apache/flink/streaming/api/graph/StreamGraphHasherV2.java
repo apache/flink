@@ -22,9 +22,9 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
 
-import org.apache.flink.shaded.guava32.com.google.common.hash.HashFunction;
-import org.apache.flink.shaded.guava32.com.google.common.hash.Hasher;
-import org.apache.flink.shaded.guava32.com.google.common.hash.Hashing;
+import org.apache.flink.shaded.guava33.com.google.common.hash.HashFunction;
+import org.apache.flink.shaded.guava33.com.google.common.hash.Hasher;
+import org.apache.flink.shaded.guava33.com.google.common.hash.Hashing;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -146,6 +146,18 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
         hasher.putString(operatorUid, Charset.forName("UTF-8"));
 
         return hasher.hash().asBytes();
+    }
+
+    @Override
+    public boolean generateHashesByStreamNodeId(
+            int streamNodeId, StreamGraph streamGraph, Map<Integer, byte[]> hashes) {
+        StreamNode streamNode = streamGraph.getStreamNode(streamNodeId);
+        return generateNodeHash(
+                streamNode,
+                getHashFunction(),
+                hashes,
+                streamGraph.isChainingEnabled(),
+                streamGraph);
     }
 
     /**

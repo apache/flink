@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
@@ -28,10 +29,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.asyncprocessing.operators.windowing.triggers.AsyncCountTrigger;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.delta.DeltaFunction;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
@@ -49,9 +52,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 import java.util.Comparator;
@@ -66,9 +71,21 @@ class EvictingWindowOperatorTest {
     private static final TypeInformation<Tuple2<String, Integer>> STRING_INT_TUPLE =
             TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {});
 
+    private static <OUT>
+            OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, OUT> createAsyncTestHarness(
+                    OneInputStreamOperator<Tuple2<String, Integer>, OUT> operator) {
+        try {
+            return AsyncKeyedOneInputStreamOperatorTestHarness.create(
+                    operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     /** Tests CountEvictor evictAfter behavior. */
-    @Test
-    void testCountEvictorEvictAfter() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testCountEvictorEvictAfter(boolean enableAsyncState) throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int windowSize = 4;
         final int triggerCount = 2;
@@ -100,10 +117,27 @@ class EvictingWindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, GlobalWindow> builder =
+                new WindowOperatorBuilder<>(
+                                GlobalWindows.create(),
+                                null,
+                                new ExecutionConfig(),
+                                STRING_INT_TUPLE,
+                                new TupleKeySelector(),
+                                TypeInformation.of(String.class))
+                        .asyncTrigger(AsyncCountTrigger.of(triggerCount));
+        builder.evictor(CountEvictor.of(windowSize, evictAfter));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
                 testHarness =
-                        new KeyedOneInputStreamOperatorTestHarness<>(
-                                operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncApply(
+                                                new RichSumReducer<GlobalWindow>(closeCalled)))
+                                : new KeyedOneInputStreamOperatorTestHarness<>(
+                                        operator,
+                                        new TupleKeySelector(),
+                                        BasicTypeInfo.STRING_TYPE_INFO);
 
         long initialTime = 0L;
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -160,8 +194,9 @@ class EvictingWindowOperatorTest {
     }
 
     /** Tests TimeEvictor evictAfter behavior. */
-    @Test
-    void testTimeEvictorEvictAfter() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testTimeEvictorEvictAfter(boolean enableAsyncState) throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final boolean evictAfter = true;
@@ -192,10 +227,27 @@ class EvictingWindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, GlobalWindow> builder =
+                new WindowOperatorBuilder<>(
+                                GlobalWindows.create(),
+                                null,
+                                new ExecutionConfig(),
+                                STRING_INT_TUPLE,
+                                new TupleKeySelector(),
+                                TypeInformation.of(String.class))
+                        .asyncTrigger(AsyncCountTrigger.of(triggerCount));
+        builder.evictor(TimeEvictor.of(Duration.ofSeconds(2), evictAfter));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
                 testHarness =
-                        new KeyedOneInputStreamOperatorTestHarness<>(
-                                operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncApply(
+                                                new RichSumReducer<GlobalWindow>(closeCalled)))
+                                : new KeyedOneInputStreamOperatorTestHarness<>(
+                                        operator,
+                                        new TupleKeySelector(),
+                                        BasicTypeInfo.STRING_TYPE_INFO);
 
         long initialTime = 0L;
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -242,8 +294,9 @@ class EvictingWindowOperatorTest {
     }
 
     /** Tests TimeEvictor evictBefore behavior. */
-    @Test
-    void testTimeEvictorEvictBefore() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testTimeEvictorEvictBefore(boolean enableAsyncState) throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final int windowSize = 4;
@@ -274,10 +327,26 @@ class EvictingWindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                                TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
+                                null,
+                                new ExecutionConfig(),
+                                STRING_INT_TUPLE,
+                                new TupleKeySelector(),
+                                TypeInformation.of(String.class))
+                        .asyncTrigger(AsyncCountTrigger.of(triggerCount));
+        builder.evictor(TimeEvictor.of(Duration.ofSeconds(2)));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
                 testHarness =
-                        new KeyedOneInputStreamOperatorTestHarness<>(
-                                operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncApply(new RichSumReducer<>(closeCalled)))
+                                : new KeyedOneInputStreamOperatorTestHarness<>(
+                                        operator,
+                                        new TupleKeySelector(),
+                                        BasicTypeInfo.STRING_TYPE_INFO);
 
         long initialTime = 0L;
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -327,8 +396,9 @@ class EvictingWindowOperatorTest {
      * Tests time evictor, if no timestamp information in the StreamRecord. No element will be
      * evicted from the window.
      */
-    @Test
-    void testTimeEvictorNoTimestamp() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testTimeEvictorNoTimestamp(boolean enableAsyncState) throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final boolean evictAfter = true;
@@ -359,10 +429,26 @@ class EvictingWindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, GlobalWindow> builder =
+                new WindowOperatorBuilder<>(
+                                GlobalWindows.create(),
+                                null,
+                                new ExecutionConfig(),
+                                STRING_INT_TUPLE,
+                                new TupleKeySelector(),
+                                TypeInformation.of(String.class))
+                        .asyncTrigger(AsyncCountTrigger.of(triggerCount));
+        builder.evictor(TimeEvictor.of(Duration.ofSeconds(2), evictAfter));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
                 testHarness =
-                        new KeyedOneInputStreamOperatorTestHarness<>(
-                                operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncApply(new RichSumReducer<>(closeCalled)))
+                                : new KeyedOneInputStreamOperatorTestHarness<>(
+                                        operator,
+                                        new TupleKeySelector(),
+                                        BasicTypeInfo.STRING_TYPE_INFO);
 
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -407,8 +493,9 @@ class EvictingWindowOperatorTest {
     }
 
     /** Tests DeltaEvictor, evictBefore behavior. */
-    @Test
-    void testDeltaEvictorEvictBefore() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testDeltaEvictorEvictBefore(boolean enableAsyncState) throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final boolean evictAfter = false;
@@ -450,10 +537,31 @@ class EvictingWindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, GlobalWindow> builder =
+                new WindowOperatorBuilder<>(
+                                GlobalWindows.create(),
+                                null,
+                                new ExecutionConfig(),
+                                STRING_INT_TUPLE,
+                                new TupleKeySelector(),
+                                TypeInformation.of(String.class))
+                        .asyncTrigger(AsyncCountTrigger.of(triggerCount));
+        builder.evictor(
+                DeltaEvictor.of(
+                        threshold,
+                        (DeltaFunction<Tuple2<String, Integer>>)
+                                (oldDataPoint, newDataPoint) -> newDataPoint.f1 - oldDataPoint.f1,
+                        evictAfter));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
                 testHarness =
-                        new KeyedOneInputStreamOperatorTestHarness<>(
-                                operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncApply(new RichSumReducer<>(closeCalled)))
+                                : new KeyedOneInputStreamOperatorTestHarness<>(
+                                        operator,
+                                        new TupleKeySelector(),
+                                        BasicTypeInfo.STRING_TYPE_INFO);
 
         long initialTime = 0L;
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -501,8 +609,9 @@ class EvictingWindowOperatorTest {
     }
 
     /** Tests DeltaEvictor, evictAfter behavior. */
-    @Test
-    void testDeltaEvictorEvictAfter() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testDeltaEvictorEvictAfter(boolean enableAsyncState) throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
         final int triggerCount = 2;
         final boolean evictAfter = true;
@@ -544,10 +653,31 @@ class EvictingWindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, GlobalWindow> builder =
+                new WindowOperatorBuilder<>(
+                                GlobalWindows.create(),
+                                null,
+                                new ExecutionConfig(),
+                                STRING_INT_TUPLE,
+                                new TupleKeySelector(),
+                                TypeInformation.of(String.class))
+                        .asyncTrigger(AsyncCountTrigger.of(triggerCount));
+        builder.evictor(
+                DeltaEvictor.of(
+                        threshold,
+                        (DeltaFunction<Tuple2<String, Integer>>)
+                                (oldDataPoint, newDataPoint) -> newDataPoint.f1 - oldDataPoint.f1,
+                        evictAfter));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
                 testHarness =
-                        new KeyedOneInputStreamOperatorTestHarness<>(
-                                operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncApply(new RichSumReducer<>(closeCalled)))
+                                : new KeyedOneInputStreamOperatorTestHarness<>(
+                                        operator,
+                                        new TupleKeySelector(),
+                                        BasicTypeInfo.STRING_TYPE_INFO);
 
         long initialTime = 0L;
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -594,9 +724,10 @@ class EvictingWindowOperatorTest {
         assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
-    @Test
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
     @SuppressWarnings("unchecked")
-    void testCountTrigger() throws Exception {
+    void testCountTrigger(boolean enableAsyncState) throws Exception {
 
         final int windowSize = 4;
         final int windowSlide = 2;
@@ -634,10 +765,32 @@ class EvictingWindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, GlobalWindow> builder =
+                new WindowOperatorBuilder<>(
+                                GlobalWindows.create(),
+                                null,
+                                new ExecutionConfig(),
+                                STRING_INT_TUPLE,
+                                new TupleKeySelector(),
+                                TypeInformation.of(String.class))
+                        .asyncTrigger(AsyncCountTrigger.of(windowSlide));
+        builder.evictor(CountEvictor.of(windowSize));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
                 testHarness =
-                        new KeyedOneInputStreamOperatorTestHarness<>(
-                                operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncApply(
+                                                new ReduceApplyWindowFunction<>(
+                                                        new SumReducer(),
+                                                        // on some versions of Java we seem to need
+                                                        // the
+                                                        // explicit type
+                                                        new PassThroughWindowFunction<>())))
+                                : new KeyedOneInputStreamOperatorTestHarness<>(
+                                        operator,
+                                        new TupleKeySelector(),
+                                        BasicTypeInfo.STRING_TYPE_INFO);
 
         long initialTime = 0L;
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -684,9 +837,10 @@ class EvictingWindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
     @SuppressWarnings("unchecked")
-    void testCountTriggerWithApply() throws Exception {
+    void testCountTriggerWithApply(boolean enableAsyncState) throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
 
         final int windowSize = 4;
@@ -718,10 +872,26 @@ class EvictingWindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, GlobalWindow> builder =
+                new WindowOperatorBuilder<>(
+                                GlobalWindows.create(),
+                                null,
+                                new ExecutionConfig(),
+                                STRING_INT_TUPLE,
+                                new TupleKeySelector(),
+                                TypeInformation.of(String.class))
+                        .asyncTrigger(AsyncCountTrigger.of(windowSlide));
+        builder.evictor(CountEvictor.of(windowSize));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
                 testHarness =
-                        new KeyedOneInputStreamOperatorTestHarness<>(
-                                operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncApply(new RichSumReducer<>(closeCalled)))
+                                : new KeyedOneInputStreamOperatorTestHarness<>(
+                                        operator,
+                                        new TupleKeySelector(),
+                                        BasicTypeInfo.STRING_TYPE_INFO);
 
         long initialTime = 0L;
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -770,9 +940,10 @@ class EvictingWindowOperatorTest {
         assertThat(closeCalled).as("Close was not called.").hasValue(1);
     }
 
-    @Test
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
     @SuppressWarnings("unchecked")
-    void testTumblingWindowWithApply() throws Exception {
+    void testTumblingWindowWithApply(boolean enableAsyncState) throws Exception {
         AtomicInteger closeCalled = new AtomicInteger(0);
 
         final int windowSize = 4;
@@ -803,10 +974,25 @@ class EvictingWindowOperatorTest {
                                 0,
                                 null /* late data output tag */);
 
+        WindowOperatorBuilder<Tuple2<String, Integer>, String, TimeWindow> builder =
+                new WindowOperatorBuilder<>(
+                        TumblingEventTimeWindows.of(Duration.ofSeconds(windowSize)),
+                        EventTimeTrigger.create(),
+                        new ExecutionConfig(),
+                        STRING_INT_TUPLE,
+                        new TupleKeySelector(),
+                        TypeInformation.of(String.class));
+        builder.evictor(CountEvictor.of(windowSize));
+
         OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>>
                 testHarness =
-                        new KeyedOneInputStreamOperatorTestHarness<>(
-                                operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+                        enableAsyncState
+                                ? createAsyncTestHarness(
+                                        builder.asyncApply(new RichSumReducer<>(closeCalled)))
+                                : new KeyedOneInputStreamOperatorTestHarness<>(
+                                        operator,
+                                        new TupleKeySelector(),
+                                        BasicTypeInfo.STRING_TYPE_INFO);
 
         long initialTime = 0L;
 

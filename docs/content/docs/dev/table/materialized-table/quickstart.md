@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-weight: 3
+weight: 4
 type: docs
 aliases:
 - /dev/table/materialized-table/quickstart.html
@@ -27,16 +27,6 @@ under the License.
 # Quickstart Guide
 
 This guide will help you quickly understand and get started with materialized tables. It includes setting up the environment and creating, altering, and dropping materialized tables in CONTINUOUS and FULL mode.
-
-# Architecture Introduction
-
-- **Client**: Could be any client that can interact with [Flink SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}), such as [SQL Client]({{< ref "docs/dev/table/sqlClient" >}}), [Flink JDBC Driver]({{< ref "docs/dev/table/jdbcDriver" >}}) and so on.
-- **Flink SQL Gateway**: Supports creating, altering, and dropping materialized tables. It also serves as an embedded workflow scheduler to periodically refresh full mode materialized tables.
-- **Flink Cluster**: The pipeline for refreshing materialized tables will run on the Flink cluster.
-- **Catalog**: Manages the creation, retrieval, modification, and deletion of the metadata of materialized tables.
-- **Catalog Store**: Supports catalog property persistence to automatically initialize catalogs for retrieving metadata in materialized table related operations.
-
-{{< img src="/fig/materialized-table-architecture.svg" alt="Illustration of Flink Materialized Table Architecture" width="85%" >}}
 
 # Environment Setup
 
@@ -75,7 +65,7 @@ The method here is similar to the steps recorded in [local installation]({{< ref
 tar -xzf flink-*.tgz
 ```
 
-[Download](https://https://repo.maven.apache.org/maven2/org/apache/flink/flink-table-filesystem-test-utils/) the test-filesystem connector and place it in the lib directory:
+[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-table-filesystem-test-utils/) the test-filesystem connector and place it in the lib directory:
 
 ```
 cp flink-table-filesystem-test-utils-{VERSION}.jar flink-*/lib/

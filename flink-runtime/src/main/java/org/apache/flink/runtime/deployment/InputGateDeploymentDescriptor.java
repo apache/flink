@@ -30,7 +30,6 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.Shuff
 import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.util.GroupCache;
@@ -42,6 +41,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -59,6 +59,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class InputGateDeploymentDescriptor implements Serializable {
 
     private static final long serialVersionUID = -7143441863165366704L;
+
     /**
      * The ID of the consumed intermediate result. Each input gate consumes partitions of the
      * intermediate result specified by this ID. This ID also identifies the input gate at the
@@ -70,11 +71,10 @@ public class InputGateDeploymentDescriptor implements Serializable {
     private final ResultPartitionType consumedPartitionType;
 
     /**
-     * Range of the index of the consumed subpartition of each consumed partition. This index
-     * depends on the {@link DistributionPattern} and the subtask indices of the producing and
-     * consuming task. The range is inclusive.
+     * Provides information about the number of consumed shuffle descriptors and the mapping between
+     * consumed shuffle descriptor ranges and their corresponding subpartition ranges.
      */
-    private final IndexRange consumedSubpartitionIndexRange;
+    private final ConsumedSubpartitionContext consumedSubpartitionContext;
 
     /** An input channel for each consumed subpartition. */
     private transient ShuffleDescriptor[] inputChannels;
@@ -109,9 +109,24 @@ public class InputGateDeploymentDescriptor implements Serializable {
             IndexRange consumedSubpartitionIndexRange,
             int numberOfInputChannels,
             List<MaybeOffloaded<ShuffleDescriptorGroup>> serializedInputChannels) {
+        this(
+                consumedResultId,
+                consumedPartitionType,
+                ConsumedSubpartitionContext.buildConsumedSubpartitionContext(
+                        numberOfInputChannels, consumedSubpartitionIndexRange),
+                numberOfInputChannels,
+                serializedInputChannels);
+    }
+
+    public InputGateDeploymentDescriptor(
+            IntermediateDataSetID consumedResultId,
+            ResultPartitionType consumedPartitionType,
+            ConsumedSubpartitionContext consumedSubpartitionContext,
+            int numberOfInputChannels,
+            List<MaybeOffloaded<ShuffleDescriptorGroup>> serializedInputChannels) {
         this.consumedResultId = checkNotNull(consumedResultId);
         this.consumedPartitionType = checkNotNull(consumedPartitionType);
-        this.consumedSubpartitionIndexRange = checkNotNull(consumedSubpartitionIndexRange);
+        this.consumedSubpartitionContext = checkNotNull(consumedSubpartitionContext);
         this.serializedInputChannels = checkNotNull(serializedInputChannels);
         this.numberOfInputChannels = numberOfInputChannels;
     }
@@ -129,19 +144,31 @@ public class InputGateDeploymentDescriptor implements Serializable {
         return consumedPartitionType;
     }
 
-    @Nonnegative
-    public int getConsumedSubpartitionIndex() {
-        checkState(
-                consumedSubpartitionIndexRange.getStartIndex()
-                        == consumedSubpartitionIndexRange.getEndIndex());
-        return consumedSubpartitionIndexRange.getStartIndex();
+    public int getNumConsumedShuffleDescriptors() {
+        return consumedSubpartitionContext.getNumConsumedShuffleDescriptors();
     }
 
-    /** Return the index range of the consumed subpartitions. */
-    public IndexRange getConsumedSubpartitionIndexRange() {
-        return consumedSubpartitionIndexRange;
+    public Collection<IndexRange> getConsumedShuffleDescriptorRanges() {
+        return consumedSubpartitionContext.getConsumedShuffleDescriptorRanges();
     }
 
+    public IndexRange getConsumedSubpartitionRange(int shuffleDescriptorIndex) {
+        return consumedSubpartitionContext.getConsumedSubpartitionRange(shuffleDescriptorIndex);
+    }
+
+    /**
+     * Retrieves all {@link ShuffleDescriptor}s associated of this input gate deployment descriptor.
+     *
+     * <p>Note that the returned descriptors may not be fully consumed. The {@link
+     * #getConsumedShuffleDescriptorRanges} method provides the indices of the shuffle descriptors
+     * that are really consumed.
+     *
+     * <p>We need to return all {@link ShuffleDescriptor}s to maintain the mapping between the
+     * descriptors and the indices recorded in the {@link ConsumedSubpartitionContext}.
+     *
+     * @return an array of {@link ShuffleDescriptor}s.
+     * @throws RuntimeException if deserialization of shuffle descriptors fails.
+     */
     public ShuffleDescriptor[] getShuffleDescriptors() {
         if (inputChannels == null) {
             // This is only for testing scenarios, in a production environment we always call
@@ -247,7 +274,7 @@ public class InputGateDeploymentDescriptor implements Serializable {
     public String toString() {
         return String.format(
                 "InputGateDeploymentDescriptor [result id: %s, "
-                        + "consumed subpartition index range: %s]",
-                consumedResultId.toString(), consumedSubpartitionIndexRange);
+                        + "consumed subpartition context: %s]",
+                consumedResultId.toString(), consumedSubpartitionContext.toString());
     }
 }

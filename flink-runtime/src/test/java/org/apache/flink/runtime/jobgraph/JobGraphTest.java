@@ -38,6 +38,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getDoubleConfigOption;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
@@ -66,10 +67,16 @@ public class JobGraphTest extends TestLogger {
                 JobVertex source1 = new JobVertex("source1");
                 JobVertex source2 = new JobVertex("source2");
                 JobVertex target = new JobVertex("target");
-                target.connectNewDataSetAsInput(
-                        source1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-                target.connectNewDataSetAsInput(
-                        source2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+                connectNewDataSetAsInput(
+                        target,
+                        source1,
+                        DistributionPattern.POINTWISE,
+                        ResultPartitionType.PIPELINED);
+                connectNewDataSetAsInput(
+                        target,
+                        source2,
+                        DistributionPattern.ALL_TO_ALL,
+                        ResultPartitionType.PIPELINED);
 
                 jg.addVertex(source1);
                 jg.addVertex(source2);
@@ -108,16 +115,25 @@ public class JobGraphTest extends TestLogger {
         JobVertex intermediate1 = new JobVertex("intermediate1");
         JobVertex intermediate2 = new JobVertex("intermediate2");
 
-        target1.connectNewDataSetAsInput(
-                source1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        target2.connectNewDataSetAsInput(
-                source1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        target2.connectNewDataSetAsInput(
-                intermediate2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        intermediate2.connectNewDataSetAsInput(
-                intermediate1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        intermediate1.connectNewDataSetAsInput(
-                source2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                target1, source1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                target2, source1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                target2,
+                intermediate2,
+                DistributionPattern.POINTWISE,
+                ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                intermediate2,
+                intermediate1,
+                DistributionPattern.POINTWISE,
+                ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                intermediate1,
+                source2,
+                DistributionPattern.POINTWISE,
+                ResultPartitionType.PIPELINED);
 
         JobGraph graph =
                 JobGraphTestUtils.streamingJobGraph(
@@ -147,28 +163,28 @@ public class JobGraphTest extends TestLogger {
             JobVertex l13 = new JobVertex("layer 1 - 3");
             JobVertex l2 = new JobVertex("layer 2");
 
-            root.connectNewDataSetAsInput(
-                    l13, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            root.connectNewDataSetAsInput(
-                    source2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            root.connectNewDataSetAsInput(
-                    l2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    root, l13, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    root, source2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    root, l2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-            l2.connectNewDataSetAsInput(
-                    l11, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            l2.connectNewDataSetAsInput(
-                    l12, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    l2, l11, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    l2, l12, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-            l11.connectNewDataSetAsInput(
-                    source1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    l11, source1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-            l12.connectNewDataSetAsInput(
-                    source1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            l12.connectNewDataSetAsInput(
-                    source2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    l12, source1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    l12, source2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-            l13.connectNewDataSetAsInput(
-                    source2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    l13, source2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
             JobGraph graph =
                     JobGraphTestUtils.streamingJobGraph(source1, source2, root, l11, l13, l12, l2);
@@ -211,14 +227,14 @@ public class JobGraphTest extends TestLogger {
             JobVertex op2 = new JobVertex("op2");
             JobVertex op3 = new JobVertex("op3");
 
-            op1.connectNewDataSetAsInput(
-                    source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            op2.connectNewDataSetAsInput(
-                    op1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            op2.connectNewDataSetAsInput(
-                    source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            op3.connectNewDataSetAsInput(
-                    op2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    op1, source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    op2, op1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    op2, source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    op3, op2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
             JobGraph graph = JobGraphTestUtils.streamingJobGraph(source, op1, op2, op3);
             List<JobVertex> sorted = graph.getVerticesSortedTopologicallyFromSources();
@@ -243,14 +259,14 @@ public class JobGraphTest extends TestLogger {
             JobVertex v3 = new JobVertex("3");
             JobVertex v4 = new JobVertex("4");
 
-            v1.connectNewDataSetAsInput(
-                    v4, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            v2.connectNewDataSetAsInput(
-                    v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            v3.connectNewDataSetAsInput(
-                    v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            v4.connectNewDataSetAsInput(
-                    v3, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    v1, v4, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    v2, v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    v3, v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    v4, v3, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
             JobGraph jg = JobGraphTestUtils.streamingJobGraph(v1, v2, v3, v4);
             try {
@@ -275,18 +291,18 @@ public class JobGraphTest extends TestLogger {
             JobVertex v4 = new JobVertex("4");
             JobVertex target = new JobVertex("target");
 
-            v1.connectNewDataSetAsInput(
-                    source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            v1.connectNewDataSetAsInput(
-                    v4, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            v2.connectNewDataSetAsInput(
-                    v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            v3.connectNewDataSetAsInput(
-                    v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            v4.connectNewDataSetAsInput(
-                    v3, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            target.connectNewDataSetAsInput(
-                    v3, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    v1, source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    v1, v4, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    v2, v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    v3, v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    v4, v3, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    target, v3, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
             JobGraph jg = JobGraphTestUtils.streamingJobGraph(v1, v2, v3, v4, source, target);
             try {

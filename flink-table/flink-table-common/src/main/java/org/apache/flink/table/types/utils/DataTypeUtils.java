@@ -292,7 +292,9 @@ public final class DataTypeUtils {
         return flattenToNames(dataType, Collections.emptyList());
     }
 
-    /** @see DataTypeUtils#flattenToNames(DataType) */
+    /**
+     * @see DataTypeUtils#flattenToNames(DataType)
+     */
     public static List<String> flattenToNames(DataType dataType, List<String> existingNames) {
         final LogicalType type = dataType.getLogicalType();
         if (type.is(DISTINCT_TYPE)) {
@@ -323,6 +325,24 @@ public final class DataTypeUtils {
     /** Returns a PROCTIME data type. */
     public static DataType createProctimeDataType() {
         return new AtomicDataType(new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3));
+    }
+
+    /**
+     * {@link ResolvedSchema#toPhysicalRowDataType()} erases time attributes. This method keeps them
+     * during conversion for very specific use cases mostly in Table API.
+     */
+    public static DataType fromResolvedSchemaPreservingTimeAttributes(
+            ResolvedSchema resolvedSchema) {
+        final List<String> fieldNames = resolvedSchema.getColumnNames();
+        final List<DataType> fieldTypes = resolvedSchema.getColumnDataTypes();
+        return DataTypes.ROW(
+                        IntStream.range(0, fieldNames.size())
+                                .mapToObj(
+                                        pos ->
+                                                DataTypes.FIELD(
+                                                        fieldNames.get(pos), fieldTypes.get(pos)))
+                                .collect(Collectors.toList()))
+                .notNull();
     }
 
     private DataTypeUtils() {
@@ -506,16 +526,19 @@ public final class DataTypeUtils {
         // ----------------------------------------------------------------------------------------
 
         private StructuredType.Builder createStructuredBuilder(StructuredType structuredType) {
-            final Optional<ObjectIdentifier> identifier = structuredType.getObjectIdentifier();
-            final Optional<Class<?>> implementationClass = structuredType.getImplementationClass();
-            if (identifier.isPresent() && implementationClass.isPresent()) {
-                return StructuredType.newBuilder(identifier.get(), implementationClass.get());
-            } else if (identifier.isPresent()) {
-                return StructuredType.newBuilder(identifier.get());
-            } else if (implementationClass.isPresent()) {
-                return StructuredType.newBuilder(implementationClass.get());
+            final ObjectIdentifier identifier = structuredType.getObjectIdentifier().orElse(null);
+            final String className = structuredType.getClassName().orElse(null);
+            final Class<?> implementationClass =
+                    structuredType.getImplementationClass().orElse(null);
+
+            if (identifier != null && implementationClass != null) {
+                return StructuredType.newBuilder(identifier, implementationClass);
+            } else if (identifier != null) {
+                return StructuredType.newBuilder(identifier);
+            } else if (implementationClass != null) {
+                return StructuredType.newBuilder(implementationClass);
             } else {
-                throw new IllegalArgumentException("Invalid structured type.");
+                return StructuredType.newBuilder(className);
             }
         }
     }

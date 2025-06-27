@@ -26,6 +26,7 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
+import org.apache.flink.datastream.api.context.TwoOutputPartitionedContext;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
@@ -52,7 +53,9 @@ class StreamUtilsTest {
                         new OneInputStreamProcessFunction<Integer, Long>() {
                             @Override
                             public void processRecord(
-                                    Integer record, Collector<Long> output, PartitionedContext ctx)
+                                    Integer record,
+                                    Collector<Long> output,
+                                    PartitionedContext<Long> ctx)
                                     throws Exception {
                                 // ignore
                             }
@@ -82,14 +85,16 @@ class StreamUtilsTest {
                             public void processRecordFromFirstInput(
                                     Integer record,
                                     Collector<String> output,
-                                    PartitionedContext ctx)
+                                    PartitionedContext<String> ctx)
                                     throws Exception {
                                 // ignore
                             }
 
                             @Override
                             public void processRecordFromSecondInput(
-                                    Long record, Collector<String> output, PartitionedContext ctx)
+                                    Long record,
+                                    Collector<String> output,
+                                    PartitionedContext<String> ctx)
                                     throws Exception {
                                 // ignore
                             }
@@ -105,7 +110,7 @@ class StreamUtilsTest {
                             public void processRecordFromNonBroadcastInput(
                                     Integer record,
                                     Collector<String> output,
-                                    PartitionedContext ctx)
+                                    PartitionedContext<String> ctx)
                                     throws Exception {
                                 // ignore
                             }
@@ -132,7 +137,7 @@ class StreamUtilsTest {
                                     Integer record,
                                     Collector<Long> output1,
                                     Collector<String> output2,
-                                    PartitionedContext ctx)
+                                    TwoOutputPartitionedContext<Long, String> ctx)
                                     throws Exception {
                                 // ignore
                             }

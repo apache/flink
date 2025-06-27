@@ -81,8 +81,7 @@ import scala.collection.JavaConversions._
  *          +- FlinkLogicalExpand(projects=[a, b, c, $f3, $f4, $e])
  *             +- FlinkLogicalCalc(select=[a, b, c, MOD(HASH_CODE(b), 1024) AS $f3,
  *               MOD(HASH_CODE(c), 1024) AS $f4])
- *                +- FlinkLogicalTableSourceScan(table=[[MyTable,
- *                       source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+ *                +- FlinkLogicalTableSourceScan(table=[[MyTable]], fields=[a, b, c])
  * }}}
  *
  * '$e = 1' is equivalent to 'group by a, hash(b) % 1024' '$e = 2' is equivalent to 'group by a,

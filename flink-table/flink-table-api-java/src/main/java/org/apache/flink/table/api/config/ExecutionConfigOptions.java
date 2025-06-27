@@ -130,6 +130,16 @@ public class ExecutionConfigOptions {
                                     + "will match the one defined by the length of their respective "
                                     + "CHAR/VARCHAR/BINARY/VARBINARY column type.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<NestedEnforcer> TABLE_EXEC_SINK_NESTED_CONSTRAINT_ENFORCER =
+            key("table.exec.sink.nested-constraint-enforcer")
+                    .enumType(NestedEnforcer.class)
+                    .defaultValue(NestedEnforcer.IGNORE)
+                    .withDescription(
+                            "Determines if constraints should be enforced for nested fields. Beware that"
+                                    + " enforcing constraints for nested fields adds computational"
+                                    + " overhead especially when iterating through collections");
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<UpsertMaterialize> TABLE_EXEC_SINK_UPSERT_MATERIALIZE =
             key("table.exec.sink.upsert-materialize")
@@ -365,6 +375,19 @@ public class ExecutionConfigOptions {
     //  Async Lookup Options
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED =
+            key("table.exec.async-lookup.key-ordered-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When true, async lookup joins would follow the upsert key order in cdc streams. "
+                                    + "If there is no defined upsert key, then the total record is considered as the upsert key. "
+                                    + "Setting this for insert-only streams has no effect because record in insert-only streams is "
+                                    + "independent and does not affect the state of previous records. "
+                                    + "Besides, since records in insert-only streams typically do not involve a primary key then "
+                                    + "no upsertKey can be derived. This makes them be unordered processed even if key ordered enabled.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY =
             key("table.exec.async-lookup.buffer-capacity")
                     .intType()
@@ -432,6 +455,38 @@ public class ExecutionConfigOptions {
                     .withDescription(
                             "The max number of async retry attempts to make before task "
                                     + "execution is failed.");
+
+    // ------------------------------------------------------------------------
+    //  Async ML_PREDICT Options
+    // ------------------------------------------------------------------------
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Integer>
+            TABLE_EXEC_ASYNC_ML_PREDICT_MAX_CONCURRENT_OPERATIONS =
+                    key("table.exec.async-ml-predict.max-concurrent-operations")
+                            .intType()
+                            .defaultValue(10)
+                            .withDescription(
+                                    "The max number of async i/o operation that the async ml predict can trigger.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_ML_PREDICT_TIMEOUT =
+            key("table.exec.async-ml-predict.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(3))
+                    .withDescription(
+                            "The async timeout for the asynchronous operation to complete. If the deadline fails, a timeout exception will be thrown to indicate the error.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<AsyncOutputMode> TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE =
+            key("table.exec.async-ml-predict.output-mode")
+                    .enumType(AsyncOutputMode.class)
+                    .defaultValue(AsyncOutputMode.ORDERED)
+                    .withDescription(
+                            "Output mode for async ML predict, which describes whether or not the the output should attempt to be ordered or not. The supported options are: "
+                                    + "ALLOW_UNORDERED means the operator emit the result when execution finishes. The planner will attempt use ALLOW_UNORDERED whn it doesn't affect "
+                                    + "the correctness of the results.\n"
+                                    + "ORDERED ensures that the operator emits the result in the same order as the data enters it. This is the default.");
 
     // ------------------------------------------------------------------------
     //  MiniBatch Options
@@ -555,6 +610,16 @@ public class ExecutionConfigOptions {
                                             + "not enabled.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> UNBOUNDED_OVER_VERSION =
+            ConfigOptions.key("table.exec.unbounded-over.version")
+                    .intType()
+                    .defaultValue(2)
+                    .withDescription(
+                            "Which version of the unbounded over aggregation to use: "
+                                    + " 1 - legacy version"
+                                    + " 2 - version with improved performance");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<UidGeneration> TABLE_EXEC_UID_GENERATION =
             key("table.exec.uid.generation")
                     .enumType(UidGeneration.class)
@@ -655,11 +720,40 @@ public class ExecutionConfigOptions {
         TRIM_PAD(
                 text(
                         "Trim and pad string and binary values to match the length "
-                                + "defined by the CHAR/VARCHAR/BINARY/VARBINARY length."));
+                                + "defined by the CHAR/VARCHAR/BINARY/VARBINARY length.")),
+        ERROR(
+                text(
+                        "Throw a runtime exception when writing data into a "
+                                + "CHAR/VARCHAR/BINARY/VARBINARY column which does not match the length"
+                                + " constraint"));
 
         private final InlineElement description;
 
         TypeLengthEnforcer(InlineElement description) {
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** The enforcer to check the constraints on nested types. */
+    @PublicEvolving
+    public enum NestedEnforcer implements DescribedEnum {
+        IGNORE(text("Don't perform check on nested types in ROWS/ARRAYS/MAPS")),
+        ROWS(text("Perform checks on nested types in ROWS.")),
+        ROWS_AND_COLLECTIONS(
+                text(
+                        "Perform checks on nested types in ROWS/ARRAYS/MAPS. Be aware that the"
+                                + " more checks the more performance impact. Especially checking"
+                                + " types in ARRAYS/MAPS can be expensive."));
+
+        private final InlineElement description;
+
+        NestedEnforcer(InlineElement description) {
             this.description = description;
         }
 

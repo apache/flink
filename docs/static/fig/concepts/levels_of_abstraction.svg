@@ -77,29 +77,11 @@ under the License.
          id="path3001"
          style="fill:none;stroke:#935f1c;stroke-width:1.87546718px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
       <text
-         x="231.63388"
+         x="300.63388"
          y="296.79422"
          id="text3003"
          xml:space="preserve"
-         style="font-size:34.95870972px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">DataStream </text>
-      <text
-         x="428.33289"
-         y="296.79422"
-         id="text3005"
-         xml:space="preserve"
-         style="font-size:34.95870972px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">/ </text>
-      <text
-         x="447.83777"
-         y="296.79422"
-         id="text3007"
-         xml:space="preserve"
-         style="font-size:34.95870972px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">DataSet</text>
-      <text
-         x="582.12122"
-         y="296.79422"
-         id="text3009"
-         xml:space="preserve"
-         style="font-size:34.95870972px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">API</text>
+         style="font-size:34.95870972px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">DataStream API</text>
       <path
          d="m 288.93448,135.44624 0,73.4433 399.13694,0 0,-73.4433 -399.13694,0 z"
          id="path3011"
@@ -139,7 +121,7 @@ under the License.
          y="292.85269"
          id="text3025"
          xml:space="preserve"
-         style="font-size:25.05624199px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">APIs</text>
+         style="font-size:25.05624199px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Arial">API</text>
       <text
          x="722.66699"
          y="181.35474"

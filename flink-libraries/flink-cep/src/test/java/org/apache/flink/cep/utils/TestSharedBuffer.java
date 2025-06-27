@@ -33,6 +33,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.cep.configuration.SharedBufferCacheConfig;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -241,6 +243,48 @@ public class TestSharedBuffer<V> extends SharedBuffer<V> {
                     this.values = null;
                 }
             };
+        }
+
+        @Override
+        public <T> org.apache.flink.api.common.state.v2.ValueState<T> getValueState(
+                @Nonnull
+                        org.apache.flink.api.common.state.v2.ValueStateDescriptor<T>
+                                stateProperties) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <T> org.apache.flink.api.common.state.v2.ListState<T> getListState(
+                @Nonnull
+                        org.apache.flink.api.common.state.v2.ListStateDescriptor<T>
+                                stateProperties) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <UK, UV> org.apache.flink.api.common.state.v2.MapState<UK, UV> getMapState(
+                @Nonnull
+                        org.apache.flink.api.common.state.v2.MapStateDescriptor<UK, UV>
+                                stateProperties) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <T> org.apache.flink.api.common.state.v2.ReducingState<T> getReducingState(
+                @Nonnull
+                        org.apache.flink.api.common.state.v2.ReducingStateDescriptor<T>
+                                stateProperties) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <IN, ACC, OUT>
+                org.apache.flink.api.common.state.v2.AggregatingState<IN, OUT> getAggregatingState(
+                        @Nonnull
+                                org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<
+                                                IN, ACC, OUT>
+                                        stateProperties) {
+            throw new UnsupportedOperationException();
         }
 
         private class CountingIterator<T> implements Iterator<T> {

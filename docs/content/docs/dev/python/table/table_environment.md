@@ -123,6 +123,17 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
     <tr>
       <td>
+        <strong>create_view(view_path, table, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Table` object as a view similar to SQL views. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_view" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
         <strong>drop_temporary_view(view_path)</strong>
       </td>
       <td>
@@ -130,6 +141,39 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_view" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>drop_view(view_path, ignore_if_not_exists=True)</strong>
+      </td>
+      <td>
+        Drops a view registered in the given path.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_view" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>create_temporary_table(path, table_descriptor, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Table` object as a temporary catalog table similar to SQL temporary tables. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_temporary_table" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>create_table(path, table_descriptor, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Table` object as a catalog table similar to SQL tables. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_table" name="link">}}
       </td>
     </tr>
     <tr>
@@ -142,6 +186,61 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_table" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>drop_table(table_path, ignore_if_not_exists=True)</strong>
+      </td>
+      <td>
+        Drops a table registered under the given path.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_table" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>create_model(model_path, model_descriptor, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Model` object as a model similar to SQL Models. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_model" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>create_temporary_model(model_path, model_descriptor, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Model` object as a temporary model similar to SQL temporary Models. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_temporary_model" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>drop_model(model_path, ignore_if_not_exists=True)</strong>
+      </td>
+      <td>
+        Drops a model registered in the given path.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_model" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>drop_temporary_model(model_path, ignore_if_not_exists=True)</strong>
+      </td>
+      <td>
+        Drops a temporary model registered in the given path.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_model" name="link">}}
       </td>
     </tr>
     <tr>
@@ -184,17 +283,6 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td>
-        <strong>from_table_source(table_source)</strong>
-      </td>
-      <td>
-        Creates a table from a table source. 
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.from_table_source" name="link">}}
-      </td>
-    </tr>
     <tr>
       <td>
         <strong>scan(*table_path)</strong>
@@ -751,6 +839,29 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.list_temporary_views" name="link">}}
       </td>
     </tr>
+    <tr>
+      <td>
+        <strong>list_models()</strong>
+      </td>
+      <td>
+        Gets the names of all models in the current database of the current catalog.
+        It returns both temporary and models.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.list_models" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>list_temporary_models()</strong>
+      </td>
+      <td>
+        Gets the names of all temporary models available in the current namespace (the current database of the current catalog).
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.list_temporary_models" name="link">}}
+      </td>
+    </tr>
   </tbody>
 </table>
 
@@ -773,7 +884,7 @@ table_env.get_config().set("execution.checkpointing.interval", "3min")
 
 # set the statebackend type to "rocksdb", other available options are "hashmap"
 # you can also set the full qualified Java class name of the StateBackendFactory to this option
-# e.g. org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory
+# e.g. org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory
 table_env.get_config().set("state.backend.type", "rocksdb")
 
 # set the checkpoint directory, which is required by the RocksDB statebackend

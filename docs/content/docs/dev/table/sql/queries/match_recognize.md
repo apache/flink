@@ -1126,8 +1126,6 @@ Unsupported features include:
   the `DEFINE` and `MEASURES` clauses.
 * Physical offsets - `PREV/NEXT`, which indexes all events seen rather than only those that were
   mapped to a pattern variable (as in [logical offsets](#logical-offsets) case).
-* Extracting time attributes - there is currently no possibility to get a time attribute for
-  subsequent time-based operations.
 * `MATCH_RECOGNIZE` is supported only for SQL. There is no equivalent in the Table API.
 * Aggregations:
   * distinct aggregations are not supported.

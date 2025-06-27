@@ -92,6 +92,8 @@ public class CastRuleProvider {
                 .addRule(ArrayToArrayCastRule.INSTANCE)
                 .addRule(MapToMapAndMultisetToMultisetCastRule.INSTANCE)
                 .addRule(RowToRowCastRule.INSTANCE)
+                // Variant rules
+                .addRule(VariantToStringCastRule.INSTANCE)
                 // Special rules
                 .addRule(CharVarCharTrimPadCastRule.INSTANCE)
                 .addRule(NullToStringCastRule.INSTANCE)

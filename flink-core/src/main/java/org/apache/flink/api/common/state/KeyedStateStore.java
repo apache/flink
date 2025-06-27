@@ -18,7 +18,10 @@
 
 package org.apache.flink.api.common.state;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
+
+import javax.annotation.Nonnull;
 
 /** This interface contains methods for registering keyed state with a managed store. */
 @PublicEvolving
@@ -223,4 +226,116 @@ public interface KeyedStateStore {
      */
     @PublicEvolving
     <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties);
+
+    // --------------------------
+    // State V2 creation methods
+    // --------------------------
+
+    /**
+     * Gets a handle to the system's {@link org.apache.flink.api.common.state.v2.ValueState}. The
+     * key/value state is only accessible if the function is executed on a KeyedStream. On each
+     * access, the state exposes the value for the key of the element currently processed by the
+     * function. Each function may have multiple partitioned states, addressed with different names.
+     *
+     * <p>Because the scope of each value is the key of the currently processed element, and the
+     * elements are distributed by the Flink runtime, the system can transparently scale out and
+     * redistribute the state and KeyedStream.
+     *
+     * @param stateProperties The descriptor defining the properties of the state.
+     * @param <T> The type of value stored in the state.
+     * @return The partitioned state object.
+     */
+    @Experimental
+    default <T> org.apache.flink.api.common.state.v2.ValueState<T> getState(
+            @Nonnull org.apache.flink.api.common.state.v2.ValueStateDescriptor<T> stateProperties) {
+        return getValueState(stateProperties);
+    }
+
+    /**
+     * Gets a handle to the system's {@link org.apache.flink.api.common.state.v2.ValueState}. The
+     * key/value state is only accessible if the function is executed on a KeyedStream. On each
+     * access, the state exposes the value for the key of the element currently processed by the
+     * function. Each function may have multiple partitioned states, addressed with different names.
+     *
+     * <p>Because the scope of each value is the key of the currently processed element, and the
+     * elements are distributed by the Flink runtime, the system can transparently scale out and
+     * redistribute the state and KeyedStream.
+     *
+     * @param stateProperties The descriptor defining the properties of the state.
+     * @param <T> The type of value stored in the state.
+     * @return The partitioned state object.
+     */
+    @Experimental
+    <T> org.apache.flink.api.common.state.v2.ValueState<T> getValueState(
+            @Nonnull org.apache.flink.api.common.state.v2.ValueStateDescriptor<T> stateProperties);
+
+    /**
+     * Gets a handle to the system's key / value list state. This state is optimized for state that
+     * holds lists. One can adds elements to the list, or retrieve the list as a whole. This state
+     * is only accessible if the function is executed on a KeyedStream.
+     *
+     * @param stateProperties The descriptor defining the properties of the state.
+     * @param <T> The type of value stored in the state.
+     * @return The partitioned state object.
+     * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+     *     function (function is not part os a KeyedStream).
+     */
+    @Experimental
+    <T> org.apache.flink.api.common.state.v2.ListState<T> getListState(
+            @Nonnull org.apache.flink.api.common.state.v2.ListStateDescriptor<T> stateProperties);
+
+    /**
+     * Gets a handle to the system's key/value map state. This state is only accessible if the
+     * function is executed on a KeyedStream.
+     *
+     * @param stateProperties The descriptor defining the properties of the state.
+     * @param <UK> The type of the user keys stored in the state.
+     * @param <UV> The type of the user values stored in the state.
+     * @return The partitioned state object.
+     * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+     *     function (function is not part of a KeyedStream).
+     */
+    @Experimental
+    <UK, UV> org.apache.flink.api.common.state.v2.MapState<UK, UV> getMapState(
+            @Nonnull
+                    org.apache.flink.api.common.state.v2.MapStateDescriptor<UK, UV>
+                            stateProperties);
+
+    /**
+     * Gets a handle to the system's key/value reducing state. This state is optimized for state
+     * that aggregates values.
+     *
+     * <p>This state is only accessible if the function is executed on a KeyedStream.
+     *
+     * @param stateProperties The descriptor defining the properties of the stats.
+     * @param <T> The type of value stored in the state.
+     * @return The partitioned state object.
+     * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+     *     function (function is not part of a KeyedStream).
+     */
+    @Experimental
+    <T> org.apache.flink.api.common.state.v2.ReducingState<T> getReducingState(
+            @Nonnull
+                    org.apache.flink.api.common.state.v2.ReducingStateDescriptor<T>
+                            stateProperties);
+
+    /**
+     * Gets a handle to the system's key/value aggregating state. This state is only accessible if
+     * the function is executed on a KeyedStream.
+     *
+     * @param stateProperties The descriptor defining the properties of the stats.
+     * @param <IN> The type of the values that are added to the state.
+     * @param <ACC> The type of the accumulator (intermediate aggregation state).
+     * @param <OUT> The type of the values that are returned from the state.
+     * @return The partitioned state object.
+     * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+     *     function (function is not part of a KeyedStream).
+     */
+    @Experimental
+    <IN, ACC, OUT>
+            org.apache.flink.api.common.state.v2.AggregatingState<IN, OUT> getAggregatingState(
+                    @Nonnull
+                            org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<
+                                            IN, ACC, OUT>
+                                    stateProperties);
 }

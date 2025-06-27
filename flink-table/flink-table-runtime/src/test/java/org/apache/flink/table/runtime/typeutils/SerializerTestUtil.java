@@ -120,7 +120,7 @@ public class SerializerTestUtil {
         }
 
         @Override
-        public MyObj read(Kryo kryo, Input input, Class<MyObj> aClass) {
+        public MyObj read(Kryo kryo, Input input, Class<? extends MyObj> aClass) {
             int a = input.readInt() - delta;
             int b = input.readInt() - delta;
             return new MyObj(a, b);

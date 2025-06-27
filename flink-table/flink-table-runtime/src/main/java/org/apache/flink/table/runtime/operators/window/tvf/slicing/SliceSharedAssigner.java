@@ -19,10 +19,15 @@
 package org.apache.flink.table.runtime.operators.window.tvf.slicing;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
+import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.aggregate.asyncwindow.processors.AsyncStateSliceSharedWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.window.MergeCallback;
+import org.apache.flink.table.runtime.operators.window.async.AsyncMergeCallback;
 
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -35,12 +40,23 @@ import java.util.function.Supplier;
 public interface SliceSharedAssigner extends SliceAssigner {
 
     /**
-     * Determines which slices (if any) should be merged.
+     * Determines which slices (if any) should be merged and then merge them.
      *
      * @param sliceEnd the triggered slice, identified by end timestamp
      * @param callback a callback that can be invoked to signal which slices should be merged.
      */
     void mergeSlices(long sliceEnd, MergeCallback<Long, Iterable<Long>> callback) throws Exception;
+
+    /**
+     * Determines which slices (if any) should be merged and then merge them.
+     *
+     * @param sliceEnd the triggered slice, identified by end timestamp
+     * @param callback a callback that can be invoked to signal which slices should be merged.
+     * @return f0 is the accumulators after merging, f1 is the result of the aggregation from the
+     *     merged accumulators with this slice end as namespace
+     */
+    StateFuture<Tuple2<RowData, RowData>> asyncMergeSlices(
+            long sliceEnd, AsyncMergeCallback<Long, Iterable<Long>> callback) throws Exception;
 
     /**
      * Returns the optional end timestamp of next window which should be triggered. Empty if no
@@ -52,11 +68,14 @@ public interface SliceSharedAssigner extends SliceAssigner {
      * register next window if current window is empty (i.e. no records in current window). That
      * means we will have one more unnecessary window triggered for hopping windows if no elements
      * arrives for a key for a long time. We will skip to emit window result for the triggered empty
-     * window, see {@link SliceSharedWindowAggProcessor#fireWindow(Long)}.
+     * window, see {@link AsyncStateSliceSharedWindowAggProcessor#fireWindow(Long, Long)}.
      *
      * @param windowEnd the current triggered window, identified by end timestamp
      * @param isWindowEmpty a supplier that can be invoked to get whether the triggered window is
      *     empty (i.e. no records in the window).
      */
     Optional<Long> nextTriggerWindow(long windowEnd, Supplier<Boolean> isWindowEmpty);
+
+    Optional<Long> nextTriggerWindow(
+            long windowEnd, RowData acc, Function<RowData, Boolean> isWindowEmpty);
 }

@@ -44,12 +44,14 @@ public interface TestStep {
         CONFIG,
         FUNCTION,
         TEMPORAL_FUNCTION,
+        MODEL,
         SOURCE_WITHOUT_DATA,
         SOURCE_WITH_DATA,
         SOURCE_WITH_RESTORE_DATA,
         SINK_WITHOUT_DATA,
         SINK_WITH_DATA,
         SINK_WITH_RESTORE_DATA,
+        FAILING_SQL
     }
 
     TestKind getKind();

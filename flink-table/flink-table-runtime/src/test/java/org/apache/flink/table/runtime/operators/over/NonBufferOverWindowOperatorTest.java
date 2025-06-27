@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.over;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
@@ -215,6 +216,11 @@ class NonBufferOverWindowOperatorTest {
 
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) {
+            throw new RuntimeException();
+        }
+
+        @Override
+        public void emitWatermark(WatermarkEvent watermark) {
             throw new RuntimeException();
         }
 

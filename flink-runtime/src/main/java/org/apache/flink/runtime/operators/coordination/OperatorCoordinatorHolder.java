@@ -20,6 +20,7 @@ package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -536,6 +537,7 @@ public class OperatorCoordinatorHolder
                         operatorName);
         final LazyInitializedCoordinatorContext context =
                 new LazyInitializedCoordinatorContext(
+                        jobManagerJobMetricGroup.jobId(),
                         opId,
                         operatorName,
                         userCodeClassLoader,
@@ -574,6 +576,7 @@ public class OperatorCoordinatorHolder
         private static final Logger LOG =
                 LoggerFactory.getLogger(LazyInitializedCoordinatorContext.class);
 
+        private final JobID jobID;
         private final OperatorID operatorId;
         private final String operatorName;
         private final ClassLoader userCodeClassLoader;
@@ -589,6 +592,7 @@ public class OperatorCoordinatorHolder
         private volatile boolean failed;
 
         public LazyInitializedCoordinatorContext(
+                JobID jobID,
                 final OperatorID operatorId,
                 final String operatorName,
                 final ClassLoader userCodeClassLoader,
@@ -596,6 +600,7 @@ public class OperatorCoordinatorHolder
                 final CoordinatorStore coordinatorStore,
                 final boolean supportsConcurrentExecutionAttempts,
                 final OperatorCoordinatorMetricGroup metricGroup) {
+            this.jobID = jobID;
             this.operatorId = checkNotNull(operatorId);
             this.operatorName = checkNotNull(operatorName);
             this.userCodeClassLoader = checkNotNull(userCodeClassLoader);
@@ -632,6 +637,11 @@ public class OperatorCoordinatorHolder
 
         void resetFailed() {
             failed = false;
+        }
+
+        @Override
+        public JobID getJobID() {
+            return jobID;
         }
 
         @Override

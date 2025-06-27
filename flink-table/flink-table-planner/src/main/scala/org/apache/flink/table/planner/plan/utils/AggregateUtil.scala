@@ -17,7 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.api.TableException
+import org.apache.flink.configuration.ReadableConfig
+import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.functions._
@@ -36,11 +38,10 @@ import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTrait, ModifyKi
 import org.apache.flink.table.planner.plan.logical.{HoppingWindowSpec, WindowSpec}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
-import org.apache.flink.table.planner.typeutils.DataViewUtils
 import org.apache.flink.table.planner.typeutils.LegacyDataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
-import org.apache.flink.table.runtime.dataview.DataViewSpec
+import org.apache.flink.table.runtime.dataview.{DataViewSpec, DataViewUtils}
 import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
 import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -584,17 +585,22 @@ object AggregateUtil extends Enumeration {
     val inference = udf.getTypeInference(dataTypeFactory)
 
     // enrich argument types with conversion class
-    val adaptedCallContext = TypeInferenceUtil.adaptArguments(inference, callContext, null)
-    val enrichedArgumentDataTypes = toScala(adaptedCallContext.getArgumentDataTypes)
+    val castCallContext = TypeInferenceUtil.castArguments(inference, callContext, null)
+    val enrichedArgumentDataTypes = toScala(castCallContext.getArgumentDataTypes)
 
     // derive accumulator type with conversion class
-    val enrichedAccumulatorDataType = TypeInferenceUtil.inferOutputType(
-      adaptedCallContext,
-      inference.getAccumulatorTypeStrategy.orElse(inference.getOutputTypeStrategy))
+    val stateStrategies = inference.getStateTypeStrategies
+    if (stateStrategies.size() != 1) {
+      throw new ValidationException(
+        "Aggregating functions must provide exactly one state type strategy.")
+    }
+    val accumulatorStrategy = stateStrategies.values().head
+    val enrichedAccumulatorDataType =
+      TypeInferenceUtil.inferOutputType(castCallContext, accumulatorStrategy)
 
     // enrich output types with conversion class
     val enrichedOutputDataType =
-      TypeInferenceUtil.inferOutputType(adaptedCallContext, inference.getOutputTypeStrategy)
+      TypeInferenceUtil.inferOutputType(castCallContext, inference.getOutputTypeStrategy)
 
     createImperativeAggregateInfo(
       call,
@@ -906,7 +912,8 @@ object AggregateUtil extends Enumeration {
         // ordered by type root definition
         case CHAR | VARCHAR | BOOLEAN | DECIMAL | TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT |
             DOUBLE | DATE | TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE |
-            TIMESTAMP_WITH_LOCAL_TIME_ZONE | INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME | ARRAY =>
+            TIMESTAMP_WITH_LOCAL_TIME_ZONE | INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME | ARRAY |
+            VARIANT =>
           argTypes(0)
         case t =>
           throw new TableException(
@@ -1174,5 +1181,20 @@ object AggregateUtil extends Enumeration {
             case _ => None
           })
       .exists(_.getKind == FunctionKind.TABLE_AGGREGATE)
+  }
+
+  def isAsyncStateEnabled(config: ReadableConfig, aggInfoList: AggregateInfoList): Boolean = {
+    // Currently, we do not support async state with agg functions that include DataView.
+    val containsDataViewInAggInfo =
+      aggInfoList.aggInfos.toStream.stream().anyMatch(agg => !agg.viewSpecs.isEmpty)
+
+    val containsDataViewInDistinctInfo =
+      aggInfoList.distinctInfos.toStream
+        .stream()
+        .anyMatch(distinct => distinct.dataViewSpec.isDefined)
+
+    config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED) &&
+    !containsDataViewInAggInfo &&
+    !containsDataViewInDistinctInfo
   }
 }

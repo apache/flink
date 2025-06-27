@@ -38,6 +38,7 @@ from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.utils import ResultTypeQueryable
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
+from pyflink.util.api_stability_decorators import Public
 from pyflink.util.java_utils import add_jars_to_context_class_loader, \
     invoke_method, get_field_value, is_local_deployment, get_j_env_configuration
 
@@ -45,6 +46,7 @@ from pyflink.util.java_utils import add_jars_to_context_class_loader, \
 __all__ = ['StreamExecutionEnvironment']
 
 
+@Public()
 class StreamExecutionEnvironment(object):
     """
     The StreamExecutionEnvironment is the context in which a streaming program is executed. A
@@ -545,7 +547,7 @@ class StreamExecutionEnvironment(object):
 
         .. note::
 
-            The python udf worker depends on Apache Beam (version == 2.43.0).
+            The python udf worker depends on Apache Beam (version >= 2.54.0, <= 2.61.0).
             Please ensure that the specified environment meets the above requirements.
 
         :param python_exec: The path of python interpreter.
@@ -566,11 +568,10 @@ class StreamExecutionEnvironment(object):
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
             .getEnvironmentConfig(self._j_stream_execution_environment)
-        old_jar_paths = env_config.getString(jars_key, None)
-        joined_jars_path = ';'.join(jars_path)
-        if old_jar_paths and old_jar_paths.strip():
-            joined_jars_path = ';'.join([old_jar_paths, joined_jars_path])
-        env_config.setString(jars_key, joined_jars_path)
+        old_jars_path = env_config.getString(jars_key, None)
+        old_jars_list = Configuration.parse_list_value(old_jars_path)
+        joined_jars_list = [*old_jars_list, *jars_path]
+        env_config.setString(jars_key, str(joined_jars_list))
 
     def add_classpaths(self, *classpaths: str):
         """
@@ -585,10 +586,9 @@ class StreamExecutionEnvironment(object):
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
             .getEnvironmentConfig(self._j_stream_execution_environment)
         old_classpaths = env_config.getString(classpaths_key, None)
-        joined_classpaths = ';'.join(list(classpaths))
-        if old_classpaths and old_classpaths.strip():
-            joined_classpaths = ';'.join([old_classpaths, joined_classpaths])
-        env_config.setString(classpaths_key, joined_classpaths)
+        old_classpaths_list = Configuration.parse_list_value(old_classpaths)
+        joined_classpaths_list = [*old_classpaths_list, *classpaths]
+        env_config.setString(classpaths_key, str(joined_classpaths_list))
 
     def get_default_local_parallelism(self) -> int:
         """
@@ -804,7 +804,7 @@ class StreamExecutionEnvironment(object):
             # list.
             if type_info is None:
                 j_objs = gateway.jvm.PythonBridgeUtils.readPickledBytes(temp_file.name)
-                out_put_type_info = Types.PICKLED_BYTE_ARRAY()  # type: TypeInformation
+                out_put_type_info: TypeInformation = Types.PICKLED_BYTE_ARRAY()
             else:
                 j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name)
                 out_put_type_info = type_info

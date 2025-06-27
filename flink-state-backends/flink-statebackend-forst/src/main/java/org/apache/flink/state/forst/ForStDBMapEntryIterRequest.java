@@ -19,7 +19,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.state.v2.StateIterator;
-import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
@@ -37,14 +37,14 @@ import java.util.Map;
 public class ForStDBMapEntryIterRequest<K, N, UK, UV>
         extends ForStDBIterRequest<K, N, UK, UV, Map.Entry<UK, UV>> {
 
-    private final InternalStateFuture<StateIterator<Map.Entry<UK, UV>>> future;
+    private final InternalAsyncFuture<StateIterator<Map.Entry<UK, UV>>> future;
 
     public ForStDBMapEntryIterRequest(
             ContextKey<K, N> contextKey,
             ForStMapState<K, N, UK, UV> table,
             StateRequestHandler stateRequestHandler,
             @Nullable RocksIterator rocksIterator,
-            InternalStateFuture<StateIterator<Map.Entry<UK, UV>>> future) {
+            InternalAsyncFuture<StateIterator<Map.Entry<UK, UV>>> future) {
         super(contextKey, table, stateRequestHandler, rocksIterator);
         this.future = future;
     }
@@ -59,10 +59,12 @@ public class ForStDBMapEntryIterRequest<K, N, UK, UV>
             List<RawEntry> entries, int userKeyOffset) throws IOException {
         Collection<Map.Entry<UK, UV>> deserializedEntries = new ArrayList<>(entries.size());
         for (RawEntry en : entries) {
-            deserializedEntries.add(
-                    new MapEntry<>(
-                            deserializeUserKey(en.rawKeyBytes, userKeyOffset),
-                            deserializeUserValue(en.rawValueBytes)));
+            // Since this value might be written from sync mode, the user value can be null.
+            UV userValue = deserializeUserValue(en.rawValueBytes);
+            if (userValue != null) {
+                UK userKey = deserializeUserKey(en.rawKeyBytes, userKeyOffset);
+                deserializedEntries.add(new MapEntry<>(userKey, userValue));
+            }
         }
         return deserializedEntries;
     }

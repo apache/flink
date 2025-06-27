@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators.async.queue;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -31,7 +32,7 @@ import javax.annotation.Nonnull;
  * allows to set the result of a completed entry through {@link ResultFuture}.
  */
 @Internal
-interface StreamElementQueueEntry<OUT> extends ResultFuture<OUT> {
+public interface StreamElementQueueEntry<OUT> extends ResultFuture<OUT> {
 
     /**
      * True if the stream element queue entry has been completed; otherwise false.
@@ -61,5 +62,9 @@ interface StreamElementQueueEntry<OUT> extends ResultFuture<OUT> {
     default void completeExceptionally(Throwable error) {
         throw new UnsupportedOperationException(
                 "This result future should only be used to set completed results.");
+    }
+
+    default void complete(CollectionSupplier<OUT> supplier) {
+        throw new UnsupportedOperationException();
     }
 }

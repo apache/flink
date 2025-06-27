@@ -21,7 +21,7 @@ package org.apache.flink.state.forst;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -53,7 +53,7 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
         ForStMapState<Integer, VoidNamespace, String, String> mapState =
                 buildForStMapState("map-iter");
         prepareData(10, mapState, db);
-        TestStateFuture<StateIterator<String>> future = new TestStateFuture<>();
+        TestAsyncFuture<StateIterator<String>> future = new TestAsyncFuture<>();
         List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchIterRequest = new ArrayList<>();
         ContextKey<Integer, VoidNamespace> contextKey = buildContextKey(1);
         ForStDBIterRequest<Integer, VoidNamespace, String, String, String> request1 =
@@ -80,7 +80,7 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
         ForStMapState<Integer, VoidNamespace, String, String> mapState =
                 buildForStMapState("map-iter");
         prepareData(13, mapState, db);
-        TestStateFuture<StateIterator<String>> future = new TestStateFuture<>();
+        TestAsyncFuture<StateIterator<String>> future = new TestAsyncFuture<>();
         List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchIterRequest = new ArrayList<>();
         ContextKey<Integer, VoidNamespace> contextKey = buildContextKey(1);
         ForStDBIterRequest<Integer, VoidNamespace, String, String, String> request1 =
@@ -107,7 +107,7 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
         ForStMapState<Integer, VoidNamespace, String, String> mapState =
                 buildForStMapState("map-iter");
         prepareData(3, mapState, db);
-        TestStateFuture<StateIterator<Map.Entry<String, String>>> future = new TestStateFuture<>();
+        TestAsyncFuture<StateIterator<Map.Entry<String, String>>> future = new TestAsyncFuture<>();
         List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchIterRequest = new ArrayList<>();
         ContextKey<Integer, VoidNamespace> contextKey = buildContextKey(1);
         ForStDBIterRequest<Integer, VoidNamespace, String, String, Map.Entry<String, String>>
@@ -137,7 +137,7 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
         ForStMapState<Integer, VoidNamespace, String, String> mapState =
                 buildForStMapState("map-iter");
         prepareData(200, mapState, db);
-        TestStateFuture<StateIterator<Map.Entry<String, String>>> future = new TestStateFuture<>();
+        TestAsyncFuture<StateIterator<Map.Entry<String, String>>> future = new TestAsyncFuture<>();
         List<ForStDBIterRequest<?, ?, ?, ?, ?>> batchIterRequest = new ArrayList<>();
         ContextKey<Integer, VoidNamespace> contextKey = buildContextKey(1);
         MockStateRequestHandler stateRequestHandler = new MockStateRequestHandler();
@@ -168,8 +168,8 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
             Tuple2<StateRequestType, RocksIterator> tuple =
                     (Tuple2<StateRequestType, RocksIterator>) stateRequestHandler.payload;
             assertThat(tuple.f0).isEqualTo(StateRequestType.MAP_ITER);
-            TestStateFuture<StateIterator<Map.Entry<String, String>>> future2 =
-                    new TestStateFuture<>();
+            TestAsyncFuture<StateIterator<Map.Entry<String, String>>> future2 =
+                    new TestAsyncFuture<>();
             ForStDBIterRequest<Integer, VoidNamespace, String, String, Map.Entry<String, String>>
                     request2 =
                             new ForStDBMapEntryIterRequest(
@@ -208,7 +208,7 @@ class ForStDBIterateOperationTest extends ForStDBOperationTestBase {
         Object payload = null;
 
         @Override
-        public <IN, OUT> InternalStateFuture<OUT> handleRequest(
+        public <IN, OUT> InternalAsyncFuture<OUT> handleRequest(
                 @Nullable State state, StateRequestType type, @Nullable IN payload) {
             assertThat(type).isEqualTo(StateRequestType.ITERATOR_LOADING);
             this.payload = payload;

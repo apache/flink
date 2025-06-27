@@ -38,6 +38,7 @@ import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeinfo.VariantTypeInfo;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -53,6 +54,8 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
+import org.apache.flink.types.variant.BinaryVariant;
+import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
@@ -63,9 +66,14 @@ import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -2100,6 +2108,13 @@ public class TypeExtractorTest {
         assertThat(ti.getTypeClass()).isEqualTo(MyEnum.class);
     }
 
+    @Test
+    void testVariantType() {
+        assertThat(TypeExtractor.createTypeInfo(Variant.class)).isEqualTo(VariantTypeInfo.INSTANCE);
+        assertThat(TypeExtractor.createTypeInfo(BinaryVariant.class))
+                .isEqualTo(VariantTypeInfo.INSTANCE);
+    }
+
     public static class MapperWithMultiDimGenericArray<T>
             implements MapFunction<T[][][], Tuple1<T>[][][]> {
         private static final long serialVersionUID = 1L;
@@ -2316,15 +2331,15 @@ public class TypeExtractorTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
     void testGenericTypeWithSubclassInput() {
-        Map<String, Object> inputMap = new HashMap<>();
+        HashMap<String, Object> inputMap = new LinkedHashMap<>();
         inputMap.put("a", "b");
         TypeInformation<?> inputType = TypeExtractor.createTypeInfo(inputMap.getClass());
 
         MapFunction<?, ?> function =
-                new MapFunction<Map<String, Object>, Map<String, Object>>() {
+                new MapFunction<HashMap<String, Object>, HashMap<String, Object>>() {
 
                     @Override
-                    public Map<String, Object> map(Map<String, Object> stringObjectMap)
+                    public HashMap<String, Object> map(HashMap<String, Object> stringObjectMap)
                             throws Exception {
                         return stringObjectMap;
                     }
@@ -2332,7 +2347,7 @@ public class TypeExtractorTest {
 
         TypeInformation<?> ti =
                 TypeExtractor.getMapReturnTypes(function, (TypeInformation) inputType);
-        TypeInformation<?> expected = TypeExtractor.createTypeInfo(Map.class);
+        TypeInformation<?> expected = TypeExtractor.createTypeInfo(HashMap.class);
         assertThat(ti).isEqualTo(expected);
     }
 
@@ -2344,7 +2359,9 @@ public class TypeExtractorTest {
                             TypeInformation<?> inputType = TypeExtractor.createTypeInfo(Map.class);
 
                             MapFunction<?, ?> function =
-                                    (MapFunction<HashMap<String, Object>, Map<String, Object>>)
+                                    (MapFunction<
+                                                    LinkedHashMap<String, Object>,
+                                                    Map<String, Object>>)
                                             stringObjectMap -> stringObjectMap;
                             TypeExtractor.getMapReturnTypes(function, (TypeInformation) inputType);
                         })
@@ -2499,5 +2516,85 @@ public class TypeExtractorTest {
                 .isEqualTo(SqlTimeTypeInfo.TIME);
         assertThat(TypeExtractor.getForObject(Timestamp.valueOf("1998-12-12 12:37:45")))
                 .isEqualTo(SqlTimeTypeInfo.TIMESTAMP);
+    }
+
+    @SuppressWarnings({"rawtypes"})
+    public static class PojoWithCollections<T> {
+        // Supported collection types with concrete type arguments, expected built-in serialization
+        // support
+        public Map<String, Integer> mapVal = new HashMap<>();
+        public List<String> listVal = new ArrayList<>();
+        public Collection<String> collectionVal = new ArrayList<>();
+        public Set<String> setVal = new HashSet<>();
+
+        // Collection fields with unsupported collection types, treated as generic types
+        public LinkedList<String> linkedListVal = new LinkedList<>();
+
+        // Collection fields with raw type, treated as generic types
+        public List rawListVal = new ArrayList<>();
+
+        // Collection fields with generic type arguments, treated as generic types
+        public List<T> genericListVal = new ArrayList<>();
+
+        // Collection fields with wildcard type arguments, treated as generic types
+        public List<?> wildcardListVal = new ArrayList<>();
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    public <T> void testCollectionTypes() {
+        MapFunction<?, ?> function =
+                new MapFunction<PojoWithCollections<T>, PojoWithCollections<T>>() {
+                    @Override
+                    public PojoWithCollections map(PojoWithCollections<T> value) {
+                        return null;
+                    }
+                };
+        TypeInformation<?> ti =
+                TypeExtractor.getMapReturnTypes(
+                        function,
+                        (TypeInformation)
+                                TypeInformation.of(new TypeHint<PojoWithCollections<T>>() {}));
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
+        testCollectionTypesInternal(ti);
+
+        // use getForClass()
+        TypeInformation<?> ti2 = TypeExtractor.getForClass(PojoWithCollections.class);
+        assertThat(ti2).isInstanceOf(PojoTypeInfo.class);
+        testCollectionTypesInternal(ti2);
+
+        // use getForObject()
+        PojoWithCollections<T> t = new PojoWithCollections<>();
+        TypeInformation<?> ti3 = TypeExtractor.getForObject(t);
+        assertThat(ti3).isInstanceOf(PojoTypeInfo.class);
+        testCollectionTypesInternal(ti3);
+    }
+
+    private void testCollectionTypesInternal(TypeInformation<?> ti) {
+        PojoTypeInfo<?> pojoTi = (PojoTypeInfo<?>) ti;
+        assertThat(pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("mapVal")).getTypeInformation())
+                .isInstanceOf(MapTypeInfo.class);
+        assertThat(pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("listVal")).getTypeInformation())
+                .isInstanceOf(ListTypeInfo.class);
+        assertThat(
+                        pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("collectionVal"))
+                                .getTypeInformation())
+                .isInstanceOf(ListTypeInfo.class);
+        assertThat(pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("setVal")).getTypeInformation())
+                .isInstanceOf(SetTypeInfo.class);
+        assertThat(
+                        pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("linkedListVal"))
+                                .getTypeInformation())
+                .isInstanceOf(GenericTypeInfo.class);
+        assertThat(pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("rawListVal")).getTypeInformation())
+                .isInstanceOf(GenericTypeInfo.class);
+        assertThat(
+                        pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("genericListVal"))
+                                .getTypeInformation())
+                .isInstanceOf(GenericTypeInfo.class);
+        assertThat(
+                        pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("wildcardListVal"))
+                                .getTypeInformation())
+                .isInstanceOf(GenericTypeInfo.class);
     }
 }

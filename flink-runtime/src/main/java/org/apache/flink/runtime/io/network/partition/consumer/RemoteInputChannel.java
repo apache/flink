@@ -47,7 +47,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterators;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -641,7 +641,9 @@ public class RemoteInputChannel extends InputChannel {
         }
     }
 
-    /** @return {@code true} if this was first priority buffer added. */
+    /**
+     * @return {@code true} if this was first priority buffer added.
+     */
     private boolean addPriorityBuffer(SequenceBuffer sequenceBuffer) {
         receivedBuffers.addPriorityElement(sequenceBuffer);
         return receivedBuffers.getNumPriorityElements() == 1;

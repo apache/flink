@@ -21,11 +21,14 @@ package org.apache.flink.table.api.config;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.InlineElement;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * This class holds configuration constants used by Flink's table planner module.
@@ -103,6 +106,17 @@ public class OptimizerConfigOptions {
                                     + " is true.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_REUSE_SINK_ENABLED =
+            key("table.optimizer.reuse-sink-enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "When it is true, the optimizer will try to find out duplicated table sinks and "
+                                    + "reuse them. This works only when "
+                                    + TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key()
+                                    + " is true.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_REPORT_STATISTICS_ENABLED =
             key("table.optimizer.source.report-statistics-enabled")
                     .booleanType()
@@ -157,6 +171,65 @@ public class OptimizerConfigOptions {
                     .withDescription(
                             "A flag to enable or disable the runtime filter. "
                                     + "When it is true, the optimizer will try to inject a runtime filter for eligible join.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<AdaptiveBroadcastJoinStrategy>
+            TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY =
+                    key("table.optimizer.adaptive-broadcast-join.strategy")
+                            .enumType(AdaptiveBroadcastJoinStrategy.class)
+                            .defaultValue(AdaptiveBroadcastJoinStrategy.AUTO)
+                            .withDescription(
+                                    "Flink will perform broadcast hash join optimization when the runtime "
+                                            + "statistics on one side of a join operator is less than the "
+                                            + "threshold `table.optimizer.join.broadcast-threshold`. The "
+                                            + "value of this configuration option decides when Flink should "
+                                            + "perform this optimization. AUTO means Flink will automatically "
+                                            + "choose the timing for optimization, RUNTIME_ONLY means broadcast "
+                                            + "hash join optimization is only performed at runtime, and NONE "
+                                            + "means the optimization is only carried out at compile time.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<AdaptiveSkewedJoinOptimizationStrategy>
+            TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_STRATEGY =
+                    key("table.optimizer.skewed-join-optimization.strategy")
+                            .enumType(AdaptiveSkewedJoinOptimizationStrategy.class)
+                            .defaultValue(AdaptiveSkewedJoinOptimizationStrategy.AUTO)
+                            .withDescription(
+                                    "Flink will handle skew in shuffled joins (sort-merge and hash) "
+                                            + "at runtime by splitting data according to the skewed join "
+                                            + "key. The value of this configuration determines how Flink performs "
+                                            + "this optimization. AUTO means Flink will automatically apply this "
+                                            + "optimization, FORCED means Flink will enforce this optimization even "
+                                            + "if it introduces extra hash shuffle, and NONE means this optimization "
+                                            + "will not be executed.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<Double>
+            TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_SKEWED_FACTOR =
+                    key("table.optimizer.skewed-join-optimization.skewed-factor")
+                            .doubleType()
+                            .defaultValue(4.0)
+                            .withDescription(
+                                    "When a join operator instance encounters input data that exceeds N times the median "
+                                            + "size of other concurrent join operator instances, it is considered skewed "
+                                            + "(where N represents this skewed-factor). In such cases, Flink may automatically "
+                                            + "split the skewed data into multiple parts to ensure a more balanced data "
+                                            + "distribution, unless the data volume is below the skewed threshold(defined "
+                                            + "using table.optimizer.skewed-join-optimization.skewed-threshold).");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<MemorySize>
+            TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_SKEWED_THRESHOLD =
+                    key("table.optimizer.skewed-join-optimization.skewed-threshold")
+                            .memoryType()
+                            .defaultValue(MemorySize.ofMebiBytes(256))
+                            .withDescription(
+                                    "When a join operator instance encounters input data that exceeds N times the median "
+                                            + "size of other concurrent join operator instances, it is considered skewed "
+                                            + "(where N represents the table.optimizer.skewed-join-optimization.skewed-factor). "
+                                            + "In such cases, Flink may automatically split the skewed data into multiple "
+                                            + "parts to ensure a more balanced data distribution, unless the data volume "
+                                            + "is below this skewed threshold.");
 
     /**
      * The data volume of build side needs to be under this value. If the data volume of build side
@@ -277,6 +350,25 @@ public class OptimizerConfigOptions {
                                             + "Each optimize block will be optimized independently.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_MULTI_JOIN_ENABLED =
+            key("table.optimizer.multi-join.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Enables a multi-way join operator for a chain of streaming joins. "
+                                                    + "This operator processes multiple inputs at once, reducing the state size considerably by avoiding intermediate results. "
+                                                    + "It supports regular INNER and LEFT joins.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "Note: This is an experimental feature and not recommended for production just yet. "
+                                                    + "The operator's internal implementation and state layout is subject to changes due to ongoing relevant optimizations. "
+                                                    + "These might break savepoint compatibility across Flink versions and the goal is to have a stable version in the next release.")
+                                    .build());
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED =
             key("table.optimizer.incremental-agg-enabled")
                     .booleanType()
@@ -288,6 +380,25 @@ public class OptimizerConfigOptions {
                                     + "and local-agg2 into a single operator (we call it incremental agg because "
                                     + "it receives incremental accumulators and outputs incremental results). "
                                     + "In this way, we can reduce some state overhead and resources. Default is enabled.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> TABLE_OPTIMIZER_PTF_MAX_TABLES =
+            key("table.optimizer.ptf.max-tables")
+                    .intType()
+                    .defaultValue(20)
+                    .withDescription(
+                            "The maximum number of table arguments for a Process Table Function (PTF). In theory, a PTF "
+                                    + "can accept an arbitrary number of input tables. In practice, however, each input "
+                                    + "requires reserving network buffers, which impacts memory usage. For this reason, "
+                                    + "the number of input tables is limited to 20.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<DeltaJoinStrategy> TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY =
+            key("table.optimizer.delta-join.strategy")
+                    .enumType(DeltaJoinStrategy.class)
+                    .defaultValue(DeltaJoinStrategy.AUTO)
+                    .withDescription(
+                            "Strategy for optimizing the delta-join. Only AUTO, FORCE or NONE can be set. Default it AUTO.");
 
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving
@@ -303,5 +414,86 @@ public class OptimizerConfigOptions {
          * Do nothing if exists non-deterministic updates, the risk of wrong result still exists.
          */
         IGNORE
+    }
+
+    /** Strategies used for {@link #TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY}. */
+    @PublicEvolving
+    public enum AdaptiveBroadcastJoinStrategy implements DescribedEnum {
+        AUTO("auto", text("Flink will automatically choose the timing for optimization")),
+        RUNTIME_ONLY(
+                "runtime_only",
+                text("Broadcast hash join optimization is only performed at runtime.")),
+        NONE("none", text("Broadcast hash join optimization is only carried out at compile time."));
+
+        private final String value;
+
+        private final InlineElement description;
+
+        AdaptiveBroadcastJoinStrategy(String value, InlineElement description) {
+            this.value = value;
+            this.description = description;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** Strategies used for {@link #TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_STRATEGY}. */
+    @PublicEvolving
+    public enum AdaptiveSkewedJoinOptimizationStrategy implements DescribedEnum {
+        AUTO("auto", text(" Flink will automatically perform this optimization.")),
+        FORCED(
+                "forced",
+                text(
+                        "Flink will perform this optimization even if it introduces extra hash shuffling.")),
+        NONE("none", text("Skewed join optimization will not be performed."));
+
+        private final String value;
+
+        private final InlineElement description;
+
+        AdaptiveSkewedJoinOptimizationStrategy(String value, InlineElement description) {
+            this.value = value;
+            this.description = description;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** Strategy for delta join. */
+    @PublicEvolving
+    public enum DeltaJoinStrategy implements DescribedEnum {
+        AUTO(
+                text(
+                        "Optimizer will try to use delta join first. "
+                                + "If it fails, it will fallback to the regular join.")),
+        FORCE(text("Use the delta join. If it fails, an exception will be thrown.")),
+        NONE(text("Don't try to use delta join."));
+
+        private final InlineElement description;
+
+        DeltaJoinStrategy(InlineElement description) {
+            this.description = description;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 }

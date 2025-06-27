@@ -19,6 +19,7 @@
 package org.apache.flink.state.api.output.operators;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
@@ -46,6 +47,8 @@ public class StateBootstrapWrapperOperatorFactory<
                 OPF extends OneInputStreamOperatorFactory<IN, OUT>>
         extends AbstractStreamOperatorFactory<TaggedOperatorSubtaskState> {
 
+    private final long checkpointId;
+
     private final long timestamp;
 
     private final Path savepointPath;
@@ -55,7 +58,11 @@ public class StateBootstrapWrapperOperatorFactory<
     private final WindowOperator<?, IN, ?, ?, ?> operator;
 
     public StateBootstrapWrapperOperatorFactory(
-            long timestamp, Path savepointPath, WindowOperator<?, IN, ?, ?, ?> operator) {
+            long checkpointId,
+            long timestamp,
+            Path savepointPath,
+            WindowOperator<?, IN, ?, ?, ?> operator) {
+        this.checkpointId = checkpointId;
         this.timestamp = timestamp;
         this.savepointPath = savepointPath;
         this.operator = operator;
@@ -66,7 +73,8 @@ public class StateBootstrapWrapperOperatorFactory<
     public <T extends StreamOperator<TaggedOperatorSubtaskState>> T createStreamOperator(
             StreamOperatorParameters<TaggedOperatorSubtaskState> parameters) {
         StateBootstrapWrapperOperator<IN, OUT, OP> wrapperOperator =
-                new StateBootstrapWrapperOperator<>(timestamp, savepointPath, operator);
+                new StateBootstrapWrapperOperator<>(
+                        checkpointId, timestamp, savepointPath, operator);
         wrapperOperator.setup(
                 parameters.getContainingTask(),
                 parameters.getStreamConfig(),
@@ -95,6 +103,9 @@ public class StateBootstrapWrapperOperatorFactory<
 
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) {}
+
+        @Override
+        public void emitWatermark(WatermarkEvent watermark) {}
 
         @Override
         public void collect(T record) {}

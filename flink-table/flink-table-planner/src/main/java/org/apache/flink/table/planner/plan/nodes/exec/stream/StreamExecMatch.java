@@ -23,6 +23,8 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -51,20 +53,13 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPr
         name = "stream-exec-match",
         version = 1,
         producedTransformations = {
-            StreamExecMatch.TIMESTAMP_INSERTER_TRANSFORMATION,
-            StreamExecMatch.MATCH_TRANSFORMATION
+            CommonExecMatch.TIMESTAMP_INSERTER_TRANSFORMATION,
+            CommonExecMatch.MATCH_TRANSFORMATION
         },
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecMatch extends CommonExecMatch
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
-
-    public static final String TIMESTAMP_INSERTER_TRANSFORMATION = "timestamp-inserter";
-
-    public static final String FIELD_NAME_MATCH_SPEC = "matchSpec";
-
-    @JsonProperty(FIELD_NAME_MATCH_SPEC)
-    private final MatchSpec matchSpec;
 
     public StreamExecMatch(
             ReadableConfig tableConfig,
@@ -92,7 +87,6 @@ public class StreamExecMatch extends CommonExecMatch
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(id, context, persistedConfig, matchSpec, inputProperties, outputType, description);
-        this.matchSpec = matchSpec;
     }
 
     @Override
@@ -121,7 +115,11 @@ public class StreamExecMatch extends CommonExecMatch
 
     @Override
     public Transformation<RowData> translateOrder(
-            Transformation<RowData> inputTransform, RowType inputRowType, ExecNodeConfig config) {
+            PlannerBase planner,
+            Transformation<RowData> inputTransform,
+            RowType inputRowType,
+            ExecEdge inputEdge,
+            ExecNodeConfig config) {
         SortSpec.SortFieldSpec timeOrderField = matchSpec.getOrderKeys().getFieldSpec(0);
         int timeOrderFieldIdx = timeOrderField.getFieldIndex();
         LogicalType timeOrderFieldType = inputRowType.getTypeAt(timeOrderFieldIdx);
@@ -151,13 +149,5 @@ public class StreamExecMatch extends CommonExecMatch
         } else {
             return inputTransform;
         }
-    }
-
-    @Override
-    public boolean isProcTime(RowType inputRowType) {
-        final SortSpec.SortFieldSpec timeOrderField = matchSpec.getOrderKeys().getFieldSpec(0);
-        final LogicalType timeOrderFieldType =
-                inputRowType.getTypeAt(timeOrderField.getFieldIndex());
-        return TypeCheckUtils.isProcTime(timeOrderFieldType);
     }
 }

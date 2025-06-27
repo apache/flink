@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.client.gateway;
 
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.resource.ClientResourceManager;
@@ -36,13 +38,24 @@ import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.session.Session;
 import org.apache.flink.table.gateway.service.session.SessionManager;
+import org.apache.flink.table.resource.ResourceType;
+import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.MutableURLClassLoader;
 import org.apache.flink.util.Preconditions;
 
+import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.client.cli.ArtifactFetchOptions.ARTIFACT_LIST;
+import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.table.client.cli.CliUtils.isApplicationMode;
 
 /**
  * A {@link SessionManager} only has one session at most. It uses the less resources and also
@@ -52,6 +65,9 @@ import java.util.concurrent.Executors;
  * concurrently modification.
  */
 public class SingleSessionManager implements SessionManager {
+
+    private static final ConfigOption<List<String>> YARN_SHIP_FILES =
+            key("yarn.ship-files").stringType().asList().noDefaultValue();
 
     private final DefaultContext defaultContext;
     private final ExecutorService operationExecutorService;
@@ -96,6 +112,7 @@ public class SingleSessionManager implements SessionManager {
                                 sessionHandle,
                                 environment,
                                 operationExecutorService));
+
         session.open();
         return session;
     }
@@ -136,23 +153,56 @@ public class SingleSessionManager implements SessionManager {
                 ExecutorService operationExecutorService) {
             Configuration configuration =
                     initializeConfiguration(defaultContext, environment, sessionId);
+            List<URI> dependencies;
+            // rewrite the dependencies
+            if (isApplicationMode(configuration)) {
+                dependencies = Collections.emptyList();
+                if (!defaultContext.getDependencies().isEmpty()) {
+                    String target = configuration.getOptional(DeploymentOptions.TARGET).orElse("");
+                    if (target.equals("yarn-application")) {
+                        configuration.set(
+                                YARN_SHIP_FILES,
+                                defaultContext.getDependencies().stream()
+                                        .map(URI::toString)
+                                        .collect(Collectors.toList()));
+                    } else if (target.equals("kubernetes-application")) {
+                        configuration.set(
+                                ARTIFACT_LIST,
+                                defaultContext.getDependencies().stream()
+                                        .map(URI::toString)
+                                        .collect(Collectors.toList()));
+                    } else {
+                        throw new SqlGatewayException("Unknown deployment target: " + target);
+                    }
+                }
+            } else {
+                dependencies = defaultContext.getDependencies();
+            }
             final MutableURLClassLoader userClassLoader =
                     new ClientWrapperClassLoader(
                             ClientClassloaderUtil.buildUserClassLoader(
-                                    defaultContext.getDependencies(),
+                                    Collections.emptyList(),
                                     SessionContext.class.getClassLoader(),
                                     new Configuration(configuration)),
                             configuration);
             ClientResourceManager resourceManager =
                     new ClientResourceManager(configuration, userClassLoader);
-            return new EmbeddedSessionContext(
-                    defaultContext,
-                    sessionId,
-                    environment.getSessionEndpointVersion(),
-                    configuration,
-                    userClassLoader,
-                    initializeSessionState(environment, configuration, resourceManager),
-                    new OperationManager(operationExecutorService));
+            try {
+                resourceManager.registerJarResources(
+                        dependencies.stream()
+                                .map(uri -> new ResourceUri(ResourceType.JAR, uri.toString()))
+                                .collect(Collectors.toList()));
+                return new EmbeddedSessionContext(
+                        defaultContext,
+                        sessionId,
+                        environment.getSessionEndpointVersion(),
+                        configuration,
+                        userClassLoader,
+                        initializeSessionState(environment, configuration, resourceManager),
+                        new OperationManager(operationExecutorService));
+            } catch (IOException e) {
+                throw new SqlGatewayException("Failed to open the session.", e);
+            }
         }
 
         @Override

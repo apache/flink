@@ -24,6 +24,8 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.StringUtils;
 
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -46,7 +48,7 @@ public class OperationUtils {
      * @param item result of {@link Operation#asSummaryString()}
      * @return string with increased indentation
      */
-    static String indent(String item) {
+    public static String indent(String item) {
 
         // '([^']|'')*': Matches the escape sequence "'...'" where the content between "'"
         // characters can contain anything except "'" unless its doubled ('').
@@ -118,9 +120,18 @@ public class OperationUtils {
         return stringBuilder.append(childrenDescription).toString();
     }
 
-    public static String formatSelectColumns(ResolvedSchema schema) {
+    public static String formatSelectColumns(ResolvedSchema schema, @Nullable String inputAlias) {
         return schema.getColumnNames().stream()
-                .map(EncodingUtils::escapeIdentifier)
+                .map(
+                        i -> {
+                            if (inputAlias == null) {
+                                return EncodingUtils.escapeIdentifier(i);
+                            }
+                            return String.format(
+                                    "%s.%s",
+                                    EncodingUtils.escapeIdentifier(inputAlias),
+                                    EncodingUtils.escapeIdentifier(i));
+                        })
                 .collect(Collectors.joining(", "));
     }
 

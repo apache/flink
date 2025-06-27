@@ -133,6 +133,7 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
+import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.slf4j.Logger;
@@ -215,7 +216,16 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     public RestClusterClient(
             Configuration config, T clusterId, ClientHighAvailabilityServicesFactory factory)
             throws Exception {
-        this(config, null, clusterId, new ExponentialWaitStrategy(10L, 2000L), factory);
+        this(config, null, clusterId, new ExponentialWaitStrategy(10L, 2000L), factory, null);
+    }
+
+    public RestClusterClient(
+            Configuration config,
+            T clusterId,
+            ClientHighAvailabilityServicesFactory factory,
+            EventLoopGroup group)
+            throws Exception {
+        this(config, null, clusterId, new ExponentialWaitStrategy(10L, 2000L), factory, group);
     }
 
     @VisibleForTesting
@@ -230,7 +240,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                 restClient,
                 clusterId,
                 waitStrategy,
-                DefaultClientHighAvailabilityServicesFactory.INSTANCE);
+                DefaultClientHighAvailabilityServicesFactory.INSTANCE,
+                null);
     }
 
     private RestClusterClient(
@@ -238,7 +249,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             @Nullable RestClient restClient,
             T clusterId,
             WaitStrategy waitStrategy,
-            ClientHighAvailabilityServicesFactory clientHAServicesFactory)
+            ClientHighAvailabilityServicesFactory clientHAServicesFactory,
+            @Nullable EventLoopGroup group)
             throws Exception {
         this.configuration = checkNotNull(configuration);
 
@@ -258,7 +270,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
         if (restClient != null) {
             this.restClient = restClient;
         } else {
-            this.restClient = RestClient.forUrl(configuration, executorService, jobmanagerUrl);
+            this.restClient =
+                    RestClient.forUrl(configuration, executorService, jobmanagerUrl, group);
         }
 
         this.waitStrategy = checkNotNull(waitStrategy);

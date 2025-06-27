@@ -154,7 +154,7 @@ public class MemoryUtils {
      * @param buffer {@link ByteBuffer} which wraps the native memory address to get
      * @return native memory address wrapped by the given {@link ByteBuffer}
      */
-    static long getByteBufferAddress(ByteBuffer buffer) {
+    public static long getByteBufferAddress(ByteBuffer buffer) {
         Preconditions.checkNotNull(buffer, "buffer is null");
         Preconditions.checkArgument(
                 buffer.isDirect(), "Can't get address of a non-direct ByteBuffer.");
@@ -169,10 +169,9 @@ public class MemoryUtils {
         Preconditions.checkState(offHeapAddress > 0, "negative pointer or size");
         Preconditions.checkState(
                 offHeapAddress < Long.MAX_VALUE - Integer.MAX_VALUE,
-                "Segment initialized with too large address: "
-                        + offHeapAddress
-                        + " ; Max allowed address is "
-                        + (Long.MAX_VALUE - Integer.MAX_VALUE - 1));
+                "Segment initialized with too large address: %s ; Max allowed address is %d",
+                offHeapAddress,
+                (Long.MAX_VALUE - Integer.MAX_VALUE - 1));
 
         return offHeapAddress;
     }

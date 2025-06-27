@@ -295,6 +295,7 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
             }
         }
     }
+
     /** An entry in the registry, tracking the handle and the corresponding reference count. */
     private static final class SharedStateEntry {
 

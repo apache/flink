@@ -62,6 +62,7 @@ public class StateBackendOptions {
                                             TextElement.code(
                                                     "StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)"))
                                     .linebreak()
-                                    .text("Recognized shortcut names are 'hashmap' and 'rocksdb'.")
+                                    .text(
+                                            "Recognized shortcut names are 'hashmap', 'rocksdb' and 'forst'.")
                                     .build());
 }

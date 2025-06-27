@@ -110,7 +110,9 @@ public class StateBootstrapTransformation<T> {
         this.keyType = keyType;
     }
 
-    /** @return The max parallelism for this operator. */
+    /**
+     * @return The max parallelism for this operator.
+     */
     int getMaxParallelism(int globalMaxParallelism) {
         return operatorMaxParallelism.orElse(globalMaxParallelism);
     }

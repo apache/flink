@@ -22,8 +22,8 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.state.rocksdb.RocksDBKeyedStateBackend;
 
 import org.junit.Assert;
 import org.junit.Assume;

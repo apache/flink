@@ -95,6 +95,7 @@ import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.scheduler.CoordinatorNotExistException;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
@@ -113,6 +114,7 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.JobInformation;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
+import org.apache.flink.runtime.scheduler.adaptivebatch.NonAdaptiveExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
@@ -403,6 +405,8 @@ public class AdaptiveScheduler
 
     private int numRestarts = 0;
 
+    private int numRescales = 0;
+
     private final MutableVertexAttemptNumberStore vertexAttemptNumberStore =
             new DefaultVertexAttemptNumberStore();
 
@@ -556,6 +560,7 @@ public class AdaptiveScheduler
                 jobManagerJobMetricGroup,
                 jobStatusStore,
                 () -> (long) numRestarts,
+                () -> (long) numRescales,
                 deploymentTimeMetrics,
                 tmpJobStatusListeners::add,
                 initializationTimestamp,
@@ -720,12 +725,15 @@ public class AdaptiveScheduler
 
         backgroundTask.abort();
         // wait for the background task to finish and then close services
-        return FutureUtils.composeAfterwards(
+        return FutureUtils.composeAfterwardsAsync(
                 FutureUtils.runAfterwardsAsync(
                         backgroundTask.getTerminationFuture(),
                         () -> stopCheckpointServicesSafely(jobTerminationFuture.get()),
                         getMainThreadExecutor()),
-                checkpointsCleaner::closeAsync);
+                // closing the CheckpointsCleaner can complete in the ioExecutor when cleaning up a
+                // PendingCheckpoint
+                checkpointsCleaner::closeAsync,
+                getMainThreadExecutor());
     }
 
     private void stopCheckpointServicesSafely(JobStatus terminalState) {
@@ -1048,10 +1056,7 @@ public class AdaptiveScheduler
                 .orElseGet(
                         () ->
                                 FutureUtils.completedExceptionally(
-                                        new FlinkException(
-                                                "Coordinator of operator "
-                                                        + operator
-                                                        + " does not exist")));
+                                        new CoordinatorNotExistException(operator)));
     }
 
     @Override
@@ -1118,6 +1123,22 @@ public class AdaptiveScheduler
                 .isPresent();
     }
 
+    private JobAllocationsInformation getJobAllocationsInformationFromGraphAndState(
+            @Nullable final ExecutionGraph previousExecutionGraph) {
+
+        CompletedCheckpoint latestCompletedCheckpoint = null;
+        if (jobGraph.isCheckpointingEnabled()) {
+            latestCompletedCheckpoint = completedCheckpointStore.getLatestCheckpoint();
+        }
+
+        if (previousExecutionGraph == null || latestCompletedCheckpoint == null) {
+            return JobAllocationsInformation.empty();
+        } else {
+            return JobAllocationsInformation.fromGraphAndState(
+                    previousExecutionGraph, latestCompletedCheckpoint);
+        }
+    }
+
     private JobSchedulingPlan determineParallelism(
             SlotAllocator slotAllocator, @Nullable ExecutionGraph previousExecutionGraph)
             throws NoResourceAvailableException {
@@ -1126,11 +1147,16 @@ public class AdaptiveScheduler
                 .determineParallelismAndCalculateAssignment(
                         jobInformation,
                         declarativeSlotPool.getFreeSlotTracker().getFreeSlotsInformation(),
-                        JobAllocationsInformation.fromGraph(previousExecutionGraph))
+                        getJobAllocationsInformationFromGraphAndState(previousExecutionGraph))
                 .orElseThrow(
                         () ->
                                 new NoResourceAvailableException(
                                         "Not enough resources available for scheduling."));
+    }
+
+    @Override
+    public JobID getJobId() {
+        return jobInfo.getJobId();
     }
 
     @Override
@@ -1237,7 +1263,7 @@ public class AdaptiveScheduler
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Duration backoffTime,
-            boolean forcedRestart,
+            @Nullable VertexParallelism restartWithParallelism,
             List<ExceptionHistoryEntry> failureCollection) {
 
         for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
@@ -1258,10 +1284,14 @@ public class AdaptiveScheduler
                         operatorCoordinatorHandler,
                         LOG,
                         backoffTime,
-                        forcedRestart,
+                        restartWithParallelism,
                         userCodeClassLoader,
                         failureCollection));
+
         numRestarts++;
+        if (failureCollection.isEmpty()) {
+            numRescales++;
+        }
     }
 
     @Override
@@ -1436,6 +1466,7 @@ public class AdaptiveScheduler
                 // supports must be pipelined result partition, mark partition finish is
                 // no need.
                 rp -> false,
+                NonAdaptiveExecutionPlanSchedulingContext.INSTANCE,
                 LOG);
     }
 

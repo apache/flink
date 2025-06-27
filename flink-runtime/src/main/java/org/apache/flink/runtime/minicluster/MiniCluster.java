@@ -74,8 +74,8 @@ import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.ReporterSetup;
-import org.apache.flink.runtime.metrics.TraceReporterSetup;
+import org.apache.flink.runtime.metrics.ReporterSetupBuilder;
+import org.apache.flink.runtime.metrics.filter.DefaultReporterFilters;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -99,6 +99,7 @@ import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcMetricQueryServiceRetriever;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
@@ -1063,6 +1064,14 @@ public class MiniCluster implements AutoCloseableAsync {
     }
 
     public CompletableFuture<JobSubmissionResult> submitJob(ExecutionPlan executionPlan) {
+        if (executionPlan instanceof StreamGraph) {
+            try {
+                ((StreamGraph) executionPlan).serializeUserDefinedInstances();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         // When MiniCluster uses the local RPC, the provided ExecutionPlan is passed directly to the
         // Dispatcher. This means that any mutations to the JG can affect the Dispatcher behaviour,
         // so we rather clone it to guard against this.
@@ -1176,10 +1185,18 @@ public class MiniCluster implements AutoCloseableAsync {
             Configuration config, long maximumMessageSizeInBytes) {
         return new MetricRegistryImpl(
                 MetricRegistryConfiguration.fromConfiguration(config, maximumMessageSizeInBytes),
-                ReporterSetup.fromConfiguration(
-                        config, miniClusterConfiguration.getPluginManager()),
-                TraceReporterSetup.fromConfiguration(
-                        config, miniClusterConfiguration.getPluginManager()));
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        config,
+                        DefaultReporterFilters::metricsFromConfiguration,
+                        miniClusterConfiguration.getPluginManager()),
+                ReporterSetupBuilder.TRACE_SETUP_BUILDER.fromConfiguration(
+                        config,
+                        DefaultReporterFilters::tracesFromConfiguration,
+                        miniClusterConfiguration.getPluginManager()),
+                ReporterSetupBuilder.EVENT_SETUP_BUILDER.fromConfiguration(
+                        config,
+                        DefaultReporterFilters::eventsFromConfiguration,
+                        miniClusterConfiguration.getPluginManager()));
     }
 
     /**

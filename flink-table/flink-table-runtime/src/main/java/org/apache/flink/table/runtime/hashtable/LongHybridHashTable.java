@@ -56,6 +56,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
     private final BinaryRowDataSerializer probeSideSerializer;
     private final ArrayList<LongHashPartition> partitionsBeingBuilt;
     private final ArrayList<LongHashPartition> partitionsPending;
+
     /**
      * The partitions that have been spilled previously and are pending to be processed by sort
      * merge join operator.

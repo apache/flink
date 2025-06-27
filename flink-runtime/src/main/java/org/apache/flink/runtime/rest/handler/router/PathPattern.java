@@ -43,6 +43,7 @@ final class PathPattern {
 
     // --------------------------------------------------------------------------
     private final String[] tokens;
+
     /**
      * The pattern must not contain query, example: {@code constant1/constant2?foo=bar}.
      *

@@ -38,37 +38,59 @@ public interface ParquetDataColumnReader {
      */
     void initFromPage(int valueCount, ByteBufferInputStream in) throws IOException;
 
-    /** @return the next Dictionary ID from the page */
+    /**
+     * @return the next Dictionary ID from the page
+     */
     int readValueDictionaryId();
 
-    /** @return the next Boolean from the page */
+    /**
+     * @return the next Boolean from the page
+     */
     boolean readBoolean();
 
-    /** @return the next TinyInt from the page */
+    /**
+     * @return the next TinyInt from the page
+     */
     int readTinyInt();
 
-    /** @return the next SmallInt from the page */
+    /**
+     * @return the next SmallInt from the page
+     */
     int readSmallInt();
 
-    /** @return the next Integer from the page */
+    /**
+     * @return the next Integer from the page
+     */
     int readInteger();
 
-    /** @return the next Long from the page */
+    /**
+     * @return the next Long from the page
+     */
     long readLong();
 
-    /** @return the next Float from the page */
+    /**
+     * @return the next Float from the page
+     */
     float readFloat();
 
-    /** @return the next Double from the page */
+    /**
+     * @return the next Double from the page
+     */
     double readDouble();
 
-    /** @return the next Bytes from the page */
+    /**
+     * @return the next Bytes from the page
+     */
     byte[] readBytes();
 
-    /** @return the next TimestampData from the page */
+    /**
+     * @return the next TimestampData from the page
+     */
     TimestampData readTimestamp();
 
-    /** @return the underlying dictionary if current reader is dictionary encoded */
+    /**
+     * @return the underlying dictionary if current reader is dictionary encoded
+     */
     Dictionary getDictionary();
 
     /**

@@ -22,7 +22,11 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.functions.ChangelogFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -44,7 +48,8 @@ public interface CallContext {
 
     /**
      * Returns {@code true} if the argument at the given position is a literal and {@code null},
-     * {@code false} otherwise.
+     * {@code false} otherwise. If the argument is declared as optional and has no value, true is
+     * returned.
      *
      * <p>Use {@link #isArgumentLiteral(int)} before to check if the argument is actually a literal.
      */
@@ -60,6 +65,30 @@ public interface CallContext {
      * <p>Use {@link #isArgumentLiteral(int)} before to check if the argument is actually a literal.
      */
     <T> Optional<T> getArgumentValue(int pos, Class<T> clazz);
+
+    /**
+     * Returns information about the table that has been passed to a table argument.
+     *
+     * <p>This method applies only to {@link ProcessTableFunction}s.
+     *
+     * <p>Semantics are only available for table arguments that are annotated with
+     * {@code @ArgumentHint(SET_SEMANTIC_TABLE)} or {@code @ArgumentHint(ROW_SEMANTIC_TABLE)}).
+     */
+    default Optional<TableSemantics> getTableSemantics(int pos) {
+        return Optional.empty();
+    }
+
+    /**
+     * Returns the {@link ChangelogMode} that the framework requires from the function.
+     *
+     * <p>This method applies only to {@link ProcessTableFunction}.
+     *
+     * <p>Returns empty during type inference phase as the changelog mode is still unknown. Returns
+     * an actual changelog mode, when the PTF implements the {@link ChangelogFunction} interface.
+     */
+    default Optional<ChangelogMode> getOutputChangelogMode() {
+        return Optional.empty();
+    }
 
     /**
      * Returns the function's name usually referencing the function in a catalog.
@@ -90,7 +119,13 @@ public interface CallContext {
      * exception.
      */
     default ValidationException newValidationError(String message, Object... args) {
-        return new ValidationException(String.format(message, args));
+        final String formatted;
+        if (args.length > 0) {
+            formatted = String.format(message, args);
+        } else {
+            formatted = message;
+        }
+        return new ValidationException(formatted);
     }
 
     /**

@@ -48,6 +48,7 @@ import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
+import org.apache.flink.table.connector.sink.abilities.SupportsTargetColumnWriting;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
@@ -63,6 +64,7 @@ import org.apache.flink.table.planner.plan.abilities.sink.OverwriteSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.RowLevelDeleteSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.RowLevelUpdateSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
+import org.apache.flink.table.planner.plan.abilities.sink.TargetColumnWritingSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.WritingMetadataSpec;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
@@ -105,6 +107,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.planner.hint.FlinkHints.mergeTableOptions;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
@@ -224,8 +227,7 @@ public final class DynamicSinkUtils {
             Map<String, String> staticPartitions,
             boolean isOverwrite,
             DynamicTableSink sink) {
-        final ResolvedCatalogTable catalogTable =
-                (ResolvedCatalogTable) createTableOperation.getCatalogTable();
+        final ResolvedCatalogTable catalogTable = createTableOperation.getCatalogTable();
 
         final ObjectIdentifier identifier = createTableOperation.getTableIdentifier();
 
@@ -257,6 +259,14 @@ public final class DynamicSinkUtils {
             int[][] targetColumns,
             boolean isOverwrite,
             DynamicTableSink sink) {
+        if (!dynamicOptions.isEmpty()) {
+            contextResolvedTable =
+                    contextResolvedTable.copy(
+                            mergeTableOptions(
+                                    dynamicOptions,
+                                    contextResolvedTable.getResolvedTable().getOptions()));
+        }
+
         final DataTypeFactory dataTypeFactory =
                 unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
         final FlinkTypeFactory typeFactory = unwrapTypeFactory(relBuilder);
@@ -280,7 +290,8 @@ public final class DynamicSinkUtils {
                 isOverwrite,
                 sink,
                 contextResolvedTable.getResolvedTable(),
-                sinkAbilitySpecs);
+                sinkAbilitySpecs,
+                targetColumns);
 
         // rewrite rel node for delete
         if (isDelete) {
@@ -996,7 +1007,8 @@ public final class DynamicSinkUtils {
             boolean isOverwrite,
             DynamicTableSink sink,
             ResolvedCatalogTable table,
-            List<SinkAbilitySpec> sinkAbilitySpecs) {
+            List<SinkAbilitySpec> sinkAbilitySpecs,
+            int[][] targetColumns) {
         table.getDistribution()
                 .ifPresent(
                         distribution ->
@@ -1008,6 +1020,8 @@ public final class DynamicSinkUtils {
         validateAndApplyOverwrite(tableDebugName, isOverwrite, sink, sinkAbilitySpecs);
 
         validateAndApplyMetadata(tableDebugName, sink, table.getResolvedSchema(), sinkAbilitySpecs);
+
+        validateAndApplyTargetColumns(sink, targetColumns, sinkAbilitySpecs);
     }
 
     /**
@@ -1284,6 +1298,20 @@ public final class DynamicSinkUtils {
                                 .map(col -> col.getMetadataKey().orElse(col.getName()))
                                 .collect(Collectors.toList()),
                         createConsumedType(schema, sink)));
+    }
+
+    private static void validateAndApplyTargetColumns(
+            DynamicTableSink sink, int[][] targetColumns, List<SinkAbilitySpec> sinkAbilitySpecs) {
+        if (targetColumns == null || targetColumns.length == 0) {
+            return;
+        }
+
+        if (!(sink instanceof SupportsTargetColumnWriting)) {
+            // Ignore target columns if the sink doesn't support it.
+            return;
+        }
+
+        sinkAbilitySpecs.add(new TargetColumnWritingSpec(targetColumns));
     }
 
     /**

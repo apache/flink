@@ -25,6 +25,7 @@ import org.apache.flink.datastream.api.ExecutionEnvironment;
 import org.apache.flink.datastream.api.attribute.NoOutputUntilEndOfInput;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.PartitionedContext;
+import org.apache.flink.datastream.api.context.TwoOutputPartitionedContext;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
@@ -211,7 +212,7 @@ class StreamingJobGraphGeneratorWithAttributeTest {
 
         @Override
         public void processRecord(
-                Integer record, Collector<Integer> output, PartitionedContext ctx) {
+                Integer record, Collector<Integer> output, PartitionedContext<Integer> ctx) {
             output.collect(record + 1);
         }
     }
@@ -220,7 +221,7 @@ class StreamingJobGraphGeneratorWithAttributeTest {
 
         @Override
         public void processRecord(
-                Integer record, Collector<Integer> output, PartitionedContext ctx) {
+                Integer record, Collector<Integer> output, PartitionedContext<Integer> ctx) {
             if (record != 2) {
                 output.collect(record + 1);
             }
@@ -236,7 +237,7 @@ class StreamingJobGraphGeneratorWithAttributeTest {
                 Integer record,
                 Collector<Integer> output1,
                 Collector<Integer> output2,
-                PartitionedContext ctx) {
+                TwoOutputPartitionedContext<Integer, Integer> ctx) {
             output1.collect(record + 1);
             output2.collect(record - 1);
         }

@@ -20,6 +20,7 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.expressions.SqlFactory;
 
 import java.util.Collections;
 import java.util.List;
@@ -28,6 +29,7 @@ import java.util.List;
 @Internal
 public class DistinctQueryOperation implements QueryOperation {
 
+    private static final String INPUT_ALIAS = "$$T_DISTINCT";
     private final QueryOperation child;
 
     public DistinctQueryOperation(QueryOperation child) {
@@ -46,11 +48,12 @@ public class DistinctQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         return String.format(
-                "SELECT DISTINCT %s FROM (%s\n)",
-                OperationUtils.formatSelectColumns(getResolvedSchema()),
-                OperationUtils.indent(child.asSerializableString()));
+                "SELECT DISTINCT %s FROM (%s\n) %s",
+                OperationUtils.formatSelectColumns(getResolvedSchema(), INPUT_ALIAS),
+                OperationUtils.indent(child.asSerializableString(sqlFactory)),
+                INPUT_ALIAS);
     }
 
     @Override

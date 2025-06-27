@@ -36,10 +36,12 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
@@ -109,6 +111,7 @@ class StreamTaskStateInitializerImplTest {
                         closeableRegistry,
                         new UnregisteredMetricsGroup(),
                         1.0,
+                        false,
                         false);
 
         OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
@@ -222,6 +225,7 @@ class StreamTaskStateInitializerImplTest {
                         closeableRegistry,
                         new UnregisteredMetricsGroup(),
                         1.0,
+                        false,
                         false);
 
         OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
@@ -345,7 +349,8 @@ class StreamTaskStateInitializerImplTest {
                         @Override
                         public <K> InternalTimeServiceManager<K> create(
                                 TaskIOMetricGroup taskIOMetricGroup,
-                                CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+                                PriorityQueueSetFactory factory,
+                                KeyGroupRange keyGroupRange,
                                 ClassLoader userClassloader,
                                 KeyContext keyContext,
                                 ProcessingTimeService processingTimeService,

@@ -45,7 +45,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecords
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.util.CollectionUtil;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Maps;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Maps;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -177,7 +177,7 @@ public final class RescalingStreamTaskNetworkInput<T>
         return deserialier;
     }
 
-    protected DataInputStatus processEvent(BufferOrEvent bufferOrEvent) {
+    protected DataInputStatus processEvent(BufferOrEvent bufferOrEvent, DataOutput<T> output) {
         // Event received
         final AbstractEvent event = bufferOrEvent.getEvent();
         if (event instanceof SubtaskConnectionDescriptor) {
@@ -185,7 +185,7 @@ public final class RescalingStreamTaskNetworkInput<T>
                     .select((SubtaskConnectionDescriptor) event);
             return DataInputStatus.MORE_AVAILABLE;
         }
-        return super.processEvent(bufferOrEvent);
+        return super.processEvent(bufferOrEvent, output);
     }
 
     @Override

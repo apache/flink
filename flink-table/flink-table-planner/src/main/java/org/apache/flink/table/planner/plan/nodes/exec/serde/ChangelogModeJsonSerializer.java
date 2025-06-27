@@ -49,7 +49,11 @@ final class ChangelogModeJsonSerializer extends StdSerializer<ChangelogMode> {
             throws IOException {
         jsonGenerator.writeStartArray();
         for (RowKind rowKind : changelogMode.getContainedKinds()) {
-            jsonGenerator.writeString(rowKind.name());
+            if (rowKind == RowKind.DELETE && changelogMode.keyOnlyDeletes()) {
+                jsonGenerator.writeString("~" + rowKind.name());
+            } else {
+                jsonGenerator.writeString(rowKind.name());
+            }
         }
         jsonGenerator.writeEndArray();
     }

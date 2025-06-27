@@ -244,14 +244,14 @@ public class EmbeddedLeaderService {
     }
 
     /** Callback from leader contenders when they confirm a leader grant. */
-    private void confirmLeader(
+    private CompletableFuture<Void> confirmLeader(
             final EmbeddedLeaderElection embeddedLeaderElection,
             final UUID leaderSessionId,
             final String leaderAddress) {
         synchronized (lock) {
             // if the leader election was shut down in the meantime, ignore this confirmation
             if (!embeddedLeaderElection.running || shutdown) {
-                return;
+                return FutureUtils.completedVoidFuture();
             }
 
             try {
@@ -269,7 +269,7 @@ public class EmbeddedLeaderService {
                     currentLeaderProposed = null;
 
                     // notify all listeners
-                    notifyAllListeners(leaderAddress, leaderSessionId);
+                    return notifyAllListeners(leaderAddress, leaderSessionId);
                 } else {
                     LOG.debug(
                             "Received confirmation of leadership for a stale leadership grant. Ignoring.");
@@ -278,6 +278,8 @@ public class EmbeddedLeaderService {
                 fatalError(t);
             }
         }
+
+        return FutureUtils.completedVoidFuture();
     }
 
     private CompletableFuture<Void> notifyAllListeners(String address, UUID leaderSessionId) {
@@ -465,15 +467,17 @@ public class EmbeddedLeaderService {
         }
 
         @Override
-        public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
+        public CompletableFuture<Void> confirmLeadershipAsync(
+                UUID leaderSessionID, String leaderAddress) {
             checkNotNull(leaderSessionID);
             checkNotNull(leaderAddress);
-            confirmLeader(this, leaderSessionID, leaderAddress);
+            return confirmLeader(this, leaderSessionID, leaderAddress);
         }
 
         @Override
-        public boolean hasLeadership(UUID leaderSessionId) {
-            return isLeader && leaderSessionId.equals(currentLeaderSessionId);
+        public CompletableFuture<Boolean> hasLeadershipAsync(UUID leaderSessionId) {
+            return CompletableFuture.completedFuture(
+                    isLeader && leaderSessionId.equals(currentLeaderSessionId));
         }
 
         void shutdown(Exception cause) {

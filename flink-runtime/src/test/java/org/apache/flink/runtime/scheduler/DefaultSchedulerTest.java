@@ -103,10 +103,12 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
+import org.apache.flink.util.function.BiFunctionWithException;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -145,6 +147,7 @@ import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.acknowled
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFailedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.enableCheckpointing;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.getCheckpointCoordinator;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -449,8 +452,8 @@ public class DefaultSchedulerTest {
         final int parallelism = 2;
         final JobVertex v1 = createVertex("vertex1", parallelism);
         final JobVertex v2 = createVertex("vertex2", parallelism);
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(v1, v2);
 
@@ -1793,6 +1796,19 @@ public class DefaultSchedulerTest {
     }
 
     @Test
+    void testCloseAsyncReturnsMainThreadFuture() throws Exception {
+        runCloseAsyncCompletesInMainThreadTest(
+                scheduledExecutorService,
+                (mainThreadExecutor, checkpointsCleaner) ->
+                        createSchedulerBuilder(
+                                        singleJobVertexJobGraph(1),
+                                        mainThreadExecutor,
+                                        Collections.emptyList())
+                                .setCheckpointCleaner(checkpointsCleaner)
+                                .build());
+    }
+
+    @Test
     void testJobStatusHookWithJobFailed() throws Exception {
         commonJobStatusHookTest(ExecutionState.FAILED, JobStatus.FAILED);
     }
@@ -1816,10 +1832,10 @@ public class DefaultSchedulerTest {
         final JobVertex sink = new JobVertex("sink");
         sink.setInvokableClass(NoOpInvokable.class);
 
-        sink.connectNewDataSetAsInput(
-                map, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        map.connectNewDataSetAsInput(
-                source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                sink, map, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                map, source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(source, map, sink);
         enableCheckpointing(jobGraph, null, null, Long.MAX_VALUE - 1, true);
@@ -1992,6 +2008,61 @@ public class DefaultSchedulerTest {
         schedulerClosed.get();
     }
 
+    // visible to expose test logic to other Scheduler test classes
+    public static void runCloseAsyncCompletesInMainThreadTest(
+            ScheduledExecutorService singleThreadExecutorService,
+            BiFunctionWithException<
+                            ComponentMainThreadExecutor, CheckpointsCleaner, SchedulerNG, Exception>
+                    schedulerFactory)
+            throws Exception {
+        final OneShotLatch cleanerCloseLatch = new OneShotLatch();
+        final CompletableFuture<Void> cleanerCloseFuture = new CompletableFuture<>();
+        final CheckpointsCleaner checkpointsCleaner =
+                new CheckpointsCleaner() {
+                    @Override
+                    public CompletableFuture<Void> closeAsync() {
+                        cleanerCloseLatch.trigger();
+                        return cleanerCloseFuture;
+                    }
+                };
+
+        final ComponentMainThreadExecutor mainThreadExecutor =
+                ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                        singleThreadExecutorService);
+        final SchedulerNG scheduler =
+                schedulerFactory.apply(mainThreadExecutor, checkpointsCleaner);
+
+        mainThreadExecutor.execute(scheduler::startScheduling);
+
+        final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+        mainThreadExecutor.execute(
+                () -> {
+                    // we shouldn't block the closeAsync call here because it's triggering
+                    // additional tasks on the main thread internally
+                    FutureUtils.forward(
+                            scheduler
+                                    .closeAsync()
+                                    .thenRun(
+                                            () -> {
+                                                mainThreadExecutor.assertRunningInMainThread();
+                                            }),
+                            closeFuture);
+                });
+
+        // wait for the CheckpointsCleaner#close call to not complete the future prematurely
+        cleanerCloseLatch.await();
+
+        // there is a race condition between returning the future and completing it which is due to
+        // the fact that we are triggering the latch before returning the future. That gives a small
+        // chance that the future completion is executed too early causing the future composition to
+        // end up in the main thread which is what we prevent in this test
+        Thread.sleep(50);
+        // completing this future in the test code simulates completing the
+        // CheckpointCleaner#closeAsync outside the main thread
+        cleanerCloseFuture.complete(null);
+        closeFuture.join();
+    }
+
     private static long initiateFailure(
             DefaultScheduler scheduler,
             ExecutionAttemptID executionAttemptId,
@@ -2070,8 +2141,8 @@ public class DefaultSchedulerTest {
         final JobVertex sink = new JobVertex("sink");
         sink.setInvokableClass(NoOpInvokable.class);
 
-        sink.connectNewDataSetAsInput(
-                source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                sink, source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         return JobGraphTestUtils.streamingJobGraph(source, sink);
     }
@@ -2085,8 +2156,8 @@ public class DefaultSchedulerTest {
         sink.setParallelism(parallelism);
         sink.setInvokableClass(NoOpInvokable.class);
 
-        sink.connectNewDataSetAsInput(
-                source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                sink, source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
         return JobGraphTestUtils.streamingJobGraph(source, sink);
     }

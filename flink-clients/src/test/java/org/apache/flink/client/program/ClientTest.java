@@ -497,6 +497,10 @@ class ClientTest {
                     return (pipeline, config, classLoader) -> {
                         final int parallelism = config.get(CoreOptions.DEFAULT_PARALLELISM);
                         final JobGraph jobGraph = streamGraph.getJobGraph();
+                        // The job graphs from different cases are generated from the same stream
+                        // graph, resulting in the same job ID, which can lead to exceptions.
+                        // Therefore, we manually set a unique job ID here.
+                        jobGraph.setJobID(new JobID());
 
                         final ExecutionConfigAccessor accessor =
                                 ExecutionConfigAccessor.fromConfiguration(config);

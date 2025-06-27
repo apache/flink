@@ -38,7 +38,7 @@ import java.io.IOException;
  *
  * <p>The input stream should only contain INSERT messages.
  */
-public class AppendOnlyFirstNFunction extends AbstractTopNFunction {
+public class AppendOnlyFirstNFunction extends AbstractSyncStateTopNFunction {
 
     private static final long serialVersionUID = -889227691088906247L;
 

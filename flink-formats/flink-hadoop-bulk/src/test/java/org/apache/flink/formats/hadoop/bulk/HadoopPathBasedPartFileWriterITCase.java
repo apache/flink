@@ -26,19 +26,18 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.HadoopPathBasedBulkFormatBuilder;
 import org.apache.flink.streaming.api.functions.sink.filesystem.TestStreamingFileSinkFactory;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.BasePathBucketAssigner;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -50,11 +49,11 @@ import static org.apache.flink.formats.hadoop.bulk.HadoopPathBasedPartFileWriter
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base class for testing writing data to the hadoop file system with different configurations. */
-public class HadoopPathBasedPartFileWriterITCase extends AbstractTestBaseJUnit4 {
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(2000);
+@ExtendWith(MiniClusterExtension.class)
+class HadoopPathBasedPartFileWriterITCase {
 
     @Test
-    public void testPendingFileRecoverableSerializer() throws IOException {
+    void testPendingFileRecoverableSerializer() throws IOException {
         HadoopPathBasedPendingFileRecoverable recoverable =
                 new HadoopPathBasedPendingFileRecoverable(
                         new Path("hdfs://fake/path"), new Path("hdfs://fake/path.inprogress.uuid"));
@@ -70,9 +69,8 @@ public class HadoopPathBasedPartFileWriterITCase extends AbstractTestBaseJUnit4 
     }
 
     @Test
-    public void testWriteFile() throws Exception {
-        File file = TEMPORARY_FOLDER.newFolder();
-        Path basePath = new Path(file.toURI());
+    void testWriteFile(@TempDir java.nio.file.Path tmpDir) throws Exception {
+        Path basePath = new Path(tmpDir.toUri());
 
         List<String> data = Arrays.asList("first line", "second line", "third line");
 
@@ -110,7 +108,6 @@ public class HadoopPathBasedPartFileWriterITCase extends AbstractTestBaseJUnit4 
             throws IOException {
         FileSystem fileSystem = FileSystem.get(basePath.toUri(), config);
         FileStatus[] partFiles = fileSystem.listStatus(basePath);
-        assertThat(partFiles).isNotNull();
         assertThat(partFiles).hasSize(2);
         for (FileStatus partFile : partFiles) {
             assertThat(partFile.getLen()).isGreaterThan(0);

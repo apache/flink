@@ -531,8 +531,8 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
                 yield [NORMAL_RECORD, result_data, None]
             timers = self.group_agg_function.get_timers()
             for timer in timers:
-                timer_operand_type = timer[0]  # type: TimerOperandType
-                internal_timer = timer[1]  # type: InternalTimer
+                timer_operand_type: TimerOperandType = timer[0]
+                internal_timer: InternalTimer = timer[1]
                 window = internal_timer.get_namespace()
                 self._reuse_key_data._values = internal_timer.get_key()
                 timestamp = internal_timer.get_timestamp()

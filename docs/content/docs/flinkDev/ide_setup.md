@@ -30,7 +30,6 @@ under the License.
 The sections below describe how to import the Flink project into an IDE
 for the development of Flink itself. For writing Flink programs, please
 refer to the [Java API]({{< ref "docs/dev/configuration/overview" >}})
-and the [Scala API]({{< ref "docs/dev/configuration/overview" >}})
 quickstart guides.
 
 {{< hint info >}}
@@ -124,7 +123,7 @@ install them, and restart the IDE if prompted:
 
 You will also need to install the [google-java-format](https://github.com/google/google-java-format)
 plugin. However, a specific version of this plugin is required. Download
-[google-java-format v1.7.0.6](https://plugins.jetbrains.com/plugin/8527-google-java-format/versions/stable/115957)
+[google-java-format v1.24.0.0](https://plugins.jetbrains.com/plugin/8527-google-java-format/versions/stable/614263)
 and install it as follows. Make sure to never update this plugin.
 
 1. Go to "Settings" → "Plugins".
@@ -169,7 +168,7 @@ any of these modules.
 
 1. Go to "Settings" → "Tools" → "Checkstyle".
 2. Set "Scan Scope" to "Only Java sources (including tests)".
-3. For "Checkstyle Version" select "9.3".
+3. For "Checkstyle Version" select "10.18.2".
 4. Under "Configuration File" click the "+" icon to add a new configuration.
 5. Set "Description" to "Flink".
 6. Select "Use a local Checkstyle file" and point it to `tools/maven/checkstyle.xml` located within
@@ -214,7 +213,7 @@ You can verify your setup by running some of the Python tests located in flink-p
 
 This section lists issues that developers have run into in the past when working with IntelliJ.
 
-#### Compilation fails with `invalid flag: --add-exports=java.base/sun.net.util=ALL-UNNAMED`
+#### Compilation fails with `invalid flag: --add-exports=java.management/sun.management=ALL-UNNAMED`
 
 This happens if the "java11" Maven profile is active, but an older JDK version is used. Go to
 "View" → "Tool Windows" → "Maven" and uncheck the "java11" profile. Afterwards, reimport the

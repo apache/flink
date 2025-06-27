@@ -206,6 +206,8 @@ class DefaultInputConsumableDeciderTest {
     private DefaultInputConsumableDecider createDefaultInputConsumableDecider(
             Set<ExecutionVertexID> scheduledVertices, SchedulingTopology schedulingTopology) {
         return new DefaultInputConsumableDecider(
-                scheduledVertices::contains, schedulingTopology::getResultPartition);
+                scheduledVertices::contains,
+                schedulingTopology::getResultPartition,
+                (id) -> schedulingTopology.getVertex(id).getState());
     }
 }

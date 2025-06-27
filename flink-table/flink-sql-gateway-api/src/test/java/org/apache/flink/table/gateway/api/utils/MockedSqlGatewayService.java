@@ -39,6 +39,7 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 
 import javax.annotation.Nullable;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -198,6 +199,16 @@ public class MockedSqlGatewayService implements SqlGatewayService {
             Map<String, String> dynamicOptions,
             Map<String, String> staticPartitions,
             Map<String, String> executionConfig) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public <ClusterID> ClusterID deployScript(
+            SessionHandle sessionHandle,
+            @Nullable URI scriptUri,
+            @Nullable String script,
+            Configuration executionConfig)
+            throws SqlGatewayException {
         throw new UnsupportedOperationException();
     }
 

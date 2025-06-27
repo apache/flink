@@ -40,7 +40,9 @@ public class TaskTracker {
         this.numberOfTasks = numberOfTasks;
     }
 
-    /** @return true, if this checkpoint id need be committed. */
+    /**
+     * @return true, if this checkpoint id need be committed.
+     */
     public boolean add(long checkpointId, int task) {
         Set<Integer> tasks = notifiedTasks.computeIfAbsent(checkpointId, (k) -> new HashSet<>());
         tasks.add(task);

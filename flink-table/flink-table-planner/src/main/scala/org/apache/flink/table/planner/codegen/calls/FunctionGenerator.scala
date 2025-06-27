@@ -403,27 +403,6 @@ class FunctionGenerator private (tableConfig: ReadableConfig) {
   addSqlFunction(HASH_CODE, Seq(DECIMAL), new HashCodeCallGen())
 
   INTEGRAL_TYPES.foreach(
-    dt => {
-      addSqlFunctionMethod(
-        TO_TIMESTAMP_LTZ,
-        Seq(dt, INTEGER),
-        BuiltInMethods.LONG_TO_TIMESTAMP_LTZ_WITH_PRECISION)
-    })
-
-  FRACTIONAL_TYPES.foreach(
-    dt => {
-      addSqlFunctionMethod(
-        TO_TIMESTAMP_LTZ,
-        Seq(dt, INTEGER),
-        BuiltInMethods.DOUBLE_TO_TIMESTAMP_LTZ_WITH_PRECISION)
-    })
-
-  addSqlFunctionMethod(
-    TO_TIMESTAMP_LTZ,
-    Seq(DECIMAL, INTEGER),
-    BuiltInMethods.DECIMAL_TO_TIMESTAMP_LTZ_WITH_PRECISION)
-
-  INTEGRAL_TYPES.foreach(
     dt => addSqlFunctionMethod(FROM_UNIXTIME, Seq(dt), BuiltInMethods.FROM_UNIXTIME))
 
   addSqlFunctionMethod(FROM_UNIXTIME, Seq(BIGINT, VARCHAR), BuiltInMethods.FROM_UNIXTIME_FORMAT)

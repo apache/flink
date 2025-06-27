@@ -28,7 +28,6 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.legacy.sinks.TableSink;
 import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
@@ -107,33 +106,6 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      */
     String explainInternal(
             List<Operation> operations, ExplainFormat format, ExplainDetail... extraDetails);
-
-    /**
-     * Registers an external {@link TableSource} in this {@link TableEnvironment}'s catalog.
-     * Registered tables can be referenced in SQL queries.
-     *
-     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
-     * it will be inaccessible in the current session. To make the permanent object available again
-     * one can drop the corresponding temporary object.
-     *
-     * @param name The name under which the {@link TableSource} is registered.
-     * @param tableSource The {@link TableSource} to register.
-     */
-    void registerTableSourceInternal(String name, TableSource<?> tableSource);
-
-    /**
-     * Registers an external {@link TableSink} with already configured field names and field types
-     * in this {@link TableEnvironment}'s catalog. Registered sink tables can be referenced in SQL
-     * DML statements.
-     *
-     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
-     * it will be inaccessible in the current session. To make the permanent object available again
-     * one can drop the corresponding temporary object.
-     *
-     * @param name The name under which the {@link TableSink} is registered.
-     * @param configuredSink The configured {@link TableSink} to register.
-     */
-    void registerTableSinkInternal(String name, TableSink<?> configuredSink);
 
     /**
      * Execute the given {@link CachedPlan} and return the execution result.

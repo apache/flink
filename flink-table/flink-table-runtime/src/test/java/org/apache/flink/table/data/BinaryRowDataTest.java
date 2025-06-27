@@ -52,6 +52,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.types.variant.Variant;
+import org.apache.flink.types.variant.VariantBuilder;
 
 import org.junit.jupiter.api.Test;
 
@@ -1128,5 +1130,22 @@ class BinaryRowDataTest {
 
         assertThat(nestedBinaryRow.getRow(1, 2)).isEqualTo(innerBinaryRow);
         assertThat(innerBinaryRow).isEqualTo(nestedBinaryRow.getRow(1, 2));
+    }
+
+    @Test
+    public void testVariant() {
+        BinaryRowData row = new BinaryRowData(2);
+        BinaryRowWriter writer = new BinaryRowWriter(row);
+
+        VariantBuilder builder = Variant.newBuilder();
+
+        Variant v1 = builder.object().add("k", builder.of(1)).build();
+        Variant v2 = builder.array().add(builder.of(1)).build();
+        writer.writeVariant(0, v1);
+        writer.writeVariant(1, v2);
+        writer.complete();
+
+        assertThat(row.getVariant(0)).isEqualTo(v1);
+        assertThat(row.getVariant(1)).isEqualTo(v2);
     }
 }

@@ -180,7 +180,8 @@ public class SortMergeResultPartition extends ResultPartition {
             try {
                 // allocate at most 4M heap memory for caching of index entries
                 fileWriter =
-                        new PartitionedFileWriter(numSubpartitions, 4194304, resultFileBasePath);
+                        new PartitionedFileWriter(
+                                numSubpartitions, 4194304, resultFileBasePath, subpartitionOrder);
             } catch (Throwable throwable) {
                 throw new IOException("Failed to create file writer.", throwable);
             }
@@ -536,8 +537,16 @@ public class SortMergeResultPartition extends ResultPartition {
     protected ResultSubpartitionView createSubpartitionView(
             int subpartitionIndex, BufferAvailabilityListener availabilityListener)
             throws IOException {
+        throw new IllegalStateException(
+                "This method should not be called for a sort merge result partition.");
+    }
+
+    @Override
+    public ResultSubpartitionView createSubpartitionView(
+            ResultSubpartitionIndexSet indexSet, BufferAvailabilityListener availabilityListener)
+            throws IOException {
         synchronized (lock) {
-            checkElementIndex(subpartitionIndex, numSubpartitions, "Subpartition not found.");
+            checkElementIndex(indexSet.getEndIndex(), numSubpartitions, "Subpartition not found.");
             checkState(!isReleased(), "Partition released.");
             checkState(isFinished(), "Trying to read unfinished blocking partition.");
 
@@ -546,7 +555,7 @@ public class SortMergeResultPartition extends ResultPartition {
             }
 
             return readScheduler.createSubpartitionReader(
-                    availabilityListener, subpartitionIndex, resultFile);
+                    availabilityListener, indexSet, resultFile, subpartitionOrder[0]);
         }
     }
 

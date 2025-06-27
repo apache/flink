@@ -63,7 +63,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* sum0 = */ adjustSumType(
+            /* sum0= */ adjustSumType(
                     ifThenElse(isNull(operand(0)), sum0, adjustedPlus(sum0, operand(0))))
         };
     }
@@ -71,16 +71,14 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] retractExpressions() {
         return new Expression[] {
-            /* sum0 = */ adjustSumType(
+            /* sum0= */ adjustSumType(
                     ifThenElse(isNull(operand(0)), sum0, adjustedMinus(sum0, operand(0))))
         };
     }
 
     @Override
     public Expression[] mergeExpressions() {
-        return new Expression[] {
-            /* sum0 = */ adjustSumType(adjustedPlus(sum0, mergeOperand(sum0)))
-        };
+        return new Expression[] {/* sum0= */ adjustSumType(adjustedPlus(sum0, mergeOperand(sum0)))};
     }
 
     private UnresolvedCallExpression adjustSumType(UnresolvedCallExpression sumExpr) {
@@ -112,7 +110,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 
         @Override
         public Expression[] initialValuesExpressions() {
-            return new Expression[] {/* sum0 = */ literal(0, getResultType().notNull())};
+            return new Expression[] {/* sum0= */ literal(0, getResultType().notNull())};
         }
     }
 
@@ -125,7 +123,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 
         @Override
         public Expression[] initialValuesExpressions() {
-            return new Expression[] {/* sum0 = */ literal((byte) 0, getResultType().notNull())};
+            return new Expression[] {/* sum0= */ literal((byte) 0, getResultType().notNull())};
         }
     }
 
@@ -138,7 +136,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 
         @Override
         public Expression[] initialValuesExpressions() {
-            return new Expression[] {/* sum0 = */ literal((short) 0, getResultType().notNull())};
+            return new Expression[] {/* sum0= */ literal((short) 0, getResultType().notNull())};
         }
     }
 
@@ -151,7 +149,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 
         @Override
         public Expression[] initialValuesExpressions() {
-            return new Expression[] {/* sum0 = */ literal(0L, getResultType().notNull())};
+            return new Expression[] {/* sum0= */ literal(0L, getResultType().notNull())};
         }
     }
 
@@ -164,7 +162,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 
         @Override
         public Expression[] initialValuesExpressions() {
-            return new Expression[] {/* sum0 = */ literal(0.0f, getResultType().notNull())};
+            return new Expression[] {/* sum0= */ literal(0.0f, getResultType().notNull())};
         }
     }
 
@@ -177,7 +175,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
 
         @Override
         public Expression[] initialValuesExpressions() {
-            return new Expression[] {/* sum0 = */ literal(0.0d, getResultType().notNull())};
+            return new Expression[] {/* sum0= */ literal(0.0d, getResultType().notNull())};
         }
     }
 
@@ -198,7 +196,7 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
         @Override
         public Expression[] initialValuesExpressions() {
             return new Expression[] {
-                /* sum0 = */ literal(new BigDecimal(0), getResultType().notNull())
+                /* sum0= */ literal(new BigDecimal(0), getResultType().notNull())
             };
         }
 

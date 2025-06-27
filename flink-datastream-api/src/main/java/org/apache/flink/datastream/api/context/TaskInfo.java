@@ -43,4 +43,21 @@ public interface TaskInfo {
      * @return The name of current task.
      */
     String getTaskName();
+
+    /**
+     * Gets the number of this parallel subtask. The numbering starts from 0 and goes up to
+     * parallelism-1 (parallelism as returned by {@link #getParallelism()}).
+     *
+     * @return The index of the parallel subtask.
+     */
+    int getIndexOfThisSubtask();
+
+    /**
+     * Gets the attempt number of this parallel subtask. First attempt is numbered 0. The attempt
+     * number corresponds to the number of times this task has been restarted(after
+     * failure/cancellation) since the job was initially started.
+     *
+     * @return The attempt number of the subtask.
+     */
+    int getAttemptNumber();
 }

@@ -99,4 +99,8 @@ public class RetryableAsyncLookupFunctionDelegator extends AsyncLookupFunction {
         userLookupFunction.close();
         super.close();
     }
+
+    public AsyncLookupFunction getUserLookupFunction() {
+        return userLookupFunction;
+    }
 }

@@ -19,17 +19,22 @@
 package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.Tumble;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -44,9 +49,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.lit;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for resolving types of computed columns (including time attributes) of tables from catalog.
@@ -58,10 +65,10 @@ class JavaCatalogTableTest extends TableTestBase {
         return Arrays.asList(true, false);
     }
 
-    @Parameter private boolean isStreamingMode;
+    @Parameter private boolean streamingMode;
 
     private TableTestUtil getTestUtil() {
-        if (isStreamingMode) {
+        if (streamingMode) {
             return streamTestUtil(TableConfig.getDefault());
         } else {
             return batchTestUtil(TableConfig.getDefault());
@@ -75,7 +82,7 @@ class JavaCatalogTableTest extends TableTestBase {
         GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog("in-memory");
         genericInMemoryCatalog.createTable(
                 new ObjectPath("default", "testTable"),
-                new CustomCatalogTable(isStreamingMode),
+                new CustomCatalogTable(streamingMode),
                 false);
         tableEnvironment.registerCatalog("testCatalog", genericInMemoryCatalog);
         tableEnvironment.executeSql(
@@ -92,7 +99,7 @@ class JavaCatalogTableTest extends TableTestBase {
         GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog("in-memory");
         genericInMemoryCatalog.createTable(
                 new ObjectPath("default", "testTable"),
-                new CustomCatalogTable(isStreamingMode),
+                new CustomCatalogTable(streamingMode),
                 false);
         tableEnvironment.registerCatalog("testCatalog", genericInMemoryCatalog);
 
@@ -107,7 +114,7 @@ class JavaCatalogTableTest extends TableTestBase {
 
     @TestTemplate
     void testResolvingProctimeOfCustomTableSql() throws Exception {
-        if (!isStreamingMode) {
+        if (!streamingMode) {
             // proctime not supported in batch
             return;
         }
@@ -116,7 +123,7 @@ class JavaCatalogTableTest extends TableTestBase {
         GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog("in-memory");
         genericInMemoryCatalog.createTable(
                 new ObjectPath("default", "testTable"),
-                new CustomCatalogTable(isStreamingMode),
+                new CustomCatalogTable(streamingMode),
                 false);
         tableEnvironment.registerCatalog("testCatalog", genericInMemoryCatalog);
 
@@ -127,7 +134,7 @@ class JavaCatalogTableTest extends TableTestBase {
 
     @TestTemplate
     void testResolvingProctimeOfCustomTableTableApi() throws Exception {
-        if (!isStreamingMode) {
+        if (!streamingMode) {
             // proctime not supported in batch
             return;
         }
@@ -136,7 +143,7 @@ class JavaCatalogTableTest extends TableTestBase {
         GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog("in-memory");
         genericInMemoryCatalog.createTable(
                 new ObjectPath("default", "testTable"),
-                new CustomCatalogTable(isStreamingMode),
+                new CustomCatalogTable(streamingMode),
                 false);
         tableEnvironment.registerCatalog("testCatalog", genericInMemoryCatalog);
 
@@ -149,12 +156,166 @@ class JavaCatalogTableTest extends TableTestBase {
         testUtil.verifyExecPlan(table);
     }
 
+    @TestTemplate
+    void testTimeAttributeOfView() {
+        if (!streamingMode) {
+            // time attributes not supported in batch
+            return;
+        }
+        TableTestUtil testUtil = getTestUtil();
+        TableEnvironment tableEnvironment = testUtil.getTableEnv();
+        tableEnvironment.registerCatalog("cat", new CustomCatalog("cat"));
+        tableEnvironment.executeSql(
+                "CREATE TABLE t(i INT, ts TIMESTAMP_LTZ(3), WATERMARK FOR "
+                        + "ts AS ts) WITH ('connector' = 'datagen')");
+        tableEnvironment.executeSql("CREATE VIEW `cat`.`default`.v AS SELECT * FROM t");
+        testUtil.verifyExecPlan(
+                "SELECT sum(i), window_start "
+                        + "FROM TUMBLE(\n"
+                        + "     DATA => TABLE `cat`.`default`.v,\n"
+                        + "     TIMECOL => DESCRIPTOR(ts),\n"
+                        + "     SIZE => INTERVAL '10' MINUTES)\n"
+                        + "GROUP BY window_start, window_end");
+    }
+
+    @TestTemplate
+    void testTimeAttributeOfViewSelect() {
+        if (!streamingMode) {
+            // time attributes not supported in batch
+            return;
+        }
+        TableTestUtil testUtil = getTestUtil();
+        TableEnvironment tableEnvironment = testUtil.getTableEnv();
+        tableEnvironment.registerCatalog("cat", new CustomCatalog("cat"));
+        tableEnvironment.executeSql(
+                "CREATE TABLE `cat`.`default`.`t`("
+                        + " order_id INT, "
+                        + " customer_id INT, "
+                        + " product_id INT, "
+                        + " product_ids ARRAY<INT>, "
+                        + " ts TIMESTAMP_LTZ(3), WATERMARK FOR ts AS ts) "
+                        + "WITH ('connector' = 'datagen')");
+        tableEnvironment.executeSql(
+                "CREATE VIEW `cat`.`default`.v AS "
+                        + "SELECT `o`.`order_id`, `o`.`customer_id`, `pids`.`product_id`, `o`.`ts`\n"
+                        + "FROM `cat`.`default`.`t` AS `o`\n"
+                        + "CROSS JOIN UNNEST(`o`.`product_ids`) AS `pids` (`product_id`)");
+        testUtil.verifyExecPlan("SELECT * FROM `cat`.`default`.v");
+    }
+
+    @TestTemplate
+    void testShowCreateViewUsesCorrectColumnNames() {
+        TableTestUtil testUtil = getTestUtil();
+        TableEnvironment tableEnvironment = testUtil.getTableEnv();
+        tableEnvironment.registerCatalog("cat", new CustomCatalog("cat"));
+        tableEnvironment.executeSql(
+                "CREATE VIEW `cat`.`default`.v (`customer_id`, `product_id`) AS " + "SELECT 1, 1");
+        String result =
+                tableEnvironment
+                        .executeSql("SHOW CREATE VIEW `cat`.`default`.v")
+                        .collect()
+                        .next()
+                        .getFieldAs(0);
+        assertThat(result)
+                .isEqualTo(
+                        "CREATE VIEW `cat`.`default`.`v` (\n"
+                                + "  `customer_id`,\n"
+                                + "  `product_id`\n"
+                                + ")\n"
+                                + "AS SELECT 1, 1\n");
+    }
+
+    private static class CustomCatalog extends GenericInMemoryCatalog {
+        public CustomCatalog(String name) {
+            super(name);
+        }
+
+        @Override
+        public CatalogBaseTable getTable(ObjectPath tablePath) throws TableNotExistException {
+            CatalogBaseTable table = super.getTable(tablePath);
+            if (table.getTableKind() == CatalogBaseTable.TableKind.VIEW) {
+                return new CustomView((CatalogView) table);
+            }
+            return table;
+        }
+    }
+
+    private static class CustomView implements CatalogView {
+
+        private final CatalogView origin;
+
+        public CustomView(CatalogView table) {
+            this.origin = table;
+        }
+
+        @Override
+        public String getOriginalQuery() {
+            return origin.getOriginalQuery();
+        }
+
+        @Override
+        public String getExpandedQuery() {
+            return origin.getExpandedQuery();
+        }
+
+        @Override
+        public Map<String, String> getOptions() {
+            return origin.getOptions();
+        }
+
+        @Override
+        public Schema getUnresolvedSchema() {
+            Schema originalSchema = origin.getUnresolvedSchema();
+            return Schema.newBuilder()
+                    .fromColumns(
+                            originalSchema.getColumns().stream()
+                                    .map(
+                                            c -> {
+                                                if (c instanceof UnresolvedPhysicalColumn) {
+                                                    DataType dataType =
+                                                            (DataType)
+                                                                    ((UnresolvedPhysicalColumn) c)
+                                                                            .getDataType();
+                                                    String stringType =
+                                                            dataType.getLogicalType()
+                                                                    .asSerializableString();
+                                                    return new UnresolvedPhysicalColumn(
+                                                            c.getName(), DataTypes.of(stringType));
+                                                }
+                                                throw new UnsupportedOperationException(
+                                                        "Unexpected column type");
+                                            })
+                                    .collect(Collectors.toList()))
+                    .build();
+        }
+
+        @Override
+        public String getComment() {
+            return origin.getComment();
+        }
+
+        @Override
+        public CatalogBaseTable copy() {
+            return new CustomView((CatalogView) origin.copy());
+        }
+
+        @Override
+        public Optional<String> getDescription() {
+            return origin.getDescription();
+        }
+
+        @Override
+        public Optional<String> getDetailedDescription() {
+            return origin.getDetailedDescription();
+        }
+    }
+
     private static class CustomCatalogTable implements CatalogTable {
 
-        private final boolean isStreamingMode;
+        private final boolean streamingMode;
 
-        private CustomCatalogTable(boolean isStreamingMode) {
-            this.isStreamingMode = isStreamingMode;
+        private CustomCatalogTable(boolean streamingMode) {
+            this.streamingMode = streamingMode;
         }
 
         @Override
@@ -173,15 +334,10 @@ class JavaCatalogTableTest extends TableTestBase {
         }
 
         @Override
-        public Map<String, String> toProperties() {
-            return Collections.emptyMap();
-        }
-
-        @Override
         public Map<String, String> getOptions() {
             Map<String, String> map = new HashMap<>();
             map.put("connector", "values");
-            map.put("bounded", Boolean.toString(!isStreamingMode));
+            map.put("bounded", Boolean.toString(!streamingMode));
             return map;
         }
 

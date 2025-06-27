@@ -157,37 +157,6 @@ The YARN session client also has a few "shortcut arguments" for commonly used se
 
 {{< top >}}
 
-### Per-Job Mode (deprecated)
-
-{{< hint danger >}}
-Per-job mode is only supported by YARN and has been deprecated in Flink 1.15.
-It will be dropped in [FLINK-26000](https://issues.apache.org/jira/browse/FLINK-26000).
-Please consider application mode to launch a dedicated cluster per-job on YARN.
-{{< /hint >}}
-
-{{< hint info >}}
-For high-level intuition behind the per-job mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#per-job-mode" >}}).
-{{< /hint >}}
-
-The Per-job Cluster mode will launch a Flink cluster on YARN, then run the provided application jar locally and finally submit the JobGraph to the JobManager on YARN. If you pass the `--detached` argument, the client will stop once the submission is accepted.
-
-The YARN cluster will stop once the job has stopped.
-
-```bash
-./bin/flink run -t yarn-per-job --detached ./examples/streaming/TopSpeedWindowing.jar
-```
-
-Once a Per-Job Cluster is deployed, you can interact with it for operations like cancelling or taking a savepoint.
-
-```bash
-# List running job on the cluster
-./bin/flink list -t yarn-per-job -Dyarn.application.id=application_XXXX_YY
-# Cancel running job
-./bin/flink cancel -t yarn-per-job -Dyarn.application.id=application_XXXX_YY <jobId>
-```
-
-Note that cancelling your job on an Per-Job Cluster will stop the cluster.
-
 ## Flink on YARN Reference
 
 ### Configuring Flink on YARN
@@ -257,9 +226,9 @@ The configuration parameter for specifying the REST endpoint port is [rest.bind-
 
 When deploying Flink with Session Mode on Yarn, only the JAR file specified in startup command will be recognized as user-jars and included into user classpath.
 
-**PerJob Mode & Application Mode**
+**Application Mode**
 
-When deploying Flink with PerJob/Application Mode on Yarn, the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder will be recognized as user-jars.
+When deploying Flink with Application Mode on Yarn, the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder will be recognized as user-jars.
 By default Flink will include the user-jars into the system classpath. This behavior can be controlled with the [yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar) parameter.
 
 When setting this to `DISABLED` Flink will include the jar in the user classpath instead.

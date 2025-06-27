@@ -171,4 +171,66 @@ public class CorrelateTestPrograms {
                     .runSql(
                             "INSERT INTO sink_t SELECT name, nested FROM source_t CROSS JOIN UNNEST(arr) AS T(nested)")
                     .build();
+
+    public static final TableTestProgram CORRELATE_CROSS_JOIN_UNNEST_2 =
+            TableTestProgram.of(
+                            "correlate-cross-join-unnest",
+                            "validate correlate with cross join and unnest")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("name STRING", "arr ARRAY<ROW<nested STRING>>")
+                                    .producedBeforeRestore(
+                                            Row.of(
+                                                    "Bob",
+                                                    new Row[] {
+                                                        Row.of("1"), Row.of("2"), Row.of("3")
+                                                    }))
+                                    .producedAfterRestore(
+                                            Row.of(
+                                                    "Alice",
+                                                    new Row[] {
+                                                        Row.of("4"), Row.of("5"), Row.of("6")
+                                                    }))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("name STRING", "nested STRING")
+                                    .consumedBeforeRestore("+I[Bob, 1]", "+I[Bob, 2]", "+I[Bob, 3]")
+                                    .consumedAfterRestore(
+                                            "+I[Alice, 4]", "+I[Alice, 5]", "+I[Alice, 6]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT (SELECT name, nested FROM source_t, UNNEST(arr) AS T(nested)) FROM source_t")
+                    .build();
+
+    public static final TableTestProgram CORRELATE_WITH_LITERAL_AGG =
+            TableTestProgram.of(
+                            "correlate-with-literal-agg",
+                            "validate correlate with literal aggregate function")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t1")
+                                    .addSchema("a INTEGER", "b BIGINT", "c STRING")
+                                    .producedBeforeRestore(Row.of(1, 2L, "3"), Row.of(2, 3L, "4"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t2")
+                                    .addSchema("d INTEGER", "e BIGINT", "f STRING")
+                                    .producedBeforeRestore(Row.of(1, 2L, "3"), Row.of(2, 3L, "4"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t3")
+                                    .addSchema("i INTEGER", "j BIGINT", "k STRING")
+                                    .producedBeforeRestore(Row.of(1, 2L, "3"), Row.of(2, 3L, "4"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("b BIGINT")
+                                    .consumedBeforeRestore(
+                                            "+I[2]", "+I[3]", "-D[2]", "-D[3]", "+I[2]", "+I[3]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT b FROM source_t1 "
+                                    + " WHERE (CASE WHEN a IN (SELECT 1 FROM source_t3) THEN 1 ELSE 2 END) "
+                                    + " IN (SELECT d FROM source_t2 WHERE source_t1.c = source_t2.f)")
+                    .build();
 }

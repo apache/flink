@@ -194,4 +194,36 @@ class CepRuntimeContext implements RuntimeContext {
     public <UK, UV> MapState<UK, UV> getMapState(final MapStateDescriptor<UK, UV> stateProperties) {
         throw new UnsupportedOperationException("State is not supported.");
     }
+
+    @Override
+    public <T> org.apache.flink.api.common.state.v2.ValueState<T> getState(
+            org.apache.flink.api.common.state.v2.ValueStateDescriptor<T> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
+
+    @Override
+    public <T> org.apache.flink.api.common.state.v2.ListState<T> getListState(
+            org.apache.flink.api.common.state.v2.ListStateDescriptor<T> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
+
+    @Override
+    public <T> org.apache.flink.api.common.state.v2.ReducingState<T> getReducingState(
+            org.apache.flink.api.common.state.v2.ReducingStateDescriptor<T> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
+
+    @Override
+    public <IN, ACC, OUT>
+            org.apache.flink.api.common.state.v2.AggregatingState<IN, OUT> getAggregatingState(
+                    org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<IN, ACC, OUT>
+                            stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
+
+    @Override
+    public <UK, UV> org.apache.flink.api.common.state.v2.MapState<UK, UV> getMapState(
+            org.apache.flink.api.common.state.v2.MapStateDescriptor<UK, UV> stateProperties) {
+        throw new UnsupportedOperationException("State is not supported.");
+    }
 }

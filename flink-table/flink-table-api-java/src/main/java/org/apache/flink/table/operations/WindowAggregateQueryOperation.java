@@ -23,7 +23,9 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
@@ -50,6 +52,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class WindowAggregateQueryOperation implements QueryOperation {
 
+    private static final String INPUT_ALIAS = "$$T_WIN_AGG";
     private final List<ResolvedExpression> groupingExpressions;
     private final List<ResolvedExpression> aggregateExpressions;
     private final List<ResolvedExpression> windowPropertiesExpressions;
@@ -90,22 +93,35 @@ public class WindowAggregateQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         return String.format(
-                "SELECT %s FROM TABLE(%s\n) GROUP BY %s",
+                "SELECT %s FROM TABLE(%s\n) %s GROUP BY %s",
                 Stream.of(
                                 groupingExpressions.stream(),
                                 aggregateExpressions.stream(),
                                 windowPropertiesExpressions.stream())
                         .flatMap(Function.identity())
-                        .map(ResolvedExpression::asSerializableString)
+                        .map(
+                                expr ->
+                                        OperationExpressionsUtils.scopeReferencesWithAlias(
+                                                INPUT_ALIAS, expr))
+                        .map(
+                                resolvedExpression ->
+                                        resolvedExpression.asSerializableString(sqlFactory))
                         .collect(Collectors.joining(", ")),
                 OperationUtils.indent(
-                        groupWindow.asSerializableString(child.asSerializableString())),
+                        groupWindow.asSerializableString(
+                                child.asSerializableString(sqlFactory), sqlFactory)),
+                INPUT_ALIAS,
                 Stream.concat(
                                 Stream.of("window_start", "window_end"),
                                 groupingExpressions.stream()
-                                        .map(ResolvedExpression::asSerializableString))
+                                        .map(
+                                                expr ->
+                                                        OperationExpressionsUtils
+                                                                .scopeReferencesWithAlias(
+                                                                        INPUT_ALIAS, expr))
+                                        .map(expr -> expr.asSerializableString(sqlFactory)))
                         .collect(Collectors.joining(", ")));
     }
 
@@ -250,23 +266,23 @@ public class WindowAggregateQueryOperation implements QueryOperation {
             }
         }
 
-        public String asSerializableString(String table) {
+        public String asSerializableString(String table, SqlFactory sqlFactory) {
             switch (type) {
                 case SLIDE:
                     return String.format(
                             "HOP((%s\n), DESCRIPTOR(%s), %s, %s)",
                             OperationUtils.indent(table),
-                            timeAttribute.asSerializableString(),
-                            slide.asSerializableString(),
-                            size.asSerializableString());
+                            timeAttribute.asSerializableString(sqlFactory),
+                            slide.asSerializableString(sqlFactory),
+                            size.asSerializableString(sqlFactory));
                 case SESSION:
                     throw new TableException("Session windows are not SQL serializable yet.");
                 case TUMBLE:
                     return String.format(
                             "TUMBLE((%s\n), DESCRIPTOR(%s), %s)",
                             OperationUtils.indent(table),
-                            timeAttribute.asSerializableString(),
-                            size.asSerializableString());
+                            timeAttribute.asSerializableString(sqlFactory),
+                            size.asSerializableString(sqlFactory));
                 default:
                     throw new IllegalStateException("Unknown window type: " + type);
             }

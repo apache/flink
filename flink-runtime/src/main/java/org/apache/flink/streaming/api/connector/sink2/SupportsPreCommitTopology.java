@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.connector.sink2;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -30,6 +31,18 @@ import org.apache.flink.streaming.api.datastream.DataStream;
  *
  * <p>It is recommended to use immutable committables because mutating committables can have
  * unexpected side-effects.
+ *
+ * <p>It's important that all {@link CommittableMessage}s are modified appropriately, such that all
+ * messages with the same subtask id will also be processed by the same {@link Committer} subtask
+ * and the {@link CommittableSummary} matches the respective count. If committables are combined or
+ * split in any way, the summary needs to be adjusted.
+ *
+ * <p>There is also no requirement to keep the subtask ids of the writer, they can be changed as
+ * long as there are no two summaries with the same subtask ids (and corresponding {@link
+ * CommittableWithLineage}). Subtask ids don't need to be consecutive or small. The global committer
+ * will use {@link CommittableSummary#getNumberOfSubtasks()} to determine if all committables have
+ * been received, so that number needs to correctly reflect the number of distinct subtask ids. The
+ * easiest way to guarantee all of this is to use {@link RuntimeContext#getTaskInfo()}.
  */
 @Experimental
 public interface SupportsPreCommitTopology<WriterResultT, CommittableT> {

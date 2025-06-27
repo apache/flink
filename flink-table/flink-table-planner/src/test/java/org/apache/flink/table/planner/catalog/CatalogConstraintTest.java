@@ -25,13 +25,14 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableSet;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableSet;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.util.ImmutableBitSet;
@@ -41,6 +42,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,13 +76,19 @@ public class CatalogConstraintTest {
                                         Collections.emptyList(),
                                         UniqueConstraint.primaryKey(
                                                 "primary_constraint",
-                                                Collections.singletonList("b"))))
+                                                Collections.singletonList("b")),
+                                        Collections.singletonList(
+                                                DefaultIndex.newIndex("idx", List.of("a", "b")))))
                         .build();
-        Map<String, String> properties = buildCatalogTableProperties(tableSchema);
+        Map<String, String> properties = buildCatalogTableProperties();
 
         catalog.createTable(
                 new ObjectPath(databaseName, "T1"),
-                CatalogTable.of(tableSchema, "", Collections.emptyList(), properties),
+                CatalogTable.newBuilder()
+                        .schema(tableSchema)
+                        .comment("")
+                        .options(properties)
+                        .build(),
                 false);
 
         RelNode t1 = TableTestUtil.toRelNode(tEnv.sqlQuery("select * from T1"));
@@ -100,11 +108,15 @@ public class CatalogConstraintTest {
                                         Column.physical("b", DataTypes.STRING()),
                                         Column.physical("c", DataTypes.INT())))
                         .build();
-        Map<String, String> properties = buildCatalogTableProperties(tableSchema);
+        Map<String, String> properties = buildCatalogTableProperties();
 
         catalog.createTable(
                 new ObjectPath(databaseName, "T1"),
-                CatalogTable.of(tableSchema, "", Collections.emptyList(), properties),
+                CatalogTable.newBuilder()
+                        .schema(tableSchema)
+                        .comment("")
+                        .options(properties)
+                        .build(),
                 false);
 
         RelNode t1 = TableTestUtil.toRelNode(tEnv.sqlQuery("select * from T1"));
@@ -113,7 +125,7 @@ public class CatalogConstraintTest {
         assertThat(mq.getUniqueKeys(t1)).isEqualTo(ImmutableSet.of());
     }
 
-    private Map<String, String> buildCatalogTableProperties(Schema tableSchema) {
+    private Map<String, String> buildCatalogTableProperties() {
         Map<String, String> properties = new HashMap<>();
         properties.put("connector.type", "filesystem");
         properties.put("connector.property-version", "1");

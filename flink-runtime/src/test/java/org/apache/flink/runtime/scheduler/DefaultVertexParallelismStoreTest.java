@@ -49,6 +49,42 @@ class DefaultVertexParallelismStoreTest {
         assertThat(storedInfo).isEqualTo(info);
     }
 
+    @Test
+    void testGetAllInfos() {
+        JobVertexID id = new JobVertexID();
+        JobVertexID id2 = new JobVertexID();
+        VertexParallelismInformation info = new MockVertexParallelismInfo();
+        VertexParallelismInformation info2 = new MockVertexParallelismInfo();
+        DefaultVertexParallelismStore store = new DefaultVertexParallelismStore();
+
+        store.setParallelismInfo(id, info);
+        store.setParallelismInfo(id2, info2);
+
+        assertThat(store.getParallelismInfo(id)).isEqualTo(info);
+        assertThat(store.getParallelismInfo(id2)).isEqualTo(info2);
+    }
+
+    @Test
+    void testMergeParallelismStore() {
+        JobVertexID id = new JobVertexID();
+        JobVertexID id2 = new JobVertexID();
+        VertexParallelismInformation info = new MockVertexParallelismInfo();
+        VertexParallelismInformation info2 = new MockVertexParallelismInfo();
+        DefaultVertexParallelismStore store = new DefaultVertexParallelismStore();
+        DefaultVertexParallelismStore store2 = new DefaultVertexParallelismStore();
+        store.setParallelismInfo(id, info);
+        store2.setParallelismInfo(id2, info2);
+
+        assertThat(store.getParallelismInfo(id)).isEqualTo(info);
+        assertThatThrownBy(() -> store.getParallelismInfo(id2))
+                .isInstanceOf(IllegalStateException.class);
+
+        store.mergeParallelismStore(store2);
+
+        assertThat(store.getParallelismInfo(id)).isEqualTo(info);
+        assertThat(store.getParallelismInfo(id2)).isEqualTo(info2);
+    }
+
     private static final class MockVertexParallelismInfo implements VertexParallelismInformation {
         @Override
         public int getMinParallelism() {

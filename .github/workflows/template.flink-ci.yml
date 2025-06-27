@@ -30,7 +30,7 @@ on:
         type: string
       jdk_version:
         description: "The Java version to use."
-        default: 11
+        default: 17
         type: number
     secrets:
       s3_bucket:
@@ -72,7 +72,7 @@ jobs:
     name: "Compile"
     runs-on: ubuntu-22.04
     container:
-      image: mapohl/flink-ci:FLINK-34194
+      image: chesnay/flink-ci:java_8_11_17_21_maven_386_jammy
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -128,7 +128,7 @@ jobs:
     needs: compile
     runs-on: ubuntu-22.04
     container:
-      image: mapohl/flink-ci:FLINK-34194
+      image: chesnay/flink-ci:java_8_11_17_21_maven_386_jammy
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -168,7 +168,7 @@ jobs:
     needs: compile
     runs-on: ubuntu-22.04
     container:
-      image: mapohl/flink-ci:FLINK-34194
+      image: chesnay/flink-ci:java_8_11_17_21_maven_386_jammy
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -208,6 +208,16 @@ jobs:
           maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
           source_directory: ${{ env.MOUNTED_WORKING_DIR }}
           target_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
+
+      - name: "Setup python"
+        if: matrix.module == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: "Install Python header files"
+        if: matrix.module == 'python'
+        run: sudo apt-get update && sudo apt-get -y install python3-dev
 
       - name: "Set coredump pattern"
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
@@ -315,8 +325,13 @@ jobs:
           jdk_version: ${{ inputs.jdk_version }}
           maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
 
+      - name: "Setup python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: "Install missing packages"
-        run: sudo apt-get install -y net-tools docker-compose zip
+        run: sudo apt-get install -y net-tools docker zip
 
       # netty-tcnative requires OpenSSL v1.0.0
       - name: "Install OpenSSL"

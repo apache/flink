@@ -1,0 +1,269 @@
+{
+  "flinkVersion" : "2.0",
+  "nodes" : [ {
+    "id" : 11,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`bid_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "ts",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "price",
+              "dataType" : "DECIMAL(10, 2)"
+            }, {
+              "name" : "item",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "bid_time",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "internalName" : "$TO_TIMESTAMP$1",
+                  "operands" : [ {
+                    "kind" : "INPUT_REF",
+                    "inputIndex" : 0,
+                    "type" : "VARCHAR(2147483647)"
+                  } ],
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "TO_TIMESTAMP(`ts`)"
+              }
+            }, {
+              "name" : "proc_time",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
+                  "operands" : [ ],
+                  "type" : {
+                    "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                    "nullable" : false,
+                    "precision" : 3,
+                    "kind" : "PROCTIME"
+                  }
+                },
+                "serializableString" : "PROCTIME()"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "bid_time",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "syntax" : "SPECIAL",
+                  "internalName" : "$-$1",
+                  "operands" : [ {
+                    "kind" : "INPUT_REF",
+                    "inputIndex" : 3,
+                    "type" : "TIMESTAMP(3)"
+                  }, {
+                    "kind" : "LITERAL",
+                    "value" : "1000",
+                    "type" : "INTERVAL SECOND(6) NOT NULL"
+                  } ],
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`bid_time` - INTERVAL '1' SECOND"
+              }
+            } ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "outputType" : "ROW<`ts` VARCHAR(2147483647), `price` DECIMAL(10, 2), `item` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, bid_t]], fields=[ts, price, item])",
+    "dynamicFilteringDataListenerID" : "d58e76fe-8532-4896-a33e-32ba0f67def4",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 12,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "DECIMAL(10, 2)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "CALL",
+      "internalName" : "$TO_TIMESTAMP$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "type" : "TIMESTAMP(3)"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`price` DECIMAL(10, 2), `item` VARCHAR(2147483647), `bid_time` TIMESTAMP(3)>",
+    "description" : "Calc(select=[price, item, TO_TIMESTAMP(ts) AS bid_time])"
+  }, {
+    "id" : 13,
+    "type" : "batch-exec-window-table-function_1",
+    "windowing" : {
+      "strategy" : "TimeAttribute",
+      "window" : {
+        "type" : "TumblingWindow",
+        "size" : "PT10S"
+      },
+      "timeAttributeType" : "TIMESTAMP(3)",
+      "timeAttributeIndex" : 2,
+      "isRowtime" : false
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`price` DECIMAL(10, 2), `item` VARCHAR(2147483647), `bid_time` TIMESTAMP(3), `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `window_time` TIMESTAMP(3) NOT NULL>",
+    "description" : "WindowTableFunction(window=[TUMBLE(time_col=[bid_time], size=[10 s])])"
+  }, {
+    "id" : 14,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "TIMESTAMP(3)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "DECIMAL(10, 2)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 3,
+        "type" : "TIMESTAMP(3) NOT NULL"
+      } ],
+      "type" : "TIMESTAMP(3)"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 4,
+        "type" : "TIMESTAMP(3) NOT NULL"
+      } ],
+      "type" : "TIMESTAMP(3)"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 5,
+        "type" : "TIMESTAMP(3) NOT NULL"
+      } ],
+      "type" : "TIMESTAMP(6) WITH LOCAL TIME ZONE"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`bid_time` TIMESTAMP(3), `price` DECIMAL(10, 2), `item` VARCHAR(2147483647), `window_start` TIMESTAMP(3), `window_end` TIMESTAMP(3), `window_time` TIMESTAMP(6) WITH LOCAL TIME ZONE>",
+    "description" : "Calc(select=[bid_time, price, item, CAST(window_start AS TIMESTAMP(3)) AS window_start, CAST(window_end AS TIMESTAMP(3)) AS window_end, CAST(window_time AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(6)) AS window_time])"
+  }, {
+    "id" : 15,
+    "type" : "batch-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "bid_time",
+              "dataType" : "TIMESTAMP(3)"
+            }, {
+              "name" : "price",
+              "dataType" : "DECIMAL(10, 2)"
+            }, {
+              "name" : "item",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "window_start",
+              "dataType" : "TIMESTAMP(3)"
+            }, {
+              "name" : "window_end",
+              "dataType" : "TIMESTAMP(3)"
+            }, {
+              "name" : "window_time",
+              "dataType" : "TIMESTAMP(6) WITH LOCAL TIME ZONE"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`bid_time` TIMESTAMP(3), `price` DECIMAL(10, 2), `item` VARCHAR(2147483647), `window_start` TIMESTAMP(3), `window_end` TIMESTAMP(3), `window_time` TIMESTAMP(6) WITH LOCAL TIME ZONE>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[bid_time, price, item, window_start, window_end, window_time])"
+  } ],
+  "edges" : [ {
+    "source" : 11,
+    "target" : 12,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 12,
+    "target" : 13,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 13,
+    "target" : 14,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 14,
+    "target" : 15,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

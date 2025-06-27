@@ -44,8 +44,13 @@ class ExpressionsCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCas
     @classmethod
     def excluded_methods(cls):
         return {
-            '$'
+            '$',
+            'descriptor',
         }
+
+    @classmethod
+    def ignore_decorators(cls):
+        return True
 
 
 if __name__ == '__main__':

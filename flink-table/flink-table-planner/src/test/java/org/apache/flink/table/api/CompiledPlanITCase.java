@@ -96,7 +96,20 @@ class CompiledPlanITCase extends JsonPlanTestBase {
                                 // compiled plan
                                 + " /*+ OPTIONS('bounded'='true', 'scan.parallelism'='2') */");
 
-        String expected = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlanWithHints.out");
+        String expected = TableTestUtil.readFromResource("/jsonplan/testSourceTableWithHints.out");
+        assertThat(getPreparedToCompareCompiledPlan(compiledPlan.asJsonString()))
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void testSinkTableWithHints() {
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
+                        "INSERT INTO MySink "
+                                + "/*+ OPTIONS('sink.parallelism'='2', 'sink-insert-only'='false') */ "
+                                + "SELECT * FROM MyTable");
+
+        String expected = TableTestUtil.readFromResource("/jsonplan/testSinkTableWithHints.out");
         assertThat(getPreparedToCompareCompiledPlan(compiledPlan.asJsonString()))
                 .isEqualTo(expected);
     }

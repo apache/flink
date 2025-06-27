@@ -29,7 +29,7 @@ import java.util.List;
  */
 @Internal
 public class ResultSubpartitionStateHandle
-        extends AbstractChannelStateHandle<ResultSubpartitionInfo> {
+        extends AbstractChannelStateHandle<ResultSubpartitionInfo> implements OutputStateHandle {
 
     private static final long serialVersionUID = 1L;
 

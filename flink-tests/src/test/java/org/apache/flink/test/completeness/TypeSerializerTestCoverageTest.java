@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.api.common.typeutils.base.LocalTimeSerializer;
 import org.apache.flink.api.common.typeutils.base.NullValueSerializer;
+import org.apache.flink.api.common.typeutils.base.SetSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BooleanPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
@@ -59,6 +60,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializerTypeSerializerProxy;
 import org.apache.flink.formats.avro.typeutils.AvroSerializer;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.heap.TestDuplicateSerializer;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.streaming.api.datastream.CoGroupedStreams;
 import org.apache.flink.streaming.api.functions.sink.legacy.TwoPhaseCommitSinkFunction;
@@ -116,7 +118,8 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         .map(Class::getName)
                         .collect(Collectors.toSet());
         final Set<String> typeSerializerUpgradeSetupNames =
-                reflections.getSubTypesOf(TypeSerializerUpgradeTestBase.PreUpgradeSetup.class)
+                reflections
+                        .getSubTypesOf(TypeSerializerUpgradeTestBase.PreUpgradeSetup.class)
                         .stream()
                         .map(Class::getSimpleName)
                         .collect(Collectors.toSet());
@@ -143,11 +146,19 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         EnumSerializer.class.getName(),
                         CoGroupedStreams.UnionSerializer.class.getName(),
                         TtlStateFactory.TtlSerializer.class.getName(),
+                        TtlAwareSerializer.class.getName(),
+                        TtlAwareSerializer.TtlAwareListSerializer.class.getName(),
+                        TtlAwareSerializer.TtlAwareMapSerializer.class.getName(),
+                        org.apache.flink.runtime.state.v2.ttl.TtlStateFactory.TtlSerializer.class
+                                .getName(),
                         TimeWindow.Serializer.class.getName(),
                         InternalTimersSnapshotReaderWriters.LegacyTimerSerializer.class.getName(),
                         TwoPhaseCommitSinkFunction.StateSerializer.class.getName(),
                         IntervalJoinOperator.BufferEntrySerializer.class.getName(),
                         GlobalWindow.Serializer.class.getName(),
+                        org.apache.flink.table.runtime.operators.window.GlobalWindow.Serializer
+                                .class
+                                .getName(),
                         org.apache.flink.queryablestate.client.VoidNamespaceSerializer.class
                                 .getName(),
                         org.apache.flink.runtime.state.VoidNamespaceSerializer.class.getName(),
@@ -205,9 +216,14 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         UnloadableDummyTypeSerializer.class.getName(),
                         TimeWindow.Serializer.class.getName(),
                         CoGroupedStreams.UnionSerializer.class.getName(),
+                        TtlAwareSerializer.TtlAwareListSerializer.class.getName(),
+                        TtlAwareSerializer.TtlAwareMapSerializer.class.getName(),
                         InternalTimersSnapshotReaderWriters.LegacyTimerSerializer.class.getName(),
                         TwoPhaseCommitSinkFunction.StateSerializer.class.getName(),
                         GlobalWindow.Serializer.class.getName(),
+                        org.apache.flink.table.runtime.operators.window.GlobalWindow.Serializer
+                                .class
+                                .getName(),
                         TestDuplicateSerializer.class.getName(),
                         LinkedListSerializer.class.getName(),
                         WindowKeySerializer.class.getName(),
@@ -238,7 +254,8 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         AvroSerializer.class.getName(),
                         // KeyAndValueSerializer shouldn't be used to serialize data to state and
                         // doesn't need to ensure upgrade compatibility.
-                        "org.apache.flink.streaming.api.operators.sortpartition.KeyAndValueSerializer");
+                        "org.apache.flink.streaming.api.operators.sortpartition.KeyAndValueSerializer",
+                        SetSerializer.class.getName());
 
         // check if a test exists for each type serializer
         for (Class<? extends TypeSerializer> typeSerializer : typeSerializers) {

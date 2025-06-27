@@ -62,7 +62,7 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.BackendStateType;
-import org.apache.flink.runtime.state.metrics.LatencyTrackingStateFactory;
+import org.apache.flink.runtime.state.metrics.MetricsTrackingStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.changelog.restore.ChangelogRestoreTarget;
@@ -70,7 +70,7 @@ import org.apache.flink.state.changelog.restore.FunctionDelegationHelper;
 import org.apache.flink.state.common.PeriodicMaterializationManager.MaterializationTarget;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava32.com.google.common.io.Closer;
+import org.apache.flink.shaded.guava33.com.google.common.io.Closer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -173,6 +173,7 @@ public class ChangelogKeyedStateBackend<K>
      * #stateChangelogWriter} about changelog ranges that were confirmed or aborted by JM.
      */
     @Nullable private SequenceNumber lastUploadedFrom;
+
     /**
      * {@link SequenceNumber} denoting last upload range <b>end</b>, exclusive. Updated to {@link
      * StateChangelogWriter#nextSequenceNumber()} when {@link #snapshot(long, long,
@@ -311,6 +312,11 @@ public class ChangelogKeyedStateBackend<K>
     @Override
     public <N> Stream<K> getKeys(String state, N namespace) {
         return keyedStateBackend.getKeys(state, namespace);
+    }
+
+    @Override
+    public <N> Stream<K> getKeys(List<String> states, N namespace) {
+        return keyedStateBackend.getKeys(states, namespace);
     }
 
     @Override
@@ -674,11 +680,13 @@ public class ChangelogKeyedStateBackend<K>
                 stateDescriptor.initializeSerializerUnlessSet(executionConfig);
             }
             kvState =
-                    LatencyTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
+                    MetricsTrackingStateFactory.createStateAndWrapWithMetricsTrackingIfEnabled(
                             TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
                                     namespaceSerializer, stateDescriptor, this, ttlTimeProvider),
+                            keyedStateBackend,
                             stateDescriptor,
-                            keyedStateBackend.getLatencyTrackingStateConfig());
+                            keyedStateBackend.getLatencyTrackingStateConfig(),
+                            keyedStateBackend.getSizeTrackingStateConfig());
             keyValueStatesByName.put(stateDescriptor.getName(), kvState);
             keyedStateBackend.publishQueryableStateIfEnabled(stateDescriptor, kvState);
         }

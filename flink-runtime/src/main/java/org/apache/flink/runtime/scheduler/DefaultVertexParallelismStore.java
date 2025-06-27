@@ -22,6 +22,7 @@ import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.JobVertexResourceRequirements;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -86,5 +87,15 @@ public class DefaultVertexParallelismStore implements MutableVertexParallelismSt
                                         String.format(
                                                 "No parallelism information set for vertex %s",
                                                 vertexId)));
+    }
+
+    @Override
+    public Map<JobVertexID, VertexParallelismInformation> getAllParallelismInfo() {
+        return Collections.unmodifiableMap(vertexToParallelismInfo);
+    }
+
+    @Override
+    public void mergeParallelismStore(VertexParallelismStore parallelismStore) {
+        parallelismStore.getAllParallelismInfo().forEach(this::setParallelismInfo);
     }
 }

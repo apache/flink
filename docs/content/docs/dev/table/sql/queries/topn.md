@@ -33,13 +33,11 @@ Flink uses the combination of a OVER window clause and a filter condition to exp
 The following shows the syntax of the Top-N statement:
 
 ```sql
-SELECT [column_list]
-FROM (
-   SELECT [column_list],
-     ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]]
-       ORDER BY col1 [asc|desc][, col2 [asc|desc]...]) AS rownum
-   FROM table_name)
-WHERE rownum <= N [AND conditions]
+SELECT [column_list],
+    ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]] ORDER BY time_attr [asc|desc]) AS rownum
+FROM table_name
+QUALIFY rownum <= N
+[WHERE conditions]
 ```
 
 **Parameter Specification:**

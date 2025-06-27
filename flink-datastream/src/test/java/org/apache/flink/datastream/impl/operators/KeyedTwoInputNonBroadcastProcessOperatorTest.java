@@ -25,7 +25,7 @@ import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedTwoInputStreamOperatorTestHarness;
 
 import org.junit.jupiter.api.Test;
 
@@ -46,19 +46,21 @@ class KeyedTwoInputNonBroadcastProcessOperatorTest {
                             public void processRecordFromFirstInput(
                                     Integer record,
                                     Collector<Long> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Long> ctx) {
                                 output.collect(Long.valueOf(record));
                             }
 
                             @Override
                             public void processRecordFromSecondInput(
-                                    Long record, Collector<Long> output, PartitionedContext ctx) {
+                                    Long record,
+                                    Collector<Long> output,
+                                    PartitionedContext<Long> ctx) {
                                 output.collect(record);
                             }
                         });
 
-        try (KeyedTwoInputStreamOperatorTestHarness<Long, Integer, Long, Long> testHarness =
-                new KeyedTwoInputStreamOperatorTestHarness<>(
+        try (AsyncKeyedTwoInputStreamOperatorTestHarness<Long, Integer, Long, Long> testHarness =
+                AsyncKeyedTwoInputStreamOperatorTestHarness.create(
                         processOperator,
                         (KeySelector<Integer, Long>) (data) -> (long) (data + 1),
                         (KeySelector<Long, Long>) value -> value + 1,
@@ -89,13 +91,15 @@ class KeyedTwoInputNonBroadcastProcessOperatorTest {
                             public void processRecordFromFirstInput(
                                     Integer record,
                                     Collector<Long> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Long> ctx) {
                                 // do nothing.
                             }
 
                             @Override
                             public void processRecordFromSecondInput(
-                                    Long record, Collector<Long> output, PartitionedContext ctx) {
+                                    Long record,
+                                    Collector<Long> output,
+                                    PartitionedContext<Long> ctx) {
                                 // do nothing.
                             }
 
@@ -130,8 +134,8 @@ class KeyedTwoInputNonBroadcastProcessOperatorTest {
                             }
                         });
 
-        try (KeyedTwoInputStreamOperatorTestHarness<Long, Integer, Long, Long> testHarness =
-                new KeyedTwoInputStreamOperatorTestHarness<>(
+        try (AsyncKeyedTwoInputStreamOperatorTestHarness<Long, Integer, Long, Long> testHarness =
+                AsyncKeyedTwoInputStreamOperatorTestHarness.create(
                         processOperator,
                         (KeySelector<Integer, Long>) Long::valueOf,
                         (KeySelector<Long, Long>) value -> value,
@@ -164,21 +168,23 @@ class KeyedTwoInputNonBroadcastProcessOperatorTest {
                             public void processRecordFromFirstInput(
                                     Integer record,
                                     Collector<Long> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Long> ctx) {
                                 output.collect(Long.valueOf(record));
                             }
 
                             @Override
                             public void processRecordFromSecondInput(
-                                    Long record, Collector<Long> output, PartitionedContext ctx) {
+                                    Long record,
+                                    Collector<Long> output,
+                                    PartitionedContext<Long> ctx) {
                                 output.collect(record);
                             }
                         },
                         // -1 is an invalid key in this suite.
                         (out) -> -1L);
 
-        try (KeyedTwoInputStreamOperatorTestHarness<Long, Integer, Long, Long> testHarness =
-                new KeyedTwoInputStreamOperatorTestHarness<>(
+        try (AsyncKeyedTwoInputStreamOperatorTestHarness<Long, Integer, Long, Long> testHarness =
+                AsyncKeyedTwoInputStreamOperatorTestHarness.create(
                         processOperator,
                         (KeySelector<Integer, Long>) Long::valueOf,
                         (KeySelector<Long, Long>) value -> value,
@@ -186,6 +192,14 @@ class KeyedTwoInputNonBroadcastProcessOperatorTest {
             testHarness.open();
             assertThatThrownBy(() -> testHarness.processElement1(new StreamRecord<>(1)))
                     .isInstanceOf(IllegalStateException.class);
+        }
+        try (AsyncKeyedTwoInputStreamOperatorTestHarness<Long, Integer, Long, Long> testHarness =
+                AsyncKeyedTwoInputStreamOperatorTestHarness.create(
+                        processOperator,
+                        (KeySelector<Integer, Long>) Long::valueOf,
+                        (KeySelector<Long, Long>) value -> value,
+                        Types.LONG)) {
+            testHarness.open();
             assertThatThrownBy(() -> testHarness.processElement2(new StreamRecord<>(1L)))
                     .isInstanceOf(IllegalStateException.class);
         }

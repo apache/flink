@@ -19,30 +19,30 @@
 package org.apache.flink.table.planner.calcite;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
-import org.apache.flink.table.planner.functions.sql.SqlSessionTableFunction;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlModelCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlTableFunction;
 import org.apache.calcite.sql.SqlUtil;
-import org.apache.calcite.sql.SqlWindowTableFunction;
 import org.apache.calcite.sql.validate.SqlValidatorImpl;
 import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
 import org.apache.calcite.sql2rel.SqlRexConvertletTable;
 import org.apache.calcite.sql2rel.StandardConvertletTable;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -61,15 +61,21 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
 
     @Override
     public SqlRexConvertlet get(SqlCall call) {
-        if (call.getOperator().isName("TRY_CAST", false)) {
+        final SqlOperator operator = call.getOperator();
+        if (operator == FlinkSqlOperatorTable.TRY_CAST) {
             return this::convertTryCast;
-        }
-
-        if (isSetSemanticsWindowTableFunction(call)) {
-            return this::convertSetSemanticsWindowTableFunction;
+        } else if (operator instanceof SqlTableFunction) {
+            return this::convertTableArgs;
+        } else if (call instanceof SqlModelCall) {
+            return this::convertModelCall;
         }
 
         return StandardConvertletTable.INSTANCE.get(call);
+    }
+
+    private RexNode convertModelCall(SqlRexContext cx, final SqlCall call) {
+        SqlModelCall modelCall = (SqlModelCall) call;
+        return modelCall.getModel().toRex(cx);
     }
 
     // Slightly modified version of StandardConvertletTable::convertCast
@@ -105,20 +111,15 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
                         type, FlinkSqlOperatorTable.TRY_CAST, Collections.singletonList(valueRex));
     }
 
-    private boolean isSetSemanticsWindowTableFunction(SqlCall call) {
-        if (!(call.getOperator() instanceof SqlWindowTableFunction)) {
-            return false;
-        }
-        List<SqlNode> operands = call.getOperandList();
-        return !operands.isEmpty() && operands.get(0).getKind() == SqlKind.SET_SEMANTICS_TABLE;
-    }
-
     /**
      * Due to CALCITE-6204, we need to manually extract partition keys and order keys and convert
-     * them to {@link RexSetSemanticsTableCall}.
+     * them to {@link RexTableArgCall}.
      *
-     * <p>Take `SESSION(TABLE my_table PARTITION BY (b, a), DESCRIPTOR(rowtime), INTERVAL '10'
-     * MINUTE)` as an example.
+     * <p>For example:
+     *
+     * <pre>
+     *     SESSION(TABLE my_table PARTITION BY (b, a), DESCRIPTOR(rowtime), INTERVAL '10' MINUTE)
+     * </pre>
      *
      * <p>The original SqlNode tree after syntax parse looks like
      *
@@ -145,61 +146,63 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
      * └─ RexLiteral: 300000:INTERVAL MINUTE
      * </pre>
      *
-     * <p>As a workaround, we flatten the inner sql call and convert it to a customized {@link
-     * RexSetSemanticsTableCall} to preserve partition keys and order keys
+     * <p>Instead, we introduce a customized {@link RexTableArgCall} to preserve properties of the
+     * table argument (i.e. partition keys and order keys).
      *
      * <pre>
-     * RexSetSemanticsTableCall: SESSION
-     * ├─ PartitionKeys: [1, 0]
-     * ├─ OrderKeys: []
+     * RexCall: SESSION
+     * ├─ RexTableArgCall: TABLE
+     * │  ├─ InputIndex: 0
+     * │  ├─ PartitionKeys: [1, 0]
+     * │  └─ OrderKeys: []
      * ├─ RexCall: DESCRIPTOR(`rowtime`)
      * │  └─ RexInputRef: `rowtime`
      * └─ RexLiteral: 300000:INTERVAL MINUTE
      * </pre>
      */
-    private RexNode convertSetSemanticsWindowTableFunction(SqlRexContext cx, final SqlCall call) {
+    private RexNode convertTableArgs(SqlRexContext cx, final SqlCall call) {
         checkArgument(
-                call.getOperator() instanceof SqlSessionTableFunction,
-                "Currently, only the SESSION table function is supported in Set Semantics PTF.");
-        SqlSessionTableFunction fun = (SqlSessionTableFunction) call.getOperator();
+                call.getOperator() instanceof SqlTableFunction,
+                "Only table functions can have set semantics arguments.");
+        final SqlOperator operator = call.getOperator();
 
-        List<SqlNode> operands = call.getOperandList();
+        final List<RexNode> rewrittenOperands = new ArrayList<>();
+        int tableInputCount = 0;
+        for (int pos = 0; pos < call.getOperandList().size(); pos++) {
+            final SqlNode operand = call.operand(pos);
+            if (operand.getKind() == SqlKind.SET_SEMANTICS_TABLE) {
+                final RelDataType tableType = cx.getValidator().getValidatedNodeType(operand);
+                final SqlBasicCall setSemanticsCall = (SqlBasicCall) operand;
+                final SqlNodeList partitionKeys = setSemanticsCall.operand(1);
+                final SqlNodeList orderKeys = setSemanticsCall.operand(2);
+                checkArgument(
+                        orderKeys.isEmpty(), "Table functions do not support order keys yet.");
+                final int[] keys = getPartitionKeyIndices(tableType, partitionKeys);
 
-        SqlBasicCall setSemanticsPTFCall = (SqlBasicCall) operands.get(0);
-        SqlNodeList partitionKeys = setSemanticsPTFCall.operand(1);
-        SqlNodeList orderKeys = setSemanticsPTFCall.operand(2);
-        checkArgument(orderKeys.isEmpty(), "SESSION table function does not support order keys.");
-        RexCall resolvedCall =
-                (RexCall) StandardConvertletTable.INSTANCE.convertWindowFunction(cx, fun, call);
-        int[] partitionKeyRefs = getPartitionKeyIndices(cx, partitionKeys);
+                rewrittenOperands.add(
+                        new RexTableArgCall(tableType, tableInputCount++, keys, new int[0]));
+            } else if (operand.isA(SqlKind.QUERY)) {
+                final RelDataType tableType = cx.getValidator().getValidatedNodeType(operand);
+                rewrittenOperands.add(
+                        new RexTableArgCall(tableType, tableInputCount++, new int[0], new int[0]));
+            } else {
+                rewrittenOperands.add(cx.convertExpression(operand));
+            }
+        }
 
-        // attach the partition keys and order keys on the custom rex call
-        resolvedCall =
-                new RexSetSemanticsTableCall(
-                        resolvedCall.getType(),
-                        resolvedCall.getOperator(),
-                        resolvedCall.getOperands(),
-                        partitionKeyRefs,
-                        new int[] {});
-        return resolvedCall;
+        final RelDataType returnType = cx.getValidator().getValidatedNodeType(call);
+        return cx.getRexBuilder().makeCall(returnType, operator, rewrittenOperands);
     }
 
-    private int[] getPartitionKeyIndices(SqlRexContext cx, SqlNodeList partitions) {
+    private static int[] getPartitionKeyIndices(RelDataType tableType, SqlNodeList partitions) {
+        // Due to incorrect scoping of SET_SEMANTIC_TABLE, we have to resolve identifiers manually
+        // See FLINK-37211
+        final List<String> tableColumns = tableType.getFieldNames();
         final int[] result = new int[partitions.size()];
-
         for (int i = 0; i < partitions.getList().size(); i++) {
-            RexNode expr = cx.convertExpression(partitions.get(i));
-            result[i] = parseFieldIdx(expr);
+            final SqlIdentifier column = (SqlIdentifier) partitions.get(i);
+            result[i] = tableColumns.indexOf(column.getSimple());
         }
         return result;
-    }
-
-    private static int parseFieldIdx(RexNode e) {
-        if (SqlKind.INPUT_REF == e.getKind()) {
-            final RexInputRef ref = (RexInputRef) e;
-            return ref.getIndex();
-        }
-        // should not happen
-        throw new TableException("Unsupported partition key with type: " + e.getKind());
     }
 }

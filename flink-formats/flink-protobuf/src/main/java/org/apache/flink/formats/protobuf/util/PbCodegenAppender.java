@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.protobuf.util;
 
-import org.apache.flink.shaded.guava32.com.google.common.base.Strings;
+import org.apache.flink.shaded.guava33.com.google.common.base.Strings;
 
 /** Helper class which do code fragment concat. */
 public class PbCodegenAppender {

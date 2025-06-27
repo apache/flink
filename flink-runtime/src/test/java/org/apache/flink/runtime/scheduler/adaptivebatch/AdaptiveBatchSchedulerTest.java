@@ -68,15 +68,18 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
 import static org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder.createCustomParallelismDecider;
+import static org.apache.flink.runtime.scheduler.DefaultSchedulerTest.runCloseAsyncCompletesInMainThreadTest;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFailedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFinishedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.DefaultVertexParallelismAndInputInfosDeciderTest.createDecider;
-import static org.apache.flink.shaded.guava32.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
+import static org.apache.flink.shaded.guava33.com.google.common.collect.Iterables.getOnlyElement;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link AdaptiveBatchScheduler}. */
@@ -156,11 +159,15 @@ class AdaptiveBatchSchedulerTest {
         final JobVertex map = createJobVertex("map", -1);
         final JobVertex sink = createJobVertex("sink", -1);
 
-        map.connectNewDataSetAsInput(
-                source, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        sink.connectNewDataSetAsInput(
-                map, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        map.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
+        connectNewDataSetAsInput(
+                map, source, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                sink,
+                map,
+                DistributionPattern.POINTWISE,
+                ResultPartitionType.BLOCKING,
+                false,
+                true);
 
         SchedulerBase scheduler =
                 createScheduler(
@@ -187,13 +194,13 @@ class AdaptiveBatchSchedulerTest {
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, source);
         assertThat(mapExecutionJobVertex.getParallelism()).isEqualTo(5);
         assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(5);
-        // check that the jobGraph is updated
-        assertThat(sink.getParallelism()).isEqualTo(5);
 
         // trigger map finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, map);
         assertThat(mapExecutionJobVertex.getParallelism()).isEqualTo(5);
         assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(5);
+        // check that the jobGraph is updated
+        assertThat(sink.getParallelism()).isEqualTo(5);
 
         // check aggregatedInputDataBytes of each ExecutionVertex calculated. Total number of
         // subpartitions of map is 5, so total bytes sink consume is 5 * SUBPARTITION_BYTES = 500L.
@@ -271,13 +278,15 @@ class AdaptiveBatchSchedulerTest {
         final IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
 
         // sink consume the same result twice
-        sink.connectNewDataSetAsInput(
+        connectNewDataSetAsInput(
+                sink,
                 source,
                 DistributionPattern.ALL_TO_ALL,
                 ResultPartitionType.BLOCKING,
                 intermediateDataSetId,
                 false);
-        sink.connectNewDataSetAsInput(
+        connectNewDataSetAsInput(
+                sink,
                 source,
                 DistributionPattern.ALL_TO_ALL,
                 ResultPartitionType.BLOCKING,
@@ -305,8 +314,8 @@ class AdaptiveBatchSchedulerTest {
     void testParallelismDecidedVerticesCanBeInitializedEarlier() throws Exception {
         final JobVertex source = createJobVertex("source", 8);
         final JobVertex sink = createJobVertex("sink", 8);
-        sink.connectNewDataSetAsInput(
-                source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                sink, source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
         SchedulerBase scheduler =
                 createScheduler(new JobGraph(new JobID(), "test job", source, sink));
@@ -379,6 +388,22 @@ class AdaptiveBatchSchedulerTest {
         assertThat(mergedSourceParallelismFuture.join()).isEqualTo(4);
     }
 
+    @Test
+    void testCloseAsyncReturnsMainThreadFuture() throws Exception {
+        final ScheduledExecutorService scheduledExecutorServiceForMainThread =
+                Executors.newSingleThreadScheduledExecutor();
+        try {
+            runCloseAsyncCompletesInMainThreadTest(
+                    scheduledExecutorServiceForMainThread,
+                    (mainThread, checkpointsCleaner) ->
+                            createSchedulerBuilder(createJobGraph(), mainThread)
+                                    .setCheckpointCleaner(checkpointsCleaner)
+                                    .buildAdaptiveBatchJobScheduler());
+        } finally {
+            scheduledExecutorServiceForMainThread.shutdownNow();
+        }
+    }
+
     void testUserConfiguredMaxParallelism(
             int globalMinParallelism,
             int globalMaxParallelism,
@@ -390,8 +415,8 @@ class AdaptiveBatchSchedulerTest {
         final JobVertex sink = createJobVertex("sink", -1);
         sink.setMaxParallelism(userConfiguredMaxParallelism);
 
-        sink.connectNewDataSetAsInput(
-                source, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                sink, source, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
         SchedulerBase scheduler =
                 createScheduler(
@@ -522,13 +547,15 @@ class AdaptiveBatchSchedulerTest {
         final JobVertex source2 = createJobVertex("source2", SOURCE_PARALLELISM_2);
         final JobVertex sink = createJobVertex("sink", -1);
         final IntermediateDataSetID sharedDataSetId = new IntermediateDataSetID();
-        sink.connectNewDataSetAsInput(
+        connectNewDataSetAsInput(
+                sink,
                 source1,
                 DistributionPattern.POINTWISE,
                 ResultPartitionType.BLOCKING,
                 broken ? sharedDataSetId : new IntermediateDataSetID(),
                 false);
-        sink.connectNewDataSetAsInput(
+        connectNewDataSetAsInput(
+                sink,
                 source2,
                 DistributionPattern.POINTWISE,
                 ResultPartitionType.BLOCKING,
@@ -567,6 +594,11 @@ class AdaptiveBatchSchedulerTest {
     }
 
     private DefaultSchedulerBuilder createSchedulerBuilder(JobGraph jobGraph) {
+        return createSchedulerBuilder(jobGraph, mainThreadExecutor);
+    }
+
+    private DefaultSchedulerBuilder createSchedulerBuilder(
+            JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
         return new DefaultSchedulerBuilder(
                         jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
                 .setDelayExecutor(taskRestartExecutor);

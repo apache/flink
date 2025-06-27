@@ -23,17 +23,17 @@ import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils;
 import org.apache.flink.connector.file.sink.utils.PartSizeAndCheckpointRollingPolicy;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link FileSink}. */
-public class FileSinkTest {
+class FileSinkTest {
 
     @Test
-    public void testCreateFileWriterWithTimerRegistered() throws IOException {
+    void testCreateFileWriterWithTimerRegistered() throws IOException {
         TestSinkInitContext ctx = new TestSinkInitContext();
         FileSink<Integer> sink =
                 FileSink.forRowFormat(
@@ -41,6 +41,6 @@ public class FileSinkTest {
                         .withRollingPolicy(new PartSizeAndCheckpointRollingPolicy<>(1024, true))
                         .build();
         sink.createWriter(ctx);
-        assertEquals(ctx.getTestProcessingTimeService().getNumActiveTimers(), 1);
+        assertThat(ctx.getTestProcessingTimeService().getNumActiveTimers()).isOne();
     }
 }

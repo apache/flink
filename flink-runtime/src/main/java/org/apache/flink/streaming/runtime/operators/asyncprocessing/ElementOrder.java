@@ -23,7 +23,7 @@ import org.apache.flink.annotation.Internal;
 /**
  * This enum defines the element order of being processed. Only the elements with the same key
  * should be considered here. We should keep this internal and away from API module for now, until
- * we could see the concrete need for {@link #FIRST_STATE_ORDER} from average users.
+ * we could see the concrete need for {@link #FIRST_REQUEST_ORDER} from average users.
  */
 @Internal
 public enum ElementOrder {
@@ -36,7 +36,7 @@ public enum ElementOrder {
 
     /**
      * The {@code processElement} call will be invoked on record arrival, but may be blocked at the
-     * first state accessing if there is a preceding same-key record under processing.
+     * first async request if there is a preceding same-key record under processing.
      */
-    FIRST_STATE_ORDER,
+    FIRST_REQUEST_ORDER,
 }

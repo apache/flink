@@ -67,4 +67,8 @@ abstract class CommonPhysicalWindowTableFunction(
       null.asInstanceOf[Double]
     }
   }
+
+  def getWindowingStrategy: TimeAttributeWindowingStrategy = {
+    windowing
+  }
 }

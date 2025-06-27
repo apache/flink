@@ -29,6 +29,8 @@ import org.apache.flink.api.common.io.OutputFormat;
 @Internal
 public interface OutputFormatOperatorFactory<IN, OUT> extends StreamOperatorFactory<OUT> {
 
-    /** @return output format of the operator created by this factory. */
+    /**
+     * @return output format of the operator created by this factory.
+     */
     OutputFormat<IN> getOutputFormat();
 }

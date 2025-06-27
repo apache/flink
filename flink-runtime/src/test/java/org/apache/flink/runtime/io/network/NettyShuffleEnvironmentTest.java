@@ -184,7 +184,10 @@ class NettyShuffleEnvironmentTest {
                                             getDebloatingMetric(
                                                     metrics, i, MetricNames.DEBLOATED_BUFFER_SIZE))
                                     .getValue())
-                    .isEqualTo(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue().getBytes());
+                    .isEqualTo(
+                            TaskManagerOptions.STARTING_MEMORY_SEGMENT_SIZE
+                                    .defaultValue()
+                                    .getBytes());
             assertThat(
                             ((Gauge<Long>)
                                             getDebloatingMetric(
@@ -397,7 +400,7 @@ class NettyShuffleEnvironmentTest {
         }
 
         @Override
-        public void register(Metric metric, String metricName, AbstractMetricGroup group) {
+        public void register(Metric metric, String metricName, AbstractMetricGroup<?> group) {
             metrics.put(
                     group.getLogicalScope(CharacterFilter.NO_OP_FILTER) + "." + metricName, metric);
         }

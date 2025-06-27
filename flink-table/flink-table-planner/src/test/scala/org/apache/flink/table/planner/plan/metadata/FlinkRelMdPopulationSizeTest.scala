@@ -334,15 +334,15 @@ class FlinkRelMdPopulationSizeTest extends FlinkRelMdHandlerTestBase {
     assertEquals(1.0, mq.getPopulationSize(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of()))
     assertEquals(2.0e7, mq.getPopulationSize(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(0)))
     assertEquals(
-      5.0569644545e8,
+      5.0569644724678594e8,
       mq.getPopulationSize(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(1)),
       1e-2)
     assertEquals(
-      8.0e8,
+      7.999999791508117e8,
       mq.getPopulationSize(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(1, 5)),
       1e-2)
     assertEquals(
-      7.9377199253e8,
+      7.937727457918736e8,
       mq.getPopulationSize(logicalLeftJoinNotOnUniqueKeys, ImmutableBitSet.of(0, 6)),
       1e-2)
 
@@ -352,15 +352,15 @@ class FlinkRelMdPopulationSizeTest extends FlinkRelMdHandlerTestBase {
       mq.getPopulationSize(logicalRightJoinOnLHSUniqueKeys, ImmutableBitSet.of(0)),
       1e-2)
     assertEquals(
-      1.975207027e7,
+      1.9752070389525224e7,
       mq.getPopulationSize(logicalRightJoinOnLHSUniqueKeys, ImmutableBitSet.of(1)),
       1e-2)
     assertEquals(
-      2.0e7,
+      1.999999987845058e7,
       mq.getPopulationSize(logicalRightJoinOnLHSUniqueKeys, ImmutableBitSet.of(1, 5)),
       1e-2)
     assertEquals(
-      1.999606902e7,
+      1.9996088147299763e7,
       mq.getPopulationSize(logicalRightJoinOnLHSUniqueKeys, ImmutableBitSet.of(0, 6)),
       1e-2)
 
@@ -368,7 +368,7 @@ class FlinkRelMdPopulationSizeTest extends FlinkRelMdHandlerTestBase {
     assertEquals(2.0e7, mq.getPopulationSize(logicalFullJoinWithoutEquiCond, ImmutableBitSet.of(0)))
     assertEquals(8.0e8, mq.getPopulationSize(logicalFullJoinWithoutEquiCond, ImmutableBitSet.of(1)))
     assertEquals(
-      8.0e15,
+      6.295509444597865e15,
       mq.getPopulationSize(logicalFullJoinWithoutEquiCond, ImmutableBitSet.of(1, 5)))
     assertEquals(
       5.112e10,

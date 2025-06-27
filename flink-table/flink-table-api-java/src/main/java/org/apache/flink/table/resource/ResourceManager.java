@@ -33,7 +33,7 @@ import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.JarUtils;
 import org.apache.flink.util.MutableURLClassLoader;
 
-import org.apache.flink.shaded.guava32.com.google.common.io.Files;
+import org.apache.flink.shaded.guava33.com.google.common.io.Files;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -72,6 +72,7 @@ public class ResourceManager implements Closeable {
     private static final String FILE_SCHEME = "file";
 
     protected final Path localResourceDir;
+
     /** Resource infos for functions. */
     private final Map<ResourceUri, ResourceCounter> functionResourceInfos;
 

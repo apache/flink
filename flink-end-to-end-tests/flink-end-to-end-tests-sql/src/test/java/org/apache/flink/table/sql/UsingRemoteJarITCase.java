@@ -21,6 +21,7 @@ package org.apache.flink.table.sql;
 import org.apache.flink.formats.json.debezium.DebeziumJsonDeserializationSchema;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 
@@ -30,6 +31,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -43,7 +45,9 @@ public class UsingRemoteJarITCase extends HdfsITCaseBase {
                             Column.physical("user_name", DataTypes.STRING()),
                             Column.physical("order_cnt", DataTypes.BIGINT())),
                     Collections.emptyList(),
-                    UniqueConstraint.primaryKey("pk", Collections.singletonList("user_name")));
+                    UniqueConstraint.primaryKey("pk", Collections.singletonList("user_name")),
+                    Collections.singletonList(
+                            DefaultIndex.newIndex("idx", Collections.singletonList("user_name"))));
 
     private static final DebeziumJsonDeserializationSchema USER_ORDER_DESERIALIZATION_SCHEMA =
             createDebeziumDeserializationSchema(USER_ORDER_SCHEMA);
@@ -88,6 +92,25 @@ public class UsingRemoteJarITCase extends HdfsITCaseBase {
                 raw ->
                         convertToMaterializedResult(
                                 raw, USER_ORDER_SCHEMA, USER_ORDER_DESERIALIZATION_SCHEMA));
+    }
+
+    @Test
+    public void testCreateFunctionFromRemoteJarViaSqlClient() throws Exception {
+        runAndCheckSQL(
+                "sql_client_remote_jar_e2e.sql",
+                Collections.singletonMap(result, Arrays.asList("+I[Bob, 2]", "+I[Alice, 1]")),
+                Collections.singletonMap(
+                        result,
+                        raw ->
+                                convertToMaterializedResult(
+                                        raw, USER_ORDER_SCHEMA, USER_ORDER_DESERIALIZATION_SCHEMA)),
+                Collections.singletonList(
+                        URI.create(
+                                String.format(
+                                        "hdfs://%s:%s/%s",
+                                        hdfsCluster.getURI().getHost(),
+                                        hdfsCluster.getNameNodePort(),
+                                        hdPath))));
     }
 
     @Test

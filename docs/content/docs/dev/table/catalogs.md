@@ -87,7 +87,13 @@ public class MyCatalogSupportTimeTravel implements Catalog {
         Map<String, String> options = buildOptions(timestamp);
         // Build CatalogTable
         CatalogTable catalogTable =
-                CatalogTable.of(schema, "", Collections.emptyList(), options, timestamp);
+                CatalogTable.newBuilder()
+                        .schema(schema)
+                        .comment("")
+                        .partitionKeys(Collections.emptyList())
+                        .options(options)
+                        .snapshot(timestamp)
+                        .build();
         return catalogTable;
     }
 }
@@ -359,13 +365,13 @@ catalog.list_databases()
 {{< tab "Java/Scala" >}}
 ```java
 // create table
-catalog.createTable(new ObjectPath("mydb", "mytable"), new CatalogTableImpl(...), false);
+catalog.createTable(new ObjectPath("mydb", "mytable"), CatalogTable.newBuilder()...build(), false);
 
 // drop table
 catalog.dropTable(new ObjectPath("mydb", "mytable"), false);
 
 // alter table
-catalog.alterTable(new ObjectPath("mydb", "mytable"), new CatalogTableImpl(...), false);
+catalog.alterTable(new ObjectPath("mydb", "mytable"), CatalogTable.newBuilder()...build(), false);
 
 // rename table
 catalog.renameTable(new ObjectPath("mydb", "mytable"), "my_new_table");

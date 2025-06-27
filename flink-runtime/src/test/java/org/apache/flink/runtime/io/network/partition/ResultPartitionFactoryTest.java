@@ -176,6 +176,7 @@ class ResultPartitionFactoryTest {
                         1,
                         1,
                         SEGMENT_SIZE,
+                        Integer.MAX_VALUE,
                         false,
                         CompressionCodec.LZ4,
                         Integer.MAX_VALUE,

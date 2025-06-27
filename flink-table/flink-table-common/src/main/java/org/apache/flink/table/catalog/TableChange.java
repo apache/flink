@@ -28,7 +28,7 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Objects;
 
-/** {@link TableChange} represents the modification of the table. */
+/** {@link TableChange} represents the modification of the {@link CatalogBaseTable}. */
 @PublicEvolving
 public interface TableChange {
 
@@ -380,6 +380,16 @@ public interface TableChange {
         return new ModifyRefreshHandler(refreshHandlerDesc, refreshHandlerBytes);
     }
 
+    /**
+     * A table change to modify materialized table definition query.
+     *
+     * @param definitionQuery the modified definition query.
+     * @return a TableChange represents the modification.
+     */
+    static ModifyDefinitionQuery modifyDefinitionQuery(String definitionQuery) {
+        return new ModifyDefinitionQuery(definitionQuery);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Add Change
     // --------------------------------------------------------------------------------------------
@@ -392,9 +402,13 @@ public interface TableChange {
      * <pre>
      *    ALTER TABLE &lt;table_name&gt; ADD &lt;column_definition&gt; &lt;column_position&gt;
      * </pre>
+     *
+     * <p>Note: An <code>ALTER MATERIALIZED TABLE AS QUERY</code> operation may also produce an
+     * <code>AddColumn</code> change. This occurs when the materialized table's schema is updated to
+     * align with the structure of the query results, which might require adding new columns.
      */
     @PublicEvolving
-    class AddColumn implements TableChange {
+    class AddColumn implements CatalogTableChange, MaterializedTableChange {
 
         private final Column column;
         private final ColumnPosition position;
@@ -447,7 +461,7 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class AddUniqueConstraint implements TableChange {
+    class AddUniqueConstraint implements CatalogTableChange {
 
         private final UniqueConstraint constraint;
 
@@ -493,7 +507,7 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class AddDistribution implements TableChange {
+    class AddDistribution implements CatalogTableChange {
 
         private final TableDistribution distribution;
 
@@ -539,7 +553,7 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class AddWatermark implements TableChange {
+    class AddWatermark implements CatalogTableChange {
 
         private final WatermarkSpec watermarkSpec;
 
@@ -601,7 +615,7 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class ModifyColumn implements TableChange {
+    class ModifyColumn implements CatalogTableChange {
 
         protected final Column oldColumn;
         protected final Column newColumn;
@@ -848,7 +862,7 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class ModifyUniqueConstraint implements TableChange {
+    class ModifyUniqueConstraint implements CatalogTableChange {
 
         private final UniqueConstraint newConstraint;
 
@@ -894,7 +908,7 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class ModifyDistribution implements TableChange {
+    class ModifyDistribution implements CatalogTableChange {
 
         private final TableDistribution distribution;
 
@@ -940,7 +954,7 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class ModifyWatermark implements TableChange {
+    class ModifyWatermark implements CatalogTableChange {
 
         private final WatermarkSpec newWatermark;
 
@@ -988,9 +1002,14 @@ public interface TableChange {
      * <pre>
      *    ALTER TABLE &lt;table_name&gt; DROP COLUMN &lt;column_name&gt;
      * </pre>
+     *
+     * <p>Note: A <code>DropColumn</code> change may also occur when rolling back the schema during
+     * a failed <code>ALTER MATERIALIZED TABLE AS QUERY</code> operation. If the operation fails,
+     * columns added to align with the query results may need to be removed to restore the original
+     * schema.
      */
     @PublicEvolving
-    class DropColumn implements TableChange {
+    class DropColumn implements CatalogTableChange, MaterializedTableChange {
 
         private final String columnName;
 
@@ -1036,7 +1055,7 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class DropWatermark implements TableChange {
+    class DropWatermark implements CatalogTableChange {
         static final DropWatermark INSTANCE = new DropWatermark();
 
         @Override
@@ -1055,7 +1074,7 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class DropConstraint implements TableChange {
+    class DropConstraint implements CatalogTableChange {
 
         private final String constraintName;
 
@@ -1101,7 +1120,7 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class DropDistribution implements TableChange {
+    class DropDistribution implements CatalogTableChange {
         static final DropDistribution INSTANCE = new DropDistribution();
 
         @Override
@@ -1124,7 +1143,7 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class SetOption implements TableChange {
+    class SetOption implements CatalogTableChange {
 
         private final String key;
         private final String value;
@@ -1177,7 +1196,7 @@ public interface TableChange {
      * </pre>
      */
     @PublicEvolving
-    class ResetOption implements TableChange {
+    class ResetOption implements CatalogTableChange {
 
         private final String key;
 
@@ -1280,6 +1299,13 @@ public interface TableChange {
     }
 
     // --------------------------------------------------------------------------------------------
+    // Catalog table change
+    // --------------------------------------------------------------------------------------------
+    /** {@link CatalogTableChange} represents the modification of the CatalogTable. */
+    @PublicEvolving
+    interface CatalogTableChange extends TableChange {}
+
+    // --------------------------------------------------------------------------------------------
     // Materialized table change
     // --------------------------------------------------------------------------------------------
     /** {@link MaterializedTableChange} represents the modification of the materialized table. */
@@ -1372,6 +1398,43 @@ public interface TableChange {
                     + ", refreshHandlerBytes="
                     + Arrays.toString(refreshHandlerBytes)
                     + '}';
+        }
+    }
+
+    /** A table change to modify the definition query. */
+    @PublicEvolving
+    class ModifyDefinitionQuery implements MaterializedTableChange {
+
+        private final String definitionQuery;
+
+        public ModifyDefinitionQuery(String definitionQuery) {
+            this.definitionQuery = definitionQuery;
+        }
+
+        public String getDefinitionQuery() {
+            return definitionQuery;
+        }
+
+        @Override
+        public String toString() {
+            return "ModifyDefinitionQuery{" + "definitionQuery='" + definitionQuery + '\'' + '}';
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ModifyDefinitionQuery that = (ModifyDefinitionQuery) o;
+            return Objects.equals(definitionQuery, that.definitionQuery);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(definitionQuery);
         }
     }
 }

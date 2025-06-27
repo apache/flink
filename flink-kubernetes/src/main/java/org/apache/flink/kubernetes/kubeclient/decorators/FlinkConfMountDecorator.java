@@ -31,7 +31,7 @@ import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.AbstractKubernetesParameters;
 import org.apache.flink.kubernetes.utils.Constants;
 
-import org.apache.flink.shaded.guava32.com.google.common.io.Files;
+import org.apache.flink.shaded.guava33.com.google.common.io.Files;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -57,8 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
-import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
+import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_NAME_LIST;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_MAP_PREFIX;
 import static org.apache.flink.kubernetes.utils.Constants.FLINK_CONF_VOLUME;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -179,15 +178,14 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
 
     private List<File> getLocalLogConfFiles() {
         final String confDir = kubernetesComponentConf.getConfigDirectory();
-        final File logbackFile = new File(confDir, CONFIG_FILE_LOGBACK_NAME);
-        final File log4jFile = new File(confDir, CONFIG_FILE_LOG4J_NAME);
 
         List<File> localLogConfFiles = new ArrayList<>();
-        if (logbackFile.exists()) {
-            localLogConfFiles.add(logbackFile);
-        }
-        if (log4jFile.exists()) {
-            localLogConfFiles.add(log4jFile);
+
+        for (String fileName : CONFIG_FILE_NAME_LIST) {
+            final File file = new File(confDir, fileName);
+            if (file.exists()) {
+                localLogConfFiles.add(file);
+            }
         }
 
         return localLogConfFiles;

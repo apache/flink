@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -76,14 +77,15 @@ public class TemporalTableSourceSpecSerdeTest {
                 new ResolvedSchema(
                         Collections.singletonList(Column.physical("a", DataTypes.BIGINT())),
                         Collections.emptyList(),
-                        null);
+                        null,
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
 
         final CatalogTable catalogTable1 =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build(),
-                        null,
-                        Collections.emptyList(),
-                        options1);
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build())
+                        .options(options1)
+                        .build();
 
         ResolvedCatalogTable resolvedCatalogTable =
                 new ResolvedCatalogTable(catalogTable1, resolvedSchema1);

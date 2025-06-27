@@ -72,6 +72,8 @@ public class ResultPartitionFactory {
 
     private final int networkBufferSize;
 
+    private final int startingBufferSize;
+
     private final boolean batchShuffleCompressionEnabled;
 
     private final CompressionCodec compressionCodec;
@@ -98,6 +100,7 @@ public class ResultPartitionFactory {
             int configuredNetworkBuffersPerChannel,
             int floatingNetworkBuffersPerGate,
             int networkBufferSize,
+            int startingBufferSize,
             boolean batchShuffleCompressionEnabled,
             CompressionCodec compressionCodec,
             int maxBuffersPerChannel,
@@ -116,6 +119,7 @@ public class ResultPartitionFactory {
         this.batchShuffleReadIOExecutor = batchShuffleReadIOExecutor;
         this.blockingSubpartitionType = blockingSubpartitionType;
         this.networkBufferSize = networkBufferSize;
+        this.startingBufferSize = startingBufferSize;
         this.batchShuffleCompressionEnabled = batchShuffleCompressionEnabled;
         this.compressionCodec = compressionCodec;
         this.maxBuffersPerChannel = maxBuffersPerChannel;
@@ -189,11 +193,17 @@ public class ResultPartitionFactory {
                 if (type == ResultPartitionType.PIPELINED_APPROXIMATE) {
                     subpartitions[i] =
                             new PipelinedApproximateSubpartition(
-                                    i, configuredNetworkBuffersPerChannel, pipelinedPartition);
+                                    i,
+                                    configuredNetworkBuffersPerChannel,
+                                    startingBufferSize,
+                                    pipelinedPartition);
                 } else {
                     subpartitions[i] =
                             new PipelinedSubpartition(
-                                    i, configuredNetworkBuffersPerChannel, pipelinedPartition);
+                                    i,
+                                    configuredNetworkBuffersPerChannel,
+                                    startingBufferSize,
+                                    pipelinedPartition);
                 }
             }
 

@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions.resolver.rules;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.OverWindowRange;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.Expression;
@@ -33,7 +34,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static java.util.Arrays.asList;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
@@ -76,14 +76,29 @@ final class OverWindowResolverRule implements ResolverRule {
                                                 new ValidationException(
                                                         "Could not resolve over call."));
 
-                Expression following = calculateOverWindowFollowing(referenceWindow);
-                List<Expression> newArgs =
-                        new ArrayList<>(
-                                asList(
-                                        children.get(0),
-                                        referenceWindow.getOrderBy(),
-                                        referenceWindow.getPreceding(),
-                                        following));
+                UnresolvedCallExpression agg = (UnresolvedCallExpression) children.get(0);
+
+                final List<Expression> newArgs = new ArrayList<>();
+                newArgs.add(agg);
+                newArgs.add(referenceWindow.getOrderBy());
+                if (agg.getFunctionDefinition() == BuiltInFunctionDefinitions.LAG
+                        || agg.getFunctionDefinition() == BuiltInFunctionDefinitions.LEAD) {
+                    if (referenceWindow.getPreceding().isPresent()
+                            || referenceWindow.getFollowing().isPresent()) {
+                        throw new ValidationException(
+                                "LEAD/LAG functions do not support "
+                                        + "providing RANGE/ROW bounds.");
+                    }
+                    newArgs.add(valueLiteral(null, DataTypes.NULL()));
+                    newArgs.add(valueLiteral(null, DataTypes.NULL()));
+                } else {
+                    Expression preceding =
+                            referenceWindow
+                                    .getPreceding()
+                                    .orElse(valueLiteral(OverWindowRange.UNBOUNDED_RANGE));
+                    newArgs.add(preceding);
+                    newArgs.add(calculateOverWindowFollowing(referenceWindow, preceding));
+                }
 
                 newArgs.addAll(referenceWindow.getPartitionBy());
 
@@ -96,15 +111,13 @@ final class OverWindowResolverRule implements ResolverRule {
             }
         }
 
-        private Expression calculateOverWindowFollowing(LocalOverWindow referenceWindow) {
+        private Expression calculateOverWindowFollowing(
+                LocalOverWindow referenceWindow, Expression preceding) {
             return referenceWindow
                     .getFollowing()
                     .orElseGet(
                             () -> {
-                                WindowKind kind =
-                                        referenceWindow
-                                                .getPreceding()
-                                                .accept(OVER_WINDOW_KIND_EXTRACTOR);
+                                WindowKind kind = preceding.accept(OVER_WINDOW_KIND_EXTRACTOR);
                                 if (kind == WindowKind.ROW) {
                                     return valueLiteral(OverWindowRange.CURRENT_ROW);
                                 } else {

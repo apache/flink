@@ -30,6 +30,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 
@@ -80,6 +81,19 @@ class HybridShuffleITCase extends BatchShuffleITCaseBase {
         JobGraph jobGraph =
                 createJobGraph(
                         numRecordsToSend, true, configuration, enableAdaptiveAutoParallelism);
+        executeJob(jobGraph, configuration, numRecordsToSend);
+    }
+
+    @TestTemplate
+    public void testAutoDisableBufferDebloat() throws Exception {
+        final int numRecordsToSend = 1_000_000;
+        Configuration configuration = configureHybridOptions(getConfiguration(), false);
+        configuration.set(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED, true);
+        configuration.set(TaskManagerOptions.BUFFER_DEBLOAT_PERIOD, Duration.ofMillis(1));
+
+        JobGraph jobGraph =
+                createJobGraph(
+                        numRecordsToSend, false, configuration, enableAdaptiveAutoParallelism);
         executeJob(jobGraph, configuration, numRecordsToSend);
     }
 

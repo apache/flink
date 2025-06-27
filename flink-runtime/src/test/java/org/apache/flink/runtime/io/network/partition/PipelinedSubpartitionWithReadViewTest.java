@@ -81,7 +81,7 @@ class PipelinedSubpartitionWithReadViewTest {
     @BeforeEach
     void before() throws IOException {
         setup(ResultPartitionType.PIPELINED);
-        subpartition = new PipelinedSubpartition(0, 2, resultPartition);
+        subpartition = new PipelinedSubpartition(0, 2, Integer.MAX_VALUE, resultPartition);
         availablityListener = new AwaitableBufferAvailablityListener();
         readView = subpartition.createReadView(availablityListener);
     }

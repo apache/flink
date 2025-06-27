@@ -27,13 +27,17 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.utils.EncodingUtils;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -47,10 +51,37 @@ public class ShowCreateUtil {
 
     private ShowCreateUtil() {}
 
+    public static String buildShowCreateModelRow(
+            ResolvedCatalogModel model, ObjectIdentifier modelIdentifier, boolean isTemporary) {
+        StringBuilder sb =
+                new StringBuilder()
+                        .append(buildCreateFormattedPrefix("MODEL", isTemporary, modelIdentifier));
+        extractFormattedColumns(model.getResolvedInputSchema())
+                .ifPresent(
+                        c -> sb.append(String.format("INPUT (%s)%s", c, System.lineSeparator())));
+        extractFormattedColumns(model.getResolvedOutputSchema())
+                .ifPresent(
+                        c -> sb.append(String.format("OUTPUT (%s)%s", c, System.lineSeparator())));
+        extractComment(model)
+                .ifPresent(c -> sb.append(formatComment(c)).append(System.lineSeparator()));
+        extractFormattedOptions(model.getOptions(), PRINT_INDENT)
+                .ifPresent(
+                        v ->
+                                sb.append(String.format("WITH (%s", System.lineSeparator()))
+                                        .append(v)
+                                        .append(
+                                                String.format(
+                                                        "%s)%s",
+                                                        System.lineSeparator(),
+                                                        System.lineSeparator())));
+        return sb.toString();
+    }
+
     public static String buildShowCreateTableRow(
             ResolvedCatalogBaseTable<?> table,
             ObjectIdentifier tableIdentifier,
-            boolean isTemporary) {
+            boolean isTemporary,
+            SqlFactory sqlFactory) {
         if (table.getTableKind() == CatalogBaseTable.TableKind.VIEW) {
             throw new TableException(
                     String.format(
@@ -61,7 +92,7 @@ public class ShowCreateUtil {
                 new StringBuilder()
                         .append(buildCreateFormattedPrefix("TABLE", isTemporary, tableIdentifier));
         sb.append(extractFormattedColumns(table, PRINT_INDENT));
-        extractFormattedWatermarkSpecs(table, PRINT_INDENT)
+        extractFormattedWatermarkSpecs(table, PRINT_INDENT, sqlFactory)
                 .ifPresent(watermarkSpecs -> sb.append(",\n").append(watermarkSpecs));
         extractFormattedPrimaryKey(table, PRINT_INDENT)
                 .ifPresent(pk -> sb.append(",\n").append(pk));
@@ -90,7 +121,9 @@ public class ShowCreateUtil {
                             "SHOW CREATE VIEW is only supported for views, but %s is a table. Please use SHOW CREATE TABLE instead.",
                             viewIdentifier.asSerializableString()));
         }
-        if (view.getOrigin() instanceof QueryOperationCatalogView) {
+        final CatalogBaseTable origin = view.getOrigin();
+        if (origin instanceof QueryOperationCatalogView
+                && !((QueryOperationCatalogView) origin).supportsShowCreateView()) {
             throw new TableException(
                     "SHOW CREATE VIEW is not supported for views registered by Table API.");
         }
@@ -99,7 +132,7 @@ public class ShowCreateUtil {
                         .append(buildCreateFormattedPrefix("VIEW", isTemporary, viewIdentifier));
         sb.append(extractFormattedColumnNames(view, PRINT_INDENT)).append("\n)\n");
         extractComment(view).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
-        sb.append("AS ").append(((CatalogView) view.getOrigin()).getExpandedQuery()).append("\n");
+        sb.append("AS ").append(((CatalogView) origin).getExpandedQuery()).append("\n");
 
         return sb.toString();
     }
@@ -117,12 +150,14 @@ public class ShowCreateUtil {
     }
 
     static String buildCreateFormattedPrefix(
-            String tableType, boolean isTemporary, ObjectIdentifier identifier) {
+            String type, boolean isTemporary, ObjectIdentifier identifier) {
+        String postName = "model".equalsIgnoreCase(type) ? "" : " (";
         return String.format(
-                "CREATE %s%s %s (%s",
+                "CREATE %s%s %s%s%s",
                 isTemporary ? "TEMPORARY " : "",
-                tableType,
+                type,
                 identifier.asSerializableString(),
+                postName,
                 System.lineSeparator());
     }
 
@@ -173,8 +208,19 @@ public class ShowCreateUtil {
                 .collect(Collectors.joining(",\n"));
     }
 
+    static Optional<String> extractFormattedColumns(ResolvedSchema schema) {
+        List<Column> columns = schema.getColumns();
+        if (columns.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(
+                columns.stream()
+                        .map(ShowCreateUtil::getColumnString)
+                        .collect(Collectors.joining(", ")));
+    }
+
     static Optional<String> extractFormattedWatermarkSpecs(
-            ResolvedCatalogBaseTable<?> table, String printIndent) {
+            ResolvedCatalogBaseTable<?> table, String printIndent, SqlFactory sqlFactory) {
         if (table.getResolvedSchema().getWatermarkSpecs().isEmpty()) {
             return Optional.empty();
         }
@@ -189,7 +235,7 @@ public class ShowCreateUtil {
                                                         watermarkSpec.getRowtimeAttribute()),
                                                 watermarkSpec
                                                         .getWatermarkExpression()
-                                                        .asSerializableString()))
+                                                        .asSerializableString(sqlFactory)))
                         .collect(Collectors.joining("\n")));
     }
 
@@ -201,6 +247,12 @@ public class ShowCreateUtil {
         return StringUtils.isEmpty(table.getComment())
                 ? Optional.empty()
                 : Optional.of(table.getComment());
+    }
+
+    static Optional<String> extractComment(ResolvedCatalogModel model) {
+        return StringUtils.isEmpty(model.getComment())
+                ? Optional.empty()
+                : Optional.of(model.getComment());
     }
 
     static Optional<String> extractFormattedDistributedInfo(ResolvedCatalogTable catalogTable) {

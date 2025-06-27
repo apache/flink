@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.runtime.batch.sql
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.utils.WithoutTimeAttributesTableSource
+import org.apache.flink.table.planner.utils.TestTableSourceSinks.createWithoutTimeAttributesTableSource
 import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 
 import org.junit.jupiter.api.Test
@@ -32,7 +32,7 @@ class TableScanITCase extends BatchTestBase {
   @Test
   def testTableSourceWithoutTimeAttribute(): Unit = {
     val tableName = "MyTable"
-    WithoutTimeAttributesTableSource.createTemporaryTable(tEnv, tableName)
+    createWithoutTimeAttributesTableSource(tEnv, tableName)
     checkResult(
       s"SELECT * from $tableName",
       Seq(row("Mary", 1L, 1), row("Bob", 2L, 3))

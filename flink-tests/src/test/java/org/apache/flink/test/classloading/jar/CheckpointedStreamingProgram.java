@@ -131,6 +131,7 @@ public class CheckpointedStreamingProgram {
         @Override
         public void notifyCheckpointAborted(long checkpointId) {}
     }
+
     // --------------------------------------------------------------------------------------------
 
     /** We intentionally use a user specified failure exception. */

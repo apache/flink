@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.state.api.output.SnapshotUtils;
@@ -52,6 +53,8 @@ public final class StateBootstrapWrapperOperator<
 
     private static final long serialVersionUID = 1L;
 
+    private final long checkpointId;
+
     private final long timestamp;
 
     private final Path savepointPath;
@@ -61,7 +64,11 @@ public final class StateBootstrapWrapperOperator<
     private final WindowOperator<?, IN, ?, ?, ?> operator;
 
     public StateBootstrapWrapperOperator(
-            long timestamp, Path savepointPath, WindowOperator<?, IN, ?, ?, ?> operator) {
+            long checkpointId,
+            long timestamp,
+            Path savepointPath,
+            WindowOperator<?, IN, ?, ?, ?> operator) {
+        this.checkpointId = checkpointId;
         this.timestamp = timestamp;
         this.savepointPath = savepointPath;
         this.operator = operator;
@@ -171,6 +178,7 @@ public final class StateBootstrapWrapperOperator<
     public void endInput() throws Exception {
         TaggedOperatorSubtaskState state =
                 SnapshotUtils.snapshot(
+                        checkpointId,
                         this,
                         operator.getContainingTask()
                                 .getEnvironment()
@@ -205,6 +213,9 @@ public final class StateBootstrapWrapperOperator<
 
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) {}
+
+        @Override
+        public void emitWatermark(WatermarkEvent watermark) {}
 
         @Override
         public void collect(T record) {}

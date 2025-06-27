@@ -34,9 +34,9 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
-import org.apache.flink.state.forst.ForStKeyedStateBackend.ForStKvStateInfo;
+import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.state.forst.ForStResourceContainer;
-import org.apache.flink.state.forst.ForStStateDataTransfer;
+import org.apache.flink.state.forst.datatransfer.ForStStateDataTransfer;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
 
@@ -67,9 +67,7 @@ import static org.apache.flink.state.forst.snapshot.ForStSnapshotUtil.SST_FILE_S
  *
  * @param <K> type of the backend keys.
  */
-public class ForStIncrementalSnapshotStrategy<K>
-        extends ForStSnapshotStrategyBase<
-                K, ForStSnapshotStrategyBase.ForStNativeSnapshotResources> {
+public class ForStIncrementalSnapshotStrategy<K> extends ForStNativeFullSnapshotStrategy<K> {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(ForStIncrementalSnapshotStrategy.class);
@@ -86,22 +84,18 @@ public class ForStIncrementalSnapshotStrategy<K>
     /** The identifier of the last completed checkpoint. */
     private long lastCompletedCheckpointId;
 
-    /** The help class used to upload state files. */
-    private final ForStStateDataTransfer stateTransfer;
-
     public ForStIncrementalSnapshotStrategy(
             @Nonnull RocksDB db,
             @Nonnull ResourceGuard forstResourceGuard,
             @Nonnull ForStResourceContainer resourceContainer,
             @Nonnull TypeSerializer<K> keySerializer,
-            @Nonnull LinkedHashMap<String, ForStKvStateInfo> kvStateInformation,
+            @Nonnull LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
             @Nonnull KeyGroupRange keyGroupRange,
             @Nonnegative int keyGroupPrefixBytes,
             @Nonnull UUID backendUID,
             @Nonnull SortedMap<Long, Collection<HandleAndLocalPath>> uploadedStateHandles,
             @Nonnull ForStStateDataTransfer stateTransfer,
             long lastCompletedCheckpointId) {
-
         super(
                 DESCRIPTION,
                 db,
@@ -111,10 +105,10 @@ public class ForStIncrementalSnapshotStrategy<K>
                 kvStateInformation,
                 keyGroupRange,
                 keyGroupPrefixBytes,
-                backendUID);
+                backendUID,
+                stateTransfer);
 
         this.uploadedSstFiles = new TreeMap<>(uploadedStateHandles);
-        this.stateTransfer = stateTransfer;
         this.lastCompletedCheckpointId = lastCompletedCheckpointId;
     }
 
@@ -142,14 +136,24 @@ public class ForStIncrementalSnapshotStrategy<K>
             case FORWARD_BACKWARD:
                 // incremental checkpoint, use origin PreviousSnapshot
                 break;
-            case FORWARD:
             case NO_SHARING:
-                // full checkpoint, use empty PreviousSnapshot
+                // savepoint, use empty PreviousSnapshot
                 snapshotResources.setPreviousSnapshot(EMPTY_PREVIOUS_SNAPSHOT);
                 break;
+            case FORWARD:
+                // Full checkpoint for IncrementalSnapshotStrategy is not supported, except for the
+                // first one.
+                if (snapshotResources.previousSnapshot.isEmpty()) {
+                    break;
+                } else {
+                    throw new IllegalArgumentException(
+                            "Triggering a full checkpoint for IncrementalSnapshotStrategy is not supported.");
+                }
             default:
                 throw new IllegalArgumentException(
-                        "Unsupported sharing files strategy: " + sharingFilesStrategy);
+                        String.format(
+                                "Unsupported sharing files strategy for %s : %s",
+                                this.getClass().getName(), sharingFilesStrategy));
         }
 
         return new ForStIncrementalSnapshotOperation(
@@ -211,7 +215,7 @@ public class ForStIncrementalSnapshotStrategy<K>
                 confirmedSstFiles);
 
         // snapshot meta data to save
-        for (Map.Entry<String, ForStKvStateInfo> stateMetaInfoEntry :
+        for (Map.Entry<String, ForStOperationUtils.ForStKvStateInfo> stateMetaInfoEntry :
                 kvStateInformation.entrySet()) {
             stateMetaInfoSnapshots.add(stateMetaInfoEntry.getValue().metaInfo.snapshot());
         }
@@ -222,6 +226,7 @@ public class ForStIncrementalSnapshotStrategy<K>
     private final class ForStIncrementalSnapshotOperation extends ForStSnapshotOperation {
 
         @Nonnull private final SnapshotType.SharingFilesStrategy sharingFilesStrategy;
+        @Nonnull private final ForStNativeSnapshotResources snapshotResources;
 
         private ForStIncrementalSnapshotOperation(
                 long checkpointId,
@@ -229,8 +234,9 @@ public class ForStIncrementalSnapshotStrategy<K>
                 @Nonnull CheckpointStreamFactory checkpointStreamFactory,
                 @Nonnull SnapshotType.SharingFilesStrategy sharingFilesStrategy) {
 
-            super(checkpointId, snapshotResources, checkpointStreamFactory);
+            super(checkpointId, checkpointStreamFactory);
             this.sharingFilesStrategy = sharingFilesStrategy;
+            this.snapshotResources = snapshotResources;
         }
 
         @Override
@@ -335,11 +341,13 @@ public class ForStIncrementalSnapshotStrategy<K>
 
             List<HandleAndLocalPath> sstFilesTransferResult =
                     stateTransfer.transferFilesToCheckpointFs(
+                            sharingFilesStrategy,
                             classifiedFiles.f1,
                             checkpointStreamFactory,
                             stateScope,
                             snapshotCloseableRegistry,
-                            tmpResourcesRegistry);
+                            tmpResourcesRegistry,
+                            false);
 
             sstHandles.addAll(sstFilesTransferResult);
             transferBytes +=
@@ -349,11 +357,13 @@ public class ForStIncrementalSnapshotStrategy<K>
 
             List<HandleAndLocalPath> miscFilesTransferResult =
                     stateTransfer.transferFilesToCheckpointFs(
+                            sharingFilesStrategy,
                             classifiedFiles.f2,
                             checkpointStreamFactory,
                             stateScope,
                             snapshotCloseableRegistry,
-                            tmpResourcesRegistry);
+                            tmpResourcesRegistry,
+                            false);
             metaHandles.addAll(miscFilesTransferResult);
             transferBytes +=
                     miscFilesTransferResult.stream()
@@ -362,12 +372,14 @@ public class ForStIncrementalSnapshotStrategy<K>
 
             HandleAndLocalPath manifestFileTransferResult =
                     stateTransfer.transferFileToCheckpointFs(
+                            sharingFilesStrategy,
                             classifiedFiles.f3,
                             snapshotResources.manifestFileSize,
                             checkpointStreamFactory,
                             stateScope,
                             snapshotCloseableRegistry,
-                            tmpResourcesRegistry);
+                            tmpResourcesRegistry,
+                            false);
             metaHandles.add(manifestFileTransferResult);
             transferBytes += manifestFileTransferResult.getStateSize();
 

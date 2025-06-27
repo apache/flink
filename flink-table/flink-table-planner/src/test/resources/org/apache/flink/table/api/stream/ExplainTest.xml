@@ -72,13 +72,13 @@ DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a,
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 
 == Optimized Execution Plan ==
-LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -86,13 +86,13 @@ LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 == Optimized Physical Plan ==
-LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
-LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -232,14 +232,14 @@ Calc(select=[a, b, c, e, f])
   <TestCase name="testExplainWithMultiSinks[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt])
+LogicalSink(table=[default_catalog.default_database.upsertSink1], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[>($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt])
+LogicalSink(table=[default_catalog.default_database.upsertSink2], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
@@ -247,14 +247,14 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fie
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt])
+Sink(table=[default_catalog.default_database.upsertSink1], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[>(cnt, 10)])
    +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-LegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt])
+Sink(table=[default_catalog.default_database.upsertSink2], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[<(cnt, 10)])
    +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])
       +- Exchange(distribution=[hash[a]])
@@ -267,11 +267,11 @@ GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])(reuse_id=[1])
    +- Calc(select=[a])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-LegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt])
+Sink(table=[default_catalog.default_database.upsertSink1], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[(cnt > 10)])
    +- Reused(reference_id=[1])
 
-LegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt])
+Sink(table=[default_catalog.default_database.upsertSink2], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[(cnt < 10)])
    +- Reused(reference_id=[1])
 ]]>
@@ -280,14 +280,14 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a,
   <TestCase name="testExplainWithMultiSinks[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt])
+LogicalSink(table=[default_catalog.default_database.upsertSink1], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[>($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt])
+LogicalSink(table=[default_catalog.default_database.upsertSink2], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
@@ -295,14 +295,14 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fie
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(table=[default_catalog.default_database.upsertSink1], fields=[a, cnt], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, cnt], where=[>(cnt, 10)], changelogMode=[I,UB,UA]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], changelogMode=[I,UB,UA]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- Exchange(distribution=[hash[a]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
          +- Calc(select=[a], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-LegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(table=[default_catalog.default_database.upsertSink2], fields=[a, cnt], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, cnt], where=[<(cnt, 10)], changelogMode=[I,UB,UA]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], changelogMode=[I,UB,UA]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- Exchange(distribution=[hash[a]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
@@ -315,11 +315,11 @@ GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])(reuse_id=[1])
    +- Calc(select=[a])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-LegacySink(name=[`default_catalog`.`default_database`.`upsertSink1`], fields=[a, cnt])
+Sink(table=[default_catalog.default_database.upsertSink1], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[(cnt > 10)])
    +- Reused(reference_id=[1])
 
-LegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a, cnt])
+Sink(table=[default_catalog.default_database.upsertSink2], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[(cnt < 10)])
    +- Reused(reference_id=[1])
 ]]>
@@ -328,18 +328,18 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink2`], fields=[a,
   <TestCase name="testExplainWithSingleSink[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.appendSink], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[>($0, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.appendSink], fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[>(a, 10)])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
 == Optimized Execution Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.appendSink], fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[(a > 10)])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
@@ -348,18 +348,18 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, 
   <TestCase name="testExplainWithSingleSink[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.appendSink], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[>($0, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Physical Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(table=[default_catalog.default_database.appendSink], fields=[a, b, c], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, b, c], where=[>(a, 10)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
 == Optimized Execution Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
+Sink(table=[default_catalog.default_database.appendSink], fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[(a > 10)])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
@@ -406,7 +406,7 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], strategy=[AppendFastStrategy])
   <TestCase name="testMiniBatchIntervalInfer[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
+LogicalSink(table=[default_catalog.default_database.appendSink1], fields=[id1, EXPR$1])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
       +- LogicalProject(id1=[$0], $f1=[$TUMBLE($1, 8000:INTERVAL SECOND)], text=[$2], $f3=[_UTF-16LE'#'])
@@ -418,7 +418,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fie
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
                      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
+LogicalSink(table=[default_catalog.default_database.appendSink2], fields=[id1, EXPR$1])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
       +- LogicalProject(id1=[$0], $f1=[$HOP($1, 12000:INTERVAL SECOND, 6000:INTERVAL SECOND)], text=[$2], $f3=[_UTF-16LE'*'])
@@ -431,7 +431,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fie
                      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
 == Optimized Physical Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(table=[default_catalog.default_database.appendSink1], fields=[id1, EXPR$1], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Exchange(distribution=[hash[id1]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- Calc(select=[id1, ts, text, _UTF-16LE'#' AS $f3], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
@@ -445,7 +445,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a,
                      +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
                         +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(table=[default_catalog.default_database.appendSink2], fields=[id1, EXPR$1], changelogMode=[NONE]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Exchange(distribution=[hash[id1]], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- Calc(select=[id1, ts, text, _UTF-16LE'*' AS $f3], changelogMode=[I]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
@@ -470,13 +470,13 @@ Calc(select=[id1, rowtime AS ts, text])(reuse_id=[1])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
             +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
 
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
+Sink(table=[default_catalog.default_database.appendSink1], fields=[id1, EXPR$1])
 +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
       +- Calc(select=[id1, ts, text, '#' AS $f3])
          +- Reused(reference_id=[1])
 
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
+Sink(table=[default_catalog.default_database.appendSink2], fields=[id1, EXPR$1])
 +- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
       +- Calc(select=[id1, ts, text, '*' AS $f3])
@@ -508,7 +508,7 @@ Union(all=[true], union=[a, b, c])
   <TestCase name="testMiniBatchIntervalInfer[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
+LogicalSink(table=[default_catalog.default_database.appendSink1], fields=[id1, EXPR$1])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
       +- LogicalProject(id1=[$0], $f1=[$TUMBLE($1, 8000:INTERVAL SECOND)], text=[$2], $f3=[_UTF-16LE'#'])
@@ -520,7 +520,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fie
                   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 0:INTERVAL MILLISECOND)])
                      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
+LogicalSink(table=[default_catalog.default_database.appendSink2], fields=[id1, EXPR$1])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
       +- LogicalProject(id1=[$0], $f1=[$HOP($1, 12000:INTERVAL SECOND, 6000:INTERVAL SECOND)], text=[$2], $f3=[_UTF-16LE'*'])
@@ -533,7 +533,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fie
                      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
 == Optimized Physical Plan ==
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
+Sink(table=[default_catalog.default_database.appendSink1], fields=[id1, EXPR$1])
 +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
       +- Calc(select=[id1, ts, text, _UTF-16LE'#' AS $f3])
@@ -547,7 +547,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a,
                      +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 0:INTERVAL MILLISECOND)])
                         +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
 
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
+Sink(table=[default_catalog.default_database.appendSink2], fields=[id1, EXPR$1])
 +- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
       +- Calc(select=[id1, ts, text, _UTF-16LE'*' AS $f3])
@@ -572,13 +572,13 @@ Calc(select=[id1, rowtime AS ts, text])(reuse_id=[1])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 0:INTERVAL MILLISECOND)])
             +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
 
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
+Sink(table=[default_catalog.default_database.appendSink1], fields=[id1, EXPR$1])
 +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, ts, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
       +- Calc(select=[id1, ts, text, '#' AS $f3])
          +- Reused(reference_id=[1])
 
-LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
+Sink(table=[default_catalog.default_database.appendSink2], fields=[id1, EXPR$1])
 +- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
       +- Calc(select=[id1, ts, text, '*' AS $f3])

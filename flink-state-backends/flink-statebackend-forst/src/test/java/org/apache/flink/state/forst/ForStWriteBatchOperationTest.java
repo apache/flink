@@ -52,7 +52,7 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
                             buildContextKey(i),
                             String.valueOf(i),
                             ((i % 2 == 0) ? valueState1 : valueState2),
-                            new TestStateFuture<>()));
+                            new TestAsyncFuture<>()));
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -81,7 +81,7 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
                             buildContextKey(i),
                             String.valueOf(i),
                             valueState,
-                            new TestStateFuture<>()));
+                            new TestAsyncFuture<>()));
         }
         ExecutorService executor = Executors.newFixedThreadPool(2);
         ForStWriteBatchOperation writeBatchOperation =
@@ -94,14 +94,14 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
             if (i % 8 == 0) {
                 batchPutRequest.add(
                         ForStDBPutRequest.of(
-                                buildContextKey(i), null, valueState, new TestStateFuture<>()));
+                                buildContextKey(i), null, valueState, new TestAsyncFuture<>()));
             } else {
                 batchPutRequest.add(
                         ForStDBPutRequest.of(
                                 buildContextKey(i),
                                 String.valueOf(i * 2),
                                 valueState,
-                                new TestStateFuture<>()));
+                                new TestAsyncFuture<>()));
             }
         }
         ForStWriteBatchOperation writeBatchOperation2 =
@@ -137,7 +137,7 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
 
             ForStDBPutRequest<Integer, VoidNamespace, List<String>> request =
                     ForStDBPutRequest.of(
-                            buildContextKey(i), value, listState, new TestStateFuture<>());
+                            buildContextKey(i), value, listState, new TestAsyncFuture<>());
 
             resultCheckList.add(Tuple2.of(request, value));
             batchPutRequest.add(request);
@@ -171,7 +171,7 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
 
             ForStDBPutRequest<Integer, VoidNamespace, List<String>> request =
                     ForStDBPutRequest.ofMerge(
-                            buildContextKey(i), deltaValue, listState, new TestStateFuture<>());
+                            buildContextKey(i), deltaValue, listState, new TestAsyncFuture<>());
 
             resultCheckList.add(Tuple2.of(request, value));
             batchPutRequest.add(request);
@@ -183,7 +183,7 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
 
             ForStDBPutRequest<Integer, VoidNamespace, List<String>> request =
                     ForStDBPutRequest.of(
-                            buildContextKey(i), value, listState, new TestStateFuture<>());
+                            buildContextKey(i), value, listState, new TestAsyncFuture<>());
 
             resultCheckList.add(Tuple2.of(request, value));
             batchPutRequest.add(request);
@@ -218,7 +218,7 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
                             contextKey,
                             String.valueOf(i),
                             ((i % 2 == 0) ? mapState1 : mapState1),
-                            new TestStateFuture<>()));
+                            new TestAsyncFuture<>()));
         }
 
         HashMap<String, String> map = new HashMap<>(100);
@@ -227,7 +227,7 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
             map.put("test-" + j, "test-" + j);
         }
         batchPutRequest.add(
-                new ForStDBBunchPutRequest<>(contextKey, map, mapState1, new TestStateFuture<>()));
+                new ForStDBBunchPutRequest<>(contextKey, map, mapState1, new TestAsyncFuture<>()));
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
         ForStWriteBatchOperation writeBatchOperation =
@@ -265,7 +265,7 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
             contextKey.setUserKey(String.valueOf(i));
             batchPutRequest.add(
                     ForStDBPutRequest.of(
-                            contextKey, String.valueOf(i), mapState, new TestStateFuture<>()));
+                            contextKey, String.valueOf(i), mapState, new TestAsyncFuture<>()));
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -283,7 +283,7 @@ public class ForStWriteBatchOperationTest extends ForStDBOperationTestBase {
 
         List<ForStDBPutRequest<?, ?, ?>> batchPutRequest1 = new ArrayList<>();
         batchPutRequest1.add(
-                new ForStDBBunchPutRequest<>(contextKey, null, mapState, new TestStateFuture<>()));
+                new ForStDBBunchPutRequest<>(contextKey, null, mapState, new TestAsyncFuture<>()));
 
         writeBatchOperation =
                 new ForStWriteBatchOperation(db, batchPutRequest1, new WriteOptions(), executor);

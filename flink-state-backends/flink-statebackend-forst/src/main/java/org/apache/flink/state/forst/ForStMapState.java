@@ -22,17 +22,15 @@ import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.v2.AbstractMapState;
-import org.apache.flink.runtime.state.v2.MapStateDescriptor;
-import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.util.Preconditions;
 
 import org.forstdb.ColumnFamilyHandle;
@@ -63,6 +61,7 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
     private final N defaultNamespace;
 
     private final ThreadLocal<TypeSerializer<N>> namespaceSerializer;
+
     /** The data outputStream used for value serializer, which should be thread-safe. */
     final ThreadLocal<DataOutputSerializer> valueSerializerView;
 
@@ -72,10 +71,10 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
     final ThreadLocal<DataInputDeserializer> valueDeserializerView;
 
     /** Serializer for the user keys. */
-    final TypeSerializer<UK> userKeySerializer;
+    final ThreadLocal<TypeSerializer<UK>> userKeySerializer;
 
     /** Serializer for the user values. */
-    final TypeSerializer<UV> userValueSerializer;
+    final ThreadLocal<TypeSerializer<UV>> userValueSerializer;
 
     /** Number of bytes required to prefix the key groups. */
     private final int keyGroupPrefixBytes;
@@ -83,7 +82,8 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
     public ForStMapState(
             StateRequestHandler stateRequestHandler,
             ColumnFamilyHandle columnFamily,
-            MapStateDescriptor<UK, UV> stateDescriptor,
+            TypeSerializer<UK> userKeySerializer,
+            TypeSerializer<UV> valueSerializer,
             Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilderInitializer,
             N defaultNamespace,
             Supplier<TypeSerializer<N>> namespaceSerializerInitializer,
@@ -91,7 +91,7 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
             Supplier<DataInputDeserializer> keyDeserializerViewInitializer,
             Supplier<DataInputDeserializer> valueDeserializerViewInitializer,
             int keyGroupPrefixBytes) {
-        super(stateRequestHandler, stateDescriptor);
+        super(stateRequestHandler, valueSerializer);
         this.columnFamilyHandle = columnFamily;
         this.serializedKeyBuilder = ThreadLocal.withInitial(serializedKeyBuilderInitializer);
         this.defaultNamespace = defaultNamespace;
@@ -99,8 +99,8 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
         this.valueSerializerView = ThreadLocal.withInitial(valueSerializerViewInitializer);
         this.keyDeserializerView = ThreadLocal.withInitial(keyDeserializerViewInitializer);
         this.valueDeserializerView = ThreadLocal.withInitial(valueDeserializerViewInitializer);
-        this.userKeySerializer = stateDescriptor.getUserKeySerializer();
-        this.userValueSerializer = stateDescriptor.getSerializer();
+        this.userKeySerializer = ThreadLocal.withInitial(userKeySerializer::duplicate);
+        this.userValueSerializer = ThreadLocal.withInitial(valueSerializer::duplicate);
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
     }
 
@@ -123,14 +123,15 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
             return builder.build();
         }
         UK userKey = (UK) contextKey.getUserKey(); // map get
-        return builder.buildCompositeKeyUserKey(userKey, userKeySerializer);
+        return builder.buildCompositeKeyUserKey(userKey, userKeySerializer.get());
     }
 
     @Override
     public byte[] serializeValue(UV value) throws IOException {
         DataOutputSerializer outputView = valueSerializerView.get();
         outputView.clear();
-        userValueSerializer.serialize(value, outputView);
+        outputView.writeBoolean(false);
+        userValueSerializer.get().serialize(value, outputView);
         return outputView.getCopyOfBuffer();
     }
 
@@ -138,13 +139,14 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
     public UV deserializeValue(byte[] valueBytes) throws IOException {
         DataInputDeserializer inputView = valueDeserializerView.get();
         inputView.setBuffer(valueBytes);
-        return userValueSerializer.deserialize(inputView);
+        boolean isNull = inputView.readBoolean();
+        return isNull ? null : userValueSerializer.get().deserialize(inputView);
     }
 
     public UK deserializeUserKey(byte[] userKeyBytes, int userKeyOffset) throws IOException {
         DataInputDeserializer inputView = keyDeserializerView.get();
         inputView.setBuffer(userKeyBytes, userKeyOffset, userKeyBytes.length - userKeyOffset);
-        return userKeySerializer.deserialize(inputView);
+        return userKeySerializer.get().deserialize(inputView);
     }
 
     @Override
@@ -162,34 +164,45 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
 
         if (stateRequest.getRequestType() == StateRequestType.MAP_GET) {
             return new ForStDBSingleGetRequest<>(
-                    contextKey, this, (InternalStateFuture<UV>) stateRequest.getFuture());
+                    contextKey, this, (InternalAsyncFuture<UV>) stateRequest.getFuture());
         }
         return new ForStDBMapCheckRequest<>(
                 contextKey,
                 this,
-                (InternalStateFuture<Boolean>) stateRequest.getFuture(),
+                (InternalAsyncFuture<Boolean>) stateRequest.getFuture(),
                 stateRequest.getRequestType() == StateRequestType.MAP_IS_EMPTY);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public ForStDBPutRequest<K, N, UV> buildDBPutRequest(StateRequest<?, ?, ?, ?> stateRequest) {
-        Preconditions.checkArgument(
-                stateRequest.getRequestType() == StateRequestType.MAP_PUT
-                        || stateRequest.getRequestType() == StateRequestType.MAP_REMOVE);
-        ContextKey<K, N> contextKey =
-                new ContextKey<>(
-                        (RecordContext<K>) stateRequest.getRecordContext(),
-                        (N) stateRequest.getNamespace(),
-                        ((Tuple2<UK, UV>) stateRequest.getPayload()).f0);
         Preconditions.checkNotNull(stateRequest.getPayload());
+        ContextKey<K, N> contextKey;
+        if (stateRequest.getRequestType() == StateRequestType.MAP_PUT) {
+            contextKey =
+                    new ContextKey<>(
+                            (RecordContext<K>) stateRequest.getRecordContext(),
+                            (N) stateRequest.getNamespace(),
+                            ((Tuple2<UK, UV>) stateRequest.getPayload()).f0);
+        } else if (stateRequest.getRequestType() == StateRequestType.MAP_REMOVE) {
+            contextKey =
+                    new ContextKey<>(
+                            (RecordContext<K>) stateRequest.getRecordContext(),
+                            (N) stateRequest.getNamespace(),
+                            stateRequest.getPayload());
+        } else {
+            throw new IllegalArgumentException(
+                    "The State type is: "
+                            + stateRequest.getRequestType().name()
+                            + ", which is not a valid put request.");
+        }
         UV value = null;
         if (stateRequest.getRequestType() == StateRequestType.MAP_PUT) {
             value = ((Tuple2<UK, UV>) stateRequest.getPayload()).f1;
         }
 
         return ForStDBPutRequest.of(
-                contextKey, value, this, (InternalStateFuture<Void>) stateRequest.getFuture());
+                contextKey, value, this, (InternalAsyncFuture<Void>) stateRequest.getFuture());
     }
 
     /**
@@ -258,7 +271,7 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
                         this,
                         stateRequestHandler,
                         rocksIterator,
-                        (InternalStateFuture<StateIterator<Map.Entry<UK, UV>>>)
+                        (InternalAsyncFuture<StateIterator<Map.Entry<UK, UV>>>)
                                 stateRequest.getFuture());
             case MAP_ITER_KEY:
                 return new ForStDBMapKeyIterRequest<>(
@@ -266,14 +279,14 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
                         this,
                         stateRequestHandler,
                         rocksIterator,
-                        (InternalStateFuture<StateIterator<UK>>) stateRequest.getFuture());
+                        (InternalAsyncFuture<StateIterator<UK>>) stateRequest.getFuture());
             case MAP_ITER_VALUE:
                 return new ForStDBMapValueIterRequest<>(
                         contextKey,
                         this,
                         stateRequestHandler,
                         rocksIterator,
-                        (InternalStateFuture<StateIterator<UV>>) stateRequest.getFuture());
+                        (InternalAsyncFuture<StateIterator<UV>>) stateRequest.getFuture());
             default:
                 throw new IllegalArgumentException(
                         "Unknown request type: "
@@ -285,7 +298,8 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
 
     @SuppressWarnings("unchecked")
     static <N, UK, UV, K, SV, S extends State> S create(
-            StateDescriptor<SV> stateDescriptor,
+            TypeSerializer<UK> userKeySerializer,
+            TypeSerializer<UV> valueSerializer,
             StateRequestHandler stateRequestHandler,
             ColumnFamilyHandle columnFamily,
             Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilderInitializer,
@@ -299,7 +313,8 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
                 new ForStMapState<>(
                         stateRequestHandler,
                         columnFamily,
-                        (MapStateDescriptor<UK, UV>) stateDescriptor,
+                        userKeySerializer,
+                        valueSerializer,
                         serializedKeyBuilderInitializer,
                         defaultNamespace,
                         namespaceSerializerInitializer,

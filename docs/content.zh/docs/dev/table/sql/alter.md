@@ -37,6 +37,7 @@ Flink SQL 目前支持以下 ALTER 语句：
 - ALTER DATABASE
 - ALTER FUNCTION
 - ALTER CATALOG
+- ALTER MODEL
 
 ## 执行 ALTER 语句
 
@@ -601,6 +602,54 @@ ALTER CATALOG cat2 RESET ('default-database');
 
 ```sql
 ALTER CATALOG cat2 COMMENT 'comment for catalog ''cat2''';
+```
+
+{{< top >}}
+
+## ALTER MODEL
+
+```sql
+ALTER MODEL [IF EXISTS] [catalog_name.][db_name.]model_name
+    SET (key1=val1, key2=val2, ...)
+  | RESET (key1, key2, ...)
+  | RENAME TO new_model_name
+```
+
+**IF EXISTS**
+
+若模型不存在，则不进行任何操作。
+
+### SET
+
+为指定的模型设置一个或多个属性。若个别属性已经存在，则使用新值覆盖旧值。
+
+`SET` 语句示例如下。
+
+```sql
+-- 设置模型的属性
+ALTER MODEL MyModel SET ('model-type'='linear', 'version'='2.0');
+```
+
+### RESET
+
+为指定的模型重置一个或多个属性。
+
+`RESET` 语句示例如下。
+
+```sql
+-- 重置模型的属性
+ALTER MODEL MyModel RESET ('model-type', 'version');
+```
+
+### RENAME TO
+
+将模型重命名为新的名称。
+
+`RENAME TO` 语句示例如下。
+
+```sql
+-- 重命名模型
+ALTER MODEL MyModel RENAME TO NewModel;
 ```
 
 {{< top >}}

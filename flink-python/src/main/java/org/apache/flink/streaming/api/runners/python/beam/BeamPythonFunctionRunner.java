@@ -31,11 +31,13 @@ import org.apache.flink.python.env.PythonEnvironment;
 import org.apache.flink.python.env.process.ProcessPythonEnvironment;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.process.FlinkMetricContainer;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.streaming.api.operators.python.process.timer.TimerRegistration;
+import org.apache.flink.streaming.api.operators.python.process.timer.TimerRegistrationAction;
 import org.apache.flink.streaming.api.runners.python.beam.state.BeamStateRequestHandler;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -73,8 +75,8 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,6 +87,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -190,7 +193,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     private transient Thread shutdownHook;
 
+    private transient Environment environment;
+
+    private transient volatile List<TimerRegistrationAction> unregisteredTimers;
+
     public BeamPythonFunctionRunner(
+            Environment environment,
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
             @Nullable FlinkMetricContainer flinkMetricContainer,
@@ -204,6 +212,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor,
             FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor,
             Map<String, FlinkFnApi.CoderInfoDescriptor> sideOutputCoderDescriptors) {
+        this.environment = environment;
         this.taskName = Preconditions.checkNotNull(taskName);
         this.environmentManager = Preconditions.checkNotNull(environmentManager);
         this.flinkMetricContainer = flinkMetricContainer;
@@ -301,6 +310,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
                         this, BeamPythonFunctionRunner.class.getSimpleName(), LOG);
+
+        unregisteredTimers = Collections.synchronizedList(new LinkedList<>());
     }
 
     @Override
@@ -337,6 +348,16 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     public void process(byte[] data) throws Exception {
         checkInvokeStartBundle();
         mainInputReceiver.accept(WindowedValue.valueInGlobalWindow(data));
+    }
+
+    @Override
+    public void drainUnregisteredTimers() {
+        synchronized (unregisteredTimers) {
+            for (TimerRegistrationAction timerRegistrationAction : unregisteredTimers) {
+                timerRegistrationAction.registerTimer();
+            }
+            unregisteredTimers.clear();
+        }
     }
 
     @Override
@@ -567,7 +588,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                         .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                         .setPayload(
-                                org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString
+                                org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString
                                         .copyFrom(baos.toByteArray()))
                         .setInputOrOutputId(INPUT_COLLECTION_ID)
                         .build());
@@ -575,7 +596,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                         .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                         .setPayload(
-                                org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString
+                                org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString
                                         .copyFrom(baos.toByteArray()))
                         .setInputOrOutputId(OUTPUT_COLLECTION_ID)
                         .build());
@@ -585,7 +606,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                     RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                             .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                             .setPayload(
-                                    org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf
+                                    org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf
                                             .ByteString.copyFrom(baos.toByteArray()))
                             .setInputOrOutputId(entry.getKey())
                             .build());
@@ -681,7 +702,17 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
     private TimerReceiverFactory createTimerReceiverFactory() {
         BiConsumer<Timer<?>, TimerInternals.TimerData> timerDataConsumer =
-                (timer, timerData) -> timerRegistration.setTimer((byte[]) timer.getUserKey());
+                (timer, timerData) -> {
+                    TimerRegistrationAction timerRegistrationAction =
+                            new TimerRegistrationAction(
+                                    timerRegistration,
+                                    (byte[]) timer.getUserKey(),
+                                    unregisteredTimers);
+                    unregisteredTimers.add(timerRegistrationAction);
+                    environment
+                            .getMainMailboxExecutor()
+                            .execute(timerRegistrationAction::run, "PythonTimerRegistration");
+                };
         return new TimerReceiverFactory(stageBundleFactory, timerDataConsumer, null);
     }
 

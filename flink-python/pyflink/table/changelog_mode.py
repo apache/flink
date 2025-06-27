@@ -16,10 +16,12 @@
 # limitations under the License.
 ################################################################################
 from pyflink.java_gateway import get_gateway
+from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ['ChangelogMode']
 
 
+@PublicEvolving()
 class ChangelogMode(object):
     """
     The set of changes contained in a changelog.
@@ -30,18 +32,28 @@ class ChangelogMode(object):
 
     @staticmethod
     def insert_only():
+        """
+        Shortcut for a simple :attr:`~pyflink.common.RowKind.INSERT`-only changelog.
+        """
         gateway = get_gateway()
         return ChangelogMode(
             gateway.jvm.org.apache.flink.table.connector.ChangelogMode.insertOnly())
 
     @staticmethod
     def upsert():
+        """
+        Shortcut for an upsert changelog that describes idempotent updates on a key and thus does
+        does not contain :attr:`~pyflink.common.RowKind.UPDATE_BEFORE` rows.
+        """
         gateway = get_gateway()
         return ChangelogMode(
             gateway.jvm.org.apache.flink.table.connector.ChangelogMode.upsert())
 
     @staticmethod
     def all():
+        """
+        Shortcut for a changelog that can contain all :class:`~pyflink.common.RowKind`.
+        """
         gateway = get_gateway()
         return ChangelogMode(
             gateway.jvm.org.apache.flink.table.connector.ChangelogMode.all())

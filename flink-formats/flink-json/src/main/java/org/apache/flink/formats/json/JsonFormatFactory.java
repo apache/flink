@@ -191,6 +191,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         options.add(MAP_NULL_KEY_LITERAL);
         options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
         options.add(ENCODE_IGNORE_NULL_FIELDS);
+        options.add(DECODE_JSON_PARSER_ENABLED);
         return options;
     }
 
@@ -202,6 +203,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         options.add(MAP_NULL_KEY_LITERAL);
         options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
         options.add(ENCODE_IGNORE_NULL_FIELDS);
+        options.add(DECODE_JSON_PARSER_ENABLED);
         return options;
     }
 }

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.util.OptionalFailure;
@@ -54,6 +55,7 @@ import java.util.Optional;
 public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializable {
 
     private static final long serialVersionUID = 7231383912742578428L;
+
     // --------------------------------------------------------------------------------------------
 
     /** The ID of the job this graph has been built for. */
@@ -94,7 +96,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
     @Nullable private final ErrorInfo failureCause;
 
     // ------ Fields that are only relevant for archived execution graphs ------------
-    private final String jsonPlan;
+    private final JobPlanInfo.Plan plan;
     private final StringifiedAccumulatorResult[] archivedUserAccumulators;
     private final ArchivedExecutionConfig archivedExecutionConfig;
     private final boolean isStoppable;
@@ -112,6 +114,10 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 
     @Nullable private final String changelogStorageName;
 
+    @Nullable private final String streamGraphJson;
+
+    private final int pendingOperatorCount;
+
     public ArchivedExecutionGraph(
             JobID jobID,
             String jobName,
@@ -121,7 +127,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             JobStatus state,
             @Nullable JobType jobType,
             @Nullable ErrorInfo failureCause,
-            String jsonPlan,
+            JobPlanInfo.Plan plan,
             StringifiedAccumulatorResult[] archivedUserAccumulators,
             Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators,
             ArchivedExecutionConfig executionConfig,
@@ -131,7 +137,9 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             @Nullable String stateBackendName,
             @Nullable String checkpointStorageName,
             @Nullable TernaryBoolean stateChangelogEnabled,
-            @Nullable String changelogStorageName) {
+            @Nullable String changelogStorageName,
+            @Nullable String streamGraphJson,
+            int pendingOperatorCount) {
 
         this.jobID = Preconditions.checkNotNull(jobID);
         this.jobName = Preconditions.checkNotNull(jobName);
@@ -141,7 +149,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         this.state = Preconditions.checkNotNull(state);
         this.jobType = jobType;
         this.failureCause = failureCause;
-        this.jsonPlan = Preconditions.checkNotNull(jsonPlan);
+        this.plan = Preconditions.checkNotNull(plan);
         this.archivedUserAccumulators = Preconditions.checkNotNull(archivedUserAccumulators);
         this.serializedUserAccumulators = Preconditions.checkNotNull(serializedUserAccumulators);
         this.archivedExecutionConfig = Preconditions.checkNotNull(executionConfig);
@@ -152,13 +160,20 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         this.checkpointStorageName = checkpointStorageName;
         this.stateChangelogEnabled = stateChangelogEnabled;
         this.changelogStorageName = changelogStorageName;
+        this.streamGraphJson = streamGraphJson;
+        this.pendingOperatorCount = pendingOperatorCount;
     }
 
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public String getJsonPlan() {
-        return jsonPlan;
+    public JobPlanInfo.Plan getPlan() {
+        return plan;
+    }
+
+    @Override
+    public String getStreamGraphJson() {
+        return streamGraphJson;
     }
 
     @Override
@@ -297,6 +312,11 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         return Optional.ofNullable(changelogStorageName);
     }
 
+    @Override
+    public int getPendingOperatorCount() {
+        return pendingOperatorCount;
+    }
+
     /**
      * Create a {@link ArchivedExecutionGraph} from the given {@link ExecutionGraph}.
      *
@@ -355,7 +375,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 statusOverride == null ? executionGraph.getState() : statusOverride,
                 executionGraph.getJobType(),
                 executionGraph.getFailureInfo(),
-                executionGraph.getJsonPlan(),
+                executionGraph.getPlan(),
                 executionGraph.getAccumulatorResultsStringified(),
                 serializedUserAccumulators,
                 executionGraph.getArchivedExecutionConfig(),
@@ -365,7 +385,9 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 executionGraph.getStateBackendName().orElse(null),
                 executionGraph.getCheckpointStorageName().orElse(null),
                 executionGraph.isChangelogStateBackendEnabled(),
-                executionGraph.getChangelogStorageName().orElse(null));
+                executionGraph.getChangelogStorageName().orElse(null),
+                executionGraph.getStreamGraphJson(),
+                executionGraph.getPendingOperatorCount());
     }
 
     /**
@@ -452,7 +474,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         final long[] timestamps = new long[JobStatus.values().length];
         timestamps[JobStatus.INITIALIZING.ordinal()] = initializationTimestamp;
 
-        String jsonPlan = "{}";
+        JobPlanInfo.Plan plan = new JobPlanInfo.Plan("", "", "", new ArrayList<>());
 
         ErrorInfo failureInfo = null;
         if (throwable != null) {
@@ -472,7 +494,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 jobStatus,
                 jobType,
                 failureInfo,
-                jsonPlan,
+                plan,
                 archivedUserAccumulators,
                 serializedUserAccumulators,
                 new ExecutionConfig().archive(),
@@ -486,6 +508,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 checkpointingSettings == null
                         ? TernaryBoolean.UNDEFINED
                         : checkpointingSettings.isChangelogStateBackendEnabled(),
-                checkpointingSettings == null ? null : "Unknown");
+                checkpointingSettings == null ? null : "Unknown",
+                null,
+                0);
     }
 }

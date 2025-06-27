@@ -110,7 +110,7 @@ public class TaskManagerJobMetricGroup extends JobMetricGroup<TaskManagerMetricG
     // ------------------------------------------------------------------------
 
     @Override
-    protected Iterable<? extends ComponentMetricGroup> subComponents() {
+    protected Iterable<? extends ComponentMetricGroup<?>> subComponents() {
         checkState(holdsLock(this));
         return tasks.values();
     }

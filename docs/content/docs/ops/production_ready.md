@@ -81,4 +81,13 @@ It is a single point of failure within the cluster, and if it crashes, no new jo
 
 Configuring [High Availability]({{< ref "docs/deployment/ha/overview" >}}), in conjunction with Apache Zookeeper or Flinks Kubernetes based service, allows for a swift recovery and is highly recommended for production setups.
 
+### Secure Flink Cluster Access
+
+Flink is intentionally designed to support remote code execution. 
+To mitigate risks of malicious code execution, ensure that Flink clusters are properly secured. 
+Avoid exposing clusters directly to the public internet. 
+Instead, restrict access via company intranet or secure clusters with TLS, authentication, role-based access control (RBAC) etc.
+
+For more details, see the [Flink Security FAQ](https://flink.apache.org/what-is-flink/security/#during-a-security-analysis-of-flink-i-noticed-that-flink-allows-for-remote-code-execution-is-this-an-issue).
+
 {{< top >}}

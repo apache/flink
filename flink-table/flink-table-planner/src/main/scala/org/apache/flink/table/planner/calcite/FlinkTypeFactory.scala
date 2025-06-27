@@ -24,8 +24,11 @@ import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.legacy.types.logical.TypeInformationRawType
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.plan.schema._
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.types.{LogicalTypeDataTypeConverter, PlannerTypeUtils}
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.utils.TableSchemaUtils
 import org.apache.flink.types.Nothing
@@ -149,6 +152,12 @@ class FlinkTypeFactory(
 
       case LogicalTypeRoot.SYMBOL =>
         createSqlType(SqlTypeName.SYMBOL)
+
+      case LogicalTypeRoot.DESCRIPTOR =>
+        createSqlType(SqlTypeName.COLUMN_LIST)
+
+      case LogicalTypeRoot.VARIANT =>
+        createSqlType(SqlTypeName.VARIANT)
 
       case _ @t =>
         throw new TableException(s"Type is not supported: $t")
@@ -387,17 +396,35 @@ class FlinkTypeFactory(
     canonize(rawRelDataType)
   }
 
+  override def createStructuredType(
+      className: String,
+      fieldTypes: util.List[RelDataType],
+      fieldNames: util.List[String]): RelDataType = {
+    val resolvedClass = toScala(StructuredType.resolveClass(classLoader, className))
+    val builder = resolvedClass
+      .map(StructuredType.newBuilder)
+      .getOrElse(StructuredType.newBuilder(className))
+
+    val relFields = 0
+      .until(fieldTypes.size())
+      .map(i => new RelDataTypeFieldImpl(fieldNames.get(i), i, fieldTypes.get(i)))
+      .map(_.asInstanceOf[RelDataTypeField])
+      .toList
+
+    val attributes =
+      relFields.map(f => new StructuredAttribute(f.getName, toLogicalType(f.getType)))
+    builder.attributes(attributes.asJava)
+
+    val relDataType = new StructuredRelDataType(builder.build(), relFields.asJava)
+    canonize(relDataType)
+  }
+
   override def createSqlType(typeName: SqlTypeName): RelDataType = {
     if (typeName == DECIMAL) {
       // if we got here, the precision and scale are not specified, here we
       // keep precision/scale in sync with our type system's default value,
       // see DecimalType.USER_DEFAULT.
       createSqlType(typeName, DecimalType.DEFAULT_PRECISION, DecimalType.DEFAULT_SCALE)
-    } else if (typeName == COLUMN_LIST) {
-      // we don't support column lists and translate them into the unknown type,
-      // this makes it possible to ignore them in the validator and fall back to regular row types
-      // see also SqlFunction#deriveType
-      createUnknownType()
     } else {
       super.createSqlType(typeName)
     }
@@ -627,6 +654,9 @@ object FlinkTypeFactory {
       case SYMBOL =>
         new SymbolType()
 
+      case COLUMN_LIST =>
+        new DescriptorType()
+
       // extract encapsulated Type
       case ANY if relDataType.isInstanceOf[GenericRelDataType] =>
         val genericRelDataType = relDataType.asInstanceOf[GenericRelDataType]
@@ -650,6 +680,8 @@ object FlinkTypeFactory {
 
       // CURSOR for UDTF case, whose type info will never be used, just a placeholder
       case CURSOR => new TypeInformationRawType[Nothing](new NothingTypeInfo)
+
+      case VARIANT => new VariantType()
 
       case OTHER if relDataType.isInstanceOf[RawRelDataType] =>
         relDataType.asInstanceOf[RawRelDataType].getRawType
