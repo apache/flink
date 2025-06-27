@@ -19,6 +19,7 @@
 package org.apache.flink.architecture;
 
 import org.apache.flink.architecture.rules.ApiAnnotationRules;
+import org.apache.flink.architecture.rules.CheckpointingConfigurationAccessRules;
 import org.apache.flink.architecture.rules.ConnectorRules;
 import org.apache.flink.architecture.rules.TableApiRules;
 
@@ -38,4 +39,8 @@ public class ProductionCodeArchitectureBase {
     @ArchTest public static final ArchTests TABLE_API = ArchTests.in(TableApiRules.class);
 
     @ArchTest public static final ArchTests CONNECTORS = ArchTests.in(ConnectorRules.class);
+
+    @ArchTest
+    public static final ArchTests CONFIGURATION_ACCESS =
+            ArchTests.in(CheckpointingConfigurationAccessRules.class);
 }
