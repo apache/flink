@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.checkpoint.OperatorState;
@@ -219,8 +218,6 @@ public class StateBootstrapTransformation<T> {
 
         final StreamConfig config = new StreamConfig(deepCopy);
         config.setChainStart();
-        config.setCheckpointingEnabled(true);
-        config.setCheckpointMode(CheckpointingMode.EXACTLY_ONCE);
 
         if (keyType != null) {
             TypeSerializer<?> keySerializer =

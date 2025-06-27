@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.event.WatermarkEvent;
@@ -113,7 +114,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
             StreamConfig.InputConfig inputConfig = inputConfigs[0];
             if (requiresSorting(inputConfig)) {
                 checkState(
-                        !configuration.isCheckpointingEnabled(),
+                        !CheckpointingOptions.isCheckpointingEnabled(getJobConfiguration()),
                         "Checkpointing is not allowed with sorted inputs.");
                 input = wrapWithSorted(input);
             }
@@ -166,6 +167,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         checkpointBarrierHandler =
                 InputProcessorUtil.createCheckpointBarrierHandler(
                         this,
+                        getJobConfiguration(),
                         configuration,
                         getCheckpointCoordinator(),
                         getTaskNameWithSubtaskAndId(),

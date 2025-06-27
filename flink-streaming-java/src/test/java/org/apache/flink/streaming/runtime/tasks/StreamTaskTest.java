@@ -26,6 +26,7 @@ import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTim
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -1563,7 +1564,8 @@ public class StreamTaskTest {
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
-                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .setupOutputForSingletonOperatorChain(
                                 new CheckpointCompleteRecordOperator())
                         .build()) {
@@ -1589,7 +1591,8 @@ public class StreamTaskTest {
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
                         .setTaskStateSnapshot(3, new TaskStateSnapshot())
-                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .setupOutputForSingletonOperatorChain(
                                 new CheckpointCompleteRecordOperator())
                         .build()) {
