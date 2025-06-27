@@ -170,7 +170,7 @@ public class SystemTypeInference {
         if (staticArgs.stream().filter(arg -> arg.is(StaticArgumentTrait.TABLE)).count() <= 1) {
             return;
         }
-        if (staticArgs.stream().anyMatch(arg -> !arg.is(StaticArgumentTrait.TABLE_AS_SET))) {
+        if (staticArgs.stream().anyMatch(arg -> !arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE))) {
             throw new ValidationException(
                     "All table arguments must use set semantics if multiple table arguments are declared.");
         }
@@ -282,7 +282,7 @@ public class SystemTypeInference {
                                 if (arg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
                                     return DataType.getFields(argDataTypes.get(pos)).stream();
                                 }
-                                if (!arg.is(StaticArgumentTrait.TABLE_AS_SET)) {
+                                if (!arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
                                     return Stream.<Field>empty();
                                 }
                                 final TableSemantics semantics =
@@ -607,7 +607,7 @@ public class SystemTypeInference {
         }
 
         private static void checkRowSemantics(StaticArgument staticArg, TableSemantics semantics) {
-            if (!staticArg.is(StaticArgumentTrait.TABLE_AS_ROW)) {
+            if (!staticArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)) {
                 return;
             }
             if (semantics.partitionByColumns().length > 0
@@ -618,7 +618,7 @@ public class SystemTypeInference {
         }
 
         private static void checkSetSemantics(StaticArgument staticArg, TableSemantics semantics) {
-            if (!staticArg.is(StaticArgumentTrait.TABLE_AS_SET)) {
+            if (!staticArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
                 return;
             }
             if (semantics.partitionByColumns().length == 0

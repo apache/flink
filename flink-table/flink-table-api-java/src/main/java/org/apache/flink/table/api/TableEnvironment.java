@@ -1069,8 +1069,8 @@ public interface TableEnvironment {
      * }</pre>
      *
      * <p>A PTF can digest tables either per row (with row semantics) or per set (with set
-     * semantics). For set semantics ({@link ArgumentTrait#TABLE_AS_SET}), make sure to partition
-     * the table first using {@link Table#partitionBy(Expression...)}.
+     * semantics). For set semantics ({@link ArgumentTrait#SET_SEMANTIC_TABLE}), make sure to
+     * partition the table first using {@link Table#partitionBy(Expression...)}.
      *
      * @param path The path of a function.
      * @param arguments Table and scalar argument {@link Expressions}.
@@ -1101,8 +1101,8 @@ public interface TableEnvironment {
      * }</pre>
      *
      * <p>A PTF can digest tables either per row (with row semantics) or per set (with set
-     * semantics). For set semantics ({@link ArgumentTrait#TABLE_AS_SET}), make sure to partition
-     * the table first using {@link Table#partitionBy(Expression...)}.
+     * semantics). For set semantics ({@link ArgumentTrait#SET_SEMANTIC_TABLE}), make sure to
+     * partition the table first using {@link Table#partitionBy(Expression...)}.
      *
      * @param function The class containing the function's logic.
      * @param arguments Table and scalar argument {@link Expressions}.

@@ -92,8 +92,8 @@ public class StaticArgument {
     /**
      * Declares a table argument such as {@code f(t => myTable)} or {@code f(t => TABLE myTable))}.
      *
-     * <p>The argument can have {@link StaticArgumentTrait#TABLE_AS_ROW} (default) or {@link
-     * StaticArgumentTrait#TABLE_AS_SET} semantics.
+     * <p>The argument can have {@link StaticArgumentTrait#ROW_SEMANTIC_TABLE} (default) or {@link
+     * StaticArgumentTrait#SET_SEMANTIC_TABLE} semantics.
      *
      * <p>By only providing a conversion class, the argument supports a "polymorphic" behavior. In
      * other words: it accepts tables with an arbitrary number of columns with arbitrary data types.
@@ -113,8 +113,8 @@ public class StaticArgument {
         Preconditions.checkNotNull(conversionClass, "Conversion class must not be null.");
         final EnumSet<StaticArgumentTrait> enrichedTraits = EnumSet.copyOf(traits);
         enrichedTraits.add(StaticArgumentTrait.TABLE);
-        if (!enrichedTraits.contains(StaticArgumentTrait.TABLE_AS_SET)) {
-            enrichedTraits.add(StaticArgumentTrait.TABLE_AS_ROW);
+        if (!enrichedTraits.contains(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
+            enrichedTraits.add(StaticArgumentTrait.ROW_SEMANTIC_TABLE);
         }
         return new StaticArgument(name, null, conversionClass, isOptional, enrichedTraits);
     }
@@ -122,8 +122,8 @@ public class StaticArgument {
     /**
      * Declares a table argument such as {@code f(t => myTable)} or {@code f(t => TABLE myTable))}.
      *
-     * <p>The argument can have {@link StaticArgumentTrait#TABLE_AS_ROW} (default) or {@link
-     * StaticArgumentTrait#TABLE_AS_SET} semantics.
+     * <p>The argument can have {@link StaticArgumentTrait#ROW_SEMANTIC_TABLE} (default) or {@link
+     * StaticArgumentTrait#SET_SEMANTIC_TABLE} semantics.
      *
      * <p>By providing a concrete data type, the argument only accepts tables with corresponding
      * number of columns and data types. The data type must be a {@link RowType} or {@link
@@ -148,8 +148,8 @@ public class StaticArgument {
             EnumSet<StaticArgumentTrait> traits) {
         final EnumSet<StaticArgumentTrait> enrichedTraits = EnumSet.copyOf(traits);
         enrichedTraits.add(StaticArgumentTrait.TABLE);
-        if (!enrichedTraits.contains(StaticArgumentTrait.TABLE_AS_SET)) {
-            enrichedTraits.add(StaticArgumentTrait.TABLE_AS_ROW);
+        if (!enrichedTraits.contains(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
+            enrichedTraits.add(StaticArgumentTrait.ROW_SEMANTIC_TABLE);
         }
         return enrichedTraits;
     }

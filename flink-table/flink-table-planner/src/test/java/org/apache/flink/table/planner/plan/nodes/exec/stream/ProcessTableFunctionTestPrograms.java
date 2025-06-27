@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidPassThroughTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidRowKindFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidTableAsRowTimersFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidRowSemanticTableTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.LateTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ListStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MapStateFunction;
@@ -44,21 +44,21 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoStateTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoWithDefaultStateFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTablePassThroughFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ScalarArgsTimeFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowPassThroughFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetFullDeletesArgFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetOptionalPartitionFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetPassThroughFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetRetractArgFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsSetUpdatingArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFullDeletesArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableOptionalPartitionFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTablePassThroughFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableRetractArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.SetSemanticTableUpdatingArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TimeConversionsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TimeToLiveStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TimedJoinFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsRowFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedTableAsSetFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedRowSemanticTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TypedSetSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UnnamedTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingJoinFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UpdatingRetractFunction;
@@ -121,9 +121,9 @@ public class ProcessTableFunctionTestPrograms {
                             "sink")
                     .build();
 
-    public static final TableTestProgram PROCESS_TABLE_AS_ROW =
+    public static final TableTestProgram PROCESS_ROW_SEMANTIC_TABLE =
             TableTestProgram.of("process-row", "table with row semantics")
-                    .setupTemporarySystemFunction("f", TableAsRowFunction.class)
+                    .setupTemporarySystemFunction("f", RowSemanticTableFunction.class)
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -134,7 +134,7 @@ public class ProcessTableFunctionTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t, i => 1)")
                     .build();
 
-    public static final TableTestProgram PROCESS_TABLE_AS_ROW_TABLE_API =
+    public static final TableTestProgram PROCESS_ROW_SEMANTIC_TABLE_TABLE_API =
             TableTestProgram.of("process-row-table-api", "table with row semantics")
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
@@ -146,13 +146,13 @@ public class ProcessTableFunctionTestPrograms {
                     .runTableApi(
                             env ->
                                     env.fromCall(
-                                            TableAsRowFunction.class,
+                                            RowSemanticTableFunction.class,
                                             env.from("t").asArgument("r"),
                                             lit(1).asArgument("i")),
                             "sink")
                     .build();
 
-    public static final TableTestProgram PROCESS_TABLE_AS_ROW_TABLE_API_INLINE =
+    public static final TableTestProgram PROCESS_ROW_SEMANTIC_TABLE_TABLE_API_INLINE =
             TableTestProgram.of(
                             "process-row-table-api-inline",
                             "tests the inline Table.process() position-based")
@@ -163,10 +163,11 @@ public class ProcessTableFunctionTestPrograms {
                                     .consumedValues(
                                             "+I[{+I[Bob, 12], 1}]", "+I[{+I[Alice, 42], 1}]")
                                     .build())
-                    .runTableApi(env -> env.from("t").process(TableAsRowFunction.class, 1), "sink")
+                    .runTableApi(
+                            env -> env.from("t").process(RowSemanticTableFunction.class, 1), "sink")
                     .build();
 
-    public static final TableTestProgram PROCESS_TABLE_AS_ROW_TABLE_API_INLINE_NAMED =
+    public static final TableTestProgram PROCESS_ROW_SEMANTIC_TABLE_TABLE_API_INLINE_NAMED =
             TableTestProgram.of(
                             "process-row-table-api-inline-named",
                             "tests the inline Table.process() name-based")
@@ -181,14 +182,14 @@ public class ProcessTableFunctionTestPrograms {
                             env ->
                                     env.from("t")
                                             .process(
-                                                    TableAsRowFunction.class,
+                                                    RowSemanticTableFunction.class,
                                                     lit(1).asArgument("i")),
                             "sink")
                     .build();
 
-    public static final TableTestProgram PROCESS_TYPED_TABLE_AS_ROW =
+    public static final TableTestProgram PROCESS_TYPED_ROW_SEMANTIC_TABLE =
             TableTestProgram.of("process-typed-row", "typed table with row semantics")
-                    .setupTemporarySystemFunction("f", TypedTableAsRowFunction.class)
+                    .setupTemporarySystemFunction("f", TypedRowSemanticTableFunction.class)
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -200,7 +201,7 @@ public class ProcessTableFunctionTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM f(u => TABLE t, i => 1)")
                     .build();
 
-    public static final TableTestProgram PROCESS_TYPED_TABLE_AS_ROW_TABLE_API =
+    public static final TableTestProgram PROCESS_TYPED_ROW_SEMANTIC_TABLE_TABLE_API =
             TableTestProgram.of("process-typed-row-table-api", "typed table with row semantics")
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
@@ -213,15 +214,15 @@ public class ProcessTableFunctionTestPrograms {
                     .runTableApi(
                             env ->
                                     env.fromCall(
-                                            TypedTableAsRowFunction.class,
+                                            TypedRowSemanticTableFunction.class,
                                             env.from("t").asArgument("u"),
                                             lit(1).asArgument("i")),
                             "sink")
                     .build();
 
-    public static final TableTestProgram PROCESS_TABLE_AS_SET =
+    public static final TableTestProgram PROCESS_SET_SEMANTIC_TABLE =
             TableTestProgram.of("process-set", "table with set semantics")
-                    .setupTemporarySystemFunction("f", TableAsSetFunction.class)
+                    .setupTemporarySystemFunction("f", SetSemanticTableFunction.class)
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -234,7 +235,7 @@ public class ProcessTableFunctionTestPrograms {
                             "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1)")
                     .build();
 
-    public static final TableTestProgram PROCESS_TABLE_AS_SET_TABLE_API =
+    public static final TableTestProgram PROCESS_SET_SEMANTIC_TABLE_TABLE_API =
             TableTestProgram.of("process-set-table-api", "table with set semantics")
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
@@ -247,13 +248,13 @@ public class ProcessTableFunctionTestPrograms {
                     .runTableApi(
                             env ->
                                     env.fromCall(
-                                            TableAsSetFunction.class,
+                                            SetSemanticTableFunction.class,
                                             env.from("t").partitionBy($("name")).asArgument("r"),
                                             lit(1).asArgument("i")),
                             "sink")
                     .build();
 
-    public static final TableTestProgram PROCESS_TABLE_AS_SET_TABLE_API_INLINE =
+    public static final TableTestProgram PROCESS_SET_SEMANTIC_TABLE_TABLE_API_INLINE =
             TableTestProgram.of(
                             "process-set-table-api-inline",
                             "tests the inline Table.process() position-based")
@@ -269,11 +270,11 @@ public class ProcessTableFunctionTestPrograms {
                             env ->
                                     env.from("t")
                                             .partitionBy($("name"))
-                                            .process(TableAsSetFunction.class, 1),
+                                            .process(SetSemanticTableFunction.class, 1),
                             "sink")
                     .build();
 
-    public static final TableTestProgram PROCESS_TABLE_AS_SET_TABLE_API_INLINE_NAMED =
+    public static final TableTestProgram PROCESS_SET_SEMANTIC_TABLE_TABLE_API_INLINE_NAMED =
             TableTestProgram.of(
                             "process-set-table-api-inline-named",
                             "tests the inline Table.process() name-based")
@@ -290,14 +291,14 @@ public class ProcessTableFunctionTestPrograms {
                                     env.from("t")
                                             .partitionBy($("name"))
                                             .process(
-                                                    TableAsSetFunction.class,
+                                                    SetSemanticTableFunction.class,
                                                     lit(1).asArgument("i")),
                             "sink")
                     .build();
 
-    public static final TableTestProgram PROCESS_TYPED_TABLE_AS_SET =
+    public static final TableTestProgram PROCESS_TYPED_SET_SEMANTIC_TABLE =
             TableTestProgram.of("process-typed-set", "typed table with set semantics")
-                    .setupTemporarySystemFunction("f", TypedTableAsSetFunction.class)
+                    .setupTemporarySystemFunction("f", TypedSetSemanticTableFunction.class)
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -310,7 +311,7 @@ public class ProcessTableFunctionTestPrograms {
                             "INSERT INTO sink SELECT * FROM f(u => TABLE t PARTITION BY name, i => 1)")
                     .build();
 
-    public static final TableTestProgram PROCESS_TYPED_TABLE_AS_SET_TABLE_API =
+    public static final TableTestProgram PROCESS_TYPED_SET_SEMANTIC_TABLE_TABLE_API =
             TableTestProgram.of("process-typed-set-table-api", "typed table with set semantics")
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
@@ -323,7 +324,7 @@ public class ProcessTableFunctionTestPrograms {
                     .runTableApi(
                             env ->
                                     env.fromCall(
-                                            TypedTableAsSetFunction.class,
+                                            TypedSetSemanticTableFunction.class,
                                             env.from("t").partitionBy($("name")).asArgument("u"),
                                             lit(1).asArgument("i")),
                             "sink")
@@ -358,9 +359,9 @@ public class ProcessTableFunctionTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM f()")
                     .build();
 
-    public static final TableTestProgram PROCESS_TABLE_AS_ROW_PASS_THROUGH =
+    public static final TableTestProgram PROCESS_ROW_SEMANTIC_TABLE_PASS_THROUGH =
             TableTestProgram.of("process-row-pass-through", "pass columns through enabled")
-                    .setupTemporarySystemFunction("f", TableAsRowPassThroughFunction.class)
+                    .setupTemporarySystemFunction("f", RowSemanticTablePassThroughFunction.class)
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -372,9 +373,9 @@ public class ProcessTableFunctionTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t, i => 1)")
                     .build();
 
-    public static final TableTestProgram PROCESS_TABLE_AS_SET_PASS_THROUGH =
+    public static final TableTestProgram PROCESS_SET_SEMANTIC_TABLE_PASS_THROUGH =
             TableTestProgram.of("process-set-pass-through", "pass columns through enabled")
-                    .setupTemporarySystemFunction("f", TableAsSetPassThroughFunction.class)
+                    .setupTemporarySystemFunction("f", SetSemanticTablePassThroughFunction.class)
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -391,7 +392,7 @@ public class ProcessTableFunctionTestPrograms {
             TableTestProgram.of(
                             "process-updating-input-retract",
                             "table argument accepts updates which leads to retract due to missing upsert key")
-                    .setupTemporarySystemFunction("f", TableAsSetUpdatingArgFunction.class)
+                    .setupTemporarySystemFunction("f", SetSemanticTableUpdatingArgFunction.class)
                     .setupSql(UPDATING_VALUES)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -409,7 +410,7 @@ public class ProcessTableFunctionTestPrograms {
             TableTestProgram.of(
                             "process-updating-input-upsert",
                             "table argument accepts updates which leads to upsert due to matching upsert key")
-                    .setupTemporarySystemFunction("f", TableAsSetUpdatingArgFunction.class)
+                    .setupTemporarySystemFunction("f", SetSemanticTableUpdatingArgFunction.class)
                     .setupSql(UPDATING_VALUES)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -426,7 +427,7 @@ public class ProcessTableFunctionTestPrograms {
             TableTestProgram.of(
                             "process-updating-input-enforced-retract",
                             "table argument accepts updates and enforces retract")
-                    .setupTemporarySystemFunction("f", TableAsSetRetractArgFunction.class)
+                    .setupTemporarySystemFunction("f", SetSemanticTableRetractArgFunction.class)
                     .setupSql(UPDATING_VALUES)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -444,7 +445,7 @@ public class ProcessTableFunctionTestPrograms {
             TableTestProgram.of(
                             "process-updating-input-partial-deletes",
                             "table argument accepts updates which contain partial deletes")
-                    .setupTemporarySystemFunction("f", TableAsSetUpdatingArgFunction.class)
+                    .setupTemporarySystemFunction("f", SetSemanticTableUpdatingArgFunction.class)
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
                                     .addSchema(
@@ -478,7 +479,7 @@ public class ProcessTableFunctionTestPrograms {
             TableTestProgram.of(
                             "process-updating-input-enforced-full-deletes",
                             "table argument accepts updates which enforces full deletes")
-                    .setupTemporarySystemFunction("f", TableAsSetFullDeletesArgFunction.class)
+                    .setupTemporarySystemFunction("f", SetSemanticTableFullDeletesArgFunction.class)
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
                                     .addSchema(
@@ -632,7 +633,8 @@ public class ProcessTableFunctionTestPrograms {
 
     public static final TableTestProgram PROCESS_OPTIONAL_PARTITION_BY =
             TableTestProgram.of("process-optional-partition-by", "no partition by")
-                    .setupTemporarySystemFunction("f", TableAsSetOptionalPartitionFunction.class)
+                    .setupTemporarySystemFunction(
+                            "f", SetSemanticTableOptionalPartitionFunction.class)
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -655,7 +657,7 @@ public class ProcessTableFunctionTestPrograms {
                     .runTableApi(
                             env ->
                                     env.fromCall(
-                                            TableAsSetOptionalPartitionFunction.class,
+                                            SetSemanticTableOptionalPartitionFunction.class,
                                             env.from("t").asArgument("r"),
                                             lit(1).asArgument("i")),
                             "sink")
@@ -1166,11 +1168,11 @@ public class ProcessTableFunctionTestPrograms {
                             "sink")
                     .build();
 
-    public static final TableTestProgram PROCESS_INVALID_TABLE_AS_ROW_TIMERS =
+    public static final TableTestProgram PROCESS_INVALID_ROW_SEMANTIC_TABLE_TIMERS =
             TableTestProgram.of(
-                            "process-invalid-table-as-row-timers",
+                            "process-invalid-row-semantic-table-timers",
                             "error if timers are registered for PTFs with row semantic tables")
-                    .setupTemporarySystemFunction("f", InvalidTableAsRowTimersFunction.class)
+                    .setupTemporarySystemFunction("f", InvalidRowSemanticTableTimersFunction.class)
                     .setupSql(BASIC_VALUES)
                     .runFailingSql(
                             "SELECT * FROM f(r => TABLE t)",

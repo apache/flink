@@ -218,7 +218,8 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         final RexNode uidRexNode = operands.get(operands.size() - 1);
         if (uidRexNode.getKind() == SqlKind.DEFAULT) {
             // Optional for constant or row semantics functions
-            if (staticArgs.stream().noneMatch(arg -> arg.is(StaticArgumentTrait.TABLE_AS_SET))) {
+            if (staticArgs.stream()
+                    .noneMatch(arg -> arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE))) {
                 return null;
             }
             final String uid =

@@ -156,7 +156,7 @@ ProcessTableFunction(invocation=[f(1, true, DEFAULT(), _UTF-16LE'my-uid')], uid=
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTableAsRowOptionalUid">
+  <TestCase name="testRowSemanticTableOptionalUid">
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.t_sink], fields=[out])
@@ -185,7 +185,7 @@ Sink(table=[default_catalog.default_database.t_sink], fields=[out])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTableAsRowPassThroughColumns">
+  <TestCase name="testRowSemanticTablePassThroughColumns">
     <Resource name="sql">
       <![CDATA[SELECT * FROM f(r => TABLE t, i => 1)]]>
     </Resource>
@@ -205,7 +205,7 @@ ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], uid=[nu
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTableAsSetPassThroughColumns">
+  <TestCase name="testSetSemanticTablePassThroughColumns">
     <Resource name="sql">
       <![CDATA[SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1)]]>
     </Resource>
@@ -305,7 +305,7 @@ ProcessTableFunction(invocation=[f(1, true, DEFAULT(), DEFAULT())], uid=[null], 
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTypedTableAsRowIgnoringColumnNames">
+  <TestCase name="testTypedRowSemanticTableIgnoringColumnNames">
     <Resource name="sql">
       <![CDATA[SELECT * FROM f(u => TABLE t_name_diff, i => 1)]]>
     </Resource>

@@ -1618,7 +1618,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       .map(_.e)
       .foreach {
         tableArg =>
-          if (tableArg.is(StaticArgumentTrait.TABLE_AS_ROW)) {
+          if (tableArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)) {
             throw new ValidationException(
               s"PTFs that take table arguments with row semantics don't support updating output. " +
                 s"Table argument '${tableArg.getName}' of function '${call.getOperator.toString}' " +

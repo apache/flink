@@ -647,8 +647,8 @@ abstract class BaseMappingExtractor {
 
         if (rootTrait.contains(ArgumentTrait.SCALAR)) {
             return extractScalarArgument(typeFactory, extractedClass, arg);
-        } else if (rootTrait.contains(ArgumentTrait.TABLE_AS_ROW)
-                || rootTrait.contains(ArgumentTrait.TABLE_AS_SET)) {
+        } else if (rootTrait.contains(ArgumentTrait.ROW_SEMANTIC_TABLE)
+                || rootTrait.contains(ArgumentTrait.SET_SEMANTIC_TABLE)) {
             return extractTableArgument(typeFactory, argumentHint, extractedClass, arg);
         } else {
             throw extractionError("Unknown argument kind.");
