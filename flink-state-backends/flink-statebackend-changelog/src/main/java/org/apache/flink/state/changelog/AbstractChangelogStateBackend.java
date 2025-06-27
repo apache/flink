@@ -44,12 +44,11 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * An abstract base implementation of the {@link StateBackend} interface whose subclasses use
- * delegatedStateBackend and State changes to restore.
+ * An abstract base implementation of the {@link DelegatingStateBackend} interface whose subclasses
+ * use delegatedStateBackend and State changes to restore.
  */
 @Internal
-public abstract class AbstractChangelogStateBackend
-        implements DelegatingStateBackend, StateBackend {
+public abstract class AbstractChangelogStateBackend implements DelegatingStateBackend {
 
     private static final long serialVersionUID = 1000L;
 

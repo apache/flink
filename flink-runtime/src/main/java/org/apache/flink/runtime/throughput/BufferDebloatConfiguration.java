@@ -32,6 +32,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Configuration for {@link BufferDebloater}. */
 public final class BufferDebloatConfiguration {
     private final Duration targetTotalTime;
+    private final int startingBufferSize;
     private final int maxBufferSize;
     private final int minBufferSize;
     private final int bufferDebloatThresholdPercentages;
@@ -41,11 +42,23 @@ public final class BufferDebloatConfiguration {
     private BufferDebloatConfiguration(
             boolean enabled,
             Duration targetTotalTime,
+            int startingBufferSize,
             int maxBufferSize,
             int minBufferSize,
             int bufferDebloatThresholdPercentages,
             int numberOfSamples) {
+        // Right now the buffer size can not be grater than integer max value according to
+        // MemorySegment and buffer implementation.
+        checkArgument(maxBufferSize > 0);
+        checkArgument(minBufferSize > 0);
+        checkArgument(numberOfSamples > 0);
+        checkArgument(maxBufferSize >= minBufferSize);
+        checkArgument(targetTotalTime.toMillis() > 0.0);
+        checkArgument(maxBufferSize >= startingBufferSize);
+        checkArgument(minBufferSize <= startingBufferSize);
+
         this.targetTotalTime = checkNotNull(targetTotalTime);
+        this.startingBufferSize = startingBufferSize;
         this.maxBufferSize = maxBufferSize;
         this.minBufferSize = minBufferSize;
         this.bufferDebloatThresholdPercentages = bufferDebloatThresholdPercentages;
@@ -59,6 +72,10 @@ public final class BufferDebloatConfiguration {
 
     public Duration getTargetTotalTime() {
         return targetTotalTime;
+    }
+
+    public int getStartingBufferSize() {
+        return startingBufferSize;
     }
 
     public int getMaxBufferSize() {
@@ -83,20 +100,17 @@ public final class BufferDebloatConfiguration {
                 Math.toIntExact(config.get(TaskManagerOptions.MEMORY_SEGMENT_SIZE).getBytes());
         int minBufferSize =
                 Math.toIntExact(config.get(TaskManagerOptions.MIN_MEMORY_SEGMENT_SIZE).getBytes());
+        int startingBufferSize =
+                Math.toIntExact(
+                        config.get(TaskManagerOptions.STARTING_MEMORY_SEGMENT_SIZE).getBytes());
 
         int bufferDebloatThresholdPercentages = config.get(BUFFER_DEBLOAT_THRESHOLD_PERCENTAGES);
         final int numberOfSamples = config.get(BUFFER_DEBLOAT_SAMPLES);
 
-        // Right now the buffer size can not be grater than integer max value according to
-        // MemorySegment and buffer implementation.
-        checkArgument(maxBufferSize > 0);
-        checkArgument(minBufferSize > 0);
-        checkArgument(numberOfSamples > 0);
-        checkArgument(maxBufferSize >= minBufferSize);
-        checkArgument(targetTotalTime.toMillis() > 0.0);
         return new BufferDebloatConfiguration(
                 config.get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED),
                 targetTotalTime,
+                startingBufferSize,
                 maxBufferSize,
                 minBufferSize,
                 bufferDebloatThresholdPercentages,

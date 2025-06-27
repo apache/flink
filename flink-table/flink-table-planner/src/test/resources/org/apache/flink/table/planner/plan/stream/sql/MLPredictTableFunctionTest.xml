@@ -1,0 +1,944 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCompatibleInputTypes[[10] STRING, STRING]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(2147483647) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(2147483647) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[11] BINARY(10), BINARY(10)]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BINARY(10) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BINARY(10) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[12] VARBINARY(10), VARBINARY(10)]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARBINARY(10) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARBINARY(10) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[13] DATE, DATE]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DATE col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DATE col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[14] TIME(3), TIME(3)]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIME(0) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIME(0) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[15] TIMESTAMP(3), TIMESTAMP(3)]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIMESTAMP(3) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIMESTAMP(3) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[16] TIMESTAMP_LTZ(3), TIMESTAMP_LTZ(3)]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[17] TINYINT, SMALLINT]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TINYINT col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TINYINT col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[18] SMALLINT, INT]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(SMALLINT col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(SMALLINT col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[19] INT, BIGINT]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[1] STRING NOT NULL, STRING]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(2147483647) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(2147483647) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[20] FLOAT, DOUBLE]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(FLOAT col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(FLOAT col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[21] DECIMAL(5,2), DECIMAL(10,2)]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DECIMAL(5, 2) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DECIMAL(5, 2) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[22] DECIMAL(10,2), DECIMAL(5,2)]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DECIMAL(10, 2) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DECIMAL(10, 2) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[23] CHAR(10), STRING]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(CHAR(10) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(CHAR(10) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[24] VARCHAR(20), STRING]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(20) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(20) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[25] TIMESTAMP(3), TIMESTAMP(3)]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIMESTAMP(3) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIMESTAMP(3) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[26] DATE, DATE]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DATE col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DATE col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[27] TIME(3), TIME(3)]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIME(0) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIME(0) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[28] ARRAY&#60;INT&#62;, ARRAY&#60;INT&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER ARRAY col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER ARRAY col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[29] ARRAY&#60;TINYINT&#62;, ARRAY&#60;SMALLINT&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TINYINT ARRAY col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TINYINT ARRAY col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[2] BOOLEAN, BOOLEAN]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BOOLEAN col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BOOLEAN col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[30] ARRAY&#60;DECIMAL(5,2)&#62;, ARRAY&#60;DECIMAL(10,2)&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DECIMAL(5, 2) ARRAY col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DECIMAL(5, 2) ARRAY col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[31] ARRAY&#60;VARCHAR(20)&#62;, ARRAY&#60;STRING&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(20) ARRAY col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(VARCHAR(20) ARRAY col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[32] MAP&#60;STRING, INT&#62;, MAP&#60;STRING, INT&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), INTEGER) MAP col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), INTEGER) MAP col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[33] MAP&#60;STRING, DECIMAL(5,2)&#62;, MAP&#60;STRING, DECIMAL(10,2)&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), DECIMAL(5, 2)) MAP col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), DECIMAL(5, 2)) MAP col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[34] MAP&#60;VARCHAR(20), ARRAY&#60;INT&#62;&#62;, MAP&#60;STRING, ARRAY&#60;INT&#62;&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(20), INTEGER ARRAY) MAP col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(20), INTEGER ARRAY) MAP col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[35] ROW&#60;a INT, b STRING&#62;, ROW&#60;a INT, b STRING&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(INTEGER a, VARCHAR(2147483647) b) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(INTEGER a, VARCHAR(2147483647) b) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[36] ROW&#60;a INT, b STRING&#62;, ROW&#60;x INT, y STRING&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(INTEGER a, VARCHAR(2147483647) b) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(INTEGER a, VARCHAR(2147483647) b) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[37] ROW&#60;a DECIMAL(5,2), b ARRAY&#60;INT&#62;&#62;, ROW&#60;a DECIMAL(10,2), b ARRAY&#60;INT&#62;&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(DECIMAL(5, 2) a, INTEGER ARRAY b) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(DECIMAL(5, 2) a, INTEGER ARRAY b) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[38] ROW&#60;a VARCHAR(20), b MAP&#60;STRING, INT&#62;&#62;, ROW&#60;a STRING, b MAP&#60;STRING, INT&#62;&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(VARCHAR(20) a, (VARCHAR(2147483647), INTEGER) MAP b) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(VARCHAR(20) a, (VARCHAR(2147483647), INTEGER) MAP b) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[39] ROW&#60;a ARRAY&#60;INT&#62;, b MAP&#60;STRING, ARRAY&#60;DECIMAL(5,2)&#62;&#62;&#62;, ROW&#60;a ARRAY&#60;INT&#62;, b MAP&#60;STRING, ARRAY&#60;DECIMAL(10,2)&#62;&#62;&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(INTEGER ARRAY a, (VARCHAR(2147483647), DECIMAL(5, 2) ARRAY) MAP b) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(RecordType:peek_no_expand(INTEGER ARRAY a, (VARCHAR(2147483647), DECIMAL(5, 2) ARRAY) MAP b) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[3] TINYINT, TINYINT]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TINYINT col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TINYINT col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[40] MAP&#60;STRING, ROW&#60;a INT, b ARRAY&#60;VARCHAR(20)&#62;&#62;&#62;, MAP&#60;STRING, ROW&#60;a INT, b ARRAY&#60;STRING&#62;&#62;&#62;]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), RecordType:peek_no_expand(INTEGER a, VARCHAR(20) ARRAY b)) MAP col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType((VARCHAR(2147483647), RecordType:peek_no_expand(INTEGER a, VARCHAR(20) ARRAY b)) MAP col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[4] SMALLINT, SMALLINT]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(SMALLINT col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(SMALLINT col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[5] INT, INT]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(INTEGER col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[6] BIGINT, BIGINT]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BIGINT col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(BIGINT col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[7] FLOAT, FLOAT]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(FLOAT col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(FLOAT col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[8] DOUBLE, DOUBLE]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DOUBLE col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DOUBLE col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCompatibleInputTypes[[9] DECIMAL(10,2), DECIMAL(10,2)]">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(col=[$0], res=[$1])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DECIMAL(10, 2) col, VARCHAR(2147483647) res)])
+   +- LogicalProject(col=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(DECIMAL(10, 2) col, VARCHAR(2147483647) res)])
++- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNamedArguments">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(INPUT => TABLE MyTable, MODEL => MODEL MyModel, ARGS  => DESCRIPTOR(a, b)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$6], f=[$7])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+      +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f])
++- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+      +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConfigWithCast">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true', 'timeout', '100s']))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$6], f=[$7])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'async':VARCHAR(7) CHARACTER SET "UTF-16LE", _UTF-16LE'true', _UTF-16LE'timeout':VARCHAR(7) CHARACTER SET "UTF-16LE", _UTF-16LE'100s'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+      +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f])
++- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'async':VARCHAR(7) CHARACTER SET "UTF-16LE", _UTF-16LE'true', _UTF-16LE'timeout':VARCHAR(7) CHARACTER SET "UTF-16LE", _UTF-16LE'100s'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+      +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testConflictOutputColumnName">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL ConflictModel, DESCRIPTOR(a, b)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], c0=[$6], d0=[$7])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.ConflictModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) c0, INTEGER ARRAY d0)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+      +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, c0, d0])
++- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.ConflictModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) c0, INTEGER ARRAY d0)])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+      +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInputTableIsInsertOnlyStream">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b)))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$6], f=[$7])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+      +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f], changelogMode=[I])
++- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)], changelogMode=[I])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)], changelogMode=[I])
+      +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOptionalNamedArguments">
+    <Resource name="sql">
+      <![CDATA[SELECT *
+FROM TABLE(ML_PREDICT(INPUT => TABLE MyTable, MODEL  => MODEL MyModel, ARGS   => DESCRIPTOR(a, b),CONFIG => MAP['key', 'value']))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$6], f=[$7])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'key', _UTF-16LE'value'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5])
+      +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f])
++- MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.MyModel), DESCRIPTOR(_UTF-16LE'a', _UTF-16LE'b'), MAP(_UTF-16LE'key', _UTF-16LE'value'))], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) e, INTEGER ARRAY f)])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+      +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

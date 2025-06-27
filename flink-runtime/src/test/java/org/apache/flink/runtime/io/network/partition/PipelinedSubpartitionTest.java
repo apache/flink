@@ -59,6 +59,7 @@ import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -308,6 +309,13 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
     }
 
     @TestTemplate
+    public void testStartingBufferSize() throws Exception {
+        int startingBufferSize = 1234;
+        final PipelinedSubpartition subpartition = createPipelinedSubpartition(startingBufferSize);
+        assertEquals(startingBufferSize, subpartition.add(createFilledFinishedBufferConsumer(4)));
+    }
+
+    @TestTemplate
     void testNewBufferSize() throws Exception {
         // given: Buffer size equal to integer max value by default.
         final PipelinedSubpartition subpartition = createSubpartition();
@@ -513,21 +521,27 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         assertThat(view.isReleased()).isTrue();
     }
 
+    public static PipelinedSubpartition createPipelinedSubpartition(int startingBufferSize) {
+        final ResultPartition parent = PartitionTestUtils.createPartition();
+
+        return new PipelinedSubpartition(0, 2, startingBufferSize, parent);
+    }
+
     public static PipelinedSubpartition createPipelinedSubpartition() {
         final ResultPartition parent = PartitionTestUtils.createPartition();
 
-        return new PipelinedSubpartition(0, 2, parent);
+        return new PipelinedSubpartition(0, 2, Integer.MAX_VALUE, parent);
     }
 
     public static PipelinedSubpartition createPipelinedSubpartition(ResultPartition parent) {
-        return new PipelinedSubpartition(0, 2, parent);
+        return new PipelinedSubpartition(0, 2, Integer.MAX_VALUE, parent);
     }
 
     private static class FailurePipelinedSubpartition extends PipelinedSubpartition {
 
         FailurePipelinedSubpartition(
                 int index, int receiverExclusiveBuffersPerChannel, ResultPartition parent) {
-            super(index, receiverExclusiveBuffersPerChannel, parent);
+            super(index, receiverExclusiveBuffersPerChannel, Integer.MAX_VALUE, parent);
         }
 
         @Override

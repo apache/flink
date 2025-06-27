@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 
 import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.KryoBufferUnderflowException;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -31,11 +32,6 @@ import java.io.InputStream;
 public class NoFetchingInput extends Input {
     public NoFetchingInput(InputStream inputStream) {
         super(inputStream, 8);
-    }
-
-    @Override
-    public boolean eof() {
-        throw new UnsupportedOperationException("NoFetchingInput does not support EOF.");
     }
 
     @Override
@@ -60,33 +56,56 @@ public class NoFetchingInput extends Input {
      * bytes. Thus, it will only load the data which is required and never prefetch data.
      *
      * @param required the number of bytes being available in the buffer
-     * @return the number of bytes remaining, which is equal to required
+     * @return The number of bytes remaining in the buffer, which will be at least <code>required
+     *     </code> bytes.
      * @throws KryoException
      */
     @Override
     protected int require(int required) throws KryoException {
+        // The main change between this and Kryo 5 Input.require is this will never read more bytes
+        // than required.
+        // There are also formatting changes to be compliant with the Flink project styling rules.
+        int remaining = limit - position;
+        if (remaining >= required) {
+            return remaining;
+        }
         if (required > capacity) {
             throw new KryoException(
-                    "Buffer too small: capacity: " + capacity + ", " + "required: " + required);
+                    "Buffer too small: capacity: " + capacity + ", required: " + required);
         }
 
-        position = 0;
-        int bytesRead = 0;
         int count;
-        while (true) {
-            count = fill(buffer, bytesRead, required - bytesRead);
-
+        // Try to fill the buffer.
+        if (remaining > 0) {
+            // Logical change 1 (from Kryo Input.require): "capacity - limit" -> "required - limit"
+            count = fill(buffer, limit, required - limit);
             if (count == -1) {
-                throw new KryoException(new EOFException("No more bytes left."));
+                throw new KryoBufferUnderflowException("Buffer underflow.");
             }
-
-            bytesRead += count;
-            if (bytesRead == required) {
-                break;
+            remaining += count;
+            if (remaining >= required) {
+                limit += count;
+                return remaining;
             }
         }
-        limit = required;
-        return required;
+
+        // Was not enough, compact and try again.
+        System.arraycopy(buffer, position, buffer, 0, remaining);
+        total += position;
+        position = 0;
+
+        do {
+            // Logical change 2 (from Kryo Input.require): "capacity - remaining" -> "required -
+            // remaining"
+            count = fill(buffer, remaining, required - remaining);
+            if (count == -1) {
+                throw new KryoBufferUnderflowException("Buffer underflow.");
+            }
+            remaining += count;
+        } while (remaining < required);
+
+        limit = remaining;
+        return remaining;
     }
 
     @Override

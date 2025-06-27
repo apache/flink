@@ -19,6 +19,8 @@
 package org.apache.flink.table.runtime.operators.over;
 
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.JoinedRowData;
+import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
@@ -56,16 +58,20 @@ public class RowTimeRowsUnboundedPrecedingFunction<K>
     @Override
     public void processElementsWithSameTimestamp(List<RowData> curRowList, Collector<RowData> out)
             throws Exception {
-        int i = 0;
-        while (i < curRowList.size()) {
-            RowData curRow = curRowList.get(i);
-            // accumulate current row
+        processElementsWithSameTimestampRows(function, output, curRowList, out);
+    }
+
+    /** Aggregate AND emit rows one by one. */
+    static void processElementsWithSameTimestampRows(
+            AggsHandleFunction function,
+            JoinedRowData outputRecord,
+            List<RowData> curRowList,
+            Collector<RowData> out)
+            throws Exception {
+        for (RowData curRow : curRowList) {
             function.accumulate(curRow);
-            // prepare output row
-            output.replace(curRow, function.getValue());
-            // emit output row
-            out.collect(output);
-            i += 1;
+            outputRecord.replace(curRow, function.getValue());
+            out.collect(outputRecord);
         }
     }
 }

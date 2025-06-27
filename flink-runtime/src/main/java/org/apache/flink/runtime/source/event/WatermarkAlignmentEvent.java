@@ -36,6 +36,15 @@ public class WatermarkAlignmentEvent implements OperatorEvent {
         return maxWatermark;
     }
 
+    /**
+     * @return true, because even if lost, {@link WatermarkAlignmentEvent} will re-send again, and
+     *     it doesn't hold any critical information that could lead to a data loss.
+     */
+    @Override
+    public boolean isLossTolerant() {
+        return true;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {

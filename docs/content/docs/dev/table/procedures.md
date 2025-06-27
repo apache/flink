@@ -395,14 +395,16 @@ import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.types.Row;
 
 public static class NamedParameterProcedure extends Procedure {
-    
-      @ProcedureHint(
-              argument = {@ArgumentHint(name = "param1", type = @DataTypeHint("INTEGER"), isOptional = false),
-                            @ArgumentHint(name = "param2", type = @DataTypeHint("INTEGER"), isOptional = true)}
-      )
-      public @DataTypeHint("INT") Integer[] call(ProcedureContext context, Integer a, Integer b) {
-        return new Integer[] {a + (b == null ? 0 : b)};
-      }
+
+  @ProcedureHint(
+    arguments = {
+      @ArgumentHint(name = "param1", type = @DataTypeHint("INTEGER"), isOptional = false),
+      @ArgumentHint(name = "param2", type = @DataTypeHint("INTEGER"), isOptional = true)
+    }
+  )
+  public @DataTypeHint("INT") Integer[] call(ProcedureContext context, Integer a, Integer b) {
+    return new Integer[] {a + (b == null ? 0 : b)};
+  }
 }
 ```
 {{< /tab >}}
@@ -417,15 +419,16 @@ import org.apache.flink.types.Row
 import scala.annotation.varargs
 
 class NamedParameterProcedure extends Procedure {
+
   @ProcedureHint(
-    argument = Array(
+    arguments = Array(
       new ArgumentHint(name = "param1", `type` = new DataTypeHint("INTEGER"), isOptional = false),
       new ArgumentHint(name = "param2", `type` = new DataTypeHint("INTEGER"), isOptional = true)
     )
   )
-    def call(context: ProcedureContext, a: Integer, b: Integer): Array[Integer] = {
-        Array(a + (if (b == null) 0 else b))
-    }
+  def call(context: ProcedureContext, a: Integer, b: Integer): Array[Integer] = {
+    Array(a + (if (b == null) 0 else b))
+  }
 }
 ```
 {{< /tab >}}
@@ -443,8 +446,10 @@ import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.types.Row;
 
 @ProcedureHint(
-        argument = {@ArgumentHint(name = "param1", type = @DataTypeHint("INTEGER"), isOptional = false),
-                      @ArgumentHint(name = "param2", type = @DataTypeHint("INTEGER"), isOptional = true)}
+  arguments = {
+    @ArgumentHint(name = "param1", type = @DataTypeHint("INTEGER"), isOptional = false),
+    @ArgumentHint(name = "param2", type = @DataTypeHint("INTEGER"), isOptional = true)
+  }
 )
 public static class NamedParameterProcedure extends Procedure {
 
@@ -465,7 +470,7 @@ import org.apache.flink.types.Row
 import scala.annotation.varargs
 
 @ProcedureHint(
-  argument = Array(
+  arguments = Array(
     new ArgumentHint(name = "param1", `type` = new DataTypeHint("INTEGER"), isOptional = false),
     new ArgumentHint(name = "param2", `type` = new DataTypeHint("INTEGER"), isOptional = true)
   )

@@ -215,6 +215,17 @@ class SlidingEventTimeWindowsTest {
                                         Duration.ofSeconds(11)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("abs(offset) < slide and size > 0");
+
+        assertThatThrownBy(
+                        () ->
+                                SlidingEventTimeWindows.of(
+                                        Duration.ofMillis(
+                                                SlidingEventTimeWindows.MAX_WINDOW_NUM + 1),
+                                        Duration.ofMillis(1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(
+                        String.format(
+                                "size / slide <= %d", SlidingEventTimeWindows.MAX_WINDOW_NUM));
     }
 
     @Test

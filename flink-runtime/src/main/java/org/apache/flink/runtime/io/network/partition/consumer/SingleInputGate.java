@@ -475,11 +475,7 @@ public class SingleInputGate extends IndexedInputGate {
         return bufferDebloater.getLastEstimatedTimeToConsumeBuffers();
     }
 
-    /**
-     * Returns the type of this input channel's consumed result partition.
-     *
-     * @return consumed result partition type
-     */
+    @Override
     public ResultPartitionType getConsumedPartitionType() {
         return consumedPartitionType;
     }
@@ -1127,6 +1123,13 @@ public class SingleInputGate extends IndexedInputGate {
             if (numberOfUninitializedChannels > 0) {
                 pendingEvents.add(event);
             }
+        }
+    }
+
+    public void resumeGateConsumption() throws IOException {
+        checkState(!isFinished(), "InputGate already finished.");
+        for (InputChannel inputChannel : channels) {
+            inputChannel.resumeConsumption();
         }
     }
 

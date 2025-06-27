@@ -197,19 +197,6 @@ DataStream<Integer> stream = env.fromSource(
 ...
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-
-val mySource = new MySource(...)
-
-val stream = env.fromSource(
-      mySource,
-      WatermarkStrategy.noWatermarks(),
-      "MySourceName")
-...
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()
@@ -281,9 +268,9 @@ public class FixedSizeSplitFetcherManager<E, SplitT extends SourceSplit>
 
     public FixedSizeSplitFetcherManager(
             int numFetchers,
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-            Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
-        super(elementsQueue, splitReaderSupplier);
+            Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
+            Configuration config) {
+        super(splitReaderSupplier, config);
         this.numFetchers = numFetchers;
         // Create numFetchers split fetchers.
         for (int i = 0; i < numFetchers; i++) {
@@ -325,17 +312,15 @@ public class FixedFetcherSizeSourceReader<E, T, SplitT extends SourceSplit, Spli
         extends SourceReaderBase<E, T, SplitT, SplitStateT> {
 
     public FixedFetcherSizeSourceReader(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitFetcherSupplier,
             RecordEmitter<E, T, SplitStateT> recordEmitter,
             Configuration config,
             SourceReaderContext context) {
         super(
-                elementsQueue,
                 new FixedSizeSplitFetcherManager<>(
-                        config.getInteger(SourceConfig.NUM_FETCHERS),
-                        elementsQueue,
-                        splitFetcherSupplier),
+                        config.get(SourceConfig.NUM_FETCHERS),
+                        splitFetcherSupplier,
+                        config),
                 recordEmitter,
                 config,
                 context);
@@ -370,10 +355,6 @@ The `SourceReader` implementations can also implement their own threading model 
 ## Event Time and Watermarks
 
 *Event Time* assignment and *Watermark Generation* happen as part of the data sources. The event streams leaving the Source Readers have event timestamps and (during streaming execution) contain watermarks. See [Timely Stream Processing]({{< ref "docs/concepts/time" >}}) for an introduction to Event Time and Watermarks.
-
-{{< hint warning >}}
-Applications based on the legacy {{< gh_link file="flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/source/SourceFunction.java" name="SourceFunction" >}} typically generate timestamps and watermarks in a separate later step via `stream.assignTimestampsAndWatermarks(WatermarkStrategy)`. This function should not be used with the new sources, because timestamps will be already assigned, and it will override the previous split-aware watermarks.
-{{< /hint >}}
 
 #### API
 

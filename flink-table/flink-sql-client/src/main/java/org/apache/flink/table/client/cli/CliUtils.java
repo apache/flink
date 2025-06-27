@@ -19,8 +19,8 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.types.DataType;
 
 import org.jline.utils.AttributedString;
@@ -29,7 +29,6 @@ import org.jline.utils.AttributedStyle;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -121,11 +120,8 @@ public final class CliUtils {
         }
     }
 
-    /** Get time zone from the given session config. */
-    public static ZoneId getSessionTimeZone(ReadableConfig sessionConfig) {
-        final String zone = sessionConfig.get(TableConfigOptions.LOCAL_TIME_ZONE);
-        return TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
-                ? ZoneId.systemDefault()
-                : ZoneId.of(zone);
+    public static boolean isApplicationMode(ReadableConfig config) {
+        final String executionTarget = config.getOptional(DeploymentOptions.TARGET).orElse("");
+        return executionTarget.trim().endsWith("application");
     }
 }

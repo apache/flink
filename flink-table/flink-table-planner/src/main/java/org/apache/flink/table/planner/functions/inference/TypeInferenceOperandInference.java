@@ -25,6 +25,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeInferenceUtil;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -35,6 +36,7 @@ import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.type.SqlOperandTypeInference;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 import static org.apache.flink.table.types.inference.TypeInferenceUtil.createUnexpectedException;
@@ -66,7 +68,12 @@ public final class TypeInferenceOperandInference implements SqlOperandTypeInfere
     public void inferOperandTypes(
             SqlCallBinding callBinding, RelDataType returnType, RelDataType[] operandTypes) {
         final CallContext callContext =
-                new CallBindingCallContext(dataTypeFactory, definition, callBinding, returnType);
+                new CallBindingCallContext(
+                        dataTypeFactory,
+                        definition,
+                        callBinding,
+                        returnType,
+                        typeInference.getStaticArguments().orElse(null));
         try {
             if (TypeInferenceUtil.validateArgumentCount(
                     typeInference.getInputTypeStrategy().getArgumentCount(),
@@ -86,9 +93,14 @@ public final class TypeInferenceOperandInference implements SqlOperandTypeInfere
     private void inferOperandTypesOrError(
             FlinkTypeFactory typeFactory, CallContext callContext, RelDataType[] operandTypes) {
         final List<DataType> expectedDataTypes;
-        // typed arguments have highest priority
-        if (typeInference.getTypedArguments().isPresent()) {
-            expectedDataTypes = typeInference.getTypedArguments().get();
+
+        // Static arguments have the highest priority
+        final List<StaticArgument> staticArgs = typeInference.getStaticArguments().orElse(null);
+        if (staticArgs != null) {
+            expectedDataTypes =
+                    staticArgs.stream()
+                            .map(staticArg -> staticArg.getDataType().orElse(null))
+                            .collect(Collectors.toList());
         } else {
             expectedDataTypes =
                     typeInference
@@ -97,14 +109,17 @@ public final class TypeInferenceOperandInference implements SqlOperandTypeInfere
                             .orElse(null);
         }
 
-        // early out for invalid input
+        // Early out for invalid input
         if (expectedDataTypes == null || expectedDataTypes.size() != operandTypes.length) {
             return;
         }
 
         for (int i = 0; i < operandTypes.length; i++) {
-            final LogicalType inferredType = expectedDataTypes.get(i).getLogicalType();
-            operandTypes[i] = typeFactory.createFieldTypeFromLogicalType(inferredType);
+            final DataType expectedDataType = expectedDataTypes.get(i);
+            if (expectedDataType != null) {
+                final LogicalType inferredType = expectedDataType.getLogicalType();
+                operandTypes[i] = typeFactory.createFieldTypeFromLogicalType(inferredType);
+            }
         }
     }
 }

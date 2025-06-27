@@ -39,23 +39,19 @@ import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
-import org.apache.flink.state.forst.ForStKeyedStateBackend.ForStKvStateInfo;
+import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.state.forst.ForStResourceContainer;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
 
 import org.forstdb.RocksDB;
-import org.forstdb.RocksDBException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -72,12 +68,7 @@ import java.util.stream.Collectors;
  * @param <K> type of the backend keys.
  */
 public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
-        implements CheckpointListener,
-                SnapshotStrategy<
-                        KeyedStateHandle, ForStSnapshotStrategyBase.ForStNativeSnapshotResources>,
-                AutoCloseable {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ForStSnapshotStrategyBase.class);
+        implements CheckpointListener, SnapshotStrategy<KeyedStateHandle, R>, AutoCloseable {
 
     @Nonnull private final String description;
 
@@ -93,7 +84,8 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
     @Nonnull protected final TypeSerializer<K> keySerializer;
 
     /** Key/Value state meta info from the backend. */
-    @Nonnull protected final LinkedHashMap<String, ForStKvStateInfo> kvStateInformation;
+    @Nonnull
+    protected final LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation;
 
     /** The key-group range for the task. */
     @Nonnull protected final KeyGroupRange keyGroupRange;
@@ -110,7 +102,7 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
             @Nonnull ResourceGuard resourceGuard,
             @Nonnull ForStResourceContainer resourceContainer,
             @Nonnull TypeSerializer<K> keySerializer,
-            @Nonnull LinkedHashMap<String, ForStKvStateInfo> kvStateInformation,
+            @Nonnull LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
             @Nonnull KeyGroupRange keyGroupRange,
             @Nonnegative int keyGroupPrefixBytes,
             @Nonnull UUID backendUID) {
@@ -128,88 +120,6 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
     @Nonnull
     public String getDescription() {
         return description;
-    }
-
-    @Override
-    public ForStNativeSnapshotResources syncPrepareResources(long checkpointId) throws Exception {
-
-        final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
-                new ArrayList<>(kvStateInformation.size());
-        final PreviousSnapshot previousSnapshot =
-                snapshotMetaData(checkpointId, stateMetaInfoSnapshots);
-
-        // Disable file deletion for file transformation. ForSt will decide whether to allow file
-        // deletion based on the number of calls to disableFileDeletions() and
-        // enableFileDeletions(), so disableFileDeletions() should be call only once.
-        db.disableFileDeletions();
-
-        try {
-            // get live files with flush memtable
-            RocksDB.LiveFiles liveFiles = db.getLiveFiles(true);
-            List<Path> liveFilesPath =
-                    liveFiles.files.stream()
-                            .map(file -> new Path(resourceContainer.getDbPath(), file))
-                            // Use manifest file name write CURRENT file to checkpoint directly.
-                            .filter(
-                                    file ->
-                                            !file.getName()
-                                                    .equals(ForStSnapshotUtil.CURRENT_FILE_NAME))
-                            .collect(Collectors.toList());
-
-            String manifestFileName =
-                    liveFilesPath.stream()
-                            .filter(
-                                    file ->
-                                            file.getName()
-                                                    .startsWith(
-                                                            ForStSnapshotUtil.MANIFEST_FILE_PREFIX))
-                            .findAny()
-                            .get() // there must be a manifest file.
-                            .getName();
-
-            logLiveFiles(checkpointId, liveFiles.manifestFileSize, liveFilesPath);
-
-            return new ForStNativeSnapshotResources(
-                    stateMetaInfoSnapshots,
-                    liveFiles.manifestFileSize,
-                    liveFilesPath,
-                    manifestFileName,
-                    previousSnapshot,
-                    () -> {
-                        try {
-                            db.enableFileDeletions(false);
-                            LOG.info(
-                                    "Release one file deletion lock with ForStNativeSnapshotResources, backendUID:{}, checkpointId:{}.",
-                                    backendUID,
-                                    checkpointId);
-                        } catch (RocksDBException e) {
-                            LOG.error(
-                                    "Enable file deletion failed, backendUID:{}, checkpointId:{}.",
-                                    backendUID,
-                                    checkpointId,
-                                    e);
-                        }
-                    });
-        } catch (Exception e) {
-            LOG.error(
-                    "Exception thrown when prepare snapshot resources, enable file deletion and rethrow the exception, backendUID:{}, checkpointId:{}",
-                    backendUID,
-                    checkpointId);
-            db.enableFileDeletions(false);
-            throw e;
-        }
-    }
-
-    private void logLiveFiles(long checkpointId, long manifestFileSize, List<Path> liveFilesPath) {
-        if (LOG.isDebugEnabled()) {
-            StringBuilder sb =
-                    new StringBuilder("    manifestFileSize:")
-                            .append(manifestFileSize)
-                            .append("\n");
-            liveFilesPath.forEach(e -> sb.append("    file : ").append(e).append("\n"));
-            LOG.debug(
-                    "Backend:{} live files for checkpoint:{} : \n{}", backendUID, checkpointId, sb);
-        }
     }
 
     protected abstract PreviousSnapshot snapshotMetaData(
@@ -281,16 +191,12 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
             implements SnapshotResultSupplier<KeyedStateHandle> {
 
         protected final long checkpointId;
-        @Nonnull protected final ForStNativeSnapshotResources snapshotResources;
         @Nonnull protected final CheckpointStreamFactory checkpointStreamFactory;
         @Nonnull protected final CloseableRegistry tmpResourcesRegistry;
 
         protected ForStSnapshotOperation(
-                long checkpointId,
-                @Nonnull ForStNativeSnapshotResources snapshotResources,
-                @Nonnull CheckpointStreamFactory checkpointStreamFactory) {
+                long checkpointId, @Nonnull CheckpointStreamFactory checkpointStreamFactory) {
             this.checkpointId = checkpointId;
-            this.snapshotResources = snapshotResources;
             this.checkpointStreamFactory = checkpointStreamFactory;
             this.tmpResourcesRegistry = new CloseableRegistry();
         }
@@ -303,6 +209,7 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
         protected final long manifestFileSize;
         @Nonnull protected final List<Path> liveFiles;
         @Nonnull protected final String manifestFileName;
+        @Nonnull protected final Path manifestFilePath;
         @Nonnull protected PreviousSnapshot previousSnapshot;
         @Nonnull protected final Runnable releaser;
 
@@ -312,13 +219,14 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
                 @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
                 long manifestFileSize,
                 @Nonnull List<Path> liveFiles,
-                @Nonnull String manifestFileName,
+                @Nonnull Path manifestFilePath,
                 @Nonnull PreviousSnapshot previousSnapshot,
                 @Nonnull Runnable releaser) {
             this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
             this.manifestFileSize = manifestFileSize;
             this.liveFiles = liveFiles;
-            this.manifestFileName = manifestFileName;
+            this.manifestFilePath = manifestFilePath;
+            this.manifestFileName = manifestFilePath.getName();
             this.previousSnapshot = previousSnapshot;
             this.releaser = releaser;
             this.released = new AtomicBoolean(false);
@@ -377,6 +285,10 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
                 // (by TM) if the previous checkpoint failed. See FLINK-25395
                 return Optional.empty();
             }
+        }
+
+        protected boolean isEmpty() {
+            return confirmedSstFiles.isEmpty();
         }
     }
 }

@@ -1,0 +1,137 @@
+{
+  "flinkVersion" : "2.1",
+  "nodes" : [ {
+    "id" : 7,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`features`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "feature",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ],
+            "primaryKey" : {
+              "name" : "PK_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "id" ]
+            }
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "outputType" : "ROW<`id` INT NOT NULL, `feature` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, features]], fields=[id, feature])",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 8,
+    "type" : "stream-exec-ml-predict-table-function_1",
+    "mlPredictSpec" : {
+      "features" : [ {
+        "type" : "FieldRef",
+        "index" : 1
+      } ],
+      "runtimeConfig" : {
+        "async" : "false"
+      }
+    },
+    "modelSpec" : {
+      "model" : {
+        "identifier" : "`default_catalog`.`default_database`.`chatgpt`",
+        "resolvedModel" : {
+          "inputSchema" : {
+            "columns" : [ {
+              "name" : "feature",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "outputSchema" : {
+            "columns" : [ {
+              "name" : "category",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          }
+        }
+      }
+    },
+    "asyncOptions" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` INT NOT NULL, `feature` VARCHAR(2147483647), `category` VARCHAR(2147483647)>",
+    "description" : "MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.chatgpt), DESCRIPTOR(_UTF-16LE'feature'), MAP(_UTF-16LE'async', _UTF-16LE'false'))], rowType=[RecordType(INTEGER id, VARCHAR(2147483647) feature, VARCHAR(2147483647) category)])"
+  }, {
+    "id" : 9,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "feature",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "category",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ],
+            "primaryKey" : {
+              "name" : "PK_id",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "id" ]
+            }
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` INT NOT NULL, `feature` VARCHAR(2147483647), `category` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[id, feature, category])"
+  } ],
+  "edges" : [ {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 8,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

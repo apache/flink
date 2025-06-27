@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -51,12 +52,12 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.createJsonObjectReader;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.createJsonObjectWriter;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ContextResolvedTableJsonSerializer.FIELD_NAME_CATALOG_TABLE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ContextResolvedTableJsonSerializer.FIELD_NAME_IDENTIFIER;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.assertThatJsonContains;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.assertThatJsonDoesNotContain;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.createObjectReader;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.createObjectWriter;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -80,7 +81,9 @@ public class ContextResolvedTableSerdeTest {
                             Column.physical("b", DataTypes.INT()),
                             Column.physical("c", DataTypes.BOOLEAN())),
                     Collections.emptyList(),
-                    null);
+                    null,
+                    Collections.singletonList(
+                            DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
     private static final Schema CATALOG_TABLE_SCHEMA =
             Schema.newBuilder().fromResolvedSchema(CATALOG_TABLE_RESOLVED_SCHEMA).build();
 
@@ -226,11 +229,11 @@ public class ContextResolvedTableSerdeTest {
                                         .options(PLAN_OPTIONS)
                                         .build(),
                                 CATALOG_TABLE_RESOLVED_SCHEMA));
-        final byte[] actualSerialized = createObjectWriter(ctx).writeValueAsBytes(spec);
+        final byte[] actualSerialized = createJsonObjectWriter(ctx).writeValueAsBytes(spec);
 
         assertThatThrownBy(
                         () ->
-                                createObjectReader(ctx)
+                                createJsonObjectReader(ctx)
                                         .readValue(actualSerialized, ContextResolvedTable.class))
                 .satisfies(
                         anyCauseMatches(
@@ -295,19 +298,18 @@ public class ContextResolvedTableSerdeTest {
                                 objectIdentifier,
                                 CATALOG,
                                 new ResolvedCatalogTable(
-                                        CatalogTable.of(
-                                                CATALOG_TABLE_SCHEMA,
-                                                null,
-                                                Collections.emptyList(),
-                                                PLAN_OPTIONS),
+                                        CatalogTable.newBuilder()
+                                                .schema(CATALOG_TABLE_SCHEMA)
+                                                .options(PLAN_OPTIONS)
+                                                .build(),
                                         CATALOG_TABLE_RESOLVED_SCHEMA));
 
                 final byte[] actualSerialized =
-                        createObjectWriter(serdeCtx).writeValueAsBytes(spec);
+                        createJsonObjectWriter(serdeCtx).writeValueAsBytes(spec);
 
                 assertThatThrownBy(
                                 () ->
-                                        createObjectReader(serdeCtx)
+                                        createJsonObjectReader(serdeCtx)
                                                 .readValue(
                                                         actualSerialized,
                                                         ContextResolvedTable.class))
@@ -332,12 +334,12 @@ public class ContextResolvedTableSerdeTest {
             @Test
             void deserializationFail() throws Exception {
                 final byte[] actualSerialized =
-                        createObjectWriter(ctx)
+                        createJsonObjectWriter(ctx)
                                 .writeValueAsBytes(PERMANENT_PLAN_CONTEXT_RESOLVED_TABLE);
 
                 assertThatThrownBy(
                                 () ->
-                                        createObjectReader(ctx)
+                                        createJsonObjectReader(ctx)
                                                 .readValue(
                                                         actualSerialized,
                                                         ContextResolvedTable.class))
@@ -411,26 +413,31 @@ public class ContextResolvedTableSerdeTest {
                                         Column.physical("b", DataTypes.STRING()),
                                         Column.physical("c", DataTypes.STRING())),
                                 Collections.emptyList(),
-                                null);
+                                null,
+                                Collections.singletonList(
+                                        DefaultIndex.newIndex(
+                                                "idx", Collections.singletonList("a"))));
                 final ContextResolvedTable spec =
                         ContextResolvedTable.permanent(
                                 PERMANENT_TABLE_IDENTIFIER,
                                 CATALOG,
                                 new ResolvedCatalogTable(
-                                        CatalogTable.of(
-                                                Schema.newBuilder()
-                                                        .fromResolvedSchema(resolvedSchema)
-                                                        .build(),
-                                                "my comment",
-                                                PARTITION_KEYS,
-                                                PLAN_OPTIONS),
+                                        CatalogTable.newBuilder()
+                                                .schema(
+                                                        Schema.newBuilder()
+                                                                .fromResolvedSchema(resolvedSchema)
+                                                                .build())
+                                                .comment("my comment")
+                                                .partitionKeys(PARTITION_KEYS)
+                                                .options(PLAN_OPTIONS)
+                                                .build(),
                                         resolvedSchema));
 
-                final byte[] actualSerialized = createObjectWriter(ctx).writeValueAsBytes(spec);
+                final byte[] actualSerialized = createJsonObjectWriter(ctx).writeValueAsBytes(spec);
 
                 assertThatThrownBy(
                                 () ->
-                                        createObjectReader(ctx)
+                                        createJsonObjectReader(ctx)
                                                 .readValue(
                                                         actualSerialized,
                                                         ContextResolvedTable.class))
@@ -497,12 +504,12 @@ public class ContextResolvedTableSerdeTest {
             @Test
             void withPermanentTable() throws Exception {
                 final byte[] actualSerialized =
-                        createObjectWriter(ctx)
+                        createJsonObjectWriter(ctx)
                                 .writeValueAsBytes(PERMANENT_PLAN_CONTEXT_RESOLVED_TABLE);
 
                 assertThatThrownBy(
                                 () ->
-                                        createObjectReader(ctx)
+                                        createJsonObjectReader(ctx)
                                                 .readValue(
                                                         actualSerialized,
                                                         ContextResolvedTable.class))
@@ -656,9 +663,9 @@ public class ContextResolvedTableSerdeTest {
     private Tuple2<JsonNode, ContextResolvedTable> serDe(
             SerdeContext serdeCtx, ContextResolvedTable contextResolvedTable) throws Exception {
         final byte[] actualSerialized =
-                createObjectWriter(serdeCtx).writeValueAsBytes(contextResolvedTable);
+                createJsonObjectWriter(serdeCtx).writeValueAsBytes(contextResolvedTable);
 
-        final ObjectReader objectReader = createObjectReader(serdeCtx);
+        final ObjectReader objectReader = createJsonObjectReader(serdeCtx);
         final JsonNode middleDeserialized = objectReader.readTree(actualSerialized);
         final ContextResolvedTable actualDeserialized =
                 objectReader.readValue(actualSerialized, ContextResolvedTable.class);

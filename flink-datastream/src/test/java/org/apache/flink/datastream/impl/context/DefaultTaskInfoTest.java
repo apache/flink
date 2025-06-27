@@ -26,9 +26,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DefaultTaskInfoTest {
     @Test
     void testTaskInfo() {
-        DefaultTaskInfo taskInfo = new DefaultTaskInfo(1, 2, "taskName");
+        DefaultTaskInfo taskInfo = new DefaultTaskInfo(1, 2, "taskName", 0, 0);
         assertThat(taskInfo.getParallelism()).isEqualTo(1);
         assertThat(taskInfo.getMaxParallelism()).isEqualTo(2);
         assertThat(taskInfo.getTaskName()).isEqualTo("taskName");
+        assertThat(taskInfo.getIndexOfThisSubtask()).isEqualTo(0);
+        assertThat(taskInfo.getAttemptNumber()).isEqualTo(0);
     }
 }

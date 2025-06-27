@@ -320,7 +320,8 @@ object MetadataTestUtil {
         Column.physical("d", DataTypes.BIGINT().notNull())
       ),
       Collections.emptyList(),
-      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "d")))
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "d")),
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
@@ -340,21 +341,21 @@ object MetadataTestUtil {
   }
 
   private def createTableSourceTable1(): Table = {
-    val catalogTable = CatalogTable.of(
-      org.apache.flink.table.api.Schema.newBuilder
-        .column("a", DataTypes.BIGINT.notNull)
-        .column("b", DataTypes.INT.notNull)
-        .column("c", DataTypes.VARCHAR(2147483647).notNull)
-        .column("d", DataTypes.BIGINT.notNull)
-        .primaryKeyNamed("PK_1", "a", "b")
-        .build,
-      null,
-      Collections.emptyList(),
-      Map(
+    val catalogTable = CatalogTable
+      .newBuilder()
+      .schema(
+        org.apache.flink.table.api.Schema.newBuilder
+          .column("a", DataTypes.BIGINT.notNull)
+          .column("b", DataTypes.INT.notNull)
+          .column("c", DataTypes.VARCHAR(2147483647).notNull)
+          .column("d", DataTypes.BIGINT.notNull)
+          .primaryKeyNamed("PK_1", "a", "b")
+          .build)
+      .options(Map(
         "connector" -> "values",
         "bounded" -> "true"
-      )
-    )
+      ))
+      .build()
 
     val resolvedSchema = new ResolvedSchema(
       util.Arrays.asList(
@@ -364,7 +365,8 @@ object MetadataTestUtil {
         Column.physical("d", DataTypes.BIGINT().notNull())
       ),
       Collections.emptyList(),
-      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")))
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")),
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val typeFactory = new FlinkTypeFactory(Thread.currentThread().getContextClassLoader)
     val rowType = typeFactory.buildRelNodeRowType(
@@ -391,7 +393,8 @@ object MetadataTestUtil {
         Column.physical("d", DataTypes.BIGINT().notNull())
       ),
       Collections.emptyList(),
-      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("b")))
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("b")),
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
@@ -420,7 +423,8 @@ object MetadataTestUtil {
         Column.physical("d", DataTypes.BIGINT().notNull())
       ),
       Collections.emptyList(),
-      null)
+      null,
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
@@ -446,7 +450,8 @@ object MetadataTestUtil {
         Column.physical("a", DataTypes.BIGINT().notNull()),
         Column.physical("b", DataTypes.BIGINT().notNull())),
       Collections.emptyList(),
-      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")))
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")),
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
@@ -468,15 +473,15 @@ object MetadataTestUtil {
   }
 
   private def getCatalogTable(resolvedSchema: ResolvedSchema) = {
-    CatalogTable.of(
-      org.apache.flink.table.api.Schema.newBuilder.fromResolvedSchema(resolvedSchema).build,
-      null,
-      Collections.emptyList(),
-      Map(
-        "connector" -> "values",
-        "bounded" -> "true"
-      )
-    )
+    CatalogTable
+      .newBuilder()
+      .schema(org.apache.flink.table.api.Schema.newBuilder.fromResolvedSchema(resolvedSchema).build)
+      .options(
+        Map(
+          "connector" -> "values",
+          "bounded" -> "true"
+        ))
+      .build()
   }
 
   private def getMetadataTable(

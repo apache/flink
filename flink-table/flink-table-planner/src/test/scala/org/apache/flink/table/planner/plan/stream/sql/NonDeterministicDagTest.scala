@@ -24,7 +24,6 @@ import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.config.OptimizerConfigOptions.NonDeterministicUpdateStrategy
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.planner.JBoolean
@@ -33,7 +32,6 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunction
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
@@ -97,7 +95,8 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                | primary key (a) not enforced
                                |) with (
                                | 'connector' = 'values',
-                               | 'changelog-mode' = 'I,UA,D'
+                               | 'changelog-mode' = 'I,UA,D',
+                               | 'source.produces-delete-by-key' = 'true'
                                |)""".stripMargin)
     util.tableEnv.executeSql("""
                                |create temporary table upsert_src_with_meta (
@@ -111,6 +110,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                |) with (
                                | 'connector' = 'values',
                                | 'changelog-mode' = 'I,UA,D',
+                               | 'source.produces-delete-by-key' = 'true',
                                | 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING'
                                |)""".stripMargin)
 
@@ -278,52 +278,6 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                                                         |select a, metadata_3, c
                                                                         |from cdc_with_meta
                                                                         |""".stripMargin)
-
-    if (tryResolve) {
-      assertThatThrownBy(callable)
-        .hasMessageContaining(
-          "metadata column(s): 'metadata_3' in cdc source may cause wrong result or error")
-        .isInstanceOf[TableException]
-    } else {
-      assertThatCode(callable).doesNotThrowAnyException()
-    }
-  }
-
-  @TestTemplate
-  def testCdcWithMetaLegacySinkWithPk(): Unit = {
-    val sinkWithPk = new TestingUpsertSink(
-      Array("a"),
-      Array("a", "b", "c"),
-      // pk column requires non-null type
-      Array(DataTypes.INT().notNull(), DataTypes.BIGINT(), DataTypes.VARCHAR(100)))
-
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSinkInternal("legacy_upsert_sink", sinkWithPk)
-
-    util.verifyExecPlanInsert(s"""
-                                 |insert into legacy_upsert_sink
-                                 |select a, metadata_3, c
-                                 |from cdc_with_meta
-                                 |""".stripMargin)
-  }
-
-  @TestTemplate
-  def testCdcWithMetaLegacySinkWithoutPk(): Unit = {
-    val retractSink =
-      util.createRetractTableSink(
-        Array("a", "b", "c"),
-        Array(new IntType(), new BigIntType(), VarCharType.STRING_TYPE))
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSinkInternal("legacy_retract_sink", retractSink)
-
-    val callable: ThrowingCallable = () =>
-      util.verifyExecPlanInsert(s"""
-                                   |insert into legacy_retract_sink
-                                   |select a, metadata_3, c
-                                   |from cdc_with_meta
-                                   |""".stripMargin)
 
     if (tryResolve) {
       assertThatThrownBy(callable)

@@ -114,7 +114,9 @@ public class RemoteTierProducerAgent implements TierProducerAgent {
     @Override
     public void close() {
         for (int subpartitionId = 0; subpartitionId < numSubpartitions; subpartitionId++) {
-            cacheDataManager.finishSegment(subpartitionId);
+            if (cacheDataManager.hasAnySegmentStarted(subpartitionId)) {
+                cacheDataManager.finishSegment(subpartitionId);
+            }
         }
         cacheDataManager.close();
     }

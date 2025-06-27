@@ -28,7 +28,7 @@ import static org.apache.flink.state.forst.ForStOptions.FORST_TIMER_SERVICE_FACT
 import static org.apache.flink.state.forst.ForStOptions.TIMER_SERVICE_FACTORY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** The configuration of rocksDB priority queue state implementation. */
+/** The configuration of ForSt priority queue state implementation. */
 public class ForStPriorityQueueConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -39,7 +39,7 @@ public class ForStPriorityQueueConfig implements Serializable {
     private @Nullable ForStStateBackend.PriorityQueueStateType priorityQueueStateType;
 
     /** cache size per keyGroup for rocksDB priority queue state. */
-    private int rocksDBPriorityQueueSetCacheSize;
+    private int forStDBPriorityQueueSetCacheSize;
 
     public ForStPriorityQueueConfig() {
         this(null, UNDEFINED_ROCKSDB_PRIORITY_QUEUE_SET_CACHE_SIZE);
@@ -47,9 +47,9 @@ public class ForStPriorityQueueConfig implements Serializable {
 
     public ForStPriorityQueueConfig(
             ForStStateBackend.PriorityQueueStateType priorityQueueStateType,
-            int rocksDBPriorityQueueSetCacheSize) {
+            int forStDBPriorityQueueSetCacheSize) {
         this.priorityQueueStateType = priorityQueueStateType;
-        this.rocksDBPriorityQueueSetCacheSize = rocksDBPriorityQueueSetCacheSize;
+        this.forStDBPriorityQueueSetCacheSize = forStDBPriorityQueueSetCacheSize;
     }
 
     /**
@@ -70,10 +70,10 @@ public class ForStPriorityQueueConfig implements Serializable {
      * Gets the cache size of rocksDB priority queue set. It will fall back to the default value if
      * it is not explicitly set.
      */
-    public int getRocksDBPriorityQueueSetCacheSize() {
-        return rocksDBPriorityQueueSetCacheSize == UNDEFINED_ROCKSDB_PRIORITY_QUEUE_SET_CACHE_SIZE
+    public int getForStDBPriorityQueueSetCacheSize() {
+        return forStDBPriorityQueueSetCacheSize == UNDEFINED_ROCKSDB_PRIORITY_QUEUE_SET_CACHE_SIZE
                 ? FORST_TIMER_SERVICE_FACTORY_CACHE_SIZE.defaultValue()
-                : rocksDBPriorityQueueSetCacheSize;
+                : forStDBPriorityQueueSetCacheSize;
     }
 
     public static ForStPriorityQueueConfig fromOtherAndConfiguration(
@@ -83,10 +83,10 @@ public class ForStPriorityQueueConfig implements Serializable {
                         ? config.get(TIMER_SERVICE_FACTORY)
                         : other.priorityQueueStateType;
         int cacheSize =
-                (other.rocksDBPriorityQueueSetCacheSize
+                (other.forStDBPriorityQueueSetCacheSize
                                 == UNDEFINED_ROCKSDB_PRIORITY_QUEUE_SET_CACHE_SIZE)
                         ? config.get(FORST_TIMER_SERVICE_FACTORY_CACHE_SIZE)
-                        : other.rocksDBPriorityQueueSetCacheSize;
+                        : other.forStDBPriorityQueueSetCacheSize;
         return new ForStPriorityQueueConfig(priorityQueueType, cacheSize);
     }
 

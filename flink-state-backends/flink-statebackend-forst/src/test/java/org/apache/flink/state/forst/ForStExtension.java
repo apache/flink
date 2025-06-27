@@ -19,6 +19,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
@@ -168,7 +169,10 @@ public class ForStExtension implements BeforeEachCallback, AfterEachCallback {
                         new Configuration(),
                         optionsFactory,
                         null,
-                        localWorkingDir,
+                        new Path(localWorkingDir.getAbsolutePath()),
+                        null,
+                        null,
+                        null,
                         null,
                         enableStatistics);
         resourceContainer.prepareDirectories();
@@ -186,16 +190,16 @@ public class ForStExtension implements BeforeEachCallback, AfterEachCallback {
         // working dir. We will implement this in ForStDB later, but before that, we achieved this
         // by setting the dbPath to "/" when the dfs directory existed.
         // TODO: use localForStPath as dbPath after ForSt Support mixing local-dir and remote-dir
-        File instanceForStPath =
+        Path instanceForStPath =
                 resourceContainer.getRemoteForStPath() == null
                         ? resourceContainer.getLocalForStPath()
-                        : new File("/");
+                        : new Path("/");
 
         this.columnFamilyHandles = new ArrayList<>(1);
         this.db =
                 RocksDB.open(
                         dbOptions,
-                        instanceForStPath.getAbsolutePath(),
+                        instanceForStPath.getPath(),
                         Collections.singletonList(
                                 new ColumnFamilyDescriptor(
                                         "default".getBytes(), columnFamilyOptions)),

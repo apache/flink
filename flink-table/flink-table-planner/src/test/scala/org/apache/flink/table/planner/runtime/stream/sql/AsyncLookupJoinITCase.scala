@@ -19,15 +19,16 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.bridge.scala.tableConversions
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.config.ExecutionConfigOptions.AsyncOutputMode
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.source.lookup.LookupOptions
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.binary.BinaryStringData
-import org.apache.flink.table.legacy.api.{TableSchema, Types}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
+import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink, TestSinkUtil}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
 import org.apache.flink.table.runtime.functions.table.lookup.LookupCacheManager
@@ -36,6 +37,7 @@ import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatIterable, assertThatThrownBy}
 import org.junit.jupiter.api.{AfterEach, BeforeEach, TestTemplate}
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Boolean => JBoolean}
@@ -45,10 +47,10 @@ import scala.collection.JavaConversions._
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class AsyncLookupJoinITCase(
-    legacyTableSource: Boolean,
     backend: StateBackendMode,
     objectReuse: Boolean,
     asyncOutputMode: AsyncOutputMode,
+    keyOrdered: Boolean,
     enableCache: Boolean)
   extends StreamingWithStateTestBase(backend) {
 
@@ -59,16 +61,30 @@ class AsyncLookupJoinITCase(
     rowOf(8L, 11, "Hello world"),
     rowOf(9L, 12, "Hello world!"))
 
+  var cdcRowData =
+    List(
+      changelogRow("+I", jl(1L), Int.box(12), "Julian"),
+      changelogRow("-U", jl(1L), Int.box(12), "Julian"),
+      changelogRow("+U", jl(1L), Int.box(13), "Julian"),
+      changelogRow("-D", jl(1L), Int.box(13), "Julian"),
+      changelogRow("+I", jl(1L), Int.box(14), "Julian"),
+      changelogRow("-U", jl(1L), Int.box(14), "Julian"),
+      changelogRow("+U", jl(1L), Int.box(15), "Julian"),
+      changelogRow("+I", jl(2L), Int.box(16), "Hello"),
+      changelogRow("-U", jl(2L), Int.box(16), "Hello"),
+      changelogRow("+U", jl(2L), Int.box(17), "Hello"),
+      changelogRow("-U", jl(2L), Int.box(17), "Hello"),
+      changelogRow("+U", jl(2L), Int.box(18), "Hello"),
+      changelogRow("+I", jl(3L), Int.box(19), "Fabian"),
+      changelogRow("-D", jl(3L), Int.box(19), "Fabian")
+    )
+
   val userData = List(rowOf(11, 1L, "Julian"), rowOf(22, 2L, "Jark"), rowOf(33, 3L, "Fabian"))
 
   @BeforeEach
   override def before(): Unit = {
     super.before()
-    if (legacyTableSource) {
-      InMemoryLookupableTableSource.RESOURCE_COUNTER.set(0)
-    } else {
-      TestValuesTableFactory.RESOURCE_COUNTER.set(0)
-    }
+    TestValuesTableFactory.RESOURCE_COUNTER.set(0)
     if (objectReuse) {
       env.getConfig.enableObjectReuse()
     } else {
@@ -76,8 +92,12 @@ class AsyncLookupJoinITCase(
     }
 
     tEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE, asyncOutputMode)
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED,
+      Boolean.box(keyOrdered))
 
-    createScanTable("src", data)
+    createScanTable("src", data, isCdc = false)
+    createScanTable("cdc_src", cdcRowData, isCdc = true)
     createLookupTable("user_table", userData)
     // lookup will start from the 2nd time, first lookup will always get null result
     createLookupTable("user_table_with_lookup_threshold2", userData, 2)
@@ -88,57 +108,38 @@ class AsyncLookupJoinITCase(
   @AfterEach
   override def after(): Unit = {
     super.after()
-    if (legacyTableSource) {
-      assertThat(InMemoryLookupableTableSource.RESOURCE_COUNTER).hasValue(0)
-    } else {
-      assertThat(TestValuesTableFactory.RESOURCE_COUNTER).hasValue(0)
-    }
+    assertThat(TestValuesTableFactory.RESOURCE_COUNTER).hasValue(0)
   }
 
   private def createLookupTable(
       tableName: String,
       data: List[Row],
       lookupThreshold: Int = -1): Unit = {
-    if (legacyTableSource) {
-      val userSchema = TableSchema
-        .builder()
-        .field("age", Types.INT)
-        .field("id", Types.LONG)
-        .field("name", Types.STRING)
-        .build()
-      InMemoryLookupableTableSource.createTemporaryTable(
-        tEnv,
-        isAsync = true,
-        data,
-        userSchema,
-        tableName)
-    } else {
-      val dataId = TestValuesTableFactory.registerData(data)
-      val cacheOptions =
-        if (enableCache)
-          s"""
-             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupOptions.LookupCacheType.PARTIAL}',
-             |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
-             |""".stripMargin
-        else ""
-      val lookupThresholdOption = if (lookupThreshold > 0) {
-        s"'start-lookup-threshold'='$lookupThreshold',"
-      } else ""
+    val dataId = TestValuesTableFactory.registerData(data)
+    val cacheOptions =
+      if (enableCache) {
+        s"""
+           |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupOptions.LookupCacheType.PARTIAL}',
+           |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
+           |""".stripMargin
+      } else { "" }
+    val lookupThresholdOption = if (lookupThreshold > 0) {
+      s"'start-lookup-threshold'='$lookupThreshold',"
+    } else ""
 
-      tEnv.executeSql(s"""
-                         |CREATE TABLE $tableName (
-                         |  `age` INT,
-                         |  `id` BIGINT,
-                         |  `name` STRING
-                         |) WITH (
-                         |  $cacheOptions
-                         |  $lookupThresholdOption
-                         |  'connector' = 'values',
-                         |  'data-id' = '$dataId',
-                         |  'async' = 'true'
-                         |)
-                         |""".stripMargin)
-    }
+    tEnv.executeSql(s"""
+                       |CREATE TABLE $tableName (
+                       |  `age` INT,
+                       |  `id` BIGINT,
+                       |  `name` STRING
+                       |) WITH (
+                       |  $cacheOptions
+                       |  $lookupThresholdOption
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'async' = 'true'
+                       |)
+                       |""".stripMargin)
   }
 
   // TODO a base class or utility class is better to reuse code for this and LookupJoinITCase
@@ -154,19 +155,34 @@ class AsyncLookupJoinITCase(
        |*/""".stripMargin
   }
 
-  private def createScanTable(tableName: String, data: List[Row]): Unit = {
+  private def createScanTable(tableName: String, data: List[Row], isCdc: Boolean): Unit = {
     val dataId = TestValuesTableFactory.registerData(data)
     tEnv.executeSql(s"""
                        |CREATE TABLE $tableName (
-                       |  `id` BIGINT,
+                       |  `id` BIGINT ${if (isCdc) "PRIMARY KEY NOT ENFORCED" else ""},
                        |  `len` INT,
                        |  `content` STRING,
                        |  `proctime` AS PROCTIME()
                        |) WITH (
                        |  'connector' = 'values',
-                       |  'data-id' = '$dataId'
+                       |  'data-id' = '$dataId',
+                       |  'changelog-mode' = '${if (isCdc) "I,UA,UB,D" else "I"}'
                        |)
                        |""".stripMargin)
+  }
+
+  @TestTemplate
+  def testKeyOrderedAsyncJoinTableWithCdc(): Unit = {
+    assumeTrue(keyOrdered)
+    val sql =
+      """
+        |SELECT t1.id, t1.len, D.name
+        |FROM (select content, id, len, proctime FROM cdc_src AS T) t1
+        |JOIN user_table for system_time as of t1.proctime AS D
+        |ON t1.content = D.name AND t1.id = D.id
+      """.stripMargin
+
+    assertResult(sql, List("+I[1, 15, Julian]"))
   }
 
   @TestTemplate
@@ -180,12 +196,7 @@ class AsyncLookupJoinITCase(
         |ON t1.content = D.name AND t1.id = D.id
       """.stripMargin
 
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    val expected = Seq("1,12,Julian", "3,15,Fabian")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertResult(sql, List("+I[1, 12, Julian]", "+I[3, 15, Fabian]"))
   }
 
   @TestTemplate
@@ -193,12 +204,9 @@ class AsyncLookupJoinITCase(
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
 
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertResult(
+      sql,
+      List("+I[1, 12, Julian, Julian]", "+I[2, 15, Hello, Jark]", "+I[3, 15, Fabian, Fabian]"))
   }
 
   @TestTemplate
@@ -206,12 +214,7 @@ class AsyncLookupJoinITCase(
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20"
 
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    val expected = Seq("2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertResult(sql, List("+I[2, 15, Hello, Jark]", "+I[3, 15, Fabian, Fabian]"))
   }
 
   @TestTemplate
@@ -219,12 +222,7 @@ class AsyncLookupJoinITCase(
     val sql = "SELECT T.id, T.len, T.content, D.name, D.age FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age"
 
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    val expected = Seq("2,15,Hello,Jark,22", "3,15,Fabian,Fabian,33")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertResult(sql, List("+I[2, 15, Hello, Jark, 22]", "+I[3, 15, Fabian, Fabian, 33]"))
   }
 
   @TestTemplate
@@ -234,16 +232,14 @@ class AsyncLookupJoinITCase(
       "AND T.len > 1 AND D.age > 20 AND D.name = 'Fabian' " +
       "WHERE T.id > 1"
 
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    val expected = Seq(
-      "2,15,Hello,null,null",
-      "3,15,Fabian,Fabian,33",
-      "8,11,Hello world,null,null",
-      "9,12,Hello world!,null,null")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertResult(
+      sql,
+      List(
+        "+I[2, 15, Hello, null, null]",
+        "+I[3, 15, Fabian, Fabian, 33]",
+        "+I[8, 11, Hello world, null, null]",
+        "+I[9, 12, Hello world!, null, null]")
+    )
   }
 
   @TestTemplate
@@ -251,12 +247,7 @@ class AsyncLookupJoinITCase(
     val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name"
 
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    val expected = Seq("1,12,Julian", "3,15,Fabian")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertResult(sql, List("+I[1, 12, Julian]", "+I[3, 15, Fabian]"))
   }
 
   @TestTemplate
@@ -268,12 +259,7 @@ class AsyncLookupJoinITCase(
       "for system_time as of T.proctime AS D " +
       "ON mod1(T.id, 4) = D.id AND T.content = D.name"
 
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    val expected = Seq("1,12,Julian", "3,15,Fabian")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertResult(sql, List("+I[1, 12, Julian]", "+I[3, 15, Fabian]"))
   }
 
   @TestTemplate
@@ -284,13 +270,7 @@ class AsyncLookupJoinITCase(
       "for system_time as of T.proctime AS D ON T.id = D.id " +
       "WHERE add(T.id, D.id) > 3 AND add(T.id, 2) > 3 AND add (D.id, 2) > 3"
 
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    val expected = Seq("2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
-    assertThat(TestAddWithOpen.aliveCounter).hasValue(0)
+    assertResult(sql, List("+I[2, 15, Hello, Jark]", "+I[3, 15, Fabian, Fabian]"))
   }
 
   @TestTemplate
@@ -303,12 +283,7 @@ class AsyncLookupJoinITCase(
     val sql2 = "SELECT t1.id, D.name, D.age FROM t1 LEFT JOIN user_table " +
       "for system_time as of t1.proctime AS D ON t1.id = D.id"
 
-    val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
-    env.execute()
-
-    val expected = Seq("3,Fabian,33", "8,null,null", "9,null,null")
-    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+    assertResult(sql2, List("+I[3, Fabian, 33]", "+I[8, null, null]", "+I[9, null, null]"))
   }
 
   @TestTemplate
@@ -327,15 +302,9 @@ class AsyncLookupJoinITCase(
     val sql2 = "SELECT t1.id, D.name, D.age FROM t1 LEFT JOIN user_table " +
       "for system_time as of t1.proctime AS D ON t1.id = D.id"
 
-    val sink = new TestingRetractSink
     assertThatThrownBy(
       () => {
-        tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
-
-        env.execute()
-
-        val expected = Seq("3,Fabian,33", "8,null,null", "9,null,null")
-        assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+        assertResult(sql2, List("+I[3, Fabian, 33]", "+I[8, null, null]", "+I[9, null, null]"))
       })
       .hasMessageContaining("Required sync lookup function by planner")
       .isInstanceOf[TableException]
@@ -347,13 +316,14 @@ class AsyncLookupJoinITCase(
     val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
 
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    val expected =
-      Seq("1,12,Julian,11", "2,15,Jark,22", "3,15,Fabian,33", "8,11,null,null", "9,12,null,null")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertResult(
+      sql,
+      List(
+        "+I[1, 12, Julian, 11]",
+        "+I[2, 15, Jark, 22]",
+        "+I[3, 15, Fabian, 33]",
+        "+I[8, 11, null, null]",
+        "+I[9, 12, null, null]"))
   }
 
   @TestTemplate
@@ -364,10 +334,7 @@ class AsyncLookupJoinITCase(
       "for system_time as of T.proctime AS D ON T.id = D.id " +
       "where errorFunc(D.name) > cast(1000 as decimal(10,4))" // should exception here
 
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-
-    assertThatThrownBy(() => env.execute())
+    assertThatThrownBy(() => assertResult(sql, List()))
       .satisfies(anyCauseMatches(classOf[NumberFormatException], "Cannot parse"))
   }
 
@@ -399,8 +366,8 @@ class AsyncLookupJoinITCase(
           |LEFT JOIN user_table FOR SYSTEM_TIME AS OF T.proc AS D 
           |ON T.id = D.id
           |""".stripMargin
-      val sink = new TestingAppendSink
-      tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+      val sink = new TestingRetractSink()
+      tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
       env.execute()
 
       // Validate that only one cache is registered
@@ -440,45 +407,26 @@ class AsyncLookupJoinITCase(
   @TestTemplate
   def testAsyncJoinTemporalTableWithRetry(): Unit = {
     val maxRetryTwiceHint = getAsyncRetryLookupHint("D", 2)
-    val sink = new TestingAppendSink
-    tEnv
-      .sqlQuery(s"""
-                   |SELECT $maxRetryTwiceHint T.id, T.len, T.content, D.name FROM src AS T
-                   |JOIN user_table for system_time as of T.proctime AS D
-                   |ON T.id = D.id
-                   |""".stripMargin)
-      .toDataStream
-      .addSink(sink)
-    env.execute()
+    val sql = s"""
+                 |SELECT $maxRetryTwiceHint T.id, T.len, T.content, D.name FROM src AS T
+                 |JOIN user_table for system_time as of T.proctime AS D
+                 |ON T.id = D.id
+                 |""".stripMargin
 
-    // the result is deterministic because the test data of lookup source is static
-    val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertResult(
+      sql,
+      List("+I[1, 12, Julian, Julian]", "+I[2, 15, Hello, Jark]", "+I[3, 15, Fabian, Fabian]"))
   }
 
   @TestTemplate
   def testAsyncJoinTemporalTableWithLookupThresholdWithInsufficientRetry(): Unit = {
     val maxRetryOnceHint = getAsyncRetryLookupHint("D", 1)
-    val sink = new TestingAppendSink
-    tEnv
-      .sqlQuery(s"""
-                   |SELECT $maxRetryOnceHint T.id, T.len, T.content, D.name FROM src AS T
-                   |JOIN user_table_with_lookup_threshold3 for system_time as of T.proctime AS D
-                   |ON T.id = D.id
-                   |""".stripMargin)
-      .toDataStream
-      .addSink(sink)
-    env.execute()
-
-    val expected = if (legacyTableSource) {
-      // test legacy lookup source do not support lookup threshold
-      // also legacy lookup source do not support retry
-      Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    } else {
-      // the user_table_with_lookup_threshold3 will return null result before 3rd lookup
-      Seq()
-    }
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    val sql = s"""
+                 |SELECT $maxRetryOnceHint T.id, T.len, T.content, D.name FROM src AS T
+                 |JOIN user_table_with_lookup_threshold3 for system_time as of T.proctime AS D
+                 |ON T.id = D.id
+                 |""".stripMargin
+    assertResult(sql, List())
   }
 
   @TestTemplate
@@ -488,84 +436,109 @@ class AsyncLookupJoinITCase(
     // max attempts number, it only ensures at least one retry for each element in current version
     // so we can only use a max lookup threshold to 2 to get a deterministic results
     val maxRetryTwiceHint = getAsyncRetryLookupHint("D", 2)
+    val sql = s"""
+                 |SELECT $maxRetryTwiceHint T.id, T.len, T.content, D.name FROM src AS T
+                 |JOIN user_table_with_lookup_threshold2 for system_time as of T.proctime AS D
+                 |ON T.id = D.id
+                 |""".stripMargin
+    assertResult(
+      sql,
+      List("+I[1, 12, Julian, Julian]", "+I[2, 15, Hello, Jark]", "+I[3, 15, Fabian, Fabian]"))
+  }
 
-    val sink = new TestingAppendSink
-    tEnv
-      .sqlQuery(s"""
-                   |SELECT $maxRetryTwiceHint T.id, T.len, T.content, D.name FROM src AS T
-                   |JOIN user_table_with_lookup_threshold2 for system_time as of T.proctime AS D
-                   |ON T.id = D.id
-                   |""".stripMargin)
-      .toDataStream
-      .addSink(sink)
-    env.execute()
+  def assertResult(sql: String, expected: List[String]): Unit = {
+    val result = tEnv.sqlQuery(sql)
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.all())
+    result.executeInsert("MySink").await()
 
-    val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted
+        .toList).isEqualTo(expected.sorted)
   }
 
 }
 
 object AsyncLookupJoinITCase {
 
-  val LEGACY_TABLE_SOURCE: JBoolean = JBoolean.TRUE;
-  val DYNAMIC_TABLE_SOURCE: JBoolean = JBoolean.FALSE;
   val ENABLE_OBJECT_REUSE: JBoolean = JBoolean.TRUE;
   val DISABLE_OBJECT_REUSE: JBoolean = JBoolean.FALSE;
   val ENABLE_CACHE: JBoolean = JBoolean.TRUE;
   val DISABLE_CACHE: JBoolean = JBoolean.FALSE;
+  val ENABLE_KEY_ORDERED: JBoolean = JBoolean.TRUE;
+  val DISABLE_KEY_ORDERED: JBoolean = JBoolean.FALSE;
 
-  @Parameters(name =
-    "LegacyTableSource={0}, StateBackend={1}, ObjectReuse={2}, AsyncOutputMode={3}, EnableCache={4}")
+  @Parameters(
+    name =
+      "StateBackend={0}, ObjectReuse={1}, AsyncOutputMode={2}, keyOrdered={3}, EnableCache={4}")
   def parameters(): JCollection[Array[Object]] = {
     Seq[Array[AnyRef]](
       Array(
-        LEGACY_TABLE_SOURCE,
         HEAP_BACKEND,
         ENABLE_OBJECT_REUSE,
         AsyncOutputMode.ALLOW_UNORDERED,
+        ENABLE_KEY_ORDERED,
         DISABLE_CACHE),
       Array(
-        LEGACY_TABLE_SOURCE,
+        HEAP_BACKEND,
+        ENABLE_OBJECT_REUSE,
+        AsyncOutputMode.ALLOW_UNORDERED,
+        DISABLE_KEY_ORDERED,
+        DISABLE_CACHE),
+      Array(
         ROCKSDB_BACKEND,
         DISABLE_OBJECT_REUSE,
         AsyncOutputMode.ORDERED,
+        DISABLE_KEY_ORDERED,
         DISABLE_CACHE),
       Array(
-        DYNAMIC_TABLE_SOURCE,
         HEAP_BACKEND,
         DISABLE_OBJECT_REUSE,
         AsyncOutputMode.ORDERED,
+        DISABLE_KEY_ORDERED,
         DISABLE_CACHE),
       Array(
-        DYNAMIC_TABLE_SOURCE,
         HEAP_BACKEND,
         ENABLE_OBJECT_REUSE,
         AsyncOutputMode.ORDERED,
+        DISABLE_KEY_ORDERED,
         DISABLE_CACHE),
       Array(
-        DYNAMIC_TABLE_SOURCE,
         ROCKSDB_BACKEND,
         DISABLE_OBJECT_REUSE,
         AsyncOutputMode.ALLOW_UNORDERED,
+        DISABLE_KEY_ORDERED,
         DISABLE_CACHE),
       Array(
-        DYNAMIC_TABLE_SOURCE,
         ROCKSDB_BACKEND,
         ENABLE_OBJECT_REUSE,
         AsyncOutputMode.ALLOW_UNORDERED,
+        ENABLE_KEY_ORDERED,
         DISABLE_CACHE),
       Array(
-        DYNAMIC_TABLE_SOURCE,
+        ROCKSDB_BACKEND,
+        ENABLE_OBJECT_REUSE,
+        AsyncOutputMode.ALLOW_UNORDERED,
+        DISABLE_KEY_ORDERED,
+        DISABLE_CACHE),
+      Array(
         HEAP_BACKEND,
         DISABLE_OBJECT_REUSE,
         AsyncOutputMode.ORDERED,
+        DISABLE_KEY_ORDERED,
         ENABLE_CACHE),
       Array(
-        DYNAMIC_TABLE_SOURCE,
         HEAP_BACKEND,
         ENABLE_OBJECT_REUSE,
         AsyncOutputMode.ALLOW_UNORDERED,
+        DISABLE_KEY_ORDERED,
+        ENABLE_CACHE),
+      Array(
+        HEAP_BACKEND,
+        DISABLE_OBJECT_REUSE,
+        AsyncOutputMode.ALLOW_UNORDERED,
+        ENABLE_KEY_ORDERED,
         ENABLE_CACHE)
     )
   }

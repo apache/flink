@@ -114,9 +114,7 @@ public class RestHandlerConfiguration {
 
         final int checkpointHistorySize = configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE);
         final Duration checkpointStatsSnapshotCacheExpireAfterWrite =
-                configuration
-                        .getOptional(RestOptions.CACHE_CHECKPOINT_STATISTICS_TIMEOUT)
-                        .orElse(Duration.ofMillis(refreshInterval));
+                configuration.get(RestOptions.CACHE_CHECKPOINT_STATISTICS_TIMEOUT);
         final int checkpointStatsSnapshotCacheSize =
                 configuration.get(RestOptions.CACHE_CHECKPOINT_STATISTICS_SIZE);
 

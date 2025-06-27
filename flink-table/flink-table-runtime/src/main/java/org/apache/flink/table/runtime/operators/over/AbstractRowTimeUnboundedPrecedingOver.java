@@ -50,6 +50,12 @@ import java.util.ListIterator;
 /** A basic implementation to support unbounded event-time over-window. */
 public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
         extends KeyedProcessFunctionWithCleanupState<K, RowData, RowData> {
+    public static final int FIRST_OVER_VERSION = 1;
+    public static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
+    public static final String ACCUMULATOR_STATE_NAME = "accState";
+    public static final String INPUT_STATE_NAME = "inputState";
+    public static final String CLEANUP_STATE_NAME = "RowTimeUnboundedOverCleanupTime";
+
     private static final long serialVersionUID = 1L;
 
     private static final Logger LOG =
@@ -70,10 +76,6 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
 
     protected transient AggsHandleFunction function;
 
-    // ------------------------------------------------------------------------
-    // Metrics
-    // ------------------------------------------------------------------------
-    private static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
     private transient Counter numLateRecordsDropped;
 
     @VisibleForTesting
@@ -107,7 +109,7 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
         // initialize accumulator state
         InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
         ValueStateDescriptor<RowData> accStateDesc =
-                new ValueStateDescriptor<RowData>("accState", accTypeInfo);
+                new ValueStateDescriptor<RowData>(ACCUMULATOR_STATE_NAME, accTypeInfo);
         accState = getRuntimeContext().getState(accStateDesc);
 
         // input element are all binary row as they are came from network
@@ -115,10 +117,10 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
         ListTypeInfo<RowData> rowListTypeInfo = new ListTypeInfo<RowData>(inputType);
         MapStateDescriptor<Long, List<RowData>> inputStateDesc =
                 new MapStateDescriptor<Long, List<RowData>>(
-                        "inputState", Types.LONG, rowListTypeInfo);
+                        INPUT_STATE_NAME, Types.LONG, rowListTypeInfo);
         inputState = getRuntimeContext().getMapState(inputStateDesc);
 
-        initCleanupTimeState("RowTimeUnboundedOverCleanupTime");
+        initCleanupTimeState(CLEANUP_STATE_NAME);
 
         // metrics
         this.numLateRecordsDropped =

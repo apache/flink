@@ -24,6 +24,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 import org.apache.flink.types.RowUtils;
 
 import java.util.LinkedHashMap;
@@ -104,6 +105,13 @@ public class RowRowConverter implements DataStructureConverter<RowData, Row> {
         }
         return RowUtils.createRowWithNamedPositions(
                 internal.getRowKind(), fieldByPosition, positionByName);
+    }
+
+    /** Used in code generation e.g. for generating empty {@link Row} state with named positions. */
+    public Row createEmptyRow() {
+        final Object[] fieldByPosition = new Object[fieldConverters.length];
+        return RowUtils.createRowWithNamedPositions(
+                RowKind.INSERT, fieldByPosition, positionByName);
     }
 
     // --------------------------------------------------------------------------------------------

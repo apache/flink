@@ -52,7 +52,6 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneClientHAServices;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.util.FlinkException;
@@ -220,7 +219,8 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
                 || PackagedProgramUtils.isPython(applicationConfiguration.getProgramArguments()))) {
             final List<URI> pipelineJars =
                     KubernetesUtils.checkJarFileForApplicationMode(flinkConfig);
-            Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+            Preconditions.checkArgument(
+                    pipelineJars.size() <= 1, "Should only have at most one jar.");
         }
 
         try {
@@ -242,14 +242,6 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
                     clusterClient.getWebInterfaceURL());
         }
         return clusterClientProvider;
-    }
-
-    @Override
-    public ClusterClientProvider<String> deployJobCluster(
-            ClusterSpecification clusterSpecification, JobGraph jobGraph, boolean detached)
-            throws ClusterDeploymentException {
-        throw new ClusterDeploymentException(
-                "Per-Job Mode not supported by Active Kubernetes deployments.");
     }
 
     private ClusterClientProvider<String> deployClusterInternal(

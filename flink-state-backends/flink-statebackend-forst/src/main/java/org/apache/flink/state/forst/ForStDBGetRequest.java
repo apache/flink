@@ -18,7 +18,7 @@
 
 package org.apache.flink.state.forst;
 
-import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 
 import org.forstdb.ColumnFamilyHandle;
 import org.forstdb.RocksDB;
@@ -38,10 +38,10 @@ public abstract class ForStDBGetRequest<K, N, V, R> {
 
     final ContextKey<K, N> key;
     final ForStInnerTable<K, N, V> table;
-    final InternalStateFuture<R> future;
+    final InternalAsyncFuture<R> future;
 
     ForStDBGetRequest(
-            ContextKey<K, N> key, ForStInnerTable<K, N, V> table, InternalStateFuture<R> future) {
+            ContextKey<K, N> key, ForStInnerTable<K, N, V> table, InternalAsyncFuture<R> future) {
         this.key = key;
         this.table = table;
         this.future = future;

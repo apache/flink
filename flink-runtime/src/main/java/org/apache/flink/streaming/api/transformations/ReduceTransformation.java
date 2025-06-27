@@ -26,7 +26,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
 import java.util.Collections;
 import java.util.List;
@@ -44,6 +44,7 @@ public final class ReduceTransformation<IN, K> extends PhysicalTransformation<IN
     private final KeySelector<IN, K> keySelector;
     private final TypeInformation<K> keyTypeInfo;
     private ChainingStrategy chainingStrategy = ChainingStrategy.DEFAULT_CHAINING_STRATEGY;
+    private boolean isEnableAsyncState = false;
 
     public ReduceTransformation(
             String name,
@@ -99,5 +100,14 @@ public final class ReduceTransformation<IN, K> extends PhysicalTransformation<IN
     @Override
     public List<Transformation<?>> getInputs() {
         return Collections.singletonList(input);
+    }
+
+    @Override
+    public void enableAsyncState() {
+        isEnableAsyncState = true;
+    }
+
+    public boolean isEnableAsyncState() {
+        return isEnableAsyncState;
     }
 }

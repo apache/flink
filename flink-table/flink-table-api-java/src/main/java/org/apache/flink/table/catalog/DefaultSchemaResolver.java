@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Schema.UnresolvedComputedColumn;
+import org.apache.flink.table.api.Schema.UnresolvedIndex;
 import org.apache.flink.table.api.Schema.UnresolvedMetadataColumn;
 import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
 import org.apache.flink.table.api.Schema.UnresolvedPrimaryKey;
@@ -44,6 +45,7 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -88,7 +90,9 @@ class DefaultSchemaResolver implements SchemaResolver {
         final UniqueConstraint primaryKey =
                 resolvePrimaryKey(schema.getPrimaryKey().orElse(null), columnsWithRowtime);
 
-        return new ResolvedSchema(columnsWithRowtime, watermarkSpecs, primaryKey);
+        final List<Index> indexes = resolveIndexes(schema.getIndexes(), columnsWithRowtime);
+
+        return new ResolvedSchema(columnsWithRowtime, watermarkSpecs, primaryKey, indexes);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -380,6 +384,77 @@ class DefaultSchemaResolver implements SchemaResolver {
                         String.format(
                                 "Invalid primary key '%s'. Column '%s' is nullable.",
                                 primaryKey.getName(), columnName));
+            }
+        }
+    }
+
+    private List<Index> resolveIndexes(
+            List<UnresolvedIndex> unresolvedIndexes, List<Column> columns) {
+        List<Index> resolvedIndexes =
+                unresolvedIndexes.stream()
+                        .map(
+                                unresolvedIndex ->
+                                        DefaultIndex.newIndex(
+                                                unresolvedIndex.getIndexName(),
+                                                unresolvedIndex.getColumnNames()))
+                        .collect(Collectors.toList());
+
+        validateIndexes(resolvedIndexes, columns);
+
+        return resolvedIndexes;
+    }
+
+    private void validateIndexes(List<Index> indexes, List<Column> columns) {
+        final Map<String, Column> columnsByNameLookup =
+                columns.stream().collect(Collectors.toMap(Column::getName, Function.identity()));
+
+        Set<List<String>> deduplicatedIndexes = new HashSet<>();
+        for (Index index : indexes) {
+
+            validateSingleIndex(index, columnsByNameLookup);
+
+            final List<String> indexColumns = index.getColumns();
+            if (deduplicatedIndexes.contains(indexColumns)) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid index '%s'. There is a duplicated index composed of the same columns: %s",
+                                index.getName(),
+                                indexColumns.stream()
+                                        .map(col -> columnsByNameLookup.get(col).getName())
+                                        .collect(Collectors.joining(", ", "[", "]"))));
+            }
+
+            deduplicatedIndexes.add(index.getColumns());
+        }
+    }
+
+    private void validateSingleIndex(Index index, Map<String, Column> columnsByNameLookup) {
+        final Set<String> duplicateColumns =
+                index.getColumns().stream()
+                        .filter(name -> Collections.frequency(index.getColumns(), name) > 1)
+                        .collect(Collectors.toSet());
+
+        if (!duplicateColumns.isEmpty()) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid index '%s'. An index must not contain duplicate columns. Found: %s",
+                            index.getName(), duplicateColumns));
+        }
+
+        for (String columnName : index.getColumns()) {
+            Column column = columnsByNameLookup.get(columnName);
+            if (column == null) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid index '%s'. Column '%s' does not exist.",
+                                index.getName(), columnName));
+            }
+
+            if (!column.isPhysical() && !(column instanceof MetadataColumn)) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid index '%s'. Column '%s' is not a physical column or a metadata column.",
+                                index.getName(), columnName));
             }
         }
     }

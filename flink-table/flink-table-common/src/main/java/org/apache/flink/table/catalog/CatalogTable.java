@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.util.Preconditions;
 
@@ -37,15 +38,15 @@ import java.util.Optional;
  * The framework will resolve instances of this interface to a {@link ResolvedCatalogTable} before
  * passing it to a {@link DynamicTableFactory} for creating a connector to an external system.
  *
- * <p>A catalog implementer can either use {@link #of(Schema, String, List, Map)} for a basic
- * implementation of this interface or create a custom class that allows passing catalog-specific
- * objects all the way down to the connector creation (if necessary).
+ * <p>A catalog implementer can either use {@link #newBuilder()} for a basic implementation of this
+ * interface or create a custom class that allows passing catalog-specific objects all the way down
+ * to the connector creation (if necessary).
  *
- * <p>Note: The default implementation that is available via {@link #of(Schema, String, List, Map)}
- * is always serializable. For example, it can be used for implementing a catalog that uses {@link
- * ResolvedCatalogTable#toProperties()} or for persisting compiled plans. An implementation of this
- * interface determines whether a catalog table can be serialized by providing a proper {@link
- * #getOptions()} method.
+ * <p>Note: The default implementation that is available via {@link #newBuilder()} is always
+ * serializable. For example, it can be used for implementing a catalog that uses {@link
+ * ResolvedCatalogTable#toProperties(SqlFactory)} or for persisting compiled plans. An
+ * implementation of this interface determines whether a catalog table can be serialized by
+ * providing a proper {@link #getOptions()} method.
  */
 @PublicEvolving
 public interface CatalogTable extends CatalogBaseTable {
@@ -57,48 +58,8 @@ public interface CatalogTable extends CatalogBaseTable {
     }
 
     /**
-     * Creates a basic implementation of this interface.
-     *
-     * <p>The signature is similar to a SQL {@code CREATE TABLE} statement.
-     *
-     * @param schema unresolved schema
-     * @param comment optional comment
-     * @param partitionKeys list of partition keys or an empty list if not partitioned
-     * @param options options to configure the connector
-     * @deprecated Use the builder {@link CatalogTable#newBuilder()} instead.
-     */
-    @Deprecated
-    static CatalogTable of(
-            Schema schema,
-            @Nullable String comment,
-            List<String> partitionKeys,
-            Map<String, String> options) {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options);
-    }
-
-    /**
-     * Creates an instance of {@link CatalogTable} with a specific snapshot.
-     *
-     * @param schema unresolved schema
-     * @param comment optional comment
-     * @param partitionKeys list of partition keys or an empty list if not partitioned
-     * @param options options to configure the connector
-     * @param snapshot table snapshot of the table
-     * @deprecated Use the builder {@link CatalogTable#newBuilder()} instead.
-     */
-    @Deprecated
-    static CatalogTable of(
-            Schema schema,
-            @Nullable String comment,
-            List<String> partitionKeys,
-            Map<String, String> options,
-            @Nullable Long snapshot) {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options, snapshot, null);
-    }
-
-    /**
      * Creates an instance of {@link CatalogTable} from a map of string properties that were
-     * previously created with {@link ResolvedCatalogTable#toProperties()}.
+     * previously created with {@link ResolvedCatalogTable#toProperties(SqlFactory)}.
      *
      * <p>Note that the serialization and deserialization of catalog tables are not symmetric. The
      * framework will resolve functions and perform other validation tasks. A catalog implementation
@@ -137,19 +98,6 @@ public interface CatalogTable extends CatalogBaseTable {
      * @return a new copy of this table with replaced table options
      */
     CatalogTable copy(Map<String, String> options);
-
-    /**
-     * Serializes this instance into a map of string-based properties.
-     *
-     * <p>Compared to the pure table options in {@link #getOptions()}, the map includes schema,
-     * partitioning, and other characteristics in a serialized form.
-     *
-     * @deprecated Only a {@link ResolvedCatalogTable} is serializable to properties.
-     */
-    @Deprecated
-    default Map<String, String> toProperties() {
-        return Collections.emptyMap();
-    }
 
     /** Return the snapshot specified for the table. Return Optional.empty() if not specified. */
     default Optional<Long> getSnapshot() {

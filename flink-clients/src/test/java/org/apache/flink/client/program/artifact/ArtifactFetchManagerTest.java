@@ -95,10 +95,12 @@ class ArtifactFetchManagerTest {
     }
 
     @Test
-    void testFileSystemFetchWithAdditionalUri() throws Exception {
+    void testFileSystemFetchWithAdditionalUri(@TempDir Path pseudoJarDir) throws Exception {
         File sourceFile = TestingUtils.getClassFile(getClass());
         String uriStr = "file://" + sourceFile.toURI().getPath();
-        File additionalSrcFile = getFlinkClientsJar();
+        File additionalSrcFile =
+                Files.createTempFile(pseudoJarDir, "testFileSystemFetchWithAdditionalUri", ".jar")
+                        .toFile();
         String additionalUriStr = "file://" + additionalSrcFile.toURI().getPath();
 
         ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
@@ -112,12 +114,12 @@ class ArtifactFetchManagerTest {
     }
 
     @Test
-    void testHttpFetch() throws Exception {
+    void testHttpFetch(@TempDir Path pseudoJarDir) throws Exception {
         configuration.set(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
         HttpServer httpServer = null;
         try {
             httpServer = startHttpServer();
-            File sourceFile = getFlinkClientsJar();
+            File sourceFile = Files.createTempFile(pseudoJarDir, "testHttpFetch", ".jar").toFile();
             httpServer.createContext(
                     "/download/" + sourceFile.getName(), new DummyHttpDownloadHandler(sourceFile));
             String uriStr =
@@ -138,10 +140,11 @@ class ArtifactFetchManagerTest {
     }
 
     @Test
-    void testMixedArtifactFetch() throws Exception {
+    void testMixedArtifactFetch(@TempDir Path pseudoJarDir) throws Exception {
         File sourceFile = TestingUtils.getClassFile(getClass());
         String uriStr = "file://" + sourceFile.toURI().getPath();
-        File sourceFile2 = getFlinkClientsJar();
+        File sourceFile2 =
+                Files.createTempFile(pseudoJarDir, "testMixedArtifactFetch", ".jar").toFile();
         String uriStr2 = "file://" + sourceFile2.toURI().getPath();
 
         ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
@@ -170,6 +173,21 @@ class ArtifactFetchManagerTest {
     }
 
     @Test
+    void testLocalFetcherNotCreatesBaseDir() throws Exception {
+        Path nonExistingPath =
+                tempDir.resolve("non").resolve("existing").resolve("path").toAbsolutePath();
+        configuration.set(ArtifactFetchOptions.BASE_DIR, nonExistingPath.toString());
+
+        File sourceFile = TestingUtils.getClassFile(getClass());
+        String uriStr = "local://" + sourceFile.toURI().getPath();
+
+        ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
+        fetchMgr.fetchArtifacts(uriStr, null);
+
+        assertThat(nonExistingPath.getParent().getParent()).doesNotExist();
+    }
+
+    @Test
     void testHttpDisabledError() {
         ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
         assertThatThrownBy(
@@ -183,9 +201,6 @@ class ArtifactFetchManagerTest {
     @Test
     void testMissingRequiredFetchArgs() {
         ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
-        assertThatThrownBy(() -> fetchMgr.fetchArtifacts(null, null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("The jobUri is required.");
 
         assertThatThrownBy(() -> fetchMgr.fetchArtifacts(null))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -216,15 +231,6 @@ class ArtifactFetchManagerTest {
             }
         }
         return httpServer;
-    }
-
-    private File getFlinkClientsJar() throws IOException {
-        return TestingUtils.getFileFromTargetDir(
-                ArtifactFetchManager.class,
-                p ->
-                        org.apache.flink.util.FileUtils.isJarFile(p)
-                                && p.toFile().getName().startsWith("flink-clients")
-                                && !p.toFile().getName().contains("test-utils"));
     }
 
     private static class DummyHttpDownloadHandler implements HttpHandler {

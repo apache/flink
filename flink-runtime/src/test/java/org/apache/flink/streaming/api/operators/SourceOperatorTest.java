@@ -23,6 +23,7 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -51,11 +52,14 @@ import org.junit.jupiter.api.Test;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /** Unit test for {@link SourceOperator}. */
 @SuppressWarnings("serial")
@@ -234,6 +238,76 @@ class SourceOperatorTest {
                         new RecordAttributes(false));
     }
 
+    @Test
+    public void testMetricGroupIsCreatedForNewSplit() throws Exception {
+        operator.initializeState(context.createStateContext());
+        operator.open();
+        MockSourceSplit newSplit = new MockSourceSplit((2));
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Collections.singletonList(newSplit), new MockSourceSplitSerializer()));
+        assertNotNull(operator.getSplitMetricGroup(newSplit.splitId()));
+    }
+
+    @Test
+    public void testMetricGroupIsCreatedForRestoredSplit() throws Exception {
+        MockSourceSplit restoredSplit = new MockSourceSplit((2));
+        StateInitializationContext stateContext =
+                context.createStateContext(Collections.singletonList(restoredSplit));
+        operator.initializeState(stateContext);
+        operator.open();
+        assertNotNull(operator.getSplitMetricGroup(restoredSplit.splitId()));
+    }
+
+    @Test
+    public void testMetricGroupTracksSplitWatermark() throws Exception {
+        long expectedWatermark = 1000;
+        operator.initializeState(context.createStateContext());
+        operator.open();
+        MockSourceSplit split = new MockSourceSplit((2));
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Collections.singletonList(split), new MockSourceSplitSerializer()));
+        operator.updateCurrentSplitWatermark(split.splitId(), expectedWatermark);
+        assertEquals(
+                expectedWatermark,
+                operator.getSplitMetricGroup(split.splitId()).getCurrentWatermark());
+    }
+
+    @Test
+    public void testMetricGroupReturnsDefaultIfNoSplitWatermark() throws Exception {
+        long expectedWatermark = Watermark.UNINITIALIZED.getTimestamp();
+        operator.initializeState(context.createStateContext());
+        operator.open();
+        MockSourceSplit split = new MockSourceSplit((2));
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Collections.singletonList(split), new MockSourceSplitSerializer()));
+        assertEquals(
+                expectedWatermark,
+                operator.getSplitMetricGroup(split.splitId()).getCurrentWatermark());
+    }
+
+    @Test
+    public void testMultipleMetricGroupsReturnWatermarkOrDefaultWatermark() throws Exception {
+        long expectedWatermarkValueForSplit0 = Watermark.UNINITIALIZED.getTimestamp();
+        long expectedWatermarkValueForSplit1 = 1000;
+        operator.initializeState(context.createStateContext());
+        operator.open();
+        MockSourceSplit split0 = new MockSourceSplit((19));
+        MockSourceSplit split1 = new MockSourceSplit((11));
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Arrays.asList(split0, split1), new MockSourceSplitSerializer()));
+        operator.updateCurrentSplitWatermark(split1.splitId(), expectedWatermarkValueForSplit1);
+        assertEquals(
+                expectedWatermarkValueForSplit0,
+                operator.getSplitMetricGroup(split0.splitId()).getCurrentWatermark());
+        assertEquals(
+                expectedWatermarkValueForSplit1,
+                operator.getSplitMetricGroup(split1.splitId()).getCurrentWatermark());
+    }
+
     private static class DataOutputToOutput<T> implements PushingAsyncDataInput.DataOutput<T> {
 
         private final Output<StreamRecord<T>> output;
@@ -265,6 +339,11 @@ class SourceOperatorTest {
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
             output.emitRecordAttributes(recordAttributes);
+        }
+
+        @Override
+        public void emitWatermark(WatermarkEvent watermark) throws Exception {
+            output.emitWatermark(watermark);
         }
     }
 }

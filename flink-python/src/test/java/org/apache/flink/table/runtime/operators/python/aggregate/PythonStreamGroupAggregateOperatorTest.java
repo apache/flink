@@ -254,6 +254,7 @@ class PythonStreamGroupAggregateOperatorTest extends AbstractPythonStreamAggrega
         @Override
         public PythonFunctionRunner createPythonFunctionRunner() {
             return new PassThroughStreamAggregatePythonFunctionRunner(
+                    getContainingTask().getEnvironment(),
                     getRuntimeContext().getTaskInfo().getTaskName(),
                     PythonTestUtils.createTestProcessEnvironmentManager(),
                     userDefinedFunctionInputType,

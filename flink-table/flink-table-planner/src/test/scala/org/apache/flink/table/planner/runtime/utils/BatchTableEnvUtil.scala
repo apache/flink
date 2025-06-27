@@ -243,6 +243,8 @@ object BatchTableEnvUtil {
    *   The field isNullables attributes of data.
    * @param statistic
    *   statistics of current Table
+   * @param forceNonParallel
+   *   sets the operator with only one parallelism
    * @tparam T
    *   The type of the [[Iterable]].
    * @return
@@ -256,14 +258,17 @@ object BatchTableEnvUtil {
       typeInfo: TypeInformation[T],
       fields: Option[Array[Expression]],
       fieldNullables: Option[Array[Boolean]],
-      statistic: Option[FlinkStatistic]): Unit = {
+      statistic: Option[FlinkStatistic],
+      forceNonParallel: Boolean = true): Unit = {
     val execEnv = getPlanner(tEnv).getExecEnv
     val boundedStream = execEnv.createInput(
       new CollectionInputFormat[T](
         data.asJavaCollection,
         typeInfo.createSerializer(execEnv.getConfig.getSerializerConfig)),
       typeInfo)
-    boundedStream.forceNonParallel()
+    if (forceNonParallel) {
+      boundedStream.forceNonParallel()
+    }
     registerBoundedStreamInternal(tEnv, tableName, boundedStream, fields, fieldNullables, statistic)
   }
 

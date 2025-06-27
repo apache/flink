@@ -18,9 +18,10 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.runtime.asyncprocessing.AsyncRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
-import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
+import org.apache.flink.state.forst.fs.cache.FileBasedCache;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -32,11 +33,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+
+import static org.apache.flink.state.forst.ForStStateRequestClassifier.convertRequests;
 
 /**
  * The {@link StateExecutor} implementation which executing batch {@link StateRequest}s for
@@ -73,6 +78,9 @@ public class ForStStateExecutor implements StateExecutor {
     /** The ongoing sub-processes count. */
     private final AtomicLong ongoing;
 
+    private final ExecutorService directExecutor =
+            org.apache.flink.util.concurrent.Executors.newDirectExecutorService();
+
     public ForStStateExecutor(
             boolean coordinatorInline,
             boolean isWriteInline,
@@ -84,31 +92,35 @@ public class ForStStateExecutor implements StateExecutor {
             Preconditions.checkState(readIoParallelism > 0);
             this.coordinatorThread =
                     coordinatorInline
-                            ? org.apache.flink.util.concurrent.Executors.newDirectExecutorService()
+                            ? directExecutor
                             : Executors.newSingleThreadExecutor(
-                                    new ExecutorThreadFactory(
-                                            "ForSt-StateExecutor-Coordinator-And-Write"));
+                                    new ForStExecutorThreadFactory(
+                                            "ForSt-StateExecutor-Coordinator-And-Write",
+                                            FileBasedCache::setFlinkThread));
             this.readThreadCount = readIoParallelism;
             this.readThreads =
                     Executors.newFixedThreadPool(
                             readIoParallelism,
-                            new ExecutorThreadFactory("ForSt-StateExecutor-read-IO"));
-            this.writeThreads =
-                    org.apache.flink.util.concurrent.Executors.newDirectExecutorService();
+                            new ForStExecutorThreadFactory(
+                                    "ForSt-StateExecutor-read-IO", FileBasedCache::setFlinkThread));
+            this.writeThreads = directExecutor;
             this.sharedWriteThread = true;
         } else {
             Preconditions.checkState(readIoParallelism > 0 || writeIoParallelism > 0);
             this.coordinatorThread =
                     coordinatorInline
-                            ? org.apache.flink.util.concurrent.Executors.newDirectExecutorService()
+                            ? directExecutor
                             : Executors.newSingleThreadExecutor(
-                                    new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator"));
+                                    new ForStExecutorThreadFactory(
+                                            "ForSt-StateExecutor-Coordinator",
+                                            FileBasedCache::setFlinkThread));
             if (readIoParallelism <= 0 || writeIoParallelism <= 0) {
                 this.readThreadCount = Math.max(readIoParallelism, writeIoParallelism);
                 this.readThreads =
                         Executors.newFixedThreadPool(
                                 readThreadCount,
-                                new ExecutorThreadFactory("ForSt-StateExecutor-IO"));
+                                new ForStExecutorThreadFactory(
+                                        "ForSt-StateExecutor-IO", FileBasedCache::setFlinkThread));
                 this.writeThreads = readThreads;
                 this.sharedWriteThread = true;
             } else {
@@ -116,11 +128,15 @@ public class ForStStateExecutor implements StateExecutor {
                 this.readThreads =
                         Executors.newFixedThreadPool(
                                 readIoParallelism,
-                                new ExecutorThreadFactory("ForSt-StateExecutor-read-IO"));
+                                new ForStExecutorThreadFactory(
+                                        "ForSt-StateExecutor-read-IO",
+                                        FileBasedCache::setFlinkThread));
                 this.writeThreads =
                         Executors.newFixedThreadPool(
                                 writeIoParallelism,
-                                new ExecutorThreadFactory("ForSt-StateExecutor-write-IO"));
+                                new ForStExecutorThreadFactory(
+                                        "ForSt-StateExecutor-write-IO",
+                                        FileBasedCache::setFlinkThread));
                 this.sharedWriteThread = false;
             }
         }
@@ -131,11 +147,11 @@ public class ForStStateExecutor implements StateExecutor {
 
     @Override
     public CompletableFuture<Void> executeBatchRequests(
-            StateRequestContainer stateRequestContainer) {
+            AsyncRequestContainer asyncRequestContainer) {
         checkState();
-        Preconditions.checkArgument(stateRequestContainer instanceof ForStStateRequestClassifier);
+        Preconditions.checkArgument(asyncRequestContainer instanceof ForStStateRequestClassifier);
         ForStStateRequestClassifier stateRequestClassifier =
-                (ForStStateRequestClassifier) stateRequestContainer;
+                (ForStStateRequestClassifier) asyncRequestContainer;
         // Calculate ongoing sub-processes. Only count read ones.
         // The fully loaded only consider read requests for now, since the write ones are quick.
         final List<ForStDBGetRequest<?, ?, ?, ?>> getRequests =
@@ -217,9 +233,56 @@ public class ForStStateExecutor implements StateExecutor {
     }
 
     @Override
-    public StateRequestContainer createStateRequestContainer() {
+    public AsyncRequestContainer<StateRequest<?, ?, ?, ?>> createRequestContainer() {
         checkState();
         return new ForStStateRequestClassifier();
+    }
+
+    @Override
+    public void executeRequestSync(StateRequest<?, ?, ?, ?> stateRequest) {
+        checkState();
+        Object forstRequest = convertRequests(stateRequest);
+        try {
+            ForStDBOperation operation;
+            if (forstRequest instanceof ForStDBGetRequest) {
+                operation =
+                        new ForStGeneralMultiGetOperation(
+                                db,
+                                Collections.singletonList(
+                                        (ForStDBGetRequest<?, ?, ?, ?>) forstRequest),
+                                directExecutor,
+                                1,
+                                null);
+            } else if (forstRequest instanceof ForStDBIterRequest) {
+                operation =
+                        new ForStIterateOperation(
+                                db,
+                                Collections.singletonList(
+                                        (ForStDBIterRequest<?, ?, ?, ?, ?>) forstRequest),
+                                directExecutor,
+                                null);
+            } else if (forstRequest instanceof ForStDBPutRequest) {
+                operation =
+                        new ForStWriteBatchOperation(
+                                db,
+                                Collections.singletonList(
+                                        (ForStDBPutRequest<?, ?, ?>) forstRequest),
+                                writeOptions,
+                                directExecutor);
+            } else {
+                throw new IllegalArgumentException("Unknown request type: " + forstRequest);
+            }
+            operation
+                    .process()
+                    .exceptionally(
+                            throwable -> {
+                                executionError = throwable;
+                                return null;
+                            });
+        } catch (Exception e) {
+            executionError = e;
+        }
+        checkState();
     }
 
     @Override
@@ -237,11 +300,43 @@ public class ForStStateExecutor implements StateExecutor {
     @Override
     public void shutdown() {
         // Coordinator should be shutdown before others, since it submit jobs to others.
-        coordinatorThread.shutdown();
-        readThreads.shutdown();
+        shutdownAndWait(coordinatorThread);
+        shutdownAndWait(readThreads);
         if (!sharedWriteThread) {
-            writeThreads.shutdown();
+            shutdownAndWait(writeThreads);
         }
         LOG.info("Shutting down the ForStStateExecutor.");
+    }
+
+    private void shutdownAndWait(ExecutorService executorService) {
+        try {
+            executorService.shutdown();
+            while (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {}
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+        }
+    }
+
+    /**
+     * An {@link ExecutorThreadFactory} that could run a initializer before running the actual
+     * runnable for each created thread.
+     */
+    private static class ForStExecutorThreadFactory extends ExecutorThreadFactory {
+
+        private final Runnable initializer;
+
+        public ForStExecutorThreadFactory(String name, Runnable initializer) {
+            super(name);
+            this.initializer = initializer;
+        }
+
+        @Override
+        public Thread newThread(Runnable runnable) {
+            return super.newThread(
+                    () -> {
+                        initializer.run();
+                        runnable.run();
+                    });
+        }
     }
 }

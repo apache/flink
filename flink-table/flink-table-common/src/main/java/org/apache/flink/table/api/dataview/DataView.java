@@ -19,11 +19,11 @@
 package org.apache.flink.table.api.dataview;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.functions.ImperativeAggregateFunction;
+import org.apache.flink.table.functions.ProcessTableFunction;
 
 /**
- * A {@link DataView} is a collection type that can be used in the accumulator of an {@link
- * ImperativeAggregateFunction}.
+ * A {@link DataView} is a collection type that can be used in the accumulator of aggregating
+ * functions and as a state entry in {@link ProcessTableFunction}s.
  *
  * <p>Depending on the context in which the function is used, a {@link DataView} can be backed by a
  * Java heap collection or a state backend.

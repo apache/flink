@@ -28,7 +28,9 @@ import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
+import org.apache.flink.api.common.typeutils.base.VariantSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DistinctType;
@@ -118,6 +120,12 @@ public final class InternalSerializers {
                         ((TypeInformationRawType<?>) type)
                                 .getTypeInformation()
                                 .createSerializer(new SerializerConfigImpl()));
+            case DESCRIPTOR:
+                throw new ValidationException(
+                        "The DESCRIPTOR data type is intended for parameters of PTFs. "
+                                + "Any other use is unsupported.");
+            case VARIANT:
+                return VariantSerializer.INSTANCE;
             case NULL:
             case SYMBOL:
             case UNRESOLVED:

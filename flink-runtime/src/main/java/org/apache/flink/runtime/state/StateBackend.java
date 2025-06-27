@@ -181,7 +181,9 @@ public interface StateBackend extends java.io.Serializable {
      */
     @PublicEvolving
     interface KeyedStateBackendParameters<K> {
-        /** @return The runtime environment of the executing task. */
+        /**
+         * @return The runtime environment of the executing task.
+         */
         Environment getEnv();
 
         JobID getJobID();
@@ -192,12 +194,16 @@ public interface StateBackend extends java.io.Serializable {
 
         int getNumberOfKeyGroups();
 
-        /** @return Range of key-groups for which the to-be-created backend is responsible. */
+        /**
+         * @return Range of key-groups for which the to-be-created backend is responsible.
+         */
         KeyGroupRange getKeyGroupRange();
 
         TaskKvStateRegistry getKvStateRegistry();
 
-        /** @return Provider for TTL logic to judge about state expiration. */
+        /**
+         * @return Provider for TTL logic to judge about state expiration.
+         */
         TtlTimeProvider getTtlTimeProvider();
 
         MetricGroup getMetricGroup();
@@ -222,7 +228,9 @@ public interface StateBackend extends java.io.Serializable {
      */
     @PublicEvolving
     interface OperatorStateBackendParameters {
-        /** @return The runtime environment of the executing task. */
+        /**
+         * @return The runtime environment of the executing task.
+         */
         Environment getEnv();
 
         String getOperatorIdentifier();

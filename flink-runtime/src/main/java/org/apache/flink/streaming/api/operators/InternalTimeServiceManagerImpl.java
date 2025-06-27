@@ -25,7 +25,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
-import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
@@ -39,6 +39,8 @@ import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -77,6 +79,8 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
 
     private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
 
+    @Nullable AsyncExecutionController<K, ?> asyncExecutionController;
+
     private InternalTimeServiceManagerImpl(
             TaskIOMetricGroup taskIOMetricGroup,
             KeyGroupRange localKeyGroupRange,
@@ -101,21 +105,21 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
      */
     public static <K> InternalTimeServiceManagerImpl<K> create(
             TaskIOMetricGroup taskIOMetricGroup,
-            CheckpointableKeyedStateBackend<K> keyedStateBackend,
+            PriorityQueueSetFactory factory,
+            KeyGroupRange keyGroupRange,
             ClassLoader userClassloader,
             KeyContext keyContext,
             ProcessingTimeService processingTimeService,
             Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
             StreamTaskCancellationContext cancellationContext)
             throws Exception {
-        final KeyGroupRange keyGroupRange = keyedStateBackend.getKeyGroupRange();
 
         final InternalTimeServiceManagerImpl<K> timeServiceManager =
                 new InternalTimeServiceManagerImpl<>(
                         taskIOMetricGroup,
                         keyGroupRange,
                         keyContext,
-                        keyedStateBackend,
+                        factory,
                         processingTimeService,
                         cancellationContext);
 
@@ -163,65 +167,31 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
         InternalTimerServiceImpl<K, N> timerService =
                 (InternalTimerServiceImpl<K, N>) timerServices.get(name);
         if (timerService == null) {
-
-            timerService =
-                    new InternalTimerServiceImpl<>(
-                            taskIOMetricGroup,
-                            localKeyGroupRange,
-                            keyContext,
-                            processingTimeService,
-                            createTimerPriorityQueue(
-                                    PROCESSING_TIMER_PREFIX + name, timerSerializer),
-                            createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer),
-                            cancellationContext);
-
-            timerServices.put(name, timerService);
-        }
-        return timerService;
-    }
-
-    @Override
-    public <N> InternalTimerService<N> getAsyncInternalTimerService(
-            String name,
-            TypeSerializer<K> keySerializer,
-            TypeSerializer<N> namespaceSerializer,
-            Triggerable<K, N> triggerable,
-            AsyncExecutionController<K> asyncExecutionController) {
-        checkNotNull(keySerializer, "Timers can only be used on keyed operators.");
-
-        // the following casting is to overcome type restrictions.
-        TimerSerializer<K, N> timerSerializer =
-                new TimerSerializer<>(keySerializer, namespaceSerializer);
-
-        InternalTimerServiceAsyncImpl<K, N> timerService =
-                registerOrGetAsyncTimerService(name, timerSerializer, asyncExecutionController);
-
-        timerService.startTimerService(
-                timerSerializer.getKeySerializer(),
-                timerSerializer.getNamespaceSerializer(),
-                triggerable);
-
-        return timerService;
-    }
-
-    <N> InternalTimerServiceAsyncImpl<K, N> registerOrGetAsyncTimerService(
-            String name,
-            TimerSerializer<K, N> timerSerializer,
-            AsyncExecutionController<K> asyncExecutionController) {
-        InternalTimerServiceAsyncImpl<K, N> timerService =
-                (InternalTimerServiceAsyncImpl<K, N>) timerServices.get(name);
-        if (timerService == null) {
-            timerService =
-                    new InternalTimerServiceAsyncImpl<>(
-                            taskIOMetricGroup,
-                            localKeyGroupRange,
-                            keyContext,
-                            processingTimeService,
-                            createTimerPriorityQueue(
-                                    PROCESSING_TIMER_PREFIX + name, timerSerializer),
-                            createTimerPriorityQueue(EVENT_TIMER_PREFIX + name, timerSerializer),
-                            cancellationContext,
-                            asyncExecutionController);
+            if (priorityQueueSetFactory instanceof AsyncKeyedStateBackend) {
+                timerService =
+                        new InternalTimerServiceAsyncImpl<>(
+                                taskIOMetricGroup,
+                                localKeyGroupRange,
+                                keyContext,
+                                processingTimeService,
+                                createTimerPriorityQueue(
+                                        PROCESSING_TIMER_PREFIX + name, timerSerializer),
+                                createTimerPriorityQueue(
+                                        EVENT_TIMER_PREFIX + name, timerSerializer),
+                                cancellationContext);
+            } else {
+                timerService =
+                        new InternalTimerServiceImpl<>(
+                                taskIOMetricGroup,
+                                localKeyGroupRange,
+                                keyContext,
+                                processingTimeService,
+                                createTimerPriorityQueue(
+                                        PROCESSING_TIMER_PREFIX + name, timerSerializer),
+                                createTimerPriorityQueue(
+                                        EVENT_TIMER_PREFIX + name, timerSerializer),
+                                cancellationContext);
+            }
 
             timerServices.put(name, timerService);
         }

@@ -17,16 +17,21 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
+import org.apache.flink.configuration.{Configuration, RestartStrategyOptions}
+import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.table.planner.expressions.utils.TestNonDeterministicUdf
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
-import org.junit.jupiter.api.{BeforeEach, Disabled, TestTemplate}
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
+
+import java.time.Duration
 
 import scala.collection.JavaConversions._
 
@@ -91,7 +96,6 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                        |""".stripMargin)
   }
 
-  @Disabled("FLINK-36166")
   @TestTemplate
   def testJoinDisorderChangeLog(): Unit = {
     tEnv.executeSql("""
@@ -326,15 +330,10 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @TestTemplate
   def testCreateTableAsSelectWithoutOptions(): Unit = {
-    // TODO: CTAS supports ManagedTable
-    // If the connector option is not specified, Flink will creates a Managed table.
-    // Managed table requires two layers of log storage and file storage
-    // and depends on the flink table store, CTAS will support Managed Table in the future.
     assertThatThrownBy(
       () => tEnv.executeSql("CREATE TABLE MyCtasTable AS SELECT `person`, `votes` FROM src"))
-      .hasMessage("You should enable the checkpointing for sinking to managed table " +
-        "'default_catalog.default_database.MyCtasTable'," +
-        " managed table relies on checkpoint to commit and the data is visible only after commit.")
+      .hasRootCauseMessage(
+        "Table options do not contain an option key 'connector' for discovering a connector.")
   }
 
   @TestTemplate
@@ -580,5 +579,121 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val expected2 =
       List("+I[1, jason, 3, X, 43]", "+I[2, andy, 2, Y, 32]", "+I[3, clark, 1, Z, 29]")
     assertThat(result2.sorted).isEqualTo(expected2.sorted)
+  }
+
+  @TestTemplate
+  def testInsertWithCTE(): Unit = {
+    val srcDataId = TestValuesTableFactory.registerData(
+      Seq(
+        row(1L, "jason", 3L, "X", 43),
+        row(2L, "andy", 2L, "Y", 32),
+        row(3L, "clark", 1L, "Z", 29)
+      ))
+    tEnv.executeSql(s"""
+                       |CREATE TABLE test_source (
+                       |  id bigint,
+                       |  person String,
+                       |  votes bigint,
+                       |  city String,
+                       |  age int)
+                       |WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$srcDataId'
+                       |)
+                       |""".stripMargin)
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE test_sink (
+                    |  id bigint,
+                    |  person String,
+                    |  votes bigint,
+                    |  city String,
+                    |  age int,
+                    |  primary key(id) not enforced
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'sink-insert-only' = 'false'
+                    |)
+                    |""".stripMargin)
+      .await()
+    tEnv
+      .executeSql("""
+                    |INSERT INTO test_sink (id, person, votes)
+                    |  WITH cte AS (SELECT
+                    |    id,
+                    |    person,
+                    |    votes
+                    |  FROM
+                    |    test_source) SELECT * FROM cte
+                    |""".stripMargin)
+      .await()
+    val result = TestValuesTableFactory.getResultsAsStrings("test_sink")
+    val expected = List(
+      "+I[1, jason, 3, null, null]",
+      "+I[2, andy, 2, null, null]",
+      "+I[3, clark, 1, null, null]")
+    assertThat(result.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testUpsertSinkWithFailingSource(): Unit = {
+    // enable checkpoint, we are using failing source to force have a complete checkpoint
+    // and cover restore path
+    env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE)
+    val configuration = new Configuration()
+    configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay")
+    configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Int.box(1))
+    configuration.set(
+      RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+      Duration.ofMillis(0))
+    env.configure(configuration, Thread.currentThread.getContextClassLoader)
+    FailingCollectionSource.reset()
+
+    val data = List(
+      changelogRow("+I", Int.box(1), "Jim"),
+      changelogRow("-U", Int.box(1), "Jim"),
+      changelogRow("+U", Int.box(1), "Ketty"),
+      changelogRow("+I", Int.box(2), "Lilith"),
+      changelogRow("-U", Int.box(2), "Lilith"),
+      // failover
+      changelogRow("+I", Int.box(3), "Sam"),
+      changelogRow("-U", Int.box(3), "Sam"),
+      changelogRow("+U", Int.box(3), "Boob"),
+      changelogRow("-D", Int.box(3), "Boob"),
+      changelogRow("+I", Int.box(4), "Julia")
+    )
+    tEnv.executeSql(s"""
+                       |CREATE TABLE pk_src (
+                       |  id int primary key not enforced,
+                       |  name string
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'changelog-mode' = 'I,UA,UB,D',
+                       |  'failing-source' = 'true',
+                       |  'data-id' = '${TestValuesTableFactory.registerData(data)}'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE pk_snk (
+                       |  id int primary key not enforced,
+                       |  name string
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'sink-insert-only' = 'false',
+                       |  'sink-changelog-mode-enforced' = 'I,UA,D'
+                       |)
+                       |""".stripMargin)
+
+    tEnv
+      .executeSql("""
+                    |INSERT INTO pk_snk SELECT * FROM pk_src where name <> 'unknown';
+                    |""".stripMargin)
+      .await()
+
+    val expected = List("+I[1, Ketty]", "+I[4, Julia]")
+
+    assertThat(TestValuesTableFactory.getResultsAsStrings("pk_snk").sorted)
+      .isEqualTo(expected.sorted)
   }
 }

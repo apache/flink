@@ -1066,10 +1066,10 @@ class KafkaRecordSerializationSchemaBuilder(object):
         jvm = get_gateway().jvm
         self._j_builder = jvm.org.apache.flink.connector.kafka.sink \
             .KafkaRecordSerializationSchemaBuilder()
-        self._fixed_topic = True  # type: bool
-        self._topic_selector = None  # type: Optional[KafkaTopicSelector]
-        self._key_serialization_schema = None  # type: Optional[SerializationSchema]
-        self._value_serialization_schema = None  # type: Optional[SerializationSchema]
+        self._fixed_topic: bool = True
+        self._topic_selector: Optional[KafkaTopicSelector] = None
+        self._key_serialization_schema: Optional[SerializationSchema] = None
+        self._value_serialization_schema: Optional[SerializationSchema] = None
 
     def build(self) -> 'KafkaRecordSerializationSchema':
         """

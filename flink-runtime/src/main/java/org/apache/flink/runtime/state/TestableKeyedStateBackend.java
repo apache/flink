@@ -24,6 +24,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 public interface TestableKeyedStateBackend<K> extends KeyedStateBackend<K> {
     /** Returns the total number of state entries across all keys/namespaces. */
     int numKeyValueStateEntries();
+
     /**
      * @return delegated {@link KeyedStateBackend} if this backends delegates its
      *     responisibilities..

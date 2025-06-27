@@ -21,6 +21,8 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
+import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -35,6 +37,7 @@ import java.util.stream.Stream;
 @Internal
 public class AggregateQueryOperation implements QueryOperation {
 
+    private static final String INPUT_ALIAS = "$$T_AGG";
     private final List<ResolvedExpression> groupingExpressions;
     private final List<ResolvedExpression> aggregateExpressions;
     private final QueryOperation child;
@@ -75,26 +78,35 @@ public class AggregateQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
-        final String groupingExprs = getGroupingExprs();
+    public String asSerializableString(SqlFactory sqlFactory) {
+        final String groupingExprs = getGroupingExprs(sqlFactory);
         return String.format(
-                "SELECT %s FROM (%s\n)\nGROUP BY %s",
+                "SELECT %s FROM (%s\n) %s\nGROUP BY %s",
                 Stream.concat(groupingExpressions.stream(), aggregateExpressions.stream())
-                        .map(ResolvedExpression::asSerializableString)
+                        .map(
+                                expr ->
+                                        OperationExpressionsUtils.scopeReferencesWithAlias(
+                                                INPUT_ALIAS, expr))
+                        .map(
+                                resolvedExpression ->
+                                        resolvedExpression.asSerializableString(sqlFactory))
                         .collect(Collectors.joining(", ")),
-                OperationUtils.indent(child.asSerializableString()),
+                OperationUtils.indent(child.asSerializableString(sqlFactory)),
+                INPUT_ALIAS,
                 groupingExprs);
     }
 
-    private String getGroupingExprs() {
+    private String getGroupingExprs(SqlFactory sqlFactory) {
         if (groupingExpressions.isEmpty()) {
             return "1";
         } else {
-            final String groupingExprs =
-                    groupingExpressions.stream()
-                            .map(ResolvedExpression::asSerializableString)
-                            .collect(Collectors.joining(", "));
-            return groupingExprs;
+            return groupingExpressions.stream()
+                    .map(
+                            expr ->
+                                    OperationExpressionsUtils.scopeReferencesWithAlias(
+                                            INPUT_ALIAS, expr))
+                    .map(resolvedExpression -> resolvedExpression.asSerializableString(sqlFactory))
+                    .collect(Collectors.joining(", "));
         }
     }
 

@@ -161,12 +161,19 @@ public class SqlCastFunction extends SqlFunction {
 
     private boolean canCastFrom(RelDataType toType, RelDataType fromType) {
         SqlTypeName fromTypeName = fromType.getSqlTypeName();
+
+        // Cast to Variant is not support at the moment.
+        // TODO: Support cast to variant (FLINK-37925，FLINK-37926)
+        if (toType.getSqlTypeName() == SqlTypeName.VARIANT) {
+            return false;
+        }
         switch (fromTypeName) {
             case ARRAY:
             case MAP:
             case MULTISET:
             case STRUCTURED:
             case ROW:
+            case VARIANT:
             case OTHER:
                 // We use our casting checker logic only for these types,
                 //  as the differences with calcite casting checker logic generates issues

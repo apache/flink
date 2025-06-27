@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -34,6 +35,9 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.runtime.asyncprocessing.operators.AsyncKeyedProcessOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.AsyncStreamFlatMap;
+import org.apache.flink.runtime.asyncprocessing.operators.co.AsyncIntervalJoinOperator;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
@@ -44,6 +48,8 @@ import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperato
 import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -94,6 +100,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
     /** The type of the key by which the stream is partitioned. */
     private final TypeInformation<KEY> keyType;
+
+    /** Whether the async state has been enabled. */
+    private boolean isEnableAsyncState = false;
 
     /**
      * Creates a new {@link KeyedStream} using the given {@link KeySelector} to partition operator
@@ -285,6 +294,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
                 (OneInputTransformation<T, R>) returnStream.getTransformation();
         transform.setStateKeySelector(keySelector);
         transform.setStateKeyType(keyType);
+        if (isEnableAsyncState) {
+            transform.enableAsyncState();
+        }
 
         return returnStream;
     }
@@ -347,10 +359,24 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
     @Internal
     public <R> SingleOutputStreamOperator<R> process(
             KeyedProcessFunction<KEY, T, R> keyedProcessFunction, TypeInformation<R> outputType) {
-
-        KeyedProcessOperator<KEY, T, R> operator =
-                new KeyedProcessOperator<>(clean(keyedProcessFunction));
+        OneInputStreamOperator<T, R> operator =
+                isEnableAsyncState()
+                        ? new AsyncKeyedProcessOperator<>(clean(keyedProcessFunction))
+                        : new KeyedProcessOperator<>(clean(keyedProcessFunction));
         return transform("KeyedProcess", outputType, operator);
+    }
+
+    // ------------------------------------------------------------------------
+    // Flat Map
+    // ------------------------------------------------------------------------
+    @Override
+    public <R> SingleOutputStreamOperator<R> flatMap(
+            FlatMapFunction<T, R> flatMapper, TypeInformation<R> outputType) {
+        OneInputStreamOperator<T, R> operator =
+                isEnableAsyncState()
+                        ? new AsyncStreamFlatMap<>(clean(flatMapper))
+                        : new StreamFlatMap<>(clean(flatMapper));
+        return transform("Flat Map", outputType, operator);
     }
 
     // ------------------------------------------------------------------------
@@ -469,6 +495,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
         private OutputTag<IN1> leftLateDataOutputTag;
         private OutputTag<IN2> rightLateDataOutputTag;
 
+        private boolean isEnableAsyncState = false;
+
         public IntervalJoined(
                 KeyedStream<IN1, KEY> left,
                 KeyedStream<IN2, KEY> right,
@@ -488,6 +516,11 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
             this.keySelector1 = left.getKeySelector();
             this.keySelector2 = right.getKeySelector();
+
+            if (left.isEnableAsyncState() || right.isEnableAsyncState()) {
+                // enable async state if any stream enabled the async state.
+                enableAsyncState();
+            }
         }
 
         /** Set the upper bound to be exclusive. */
@@ -575,25 +608,59 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
             final ProcessJoinFunction<IN1, IN2, OUT> cleanedUdf =
                     left.getExecutionEnvironment().clean(processJoinFunction);
 
-            final IntervalJoinOperator<KEY, IN1, IN2, OUT> operator =
-                    new IntervalJoinOperator<>(
-                            lowerBound,
-                            upperBound,
-                            lowerBoundInclusive,
-                            upperBoundInclusive,
-                            leftLateDataOutputTag,
-                            rightLateDataOutputTag,
-                            left.getType()
-                                    .createSerializer(
-                                            left.getExecutionConfig().getSerializerConfig()),
-                            right.getType()
-                                    .createSerializer(
-                                            right.getExecutionConfig().getSerializerConfig()),
-                            cleanedUdf);
+            if (isEnableAsyncState) {
+                final AsyncIntervalJoinOperator<KEY, IN1, IN2, OUT> operator =
+                        new AsyncIntervalJoinOperator<>(
+                                lowerBound,
+                                upperBound,
+                                lowerBoundInclusive,
+                                upperBoundInclusive,
+                                leftLateDataOutputTag,
+                                rightLateDataOutputTag,
+                                left.getType()
+                                        .createSerializer(
+                                                left.getExecutionConfig().getSerializerConfig()),
+                                right.getType()
+                                        .createSerializer(
+                                                right.getExecutionConfig().getSerializerConfig()),
+                                cleanedUdf);
 
-            return left.connect(right)
-                    .keyBy(keySelector1, keySelector2)
-                    .transform("Interval Join", outputType, operator);
+                return left.connect(right)
+                        .keyBy(keySelector1, keySelector2)
+                        .transform("Interval Join [Async]", outputType, operator);
+            } else {
+                final IntervalJoinOperator<KEY, IN1, IN2, OUT> operator =
+                        new IntervalJoinOperator<>(
+                                lowerBound,
+                                upperBound,
+                                lowerBoundInclusive,
+                                upperBoundInclusive,
+                                leftLateDataOutputTag,
+                                rightLateDataOutputTag,
+                                left.getType()
+                                        .createSerializer(
+                                                left.getExecutionConfig().getSerializerConfig()),
+                                right.getType()
+                                        .createSerializer(
+                                                right.getExecutionConfig().getSerializerConfig()),
+                                cleanedUdf);
+
+                return left.connect(right)
+                        .keyBy(keySelector1, keySelector2)
+                        .transform("Interval Join", outputType, operator);
+            }
+        }
+
+        /**
+         * Enable the async state processing for following keyed processing function. This also
+         * requires only State V2 APIs are used in the function.
+         *
+         * @return the configured IntervalJoin itself.
+         */
+        @Experimental
+        public IntervalJoined<IN1, IN2, KEY> enableAsyncState() {
+            isEnableAsyncState = true;
+            return this;
         }
     }
 
@@ -663,6 +730,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
                         keySelector,
                         getKeyType(),
                         false);
+        if (isEnableAsyncState) {
+            reduce.enableAsyncState();
+        }
 
         getExecutionEnvironment().addOperator(reduce);
 
@@ -1017,5 +1087,22 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
                 queryableStateName,
                 stateDescriptor,
                 getKeyType().createSerializer(getExecutionConfig().getSerializerConfig()));
+    }
+
+    /**
+     * Enable the async state processing for following keyed processing function. This also requires
+     * only State V2 APIs are used in the function.
+     *
+     * @return the configured KeyedStream itself.
+     */
+    @Experimental
+    public KeyedStream<T, KEY> enableAsyncState() {
+        isEnableAsyncState = true;
+        return this;
+    }
+
+    @Internal
+    boolean isEnableAsyncState() {
+        return isEnableAsyncState;
     }
 }

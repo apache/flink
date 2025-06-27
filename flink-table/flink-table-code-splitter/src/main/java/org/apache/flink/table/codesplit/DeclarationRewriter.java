@@ -133,6 +133,11 @@ public class DeclarationRewriter implements CodeRewriter {
         }
 
         @Override
+        public Void visitConstructorDeclaration(JavaParser.ConstructorDeclarationContext ctx) {
+            return visitFunctionBody(ctx.constructorBody);
+        }
+
+        @Override
         public Void visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
             if ("void".equals(ctx.typeTypeOrVoid().getText())) {
                 visitMethodBody(ctx.methodBody());
@@ -142,17 +147,21 @@ public class DeclarationRewriter implements CodeRewriter {
 
         @Override
         public Void visitMethodBody(JavaParser.MethodBodyContext ctx) {
+            return visitFunctionBody(ctx.block());
+        }
+
+        public Void visitFunctionBody(JavaParser.BlockContext blockContext) {
             // this condition must be the same with the condition in
             // FunctionSplitter::visitMethodDeclaration
-            if (CodeSplitUtil.getContextTextLength(ctx.block()) <= maxMethodLength) {
+            if (CodeSplitUtil.getContextTextLength(blockContext) <= maxMethodLength) {
                 return null;
             }
 
             hasRewrite = true;
             InnerBlockStatementExtractor extractor = new InnerBlockStatementExtractor();
-            if (ctx.block() != null && ctx.block().blockStatement() != null) {
+            if (blockContext != null && blockContext.blockStatement() != null) {
                 for (JavaParser.BlockStatementContext blockStatementContext :
-                        ctx.block().blockStatement()) {
+                        blockContext.blockStatement()) {
                     extractor.visitBlockStatement(blockStatementContext);
                 }
                 newFields.peek().append(extractor.getNewLocalVariables());
@@ -216,7 +225,9 @@ public class DeclarationRewriter implements CodeRewriter {
                 return visitChildren(ctx);
             }
 
-            /** @return new name. */
+            /**
+             * @return new name.
+             */
             private String extractLocalVariable(
                     JavaParser.VariableDeclaratorIdContext decId,
                     JavaParser.TypeTypeContext typeType,

@@ -19,6 +19,8 @@
 package org.apache.flink.kubernetes.entrypoint;
 
 import org.apache.flink.client.cli.ArtifactFetchOptions;
+import org.apache.flink.client.deployment.application.ApplicationConfiguration;
+import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 
@@ -31,6 +33,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.nio.file.Path;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KubernetesApplicationClusterEntrypointTest}. */
 public class KubernetesApplicationClusterEntrypointTest {
@@ -57,5 +61,16 @@ public class KubernetesApplicationClusterEntrypointTest {
                         File.separator,
                         new String[] {tempDir.toString(), TEST_NAMESPACE, TEST_CLUSTER_ID});
         Assertions.assertEquals(expectedDir, baseDir);
+    }
+
+    @Test
+    void testGetPackagedProgram() throws Exception {
+        Configuration config = new Configuration();
+        new ApplicationConfiguration(
+                        new String[0], KubernetesApplicationClusterEntrypoint.class.getName())
+                .applyToConfiguration(config);
+        PackagedProgram packagedProgram =
+                KubernetesApplicationClusterEntrypoint.getPackagedProgram(config);
+        assertThat(packagedProgram.getJobJarAndDependencies()).isNullOrEmpty();
     }
 }

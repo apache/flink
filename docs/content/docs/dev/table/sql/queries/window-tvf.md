@@ -101,15 +101,14 @@ Flink SQL> SELECT * FROM Bid;
 | 2020-04-15 08:17 |  6.00 | F    |
 +------------------+-------+------+
 
-Flink SQL> SELECT * FROM TABLE(
-   TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES));
+Flink SQL> SELECT * FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES);
 -- or with the named params
 -- note: the DATA param must be the first
-Flink SQL> SELECT * FROM TABLE(
+Flink SQL> SELECT * FROM 
    TUMBLE(
      DATA => TABLE Bid,
      TIMECOL => DESCRIPTOR(bidtime),
-     SIZE => INTERVAL '10' MINUTES));
+     SIZE => INTERVAL '10' MINUTES);
 +------------------+-------+------+------------------+------------------+-------------------------+
 |          bidtime | price | item |     window_start |       window_end |            window_time  |
 +------------------+-------+------+------------------+------------------+-------------------------+
@@ -123,8 +122,7 @@ Flink SQL> SELECT * FROM TABLE(
 
 -- apply aggregation on the tumbling windowed table
 Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
-  FROM TABLE(
-    TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
+  FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES)
   GROUP BY window_start, window_end;
 +------------------+------------------+-------------+
 |     window_start |       window_end | total_price |
@@ -165,16 +163,15 @@ HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 Here is an example invocation on the `Bid` table:
 
 ```sql
-> SELECT * FROM TABLE(
-    HOP(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES));
+> SELECT * FROM HOP(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES);
 -- or with the named params
 -- note: the DATA param must be the first
-> SELECT * FROM TABLE(
+> SELECT * FROM 
     HOP(
       DATA => TABLE Bid,
       TIMECOL => DESCRIPTOR(bidtime),
       SLIDE => INTERVAL '5' MINUTES,
-      SIZE => INTERVAL '10' MINUTES));
+      SIZE => INTERVAL '10' MINUTES);
 +------------------+-------+------+------------------+------------------+-------------------------+
 |          bidtime | price | item |     window_start |       window_end |           window_time   |
 +------------------+-------+------+------------------+------------------+-------------------------+
@@ -194,8 +191,7 @@ Here is an example invocation on the `Bid` table:
 
 -- apply aggregation on the hopping windowed table
 > SELECT window_start, window_end, SUM(price) AS total_price
-  FROM TABLE(
-    HOP(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES))
+  FROM HOP(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES)
   GROUP BY window_start, window_end;
 +------------------+------------------+-------------+
 |     window_start |       window_end | total_price |
@@ -238,16 +234,16 @@ CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 Here is an example invocation on the Bid table:
 
 ```sql
-> SELECT * FROM TABLE(
-    CUMULATE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES, INTERVAL '10' MINUTES));
+> SELECT * FROM 
+    CUMULATE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES, INTERVAL '10' MINUTES);
 -- or with the named params
 -- note: the DATA param must be the first
-> SELECT * FROM TABLE(
+> SELECT * FROM 
     CUMULATE(
       DATA => TABLE Bid,
       TIMECOL => DESCRIPTOR(bidtime),
       STEP => INTERVAL '2' MINUTES,
-      SIZE => INTERVAL '10' MINUTES));
+      SIZE => INTERVAL '10' MINUTES);
 +------------------+-------+------+------------------+------------------+-------------------------+
 |          bidtime | price | item |     window_start |       window_end |            window_time  |
 +------------------+-------+------+------------------+------------------+-------------------------+
@@ -272,8 +268,7 @@ Here is an example invocation on the Bid table:
 
 -- apply aggregation on the cumulating windowed table
 > SELECT window_start, window_end, SUM(price) AS total_price
-  FROM TABLE(
-    CUMULATE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES, INTERVAL '10' MINUTES))
+  FROM CUMULATE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES, INTERVAL '10' MINUTES)
   GROUP BY window_start, window_end;
 +------------------+------------------+-------------+
 |     window_start |       window_end | total_price |
@@ -351,11 +346,10 @@ Flink SQL> SELECT * FROM Bid;
 +------------------+-------+------+
 
 -- session window with partition keys
-> SELECT * FROM TABLE(
-    SESSION(TABLE Bid PARTITION BY item, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES));
+> SELECT * FROM SESSION(TABLE Bid PARTITION BY item, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES);
 -- or with the named params
 -- note: the DATA param must be the first
-> SELECT * FROM TABLE(
+> SELECT * FROM 
     SESSION(
       DATA => TABLE Bid PARTITION BY item,
       TIMECOL => DESCRIPTOR(bidtime),
@@ -372,8 +366,7 @@ Flink SQL> SELECT * FROM Bid;
 
 -- apply aggregation on the session windowed table with partition keys
 > SELECT window_start, window_end, item, SUM(price) AS total_price
-  FROM TABLE(
-    SESSION(TABLE Bid PARTITION BY item, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES))
+  FROM SESSION(TABLE Bid PARTITION BY item, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES)
   GROUP BY item, window_start, window_end;
 +------------------+------------------+------+-------------+
 |     window_start |       window_end | item | total_price |
@@ -384,11 +377,10 @@ Flink SQL> SELECT * FROM Bid;
 +------------------+------------------+------+-------------+
 
 -- session window without partition keys
-> SELECT * FROM TABLE(
-    SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES));
+> SELECT * FROM SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES);
 -- or with the named params
 -- note: the DATA param must be the first
-> SELECT * FROM TABLE(
+> SELECT * FROM 
     SESSION(
       DATA => TABLE Bid,
       TIMECOL => DESCRIPTOR(bidtime),
@@ -405,8 +397,7 @@ Flink SQL> SELECT * FROM Bid;
 
 -- apply aggregation on the session windowed table without partition keys
 > SELECT window_start, window_end, SUM(price) AS total_price
-  FROM TABLE(
-      SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES))
+  FROM SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES)
   GROUP BY window_start, window_end;
 +------------------+------------------+-------------+
 |     window_start |       window_end | total_price |
@@ -436,16 +427,16 @@ We show an example to describe how to use offset in Tumble window in the followi
 -- NOTE: Currently Flink doesn't support evaluating individual window table-valued function,
 --  window table-valued function should be used with aggregate operation,
 --  this example is just used for explaining the syntax and the data produced by table-valued function.
-Flink SQL> SELECT * FROM TABLE(
-   TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES, INTERVAL '1' MINUTES));
+Flink SQL> SELECT * FROM 
+   TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES, INTERVAL '1' MINUTES);
 -- or with the named params
 -- note: the DATA param must be the first and `OFFSET` should be wrapped with double quotes
-Flink SQL> SELECT * FROM TABLE(
+Flink SQL> SELECT * FROM 
    TUMBLE(
      DATA => TABLE Bid,
      TIMECOL => DESCRIPTOR(bidtime),
      SIZE => INTERVAL '10' MINUTES,
-     `OFFSET` => INTERVAL '1' MINUTES));
+     `OFFSET` => INTERVAL '1' MINUTES);
 +------------------+-------+------+------------------+------------------+-------------------------+
 |          bidtime | price | item |     window_start |       window_end |            window_time  |
 +------------------+-------+------+------------------+------------------+-------------------------+
@@ -459,8 +450,7 @@ Flink SQL> SELECT * FROM TABLE(
 
 -- apply aggregation on the tumbling windowed table
 Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
-  FROM TABLE(
-    TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES, INTERVAL '1' MINUTES))
+  FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES, INTERVAL '1' MINUTES)
   GROUP BY window_start, window_end;
 +------------------+------------------+-------------+
 |     window_start |       window_end | total_price |

@@ -23,7 +23,13 @@
   nzMessage="Job is not running yet."
 ></nz-alert>
 <div class="container" [style.height.px]="top">
-  <flink-dagre (nodeClick)="onNodeClick($event)" [xCenter]="4"></flink-dagre>
+  <flink-dagre
+    (nodeClick)="onNodeClick($event)"
+    [xCenter]="4"
+    [showPendingCheckbox]="pendingNodes.length > 0"
+    [pendingOperators]="pendingNodes.length"
+    (showPendingChange)="refreshGraph($event)"
+  ></flink-dagre>
   <router-outlet></router-outlet>
 </div>
 

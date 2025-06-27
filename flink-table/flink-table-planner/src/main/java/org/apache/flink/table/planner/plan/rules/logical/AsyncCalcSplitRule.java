@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
-import org.apache.flink.table.planner.plan.utils.AsyncUtil;
+import org.apache.flink.table.planner.plan.utils.AsyncScalarUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -73,34 +73,49 @@ public class AsyncCalcSplitRule {
     public static class AsyncRemoteCalcCallFinder implements RemoteCalcCallFinder {
         @Override
         public boolean containsRemoteCall(RexNode node) {
-            return AsyncUtil.containsAsyncCall(node);
+            return AsyncScalarUtil.containsAsyncCall(node);
         }
 
         @Override
         public boolean containsNonRemoteCall(RexNode node) {
-            return AsyncUtil.containsNonAsyncCall(node);
+            return AsyncScalarUtil.containsNonAsyncCall(node);
         }
 
         @Override
         public boolean isRemoteCall(RexNode node) {
-            return AsyncUtil.isAsyncCall(node);
+            return AsyncScalarUtil.isAsyncCall(node);
         }
 
         @Override
         public boolean isNonRemoteCall(RexNode node) {
-            return AsyncUtil.isNonAsyncCall(node);
+            return AsyncScalarUtil.isNonAsyncCall(node);
+        }
+
+        @Override
+        public String getName() {
+            return "Async";
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj != null && this.getClass() == obj.getClass();
+        }
+
+        @Override
+        public int hashCode() {
+            return this.getClass().hashCode();
         }
     }
 
     private static boolean hasNestedCalls(List<RexNode> projects) {
         return projects.stream()
-                .filter(AsyncUtil::containsAsyncCall)
+                .filter(AsyncScalarUtil::containsAsyncCall)
                 .filter(expr -> expr instanceof RexCall)
                 .map(expr -> (RexCall) expr)
                 .anyMatch(
                         rexCall ->
                                 rexCall.getOperands().stream()
-                                        .anyMatch(AsyncUtil::containsAsyncCall));
+                                        .anyMatch(AsyncScalarUtil::containsAsyncCall));
     }
 
     /**
@@ -189,7 +204,7 @@ public class AsyncCalcSplitRule {
 
         @Override
         public boolean needConvert(RexProgram program, RexNode node, Option<State> matchState) {
-            if (AsyncUtil.containsAsyncCall(node) && !matchState.get().foundMatch) {
+            if (AsyncScalarUtil.containsAsyncCall(node) && !matchState.get().foundMatch) {
                 matchState.get().foundMatch = true;
                 return true;
             }

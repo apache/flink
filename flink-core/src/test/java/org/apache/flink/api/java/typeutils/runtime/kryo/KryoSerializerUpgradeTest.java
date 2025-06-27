@@ -38,37 +38,43 @@ import java.util.Collection;
 import static org.apache.flink.api.common.typeutils.TypeSerializerConditions.hasSameCompatibilityAs;
 import static org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer;
 
+// Flink 2.0 has done a major Kryo 2.x -> 5.x upgrade and the new Flink is not compatible with older
+// Kryo state.
 /** Tests migrations for {@link KryoSerializerSnapshot}. */
 @SuppressWarnings("WeakerAccess")
 class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Object> {
-
     public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
             throws Exception {
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        testSpecifications.add(
-                new TestSpecification<>(
-                        "kryo-type-serializer-empty-config",
-                        flinkVersion,
-                        KryoTypeSerializerEmptyConfigSetup.class,
-                        KryoTypeSerializerEmptyConfigVerifier.class));
-        testSpecifications.add(
-                new TestSpecification<>(
-                        "kryo-type-serializer-unrelated-config-after-restore",
-                        flinkVersion,
-                        KryoTypeSerializerEmptyConfigSetup.class,
-                        KryoTypeSerializerWithUnrelatedConfigVerifier.class));
-        testSpecifications.add(
-                new TestSpecification<>(
-                        "kryo-type-serializer-changed-registration-order",
-                        flinkVersion,
-                        KryoTypeSerializerChangedRegistrationOrderSetup.class,
-                        KryoTypeSerializerChangedRegistrationOrderVerifier.class));
-        testSpecifications.add(
-                new TestSpecification<>(
-                        "kryo-custom-type-serializer-changed-registration-order",
-                        flinkVersion,
-                        KryoCustomTypeSerializerChangedRegistrationOrderSetup.class,
-                        KryoCustomTypeSerializerChangedRegistrationOrderVerifier.class));
+
+        // 2025-01-02: We do not support compatibility with Kryo data from 1.x
+        if (flinkVersion.isNewerVersionThan(FlinkVersion.v2_0)
+                || flinkVersion == FlinkVersion.v2_0) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "kryo-type-serializer-empty-config",
+                            flinkVersion,
+                            KryoTypeSerializerEmptyConfigSetup.class,
+                            KryoTypeSerializerEmptyConfigVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "kryo-type-serializer-unrelated-config-after-restore",
+                            flinkVersion,
+                            KryoTypeSerializerEmptyConfigSetup.class,
+                            KryoTypeSerializerWithUnrelatedConfigVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "kryo-type-serializer-changed-registration-order",
+                            flinkVersion,
+                            KryoTypeSerializerChangedRegistrationOrderSetup.class,
+                            KryoTypeSerializerChangedRegistrationOrderVerifier.class));
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            "kryo-custom-type-serializer-changed-registration-order",
+                            flinkVersion,
+                            KryoCustomTypeSerializerChangedRegistrationOrderSetup.class,
+                            KryoCustomTypeSerializerChangedRegistrationOrderVerifier.class));
+        }
 
         return testSpecifications;
     }

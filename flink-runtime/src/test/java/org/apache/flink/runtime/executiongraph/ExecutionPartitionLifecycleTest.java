@@ -66,6 +66,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link Execution}. */
@@ -258,8 +259,11 @@ class ExecutionPartitionLifecycleTest {
             throws Exception {
         final JobVertex producerVertex = createNoOpJobVertex();
         final JobVertex consumerVertex = createNoOpJobVertex();
-        consumerVertex.connectNewDataSetAsInput(
-                producerVertex, DistributionPattern.ALL_TO_ALL, resultPartitionType);
+        connectNewDataSetAsInput(
+                consumerVertex,
+                producerVertex,
+                DistributionPattern.ALL_TO_ALL,
+                resultPartitionType);
 
         final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
         final TestingPhysicalSlotProvider physicalSlotProvider =

@@ -22,13 +22,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.process.FlinkMetricContainer;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.table.runtime.operators.python.aggregate.PassThroughPythonStreamGroupWindowAggregateOperator;
 import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
 
 import static org.apache.flink.python.util.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
 
@@ -42,6 +43,7 @@ public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
     private final PassThroughPythonStreamGroupWindowAggregateOperator operator;
 
     public PassThroughStreamGroupWindowAggregatePythonFunctionRunner(
+            Environment environment,
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
             RowType inputType,
@@ -53,6 +55,7 @@ public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
             TypeSerializer keySerializer,
             PassThroughPythonStreamGroupWindowAggregateOperator operator) {
         super(
+                environment,
                 taskName,
                 environmentManager,
                 functionUrn,

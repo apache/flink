@@ -22,6 +22,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit, JsonOnNull
 from pyflink.table.types import _to_java_data_type, DataType
 from pyflink.table.udf import UserDefinedFunctionWrapper
+from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_jarray, load_java_class
 
 __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOUNDED_ROW',
@@ -30,10 +31,10 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'current_watermark', 'local_time', 'local_timestamp',
            'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
            'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
-           'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
-           'json_object', 'json_object_agg', 'json_array', 'json_array_agg', 'call', 'call_sql',
-           'source_watermark', 'to_timestamp_ltz', 'from_unixtime', 'to_date', 'to_timestamp',
-           'convert_tz', 'unix_timestamp']
+           'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json',
+           'json_string', 'json_object', 'json_object_agg', 'json_array', 'json_array_agg',
+           'call', 'call_sql', 'source_watermark', 'to_timestamp_ltz', 'from_unixtime', 'to_date',
+           'to_timestamp', 'convert_tz', 'unix_timestamp']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -84,6 +85,7 @@ def _add_version_doc():
             add_version_doc(o[1], "1.12.0")
 
 
+@PublicEvolving()
 def col(name: str) -> Expression:
     """
     Creates an expression which refers to a table's column.
@@ -100,6 +102,7 @@ def col(name: str) -> Expression:
     return _unary_op("col", name)
 
 
+@PublicEvolving()
 def lit(v, data_type: DataType = None) -> Expression:
     """
     Creates a SQL literal.
@@ -118,6 +121,7 @@ def lit(v, data_type: DataType = None) -> Expression:
         return _binary_op("lit", v, _to_java_data_type(data_type))
 
 
+@PublicEvolving()
 def range_(start: Union[str, int], end: Union[str, int]) -> Expression:
     """
     Indicates a range from 'start' to 'end', which can be used in columns selection.
@@ -132,6 +136,7 @@ def range_(start: Union[str, int], end: Union[str, int]) -> Expression:
     return _binary_op("range", start, end)
 
 
+@PublicEvolving()
 def and_(predicate0: Union[bool, Expression[bool]],
          predicate1: Union[bool, Expression[bool]],
          *predicates: Union[bool, Expression[bool]]) -> Expression[bool]:
@@ -143,6 +148,7 @@ def and_(predicate0: Union[bool, Expression[bool]],
     return _ternary_op("and", predicate0, predicate1, predicates)
 
 
+@PublicEvolving()
 def or_(predicate0: Union[bool, Expression[bool]],
         predicate1: Union[bool, Expression[bool]],
         *predicates: Union[bool, Expression[bool]]) -> Expression[bool]:
@@ -154,6 +160,7 @@ def or_(predicate0: Union[bool, Expression[bool]],
     return _ternary_op("or", predicate0, predicate1, predicates)
 
 
+@PublicEvolving()
 def not_(expression: Expression[bool]) -> Expression[bool]:
     """
     Inverts a given boolean expression.
@@ -180,7 +187,7 @@ Unbounded over windows start with the first row of a partition.
 
 .. versionadded:: 1.12.0
 """
-UNBOUNDED_ROW = Expression("UNBOUNDED_ROW")  # type: Expression
+UNBOUNDED_ROW: Expression = Expression("UNBOUNDED_ROW")
 
 
 """
@@ -190,7 +197,7 @@ Unbounded over windows start with the first row of a partition.
 
 .. versionadded:: 1.12.0
 """
-UNBOUNDED_RANGE = Expression("UNBOUNDED_RANGE")  # type: Expression
+UNBOUNDED_RANGE: Expression = Expression("UNBOUNDED_RANGE")
 
 
 """
@@ -199,7 +206,7 @@ Use this for setting the upper bound of the window to the current row.
 
 .. versionadded:: 1.12.0
 """
-CURRENT_ROW = Expression("CURRENT_ROW")  # type: Expression
+CURRENT_ROW: Expression = Expression("CURRENT_ROW")
 
 
 """
@@ -209,9 +216,10 @@ all rows with the same sort key as the current row are included in the window.
 
 .. versionadded:: 1.12.0
 """
-CURRENT_RANGE = Expression("CURRENT_RANGE")  # type: Expression
+CURRENT_RANGE: Expression = Expression("CURRENT_RANGE")
 
 
+@PublicEvolving()
 def current_database() -> Expression:
     """
     Returns the current database
@@ -219,6 +227,7 @@ def current_database() -> Expression:
     return _leaf_op("currentDatabase")
 
 
+@PublicEvolving()
 def current_date() -> Expression:
     """
     Returns the current SQL date in local time zone.
@@ -226,6 +235,7 @@ def current_date() -> Expression:
     return _leaf_op("currentDate")
 
 
+@PublicEvolving()
 def current_time() -> Expression:
     """
     Returns the current SQL time in local time zone.
@@ -233,6 +243,7 @@ def current_time() -> Expression:
     return _leaf_op("currentTime")
 
 
+@PublicEvolving()
 def current_timestamp() -> Expression:
     """
     Returns the current SQL timestamp in local time zone,
@@ -241,6 +252,7 @@ def current_timestamp() -> Expression:
     return _leaf_op("currentTimestamp")
 
 
+@PublicEvolving()
 def current_watermark(rowtimeAttribute) -> Expression:
     """
     Returns the current watermark for the given rowtime attribute, or NULL if no common watermark of
@@ -260,6 +272,7 @@ def current_watermark(rowtimeAttribute) -> Expression:
     return _unary_op("currentWatermark", rowtimeAttribute)
 
 
+@PublicEvolving()
 def local_time() -> Expression:
     """
     Returns the current SQL time in local time zone.
@@ -267,6 +280,7 @@ def local_time() -> Expression:
     return _leaf_op("localTime")
 
 
+@PublicEvolving()
 def local_timestamp() -> Expression:
     """
     Returns the current SQL timestamp in local time zone,
@@ -275,6 +289,7 @@ def local_timestamp() -> Expression:
     return _leaf_op("localTimestamp")
 
 
+@PublicEvolving()
 def to_date(date_str: Union[str, Expression[str]],
             format: Union[str, Expression[str]] = None) -> Expression:
     """
@@ -290,6 +305,7 @@ def to_date(date_str: Union[str, Expression[str]],
         return _binary_op("toDate", date_str, format)
 
 
+@PublicEvolving()
 def to_timestamp(timestamp_str: Union[str, Expression[str]],
                  format: Union[str, Expression[str]] = None) -> Expression:
     """
@@ -306,21 +322,51 @@ def to_timestamp(timestamp_str: Union[str, Expression[str]],
         return _binary_op("toTimestamp", timestamp_str, format)
 
 
-def to_timestamp_ltz(numeric_epoch_time, precision) -> Expression:
+@PublicEvolving()
+def to_timestamp_ltz(*args) -> Expression:
     """
-    Converts a numeric type epoch time to TIMESTAMP_LTZ.
+    Converts a value to a timestamp with local time zone.
 
-    The supported precision is 0 or 3:
-    0 means the numericEpochTime is in second.
-    3 means the numericEpochTime is in millisecond.
+    Supported functions:
+    1. to_timestamp_ltz(Numeric) -> DataTypes.TIMESTAMP_LTZ
+    Converts a numeric value of epoch milliseconds to a TIMESTAMP_LTZ. The default precision is 3.
+    2. to_timestamp_ltz(Numeric, Integer) -> DataTypes.TIMESTAMP_LTZ
+    Converts a numeric value of epoch seconds or epoch milliseconds to a TIMESTAMP_LTZ.
+    Valid precisions are 0 or 3.
+    3. to_timestamp_ltz(String) -> DataTypes.TIMESTAMP_LTZ
+    Converts a timestamp string using default format 'yyyy-MM-dd HH:mm:ss.SSS' to a TIMESTAMP_LTZ.
+    4. to_timestamp_ltz(String, String) -> DataTypes.TIMESTAMP_LTZ
+    Converts a timestamp string using format (default 'yyyy-MM-dd HH:mm:ss.SSS') to a TIMESTAMP_LTZ.
+    5. to_timestamp_ltz(String, String, String) -> DataTypes.TIMESTAMP_LTZ
+    Converts a timestamp string string1 using format string2 (default 'yyyy-MM-dd HH:mm:ss.SSS')
+    in time zone string3 (default 'UTC') to a TIMESTAMP_LTZ.
+    Supports any timezone that is available in Java's TimeZone database.
 
-    :param numeric_epoch_time: The epoch time with numeric type
-    :param precision: The precision to indicate the epoch time is in second or millisecond
-    :return: The timestamp value with TIMESTAMP_LTZ type.
+    Example:
+    ::
+
+        >>> table.select(to_timestamp_ltz(100))  # numeric with default precision
+        >>> table.select(to_timestamp_ltz(100, 0))  # numeric with second precision
+        >>> table.select(to_timestamp_ltz(100, 3))  # numeric with millisecond precision
+        >>> table.select(to_timestamp_ltz("2023-01-01 00:00:00"))  # string with default format
+        >>> table.select(to_timestamp_ltz("01/01/2023", "MM/dd/yyyy"))  # string with format
+        >>> table.select(to_timestamp_ltz("2023-01-01 00:00:00",
+                                        "yyyy-MM-dd HH:mm:ss",
+                                        "UTC"))  # string with format and timezone
     """
-    return _binary_op("toTimestampLtz", numeric_epoch_time, precision)
+    if len(args) == 1:
+        return _unary_op("toTimestampLtz", lit(args[0]))
+
+    # For two arguments case (numeric + precision or string + format)
+    elif len(args) == 2:
+        return _binary_op("toTimestampLtz", lit(args[0]), lit(args[1]))
+
+    # For three arguments case (string + format + timezone)
+    else:
+        return _ternary_op("toTimestampLtz", lit(args[0]), lit(args[1]), lit(args[2]))
 
 
+@PublicEvolving()
 def temporal_overlaps(left_time_point,
                       left_temporal,
                       right_time_point,
@@ -347,6 +393,7 @@ def temporal_overlaps(left_time_point,
                           left_time_point, left_temporal, right_time_point, right_temporal)
 
 
+@PublicEvolving()
 def date_format(timestamp, format) -> Expression:
     """
     Formats a timestamp as a string using a specified format.
@@ -363,6 +410,7 @@ def date_format(timestamp, format) -> Expression:
     return _binary_op("dateFormat", timestamp, format)
 
 
+@PublicEvolving()
 def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2) -> Expression:
     """
     Returns the (signed) number of :class:`~pyflink.table.expression.TimePointUnit` between
@@ -381,6 +429,7 @@ def timestamp_diff(time_point_unit: TimePointUnit, time_point1, time_point2) -> 
                        time_point1, time_point2)
 
 
+@PublicEvolving()
 def convert_tz(date_str: Union[str, Expression[str]],
                tz_from: Union[str, Expression[str]],
                tz_to: Union[str, Expression[str]]) -> Expression:
@@ -404,6 +453,7 @@ def convert_tz(date_str: Union[str, Expression[str]],
     return _ternary_op("convertTz", date_str, tz_from, tz_to)
 
 
+@PublicEvolving()
 def from_unixtime(unixtime, format=None) -> Expression:
     """
     Converts unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string the given
@@ -415,6 +465,7 @@ def from_unixtime(unixtime, format=None) -> Expression:
         return _binary_op("fromUnixtime", unixtime, format)
 
 
+@PublicEvolving()
 def unix_timestamp(date_str: Union[str, Expression[str]] = None,
                    format: Union[str, Expression[str]] = None) -> Expression:
     """
@@ -434,6 +485,7 @@ def unix_timestamp(date_str: Union[str, Expression[str]] = None,
         return _binary_op("unixTimestamp", date_str, format)
 
 
+@PublicEvolving()
 def array(head, *tail) -> Expression:
     """
     Creates an array of literals.
@@ -448,6 +500,7 @@ def array(head, *tail) -> Expression:
     return _binary_op("array", head, tail)
 
 
+@PublicEvolving()
 def row(head, *tail) -> Expression:
     """
     Creates a row of expressions.
@@ -462,6 +515,7 @@ def row(head, *tail) -> Expression:
     return _binary_op("row", head, tail)
 
 
+@PublicEvolving()
 def map_(key, value, *tail) -> Expression:
     """
     Creates a map of expressions.
@@ -485,6 +539,7 @@ def map_(key, value, *tail) -> Expression:
     return _ternary_op("map", key, value, tail)
 
 
+@PublicEvolving()
 def map_from_arrays(key, value) -> Expression:
     """
     Creates a map from an array of keys and an array of values.
@@ -505,6 +560,7 @@ def map_from_arrays(key, value) -> Expression:
     return _binary_op("mapFromArrays", key, value)
 
 
+@PublicEvolving()
 def row_interval(rows: int) -> Expression:
     """
     Creates an interval of rows.
@@ -524,6 +580,7 @@ def row_interval(rows: int) -> Expression:
     return _unary_op("rowInterval", rows)
 
 
+@PublicEvolving()
 def pi() -> Expression[float]:
     """
     Returns a value that is closer than any other value to `pi`.
@@ -531,6 +588,7 @@ def pi() -> Expression[float]:
     return _leaf_op("pi")
 
 
+@PublicEvolving()
 def e() -> Expression[float]:
     """
     Returns a value that is closer than any other value to `e`.
@@ -538,6 +596,7 @@ def e() -> Expression[float]:
     return _leaf_op("e")
 
 
+@PublicEvolving()
 def rand(seed: Union[int, Expression[int]] = None) -> Expression[float]:
     """
     Returns a pseudorandom double value between 0.0 (inclusive) and 1.0 (exclusive) with a
@@ -550,6 +609,7 @@ def rand(seed: Union[int, Expression[int]] = None) -> Expression[float]:
         return _unary_op("rand", seed)
 
 
+@PublicEvolving()
 def rand_integer(bound: Union[int, Expression[int]],
                  seed: Union[int, Expression[int]] = None) -> Expression:
     """
@@ -563,6 +623,7 @@ def rand_integer(bound: Union[int, Expression[int]],
         return _binary_op("randInteger", seed, bound)
 
 
+@PublicEvolving()
 def atan2(y, x) -> Expression[float]:
     """
     Calculates the arc tangent of a given coordinate.
@@ -570,6 +631,7 @@ def atan2(y, x) -> Expression[float]:
     return _binary_op("atan2", y, x)
 
 
+@PublicEvolving()
 def negative(v) -> Expression:
     """
     Returns negative numeric.
@@ -577,6 +639,7 @@ def negative(v) -> Expression:
     return _unary_op("negative", v)
 
 
+@PublicEvolving()
 def concat(first: Union[str, Expression[str]],
            *others: Union[str, Expression[str]]) -> Expression[str]:
     """
@@ -590,6 +653,7 @@ def concat(first: Union[str, Expression[str]],
                                 [_get_java_expression(other) for other in others]))
 
 
+@PublicEvolving()
 def concat_ws(separator: Union[str, Expression[str]],
               first: Union[str, Expression[str]],
               *others: Union[str, Expression[str]]) -> Expression[str]:
@@ -610,6 +674,7 @@ def concat_ws(separator: Union[str, Expression[str]],
                                  [_get_java_expression(other) for other in others]))
 
 
+@PublicEvolving()
 def uuid() -> Expression[str]:
     """
     Returns an UUID (Universally Unique Identifier) string (e.g.,
@@ -620,6 +685,7 @@ def uuid() -> Expression[str]:
     return _leaf_op("uuid")
 
 
+@PublicEvolving()
 def null_of(data_type: DataType) -> Expression:
     """
     Returns a null literal value of a given data type.
@@ -627,6 +693,7 @@ def null_of(data_type: DataType) -> Expression:
     return _unary_op("nullOf", _to_java_data_type(data_type))
 
 
+@PublicEvolving()
 def log(v, base=None) -> Expression[float]:
     """
     If base is specified, calculates the logarithm of the given value to the given base.
@@ -638,6 +705,7 @@ def log(v, base=None) -> Expression[float]:
         return _binary_op("log", base, v)
 
 
+@PublicEvolving()
 def source_watermark() -> Expression:
     """
     Source watermark declaration for schema.
@@ -652,6 +720,7 @@ def source_watermark() -> Expression:
     return _leaf_op("sourceWatermark")
 
 
+@PublicEvolving()
 def if_then_else(condition: Union[bool, Expression[bool]], if_true, if_false) -> Expression:
     """
     Ternary conditional operator that decides which of two other expressions should be evaluated
@@ -666,6 +735,7 @@ def if_then_else(condition: Union[bool, Expression[bool]], if_true, if_false) ->
     return _ternary_op("ifThenElse", condition, if_true, if_false)
 
 
+@PublicEvolving()
 def coalesce(*args) -> Expression:
     """
     Returns the first argument that is not NULL.
@@ -689,6 +759,7 @@ def coalesce(*args) -> Expression:
     return _unary_op("coalesce", args)
 
 
+@PublicEvolving()
 def with_all_columns() -> Expression:
     """
     Creates an expression that selects all columns. It can be used wherever an array of
@@ -705,6 +776,7 @@ def with_all_columns() -> Expression:
     return _leaf_op("withAllColumns")
 
 
+@PublicEvolving()
 def with_columns(head, *tails) -> Expression:
     """
     Creates an expression that selects a range of columns. It can be used wherever an array of
@@ -723,6 +795,7 @@ def with_columns(head, *tails) -> Expression:
     return _binary_op("withColumns", head, tails)
 
 
+@PublicEvolving()
 def without_columns(head, *tails) -> Expression:
     """
     Creates an expression that selects all columns except for the given range of columns. It can
@@ -742,6 +815,41 @@ def without_columns(head, *tails) -> Expression:
     return _binary_op("withoutColumns", head, tails)
 
 
+@PublicEvolving()
+def json(value) -> Expression:
+    """
+    Expects a raw, pre-formatted JSON string and returns its values as-is without escaping
+    it as a string.
+
+    This function can currently only be used within the `JSON_OBJECT` and `JSON_ARRAY` functions.
+    It allows passing pre-formatted JSON strings that will be inserted directly into the
+    resulting JSON structure rather than being escaped as a string value. This allows storing
+    nested JSON structures in a `JSON_OBJECT` or `JSON_ARRAY` without processing them as strings,
+    which is often useful when ingesting already formatted json data. If the value is NULL or
+    empty, the function returns NULL.
+
+    Examples:
+    ::
+
+        >>> # {"nested":{"value":42}}
+        >>> json_object(JsonOnNull.NULL, "nested", json('{"value": 42}'))
+
+        >>> # {"K": null}
+        >>> json_object(JsonOnNull.NULL, "K", json(''))
+
+        >>> # [{"nested":{"value":42}}]
+        >>> json_array(JsonOnNull.NULL, json('{"nested":{"value": 42}}'))
+
+        >>> # [null]
+        >>> json_array(JsonOnNull.NULL, json(''))
+
+        >>> # Invalid - JSON function can only be used within JSON_OBJECT
+        >>> json('{"value": 42}')
+    """
+    return _unary_op("json", value)
+
+
+@PublicEvolving()
 def json_string(value) -> Expression:
     """
     Serializes a value into JSON.
@@ -762,6 +870,7 @@ def json_string(value) -> Expression:
     return _unary_op("jsonString", value)
 
 
+@PublicEvolving()
 def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:
     """
     Builds a JSON object string from a list of key-value pairs.
@@ -788,13 +897,18 @@ def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:
         >>> json_object(JsonOnNull.ABSENT, "K1", null_of(DataTypes.STRING())) # '{}'
 
         >>> # '{"K1":{"K2":"V"}}'
+        >>> json_object(JsonOnNull.NULL, "K1", json('{"K2":"V"}'))
+
+        >>> # '{"K1":{"K2":"V"}}'
         >>> json_object(JsonOnNull.NULL, "K1", json_object(JsonOnNull.NULL, "K2", "V"))
 
+    .. seealso:: :func:`~pyflink.table.expressions.json`
     .. seealso:: :func:`~pyflink.table.expressions.json_array`
     """
     return _varargs_op("jsonObject", *(on_null._to_j_json_on_null(), *args))
 
 
+@PublicEvolving()
 def json_object_agg(on_null: JsonOnNull,
                     key_expr: Union[str, Expression[str]],
                     value_expr) -> Expression:
@@ -818,6 +932,7 @@ def json_object_agg(on_null: JsonOnNull,
     return _ternary_op("jsonObjectAgg", on_null._to_j_json_on_null(), key_expr, value_expr)
 
 
+@PublicEvolving()
 def json_array(on_null: JsonOnNull = JsonOnNull.ABSENT, *args) -> Expression:
     """
     Builds a JSON array string from a list of values.
@@ -843,11 +958,16 @@ def json_array(on_null: JsonOnNull = JsonOnNull.ABSENT, *args) -> Expression:
 
         >>> json_array(JsonOnNull.NULL, json_array(JsonOnNull.NULL, 1)) # '[[1]]'
 
+        # '[{"nested_json":{"value":42}}]'
+        >>> json_array(JsonOnNull.NULL, json('{"nested_json": {"value": 42}}'))
+
+    .. seealso:: :func:`~pyflink.table.expressions.json`
     .. seealso:: :func:`~pyflink.table.expressions.json_object`
     """
     return _varargs_op("jsonArray", *(on_null._to_j_json_on_null(), *args))
 
 
+@PublicEvolving()
 def json_array_agg(on_null: JsonOnNull, item_expr) -> Expression:
     """
     Builds a JSON object string by aggregating items into an array.
@@ -867,6 +987,31 @@ def json_array_agg(on_null: JsonOnNull, item_expr) -> Expression:
     return _binary_op("jsonArrayAgg", on_null._to_j_json_on_null(), item_expr)
 
 
+@PublicEvolving()
+def lag(expr, offset=1, default=None) -> Expression:
+    """
+    A window function that provides access to a row at a specified physical offset which comes
+    before the current row.
+    """
+    if default is None:
+        return _binary_op("lag", expr, offset)
+    else:
+        return _ternary_op("lag", expr, offset, default)
+
+
+@PublicEvolving()
+def lead(expr, offset=1, default=None) -> Expression:
+    """
+    A window function that provides access to a row at a specified physical offset which comes
+    after the current row.
+    """
+    if default is None:
+        return _binary_op("lead", expr, offset)
+    else:
+        return _ternary_op("lead", expr, offset, default)
+
+
+@PublicEvolving()
 def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
     """
     The first parameter `f` could be a str or a Python user-defined function.
@@ -914,6 +1059,7 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
                    to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])])))
 
 
+@PublicEvolving()
 def call_sql(sql_expression: str) -> Expression:
     """
     A call to a SQL expression.

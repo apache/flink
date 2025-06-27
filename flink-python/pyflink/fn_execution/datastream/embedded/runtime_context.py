@@ -29,7 +29,7 @@ class StreamingRuntimeContext(RuntimeContext):
     def __init__(self, runtime_context, job_parameters):
         self._runtime_context = runtime_context
         self._job_parameters = job_parameters
-        self._keyed_state_backend = None  # type: KeyedStateBackend
+        self._keyed_state_backend: KeyedStateBackend = None
 
     def get_task_name(self) -> str:
         """

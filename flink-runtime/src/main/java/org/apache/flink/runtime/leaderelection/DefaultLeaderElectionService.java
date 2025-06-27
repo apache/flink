@@ -313,7 +313,7 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
     }
 
     @Override
-    protected void confirmLeadership(
+    protected CompletableFuture<Void> confirmLeadershipAsync(
             String componentId, UUID leaderSessionID, String leaderAddress) {
         Preconditions.checkArgument(leaderContenderRegistry.containsKey(componentId));
         LOG.debug(
@@ -324,59 +324,73 @@ public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentSe
 
         checkNotNull(leaderSessionID);
 
-        synchronized (lock) {
-            if (hasLeadership(componentId, leaderSessionID)) {
-                Preconditions.checkState(
-                        leaderElectionDriver != null,
-                        "The leadership check should only return true if a driver is instantiated.");
-                Preconditions.checkState(
-                        !confirmedLeaderInformation.hasLeaderInformation(componentId),
-                        "No confirmation should have happened, yet.");
+        return CompletableFuture.runAsync(
+                () -> {
+                    synchronized (lock) {
+                        if (hasLeadershipInternal(componentId, leaderSessionID)) {
+                            Preconditions.checkState(
+                                    leaderElectionDriver != null,
+                                    "The leadership check should only return true if a driver is instantiated.");
+                            Preconditions.checkState(
+                                    !confirmedLeaderInformation.hasLeaderInformation(componentId),
+                                    "No confirmation should have happened, yet.");
 
-                final LeaderInformation newConfirmedLeaderInformation =
-                        LeaderInformation.known(leaderSessionID, leaderAddress);
-                confirmedLeaderInformation =
-                        LeaderInformationRegister.merge(
-                                confirmedLeaderInformation,
-                                componentId,
-                                newConfirmedLeaderInformation);
-                leaderElectionDriver.publishLeaderInformation(
-                        componentId, newConfirmedLeaderInformation);
-            } else {
-                if (!leaderSessionID.equals(this.issuedLeaderSessionID)) {
-                    LOG.debug(
-                            "Received an old confirmation call of leader session ID {} for component '{}' (current issued session ID is {}).",
-                            leaderSessionID,
-                            componentId,
-                            issuedLeaderSessionID);
-                } else {
-                    LOG.warn(
-                            "The leader session ID {} for component '{}' was confirmed even though the corresponding "
-                                    + "service was not elected as the leader or has been stopped already.",
-                            componentId,
-                            leaderSessionID);
-                }
-            }
-        }
+                            final LeaderInformation newConfirmedLeaderInformation =
+                                    LeaderInformation.known(leaderSessionID, leaderAddress);
+                            confirmedLeaderInformation =
+                                    LeaderInformationRegister.merge(
+                                            confirmedLeaderInformation,
+                                            componentId,
+                                            newConfirmedLeaderInformation);
+                            leaderElectionDriver.publishLeaderInformation(
+                                    componentId, newConfirmedLeaderInformation);
+                        } else {
+                            if (!leaderSessionID.equals(this.issuedLeaderSessionID)) {
+                                LOG.debug(
+                                        "Received an old confirmation call of leader session ID {} for component '{}' (current issued session ID is {}).",
+                                        leaderSessionID,
+                                        componentId,
+                                        issuedLeaderSessionID);
+                            } else {
+                                LOG.warn(
+                                        "The leader session ID {} for component '{}' was confirmed even though the corresponding "
+                                                + "service was not elected as the leader or has been stopped already.",
+                                        componentId,
+                                        leaderSessionID);
+                            }
+                        }
+                    }
+                },
+                leadershipOperationExecutor);
     }
 
     @Override
-    protected boolean hasLeadership(String componentId, UUID leaderSessionId) {
-        synchronized (lock) {
-            if (leaderElectionDriver != null) {
-                if (leaderContenderRegistry.containsKey(componentId)) {
-                    return leaderElectionDriver.hasLeadership()
-                            && leaderSessionId.equals(issuedLeaderSessionID);
-                } else {
-                    LOG.debug(
-                            "hasLeadership is called for component '{}' while there is no contender registered under that ID in the service, returning false.",
-                            componentId);
-                    return false;
-                }
+    protected CompletableFuture<Boolean> hasLeadershipAsync(
+            String componentId, UUID leaderSessionId) {
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    synchronized (lock) {
+                        return hasLeadershipInternal(componentId, leaderSessionId);
+                    }
+                },
+                leadershipOperationExecutor);
+    }
+
+    @GuardedBy("lock")
+    private boolean hasLeadershipInternal(String componentId, UUID leaderSessionId) {
+        if (leaderElectionDriver != null) {
+            if (leaderContenderRegistry.containsKey(componentId)) {
+                return leaderElectionDriver.hasLeadership()
+                        && leaderSessionId.equals(issuedLeaderSessionID);
             } else {
-                LOG.debug("hasLeadership is called after the service is closed, returning false.");
+                LOG.debug(
+                        "hasLeadership is called for component '{}' while there is no contender registered under that ID in the service, returning false.",
+                        componentId);
                 return false;
             }
+        } else {
+            LOG.debug("hasLeadership is called after the service is closed, returning false.");
+            return false;
         }
     }
 

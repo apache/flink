@@ -45,7 +45,7 @@ class WindowTableFunctionITCase extends BatchTestBase {
     checkResult(
       """
         |SELECT *
-        |FROM TABLE(TUMBLE(TABLE Table3WithTimestamp, DESCRIPTOR(ts), INTERVAL '3' SECOND))
+        |FROM TUMBLE(TABLE Table3WithTimestamp, DESCRIPTOR(ts), INTERVAL '3' SECOND)
         |""".stripMargin,
       Seq(
         row(
@@ -246,12 +246,12 @@ class WindowTableFunctionITCase extends BatchTestBase {
     checkResult(
       """
         |SELECT *
-        |FROM TABLE(
+        |FROM 
         |  HOP(
         |    TABLE Table3WithTimestamp,
         |    DESCRIPTOR(ts),
         |    INTERVAL '5' SECOND,
-        |    INTERVAL '9' SECOND))
+        |    INTERVAL '9' SECOND)
         |""".stripMargin,
       Seq(
         row(
@@ -605,12 +605,12 @@ class WindowTableFunctionITCase extends BatchTestBase {
     checkResult(
       """
         |SELECT *
-        |FROM TABLE(
+        |FROM 
         |  CUMULATE(
         |    TABLE Table3WithTimestamp,
         |    DESCRIPTOR(ts),
         |    INTERVAL '3' SECOND,
-        |    INTERVAL '9' SECOND))
+        |    INTERVAL '9' SECOND)
         |""".stripMargin,
       Seq(
         row(
@@ -1021,12 +1021,12 @@ class WindowTableFunctionITCase extends BatchTestBase {
         |  b,
         |  SUM(a),
         |  window_start
-        |FROM TABLE(
+        |FROM 
         |  HOP(
         |    TABLE Table3WithTimestamp,
         |    DESCRIPTOR(ts),
         |    INTERVAL '5' SECOND,
-        |    INTERVAL '9' SECOND))
+        |    INTERVAL '9' SECOND)
         |GROUP BY window_start, window_end, b
         |""".stripMargin,
       Seq(
@@ -1064,12 +1064,12 @@ class WindowTableFunctionITCase extends BatchTestBase {
         |  window_start,
         |  window_end,
         |  window_time
-        |FROM TABLE(
+        |FROM 
         |  HOP(
         |    TABLE T,
         |    DESCRIPTOR(ts),
         |    INTERVAL '5' SECOND,
-        |    INTERVAL '10' SECOND))
+        |    INTERVAL '10' SECOND)
         |GROUP BY window_start, window_end, window_time, b
         |""".stripMargin,
       Seq(
@@ -1195,12 +1195,12 @@ class WindowTableFunctionITCase extends BatchTestBase {
         |SELECT *
         |FROM (
         |  SELECT window_start, window_end, v
-        |  FROM TABLE(TUMBLE(TABLE T1, DESCRIPTOR(ts), INTERVAL '10' SECOND))
+        |  FROM TUMBLE(TABLE T1, DESCRIPTOR(ts), INTERVAL '10' SECOND)
         |  GROUP BY window_start, window_end, v
         |) L
         |LEFT JOIN (
         |  SELECT window_start, window_end, v
-        |  FROM TABLE(TUMBLE(TABLE T2, DESCRIPTOR(ts), INTERVAL '10' SECOND))
+        |  FROM TUMBLE(TABLE T2, DESCRIPTOR(ts), INTERVAL '10' SECOND)
         |   GROUP BY window_start, window_end, v
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.v = R.v
@@ -1233,12 +1233,12 @@ class WindowTableFunctionITCase extends BatchTestBase {
         |FROM (
         |SELECT *,
         |  RANK() OVER(PARTITION BY window_start, window_end ORDER BY ts) as rownum
-        |FROM TABLE(
+        |FROM 
         |  CUMULATE(
         |    TABLE Table3WithTimestamp,
         |    DESCRIPTOR(ts),
         |    INTERVAL '3' SECOND,
-        |    INTERVAL '9' SECOND))
+        |    INTERVAL '9' SECOND)
         |)
         |WHERE rownum <= 1
         |""".stripMargin,

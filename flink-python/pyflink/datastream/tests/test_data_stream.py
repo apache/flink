@@ -217,7 +217,7 @@ class DataStreamTests(object):
         class MyProcessFunction(KeyedProcessFunction):
 
             def __init__(self):
-                self.reducing_state = None  # type: ReducingState
+                self.reducing_state: ReducingState = None
 
             def open(self, runtime_context: RuntimeContext):
                 self.reducing_state = runtime_context.get_reducing_state(
@@ -261,7 +261,7 @@ class DataStreamTests(object):
         class MyProcessFunction(KeyedProcessFunction):
 
             def __init__(self):
-                self.aggregating_state = None  # type: AggregatingState
+                self.aggregating_state: AggregatingState = None
 
             def open(self, runtime_context: RuntimeContext):
                 descriptor = AggregatingStateDescriptor(
@@ -354,10 +354,10 @@ class DataStreamTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_co_broadcast_process(self):
-        ds = self.env.from_collection([1, 2, 3, 4, 5], type_info=Types.INT())  # type: DataStream
-        ds_broadcast = self.env.from_collection(
+        ds: DataStream = self.env.from_collection([1, 2, 3, 4, 5], type_info=Types.INT())
+        ds_broadcast: DataStream = self.env.from_collection(
             [(0, "a"), (1, "b")], type_info=Types.TUPLE([Types.INT(), Types.STRING()])
-        )  # type: DataStream
+        )
 
         class MyBroadcastProcessFunction(BroadcastProcessFunction):
             def __init__(self, map_state_desc):
@@ -400,17 +400,17 @@ class DataStreamTests(object):
         self.assert_equals_sorted(expected, self.test_sink.get_results())
 
     def test_keyed_co_broadcast_process(self):
-        ds = self.env.from_collection(
+        ds: DataStream = self.env.from_collection(
             [(1, '1603708211000'),
              (2, '1603708212000'),
              (3, '1603708213000'),
              (4, '1603708214000')],
-            type_info=Types.ROW([Types.INT(), Types.STRING()]))  # type: DataStream
-        ds_broadcast = self.env.from_collection(
+            type_info=Types.ROW([Types.INT(), Types.STRING()]))
+        ds_broadcast: DataStream = self.env.from_collection(
             [(0, '1603708215000', 'a'),
              (1, '1603708215000', 'b')],
             type_info=Types.ROW([Types.INT(), Types.STRING(), Types.STRING()])
-        )  # type: DataStream
+        )
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
         ds = ds.assign_timestamps_and_watermarks(watermark_strategy)
@@ -631,7 +631,7 @@ class DataStreamTests(object):
         class MyKeyedProcessFunction(KeyedProcessFunction):
 
             def __init__(self):
-                self.reducing_state = None  # type: ReducingState
+                self.reducing_state: ReducingState = None
 
             def open(self, context: RuntimeContext):
                 self.reducing_state = context.get_reducing_state(
@@ -667,7 +667,7 @@ class DataStreamTests(object):
         class MyKeyedCoProcessFunction(KeyedCoProcessFunction):
 
             def __init__(self):
-                self.reducing_state = None  # type: ReducingState
+                self.reducing_state: ReducingState = None
 
             def open(self, context: RuntimeContext):
                 self.reducing_state = context.get_reducing_state(
@@ -705,7 +705,7 @@ class DataStreamTests(object):
         class MyKeyedBroadcastProcessFunction(KeyedBroadcastProcessFunction):
 
             def __init__(self):
-                self.reducing_state = None  # type: ReducingState
+                self.reducing_state: ReducingState = None
 
             def open(self, context: RuntimeContext):
                 self.reducing_state = context.get_reducing_state(
@@ -1264,12 +1264,12 @@ class EmbeddedDataStreamStreamTests(DataStreamStreamingTests, PyFlinkStreamingTe
 
         class MyMapFunction(MapFunction):
             def __init__(self):
-                self.counter = None  # type: Counter
+                self.counter: Counter = None
                 self.counter_value = 0
-                self.meter = None  # type: Meter
+                self.meter: Meter = None
                 self.meter_value = 0
                 self.value_to_expose = 0
-                self.distribution = None  # type: Distribution
+                self.distribution: Distribution = None
 
             def open(self, runtime_context: RuntimeContext):
                 self.counter = runtime_context.get_metrics_group().counter("my_counter")

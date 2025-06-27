@@ -55,6 +55,7 @@ public class PipelineOptions {
                     .withDescription(
                             "A semicolon-separated list of the jars to package with the job jars to be sent to the"
                                     + " cluster. These have to be valid paths.");
+
     /**
      * A list of URLs that are added to the classpath of each user code classloader of the program.
      * Paths must specify a protocol (e.g. file://) and be accessible on all nodes

@@ -25,7 +25,7 @@ import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedTwoInputStreamOperatorTestHarness;
 
 import org.junit.jupiter.api.Test;
 
@@ -50,7 +50,7 @@ class KeyedTwoInputBroadcastProcessOperatorTest {
                             public void processRecordFromNonBroadcastInput(
                                     Integer record,
                                     Collector<Long> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Long> ctx) {
                                 fromNonBroadcastInput.add(record);
                             }
 
@@ -61,8 +61,8 @@ class KeyedTwoInputBroadcastProcessOperatorTest {
                             }
                         });
 
-        try (KeyedTwoInputStreamOperatorTestHarness<Long, Integer, Long, Long> testHarness =
-                new KeyedTwoInputStreamOperatorTestHarness<>(
+        try (AsyncKeyedTwoInputStreamOperatorTestHarness<Long, Integer, Long, Long> testHarness =
+                AsyncKeyedTwoInputStreamOperatorTestHarness.create(
                         processOperator,
                         (KeySelector<Integer, Long>) (data) -> (long) (data + 1),
                         (KeySelector<Long, Long>) value -> value + 1,
@@ -89,7 +89,7 @@ class KeyedTwoInputBroadcastProcessOperatorTest {
                             public void processRecordFromNonBroadcastInput(
                                     Integer record,
                                     Collector<Long> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Long> ctx) {
                                 //  do nothing.
                             }
 
@@ -130,11 +130,11 @@ class KeyedTwoInputBroadcastProcessOperatorTest {
                             }
                         });
 
-        try (KeyedTwoInputStreamOperatorTestHarness<Long, Integer, Long, Long> testHarness =
-                new KeyedTwoInputStreamOperatorTestHarness<>(
+        try (AsyncKeyedTwoInputStreamOperatorTestHarness<Long, Integer, Long, Long> testHarness =
+                AsyncKeyedTwoInputStreamOperatorTestHarness.create(
                         processOperator,
                         (KeySelector<Integer, Long>) Long::valueOf,
-                        (KeySelector<Long, Long>) value -> value,
+                        null,
                         Types.LONG)) {
             testHarness.open();
             testHarness.processElement1(new StreamRecord<>(1)); // key is 1L
@@ -161,7 +161,7 @@ class KeyedTwoInputBroadcastProcessOperatorTest {
                             public void processRecordFromNonBroadcastInput(
                                     Integer record,
                                     Collector<Long> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Long> ctx) {
                                 output.collect(Long.valueOf(record));
                             }
 
@@ -175,8 +175,8 @@ class KeyedTwoInputBroadcastProcessOperatorTest {
                         // -1 is an invalid key in this suite.
                         (out) -> -1L);
 
-        try (KeyedTwoInputStreamOperatorTestHarness<Long, Integer, Long, Long> testHarness =
-                new KeyedTwoInputStreamOperatorTestHarness<>(
+        try (AsyncKeyedTwoInputStreamOperatorTestHarness<Long, Integer, Long, Long> testHarness =
+                AsyncKeyedTwoInputStreamOperatorTestHarness.create(
                         processOperator,
                         (KeySelector<Integer, Long>) Long::valueOf,
                         (KeySelector<Long, Long>) value -> value,

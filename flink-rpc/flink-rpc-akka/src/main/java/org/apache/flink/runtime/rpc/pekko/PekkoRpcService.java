@@ -60,7 +60,6 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -284,8 +283,8 @@ public class PekkoRpcService implements RpcService {
             hostname = host.get();
         }
 
-        Set<Class<?>> implementedRpcGateways =
-                new HashSet<>(RpcUtils.extractImplementedRpcGateways(rpcEndpoint.getClass()));
+        Set<Class<? extends RpcGateway>> implementedRpcGateways =
+                RpcUtils.extractImplementedRpcGateways(rpcEndpoint.getClass());
 
         implementedRpcGateways.add(RpcServer.class);
         implementedRpcGateways.add(PekkoBasedEndpoint.class);

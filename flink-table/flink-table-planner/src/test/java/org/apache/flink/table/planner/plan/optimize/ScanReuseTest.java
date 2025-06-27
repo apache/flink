@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.optimize;
 
+import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -400,5 +401,79 @@ class ScanReuseTest extends TableTestBase {
                         + " GROUP BY a0, window_start, window_end) T2"
                         + " WHERE T1.a1 = T2.a1";
         util.verifyExecPlan(sqlQuery);
+    }
+
+    @TestTemplate
+    void testReuseWithReadMetadataKeepOrder() {
+        assumeThat(isStreaming).isTrue();
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TEMPORARY TABLE src( "
+                                + "   `origin_ts` TIMESTAMP(3) METADATA VIRTUAL, "
+                                + "   `partition` INT METADATA VIRTUAL, "
+                                + "   `offset` BIGINT METADATA VIRTUAL, "
+                                + "   `id` BIGINT,"
+                                + "   PRIMARY KEY (`id`) NOT ENFORCED "
+                                + ") WITH ( "
+                                + "   'connector' = 'values', "
+                                + "   'readable-metadata' = 'offset:bigint,origin_ts:timestamp(3),partition:int'"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TEMPORARY TABLE snk1( "
+                                + "   `origin_ts` TIMESTAMP(3), "
+                                + "   `partition` INT, "
+                                + "   `offset` BIGINT, "
+                                + "   `id` BIGINT"
+                                + ") WITH ( "
+                                + "   'connector' = 'values' "
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TEMPORARY TABLE snk2( "
+                                + "   `id` BIGINT"
+                                + ") WITH ( "
+                                + "   'connector' = 'values' "
+                                + ")");
+
+        StatementSet stmt = util.tableEnv().createStatementSet();
+        stmt.addInsertSql(
+                "INSERT INTO snk1 select `origin_ts`, `partition`, `offset`, `id` from src");
+        stmt.addInsertSql("INSERT INTO snk2 select `id` from src");
+        util.verifyExecPlan(stmt);
+    }
+
+    @TestTemplate
+    void testWatermarkPushDownWithTimestampChanged() {
+        assumeThat(isStreaming).isTrue();
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE MyTableWatermark (\n"
+                                + " a bigint,\n"
+                                + " b int,\n"
+                                + " ts_ltz timestamp_ltz(3),\n"
+                                + " WATERMARK FOR ts_ltz AS ts_ltz - INTERVAL '10' MINUTE"
+                                + ") with (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'bounded' = 'false',\n"
+                                + "  'disable-lookup' = 'true',\n"
+                                + "  'enable-watermark-push-down' = 'true'\n"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE MySinkTs (\n"
+                                + "a bigint, "
+                                + "ts timestamp_ltz(3)"
+                                + ") with (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'table-sink-class' = 'DEFAULT')");
+
+        StatementSet stmt = util.tableEnv().createStatementSet();
+        stmt.addInsertSql("INSERT INTO MySinkTs SELECT a, ts_ltz FROM MyTableWatermark");
+        stmt.addInsertSql("INSERT INTO MySinkTs SELECT b, ts_ltz FROM MyTableWatermark");
+        util.verifyExecPlan(stmt);
     }
 }

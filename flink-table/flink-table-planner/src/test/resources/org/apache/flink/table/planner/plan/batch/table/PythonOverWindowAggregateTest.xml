@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST), _UTF-16LE'_c1')])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -30,7 +30,7 @@ Calc(select=[b, w0$o0 AS _c1])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, rowtime ASC])
          +- Exchange(distribution=[hash[b]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -38,7 +38,7 @@ Calc(select=[b, w0$o0 AS _c1])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 10 PRECEDING), _UTF-16LE'_c1')])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -48,7 +48,7 @@ Calc(select=[b, w0$o0 AS _c1])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, rowtime ASC])
          +- Exchange(distribution=[hash[b]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>

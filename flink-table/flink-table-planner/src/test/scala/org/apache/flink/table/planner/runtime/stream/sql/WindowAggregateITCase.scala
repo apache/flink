@@ -21,7 +21,7 @@ import org.apache.flink.configuration.{Configuration, RestartStrategyOptions}
 import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.config.AggregatePhaseStrategy._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
@@ -46,7 +46,8 @@ import scala.collection.JavaConversions._
 class WindowAggregateITCase(
     aggPhase: AggregatePhaseStrategy,
     state: StateBackendMode,
-    useTimestampLtz: Boolean)
+    useTimestampLtz: Boolean,
+    enableAsyncState: Boolean)
   extends StreamingWithStateTestBase(state) {
 
   // -------------------------------------------------------------------------------
@@ -146,6 +147,9 @@ class WindowAggregateITCase(
     configuration.set(
       RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
       Duration.ofMillis(0))
+    configuration.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
     env.configure(configuration, Thread.currentThread.getContextClassLoader)
     FailingCollectionSource.reset()
 
@@ -212,27 +216,6 @@ class WindowAggregateITCase(
 
   @TestTemplate
   def testEventTimeTumbleWindow(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
     val expected = Seq(
       "a,2020-10-10T00:00,2020-10-10T00:00:05,4,11.10,5.0,1.0,2,Hi|Comment#1",
       "a,2020-10-10T00:00:05,2020-10-10T00:00:10,1,3.33,null,3.0,1,Comment#2",
@@ -241,40 +224,21 @@ class WindowAggregateITCase(
       "b,2020-10-10T00:00:30,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null"
     )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
+
+    verifyWindowAgg("TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)", expected)
   }
 
   @TestTemplate
   def testEventTimeTumbleWindowWithOffset(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '8' HOUR))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
     val expected = Seq(
       "a,2020-10-09T08:00,2020-10-10T08:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null"
     )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
+
+    verifyWindowAgg(
+      "TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '8' HOUR)",
+      expected)
   }
 
   @TestTemplate
@@ -311,118 +275,39 @@ class WindowAggregateITCase(
 
   @TestTemplate
   def testEventTimeTumbleWindowWithNegativeOffset(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '-8' HOUR))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
     val expected = Seq(
       "a,2020-10-09T16:00,2020-10-10T16:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "b,2020-10-09T16:00,2020-10-10T16:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null"
     )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
+
+    verifyWindowAgg(
+      "TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '-8' HOUR)",
+      expected)
   }
 
   @TestTemplate
   def testEventTimeTumbleWindow_GroupingSets(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  GROUPING_ID(`name`),
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
-        |GROUP BY GROUPING SETS((`name`),()), window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(TumbleWindowGroupSetExpectedData.sorted.mkString("\n"))
+    verifyWindowAggWithGroupingSets(
+      "TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
+      "GROUPING SETS((`name`),())",
+      TumbleWindowGroupSetExpectedData)
   }
 
   @TestTemplate
   def testEventTimeTumbleWindow_Cube(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  GROUPING_ID(`name`),
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
-        |GROUP BY CUBE(`name`), window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(TumbleWindowCubeExpectedData.sorted.mkString("\n"))
+    verifyWindowAggWithGroupingSets(
+      "TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
+      "CUBE(`name`)",
+      TumbleWindowCubeExpectedData)
   }
 
   @TestTemplate
   def testEventTimeTumbleWindow_Rollup(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  GROUPING_ID(`name`),
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
-        |GROUP BY ROLLUP(`name`), window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(TumbleWindowRollupExpectedData.sorted.mkString("\n"))
+    verifyWindowAggWithGroupingSets(
+      "TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
+      "ROLLUP(`name`)",
+      TumbleWindowRollupExpectedData)
   }
 
   @TestTemplate
@@ -529,28 +414,7 @@ class WindowAggregateITCase(
   }
 
   @TestTemplate
-  def testEventTimeHopWindow(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
+  def testEventTimeHopWindowWithDistinct(): Unit = {
     val expected = Seq(
       "a,2020-10-09T23:59:55,2020-10-10T00:00:05,4,11.10,5.0,1.0,2,Hi|Comment#1",
       "a,2020-10-10T00:00,2020-10-10T00:00:10,6,19.98,5.0,1.0,3,Comment#2|Hi|Comment#1",
@@ -564,38 +428,14 @@ class WindowAggregateITCase(
       "null,2020-10-10T00:00:25,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null"
     )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
+
+    verifyWindowAgg(
+      "HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND)",
+      expected)
   }
 
   @TestTemplate
   def testEventTimeHopWindowWithOffset(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   HOP(
-        |     TABLE T1,
-        |     DESCRIPTOR(rowtime),
-        |     INTERVAL '12' HOUR,
-        |     INTERVAL '1' DAY,
-        |     INTERVAL '8' HOUR))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
     val expected = Seq(
       "a,2020-10-09T08:00,2020-10-10T08:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "a,2020-10-09T20:00,2020-10-10T20:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
@@ -604,38 +444,22 @@ class WindowAggregateITCase(
       "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null",
       "null,2020-10-09T20:00,2020-10-10T20:00,1,7.77,7.0,7.0,0,null"
     )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
+
+    verifyWindowAgg(
+      """
+        |HOP(
+        |  TABLE T1,
+        |  DESCRIPTOR(rowtime),
+        |  INTERVAL '12' HOUR,
+        |  INTERVAL '1' DAY,
+        |  INTERVAL '8' HOUR)
+        |""".stripMargin,
+      expected
+    )
   }
 
   @TestTemplate
   def testEventTimeHopWindowWithNegativeOffset(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   HOP(
-        |     TABLE T1,
-        |     DESCRIPTOR(rowtime),
-        |     INTERVAL '12' HOUR,
-        |     INTERVAL '1' DAY,
-        |     INTERVAL '-8' HOUR))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
     val expected = Seq(
       "a,2020-10-09T04:00,2020-10-10T04:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "a,2020-10-09T16:00,2020-10-10T16:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
@@ -644,121 +468,46 @@ class WindowAggregateITCase(
       "null,2020-10-09T04:00,2020-10-10T04:00,1,7.77,7.0,7.0,0,null",
       "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null"
     )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
+
+    verifyWindowAgg(
+      """
+        |HOP(
+        |  TABLE T1,
+        |  DESCRIPTOR(rowtime),
+        |  INTERVAL '12' HOUR,
+        |  INTERVAL '1' DAY,
+        |  INTERVAL '-8' HOUR)
+        |""".stripMargin,
+      expected
+    )
   }
 
   @TestTemplate
   def testEventTimeHopWindow_GroupingSets(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  GROUPING_ID(`name`),
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))
-        |GROUP BY GROUPING SETS((`name`),()), window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(HopWindowGroupSetExpectedData.sorted.mkString("\n"))
+    verifyWindowAggWithGroupingSets(
+      "HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND)",
+      "GROUPING SETS((`name`),())",
+      HopWindowGroupSetExpectedData)
   }
 
   @TestTemplate
   def testEventTimeHopWindow_Cube(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  GROUPING_ID(`name`),
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))
-        |GROUP BY CUBE(`name`), window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(HopWindowCubeExpectedData.sorted.mkString("\n"))
+    verifyWindowAggWithGroupingSets(
+      "HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND)",
+      "CUBE(`name`)",
+      HopWindowCubeExpectedData)
   }
 
   @TestTemplate
   def testEventTimeHopWindow_Rollup(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  GROUPING_ID(`name`),
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))
-        |GROUP BY ROLLUP(`name`), window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(HopWindowRollupExpectedData.sorted.mkString("\n"))
+    verifyWindowAggWithGroupingSets(
+      "HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND)",
+      "ROLLUP(`name`)",
+      HopWindowRollupExpectedData)
   }
 
   @TestTemplate
   def testEventTimeCumulateWindow(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   CUMULATE(
-        |     TABLE T1,
-        |     DESCRIPTOR(rowtime),
-        |     INTERVAL '5' SECOND,
-        |     INTERVAL '15' SECOND))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
     val expected = Seq(
       "a,2020-10-10T00:00,2020-10-10T00:00:05,4,11.10,5.0,1.0,2,Hi|Comment#1",
       "a,2020-10-10T00:00,2020-10-10T00:00:10,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
@@ -775,75 +524,41 @@ class WindowAggregateITCase(
       "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:45,1,7.77,7.0,7.0,0,null"
     )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
+
+    verifyWindowAgg(
+      """
+        |CUMULATE(
+        |  TABLE T1,
+        |  DESCRIPTOR(rowtime),
+        |  INTERVAL '5' SECOND,
+        |  INTERVAL '15' SECOND)
+        |""".stripMargin,
+      expected
+    )
   }
 
   @TestTemplate
   def testEventTimeCumulateWindowWithOffset(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   CUMULATE(
-        |     TABLE T1,
-        |     DESCRIPTOR(rowtime),
-        |     INTERVAL '12' HOUR,
-        |     INTERVAL '1' DAY,
-        |     INTERVAL '8' HOUR))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
     val expected = Seq(
       "a,2020-10-09T08:00,2020-10-10T08:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null"
     )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
+    verifyWindowAgg(
+      """
+        |CUMULATE(
+        |  TABLE T1,
+        |  DESCRIPTOR(rowtime),
+        |  INTERVAL '12' HOUR,
+        |  INTERVAL '1' DAY,
+        |  INTERVAL '8' HOUR)
+        |""".stripMargin,
+      expected
+    )
   }
 
   @TestTemplate
   def testEventTimeCumulateWindowWithNegativeOffset(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   CUMULATE(
-        |     TABLE T1,
-        |     DESCRIPTOR(rowtime),
-        |     INTERVAL '12' HOUR,
-        |     INTERVAL '1' DAY,
-        |     INTERVAL '-8' HOUR))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
     val expected = Seq(
       "a,2020-10-09T16:00,2020-10-10T04:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "a,2020-10-09T16:00,2020-10-10T16:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
@@ -852,104 +567,62 @@ class WindowAggregateITCase(
       "null,2020-10-09T16:00,2020-10-10T04:00,1,7.77,7.0,7.0,0,null",
       "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null"
     )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
+    verifyWindowAgg(
+      """
+        |CUMULATE(
+        |  TABLE T1,
+        |  DESCRIPTOR(rowtime),
+        |  INTERVAL '12' HOUR,
+        |  INTERVAL '1' DAY,
+        |  INTERVAL '-8' HOUR)
+        |""".stripMargin,
+      expected
+    )
   }
 
   @TestTemplate
   def testEventTimeCumulateWindow_GroupingSets(): Unit = {
-    val sql =
+    verifyWindowAggWithGroupingSets(
       """
-        |SELECT
-        |  GROUPING_ID(`name`),
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   CUMULATE(
-        |     TABLE T1,
-        |     DESCRIPTOR(rowtime),
-        |     INTERVAL '5' SECOND,
-        |     INTERVAL '15' SECOND))
-        |GROUP BY GROUPING SETS((`name`),()), window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(CumulateWindowGroupSetExpectedData.sorted.mkString("\n"))
+        |CUMULATE(
+        |  TABLE T1,
+        |  DESCRIPTOR(rowtime),
+        |  INTERVAL '5' SECOND,
+        |  INTERVAL '15' SECOND)
+        |""".stripMargin,
+      "GROUPING SETS((`name`),())",
+      CumulateWindowGroupSetExpectedData
+    )
   }
 
   @TestTemplate
   def testEventTimeCumulateWindow_Cube(): Unit = {
-    val sql =
+    verifyWindowAggWithGroupingSets(
       """
-        |SELECT
-        |  GROUPING_ID(`name`),
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   CUMULATE(
-        |     TABLE T1,
-        |     DESCRIPTOR(rowtime),
-        |     INTERVAL '5' SECOND,
-        |     INTERVAL '15' SECOND))
-        |GROUP BY Cube(`name`), window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(CumulateWindowCubeExpectedData.sorted.mkString("\n"))
+        |CUMULATE(
+        |  TABLE T1,
+        |  DESCRIPTOR(rowtime),
+        |  INTERVAL '5' SECOND,
+        |  INTERVAL '15' SECOND)
+        |""".stripMargin,
+      "Cube(`name`)",
+      CumulateWindowCubeExpectedData
+    )
   }
 
   @TestTemplate
   def testEventTimeCumulateWindow_Rollup(): Unit = {
-    val sql =
+    verifyWindowAggWithGroupingSets(
       """
-        |SELECT
-        |  GROUPING_ID(`name`),
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   CUMULATE(
-        |     TABLE T1,
-        |     DESCRIPTOR(rowtime),
-        |     INTERVAL '5' SECOND,
-        |     INTERVAL '15' SECOND))
-        |GROUP BY ROLLUP(`name`), window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(CumulateWindowRollupExpectedData.sorted.mkString("\n"))
+        |CUMULATE(
+        |  TABLE T1,
+        |  DESCRIPTOR(rowtime),
+        |  INTERVAL '5' SECOND,
+        |  INTERVAL '15' SECOND)
+        |""".stripMargin,
+      "ROLLUP(`name`)",
+      CumulateWindowRollupExpectedData
+    )
   }
 
   @TestTemplate
@@ -1035,58 +708,21 @@ class WindowAggregateITCase(
 
   @TestTemplate
   def testEventTimeTumbleWindowWithCDCSource(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`)
-        |FROM TABLE(
-        |   TUMBLE(TABLE T1_CDC, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
     val expected = Seq(
       "a,2020-10-10T00:00,2020-10-10T00:00:05,3,29.99,22.0,2.0,2",
       "a,2020-10-10T00:00:05,2020-10-10T00:00:10,1,3.33,null,3.0,1",
       "b,2020-10-10T00:00:05,2020-10-10T00:00:10,2,6.66,6.0,3.0,2",
       "b,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1"
     )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
+    verifyWindowAgg(
+      "TUMBLE(TABLE T1_CDC, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
+      expected,
+      isCdcSource = true
+    )
   }
 
   @TestTemplate
   def testEventTimeHopWindowWithCDCSource(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`)
-        |FROM TABLE(
-        |   HOP(TABLE T1_CDC, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
     val expected = Seq(
       "a,2020-10-09T23:59:55,2020-10-10T00:00:05,3,29.99,22.0,2.0,2",
       "a,2020-10-10T00:00,2020-10-10T00:00:10,5,38.87,22.0,2.0,4",
@@ -1096,32 +732,15 @@ class WindowAggregateITCase(
       "b,2020-10-10T00:00:10,2020-10-10T00:00:20,1,4.44,4.0,4.0,1",
       "b,2020-10-10T00:00:15,2020-10-10T00:00:25,1,4.44,4.0,4.0,1"
     )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
+    verifyWindowAgg(
+      "HOP(TABLE T1_CDC, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND)",
+      expected,
+      isCdcSource = true
+    )
   }
 
   @TestTemplate
   def testEventTimeCumulateWindowWithCDCSource(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`)
-        |FROM TABLE(
-        |   CUMULATE(TABLE T1_CDC, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '15' SECOND))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
     val expected = Seq(
       "a,2020-10-10T00:00,2020-10-10T00:00:05,3,29.99,22.0,2.0,2",
       "a,2020-10-10T00:00,2020-10-10T00:00:10,5,38.87,22.0,2.0,4",
@@ -1132,8 +751,11 @@ class WindowAggregateITCase(
       "b,2020-10-10T00:00:15,2020-10-10T00:00:25,1,4.44,4.0,4.0,1",
       "b,2020-10-10T00:00:15,2020-10-10T00:00:30,1,4.44,4.0,4.0,1"
     )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
+    verifyWindowAgg(
+      "CUMULATE(TABLE T1_CDC, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '15' SECOND)",
+      expected,
+      isCdcSource = true
+    )
   }
 
   @TestTemplate
@@ -1190,27 +812,6 @@ class WindowAggregateITCase(
 
   @TestTemplate
   def testEventTimeSessionWindow(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`),
-        |  concat_distinct_agg(`string`)
-        |FROM TABLE(
-        |   SESSION(TABLE T1 PARTITION BY `name`, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
     val expected = Seq(
       "a,2020-10-10T00:00:01,2020-10-10T00:00:13,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "b,2020-10-10T00:00:06,2020-10-10T00:00:12,2,6.66,6.0,3.0,2,Hello|Hi",
@@ -1218,8 +819,11 @@ class WindowAggregateITCase(
       "b,2020-10-10T00:00:34,2020-10-10T00:00:39,1,3.33,3.0,3.0,1,Comment#3",
       "null,2020-10-10T00:00:32,2020-10-10T00:00:37,1,7.77,7.0,7.0,0,null"
     )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
+
+    verifyWindowAgg(
+      "SESSION(TABLE T1 PARTITION BY `name`, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
+      expected
+    )
   }
 
   @TestTemplate
@@ -1261,33 +865,16 @@ class WindowAggregateITCase(
 
   @TestTemplate
   def testEventTimeSessionWindowWithCDCSource(): Unit = {
-    val sql =
-      """
-        |SELECT
-        |  `name`,
-        |  window_start,
-        |  window_end,
-        |  COUNT(*),
-        |  SUM(`bigdec`),
-        |  MAX(`double`),
-        |  MIN(`float`),
-        |  COUNT(DISTINCT `string`)
-        |FROM TABLE(
-        |   SESSION(TABLE T1_CDC PARTITION BY `name`, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
-        |GROUP BY `name`, window_start, window_end
-      """.stripMargin
-
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
-    env.execute()
-
     val expected = Seq(
       "a,2020-10-10T00:00:01,2020-10-10T00:00:13,5,38.87,22.0,2.0,4",
       "b,2020-10-10T00:00:06,2020-10-10T00:00:12,2,6.66,6.0,3.0,2",
       "b,2020-10-10T00:00:16,2020-10-10T00:00:21,1,4.44,4.0,4.0,1"
     )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
+    verifyWindowAgg(
+      "SESSION(TABLE T1_CDC PARTITION BY `name`, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
+      expected,
+      isCdcSource = true
+    )
   }
 
   @TestTemplate
@@ -1395,18 +982,124 @@ class WindowAggregateITCase(
       }
     }
   }
+
+  private def verifyWindowAgg(
+      tvfFromClause: String,
+      allExpectedData: Seq[String],
+      isCdcSource: Boolean = false): Unit = {
+    val aggFunctionsWithDataView =
+      if (isCdcSource) {
+        // concat_distinct_agg does not support retract
+        """
+          |,COUNT(DISTINCT `string`)
+          |""".stripMargin
+      } else {
+        """
+          |,COUNT(DISTINCT `string`)
+          |,concat_distinct_agg(`string`)
+          |""".stripMargin
+      }
+
+    val sql =
+      s"""
+         |SELECT
+         |  `name`
+         |  ,window_start
+         |  ,window_end
+         |  ,COUNT(*)
+         |  ,SUM(`bigdec`)
+         |  ,MAX(`double`)
+         |  ,MIN(`float`)
+         |  -- agg function with data view does not support async state yet
+         |  ${if (!enableAsyncState) aggFunctionsWithDataView else ""}
+         |FROM TABLE($tvfFromClause)
+         |GROUP BY `name`, window_start, window_end
+         |""".stripMargin
+
+    // remove the last data used to verify 'COUNT(DISTINCT `string`)'
+    // and concat_distinct_agg(`string`)
+    val numToDropWithAsyncState = if (isCdcSource) 1 else 2
+    executeAndVerify(sql, allExpectedData, numToDropWithAsyncState)
+  }
+
+  private def verifyWindowAggWithGroupingSets(
+      tvfFromClause: String,
+      groupingSetClause: String,
+      allExpectedData: Seq[String]): Unit = {
+    val aggFunctionsWithDataView =
+      """
+        |,COUNT(DISTINCT `string`)
+        |,concat_distinct_agg(`string`)
+        |""".stripMargin
+
+    val sql =
+      s"""
+         |SELECT
+         |  GROUPING_ID(`name`),
+         |  `name`
+         |  ,window_start
+         |  ,window_end
+         |  ,COUNT(*)
+         |  ,SUM(`bigdec`)
+         |  ,MAX(`double`)
+         |  ,MIN(`float`)
+         |  -- agg function with data view does not support async state yet
+         |  ${if (!enableAsyncState) aggFunctionsWithDataView else ""}
+         |FROM TABLE($tvfFromClause)
+         |GROUP BY $groupingSetClause, window_start, window_end
+         |""".stripMargin
+
+    // remove the last data used to verify 'COUNT(DISTINCT `string`)'
+    // and concat_distinct_agg(`string`)
+    executeAndVerify(sql, allExpectedData, 2)
+  }
+
+  private def executeAndVerify(
+      query: String,
+      allExpectedData: Seq[String],
+      numToDropWithAsyncState: Int): Unit = {
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
+    env.execute()
+
+    val expected = filterTailDataIfNecessary(allExpectedData, numToDropWithAsyncState)
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
+  }
+
+  private def filterTailDataIfNecessary(
+      data: Seq[String],
+      numToDropWithAsyncState: Int): Seq[String] = {
+    if (!enableAsyncState) {
+      return data
+    }
+    data
+      .map(
+        line => {
+          val parts = line.split(",")
+          if (parts.length >= numToDropWithAsyncState) {
+            parts.dropRight(numToDropWithAsyncState)
+          } else {
+            Array.empty[String]
+          }
+        })
+      .map(_.mkString(","))
+  }
 }
 
 object WindowAggregateITCase {
 
-  @Parameters(name = "AggPhase={0}, StateBackend={1}, UseTimestampLtz = {2}")
+  @Parameters(
+    name = "AggPhase={0}, StateBackend={1}, UseTimestampLtz = {2}, EnableAsyncState = {3}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       // we do not test all cases to simplify the test matrix
-      Array(ONE_PHASE, HEAP_BACKEND, java.lang.Boolean.TRUE),
-      Array(TWO_PHASE, HEAP_BACKEND, java.lang.Boolean.FALSE),
-      Array(ONE_PHASE, ROCKSDB_BACKEND, java.lang.Boolean.FALSE),
-      Array(TWO_PHASE, ROCKSDB_BACKEND, java.lang.Boolean.TRUE)
+      Array(ONE_PHASE, HEAP_BACKEND, java.lang.Boolean.TRUE, Boolean.box(false)),
+      Array(ONE_PHASE, HEAP_BACKEND, java.lang.Boolean.TRUE, Boolean.box(true)),
+      Array(ONE_PHASE, HEAP_BACKEND, java.lang.Boolean.FALSE, Boolean.box(true)),
+      Array(TWO_PHASE, HEAP_BACKEND, java.lang.Boolean.FALSE, Boolean.box(false)),
+      Array(ONE_PHASE, ROCKSDB_BACKEND, java.lang.Boolean.FALSE, Boolean.box(false)),
+      Array(TWO_PHASE, ROCKSDB_BACKEND, java.lang.Boolean.TRUE, Boolean.box(false))
     )
   }
 }

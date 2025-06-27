@@ -61,7 +61,9 @@ public abstract class ProcessAllWindowFunction<IN, OUT, W extends Window>
 
     /** The context holding window metadata. */
     public abstract class Context {
-        /** @return The window that is being evaluated. */
+        /**
+         * @return The window that is being evaluated.
+         */
         public abstract W window();
 
         /**

@@ -2315,7 +2315,8 @@ public class StreamTaskTest {
                     closeableRegistry,
                     metricGroup,
                     fraction,
-                    isUsingCustomRawKeyedState) -> {
+                    isUsingCustomRawKeyedState,
+                    isAsyncState) -> {
                 final StreamOperatorStateContext controller =
                         streamTaskStateManager.streamOperatorStateContext(
                                 operatorID,
@@ -2326,7 +2327,8 @@ public class StreamTaskTest {
                                 closeableRegistry,
                                 metricGroup,
                                 fraction,
-                                isUsingCustomRawKeyedState);
+                                isUsingCustomRawKeyedState,
+                                isAsyncState);
 
                 return new StreamOperatorStateContext() {
                     @Override
@@ -2345,17 +2347,29 @@ public class StreamTaskTest {
                     }
 
                     @Override
+                    public TypeSerializer<?> keySerializer() {
+                        return controller.keySerializer();
+                    }
+
+                    @Override
                     public CheckpointableKeyedStateBackend<?> keyedStateBackend() {
                         return controller.keyedStateBackend();
                     }
 
                     @Override
-                    public AsyncKeyedStateBackend asyncKeyedStateBackend() {
+                    public AsyncKeyedStateBackend<?> asyncKeyedStateBackend() {
                         return controller.asyncKeyedStateBackend();
                     }
 
                     @Override
                     public InternalTimeServiceManager<?> internalTimerServiceManager() {
+                        InternalTimeServiceManager<?> timeServiceManager =
+                                controller.internalTimerServiceManager();
+                        return timeServiceManager != null ? spy(timeServiceManager) : null;
+                    }
+
+                    @Override
+                    public InternalTimeServiceManager<?> asyncInternalTimerServiceManager() {
                         InternalTimeServiceManager<?> timeServiceManager =
                                 controller.internalTimerServiceManager();
                         return timeServiceManager != null ? spy(timeServiceManager) : null;

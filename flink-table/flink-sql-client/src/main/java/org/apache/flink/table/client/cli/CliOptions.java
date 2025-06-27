@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 
 import javax.annotation.Nullable;
 
+import java.net.URI;
 import java.net.URL;
 import java.util.List;
 import java.util.Optional;
@@ -35,16 +36,16 @@ public class CliOptions {
 
     private final boolean isPrintHelp;
     private final String sessionId;
-    private final URL initFile;
-    private final URL sqlFile;
+    private final URI initFile;
+    private final URI sqlFile;
     private final String historyFilePath;
     private final Properties sessionConfig;
 
     private CliOptions(
             boolean isPrintHelp,
             String sessionId,
-            URL initFile,
-            URL sqlFile,
+            URI initFile,
+            URI sqlFile,
             String historyFilePath,
             Properties sessionConfig) {
         this.isPrintHelp = isPrintHelp;
@@ -63,11 +64,11 @@ public class CliOptions {
         return sessionId;
     }
 
-    public @Nullable URL getInitFile() {
+    public @Nullable URI getInitFile() {
         return initFile;
     }
 
-    public @Nullable URL getSqlFile() {
+    public @Nullable URI getSqlFile() {
         return sqlFile;
     }
 
@@ -82,19 +83,19 @@ public class CliOptions {
     /** Command option lines to configure SQL Client in the embedded mode. */
     public static class EmbeddedCliOptions extends CliOptions {
 
-        private final List<URL> jars;
-        private final List<URL> libraryDirs;
+        private final List<URI> jars;
+        private final List<URI> libraryDirs;
 
         private final Configuration pythonConfiguration;
 
         public EmbeddedCliOptions(
                 boolean isPrintHelp,
                 String sessionId,
-                URL initFile,
-                URL sqlFile,
+                URI initFile,
+                URI sqlFile,
                 String historyFilePath,
-                List<URL> jars,
-                List<URL> libraryDirs,
+                List<URI> jars,
+                List<URI> libraryDirs,
                 Configuration pythonConfiguration,
                 Properties sessionConfig) {
             super(isPrintHelp, sessionId, initFile, sqlFile, historyFilePath, sessionConfig);
@@ -103,11 +104,11 @@ public class CliOptions {
             this.pythonConfiguration = pythonConfiguration;
         }
 
-        public List<URL> getJars() {
+        public List<URI> getJars() {
             return jars;
         }
 
-        public List<URL> getLibraryDirs() {
+        public List<URI> getLibraryDirs() {
             return libraryDirs;
         }
 
@@ -124,8 +125,8 @@ public class CliOptions {
         GatewayCliOptions(
                 boolean isPrintHelp,
                 String sessionId,
-                URL initFile,
-                URL sqlFile,
+                URI initFile,
+                URI sqlFile,
                 String historyFilePath,
                 @Nullable URL gatewayAddress,
                 Properties sessionConfig) {

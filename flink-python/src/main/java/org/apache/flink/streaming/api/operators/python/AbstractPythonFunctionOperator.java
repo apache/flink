@@ -268,6 +268,8 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     protected abstract PythonEnvironmentManager createPythonEnvironmentManager();
 
+    protected void drainUnregisteredTimers() {}
+
     /**
      * Advances the watermark of all managed timer services, potentially firing event time timers.
      * It also ensures that the fired timers are processed in the Python user-defined functions.
@@ -275,10 +277,16 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     private void advanceWatermark(Watermark watermark) throws Exception {
         if (getTimeServiceManager().isPresent()) {
             InternalTimeServiceManager<?> timeServiceManager = getTimeServiceManager().get();
+            // make sure the registered timer are processed before advancing the watermark to
+            // ensure the timers could be triggered
+            drainUnregisteredTimers();
             timeServiceManager.advanceWatermark(watermark);
 
             while (!isBundleFinished()) {
                 invokeFinishBundle();
+                // make sure the registered timer are processed before advancing the watermark to
+                // ensure the timers could be triggered
+                drainUnregisteredTimers();
                 timeServiceManager.advanceWatermark(watermark);
             }
         }

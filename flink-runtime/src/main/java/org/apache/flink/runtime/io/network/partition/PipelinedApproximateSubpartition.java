@@ -42,8 +42,11 @@ public class PipelinedApproximateSubpartition extends PipelinedSubpartition {
     private boolean isPartialBufferCleanupRequired = false;
 
     PipelinedApproximateSubpartition(
-            int index, int receiverExclusiveBuffersPerChannel, ResultPartition parent) {
-        super(index, receiverExclusiveBuffersPerChannel, parent);
+            int index,
+            int receiverExclusiveBuffersPerChannel,
+            int startingBufferSize,
+            ResultPartition parent) {
+        super(index, receiverExclusiveBuffersPerChannel, startingBufferSize, parent);
     }
 
     /**

@@ -125,6 +125,13 @@ class JsonFormatFactoryTest {
         testSchemaDeserializationSchema(tableOptions);
     }
 
+    @Test
+    void testDecodeJsonParseEnabled() {
+        testJsonParserConfiguration(true, JsonParserRowDataDeserializationSchema.class);
+
+        testJsonParserConfiguration(false, JsonRowDataDeserializationSchema.class);
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
@@ -229,6 +236,38 @@ class JsonFormatFactoryTest {
         options.put("json.map-null-key.literal", "null");
         options.put("json.encode.decimal-as-plain-number", "true");
         options.put("json.encode.ignore-null-fields", "true");
+        options.put("json.decode.json-parser.enabled", "true");
         return options;
+    }
+
+    private void testJsonParserConfiguration(boolean enabled, Class<?> expectedClass) {
+        Map<String, String> options =
+                getModifyOptions(
+                        opt -> opt.put("json.decode.json-parser.enabled", String.valueOf(enabled)));
+
+        DeserializationSchema<RowData> actualDeser =
+                createTableSource(options)
+                        .valueFormat
+                        .createRuntimeDecoder(
+                                ScanRuntimeProviderContext.INSTANCE,
+                                SCHEMA.toPhysicalRowDataType());
+
+        DeserializationSchema<RowData> expectedDeser =
+                enabled
+                        ? new JsonParserRowDataDeserializationSchema(
+                                PHYSICAL_TYPE,
+                                InternalTypeInfo.of(PHYSICAL_TYPE),
+                                false,
+                                true,
+                                TimestampFormat.ISO_8601)
+                        : new JsonRowDataDeserializationSchema(
+                                PHYSICAL_TYPE,
+                                InternalTypeInfo.of(PHYSICAL_TYPE),
+                                false,
+                                true,
+                                TimestampFormat.ISO_8601);
+
+        assertThat(actualDeser).isInstanceOf(expectedClass);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
     }
 }

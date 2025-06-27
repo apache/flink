@@ -134,47 +134,6 @@ config.set(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
 env.configure(config);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-
-// start a checkpoint every 1000 ms
-env.enableCheckpointing(1000)
-
-// advanced options:
-
-// set mode to exactly-once (this is the default)
-env.getCheckpointConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE)
-
-// make sure 500 ms of progress happen between checkpoints
-env.getCheckpointConfig.setMinPauseBetweenCheckpoints(500)
-
-// checkpoints have to complete within one minute, or are discarded
-env.getCheckpointConfig.setCheckpointTimeout(60000)
-
-// only two consecutive checkpoint failures are tolerated
-env.getCheckpointConfig().setTolerableCheckpointFailureNumber(2)
-
-// allow only one checkpoint to be in progress at the same time
-env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
-
-// enable externalized checkpoints which are retained 
-// after job cancellation
-env.getCheckpointConfig().setExternalizedCheckpointRetention(
-    ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION)
-
-// enables the unaligned checkpoints
-env.getCheckpointConfig.enableUnalignedCheckpoints()
-
-// sets the checkpoint storage where checkpoint snapshots will be written
-env.getCheckpointConfig.setCheckpointStorage("hdfs:///my/checkpoint/dir")
-
-// enable checkpointing with finished tasks
-val config = new Configuration()
-config.set(CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true)
-env.configure(config)
-```
-{{< /tab >}}
 {{< tab "Python" >}}
 ```python
 env = StreamExecutionEnvironment.get_execution_environment()

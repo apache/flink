@@ -41,6 +41,9 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.DescriptorProperties.COMMENT;
+import static org.apache.flink.table.descriptors.DescriptorProperties.INDEX;
+import static org.apache.flink.table.descriptors.DescriptorProperties.INDEX_COLUMNS;
+import static org.apache.flink.table.descriptors.DescriptorProperties.INDEX_NAME;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
@@ -102,6 +105,9 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
         properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_ROWTIME);
         properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_EXPR);
         properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_DATA_TYPE);
+        // index
+        properties.add(SCHEMA + "." + INDEX + ".#." + INDEX_NAME);
+        properties.add(SCHEMA + "." + INDEX + ".#." + INDEX_COLUMNS);
         // table constraint
         properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
         properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);

@@ -21,9 +21,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.functions.UserDefinedFunction;
-import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.ConstantLookupKey;
-import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.FieldRefLookupKey;
-import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.LookupKey;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.Constant;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FunctionParam;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -32,10 +31,10 @@ import org.apache.calcite.rex.RexLiteral;
 
 import java.util.AbstractList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.table.functions.UserDefinedFunctionHelper.generateInlineFunctionName;
+import static org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FieldRef;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
@@ -43,9 +42,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 @Internal
 public class LookupCallContext extends AbstractSqlCallContext {
 
-    private final Map<Integer, LookupKey> lookupKeys;
-
-    private final int[] lookupKeyOrder;
+    private final List<FunctionParam> lookupKeys;
 
     private final List<DataType> argumentDataTypes;
 
@@ -55,22 +52,20 @@ public class LookupCallContext extends AbstractSqlCallContext {
             DataTypeFactory dataTypeFactory,
             UserDefinedFunction function,
             LogicalType inputType,
-            Map<Integer, LookupKey> lookupKeys,
-            int[] lookupKeyOrder,
+            List<FunctionParam> lookupKeys,
             LogicalType lookupType) {
         super(dataTypeFactory, function, generateInlineFunctionName(function), false);
         this.lookupKeys = lookupKeys;
-        this.lookupKeyOrder = lookupKeyOrder;
         this.argumentDataTypes =
-                new AbstractList<DataType>() {
+                new AbstractList<>() {
                     @Override
                     public DataType get(int index) {
-                        final LookupKey key = getKey(index);
+                        final FunctionParam key = getKey(index);
                         final LogicalType keyType;
-                        if (key instanceof ConstantLookupKey) {
-                            keyType = ((ConstantLookupKey) key).sourceType;
-                        } else if (key instanceof FieldRefLookupKey) {
-                            keyType = getFieldTypes(inputType).get(((FieldRefLookupKey) key).index);
+                        if (key instanceof Constant) {
+                            keyType = ((Constant) key).sourceType;
+                        } else if (key instanceof FieldRef) {
+                            keyType = getFieldTypes(inputType).get(((FieldRef) key).index);
                         } else {
                             throw new IllegalArgumentException();
                         }
@@ -79,7 +74,7 @@ public class LookupCallContext extends AbstractSqlCallContext {
 
                     @Override
                     public int size() {
-                        return lookupKeyOrder.length;
+                        return lookupKeys.size();
                     }
                 };
         this.outputDataType = fromLogicalToDataType(lookupType);
@@ -87,12 +82,12 @@ public class LookupCallContext extends AbstractSqlCallContext {
 
     @Override
     public boolean isArgumentLiteral(int pos) {
-        return getKey(pos) instanceof ConstantLookupKey;
+        return getKey(pos) instanceof Constant;
     }
 
     @Override
     public boolean isArgumentNull(int pos) {
-        final ConstantLookupKey key = (ConstantLookupKey) getKey(pos);
+        final Constant key = (Constant) getKey(pos);
         return key.literal.isNull();
     }
 
@@ -102,7 +97,7 @@ public class LookupCallContext extends AbstractSqlCallContext {
             return Optional.empty();
         }
         try {
-            final ConstantLookupKey key = (ConstantLookupKey) getKey(pos);
+            final Constant key = (Constant) getKey(pos);
             final RexLiteral literal = key.literal;
             return Optional.ofNullable(getLiteralValueAs(literal::getValueAs, clazz));
         } catch (IllegalArgumentException e) {
@@ -122,8 +117,7 @@ public class LookupCallContext extends AbstractSqlCallContext {
 
     // --------------------------------------------------------------------------------------------
 
-    private LookupKey getKey(int pos) {
-        final int index = lookupKeyOrder[pos];
-        return lookupKeys.get(index);
+    private FunctionParam getKey(int pos) {
+        return lookupKeys.get(pos);
     }
 }

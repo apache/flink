@@ -30,6 +30,8 @@ import org.apache.flink.table.planner.utils.TableTestUtil
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.{BeforeEach, Test}
 
+import scala.collection.convert.ImplicitConversions._
+
 class TableSinkITCase extends BatchTestBase {
 
   @BeforeEach
@@ -148,7 +150,6 @@ class TableSinkITCase extends BatchTestBase {
 
   @Test
   def testCreateTableAsSelectWithoutOptions(): Unit = {
-    // TODO CTAS supports ManagedTable
     assertThatThrownBy(
       () =>
         tEnv
@@ -158,6 +159,28 @@ class TableSinkITCase extends BatchTestBase {
                         | SELECT * FROM MyTable
                         |""".stripMargin)
           .await())
-      .hasRootCauseMessage("\nExpecting actual not to be null")
+      .hasRootCauseMessage(
+        "Table options do not contain an option key 'connector' for discovering a connector.")
+  }
+
+  @Test
+  def testCreateTableAsSelectWithOrderKeyNotProjected(): Unit = {
+    tEnv
+      .executeSql(s"""
+                     |create table MyCtasTable
+                     |WITH (
+                     |   'connector' = 'values'
+                     |) as select b, c, d from
+                     |  (values
+                     |    (1, 1, 2, 'd1'),
+                     |    (2, 2, 4, 'd2')
+                     |  ) as V(a, b, c, d)
+                     |  order by a
+                     |""".stripMargin)
+      .await()
+
+    val expected = List("+I[1, 2, d1]", "+I[2, 4, d2]")
+    assertThat(TestValuesTableFactory.getResultsAsStrings("MyCtasTable").toSeq)
+      .isEqualTo(expected)
   }
 }

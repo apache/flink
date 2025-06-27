@@ -21,28 +21,40 @@ package org.apache.flink.runtime.state.v2.adaptor;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.InternalCheckpointListener;
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.asyncprocessing.AsyncRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
+import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
-import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.StateDescriptorUtils;
+import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -60,10 +72,19 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
     @Override
     public void setup(@Nonnull StateRequestHandler stateRequestHandler) {}
 
+    @Override
+    public <N, S extends State, SV> S getOrCreateKeyedState(
+            N defaultNamespace,
+            TypeSerializer<N> namespaceSerializer,
+            StateDescriptor<SV> stateDesc)
+            throws Exception {
+        return createStateInternal(defaultNamespace, namespaceSerializer, stateDesc);
+    }
+
     @Nonnull
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public <N, S extends State, SV> S createState(
+    public <N, S extends InternalKeyedState, SV> S createStateInternal(
             @Nonnull N defaultNamespace,
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<SV> stateDesc)
@@ -93,12 +114,19 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
     @Nonnull
     @Override
     public StateExecutor createStateExecutor() {
-        return null;
+        return new InvalidStateExecutor();
     }
 
     @Override
-    public void switchContext(RecordContext<K> context) {
-        keyedStateBackend.setCurrentKeyAndKeyGroup(context.getKey(), context.getKeyGroup());
+    public KeyGroupRange getKeyGroupRange() {
+        return keyedStateBackend.getKeyGroupRange();
+    }
+
+    @Override
+    public void switchContext(@Nullable RecordContext<K> context) {
+        if (context != null) {
+            keyedStateBackend.setCurrentKeyAndKeyGroup(context.getKey(), context.getKeyGroup());
+        }
     }
 
     @Override
@@ -138,5 +166,67 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
             throws Exception {
         return keyedStateBackend.snapshot(
                 checkpointId, timestamp, streamFactory, checkpointOptions);
+    }
+
+    @Nonnull
+    @Override
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
+            KeyGroupedInternalPriorityQueue<T> create(
+                    @Nonnull String stateName,
+                    @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+        return keyedStateBackend.create(stateName, byteOrderedElementSerializer);
+    }
+
+    @Override
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
+            KeyGroupedInternalPriorityQueue<T> create(
+                    @Nonnull String stateName,
+                    @Nonnull TypeSerializer<T> byteOrderedElementSerializer,
+                    boolean allowFutureMetadataUpdates) {
+        return keyedStateBackend.create(
+                stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
+    }
+
+    @Override
+    public boolean requiresLegacySynchronousTimerSnapshots(SnapshotType checkpointType) {
+        if (keyedStateBackend instanceof AbstractKeyedStateBackend) {
+            return ((AbstractKeyedStateBackend) keyedStateBackend)
+                    .requiresLegacySynchronousTimerSnapshots(checkpointType);
+        }
+        return false;
+    }
+
+    @Override
+    public boolean isSafeToReuseKVState() {
+        return keyedStateBackend.isSafeToReuseKVState();
+    }
+
+    public CheckpointableKeyedStateBackend<K> getKeyedStateBackend() {
+        return keyedStateBackend;
+    }
+
+    private static class InvalidStateExecutor implements StateExecutor {
+
+        @Override
+        public CompletableFuture<Void> executeBatchRequests(
+                AsyncRequestContainer<StateRequest<?, ?, ?, ?>> asyncRequestContainer) {
+            return null;
+        }
+
+        @Override
+        public AsyncRequestContainer<StateRequest<?, ?, ?, ?>> createRequestContainer() {
+            return null;
+        }
+
+        @Override
+        public void executeRequestSync(StateRequest<?, ?, ?, ?> asyncRequest) {}
+
+        @Override
+        public boolean fullyLoaded() {
+            return false;
+        }
+
+        @Override
+        public void shutdown() {}
     }
 }

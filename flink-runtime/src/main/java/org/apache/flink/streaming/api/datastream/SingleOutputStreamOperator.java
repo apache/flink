@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.InvalidTypesException;
@@ -454,5 +455,19 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
         }
 
         return new CachedDataStream<>(this.environment, this.transformation);
+    }
+
+    /**
+     * Enable the async state processing for following previous transformation. This also requires
+     * only State V2 APIs are used in the user function.
+     *
+     * @return the configured SingleOutputStreamOperator itself.
+     * @throws UnsupportedOperationException when the transformation does not support the async
+     *     state processing.
+     */
+    @Experimental
+    public SingleOutputStreamOperator<T> enableAsyncState() {
+        transformation.enableAsyncState();
+        return this;
     }
 }

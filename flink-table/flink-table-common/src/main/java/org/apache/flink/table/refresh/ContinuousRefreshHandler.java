@@ -31,20 +31,22 @@ public class ContinuousRefreshHandler implements RefreshHandler, Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    // TODO: add clusterId for yarn and k8s resource manager
     private final String executionTarget;
+    private final String clusterId;
     private final String jobId;
+    private final @Nullable String restorePath;
 
-    private @Nullable final String restorePath;
-
-    public ContinuousRefreshHandler(String executionTarget, String jobId) {
+    public ContinuousRefreshHandler(String executionTarget, String clusterId, String jobId) {
         this.executionTarget = executionTarget;
+        this.clusterId = clusterId;
         this.jobId = jobId;
         this.restorePath = null;
     }
 
-    public ContinuousRefreshHandler(String executionTarget, String jobId, String restorePath) {
+    public ContinuousRefreshHandler(
+            String executionTarget, String clusterId, String jobId, String restorePath) {
         this.executionTarget = executionTarget;
+        this.clusterId = clusterId;
         this.jobId = jobId;
         this.restorePath = restorePath;
     }
@@ -57,6 +59,10 @@ public class ContinuousRefreshHandler implements RefreshHandler, Serializable {
         return jobId;
     }
 
+    public String getClusterId() {
+        return clusterId;
+    }
+
     public Optional<String> getRestorePath() {
         return Optional.ofNullable(restorePath);
     }
@@ -64,9 +70,10 @@ public class ContinuousRefreshHandler implements RefreshHandler, Serializable {
     @Override
     public String asSummaryString() {
         return String.format(
-                "{\njobId=%s,\n executionTarget=%s%s\n}",
-                jobId,
+                "{\n executionTarget=%s,\n clusterId=%s,\n jobId=%s%s\n}",
                 executionTarget,
+                clusterId,
+                jobId,
                 restorePath == null ? "" : ",\n restorePath=" + restorePath);
     }
 }

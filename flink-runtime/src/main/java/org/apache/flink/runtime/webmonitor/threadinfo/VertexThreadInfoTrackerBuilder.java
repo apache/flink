@@ -23,8 +23,8 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.threadinfo.VertexThreadInfoTracker.ExecutionVertexKey;
 import org.apache.flink.runtime.webmonitor.threadinfo.VertexThreadInfoTracker.JobVertexKey;
 
-import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava32.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava33.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava33.com.google.common.cache.CacheBuilder;
 
 import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;

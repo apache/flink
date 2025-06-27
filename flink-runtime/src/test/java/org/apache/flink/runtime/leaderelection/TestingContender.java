@@ -50,9 +50,12 @@ public class TestingContender extends TestingLeaderBase implements LeaderContend
 
         this.leaderSessionID = leaderSessionID;
 
-        leaderElection.confirmLeadership(leaderSessionID, address);
-
-        leaderEventQueue.offer(LeaderInformation.known(leaderSessionID, address));
+        leaderElection
+                .confirmLeadershipAsync(leaderSessionID, address)
+                .thenRun(
+                        () ->
+                                leaderEventQueue.offer(
+                                        LeaderInformation.known(leaderSessionID, address)));
     }
 
     @Override

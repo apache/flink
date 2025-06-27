@@ -176,7 +176,6 @@ public class CompactorOperatorStateHandler
                                 summary.getNumberOfSubtasks(),
                                 summary.getCheckpointIdOrEOI(),
                                 summary.getNumberOfCommittables() + results.size(),
-                                summary.getNumberOfPendingCommittables() + results.size(),
                                 summary.getNumberOfFailedCommittables())));
         for (FileSinkCommittable committable : results) {
             output.collect(

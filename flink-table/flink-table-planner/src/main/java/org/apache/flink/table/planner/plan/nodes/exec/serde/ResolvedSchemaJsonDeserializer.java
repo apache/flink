@@ -20,11 +20,14 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.DefaultIndex;
+import org.apache.flink.table.catalog.Index;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.WatermarkSpec;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.ObjectCodec;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
@@ -32,9 +35,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
 import java.io.IOException;
 import java.util.List;
 
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.deserializeOptionalField;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.traverse;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeFieldOrNull;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeList;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeListOrEmpty;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchemaJsonSerializer.COLUMNS;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchemaJsonSerializer.INDEXES;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchemaJsonSerializer.PRIMARY_KEY;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchemaJsonSerializer.WATERMARK_SPECS;
 
@@ -55,25 +60,16 @@ final class ResolvedSchemaJsonDeserializer extends StdDeserializer<ResolvedSchem
     public ResolvedSchema deserialize(JsonParser jsonParser, DeserializationContext ctx)
             throws IOException {
         ObjectNode jsonNode = jsonParser.readValueAsTree();
+        ObjectCodec codec = jsonParser.getCodec();
 
-        List<Column> columns =
-                ctx.readValue(
-                        traverse(jsonNode.required(COLUMNS), jsonParser.getCodec()),
-                        ctx.getTypeFactory().constructCollectionType(List.class, Column.class));
+        List<Column> columns = deserializeList(jsonNode, COLUMNS, Column.class, codec, ctx);
         List<WatermarkSpec> watermarkSpecs =
-                ctx.readValue(
-                        traverse(jsonNode.required(WATERMARK_SPECS), jsonParser.getCodec()),
-                        ctx.getTypeFactory()
-                                .constructCollectionType(List.class, WatermarkSpec.class));
+                deserializeListOrEmpty(jsonNode, WATERMARK_SPECS, WatermarkSpec.class, codec, ctx);
         UniqueConstraint primaryKey =
-                deserializeOptionalField(
-                                jsonNode,
-                                PRIMARY_KEY,
-                                UniqueConstraint.class,
-                                jsonParser.getCodec(),
-                                ctx)
-                        .orElse(null);
+                deserializeFieldOrNull(jsonNode, PRIMARY_KEY, UniqueConstraint.class, codec, ctx);
+        List<Index> indexes =
+                deserializeListOrEmpty(jsonNode, INDEXES, DefaultIndex.class, codec, ctx);
 
-        return new ResolvedSchema(columns, watermarkSpecs, primaryKey);
+        return new ResolvedSchema(columns, watermarkSpecs, primaryKey, indexes);
     }
 }

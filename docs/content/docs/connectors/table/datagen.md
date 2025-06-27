@@ -99,6 +99,21 @@ CREATE TABLE Orders (
 )
 ```
 
+And for collections it is possible to specify different sized collections.
+
+```sql
+CREATE TABLE Orders (
+    f0 Array<INT>,
+    f1 Map<INT, STRING>,
+    f2 MULTISET<INT>
+) WITH (
+  'connector' = 'datagen',
+  'fields.f0.length' = '10',
+  'fields.f1.length' = '11',
+  'fields.f2.length' = '12'
+);
+```
+
 Types
 -----
 
@@ -289,14 +304,14 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(Minimum value of type)</td>
       <td>(Type of field)</td>
-      <td>Minimum value of random generator, work for numeric types.</td>
+      <td>Minimum value of random generator, only works for numeric types.</td>
     </tr>
     <tr>
       <td><h5>fields.#.max</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(Maximum value of type)</td>
       <td>(Type of field)</td>
-      <td>Maximum value of random generator, work for numeric types.</td>
+      <td>Maximum value of random generator, only works for numeric types.</td>
     </tr>
     <tr>
       <td><h5>fields.#.max-past</h5></td>
@@ -308,13 +323,13 @@ Connector Options
     <tr>
       <td><h5>fields.#.length</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">100</td>
+      <td style="word-wrap: break-word;">100 for string/bytes, 3 for array/map/multiset </td>
       <td>Integer</td>
       <td>
           Size or length of the collection for generating varchar/varbinary/string/bytes/array/map/multiset types. 
-          Please notice that for variable-length fields (varchar/varbinary), the default length is defined by the schema and cannot be set to a length greater than it.
-          for super-long fields (string/bytes), the default length is 100 and can be set to a length less than 2^31.
-          for constructed fields (array/map/multiset), the default number of elements is 3 and can be customized.
+          Please note that for variable-length fields (varchar/varbinary), the default length is defined by the schema and cannot be set to a length greater than it.
+          For super-long fields (string/bytes), the default length is 100 and can be set to a length less than 2^31.
+          For constructed fields (array/map/multiset), the default number of elements is 3.
       </td>
     </tr>
     <tr>
@@ -322,7 +337,7 @@ Connector Options
       <td>optional</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Whether to generate a variable-length data, please notice that it should only be used for variable-length types (varchar, string, varbinary, bytes).</td>
+      <td>Whether to generate a variable-length data, only works for variable-length types (varchar, string, varbinary, bytes).</td>
     </tr>
     <tr>
       <td><h5>fields.#.start</h5></td>
@@ -341,7 +356,7 @@ Connector Options
     <tr>
       <td><h5>fields.#.null-rate</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">(none)</td>
+      <td style="word-wrap: break-word;">0</td>
       <td>(Type of field)</td>
       <td>The proportion of null values.</td>
     </tr>

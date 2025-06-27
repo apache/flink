@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferHeader;
@@ -28,7 +29,9 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.ArrayDeque;
 import java.util.Queue;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil.HEADER_LENGTH;
@@ -47,14 +50,20 @@ class PartitionedFileReader {
     /** Target {@link PartitionedFile} to read. */
     private final PartitionedFile partitionedFile;
 
-    /** Target subpartition to read. */
-    private final int targetSubpartition;
+    /** Target subpartitions to read. */
+    private final ResultSubpartitionIndexSet subpartitionIndexSet;
 
     /** Data file channel of the target {@link PartitionedFile}. */
     private final FileChannel dataFileChannel;
 
     /** Index file channel of the target {@link PartitionedFile}. */
     private final FileChannel indexFileChannel;
+
+    /**
+     * Records the shift position of the subpartition write order. For example, if the write order
+     * of subpartitions is [4, 5, 0, 1, 2, 3], then this value would be 4.
+     */
+    private final int subpartitionOrderRotationIndex;
 
     /** Next data region to be read. */
     private int nextRegionToRead;
@@ -65,34 +74,156 @@ class PartitionedFileReader {
     /** Number of remaining bytes in the current data region read. */
     private long currentRegionRemainingBytes;
 
+    /** A queue storing {@link BufferPositionDescriptor} to be read. */
+    private final Queue<BufferPositionDescriptor> readBufferPositions = new ArrayDeque<>();
+
+    private BufferPositionDescriptor currentBufferPositionDescriptor;
+
     PartitionedFileReader(
             PartitionedFile partitionedFile,
-            int targetSubpartition,
+            ResultSubpartitionIndexSet subpartitionIndexSet,
             FileChannel dataFileChannel,
             FileChannel indexFileChannel,
             ByteBuffer headerBuffer,
-            ByteBuffer indexEntryBuffer) {
+            ByteBuffer indexEntryBuffer,
+            int subpartitionOrderRotationIndex) {
         checkArgument(checkNotNull(dataFileChannel).isOpen(), "Data file channel must be opened.");
         checkArgument(
                 checkNotNull(indexFileChannel).isOpen(), "Index file channel must be opened.");
 
         this.partitionedFile = checkNotNull(partitionedFile);
-        this.targetSubpartition = targetSubpartition;
+        this.subpartitionIndexSet = subpartitionIndexSet;
         this.dataFileChannel = dataFileChannel;
         this.indexFileChannel = indexFileChannel;
         this.headerBuf = headerBuffer;
         this.indexEntryBuf = indexEntryBuffer;
+        this.subpartitionOrderRotationIndex = subpartitionOrderRotationIndex;
     }
 
-    private void moveToNextReadableRegion(ByteBuffer indexEntryBuf) throws IOException {
-        while (currentRegionRemainingBytes <= 0
-                && nextRegionToRead < partitionedFile.getNumRegions()) {
-            partitionedFile.getIndexEntry(
-                    indexFileChannel, indexEntryBuf, nextRegionToRead, targetSubpartition);
-            nextOffsetToRead = indexEntryBuf.getLong();
-            currentRegionRemainingBytes = indexEntryBuf.getLong();
-            ++nextRegionToRead;
+    private void moveToNextReadablePosition(ByteBuffer indexEntryBuf) throws IOException {
+        while (currentRegionRemainingBytes <= 0 && hasNextPositionToRead()) {
+            if (!readBufferPositions.isEmpty()) {
+                BufferPositionDescriptor descriptor = readBufferPositions.poll();
+                nextOffsetToRead = descriptor.offset;
+                currentRegionRemainingBytes = descriptor.size;
+                currentBufferPositionDescriptor = descriptor;
+            } else {
+                // move to next region which has buffers
+                if (nextRegionToRead < partitionedFile.getNumRegions()) {
+                    updateReadableOffsetAndSize(indexEntryBuf, readBufferPositions);
+                    ++nextRegionToRead;
+                }
+            }
         }
+    }
+
+    private boolean hasNextPositionToRead() {
+        return !readBufferPositions.isEmpty() || nextRegionToRead < partitionedFile.getNumRegions();
+    }
+
+    /**
+     * Updates the readable offsets and sizes for subpartitions based on a given index buffer. This
+     * method handles cases where the subpartition range is split by a rotation index, ensuring that
+     * all necessary index entries are processed.
+     *
+     * <p>The method operates in the following way:
+     *
+     * <ol>
+     *   <li>It checks if the range of subpartition indices requires handling of a wrap around the
+     *       rotation index.
+     *   <li>If no wrap is necessary (when the range does not cross the rotation point), it directly
+     *       updates readable offsets and sizes for the entire range.
+     *   <li>If a wrap is necessary, it splits the process into two updates:
+     *       <ul>
+     *         <li>Firstly, it updates from the rotation index to the end subpartition.
+     *         <li>Secondly, it updates from the start subpartition to just before the rotation
+     *             index.
+     *       </ul>
+     * </ol>
+     *
+     * <p>This ensures that all relevant subpartitions are correctly processed and offsets and sizes
+     * are added to the queue for subsequent reading.
+     *
+     * @param indexEntryBuf A ByteBuffer containing index entries which provide offset and size
+     *     information.
+     * @param readBufferPositions A queue to store the buffer position descriptors.
+     * @throws IOException If an I/O error occurs when accessing the index file channel.
+     */
+    @VisibleForTesting
+    void updateReadableOffsetAndSize(
+            ByteBuffer indexEntryBuf, Queue<BufferPositionDescriptor> readBufferPositions)
+            throws IOException {
+        int startSubpartition = subpartitionIndexSet.getStartIndex();
+        int endSubpartition = subpartitionIndexSet.getEndIndex();
+
+        if (startSubpartition >= subpartitionOrderRotationIndex
+                || endSubpartition < subpartitionOrderRotationIndex) {
+            updateReadableOffsetAndSize(
+                    startSubpartition, endSubpartition, indexEntryBuf, readBufferPositions);
+        } else {
+            updateReadableOffsetAndSize(
+                    subpartitionOrderRotationIndex,
+                    endSubpartition,
+                    indexEntryBuf,
+                    readBufferPositions);
+            updateReadableOffsetAndSize(
+                    startSubpartition,
+                    subpartitionOrderRotationIndex - 1,
+                    indexEntryBuf,
+                    readBufferPositions);
+        }
+    }
+
+    /**
+     * Updates the readable offsets and sizes for a specified range of subpartitions. If offsets are
+     * contiguous, they are merged into a single entry. If not contiguous, each subpartition's
+     * offset and size must come from the same buffer, and individual tuples are added for each
+     * entry.
+     *
+     * @param startSubpartition The starting index of the subpartition range to be processed.
+     * @param endSubpartition The ending index of the subpartition range to be processed.
+     * @param indexEntryBuf A ByteBuffer containing the index entries to read offsets and sizes.
+     * @param readBufferPositions A queue to store the buffer position descriptors.
+     * @throws IOException If an I/O error occurs during reading of index entries.
+     * @throws IllegalStateException If offsets are not contiguous and not from a single buffer.
+     */
+    private void updateReadableOffsetAndSize(
+            int startSubpartition,
+            int endSubpartition,
+            ByteBuffer indexEntryBuf,
+            Queue<BufferPositionDescriptor> readBufferPositions)
+            throws IOException {
+        partitionedFile.getIndexEntry(
+                indexFileChannel, indexEntryBuf, nextRegionToRead, startSubpartition);
+        long startPartitionOffset = indexEntryBuf.getLong();
+        long startPartitionSize = indexEntryBuf.getLong();
+
+        partitionedFile.getIndexEntry(
+                indexFileChannel, indexEntryBuf, nextRegionToRead, endSubpartition);
+        long endPartitionOffset = indexEntryBuf.getLong();
+        long endPartitionSize = indexEntryBuf.getLong();
+
+        if (startPartitionOffset != endPartitionOffset || startPartitionSize != endPartitionSize) {
+            readBufferPositions.add(
+                    new BufferPositionDescriptor(
+                            startPartitionOffset,
+                            endPartitionOffset + endPartitionSize - startPartitionOffset,
+                            1));
+        } else if (startPartitionSize != 0) {
+            // this branch is for broadcast subpartitions
+            readBufferPositions.add(
+                    new BufferPositionDescriptor(
+                            startPartitionOffset,
+                            startPartitionSize,
+                            endSubpartition - startSubpartition + 1));
+        }
+    }
+
+    @VisibleForTesting
+    void readCurrentRegion(
+            Queue<MemorySegment> freeSegments, BufferRecycler recycler, Consumer<Buffer> consumer)
+            throws IOException {
+        readCurrentRegion(freeSegments, recycler, (buffer, repeatCount) -> consumer.accept(buffer));
     }
 
     /**
@@ -107,7 +238,9 @@ class PartitionedFileReader {
      * @return Whether the file reader has remaining data to read.
      */
     boolean readCurrentRegion(
-            Queue<MemorySegment> freeSegments, BufferRecycler recycler, Consumer<Buffer> consumer)
+            Queue<MemorySegment> freeSegments,
+            BufferRecycler recycler,
+            BiConsumer<Buffer, Integer> consumer)
             throws IOException {
         if (currentRegionRemainingBytes == 0) {
             return false;
@@ -164,12 +297,12 @@ class PartitionedFileReader {
     }
 
     boolean hasRemaining() throws IOException {
-        moveToNextReadableRegion(indexEntryBuf);
+        moveToNextReadablePosition(indexEntryBuf);
         return currentRegionRemainingBytes > 0;
     }
 
     void initRegionIndex(ByteBuffer initIndexEntryBuffer) throws IOException {
-        moveToNextReadableRegion(initIndexEntryBuffer);
+        moveToNextReadablePosition(initIndexEntryBuffer);
     }
 
     /** Gets read priority of this file reader. Smaller value indicates higher priority. */
@@ -181,7 +314,7 @@ class PartitionedFileReader {
             ByteBuffer byteBuffer,
             Buffer buffer,
             BufferAndHeader partialBuffer,
-            Consumer<Buffer> consumer) {
+            BiConsumer<Buffer, Integer> consumer) {
         BufferHeader header = partialBuffer.header;
         CompositeBuffer targetBuffer = partialBuffer.buffer;
         while (byteBuffer.hasRemaining()) {
@@ -212,7 +345,7 @@ class PartitionedFileReader {
             }
 
             header = null;
-            consumer.accept(targetBuffer);
+            consumer.accept(targetBuffer, currentBufferPositionDescriptor.repeatCount);
             targetBuffer = null;
         }
         return new BufferAndHeader(targetBuffer, header);
@@ -245,6 +378,46 @@ class PartitionedFileReader {
         BufferAndHeader(CompositeBuffer buffer, BufferHeader header) {
             this.buffer = buffer;
             this.header = header;
+        }
+    }
+
+    /**
+     * Represents the position and size of a buffer along with the repeat count. For a regular
+     * buffer, the repeat count is typically one. For a broadcast buffer, the repeat count
+     * corresponds to the number of subpartitions.
+     */
+    @VisibleForTesting
+    static class BufferPositionDescriptor {
+        private final long offset;
+        private final long size;
+        private final int repeatCount;
+
+        /**
+         * Constructs a BufferPositionDescriptor with specified offset, size, and repeat count.
+         *
+         * @param offset the offset of the buffer
+         * @param size the size of the buffer
+         * @param repeatCount the repeat count for the buffer
+         */
+        BufferPositionDescriptor(long offset, long size, int repeatCount) {
+            this.offset = offset;
+            this.size = size;
+            this.repeatCount = repeatCount;
+        }
+
+        @VisibleForTesting
+        long getOffset() {
+            return offset;
+        }
+
+        @VisibleForTesting
+        long getSize() {
+            return size;
+        }
+
+        @VisibleForTesting
+        int getRepeatCount() {
+            return repeatCount;
         }
     }
 }

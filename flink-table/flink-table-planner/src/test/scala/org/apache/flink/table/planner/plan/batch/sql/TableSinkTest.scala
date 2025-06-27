@@ -143,35 +143,16 @@ class TableSinkTest extends TableTestBase {
   }
 
   @Test
-  def testManagedTableSinkWithDisableCheckpointing(): Unit = {
-    util.addTable(s"""
-                     |CREATE TABLE sink (
-                     |  `a` INT,
-                     |  `b` BIGINT,
-                     |  `c` STRING
-                     |) WITH(
-                     |)
-                     |""".stripMargin)
-    val stmtSet = util.tableEnv.createStatementSet()
-    stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
-
-    util.verifyAstPlan(stmtSet)
-  }
-
-  @Test
-  def testManagedTableSinkWithEnableCheckpointing(): Unit = {
-    util.getStreamEnv.enableCheckpointing(10)
-    util.addTable(s"""
-                     |CREATE TABLE sink (
-                     |  `a` INT,
-                     |  `b` BIGINT,
-                     |  `c` STRING
-                     |) WITH(
-                     |)
-                     |""".stripMargin)
-    val stmtSet = util.tableEnv.createStatementSet()
-    stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
-
-    util.verifyAstPlan(stmtSet)
+  def testCreateTableAsSelectWithOrderKeyNotProjected(): Unit = {
+    util.verifyExplainInsert(s"""
+                                |create table MyCtasSource
+                                |WITH (
+                                |   'connector' = 'values'
+                                |) as select b, c, d from
+                                |  (values
+                                |    (1, 1, 2, 'd1')
+                                |  ) as V(a, b, c, d)
+                                |  order by a
+                                |""".stripMargin)
   }
 }

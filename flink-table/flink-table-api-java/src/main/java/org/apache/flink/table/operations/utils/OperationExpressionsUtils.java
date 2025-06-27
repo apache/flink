@@ -28,10 +28,12 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
+import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.operations.QueryOperation;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -284,6 +286,58 @@ public class OperationExpressionsUtils {
         @Override
         protected Optional<String> defaultMethod(Expression expression) {
             return Optional.empty();
+        }
+    }
+
+    /**
+     * Adds an input alias to all {@link FieldReferenceExpression} in the given {@code expression}.
+     */
+    public static ResolvedExpression scopeReferencesWithAlias(
+            final String aliasName, final ResolvedExpression expression) {
+        return expression.accept(
+                new TableReferenceScopingVisitor(Collections.singletonMap(0, aliasName)));
+    }
+
+    /**
+     * Adds an input alias to all {@link FieldReferenceExpression} in the given {@code expression}.
+     * This method accepts multiple aliases for given input indices.
+     */
+    public static ResolvedExpression scopeReferencesWithAlias(
+            final Map<Integer, String> inputAliases, final ResolvedExpression expression) {
+        return expression.accept(new TableReferenceScopingVisitor(inputAliases));
+    }
+
+    private static class TableReferenceScopingVisitor
+            extends ResolvedExpressionDefaultVisitor<ResolvedExpression> {
+
+        private final Map<Integer, String> inputAliases;
+
+        private TableReferenceScopingVisitor(Map<Integer, String> inputAliases) {
+            this.inputAliases = inputAliases;
+        }
+
+        @Override
+        public ResolvedExpression visit(CallExpression call) {
+            List<ResolvedExpression> scopedChildren =
+                    call.getChildren().stream()
+                            .map(c -> c.accept(this))
+                            .collect(Collectors.toList());
+            return call.replaceArgs(scopedChildren, call.getOutputDataType());
+        }
+
+        @Override
+        public ResolvedExpression visit(FieldReferenceExpression fieldReference) {
+            return new FieldReferenceExpression(
+                    fieldReference.getName(),
+                    fieldReference.getOutputDataType(),
+                    fieldReference.getInputIndex(),
+                    fieldReference.getFieldIndex(),
+                    inputAliases.get(fieldReference.getInputIndex()));
+        }
+
+        @Override
+        protected ResolvedExpression defaultMethod(ResolvedExpression expression) {
+            return expression;
         }
     }
 

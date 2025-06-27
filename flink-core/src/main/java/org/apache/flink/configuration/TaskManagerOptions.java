@@ -215,6 +215,16 @@ public class TaskManagerOptions {
                             "Minimum possible size of memory buffers used by the network stack and the memory manager. "
                                     + "ex. can be used for automatic buffer size adjustment.");
 
+    /** Starting size of memory buffers used by the network stack and the memory manager. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<MemorySize> STARTING_MEMORY_SEGMENT_SIZE =
+            key("taskmanager.memory.starting-segment-size")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("1024"))
+                    .withDescription(
+                            "Starting size of memory buffers used by the network stack and the memory manager, "
+                                    + "when using automatic buffer size adjustment.");
+
     /**
      * The config parameter for automatically defining the TaskManager's binding address, if {@link
      * #HOST} configuration option is not set.
@@ -604,6 +614,7 @@ public class TaskManagerOptions {
                                     + " both a task failure and a clean shutdown. "
                                     + " Task cancellation timeout only applies to task cancellation and does not apply to"
                                     + " task closing/clean-up caused by a task failure or a clean shutdown.");
+
     /**
      * This configures how long we wait for the timers in milliseconds to finish all pending timer
      * threads when the stream task is cancelled.
@@ -698,6 +709,12 @@ public class TaskManagerOptions {
                                                     code(TaskManagerLoadBalanceMode.SLOTS.name()),
                                                     code("TaskManagers")),
                                             text(
+                                                    "The %s mode tries to allocate slots on minimum number of available %s.",
+                                                    code(
+                                                            TaskManagerLoadBalanceMode.MIN_RESOURCES
+                                                                    .name()),
+                                                    code("TaskManagers")),
+                                            text(
                                                     "The %s mode is the default mode without any specified strategy.",
                                                     code(TaskManagerLoadBalanceMode.NONE.name())))
                                     .build());
@@ -743,7 +760,8 @@ public class TaskManagerOptions {
     /** Type of {@link TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE}. */
     public enum TaskManagerLoadBalanceMode {
         NONE,
-        SLOTS
+        SLOTS,
+        MIN_RESOURCES
     }
 
     // ------------------------------------------------------------------------

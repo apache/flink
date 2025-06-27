@@ -508,7 +508,8 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
     private Collection<AMRMClient.ContainerRequest> getPendingRequestsAndCheckConsistency(
             Priority priority, Resource resource, int expectedNum) {
         final List<AMRMClient.ContainerRequest> matchingRequests =
-                resourceManagerClient.getMatchingRequests(priority, ResourceRequest.ANY, resource)
+                resourceManagerClient
+                        .getMatchingRequests(priority, ResourceRequest.ANY, resource)
                         .stream()
                         .flatMap(Collection::stream)
                         .collect(Collectors.toList());

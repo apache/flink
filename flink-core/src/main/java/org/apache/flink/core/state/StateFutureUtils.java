@@ -20,7 +20,12 @@ package org.apache.flink.core.state;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.common.state.v2.StateIterator;
+import org.apache.flink.core.asyncprocessing.AsyncFutureImpl;
+import org.apache.flink.core.asyncprocessing.CompletedAsyncFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -34,12 +39,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class StateFutureUtils {
     /** Returns a completed future that does nothing and return null. */
     public static <V> StateFuture<V> completedVoidFuture() {
-        return new CompletedStateFuture<>(null);
+        return new CompletedAsyncFuture<>(null);
     }
 
     /** Returns a completed future that does nothing and return provided result. */
     public static <V> StateFuture<V> completedFuture(V result) {
-        return new CompletedStateFuture<>(result);
+        return new CompletedAsyncFuture<>(result);
     }
 
     /**
@@ -55,7 +60,7 @@ public class StateFutureUtils {
             Collection<? extends StateFuture<? extends T>> futures) {
         int count = futures.size();
         if (count == 0) {
-            return new CompletedStateFuture<>(Collections.emptyList());
+            return new CompletedAsyncFuture<>(Collections.emptyList());
         } else if (count == 1) {
             StateFuture<? extends T> firstFuture = futures.stream().findFirst().get();
             return firstFuture.thenCompose(
@@ -66,10 +71,10 @@ public class StateFutureUtils {
 
         final T[] results = (T[]) new Object[count];
 
-        StateFutureImpl<? extends T> pendingFuture = null;
+        AsyncFutureImpl<? extends T> pendingFuture = null;
         for (StateFuture<? extends T> future : futures) {
-            if (future instanceof StateFutureImpl) {
-                pendingFuture = (StateFutureImpl<? extends T>) future;
+            if (future instanceof AsyncFutureImpl) {
+                pendingFuture = (AsyncFutureImpl<? extends T>) future;
                 break;
             }
         }
@@ -78,21 +83,21 @@ public class StateFutureUtils {
             int i = 0;
             for (StateFuture<? extends T> future : futures) {
                 final int index = i;
-                ((InternalStateFuture<? extends T>) future)
+                ((InternalAsyncFuture<? extends T>) future)
                         .thenSyncAccept(
                                 (t) -> {
                                     results[index] = t;
                                 });
                 i++;
             }
-            return new CompletedStateFuture<>(Arrays.asList(results));
+            return new CompletedAsyncFuture<>(Arrays.asList(results));
         } else {
             int i = 0;
             AtomicInteger countDown = new AtomicInteger(count);
-            StateFutureImpl<Collection<T>> ret = pendingFuture.makeNewStateFuture();
+            AsyncFutureImpl<Collection<T>> ret = pendingFuture.makeNewFuture();
             for (StateFuture<? extends T> future : futures) {
                 final int index = i;
-                ((InternalStateFuture<? extends T>) future)
+                ((InternalAsyncFuture<? extends T>) future)
                         .thenSyncAccept(
                                 (t) -> {
                                     results[index] = t;
@@ -104,5 +109,31 @@ public class StateFutureUtils {
             }
             return ret;
         }
+    }
+
+    /**
+     * Convert a future of state iterator to a future of iterable. There is no good reason to do so,
+     * since this may disable the capability of lazy loading. Only useful when the further
+     * calculation depends on the whole data from the iterator.
+     */
+    public static <T> StateFuture<Iterable<T>> toIterable(StateFuture<StateIterator<T>> future) {
+        return future.thenCompose(
+                iterator -> {
+                    if (iterator == null) {
+                        return StateFutureUtils.completedFuture(Collections.emptyList());
+                    }
+                    InternalStateIterator<T> theIterator = ((InternalStateIterator<T>) iterator);
+                    if (!theIterator.hasNextLoading()) {
+                        return StateFutureUtils.completedFuture(theIterator.getCurrentCache());
+                    } else {
+                        final ArrayList<T> result = new ArrayList<>();
+                        return theIterator
+                                .onNext(
+                                        next -> {
+                                            result.add(next);
+                                        })
+                                .thenApply(ignored -> result);
+                    }
+                });
     }
 }

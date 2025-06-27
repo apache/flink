@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalHashJoin
+import org.apache.flink.table.planner.plan.utils.JoinUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -110,6 +111,7 @@ class BatchPhysicalHashJoinRule
       val newLeft = RelOptRule.convert(left, leftRequiredTrait)
       val newRight = RelOptRule.convert(right, rightRequiredTrait)
       val providedTraitSet = join.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
+      val withJobStrategyHint = JoinUtil.containsJoinStrategyHint(join.getHints)
 
       val newJoin = new BatchPhysicalHashJoin(
         join.getCluster,
@@ -120,7 +122,8 @@ class BatchPhysicalHashJoinRule
         join.getJoinType,
         isLeftToBroadcastOrBuild,
         isBroadcast,
-        tryDistinctBuildRow)
+        tryDistinctBuildRow,
+        withJobStrategyHint)
 
       call.transformTo(newJoin)
     }

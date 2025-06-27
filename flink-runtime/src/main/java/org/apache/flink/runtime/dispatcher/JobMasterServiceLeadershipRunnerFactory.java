@@ -39,6 +39,7 @@ import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -96,6 +97,12 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
                         .getOrResolveClassLoader(
                                 executionPlan.getUserJarBlobKeys(), executionPlan.getClasspaths())
                         .asClassLoader();
+
+        if (executionPlan instanceof StreamGraph) {
+            ((StreamGraph) executionPlan)
+                    .deserializeUserDefinedInstances(
+                            userCodeClassLoader, jobManagerServices.getFutureExecutor());
+        }
 
         final DefaultJobMasterServiceFactory jobMasterServiceFactory =
                 new DefaultJobMasterServiceFactory(

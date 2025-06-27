@@ -26,7 +26,7 @@ import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionDefaultVisitor;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.operations.CalculatedQueryOperation;
+import org.apache.flink.table.operations.CorrelatedFunctionQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
 import org.apache.flink.table.operations.QueryOperation;
@@ -87,7 +87,9 @@ final class JoinOperationFactory {
         }
 
         Boolean equiJoinExists = condition.accept(equiJoinExistsChecker);
-        if (correlated && right instanceof CalculatedQueryOperation && joinType != JoinType.INNER) {
+        if (correlated
+                && right instanceof CorrelatedFunctionQueryOperation
+                && joinType != JoinType.INNER) {
             throw new ValidationException(
                     "Predicate for lateral left outer join with table function can only be empty or literal true.");
         } else if (!equiJoinExists) {

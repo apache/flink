@@ -20,17 +20,17 @@ package org.apache.flink.test.streaming.api.datastream;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDeclaration;
-import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDeclaration;
-import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDeclaration;
-import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDeclaration;
 import org.apache.flink.api.common.state.StateDeclarations;
-import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDeclaration;
+import org.apache.flink.api.common.state.v2.AggregatingState;
+import org.apache.flink.api.common.state.v2.ListState;
+import org.apache.flink.api.common.state.v2.MapState;
+import org.apache.flink.api.common.state.v2.ReducingState;
+import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.typeinfo.TypeDescriptors;
 import org.apache.flink.api.connector.dsv2.DataStreamV2SourceUtils;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -166,10 +166,11 @@ class StatefulDataStreamV2ITCase {
         }
 
         @Override
-        public void processRecord(Long record, Collector<String> output, PartitionedContext ctx)
+        public void processRecord(
+                Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
             Optional<AggregatingState<Long, Long>> maybeState =
-                    ctx.getStateManager().getState(stateDeclaration);
+                    ctx.getStateManager().getStateOptional(stateDeclaration);
             if (!maybeState.isPresent()) {
                 throw new FlinkRuntimeException("State not found: " + stateDeclaration);
             }
@@ -191,10 +192,11 @@ class StatefulDataStreamV2ITCase {
         }
 
         @Override
-        public void processRecord(Long record, Collector<String> output, PartitionedContext ctx)
+        public void processRecord(
+                Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
             Optional<ReducingState<Long>> maybeState =
-                    ctx.getStateManager().getState(stateDeclaration);
+                    ctx.getStateManager().getStateOptional(stateDeclaration);
             if (!maybeState.isPresent()) {
                 throw new FlinkRuntimeException("State not found: " + stateDeclaration);
             }
@@ -219,10 +221,11 @@ class StatefulDataStreamV2ITCase {
         }
 
         @Override
-        public void processRecord(Long record, Collector<String> output, PartitionedContext ctx)
+        public void processRecord(
+                Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
             Optional<MapState<Long, Long>> maybeState =
-                    ctx.getStateManager().getState(stateDeclaration);
+                    ctx.getStateManager().getStateOptional(stateDeclaration);
             if (!maybeState.isPresent()) {
                 throw new FlinkRuntimeException("State not found: " + stateDeclaration);
             }
@@ -247,9 +250,11 @@ class StatefulDataStreamV2ITCase {
         }
 
         @Override
-        public void processRecord(Long record, Collector<String> output, PartitionedContext ctx)
+        public void processRecord(
+                Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
-            Optional<ListState<Long>> maybeState = ctx.getStateManager().getState(stateDeclaration);
+            Optional<ListState<Long>> maybeState =
+                    ctx.getStateManager().getStateOptional(stateDeclaration);
             if (!maybeState.isPresent()) {
                 throw new FlinkRuntimeException("State not found: " + stateDeclaration);
             }
@@ -279,10 +284,11 @@ class StatefulDataStreamV2ITCase {
         }
 
         @Override
-        public void processRecord(Long record, Collector<String> output, PartitionedContext ctx)
+        public void processRecord(
+                Long record, Collector<String> output, PartitionedContext<String> ctx)
                 throws Exception {
             Optional<ValueState<Long>> maybeState =
-                    ctx.getStateManager().getState(stateDeclaration);
+                    ctx.getStateManager().getStateOptional(stateDeclaration);
             if (!maybeState.isPresent()) {
                 throw new FlinkRuntimeException("State not found: " + stateDeclaration);
             }
@@ -308,7 +314,8 @@ class StatefulDataStreamV2ITCase {
         }
 
         @Override
-        public void processRecord(String record, Collector<Object> output, PartitionedContext ctx)
+        public void processRecord(
+                String record, Collector<Object> output, PartitionedContext<Object> ctx)
                 throws Exception {
             if (!allValues.contains(record)) {
                 throw new FlinkRuntimeException("Record not found: " + record);

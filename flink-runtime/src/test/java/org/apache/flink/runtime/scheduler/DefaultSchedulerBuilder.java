@@ -48,8 +48,9 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerFactory;
 import org.apache.flink.runtime.scheduler.adaptivebatch.BatchJobRecoveryHandler;
-import org.apache.flink.runtime.scheduler.adaptivebatch.BlockingResultInfo;
+import org.apache.flink.runtime.scheduler.adaptivebatch.BlockingInputInfo;
 import org.apache.flink.runtime.scheduler.adaptivebatch.DummyBatchJobRecoveryHandler;
+import org.apache.flink.runtime.scheduler.adaptivebatch.NonAdaptiveExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.scheduler.adaptivebatch.VertexParallelismAndInputInfosDecider;
 import org.apache.flink.runtime.scheduler.strategy.AllFinishedInputConsumableDecider;
 import org.apache.flink.runtime.scheduler.strategy.InputConsumableDecider;
@@ -326,7 +327,8 @@ public class DefaultSchedulerBuilder {
                 shuffleMaster,
                 rpcTimeout,
                 computeVertexParallelismStore(jobGraph),
-                executionDeployerFactory);
+                executionDeployerFactory,
+                NonAdaptiveExecutionPlanSchedulingContext.INSTANCE);
     }
 
     public AdaptiveBatchScheduler buildAdaptiveBatchJobScheduler() throws Exception {
@@ -359,6 +361,7 @@ public class DefaultSchedulerBuilder {
                 futureExecutor,
                 userCodeLoader,
                 checkpointRecoveryFactory,
+                checkpointCleaner,
                 rpcTimeout,
                 blobWriter,
                 jobManagerJobMetricGroup,
@@ -413,7 +416,7 @@ public class DefaultSchedulerBuilder {
             @Override
             public ParallelismAndInputInfos decideParallelismAndInputInfosForVertex(
                     JobVertexID jobVertexId,
-                    List<BlockingResultInfo> consumedResults,
+                    List<BlockingInputInfo> consumedResults,
                     int vertexInitialParallelism,
                     int vertexMinParallelism,
                     int vertexMaxParallelism) {

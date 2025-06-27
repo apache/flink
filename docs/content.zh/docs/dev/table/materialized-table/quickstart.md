@@ -1,6 +1,6 @@
 ---
 title: 快速入门
-weight: 3
+weight: 4
 type: docs
 aliases:
 - /dev/table/materialized-table/quickstart.html
@@ -27,17 +27,7 @@ under the License.
 
 # 快速入门
 
-本入门指南将帮助你快速了解并开始使用物化表。内容包括环境设置，以及创建、修改和删除连续模式和全量模式的物化表。
-
-# 架构介绍
-
-- **Client**: 可以是任何能够与 [Flink SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) 交互的客户端，如 [SQL 客户端]({{< ref "docs/dev/table/sqlClient" >}})、[Flink JDBC 驱动]({{< ref "docs/dev/table/jdbcDriver" >}}) 等。
-- **Flink SQL Gateway**: 支持创建、修改和删除物化表。并包含了一个内置的工作流调度器，用于定期刷新全量模式的物化表。
-- **Flink Cluster**: 用于运行物化表刷新作业的 Flink 集群。
-- **Catalog**: 负责管理物化表元数据的创建、查询、修改和删除。
-- **Catalog Store**: 提供 Catalog 属性持久化功能，以便在操作物化表时自动初始化 Catalog 并获取相关的元数据。
-
-{{< img src="/fig/materialized-table-architecture.svg" alt="Illustration of Flink Materialized Table Architecture" width="85%" >}}
+本入门指南将帮助你快速了解并开始使用物化表。内容包括环境设置，以及创建、修改和删除持续模式和全量模式的物化表。
 
 # 环境搭建
 
@@ -76,7 +66,7 @@ mkdir -p {savepoints_path}
 tar -xzf flink-*.tgz
 ```
 
-[下载](https://https://repo.maven.apache.org/maven2/org/apache/flink/flink-table-filesystem-test-utils/) test-filesystem 连接器， 并将其放入 lib 目录：
+[下载](https://repo.maven.apache.org/maven2/org/apache/flink/flink-table-filesystem-test-utils/) test-filesystem 连接器， 并将其放入 lib 目录：
 
 ```
 cp flink-table-filesystem-test-utils-{VERSION}.jar flink-*/lib/
@@ -175,11 +165,11 @@ INSERT INTO json_source VALUES
   (1008, 4, 'user4', '2024-06-20', 40);
 ```
 
-# 创建连续模式物化表
+# 创建持续模式物化表
 
 ## 创建物化表
 
-创建一个连续模式的物化表，对应的数据新鲜度为 `30` 秒。通过 `http://localhost:8081` 页面可以查看对应的 Flink 流作业，该作业处于 `RUNNING` 状态，对应的 `checkpoint` 间隔为 `30` 秒。
+创建一个持续模式的物化表，对应的数据新鲜度为 `30` 秒。通过 `http://localhost:8081` 页面可以查看对应的 Flink 流作业，该作业处于 `RUNNING` 状态，对应的 `checkpoint` 间隔为 `30` 秒。
 
 ```sql
 CREATE MATERIALIZED TABLE continuous_users_shops

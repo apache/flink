@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -104,14 +105,15 @@ public class DynamicTableSourceSpecSerdeTest {
                 new ResolvedSchema(
                         Collections.singletonList(Column.physical("a", DataTypes.BIGINT())),
                         Collections.emptyList(),
-                        null);
+                        null,
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
 
         final CatalogTable catalogTable1 =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build(),
-                        null,
-                        Collections.emptyList(),
-                        options1);
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build())
+                        .options(options1)
+                        .build();
 
         DynamicTableSourceSpec spec1 =
                 new DynamicTableSourceSpec(
@@ -142,14 +144,15 @@ public class DynamicTableSourceSpecSerdeTest {
                                 Column.metadata("m2", DataTypes.STRING(), null, false),
                                 Column.physical("ts", DataTypes.TIMESTAMP(3))),
                         Collections.emptyList(),
-                        null);
+                        null,
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
 
         final CatalogTable catalogTable2 =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema2).build(),
-                        null,
-                        Collections.emptyList(),
-                        options2);
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema2).build())
+                        .options(options2)
+                        .build();
 
         FlinkTypeFactory factory =
                 new FlinkTypeFactory(
@@ -363,14 +366,15 @@ public class DynamicTableSourceSpecSerdeTest {
                                 Column.physical("b", DataTypes.INT()),
                                 Column.physical("c", DataTypes.BOOLEAN())),
                         Collections.emptyList(),
-                        null);
+                        null,
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
 
         return new ResolvedCatalogTable(
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
-                        null,
-                        Collections.emptyList(),
-                        options),
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema).build())
+                        .options(options)
+                        .build(),
                 resolvedSchema);
     }
 }

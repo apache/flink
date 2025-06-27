@@ -43,7 +43,6 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
-import org.apache.flink.runtime.dispatcher.MiniDispatcher;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
@@ -53,8 +52,8 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
-import org.apache.flink.runtime.metrics.ReporterSetup;
-import org.apache.flink.runtime.metrics.TraceReporterSetup;
+import org.apache.flink.runtime.metrics.ReporterSetupBuilder;
+import org.apache.flink.runtime.metrics.filter.DefaultReporterFilters;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -287,10 +286,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         synchronized (lock) {
             initializeServices(configuration, pluginManager);
 
-            // write host information into configuration
-            configuration.set(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
-            configuration.set(JobManagerOptions.PORT, commonRpcService.getPort());
-
             final DispatcherResourceManagerComponentFactory
                     dispatcherResourceManagerComponentFactory =
                             createDispatcherResourceManagerComponentFactory(configuration);
@@ -466,8 +461,18 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         return new MetricRegistryImpl(
                 MetricRegistryConfiguration.fromConfiguration(
                         configuration, rpcSystemUtils.getMaximumMessageSizeInBytes(configuration)),
-                ReporterSetup.fromConfiguration(configuration, pluginManager),
-                TraceReporterSetup.fromConfiguration(configuration, pluginManager));
+                ReporterSetupBuilder.METRIC_SETUP_BUILDER.fromConfiguration(
+                        configuration,
+                        DefaultReporterFilters::metricsFromConfiguration,
+                        pluginManager),
+                ReporterSetupBuilder.TRACE_SETUP_BUILDER.fromConfiguration(
+                        configuration,
+                        DefaultReporterFilters::tracesFromConfiguration,
+                        pluginManager),
+                ReporterSetupBuilder.EVENT_SETUP_BUILDER.fromConfiguration(
+                        configuration,
+                        DefaultReporterFilters::eventsFromConfiguration,
+                        pluginManager));
     }
 
     @Override
@@ -510,6 +515,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             if (executionGraphInfoStore != null) {
                 try {
                     executionGraphInfoStore.close();
+                    executionGraphInfoStore = null;
                 } catch (Throwable t) {
                     exception = ExceptionUtils.firstOrSuppressed(t, exception);
                 }
@@ -591,7 +597,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             shutDownApplicationFuture, () -> stopClusterServices(cleanupHaData));
 
             final CompletableFuture<Void> rpcSystemClassLoaderCloseFuture =
-                    FutureUtils.runAfterwards(serviceShutdownFuture, rpcSystem::close);
+                    rpcSystem != null
+                            ? FutureUtils.runAfterwards(serviceShutdownFuture, rpcSystem::close)
+                            : FutureUtils.completedVoidFuture();
 
             final CompletableFuture<Void> cleanupDirectoriesFuture =
                     FutureUtils.runAfterwards(
@@ -742,7 +750,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         System.exit(returnCode);
     }
 
-    /** Execution mode of the {@link MiniDispatcher}. */
+    /** Execution mode of the dispatcher. */
     public enum ExecutionMode {
         /** Waits until the job result has been served. */
         NORMAL,

@@ -20,18 +20,20 @@ package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
-import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.util.retryable.RetryPredicates;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.LookupJoinHintOptions;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.abilities.SupportsLookupCustomShuffle;
 import org.apache.flink.table.connector.source.lookup.AsyncLookupFunctionProvider;
 import org.apache.flink.table.connector.source.lookup.FullCachingLookupProvider;
 import org.apache.flink.table.connector.source.lookup.LookupFunctionProvider;
@@ -46,6 +48,9 @@ import org.apache.flink.table.legacy.connector.source.AsyncTableFunctionProvider
 import org.apache.flink.table.legacy.connector.source.TableFunctionProvider;
 import org.apache.flink.table.legacy.sources.LookupableTableSource;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext;
@@ -58,9 +63,9 @@ import org.apache.flink.table.runtime.keyselector.GenericRowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.lookup.ResultRetryStrategy;
 import org.apache.flink.table.runtime.operators.join.lookup.RetryableAsyncLookupFunctionDelegator;
 import org.apache.flink.table.runtime.operators.join.lookup.RetryableLookupFunctionDelegator;
+import org.apache.flink.table.runtime.partitioner.RowDataCustomStreamPartitioner;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
@@ -69,13 +74,10 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rex.RexLiteral;
 
 import javax.annotation.Nullable;
 
@@ -83,7 +85,9 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.api.config.LookupJoinHintOptions.ASYNC_CAPACITY;
@@ -94,147 +98,19 @@ import static org.apache.flink.table.api.config.LookupJoinHintOptions.FIXED_DELA
 import static org.apache.flink.table.api.config.LookupJoinHintOptions.MAX_ATTEMPTS;
 import static org.apache.flink.table.api.config.LookupJoinHintOptions.RETRY_PREDICATE;
 import static org.apache.flink.table.api.config.LookupJoinHintOptions.RETRY_STRATEGY;
+import static org.apache.flink.table.api.config.LookupJoinHintOptions.SHUFFLE;
 import static org.apache.flink.table.runtime.operators.join.lookup.ResultRetryStrategy.NO_RETRY_STRATEGY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Utilities for lookup joins using {@link LookupTableSource}. */
 @Internal
-public final class LookupJoinUtil {
+public final class LookupJoinUtil extends FunctionCallUtils {
 
-    /** A field used as an equal condition when querying content from a dimension table. */
-    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-    @JsonSubTypes({
-        @JsonSubTypes.Type(value = ConstantLookupKey.class),
-        @JsonSubTypes.Type(value = FieldRefLookupKey.class)
-    })
-    public static class LookupKey {
-        private LookupKey() {
-            // sealed class
-        }
-    }
-
-    /** A {@link LookupKey} whose value is constant. */
+    /** ShuffleLookupOptions includes shuffle related options. */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    @JsonTypeName("Constant")
-    public static class ConstantLookupKey extends LookupKey {
-        public static final String FIELD_NAME_SOURCE_TYPE = "sourceType";
-        public static final String FIELD_NAME_LITERAL = "literal";
-
-        @JsonProperty(FIELD_NAME_SOURCE_TYPE)
-        public final LogicalType sourceType;
-
-        @JsonProperty(FIELD_NAME_LITERAL)
-        public final RexLiteral literal;
-
-        @JsonCreator
-        public ConstantLookupKey(
-                @JsonProperty(FIELD_NAME_SOURCE_TYPE) LogicalType sourceType,
-                @JsonProperty(FIELD_NAME_LITERAL) RexLiteral literal) {
-            this.sourceType = sourceType;
-            this.literal = literal;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            ConstantLookupKey that = (ConstantLookupKey) o;
-            return Objects.equals(sourceType, that.sourceType)
-                    && Objects.equals(literal, that.literal);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(sourceType, literal);
-        }
-    }
-
-    /** A {@link LookupKey} whose value comes from the left table field. */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    @JsonTypeName("FieldRef")
-    public static class FieldRefLookupKey extends LookupKey {
-        public static final String FIELD_NAME_INDEX = "index";
-
-        @JsonProperty(FIELD_NAME_INDEX)
-        public final int index;
-
-        @JsonCreator
-        public FieldRefLookupKey(@JsonProperty(FIELD_NAME_INDEX) int index) {
-            this.index = index;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            FieldRefLookupKey that = (FieldRefLookupKey) o;
-            return index == that.index;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(index);
-        }
-    }
-
-    /** AsyncLookupOptions includes async related options. */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    @JsonTypeName("AsyncOptions")
-    public static class AsyncLookupOptions {
-        public static final String FIELD_NAME_CAPACITY = "capacity ";
-        public static final String FIELD_NAME_TIMEOUT = "timeout";
-        public static final String FIELD_NAME_OUTPUT_MODE = "output-mode";
-
-        @JsonProperty(FIELD_NAME_CAPACITY)
-        public final int asyncBufferCapacity;
-
-        @JsonProperty(FIELD_NAME_TIMEOUT)
-        public final long asyncTimeout;
-
-        @JsonProperty(FIELD_NAME_OUTPUT_MODE)
-        public final AsyncDataStream.OutputMode asyncOutputMode;
-
-        @JsonCreator
-        public AsyncLookupOptions(
-                @JsonProperty(FIELD_NAME_CAPACITY) int asyncBufferCapacity,
-                @JsonProperty(FIELD_NAME_TIMEOUT) long asyncTimeout,
-                @JsonProperty(FIELD_NAME_OUTPUT_MODE) AsyncDataStream.OutputMode asyncOutputMode) {
-            this.asyncBufferCapacity = asyncBufferCapacity;
-            this.asyncTimeout = asyncTimeout;
-            this.asyncOutputMode = asyncOutputMode;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            AsyncLookupOptions that = (AsyncLookupOptions) o;
-            return asyncBufferCapacity == that.asyncBufferCapacity
-                    && asyncTimeout == that.asyncTimeout
-                    && asyncOutputMode == that.asyncOutputMode;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(asyncBufferCapacity, asyncTimeout, asyncOutputMode);
-        }
-
-        @Override
-        public String toString() {
-            return asyncOutputMode + ", " + asyncTimeout + "ms, " + asyncBufferCapacity;
-        }
+    @JsonTypeName("ShuffleOptions")
+    public static class ShuffleLookupOptions {
+        public static final String FIELD_NAME_SHUFFLE = "shuffle";
     }
 
     /** RetryOptions includes retry lookup related options. */
@@ -350,7 +226,7 @@ public final class LookupJoinUtil {
         return lookupKeyIndicesInOrder.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    public static AsyncLookupOptions getMergedAsyncOptions(
+    public static AsyncOptions getMergedAsyncOptions(
             RelHint lookupHint, TableConfig config, ChangelogMode inputChangelogMode) {
         Configuration confFromHint;
         if (lookupHint == null) {
@@ -358,7 +234,18 @@ public final class LookupJoinUtil {
         } else {
             confFromHint = Configuration.fromMap(lookupHint.kvOptions);
         }
-        return new AsyncLookupOptions(
+        ExecutionConfigOptions.AsyncOutputMode asyncOutputMode =
+                coalesce(
+                        confFromHint.get(ASYNC_OUTPUT_MODE),
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE));
+
+        boolean keyOrdered =
+                isKeyOrdered(
+                        inputChangelogMode,
+                        asyncOutputMode,
+                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED));
+
+        return new AsyncOptions(
                 coalesce(
                         confFromHint.get(ASYNC_CAPACITY),
                         config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY)),
@@ -366,13 +253,8 @@ public final class LookupJoinUtil {
                                 confFromHint.get(ASYNC_TIMEOUT),
                                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT))
                         .toMillis(),
-                convert(
-                        inputChangelogMode,
-                        coalesce(
-                                confFromHint.get(ASYNC_OUTPUT_MODE),
-                                config.get(
-                                        ExecutionConfigOptions
-                                                .TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE))));
+                keyOrdered,
+                convert(inputChangelogMode, asyncOutputMode));
     }
 
     /**
@@ -397,8 +279,9 @@ public final class LookupJoinUtil {
     public static boolean isAsyncLookup(
             RelOptTable temporalTable,
             Collection<Integer> lookupKeys,
-            RelHint lookupHint,
-            boolean upsertMaterialize) {
+            @Nullable RelHint lookupHint,
+            boolean upsertMaterialize,
+            boolean preferCustomShuffle) {
         // prefer (not require) by default
         boolean preferAsync = preferAsync(lookupHint);
         if (upsertMaterialize) {
@@ -410,7 +293,8 @@ public final class LookupJoinUtil {
         if (temporalTable instanceof TableSourceTable) {
             int[] lookupKeyIndicesInOrder = getOrderedLookupKeys(lookupKeys);
             LookupTableSource.LookupRuntimeProvider provider =
-                    createLookupRuntimeProvider(temporalTable, lookupKeyIndicesInOrder);
+                    createLookupRuntimeProvider(
+                            temporalTable, lookupKeyIndicesInOrder, preferCustomShuffle);
             if (provider instanceof LookupFunctionProvider
                     || provider instanceof TableFunctionProvider) {
                 syncFound = true;
@@ -448,7 +332,8 @@ public final class LookupJoinUtil {
             Collection<Integer> lookupKeys,
             ClassLoader classLoader,
             boolean async,
-            ResultRetryStrategy retryStrategy) {
+            ResultRetryStrategy retryStrategy,
+            boolean preferCustomShuffle) {
         UserDefinedFunction lookupFunction = null;
         int[] lookupKeyIndicesInOrder = getOrderedLookupKeys(lookupKeys);
         if (temporalTable instanceof TableSourceTable) {
@@ -458,7 +343,8 @@ public final class LookupJoinUtil {
                             lookupKeyIndicesInOrder,
                             retryStrategy,
                             async,
-                            classLoader);
+                            classLoader,
+                            preferCustomShuffle);
         } else if (temporalTable instanceof LegacyTableSourceTable) {
             lookupFunction =
                     findLookupFunctionFromLegacySource(
@@ -493,20 +379,6 @@ public final class LookupJoinUtil {
         return null == async || async;
     }
 
-    private static <T> T coalesce(T t1, T t2) {
-        return t1 != null ? t1 : t2;
-    }
-
-    private static AsyncDataStream.OutputMode convert(
-            ChangelogMode inputChangelogMode,
-            ExecutionConfigOptions.AsyncOutputMode asyncOutputMode) {
-        if (inputChangelogMode.containsOnly(RowKind.INSERT)
-                && asyncOutputMode == ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED) {
-            return AsyncDataStream.OutputMode.UNORDERED;
-        }
-        return AsyncDataStream.OutputMode.ORDERED;
-    }
-
     /**
      * Wraps LookupFunction into a RetryableLookupFunctionDelegator to support retry. Note: only
      * LookupFunction is supported.
@@ -538,9 +410,11 @@ public final class LookupJoinUtil {
             int[] lookupKeyIndicesInOrder,
             ResultRetryStrategy retryStrategy,
             boolean async,
-            ClassLoader classLoader) {
+            ClassLoader classLoader,
+            boolean preferCustomShuffle) {
         LookupTableSource.LookupRuntimeProvider provider =
-                createLookupRuntimeProvider(temporalTable, lookupKeyIndicesInOrder);
+                createLookupRuntimeProvider(
+                        temporalTable, lookupKeyIndicesInOrder, preferCustomShuffle);
 
         if (async) {
             if (provider instanceof AsyncLookupFunctionProvider) {
@@ -591,6 +465,25 @@ public final class LookupJoinUtil {
         return null;
     }
 
+    /** Determine whether to enable shuffle before lookup join. */
+    public static boolean enableLookupShuffle(RelHint lookupJoinHint) {
+        if (null != lookupJoinHint) {
+            Configuration conf = Configuration.fromMap(lookupJoinHint.kvOptions);
+            return conf.get(SHUFFLE);
+        }
+        return false;
+    }
+
+    /** Determine whether table provides custom partitioner. */
+    public static boolean tableProvidesCustomPartitioner(RelOptTable table) {
+        if (table instanceof TableSourceTable) {
+            DynamicTableSource dynamicTableSource = ((TableSourceTable) table).tableSource();
+            return dynamicTableSource instanceof LookupTableSource
+                    && dynamicTableSource instanceof SupportsLookupCustomShuffle;
+        }
+        return false;
+    }
+
     private static UserDefinedFunction findLookupFunctionFromLegacySource(
             LegacyTableSourceTable temporalTable, int[] lookupKeyIndicesInOrder, boolean async) {
         String[] lookupFieldNamesInOrder =
@@ -612,7 +505,7 @@ public final class LookupJoinUtil {
     }
 
     private static LookupTableSource.LookupRuntimeProvider createLookupRuntimeProvider(
-            RelOptTable temporalTable, int[] lookupKeyIndicesInOrder) {
+            RelOptTable temporalTable, int[] lookupKeyIndicesInOrder, boolean preferCustomShuffle) {
         // TODO: support nested lookup keys in the future,
         //  currently we only support top-level lookup keys
         int[][] indices =
@@ -622,8 +515,42 @@ public final class LookupJoinUtil {
 
         LookupTableSource tableSource =
                 (LookupTableSource) ((TableSourceTable) temporalTable).tableSource();
-        LookupRuntimeProviderContext providerContext = new LookupRuntimeProviderContext(indices);
+        LookupRuntimeProviderContext providerContext =
+                new LookupRuntimeProviderContext(indices, preferCustomShuffle);
         return tableSource.getLookupRuntimeProvider(providerContext);
+    }
+
+    /** Try to apply custom partitioner to the input transformation of lookup join. */
+    public static Transformation<RowData> tryApplyCustomShufflePartitioner(
+            PlannerBase planner,
+            RelOptTable table,
+            RowType inputRowType,
+            Map<Integer, FunctionParam> allLookupKeys,
+            Transformation<RowData> inputTransformation,
+            ChangelogMode inputChangelogMode,
+            TransformationMetadata metadata) {
+        Optional<SupportsLookupCustomShuffle.InputDataPartitioner> partitioner =
+                ((SupportsLookupCustomShuffle) (((TableSourceTable) table).tableSource()))
+                        .getPartitioner();
+        // Empty partitioner means the connector expects the input data to remain in its original
+        // distribution.
+        if (partitioner.isEmpty()) {
+            return inputTransformation;
+        }
+        if (!partitioner.get().isDeterministic()
+                && !inputChangelogMode.containsOnly(RowKind.INSERT)) {
+            return inputTransformation;
+        }
+        GenericRowDataKeySelector lookupTableKeySelector =
+                (GenericRowDataKeySelector)
+                        KeySelectorUtil.getLookupKeysSelectorFromLeftTable(
+                                planner.getFlinkContext().getClassLoader(),
+                                allLookupKeys,
+                                InternalTypeInfo.of(inputRowType));
+        RowDataCustomStreamPartitioner streamPartitioner =
+                new RowDataCustomStreamPartitioner(partitioner.get(), lookupTableKeySelector);
+        return ExecNodeUtil.createPartitionTransformation(
+                inputTransformation, metadata, streamPartitioner);
     }
 
     private static LookupFullCache createFullCache(
@@ -663,5 +590,14 @@ public final class LookupJoinUtil {
             throw new UnsupportedOperationException(
                     "Currently only InputFormatProvider and SourceFunctionProvider are supported as ScanRuntimeProviders for Full caching lookup join.");
         }
+    }
+
+    private static boolean isKeyOrdered(
+            ChangelogMode inputChangelogMode,
+            ExecutionConfigOptions.AsyncOutputMode asyncOutputMode,
+            boolean allowKeyOrdered) {
+        return allowKeyOrdered
+                && !inputChangelogMode.containsOnly(RowKind.INSERT)
+                && asyncOutputMode == ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED;
     }
 }

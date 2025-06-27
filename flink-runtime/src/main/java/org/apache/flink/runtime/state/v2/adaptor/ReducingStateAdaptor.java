@@ -39,7 +39,44 @@ public class ReducingStateAdaptor<K, N, V> extends MergingStateAdaptor<K, N, V, 
         try {
             return StateFutureUtils.completedFuture(delegatedState.get());
         } catch (Exception e) {
-            throw new RuntimeException("Error while get value from raw AggregatingState", e);
+            throw new RuntimeException("Error while get value from raw ReducingState", e);
+        }
+    }
+
+    @Override
+    public StateFuture<V> asyncGetInternal() {
+        try {
+            return StateFutureUtils.completedFuture(delegatedState.getInternal());
+        } catch (Exception e) {
+            throw new RuntimeException("Error while get value from raw ReducingState", e);
+        }
+    }
+
+    @Override
+    public StateFuture<Void> asyncUpdateInternal(V valueToStore) {
+        try {
+            delegatedState.updateInternal(valueToStore);
+            return StateFutureUtils.completedVoidFuture();
+        } catch (Exception e) {
+            throw new RuntimeException("Error while update value to raw ReducingState", e);
+        }
+    }
+
+    @Override
+    public V getInternal() {
+        try {
+            return delegatedState.getInternal();
+        } catch (Exception e) {
+            throw new RuntimeException("Error while get internal value from raw ReducingState", e);
+        }
+    }
+
+    @Override
+    public void updateInternal(V valueToStore) {
+        try {
+            delegatedState.updateInternal(valueToStore);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while update internal value to raw ReducingState", e);
         }
     }
 }

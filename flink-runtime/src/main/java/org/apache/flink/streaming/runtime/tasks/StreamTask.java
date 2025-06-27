@@ -58,6 +58,7 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.SingleRecordWriter;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -923,12 +924,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     }
 
     private void scheduleBufferDebloater() {
+        // Hybrid shuffle currently can't adjust buffer size.
+        final boolean isHybridShuffle =
+                Arrays.stream(getEnvironment().getAllInputGates())
+                        .map(IndexedInputGate::getConsumedPartitionType)
+                        .anyMatch(ResultPartitionType::isHybridResultPartition);
+
         // See https://issues.apache.org/jira/browse/FLINK-23560
         // If there are no input gates, there is no point of calculating the throughput and running
         // the debloater. At the same time, for SourceStreamTask using legacy sources and checkpoint
         // lock, enqueuing even a single mailbox action can cause performance regression. This is
         // especially visible in batch, with disabled checkpointing and no processing time timers.
         if (getEnvironment().getAllInputGates().length == 0
+                || isHybridShuffle
                 || !environment
                         .getTaskManagerInfo()
                         .getConfiguration()
@@ -1255,8 +1263,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         checkForcedFullSnapshotSupport(checkpointOptions);
 
+        MailboxExecutor.MailOptions mailOptions =
+                CheckpointOptions.AlignmentType.UNALIGNED == checkpointOptions.getAlignment()
+                        ? MailboxExecutor.MailOptions.urgent()
+                        : MailboxExecutor.MailOptions.options();
+
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         mainMailboxExecutor.execute(
+                mailOptions,
                 () -> {
                     try {
                         boolean noUnfinishedInputGates =

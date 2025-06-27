@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.calcite;
 
-import org.apache.flink.table.planner.functions.sql.SqlDefaultOperator;
+import org.apache.flink.table.planner.functions.sql.SqlDefaultArgOperator;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
@@ -42,14 +42,14 @@ import java.util.List;
 /** Binding supports to rewrite the DEFAULT operator. */
 public class FlinkSqlCallBinding extends SqlCallBinding {
 
-    private final List<RelDataType> fixArgumentTypes;
+    private final List<RelDataType> fixedArgumentTypes;
 
     private final List<SqlNode> rewrittenOperands;
 
     public FlinkSqlCallBinding(
             SqlValidator validator, @Nullable SqlValidatorScope scope, SqlCall call) {
         super(validator, scope, call);
-        this.fixArgumentTypes = getFixArgumentTypes();
+        this.fixedArgumentTypes = getFixedArgumentTypes();
         this.rewrittenOperands = getRewrittenOperands();
     }
 
@@ -75,7 +75,7 @@ public class FlinkSqlCallBinding extends SqlCallBinding {
 
         SqlNode operand = rewrittenOperands.get(ordinal);
         if (operand.getKind() == SqlKind.DEFAULT) {
-            return fixArgumentTypes.get(ordinal);
+            return fixedArgumentTypes.get(ordinal);
         }
 
         final RelDataType type = SqlTypeUtil.deriveType(this, operand);
@@ -84,10 +84,10 @@ public class FlinkSqlCallBinding extends SqlCallBinding {
     }
 
     public boolean isFixedParameters() {
-        return !fixArgumentTypes.isEmpty();
+        return !fixedArgumentTypes.isEmpty();
     }
 
-    private List<RelDataType> getFixArgumentTypes() {
+    private List<RelDataType> getFixedArgumentTypes() {
         SqlOperandTypeChecker sqlOperandTypeChecker = getOperator().getOperandTypeChecker();
         if (sqlOperandTypeChecker instanceof SqlOperandMetadata
                 && sqlOperandTypeChecker.isFixedParameters()) {
@@ -105,9 +105,11 @@ public class FlinkSqlCallBinding extends SqlCallBinding {
         for (SqlNode operand : super.operands()) {
             if (operand instanceof SqlCall
                     && ((SqlCall) operand).getOperator() == SqlStdOperatorTable.DEFAULT) {
-                rewrittenOperands.add(
-                        new SqlDefaultOperator(fixArgumentTypes.get(rewrittenOperands.size()))
-                                .createCall(SqlParserPos.ZERO));
+                final RelDataType argumentType = fixedArgumentTypes.get(rewrittenOperands.size());
+                final SqlCall defaultArg =
+                        new SqlDefaultArgOperator(argumentType).createCall(SqlParserPos.ZERO);
+                getValidator().setValidatedNodeType(defaultArg, argumentType);
+                rewrittenOperands.add(defaultArg);
             } else {
                 rewrittenOperands.add(operand);
             }

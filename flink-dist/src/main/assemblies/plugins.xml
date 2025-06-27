@@ -80,6 +80,13 @@
 			<fileMode>0644</fileMode>
 		</file>
 
+		<file>
+			<source>../flink-metrics/flink-metrics-otel/target/flink-metrics-otel-${project.version}.jar</source>
+			<outputDirectory>plugins/metrics-otel/</outputDirectory>
+			<destName>flink-metrics-otel-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
 		<!-- External Resource -->
 		<file>
 			<source>../flink-external-resources/flink-external-resource-gpu/target/flink-external-resource-gpu-${project.version}.jar</source>

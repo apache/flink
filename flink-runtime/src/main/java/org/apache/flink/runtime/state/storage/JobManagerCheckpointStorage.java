@@ -203,13 +203,17 @@ public class JobManagerCheckpointStorage
         return maxStateSize;
     }
 
-    /** @return The location where checkpoints will be externalized if set. */
+    /**
+     * @return The location where checkpoints will be externalized if set.
+     */
     @Nullable
     public Path getCheckpointPath() {
         return location.getBaseCheckpointPath();
     }
 
-    /** @return The default location where savepoints will be externalized if set. */
+    /**
+     * @return The default location where savepoints will be externalized if set.
+     */
     @Nullable
     public Path getSavepointPath() {
         return location.getBaseSavepointPath();

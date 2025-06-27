@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.table.planner.{JInt, JMap}
 import org.apache.flink.table.planner.functions.sql.SqlTryCastFunction
 import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlock
@@ -75,6 +76,9 @@ object FlinkRexUtil {
     val noMiniBatchRequired = {
       (node: RelNode) =>
         node match {
+          case project: Project =>
+            // TODO: to avoid FLINK-37280, require mini batch if ROW_NUMBER is used
+            !project.getProjects.exists(ex => ex.getKind.equals(SqlKind.ROW_NUMBER))
           case _: Filter | _: Project | _: TableScan | _: Calc | _: Values | _: Sink |
               _: LegacySink =>
             true
@@ -399,15 +403,14 @@ object FlinkRexUtil {
    * @return
    *   Return new expression with new field indices.
    */
-  private[flink] def adjustInputRef(
-      expr: RexNode,
-      fieldsOldToNewIndexMapping: Map[Int, Int]): RexNode = expr.accept(new RexShuttle() {
-    override def visitInputRef(inputRef: RexInputRef): RexNode = {
-      require(fieldsOldToNewIndexMapping.containsKey(inputRef.getIndex))
-      val newIndex = fieldsOldToNewIndexMapping(inputRef.getIndex)
-      new RexInputRef(newIndex, inputRef.getType)
-    }
-  })
+  def adjustInputRef(expr: RexNode, fieldsOldToNewIndexMapping: JMap[JInt, JInt]): RexNode =
+    expr.accept(new RexShuttle() {
+      override def visitInputRef(inputRef: RexInputRef): RexNode = {
+        require(fieldsOldToNewIndexMapping.containsKey(inputRef.getIndex))
+        val newIndex = fieldsOldToNewIndexMapping(inputRef.getIndex)
+        new RexInputRef(newIndex, inputRef.getType)
+      }
+    })
 
   private class EquivalentExprShuttle(rexBuilder: RexBuilder) extends RexShuttle {
     private val equiExprSet = mutable.HashSet[RexNode]()

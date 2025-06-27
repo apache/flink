@@ -32,6 +32,7 @@ from py4j.java_gateway import get_java_class
 from typing import List, Union
 
 from pyflink.common.types import _create_row
+from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_jarray, is_instance_of
 from pyflink.java_gateway import get_gateway
 from pyflink.common import Row, RowKind
@@ -39,6 +40,7 @@ from pyflink.common import Row, RowKind
 __all__ = ['DataTypes', 'UserDefinedType', 'Row', 'RowKind']
 
 
+@PublicEvolving()
 class DataType(object):
     """
     Describes the data type of a value in the table ecosystem. Instances of this class can be used
@@ -2033,7 +2035,7 @@ def _create_type_verifier(data_type: DataType, name: str = None):
 
     _type = type(data_type)
 
-    assert _type in _acceptable_types or isinstance(data_type, UserDefinedType),\
+    assert _type in _acceptable_types or isinstance(data_type, UserDefinedType), \
         new_msg("unknown datatype: %s" % data_type)
 
     def verify_acceptable_types(obj):
@@ -2152,10 +2154,17 @@ def _create_type_verifier(data_type: DataType, name: str = None):
             if isinstance(obj, dict):
                 for f, verifier in verifiers:
                     verifier(obj.get(f))
-            elif isinstance(obj, Row) and getattr(obj, "_from_dict", False):
-                # the order in obj could be different than dataType.fields
-                for f, verifier in verifiers:
-                    verifier(obj[f])
+            elif isinstance(obj, Row):
+                if obj._from_dict:
+                    # Since the row was created with field names, use the verifier
+                    # associated with the field name
+                    for f, verifier in verifiers:
+                        verifier(obj[f])
+                else:
+                    # If the row was created with positional arguments, use the verifier
+                    # in the same position.
+                    for idx, (_, verifier) in enumerate(verifiers):
+                        verifier(obj[idx])
             elif isinstance(obj, (tuple, list)):
                 if len(obj) != len(verifiers):
                     raise ValueError(
@@ -2471,7 +2480,7 @@ class DataTypes(object):
     @staticmethod
     def INT(nullable: bool = True) -> IntType:
         """
-        Data type of a 2-byte signed integer with values from -2,147,483,648
+        Data type of a 4-byte signed integer with values from -2,147,483,648
         to 2,147,483,647.
 
         :param nullable: boolean, whether the type can be null (None) or not.

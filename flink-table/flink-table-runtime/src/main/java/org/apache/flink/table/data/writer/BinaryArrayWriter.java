@@ -245,6 +245,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
             case ROW:
             case STRUCTURED_TYPE:
             case RAW:
+            case VARIANT:
                 return BinaryArrayWriter::setNullLong;
             case BOOLEAN:
                 return BinaryArrayWriter::setNullBoolean;
@@ -268,6 +269,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
             case NULL:
             case SYMBOL:
             case UNRESOLVED:
+            case DESCRIPTOR:
             default:
                 throw new IllegalArgumentException();
         }

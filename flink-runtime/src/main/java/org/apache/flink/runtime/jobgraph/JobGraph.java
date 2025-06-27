@@ -310,7 +310,8 @@ public class JobGraph implements ExecutionPlan {
         setSerializedExecutionConfig(new SerializedValue<>(executionConfig));
     }
 
-    void setSerializedExecutionConfig(SerializedValue<ExecutionConfig> serializedExecutionConfig) {
+    public void setSerializedExecutionConfig(
+            SerializedValue<ExecutionConfig> serializedExecutionConfig) {
         this.serializedExecutionConfig =
                 checkNotNull(
                         serializedExecutionConfig,
@@ -465,7 +466,7 @@ public class JobGraph implements ExecutionPlan {
             while (iter.hasNext()) {
                 JobVertex vertex = iter.next();
 
-                if (vertex.hasNoConnectedInputs()) {
+                if (vertex.isInputVertex()) {
                     sorted.add(vertex);
                     iter.remove();
                 }

@@ -80,8 +80,6 @@ with asynchronous I/O against the database:
 
 The following code example illustrates the basic pattern:
 
-{{< tabs "78d60118-0274-4729-97a0-158694683685" >}}
-{{< tab "Java" >}}
 ```java
 // This example implements the asynchronous request and callback with Futures that have the
 // interface of Java 8's futures (which is the same one followed by Flink's Future)
@@ -148,56 +146,6 @@ AsyncRetryStrategy asyncRetryStrategy =
 DataStream<Tuple2<String, String>> resultStream =
 	AsyncDataStream.unorderedWaitWithRetry(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100, asyncRetryStrategy);
 ```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-/**
- * An implementation of the 'AsyncFunction' that sends requests and sets the callback.
- */
-class AsyncDatabaseRequest extends AsyncFunction[String, (String, String)] {
-
-    /** The database specific client that can issue concurrent requests with callbacks */
-    lazy val client: DatabaseClient = new DatabaseClient(host, post, credentials)
-
-    /** The context used for the future callbacks */
-    implicit lazy val executor: ExecutionContext = ExecutionContext.fromExecutor(Executors.directExecutor())
-
-
-    override def asyncInvoke(str: String, resultFuture: ResultFuture[(String, String)]): Unit = {
-
-        // issue the asynchronous request, receive a future for the result
-        val resultFutureRequested: Future[String] = client.query(str)
-
-        // set the callback to be executed once the request by the client is complete
-        // the callback simply forwards the result to the result future
-        resultFutureRequested.onSuccess {
-            case result: String => resultFuture.complete(Iterable((str, result)))
-        }
-    }
-}
-
-// create the original stream
-val stream: DataStream[String] = ...
-
-// apply the async I/O transformation without retry
-val resultStream: DataStream[(String, String)] =
-    AsyncDataStream.unorderedWait(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100)
-
-// apply the async I/O transformation with retry
-// create an AsyncRetryStrategy
-val asyncRetryStrategy: AsyncRetryStrategy[String] =
-  new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(3, 100L) // maxAttempts=3, fixedDelay=100ms
-    .ifResult(RetryPredicates.EMPTY_RESULT_PREDICATE)
-    .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
-    .build();
-
-// apply the async I/O transformation with retry
-val resultStream: DataStream[(String, String)] =
-  AsyncDataStream.unorderedWaitWithRetry(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100, asyncRetryStrategy)
-
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 **Important note**: The `ResultFuture` is completed with the first call of `ResultFuture.complete`.
 All subsequent `complete` calls will be ignored.
@@ -283,7 +231,7 @@ The retry support introduces a built-in mechanism for async operator which being
 
 ### Implementation Tips
 
-For implementations with *Futures* that have an *Executor* (or *ExecutionContext* in Scala) for callbacks, we suggest using a `DirectExecutor`, because the
+For implementations with *Futures* that have an *Executor* for callbacks, we suggest using a `DirectExecutor`, because the
 callback typically does minimal work, and a `DirectExecutor` avoids an additional thread-to-thread handover overhead. The callback typically only hands
 the result to the `ResultFuture`, which adds it to the output buffer. From there, the heavy logic that includes record emission and interaction
 with the checkpoint bookkeeping happens in a dedicated thread-pool anyways.

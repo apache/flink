@@ -135,6 +135,9 @@ public abstract class Column {
     /** Returns a copy of the column with a replaced {@link DataType}. */
     public abstract Column copy(DataType newType);
 
+    /** Returns a copy of the column with a replaced name. */
+    public abstract Column rename(String newName);
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -202,6 +205,11 @@ public abstract class Column {
         public Column copy(DataType newDataType) {
             return new PhysicalColumn(name, newDataType, comment);
         }
+
+        @Override
+        public Column rename(String newName) {
+            return new PhysicalColumn(newName, dataType, comment);
+        }
     }
 
     /** Representation of a computed column. */
@@ -250,6 +258,11 @@ public abstract class Column {
         @Override
         public Column copy(DataType newDataType) {
             return new ComputedColumn(name, newDataType, expression, comment);
+        }
+
+        @Override
+        public Column rename(String newName) {
+            return new ComputedColumn(newName, dataType, expression, comment);
         }
 
         @Override
@@ -342,6 +355,11 @@ public abstract class Column {
         @Override
         public Column copy(DataType newDataType) {
             return new MetadataColumn(name, newDataType, metadataKey, isVirtual, comment);
+        }
+
+        @Override
+        public Column rename(String newName) {
+            return new MetadataColumn(newName, dataType, metadataKey, isVirtual, comment);
         }
 
         @Override

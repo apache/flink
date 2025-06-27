@@ -36,7 +36,9 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-/** @param <IN> The input and result type. */
+/**
+ * @param <IN> The input and result type.
+ */
 @Internal
 public class SortPartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpFunction> {
 

@@ -58,10 +58,23 @@ abfss://<your-container>@$<your-azure-account>.dfs.core.windows.net/<object-path
 
 ```java
 // 读取 Azure Blob 存储
-env.readTextFile("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
+FileSource<String> fileSource = FileSource.forRecordStreamFormat(
+        new TextLineInputFormat(),
+        new Path("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>")
+    ).build();
+env.fromSource(
+    fileSource,
+    WatermarkStrategy.noWatermarks(),
+    "azure-blob-storage-input"
+);
 
 // 写入 Azure Blob 存储
-stream.writeAsText("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
+stream.sinkTo(
+    FileSink.forRowFormat(
+        new Path("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>"), 
+        new SimpleStringEncoder<>()
+    ).build()
+);
 
 // 将 Azure Blob 存储用作 checkpoint storage
 Configuration config = new Configuration();

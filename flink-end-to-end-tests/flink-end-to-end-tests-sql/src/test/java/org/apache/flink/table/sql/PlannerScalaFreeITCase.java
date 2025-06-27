@@ -21,6 +21,7 @@ package org.apache.flink.table.sql;
 import org.apache.flink.formats.json.debezium.DebeziumJsonDeserializationSchema;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.test.util.SQLJobSubmission;
@@ -28,6 +29,7 @@ import org.apache.flink.tests.util.flink.ClusterController;
 
 import org.junit.Test;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -49,7 +51,9 @@ public class PlannerScalaFreeITCase extends SqlITCaseBase {
                             Column.physical("user_name", DataTypes.STRING()),
                             Column.physical("order_cnt", DataTypes.BIGINT())),
                     Collections.emptyList(),
-                    UniqueConstraint.primaryKey("pk", Collections.singletonList("user_name")));
+                    UniqueConstraint.primaryKey("pk", Collections.singletonList("user_name")),
+                    Collections.singletonList(
+                            DefaultIndex.newIndex("idx", Collections.singletonList("user_name"))));
 
     private static final DebeziumJsonDeserializationSchema DESERIALIZATION_SCHEMA =
             createDebeziumDeserializationSchema(SINK_TABLE_SCHEMA);
@@ -76,11 +80,13 @@ public class PlannerScalaFreeITCase extends SqlITCaseBase {
     }
 
     @Override
-    protected void executeSqlStatements(ClusterController clusterController, List<String> sqlLines)
+    protected void executeSqlStatements(
+            ClusterController clusterController, List<String> sqlLines, List<URI> dependencies)
             throws Exception {
         clusterController.submitSQLJob(
                 new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
                         .addJar(SQL_TOOL_BOX_JAR)
+                        .addJars(dependencies.toArray(new URI[0]))
                         .build(),
                 Duration.ofMinutes(2L));
     }

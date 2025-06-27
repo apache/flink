@@ -43,6 +43,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import static org.apache.flink.runtime.executiongraph.IntermediateResultPartitionTest.computeVertexParallelismStoreConsideringDynamicGraph;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.POINTWISE;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -287,7 +288,7 @@ class EdgeManagerBuildUtilTest {
         v1.setInvokableClass(AbstractInvokable.class);
         v2.setInvokableClass(AbstractInvokable.class);
 
-        v2.connectNewDataSetAsInput(v1, pattern, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(v2, v1, pattern, ResultPartitionType.PIPELINED);
 
         List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
 

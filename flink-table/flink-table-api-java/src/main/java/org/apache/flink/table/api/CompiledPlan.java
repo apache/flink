@@ -49,6 +49,10 @@ import java.nio.file.Paths;
  * objects, only the identifier is part of the plan and the object needs to be present in the
  * session context during a restore.
  *
+ * <p>JSON encoding is assumed to be the default representation of a compiled plan in all API
+ * endpoints, and is the format used to persist the plan to files by default. For advanced use
+ * cases, {@link #asSmileBytes()} provides a binary format representation of the compiled plan.
+ *
  * <p>Note: Plan restores assume a stable session context. Configuration, loaded modules and
  * catalogs, and temporary objects must not change. Schema evolution and changes of function
  * signatures are not supported.
@@ -65,22 +69,33 @@ public interface CompiledPlan extends Explainable<CompiledPlan>, Executable {
     /** Convert the plan to a JSON string representation. */
     String asJsonString();
 
-    /** @see #writeToFile(File) */
+    /** Convert the plan to a Smile binary representation. */
+    byte[] asSmileBytes();
+
+    /**
+     * @see #writeToFile(File)
+     */
     default void writeToFile(String path) {
         writeToFile(Paths.get(path));
     }
 
-    /** @see #writeToFile(File, boolean) */
+    /**
+     * @see #writeToFile(File, boolean)
+     */
     default void writeToFile(String path, boolean ignoreIfExists) {
         writeToFile(Paths.get(path), ignoreIfExists);
     }
 
-    /** @see #writeToFile(File) */
+    /**
+     * @see #writeToFile(File)
+     */
     default void writeToFile(Path path) {
         writeToFile(path.toFile());
     }
 
-    /** @see #writeToFile(File, boolean) */
+    /**
+     * @see #writeToFile(File, boolean)
+     */
     default void writeToFile(Path path, boolean ignoreIfExists) {
         writeToFile(path.toFile(), ignoreIfExists);
     }

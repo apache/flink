@@ -24,12 +24,12 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
 import org.apache.flink.state.api.output.operators.KeyedStateBootstrapOperator;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
@@ -62,7 +62,7 @@ public class KeyedStateBootstrapOperatorTest {
 
         OperatorSubtaskState state;
         KeyedStateBootstrapOperator<Long, Long> bootstrapOperator =
-                new KeyedStateBootstrapOperator<>(0L, path, new TimerBootstrapFunction());
+                new KeyedStateBootstrapOperator<>(0L, 0L, path, new TimerBootstrapFunction());
         try (KeyedOneInputStreamOperatorTestHarness<Long, Long, TaggedOperatorSubtaskState>
                 harness = getHarness(bootstrapOperator)) {
             processElements(harness, 1L, 2L, 3L);
@@ -93,7 +93,7 @@ public class KeyedStateBootstrapOperatorTest {
 
         OperatorSubtaskState state;
         KeyedStateBootstrapOperator<Long, Long> bootstrapOperator =
-                new KeyedStateBootstrapOperator<>(0L, path, new SimpleBootstrapFunction());
+                new KeyedStateBootstrapOperator<>(0L, 0L, path, new SimpleBootstrapFunction());
         try (KeyedOneInputStreamOperatorTestHarness<Long, Long, TaggedOperatorSubtaskState>
                 harness = getHarness(bootstrapOperator)) {
             processElements(harness, 1L, 2L, 3L);

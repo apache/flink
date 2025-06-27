@@ -20,9 +20,9 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.state.InternalStateFuture;
 
 import org.forstdb.RocksDB;
 import org.forstdb.RocksDBException;
@@ -44,7 +44,7 @@ import static org.apache.flink.state.forst.ForStDBIterRequest.startWithKeyPrefix
 public class ForStDBBunchPutRequest<K, N, UK, UV> extends ForStDBPutRequest<K, N, Map<UK, UV>> {
 
     /** Serializer for the user values. */
-    final TypeSerializer<UV> userValueSerializer;
+    final ThreadLocal<TypeSerializer<UV>> userValueSerializer;
 
     /** The data outputStream used for value serializer, which should be thread-safe. */
     final ThreadLocal<DataOutputSerializer> valueSerializerView;
@@ -58,7 +58,7 @@ public class ForStDBBunchPutRequest<K, N, UK, UV> extends ForStDBPutRequest<K, N
             ContextKey<K, N> key,
             Map<UK, UV> value,
             ForStMapState<K, N, UK, UV> table,
-            InternalStateFuture<Void> future) {
+            InternalAsyncFuture<Void> future) {
         super(key, value, false, (ForStInnerTable<K, N, Map<UK, UV>>) table, future);
         this.userValueSerializer = table.userValueSerializer;
         this.valueSerializerView = table.valueSerializerView;
@@ -100,7 +100,7 @@ public class ForStDBBunchPutRequest<K, N, UK, UV> extends ForStDBPutRequest<K, N
     public byte[] buildSerializedValue(UV singleValue) throws IOException {
         DataOutputSerializer outputView = valueSerializerView.get();
         outputView.clear();
-        userValueSerializer.serialize(singleValue, outputView);
+        userValueSerializer.get().serialize(singleValue, outputView);
         return outputView.getCopyOfBuffer();
     }
 

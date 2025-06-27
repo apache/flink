@@ -37,7 +37,9 @@ public final class FlinkAssertions {
 
     private FlinkAssertions() {}
 
-    /** @see #chainOfCauses(Throwable) */
+    /**
+     * @see #chainOfCauses(Throwable)
+     */
     @SuppressWarnings({"rawtypes", "unused"})
     public static final InstanceOfAssertFactory<Stream, ListAssert<Throwable>> STREAM_THROWABLE =
             new InstanceOfAssertFactory<>(Stream.class, Assertions::<Throwable>assertThat);

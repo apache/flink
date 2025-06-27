@@ -71,7 +71,8 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
     private static final List<String> PARTITION_KEYS = Collections.singletonList("partition");
 
     private static final ResolvedSchema CREATE_RESOLVED_SCHEMA =
-            new ResolvedSchema(CREATE_COLUMNS, Collections.emptyList(), CONSTRAINTS);
+            new ResolvedSchema(
+                    CREATE_COLUMNS, Collections.emptyList(), CONSTRAINTS, Collections.emptyList());
 
     private static final Schema CREATE_SCHEMA =
             Schema.newBuilder().fromResolvedSchema(CREATE_RESOLVED_SCHEMA).build();
@@ -175,7 +176,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
         expectedOptions.put(
                 PATH.key(),
                 String.format(
-                        "%s/%s/%s/%s",
+                        "file:%s/%s/%s/%s",
                         tempFile.getAbsolutePath(),
                         tablePath.getDatabaseName(),
                         tablePath.getObjectName(),
@@ -214,7 +215,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
         expectedOptions.put(
                 PATH.key(),
                 String.format(
-                        "%s/%s/%s/%s",
+                        "file:%s/%s/%s/%s",
                         tempFile.getAbsolutePath(),
                         tablePath.getDatabaseName(),
                         tablePath.getObjectName(),
@@ -350,7 +351,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
         expectedOptions.put(
                 PATH.key(),
                 String.format(
-                        "%s/%s/%s/%s",
+                        "file:%s/%s/%s/%s",
                         tempFile.getAbsolutePath(),
                         tablePath.getDatabaseName(),
                         tablePath.getObjectName(),

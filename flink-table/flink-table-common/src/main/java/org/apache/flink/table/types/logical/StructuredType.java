@@ -19,17 +19,20 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
+import javax.lang.model.SourceVersion;
 
+import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -41,38 +44,61 @@ import static org.apache.flink.table.utils.EncodingUtils.escapeSingleQuotes;
 
 /**
  * Logical type of a user-defined object structured type. Structured types contain zero, one or more
- * attributes. Each attribute consists of a name and a type. A type cannot be defined so that one of
- * its attribute types (transitively) uses itself.
+ * attributes. Each attribute has a name, a type, and an optional description. A type cannot be
+ * defined in such a way that one of its attribute types (transitively) refers to itself.
  *
- * <p>There are two kinds of structured types. Types that are stored in a catalog and are identified
- * by an {@link ObjectIdentifier} or anonymously defined, unregistered types (usually reflectively
- * extracted) that are identified by an implementation {@link Class}.
+ * <p>Compared to {@link RowType}, which may also be considered a "struct-like" type, structured
+ * types are distinguishable even if they contain the same set of fields. For example, "Visit(amount
+ * DOUBLE)" is distinct from "Interaction(amount DOUBLE)" due its identifier.
  *
- * <h1>Logical properties</h1>
+ * <p>There are two kinds of structured types:
  *
- * <p>A structured type can declare a super type and allows single inheritance for more complex type
- * hierarchies, similar to JVM-based languages.
+ * <h1>Catalog Structured Types</h1>
  *
- * <p>A structured type can be declared {@code final} for preventing further inheritance (default
- * behavior) or {@code not final} for allowing subtypes.
+ * <strong>This type is currently not fully supported in the planner and is future work.</strong>
  *
- * <p>A structured type can be declared {@code not instantiable} if a more specific type is required
- * or {@code instantiable} if instances can be created from this type (default behavior).
+ * <p>Types that are stored in a catalog and are identified by an {@link ObjectIdentifier}. Some
+ * logical properties that align with the SQL standard have been prepared already but are currently
+ * not used by the planner:
  *
- * <p>A structured type declares comparison properties of either {@code none} (no equality), {@code
- * equals} (only equality and inequality), or {@code full} (greater, equals, less).
+ * <ul>
+ *   <li>super type and single inheritance for more complex type hierarchies, similar to JVM-based
+ *       languages.
+ *   <li>{@code final} for preventing further inheritance (default behavior) or {@code not final}
+ *       for allowing subtypes.
+ *   <li>{@code not instantiable} if a more specific type is required or {@code instantiable} if
+ *       instances can be created from this type (default behavior).
+ *   <li>comparison properties of either {@code none} (no equality), {@code equals} (only equality
+ *       and inequality), or {@code full} (greater, equals, less).
+ * </ul>
  *
  * <p>NOTE: Compared to the SQL standard, this class is incomplete. We might add new features such
  * as method declarations in the future. Also ordering is not supported yet.
  *
- * <h1>Physical properties</h1>
+ * <p>The serialized string representation is {@code `cat`.`db`.`t`} where {@code cat} is the
+ * catalog name, {@code db} is the database name, and {@code t} the user-defined type name.
  *
- * <p>A structured type can be defined fully logically (e.g. by using a {@code CREATE TYPE} DDL).
- * The implementation class is optional and only used at the edges of the table ecosystem (e.g. when
- * bridging to a function or connector). Serialization and equality ({@code hashCode/equals}) are
- * handled by the runtime based on the logical type. In other words: {@code hashCode/equals} of an
- * implementation class are not used. Custom equality, casting logic, and further overloaded
- * operators will be supported once we allow defining methods on structured types.
+ * <h1>Inline Structured Types</h1>
+ *
+ * <p>Types that are unregistered (i.e. declared inline) and are identified by a class name.
+ *
+ * <p>The class name does not have to be resolvable in the classpath. It can be used purely to
+ * distinguish between two objects containing the same set of attributes. However, in Table API and
+ * UDF calls an attempt is being made to resolve the class name to an implementation class. If that
+ * fails, {@link Row} is used as the {@link #getDefaultConversion()}.
+ *
+ * <p>The serialized string representation is {@code STRUCTURED<'c', n0 t0 'd0', n1 t1 'd1', ...>}
+ * where {@code c} is the class name, {@code n} is the unique name of a field, {@code t} is the
+ * logical type of a field, {@code d} is the optional description of a field.
+ *
+ * <h1>Implementation Class</h1>
+ *
+ * <p>A structured type can be defined fully logically. The implementation class is optional and
+ * only used at the edges of the table ecosystem (e.g. when bridging to a function or collecting
+ * results). Serialization and equality ({@code hashCode/equals}) are handled by the runtime based
+ * on the logical type. In other words: {@code hashCode/equals} of an implementation class are not
+ * used. Custom equality, casting logic, and further overloaded operators will be supported once we
+ * allow defining methods on structured types.
  *
  * <p>An implementation class must offer a default constructor with zero arguments or a full
  * constructor that assigns all attributes. Other physical properties such as the conversion classes
@@ -82,7 +108,8 @@ import static org.apache.flink.table.utils.EncodingUtils.escapeSingleQuotes;
 public final class StructuredType extends UserDefinedType {
     private static final long serialVersionUID = 1L;
 
-    public static final String FORMAT = "*%s<%s>*";
+    public static final String CATALOG_FORMAT = "%s";
+    public static final String INLINE_FORMAT = "STRUCTURED<'%s', %s>";
 
     private static final Set<String> INPUT_OUTPUT_CONVERSION =
             conversionSet(Row.class.getName(), RowData.class.getName());
@@ -95,13 +122,10 @@ public final class StructuredType extends UserDefinedType {
         private static final long serialVersionUID = 1L;
 
         public static final String FIELD_FORMAT_WITH_DESCRIPTION = "%s %s '%s'";
-
         public static final String FIELD_FORMAT_NO_DESCRIPTION = "%s %s";
 
         private final String name;
-
         private final LogicalType type;
-
         private final @Nullable String description;
 
         public StructuredAttribute(String name, LogicalType type, @Nullable String description) {
@@ -132,6 +156,10 @@ public final class StructuredType extends UserDefinedType {
 
         public String asSummaryString() {
             return formatString(type.asSummaryString(), true);
+        }
+
+        public String asSerializableString() {
+            return formatString(type.asSerializableString(), false);
         }
 
         @Override
@@ -198,34 +226,36 @@ public final class StructuredType extends UserDefinedType {
     public static final class Builder {
 
         private final @Nullable ObjectIdentifier objectIdentifier;
-
+        private final @Nullable String className;
         private final @Nullable Class<?> implementationClass;
 
         private List<StructuredAttribute> attributes = new ArrayList<>();
-
         private boolean isNullable = true;
-
         private boolean isFinal = true;
-
         private boolean isInstantiable = true;
-
-        private StructuredComparison comparison = StructuredComparison.NONE;
-
+        private StructuredComparison comparison = StructuredComparison.EQUALS;
         private @Nullable StructuredType superType;
-
         private @Nullable String description;
+
+        public Builder(String className) {
+            this.objectIdentifier = null;
+            this.className = Preconditions.checkNotNull(className, "Class name must not be null.");
+            this.implementationClass = null;
+        }
 
         public Builder(Class<?> implementationClass) {
             this.objectIdentifier = null;
             this.implementationClass =
                     Preconditions.checkNotNull(
                             implementationClass, "Implementation class must not be null.");
+            this.className = implementationClass.getName();
         }
 
         public Builder(ObjectIdentifier objectIdentifier) {
             this.objectIdentifier =
                     Preconditions.checkNotNull(
                             objectIdentifier, "Object identifier must not be null.");
+            this.className = null;
             this.implementationClass = null;
         }
 
@@ -236,14 +266,13 @@ public final class StructuredType extends UserDefinedType {
             this.implementationClass =
                     Preconditions.checkNotNull(
                             implementationClass, "Implementation class must not be null.");
+            this.className = implementationClass.getName();
         }
 
         public Builder attributes(List<StructuredAttribute> attributes) {
             this.attributes =
-                    Collections.unmodifiableList(
-                            new ArrayList<>(
-                                    Preconditions.checkNotNull(
-                                            attributes, "Attributes must not be null.")));
+                    List.copyOf(
+                            Preconditions.checkNotNull(attributes, "Attributes must not be null."));
             return this;
         }
 
@@ -289,19 +318,17 @@ public final class StructuredType extends UserDefinedType {
                     comparison,
                     superType,
                     description,
+                    className,
                     implementationClass);
         }
     }
 
     private final List<StructuredAttribute> attributes;
-
     private final boolean isInstantiable;
-
     private final StructuredComparison comparison;
-
     private final @Nullable StructuredType superType;
-
     private final @Nullable Class<?> implementationClass;
+    private @Nullable String className;
 
     private StructuredType(
             boolean isNullable,
@@ -312,32 +339,32 @@ public final class StructuredType extends UserDefinedType {
             StructuredComparison comparison,
             @Nullable StructuredType superType,
             @Nullable String description,
+            @Nullable String className,
             @Nullable Class<?> implementationClass) {
         super(isNullable, LogicalTypeRoot.STRUCTURED_TYPE, objectIdentifier, isFinal, description);
 
         Preconditions.checkArgument(
-                objectIdentifier != null || implementationClass != null,
-                "An identifier is missing.");
+                objectIdentifier != null || className != null, "An identifier is missing.");
 
         this.attributes = attributes;
         this.isInstantiable = isInstantiable;
         this.comparison = comparison;
         this.superType = superType;
+        this.className = checkClassName(className);
         this.implementationClass = implementationClass;
     }
 
     /**
-     * Creates a builder for a {@link StructuredType} that has been stored in a catalog and is
-     * identified by an {@link ObjectIdentifier}.
+     * Creates a builder for a {@link StructuredType} that is identified by an {@link
+     * ObjectIdentifier}.
      */
     public static StructuredType.Builder newBuilder(ObjectIdentifier objectIdentifier) {
         return new StructuredType.Builder(objectIdentifier);
     }
 
     /**
-     * Creates a builder for a {@link StructuredType} that has been stored in a catalog and is
-     * identified by an {@link ObjectIdentifier}. The optional implementation class defines
-     * supported conversions.
+     * Creates a builder for a {@link StructuredType} that identified by an {@link ObjectIdentifier}
+     * but with a resolved implementation class.
      */
     public static StructuredType.Builder newBuilder(
             ObjectIdentifier objectIdentifier, Class<?> implementationClass) {
@@ -345,11 +372,19 @@ public final class StructuredType extends UserDefinedType {
     }
 
     /**
-     * Creates a builder for a {@link StructuredType} that is not stored in a catalog and is
-     * identified by an implementation {@link Class}.
+     * Creates a builder for a {@link StructuredType} that is identified by a class name derived
+     * from the given implementation class.
      */
     public static StructuredType.Builder newBuilder(Class<?> implementationClass) {
         return new StructuredType.Builder(implementationClass);
+    }
+
+    /**
+     * Creates a builder for a {@link StructuredType} that is identified by a class name but without
+     * a resolved implementation class (i.e. eventually using {@link #FALLBACK_CONVERSION}).
+     */
+    public static StructuredType.Builder newBuilder(String className) {
+        return new StructuredType.Builder(className);
     }
 
     public List<StructuredAttribute> getAttributes() {
@@ -368,6 +403,10 @@ public final class StructuredType extends UserDefinedType {
         return Optional.ofNullable(superType);
     }
 
+    public Optional<String> getClassName() {
+        return Optional.ofNullable(className);
+    }
+
     public Optional<Class<?>> getImplementationClass() {
         return Optional.ofNullable(implementationClass);
     }
@@ -383,6 +422,7 @@ public final class StructuredType extends UserDefinedType {
                 comparison,
                 superType == null ? null : (StructuredType) superType.copy(),
                 getDescription().orElse(null),
+                className,
                 implementationClass);
     }
 
@@ -391,14 +431,29 @@ public final class StructuredType extends UserDefinedType {
         if (getObjectIdentifier().isPresent()) {
             return asSerializableString();
         }
-        assert implementationClass != null;
-        // we use *class<...>* to make it visible that this type is unregistered and not confuse it
-        // with catalog types
+        assert className != null;
         return withNullability(
-                FORMAT,
-                implementationClass.getName(),
+                INLINE_FORMAT,
+                className,
                 getAllAttributes().stream()
                         .map(StructuredAttribute::asSummaryString)
+                        .collect(Collectors.joining(", ")));
+    }
+
+    @Override
+    public String asSerializableString() {
+        final String identifier =
+                getObjectIdentifier().map(ObjectIdentifier::asSerializableString).orElse(null);
+        if (identifier != null) {
+            return withNullability(CATALOG_FORMAT, identifier);
+        }
+
+        assert className != null;
+        return withNullability(
+                INLINE_FORMAT,
+                EncodingUtils.escapeSingleQuotes(className),
+                getAllAttributes().stream()
+                        .map(StructuredAttribute::asSerializableString)
                         .collect(Collectors.joining(", ")));
     }
 
@@ -457,17 +512,32 @@ public final class StructuredType extends UserDefinedType {
                 && attributes.equals(that.attributes)
                 && comparison == that.comparison
                 && Objects.equals(superType, that.superType)
-                && Objects.equals(implementationClass, that.implementationClass);
+                && Objects.equals(className, that.className);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                super.hashCode(),
+                super.hashCode(), attributes, isInstantiable, comparison, superType, className);
+    }
+
+    private Object readResolve() throws ObjectStreamException {
+        if (getReference() != null) {
+            return this;
+        }
+        // Before Flink 2.1 the implementation class was used as a reference and equality was not
+        // supported. This restores the type with new defaults from old types that potentially
+        // landed in savepoints.
+        return new StructuredType(
+                isNullable(),
+                getObjectIdentifier().orElse(null),
                 attributes,
+                isFinal(),
                 isInstantiable,
-                comparison,
+                StructuredComparison.EQUALS,
                 superType,
+                getDescription().orElse(null),
+                implementationClass != null ? implementationClass.getName() : className,
                 implementationClass);
     }
 
@@ -480,5 +550,42 @@ public final class StructuredType extends UserDefinedType {
         // then specific fields
         allAttributes.addAll(attributes);
         return allAttributes;
+    }
+
+    /** Unified method for referring to both catalog or inline structured types. */
+    private Object getReference() {
+        return getObjectIdentifier().map(Object.class::cast).orElse(className);
+    }
+
+    private static @Nullable String checkClassName(@Nullable String className) {
+        if (className != null && !SourceVersion.isName(className)) {
+            throw new ValidationException(
+                    String.format(
+                            "Invalid class name '%s'. The class name must comply with JVM identifier rules.",
+                            className));
+        }
+        return className;
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Shared helpers
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Restores an implementation class from the class name component of a serialized string
+     * representation.
+     *
+     * <p>Note: This method does not perform any kind of validation. The logical type system should
+     * not be destabilized by incorrectly implemented classes. This is also why classes won't get
+     * initialized. At this stage, only the class existence (i.e. metadata) in classloader matters.
+     */
+    public static Optional<Class<?>> resolveClass(ClassLoader classLoader, String className) {
+        checkClassName(className);
+        try {
+            // Initialization is deferred until first instantiation
+            return Optional.of(Class.forName(className, false, classLoader));
+        } catch (Throwable t) {
+            return Optional.empty();
+        }
     }
 }

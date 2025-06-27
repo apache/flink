@@ -21,6 +21,8 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
+import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -35,6 +37,7 @@ import java.util.stream.Collectors;
 @Internal
 public class SortQueryOperation implements QueryOperation {
 
+    private static final String INPUT_ALIAS = "$$T_SORT";
     private final List<ResolvedExpression> order;
     private final QueryOperation child;
     private final int offset;
@@ -85,15 +88,25 @@ public class SortQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         final StringBuilder s =
                 new StringBuilder(
                         String.format(
-                                "SELECT %s FROM (%s\n) ORDER BY %s",
-                                OperationUtils.formatSelectColumns(getResolvedSchema()),
-                                OperationUtils.indent(child.asSerializableString()),
+                                "SELECT %s FROM (%s\n) %s ORDER BY %s",
+                                OperationUtils.formatSelectColumns(
+                                        getResolvedSchema(), INPUT_ALIAS),
+                                OperationUtils.indent(child.asSerializableString(sqlFactory)),
+                                INPUT_ALIAS,
                                 order.stream()
-                                        .map(ResolvedExpression::asSerializableString)
+                                        .map(
+                                                expr ->
+                                                        OperationExpressionsUtils
+                                                                .scopeReferencesWithAlias(
+                                                                        INPUT_ALIAS, expr))
+                                        .map(
+                                                resolvedExpression ->
+                                                        resolvedExpression.asSerializableString(
+                                                                sqlFactory))
                                         .collect(Collectors.joining(", "))));
 
         if (offset >= 0) {

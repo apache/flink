@@ -21,8 +21,9 @@ package org.apache.flink.table.operations.ddl;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
@@ -34,13 +35,13 @@ import java.util.Map;
 @Internal
 public class CreateTableOperation implements CreateOperation {
     private final ObjectIdentifier tableIdentifier;
-    private final CatalogTable catalogTable;
+    private final ResolvedCatalogTable catalogTable;
     private final boolean ignoreIfExists;
     private final boolean isTemporary;
 
     public CreateTableOperation(
             ObjectIdentifier tableIdentifier,
-            CatalogTable catalogTable,
+            ResolvedCatalogTable catalogTable,
             boolean ignoreIfExists,
             boolean isTemporary) {
         this.tableIdentifier = tableIdentifier;
@@ -49,7 +50,7 @@ public class CreateTableOperation implements CreateOperation {
         this.isTemporary = isTemporary;
     }
 
-    public CatalogTable getCatalogTable() {
+    public ResolvedCatalogTable getCatalogTable() {
         return catalogTable;
     }
 
@@ -68,7 +69,7 @@ public class CreateTableOperation implements CreateOperation {
     @Override
     public String asSummaryString() {
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("catalogTable", catalogTable.toProperties());
+        params.put("catalogTable", catalogTable.toProperties(DefaultSqlFactory.INSTANCE));
         params.put("identifier", tableIdentifier);
         params.put("ignoreIfExists", ignoreIfExists);
         params.put("isTemporary", isTemporary);

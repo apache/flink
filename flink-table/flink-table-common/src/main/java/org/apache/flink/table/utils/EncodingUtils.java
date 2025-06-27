@@ -488,11 +488,11 @@ public abstract class EncodingUtils {
                         out.write('\\');
                         out.write('\\');
                         break;
-                        // MODIFICATION: Flink removes invalid escaping of forward slashes!
-                        // case '/':
-                        //	out.write('\\');
-                        //	out.write('/');
-                        //	break;
+                    // MODIFICATION: Flink removes invalid escaping of forward slashes!
+                    // case '/':
+                    //	out.write('\\');
+                    //	out.write('/');
+                    //	break;
                     default:
                         out.write(ch);
                         break;

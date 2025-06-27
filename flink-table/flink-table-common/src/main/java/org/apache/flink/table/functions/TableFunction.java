@@ -32,9 +32,9 @@ import org.apache.flink.util.Collector;
 
 /**
  * Base class for a user-defined table function. A user-defined table function maps zero, one, or
- * multiple scalar values to zero, one, or multiple rows (or structured types). If an output record
- * consists of only one field, the structured record can be omitted, and a scalar value can be
- * emitted that will be implicitly wrapped into a row by the runtime.
+ * multiple scalar values to zero, one, or multiple rows (or structured types). If the output record
+ * consists of only one field, the wrapper can be omitted, and a scalar value can be emitted that
+ * will be implicitly wrapped into a row by the runtime.
  *
  * <p>The behavior of a {@link TableFunction} can be defined by implementing a custom evaluation
  * method. An evaluation method must be declared publicly, not static, and named <code>eval</code>.
@@ -50,7 +50,7 @@ import org.apache.flink.util.Collector;
  * <p>The following examples show how to specify a table function:
  *
  * <pre>{@code
- * // a function that accepts an arbitrary number of INT arguments and emits them as implicit ROW < INT >
+ * // Function that accepts an arbitrary number of INT arguments and emits them as implicit ROW < INT >
  * class FlattenFunction extends TableFunction<Integer> {
  *   public void eval(Integer... args) {
  *     for (Integer i : args) {
@@ -59,7 +59,7 @@ import org.apache.flink.util.Collector;
  *   }
  * }
  *
- * // a function that accepts either INT or STRING and emits them as implicit ROW < STRING >
+ * // Function that accepts either INT or STRING and emits them as an implicit ROW < STRING >
  * class DuplicatorFunction extends TableFunction<String> {
  *   public void eval(Integer i) {
  *     eval(String.valueOf(i));
@@ -70,7 +70,7 @@ import org.apache.flink.util.Collector;
  *   }
  * }
  *
- * // a function that produces a ROW < i INT, s STRING > from arguments, the function hint helps in
+ * // Function that produces an explicit ROW < i INT, s STRING > from arguments, the function hint helps in
  * // declaring the row's fields
  * @FunctionHint(output = @DataTypeHint("ROW< i INT, s STRING >"))
  * class DuplicatorFunction extends TableFunction<Row> {
@@ -80,7 +80,7 @@ import org.apache.flink.util.Collector;
  *   }
  * }
  *
- * // a function that accepts either INT or DECIMAL(10, 4) and emits them as implicit ROW < INT > or
+ * // Function that accepts either INT or DECIMAL(10, 4) and emits them as an implicit ROW < INT > or
  * // ROW<DECIMAL(10, 4)> using function hints for declaring the output type
  * class DuplicatorFunction extends TableFunction<Object> {
  *   @FunctionHint(output = @DataTypeHint("INT"))
@@ -98,7 +98,7 @@ import org.apache.flink.util.Collector;
  *
  * <p>For storing a user-defined function in a catalog, the class must have a default constructor
  * and must be instantiable during runtime. Anonymous functions in Table API can only be persisted
- * if the function is not stateful (i.e. containing only transient and static fields).
+ * if the function object is not stateful (i.e. containing only transient and static fields).
  *
  * <p>In the API, a table function can be used as follows:
  *

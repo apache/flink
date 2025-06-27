@@ -69,7 +69,7 @@ public class MultiInputStreamOperatorTestHarness<OUT>
         getCastedOperator().getInputs().get(idx).processRecordAttributes(recordAttributes);
     }
 
-    private MultipleInputStreamOperator<OUT> getCastedOperator() {
+    protected MultipleInputStreamOperator<OUT> getCastedOperator() {
         return (MultipleInputStreamOperator<OUT>) operator;
     }
 }

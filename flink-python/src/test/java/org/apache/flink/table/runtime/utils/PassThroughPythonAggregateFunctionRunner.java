@@ -27,13 +27,14 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.process.FlinkMetricContainer;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
 import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -68,6 +69,7 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
     private transient ByteArrayOutputStreamWithPos baos;
 
     public PassThroughPythonAggregateFunctionRunner(
+            Environment environment,
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
             RowType inputType,
@@ -77,6 +79,7 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
             FlinkMetricContainer flinkMetricContainer,
             boolean isBatchOverWindow) {
         super(
+                environment,
                 taskName,
                 environmentManager,
                 functionUrn,

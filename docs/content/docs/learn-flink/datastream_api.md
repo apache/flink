@@ -33,7 +33,7 @@ Flink's DataStream APIs will let you stream anything they can serialize. Flink's
 own serializer is used for
 
 - basic types, i.e., String, Long, Integer, Boolean, Array
-- composite types: Tuples, POJOs, and Scala case classes
+- composite types: Tuples, POJOs
 
 and Flink falls back to Kryo for other types. It is also possible to use other serializers with
 Flink. Avro, in particular, is well supported.
@@ -81,18 +81,6 @@ Person person = new Person("Fred Flintstone", 35);
 
 Flink's serializer [supports schema evolution for POJO types]({{< ref "docs/dev/datastream/fault-tolerance/serialization/schema_evolution" >}}#pojo-types).
 
-### Scala tuples and case classes
-
-These work just as you'd expect.
-
-{{< hint warning >}}
-All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
-
-See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
-{{< /hint >}}
-
-{{< top >}}
-
 ## A Complete Example
 
 This example takes a stream of records about people as input, and filters it to only include the adults.
@@ -108,7 +96,7 @@ public class Example {
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Person> flintstones = env.fromElements(
+        DataStream<Person> flintstones = env.fromData(
                 new Person("Fred", 35),
                 new Person("Wilma", 35),
                 new Person("Pebbles", 2));
@@ -161,19 +149,8 @@ dependencies are available to each node in the cluster.
 
 ### Basic stream sources
 
-The example above constructs a `DataStream<Person>` using `env.fromElements(...)`. This is a
-convenient way to throw together a simple stream for use in a prototype or test. There is also a
-`fromCollection(Collection)` method on `StreamExecutionEnvironment`. So instead, you could do this:
-
-```java
-List<Person> people = new ArrayList<Person>();
-
-people.add(new Person("Fred", 35));
-people.add(new Person("Wilma", 35));
-people.add(new Person("Pebbles", 2));
-
-DataStream<Person> flintstones = env.fromCollection(people);
-```
+The example above constructs a `DataStream<Person>` using `env.fromData(...)`. This is a
+convenient way to throw together a simple stream for use in a prototype or test.
 
 Another convenient way to get some data into a stream while prototyping is to use a socket
 
@@ -184,7 +161,14 @@ DataStream<String> lines = env.socketTextStream("localhost", 9999);
 or a file
 
 ```java
-DataStream<String> lines = env.readTextFile("file:///path");
+FileSource<String> fileSource = FileSource.forRecordStreamFormat(
+        new TextLineInputFormat(), new Path("file:///path")
+    ).build();
+DataStream<String> lines = env.fromSource(
+    fileSource,
+    WatermarkStrategy.noWatermarks(),
+    "file-input"
+);
 ```
 
 In real applications the most commonly used data sources are those that support low-latency, high

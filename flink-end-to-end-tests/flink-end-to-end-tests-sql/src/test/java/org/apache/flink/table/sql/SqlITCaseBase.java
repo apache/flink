@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -125,23 +126,25 @@ public abstract class SqlITCaseBase extends TestLogger {
         runAndCheckSQL(
                 sqlPath,
                 Collections.singletonMap(result, resultItems),
-                Collections.singletonMap(result, formatter));
+                Collections.singletonMap(result, formatter),
+                Collections.emptyList());
     }
 
     public void runAndCheckSQL(String sqlPath, Map<Path, List<String>> resultItems)
             throws Exception {
-        runAndCheckSQL(sqlPath, resultItems, Collections.emptyMap());
+        runAndCheckSQL(sqlPath, resultItems, Collections.emptyMap(), Collections.emptyList());
     }
 
     public void runAndCheckSQL(
             String sqlPath,
             Map<Path, List<String>> resultItems,
-            Map<Path, Function<List<String>, List<String>>> formatters)
+            Map<Path, Function<List<String>, List<String>>> formatters,
+            List<URI> dependencies)
             throws Exception {
         try (ClusterController clusterController = flink.startCluster(1)) {
             List<String> sqlLines = initializeSqlLines(sqlPath);
 
-            executeSqlStatements(clusterController, sqlLines);
+            executeSqlStatements(clusterController, sqlLines, dependencies);
 
             // Wait until all the results flushed to the json file.
             LOG.info("Verify the result.");
@@ -163,7 +166,8 @@ public abstract class SqlITCaseBase extends TestLogger {
     }
 
     protected abstract void executeSqlStatements(
-            ClusterController clusterController, List<String> sqlLines) throws Exception;
+            ClusterController clusterController, List<String> sqlLines, List<URI> dependencies)
+            throws Exception;
 
     private List<String> initializeSqlLines(String sqlPath) throws IOException {
         URL url = SqlITCaseBase.class.getClassLoader().getResource(sqlPath);

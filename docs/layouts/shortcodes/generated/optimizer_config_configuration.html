@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>table.optimizer.adaptive-broadcast-join.strategy</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">auto</td>
+            <td><p>Enum</p></td>
+            <td>Flink will perform broadcast hash join optimization when the runtime statistics on one side of a join operator is less than the threshold `table.optimizer.join.broadcast-threshold`. The value of this configuration option decides when Flink should perform this optimization. AUTO means Flink will automatically choose the timing for optimization, RUNTIME_ONLY means broadcast hash join optimization is only performed at runtime, and NONE means the optimization is only carried out at compile time.<br /><br />Possible values:<ul><li>"auto": Flink will automatically choose the timing for optimization</li><li>"runtime_only": Broadcast hash join optimization is only performed at runtime.</li><li>"none": Broadcast hash join optimization is only carried out at compile time.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.agg-phase-strategy</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">AUTO</td>
             <td><p>Enum</p></td>
@@ -22,6 +28,12 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td style="word-wrap: break-word;">12</td>
             <td>Integer</td>
             <td>The maximum number of joined nodes allowed in the bushy join reorder algorithm, otherwise the left-deep join reorder algorithm will be used. The search space of bushy join reorder algorithm will increase with the increase of this threshold value, so this threshold is not recommended to be set too large. The default value is 12.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.delta-join.strategy</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">AUTO</td>
+            <td><p>Enum</p></td>
+            <td>Strategy for optimizing the delta-join. Only AUTO, FORCE or NONE can be set. Default it AUTO.<br /><br />Possible values:<ul><li>"AUTO": Optimizer will try to use delta join first. If it fails, it will fallback to the regular join.</li><li>"FORCE": Use the delta join. If it fails, an exception will be thrown.</li><li>"NONE": Don't try to use delta join.</li></ul></td>
         </tr>
         <tr>
             <td><h5>table.optimizer.distinct-agg.split.bucket-num</h5><br> <span class="label label-primary">Streaming</span></td>
@@ -60,6 +72,12 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>Configures the maximum size in bytes for a table that will be broadcast to all worker nodes when performing a join. By setting this value to -1 to disable broadcasting.</td>
         </tr>
         <tr>
+            <td><h5>table.optimizer.multi-join.enabled</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Enables a multi-way join operator for a chain of streaming joins. This operator processes multiple inputs at once, reducing the state size considerably by avoiding intermediate results. It supports regular INNER and LEFT joins.<br /><br />Note: This is an experimental feature and not recommended for production just yet. The operator's internal implementation and state layout is subject to changes due to ongoing relevant optimizations. These might break savepoint compatibility across Flink versions and the goal is to have a stable version in the next release.</td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.multiple-input-enabled</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
@@ -72,10 +90,22 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>When it is `TRY_RESOLVE`, the optimizer tries to resolve the correctness issue caused by 'Non-Deterministic Updates' (NDU) in a changelog pipeline. Changelog may contain kinds of message types: Insert (I), Delete (D), Update_Before (UB), Update_After (UA). There's no NDU problem in an insert only changelog pipeline. For updates, there are  three main NDU problems:<br />1. Non-deterministic functions, include scalar, table, aggregate functions, both builtin and custom ones.<br />2. LookupJoin on an evolving source<br />3. Cdc-source carries metadata fields which are system columns, not belongs to the entity data itself.<br /><br />For the first step, the optimizer automatically enables the materialization for No.2(LookupJoin) if needed, and gives the detailed error message for No.1(Non-deterministic functions) and No.3(Cdc-source with metadata) which is relatively easier to solve by changing the SQL.<br />Default value is `IGNORE`, the optimizer does no changes.<br /><br />Possible values:<ul><li>"TRY_RESOLVE"</li><li>"IGNORE"</li></ul></td>
         </tr>
         <tr>
+            <td><h5>table.optimizer.ptf.max-tables</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">20</td>
+            <td>Integer</td>
+            <td>The maximum number of table arguments for a Process Table Function (PTF). In theory, a PTF can accept an arbitrary number of input tables. In practice, however, each input requires reserving network buffers, which impacts memory usage. For this reason, the number of input tables is limited to 20.</td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.reuse-optimize-block-with-digest-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>When true, the optimizer will try to find out duplicated sub-plans by digest to build optimize blocks (a.k.a. common sub-graphs). Each optimize block will be optimized independently.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.reuse-sink-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When it is true, the optimizer will try to find out duplicated table sinks and reuse them. This works only when table.optimizer.reuse-sub-plan-enabled is true.</td>
         </tr>
         <tr>
             <td><h5>table.optimizer.reuse-source-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
@@ -112,6 +142,24 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td style="word-wrap: break-word;">10 gb</td>
             <td>MemorySize</td>
             <td>Min data volume threshold of the runtime filter probe side. Estimated data volume needs to be over this value to try to inject runtime filter.This value should be larger than <code class="highlighter-rouge">table.optimizer.runtime-filter.max-build-data-size</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.skewed-join-optimization.skewed-factor</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">4.0</td>
+            <td>Double</td>
+            <td>When a join operator instance encounters input data that exceeds N times the median size of other concurrent join operator instances, it is considered skewed (where N represents this skewed-factor). In such cases, Flink may automatically split the skewed data into multiple parts to ensure a more balanced data distribution, unless the data volume is below the skewed threshold(defined using table.optimizer.skewed-join-optimization.skewed-threshold).</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.skewed-join-optimization.skewed-threshold</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">256 mb</td>
+            <td>MemorySize</td>
+            <td>When a join operator instance encounters input data that exceeds N times the median size of other concurrent join operator instances, it is considered skewed (where N represents the table.optimizer.skewed-join-optimization.skewed-factor). In such cases, Flink may automatically split the skewed data into multiple parts to ensure a more balanced data distribution, unless the data volume is below this skewed threshold.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.skewed-join-optimization.strategy</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">auto</td>
+            <td><p>Enum</p></td>
+            <td>Flink will handle skew in shuffled joins (sort-merge and hash) at runtime by splitting data according to the skewed join key. The value of this configuration determines how Flink performs this optimization. AUTO means Flink will automatically apply this optimization, FORCED means Flink will enforce this optimization even if it introduces extra hash shuffle, and NONE means this optimization will not be executed.<br /><br />Possible values:<ul><li>"auto":  Flink will automatically perform this optimization.</li><li>"forced": Flink will perform this optimization even if it introduces extra hash shuffling.</li><li>"none": Skewed join optimization will not be performed.</li></ul></td>
         </tr>
         <tr>
             <td><h5>table.optimizer.source.report-statistics-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
