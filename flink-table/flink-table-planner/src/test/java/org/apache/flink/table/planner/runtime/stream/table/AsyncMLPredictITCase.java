@@ -111,6 +111,12 @@ public class AsyncMLPredictITCase extends StreamingWithStateTestBase {
         content2vector.put(
                 Row.of("Fabian"),
                 Collections.singletonList(Row.of((Object) new Float[] {3.0f, 4.0f, 5.0f})));
+        content2vector.put(
+                Row.of("Hello world"),
+                Collections.singletonList(Row.of((Object) new Float[] {4.0f, 5.0f, 6.0f})));
+        content2vector.put(
+                Row.of("Hello world!"),
+                Collections.singletonList(Row.of((Object) new Float[] {5.0f, 6.0f, 7.0f})));
     }
 
     @BeforeEach
