@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.messages.checkpoints;
 
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.runtime.rest.messages.util.stats.StatsSummaryDto;
 import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 
 import org.junit.jupiter.api.extension.ExtendWith;

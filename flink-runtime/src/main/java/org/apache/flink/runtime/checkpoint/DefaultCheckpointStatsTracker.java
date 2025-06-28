@@ -31,6 +31,7 @@ import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.util.LongArrayList;
+import org.apache.flink.runtime.util.stats.StatsSummary;
 import org.apache.flink.traces.Span;
 import org.apache.flink.traces.SpanBuilder;
 
