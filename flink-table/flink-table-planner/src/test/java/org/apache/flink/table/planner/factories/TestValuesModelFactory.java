@@ -60,6 +60,14 @@ public class TestValuesModelFactory implements ModelProviderFactory {
     public static final ConfigOption<Boolean> ASYNC =
             ConfigOptions.key("async").booleanType().defaultValue(false);
 
+    public static final ConfigOption<Integer> LATENCY =
+            ConfigOptions.key("latency")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Latency in milliseconds for async prediction for each row. "
+                                    + "If not set, the default is random between 0ms and 1000ms.");
+
     public static String registerData(Map<Row, List<Row>> data) {
         String id = String.valueOf(idCounter.incrementAndGet());
         REGISTERED_DATA.put(id, data);
@@ -90,7 +98,11 @@ public class TestValuesModelFactory implements ModelProviderFactory {
         if (helper.getOptions().get(ASYNC)) {
             return new AsyncValuesModelProvider(
                     new ValuesPredictFunction(rows, inputConverter, outputConverter),
-                    new AsyncValuesPredictFunction(rows, inputConverter, outputConverter));
+                    new AsyncValuesPredictFunction(
+                            rows,
+                            inputConverter,
+                            outputConverter,
+                            helper.getOptions().getOptional(LATENCY).orElse(null)));
         } else {
             return new ValuesModelProvider(
                     new ValuesPredictFunction(rows, inputConverter, outputConverter));
@@ -109,7 +121,7 @@ public class TestValuesModelFactory implements ModelProviderFactory {
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return new HashSet<>(Arrays.asList(ASYNC, DATA_ID));
+        return new HashSet<>(Arrays.asList(ASYNC, DATA_ID, LATENCY));
     }
 
     private static Map<RowData, List<RowData>> toInternal(
@@ -215,6 +227,7 @@ public class TestValuesModelFactory implements ModelProviderFactory {
         private final Map<Row, List<Row>> data;
         private final RowRowConverter inputConverter;
         private final RowRowConverter outputConverter;
+        private final Integer latency;
 
         private transient Random random;
         private transient Map<RowData, List<RowData>> converted;
@@ -223,10 +236,12 @@ public class TestValuesModelFactory implements ModelProviderFactory {
         public AsyncValuesPredictFunction(
                 Map<Row, List<Row>> data,
                 RowRowConverter inputConverter,
-                RowRowConverter outputConverter) {
+                RowRowConverter outputConverter,
+                Integer latency) {
             this.data = data;
             this.inputConverter = inputConverter;
             this.outputConverter = outputConverter;
+            this.latency = latency;
         }
 
         @Override
@@ -242,7 +257,8 @@ public class TestValuesModelFactory implements ModelProviderFactory {
             return CompletableFuture.supplyAsync(
                     () -> {
                         try {
-                            Thread.sleep(random.nextInt(1000));
+                            int sleepTime = latency == null ? (random.nextInt(1000)) : latency;
+                            Thread.sleep(sleepTime);
                             return Preconditions.checkNotNull(converted.get(features));
                         } catch (Exception e) {
                             throw new RuntimeException("Execution is interrupted.", e);

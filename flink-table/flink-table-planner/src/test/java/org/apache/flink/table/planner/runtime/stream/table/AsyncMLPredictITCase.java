@@ -165,6 +165,7 @@ public class AsyncMLPredictITCase extends StreamingWithStateTestBase {
                                         + "WITH (\n"
                                         + "  'provider' = 'values',"
                                         + "  'data-id' = '%s',"
+                                        + "  'latency' = '1000',"
                                         + "  'async' = 'true'"
                                         + ")",
                                 TestValuesModelFactory.registerData(content2vector)));
