@@ -36,7 +36,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatistics;
-import org.apache.flink.runtime.rest.messages.checkpoints.StatsSummaryDto;
+import org.apache.flink.runtime.rest.messages.util.stats.StatsSummaryDto;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
