@@ -46,8 +46,8 @@ main() {
   local GET_PRS_TEMPLATE='{
   "query":
     "query {
-      repository(owner: \"{{REPO_OWNER}}\" name: \"{{REPO_NAME}}\") {
-        pullRequests(first:100, {{AFTER_CURSOR}} states: [OPEN]) {
+      repository(owner: \"<<REPO_OWNER>>\" name: \"<<REPO_NAME>>\") {
+        pullRequests(first:100, <<AFTER_CURSOR>> states: [OPEN]) {
           edges {
             node {
               number
@@ -151,7 +151,7 @@ process_each_pr() {
     
     # find the node for our pr
     local pr_reviews
-    if [ "$hasNextPage" = "false" ]; then
+    if [[ "$hasNextPage" == "false" ]]; then
       all_reviews="$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | .node.timelineItems.nodes'  <<< "$pullRequests")"
     else
       all_reviews="$(get_all_reviews_for_pr "$token" "$pr_number")" 
@@ -208,18 +208,18 @@ process_pr_reviews() {
 
       #see if the user has read role
 
-      if [ "$push_permission" = 'true' ]; then
-          if [ "$state" = "APPROVED" ]; then
+      if [[ "$push_permission" == "true" ]]; then
+          if [[ "$state" == "APPROVED" ]]; then
              ((++committerApproves))
           fi
      else
           ((++communityReviews))
-          if [ "$state" = "APPROVED" ]; then
+          if [[ "$state" == "APPROVED" ]]; then
              ((++communityApproves))
           fi
      fi
 
-     if [ "$state" = "CHANGES_REQUESTED" ]; then
+     if [[ "$state" == "CHANGES_REQUESTED" ]]; then
         ((++requestForChanges))
      fi
   done <<< "$pr_reviews"
@@ -227,15 +227,15 @@ process_pr_reviews() {
 
   local label_to_post=
   local label_to_delete=
-  if [[ $communityApproves -ge  "2" && $requestForChanges = 0 && $committerApproves = 0 ]]; then
+  if [[ $communityApproves -ge  2 && $requestForChanges = 0 && $committerApproves = 0 ]]; then
     label_to_post=$LGTM_LABEL
     label_to_delete=$COMMUNITY_REVIEW_LABEL
-  elif [[ $communityReviews -gt "0" ]]; then
+  elif [[ $communityReviews -gt 0 ]]; then
     label_to_post=$COMMUNITY_REVIEW_LABEL
     label_to_delete=$LGTM_LABEL
   fi
 
-  if [ -n "$label_to_post" ]; then
+  if [[ -n "$label_to_post" ]]; then
    call_github_mutate_label_api "$token" "$label_to_delete" "DELETE" "$pr_number" || exit
    call_github_mutate_label_api "$token" "$label_to_post" "POST" "$pr_number" || exit
   fi
@@ -271,11 +271,11 @@ get_all_reviews_for_pr() {
   local GET_REVIEWS_TEMPLATE='{
   "query":
     "query {
-      repository(owner: \"{{REPO_OWNER}}\" name: \"{{REPO_NAME}}\") {
-        pullRequest(number: {{PR_NUMBER}}) {
+      repository(owner: \"<<REPO_OWNER>>\" name: \"<<REPO_NAME>>\") {
+        pullRequest(number: <<PR_NUMBER>>) {
           id
           number
-          timelineItems(first: 100 {{AFTER_CURSOR}} itemTypes: [PULL_REQUEST_REVIEW] ) {
+          timelineItems(first: 100 <<AFTER_CURSOR>> itemTypes: [PULL_REQUEST_REVIEW] ) {
             nodes {
               ... on PullRequestReview {
                 author {
@@ -300,11 +300,9 @@ get_all_reviews_for_pr() {
   payloadTemplate="$(replace_template_value "$payloadTemplate" "REPO_NAME" "${REPO_NAME}")"
   payloadTemplate="$(replace_template_value "$payloadTemplate" "PR_NUMBER" "${pr_number}")"
 
-  local count=-1
   local all_reviews_for_pr=""
-  while [ "$hasNextPage" = "true" ]
+  while [[ "$hasNextPage" == "true" ]]
   do
-    ((++count))
     if [[ -n $cursor ]]; then
        payload="$(replace_template_value "$payloadTemplate" 'AFTER_CURSOR' "after: \\\\\"$cursor\\\\\", ")"
     else
@@ -363,7 +361,7 @@ check_github_graphql_response() {
   if jq -e . >/dev/null 2>&1 <<<"$response"; then
     # The cURL request can be successful, but still return an error if the data it receives is
     # incorrect, such as a malformed payload.
-    if [ "$(jq 'has("errors") and .errors != null' <<< "$response")" = "true" ]; then
+    if [[ "$(jq 'has("errors") and .errors != null' <<< "$response")" == "true" ]]; then
       # display the error and terminate
       echo "ERROR received: $response"; exit 1;
     fi
@@ -374,7 +372,7 @@ check_github_graphql_response() {
 }
 
 # =============================================================================
-# Replaces a placeholder string {{PLACEHOLDER}} in a template with a specified value in a template.
+# Replaces a placeholder string <<PLACEHOLDER>> in a template with a specified value in a template.
 # Expected arguments 
 #   $1 - The template string.
 #   $2 - The placeholder string to replace.
@@ -382,9 +380,9 @@ check_github_graphql_response() {
 # =============================================================================
 replace_template_value() {
   local text=${1?missing text to update}
-  local templateName=${2?missing template nam}
+  local templateName=${2?missing template name}
   local value=${3?missing value}
-  echo "$text" | sed -r "s/{{${templateName}}}/${value}/"
+  echo "$text" | sed -r "s/<<${templateName}>>/${value}/"
 }
 
 # =============================================================================
@@ -440,7 +438,7 @@ call_github_get_user_push_permission() {
   local file_name=$USER_CACHE_FILENAME
   local permissions
   local push_permission
-  if [ -e "$file_name" ]; then
+  if [[ -e "$file_name" ]]; then
 
     while IFS=, read -r user_from_file pushperm_from_file
     do
@@ -452,7 +450,7 @@ call_github_get_user_push_permission() {
     done < $file_name
   fi
 
-  if [ -z "$push_permission" ]; then
+  if [[ -z "$push_permission" ]]; then
     # not in the cache so get it from github
     permissions=$(curl --fail --no-progress-meter \
       -H "Accept: application/json" \

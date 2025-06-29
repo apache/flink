@@ -19,12 +19,12 @@
 name: "Flink community review"
 description: "Flink community review to showcase the review activity of non-committers"
 
-# currently once a minute
+# 3 times a day
 on:
   schedule:
-    - cron: '* * * * *'
+    - cron: '00 00,08,16 * * *'
 
-# same permission as stale github action
+# Same permission as stale Github action
 permissions:
   issues: write
   pull-requests: write
