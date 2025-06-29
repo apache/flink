@@ -39,8 +39,10 @@ import javax.annotation.Nonnull;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Spliterators;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -223,14 +225,15 @@ public abstract class StateTable<K, N, S>
      */
     public <T> void transformAll(T value, StateTransformationFunction<S, T> transformation)
             throws Exception {
-        final Iterator<StateEntry<K, N, S>> iterator = iterator();
-        while (iterator.hasNext()) {
-            StateEntry<K, N, S> entry = iterator.next();
-            StateMap<K, N, S> stateMap =
-                    getMapForKeyGroup(
-                            KeyGroupRangeAssignment.assignToKeyGroup(
-                                    entry.getKey(), keyContext.getNumberOfKeyGroups()));
-            stateMap.transform(entry.getKey(), entry.getNamespace(), value, transformation);
+        for (StateMap<K, N, S> stateMap : keyGroupedStateMaps) {
+            List<StateEntry<K, N, S>> entries =
+                    StreamSupport.stream(
+                                    Spliterators.spliteratorUnknownSize(stateMap.iterator(), 0),
+                                    false)
+                            .collect(Collectors.toList());
+            for (StateEntry<K, N, S> entry : entries) {
+                stateMap.transform(entry.getKey(), entry.getNamespace(), value, transformation);
+            }
         }
     }
 
