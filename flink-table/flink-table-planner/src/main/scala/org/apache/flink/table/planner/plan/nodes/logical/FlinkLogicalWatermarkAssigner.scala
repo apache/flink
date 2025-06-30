@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalWatermarkAssigner, WatermarkAssigner}
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalWatermarkAssigner, WatermarkAssigner, WatermarkUtils}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -61,7 +61,7 @@ class FlinkLogicalWatermarkAssigner(
       input,
       hints,
       rowtimeFieldIndex,
-      watermarkExpr)
+      WatermarkUtils.simplify(cluster, watermarkExpr))
   }
 }
 
@@ -97,6 +97,6 @@ object FlinkLogicalWatermarkAssigner {
       input,
       Collections.emptyList(),
       rowtimeFieldIndex,
-      watermarkExpr)
+      WatermarkUtils.simplify(cluster, watermarkExpr))
   }
 }

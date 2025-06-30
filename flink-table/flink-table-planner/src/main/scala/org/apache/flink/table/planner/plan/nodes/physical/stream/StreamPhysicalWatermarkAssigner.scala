@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.calcite.WatermarkAssigner
+import org.apache.flink.table.planner.plan.nodes.calcite.{WatermarkAssigner, WatermarkUtils}
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
@@ -74,7 +74,7 @@ class StreamPhysicalWatermarkAssigner(
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecWatermarkAssigner(
       unwrapTableConfig(this),
-      watermarkExpr,
+      WatermarkUtils.simplify(cluster, watermarkExpr),
       rowtimeFieldIndex,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
@@ -88,6 +88,6 @@ class StreamPhysicalWatermarkAssigner(
       input,
       hints,
       rowtimeFieldIndex,
-      watermarkExpr)
+      WatermarkUtils.simplify(cluster, watermarkExpr))
   }
 }

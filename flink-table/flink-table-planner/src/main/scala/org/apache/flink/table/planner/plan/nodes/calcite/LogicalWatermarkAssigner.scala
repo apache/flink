@@ -61,6 +61,12 @@ object LogicalWatermarkAssigner {
       rowtimeFieldIndex: Int,
       watermarkExpr: RexNode): LogicalWatermarkAssigner = {
     val traits = cluster.traitSetOf(Convention.NONE)
-    new LogicalWatermarkAssigner(cluster, traits, input, hints, rowtimeFieldIndex, watermarkExpr)
+    new LogicalWatermarkAssigner(
+      cluster,
+      traits,
+      input,
+      hints,
+      rowtimeFieldIndex,
+      WatermarkUtils.simplify(cluster, watermarkExpr))
   }
 }
