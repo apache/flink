@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
 import org.apache.flink.table.types.logical.BigIntType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
@@ -40,18 +40,18 @@ class FunctionParamSerdeTest {
         ObjectReader objectReader = CompiledPlanSerdeUtil.createJsonObjectReader(serdeCtx);
         ObjectWriter objectWriter = CompiledPlanSerdeUtil.createJsonObjectWriter(serdeCtx);
 
-        FunctionCallUtils.FunctionParam[] functionParams =
-                new FunctionCallUtils.FunctionParam[] {
-                    new FunctionCallUtils.Constant(
+        FunctionCallUtil.FunctionParam[] functionParams =
+                new FunctionCallUtil.FunctionParam[] {
+                    new FunctionCallUtil.Constant(
                             new BigIntType(),
                             new RexBuilder(serdeCtx.getTypeFactory()).makeLiteral("a")),
-                    new FunctionCallUtils.FieldRef(3)
+                    new FunctionCallUtil.FieldRef(3)
                 };
-        for (FunctionCallUtils.FunctionParam param : functionParams) {
-            FunctionCallUtils.FunctionParam result =
+        for (FunctionCallUtil.FunctionParam param : functionParams) {
+            FunctionCallUtil.FunctionParam result =
                     objectReader.readValue(
                             objectWriter.writeValueAsString(param),
-                            FunctionCallUtils.FunctionParam.class);
+                            FunctionCallUtil.FunctionParam.class);
             assertThat(result).isEqualTo(param);
         }
     }

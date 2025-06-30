@@ -138,7 +138,7 @@ public class DeltaJoinUtil {
         Preconditions.checkState(lookupRelOptTable instanceof TableSourceTable);
         final TableSourceTable lookupTable = (TableSourceTable) lookupRelOptTable;
 
-        Map<Integer, FunctionCallUtils.FunctionParam> allLookupKeys =
+        Map<Integer, FunctionCallUtil.FunctionParam> allLookupKeys =
                 analyzerDeltaJoinLookupKeys(streamToLookupJoinKeys);
 
         return new DeltaJoinSpec(
@@ -203,12 +203,12 @@ public class DeltaJoinUtil {
      *
      * @param streamToLookupJoinKeys the join keys from stream side to lookup side
      */
-    private static Map<Integer, FunctionCallUtils.FunctionParam> analyzerDeltaJoinLookupKeys(
+    private static Map<Integer, FunctionCallUtil.FunctionParam> analyzerDeltaJoinLookupKeys(
             List<IntPair> streamToLookupJoinKeys) {
-        Map<Integer, FunctionCallUtils.FunctionParam> allFieldRefLookupKeys = new LinkedHashMap<>();
+        Map<Integer, FunctionCallUtil.FunctionParam> allFieldRefLookupKeys = new LinkedHashMap<>();
         for (IntPair intPair : streamToLookupJoinKeys) {
             allFieldRefLookupKeys.put(
-                    intPair.target, new FunctionCallUtils.FieldRef(intPair.source));
+                    intPair.target, new FunctionCallUtil.FieldRef(intPair.source));
         }
         return allFieldRefLookupKeys;
     }

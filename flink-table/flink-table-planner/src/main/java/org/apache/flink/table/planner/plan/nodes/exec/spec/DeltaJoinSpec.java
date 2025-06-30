@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeltaJoin;
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
@@ -50,7 +50,7 @@ public class DeltaJoinSpec {
 
     /** The map between lookup column index of the dim table and stream side's related key. */
     @JsonProperty(FIELD_NAME_LOOKUP_KEYS)
-    private final Map<Integer, FunctionCallUtils.FunctionParam> lookupKeyMap;
+    private final Map<Integer, FunctionCallUtil.FunctionParam> lookupKeyMap;
 
     /** join condition except equi-conditions extracted as lookup keys. */
     @JsonProperty(FIELD_NAME_REMAINING_CONDITION)
@@ -60,7 +60,7 @@ public class DeltaJoinSpec {
     public DeltaJoinSpec(
             @JsonProperty(FIELD_NAME_LOOKUP_TABLE) TemporalTableSourceSpec lookupTable,
             @JsonProperty(FIELD_NAME_LOOKUP_KEYS)
-                    Map<Integer, FunctionCallUtils.FunctionParam> lookupKeyMap,
+                    Map<Integer, FunctionCallUtil.FunctionParam> lookupKeyMap,
             @JsonProperty(FIELD_NAME_REMAINING_CONDITION) @Nullable RexNode remainingCondition) {
         this.lookupKeyMap = lookupKeyMap;
         this.lookupTable = lookupTable;
@@ -73,7 +73,7 @@ public class DeltaJoinSpec {
     }
 
     @JsonIgnore
-    public Map<Integer, FunctionCallUtils.FunctionParam> getLookupKeyMap() {
+    public Map<Integer, FunctionCallUtil.FunctionParam> getLookupKeyMap() {
         return lookupKeyMap;
     }
 
