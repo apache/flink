@@ -23,3 +23,4 @@ org.apache.flink.table.planner.factories.TestSupportsStagingTableFactory
 org.apache.flink.table.planner.factories.TestProcedureCatalogFactory
 org.apache.flink.table.planner.utils.TestSimpleDynamicTableSourceFactory
 org.apache.flink.table.planner.factories.TestValuesModelFactory
+org.apache.flink.table.planner.factories.PlainTestCatalogFactory

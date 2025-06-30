@@ -133,6 +133,45 @@ public abstract class TableLineageGraphTestBase extends TableTestBase {
         verify(lineageGraph, isBatchMode() ? "union-batch.json" : "union-stream.json");
     }
 
+    @Test
+    void testWithNonAbstractCatalog() throws Exception {
+        util.getTableEnv()
+                .executeSql(
+                        "CREATE CATALOG MyPlainCat with ( "
+                                + " 'type' = 'test-plain-catalog', "
+                                + " 'default-database' = 'MyDatabase')");
+        util.getTableEnv().executeSql("USE CATALOG MyPlainCat");
+
+        util.getTableEnv()
+                .executeSql(
+                        "CREATE TABLE Src (\n"
+                                + "  a BIGINT,\n"
+                                + "  b INT NOT NULL\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'bounded' = '"
+                                + isBatchMode()
+                                + "')");
+
+        util.getTableEnv()
+                .executeSql(
+                        "CREATE TABLE Snk (\n"
+                                + "  b INT NOT NULL,\n"
+                                + "  a BIGINT\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'bounded' = '"
+                                + isBatchMode()
+                                + "')");
+
+        List<Transformation<?>> transformations =
+                util.generateTransformations("INSERT INTO Snk SELECT b, a FROM Src");
+        LineageGraph lineageGraph = generateLineageGraph(transformations);
+        verify(
+                lineageGraph,
+                isBatchMode() ? "plain-catalog-batch.json" : "plain-catalog-stream.json");
+    }
+
     private LineageGraph generateLineageGraph(List<Transformation<?>> transformations) {
         StreamGraphGenerator streamGraphGenerator =
                 new StreamGraphGenerator(
