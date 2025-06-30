@@ -48,8 +48,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
@@ -154,10 +152,7 @@ public class AdaptiveSchedulerTestBase {
                         () ->
                                 TestingFreeSlotTracker.newBuilder()
                                         .setGetFreeSlotsInformationSupplier(
-                                                () ->
-                                                        IntStream.range(0, freeSlots)
-                                                                .mapToObj(v -> new TestingSlot())
-                                                                .collect(Collectors.toSet()))
+                                                () -> TestingSlot.getSlots(freeSlots))
                                         .build())
                 .build();
     }
