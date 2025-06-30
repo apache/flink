@@ -33,9 +33,9 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.MLPredictSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.ModelSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FunctionParam;
-import org.apache.flink.table.planner.plan.utils.MLPredictUtils;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.FunctionParam;
+import org.apache.flink.table.planner.plan.utils.MLPredictUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -142,7 +142,7 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
                                                             "Field %s is not found in input schema: %s.",
                                                             fieldName, tableCall.getType()));
                                         }
-                                        return new FunctionCallUtils.FieldRef(index);
+                                        return new FunctionCallUtil.FieldRef(index);
                                     } else {
                                         throw new TableException(
                                                 String.format(
@@ -160,11 +160,11 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
         return modelSpec;
     }
 
-    private @Nullable FunctionCallUtils.AsyncOptions buildAsyncOptions(
+    private @Nullable FunctionCallUtil.AsyncOptions buildAsyncOptions(
             RexModelCall modelCall, Map<String, String> runtimeConfig) {
         boolean isAsyncEnabled = isAsyncMLPredict(modelCall.getModelProvider(), runtimeConfig);
         if (isAsyncEnabled) {
-            return MLPredictUtils.getMergedMLPredictAsyncOptions(
+            return MLPredictUtil.getMergedMLPredictAsyncOptions(
                     runtimeConfig, ShortcutUtils.unwrapTableConfig(getCluster()));
         } else {
             return null;

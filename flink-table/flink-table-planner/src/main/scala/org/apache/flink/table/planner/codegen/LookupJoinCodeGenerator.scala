@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.verifyFunctionAwareImplementation
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.inference.LookupCallContext
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.{Constant, FieldRef, FunctionParam}
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.{Constant, FieldRef, FunctionParam}
 import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.{ListenableCollector, TableFunctionResultFuture}

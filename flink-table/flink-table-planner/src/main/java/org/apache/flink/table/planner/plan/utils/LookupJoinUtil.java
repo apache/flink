@@ -104,7 +104,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Utilities for lookup joins using {@link LookupTableSource}. */
 @Internal
-public final class LookupJoinUtil extends FunctionCallUtils {
+public final class LookupJoinUtil extends FunctionCallUtil {
 
     /** ShuffleLookupOptions includes shuffle related options. */
     @JsonIgnoreProperties(ignoreUnknown = true)

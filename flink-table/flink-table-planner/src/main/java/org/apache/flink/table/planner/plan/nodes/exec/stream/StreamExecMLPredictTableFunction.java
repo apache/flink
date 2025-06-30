@@ -54,7 +54,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTran
 import org.apache.flink.table.planner.plan.nodes.exec.spec.MLPredictSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.ModelSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.collector.ListenableCollector;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
@@ -105,13 +105,13 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
     private final ModelSpec modelSpec;
 
     @JsonProperty(FIELD_NAME_ASYNC_OPTIONS)
-    private final @Nullable FunctionCallUtils.AsyncOptions asyncOptions;
+    private final @Nullable FunctionCallUtil.AsyncOptions asyncOptions;
 
     public StreamExecMLPredictTableFunction(
             ReadableConfig persistedConfig,
             MLPredictSpec mlPredictSpec,
             ModelSpec modelSpec,
-            @Nullable FunctionCallUtils.AsyncOptions asyncOptions,
+            @Nullable FunctionCallUtil.AsyncOptions asyncOptions,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -135,7 +135,7 @@ public class StreamExecMLPredictTableFunction extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_ML_PREDICT_SPEC) MLPredictSpec mlPredictSpec,
             @JsonProperty(FIELD_NAME_MODEL_SPEC) ModelSpec modelSpec,
             @JsonProperty(FIELD_NAME_ASYNC_OPTIONS) @Nullable
-                    FunctionCallUtils.AsyncOptions asyncOptions,
+                    FunctionCallUtil.AsyncOptions asyncOptions,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {

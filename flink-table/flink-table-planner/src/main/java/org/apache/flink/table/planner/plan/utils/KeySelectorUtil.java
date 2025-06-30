@@ -106,7 +106,7 @@ public class KeySelectorUtil {
      */
     public static RowDataKeySelector getLookupKeysSelectorFromLeftTable(
             ClassLoader classLoader,
-            Map<Integer, FunctionCallUtils.FunctionParam> lookupKeysOfRightTable,
+            Map<Integer, FunctionCallUtil.FunctionParam> lookupKeysOfRightTable,
             InternalTypeInfo<RowData> leftTableRowType) {
         LogicalType[] inputFieldTypes = leftTableRowType.toRowFieldTypes();
         int[] lookupKeyIndicesInOrder =
@@ -115,18 +115,18 @@ public class KeySelectorUtil {
         int[] inputMapping = new int[lookupKeysOfRightTable.size()];
         Arrays.fill(inputMapping, ProjectionCodeGenerator.EMPTY_INPUT_MAPPING_VALUE());
         // 2. Generate all lookup keys in order.
-        FunctionCallUtils.FunctionParam[] orderedLookupKeys =
-                new FunctionCallUtils.FunctionParam[lookupKeyIndicesInOrder.length];
+        FunctionCallUtil.FunctionParam[] orderedLookupKeys =
+                new FunctionCallUtil.FunctionParam[lookupKeyIndicesInOrder.length];
         // 3. Generate the logical types of all lookup keys.
         LogicalType[] orderedLookupKeyLogicalTypes = new LogicalType[lookupKeysOfRightTable.size()];
         int cnt = 0;
         for (int idx : lookupKeyIndicesInOrder) {
-            FunctionCallUtils.FunctionParam key = lookupKeysOfRightTable.get(idx);
-            if (key instanceof FunctionCallUtils.Constant) {
-                LogicalType keyType = ((FunctionCallUtils.Constant) key).sourceType;
+            FunctionCallUtil.FunctionParam key = lookupKeysOfRightTable.get(idx);
+            if (key instanceof FunctionCallUtil.Constant) {
+                LogicalType keyType = ((FunctionCallUtil.Constant) key).sourceType;
                 orderedLookupKeyLogicalTypes[cnt] = keyType;
-            } else if (key instanceof FunctionCallUtils.FieldRef) {
-                int leftIdx = ((FunctionCallUtils.FieldRef) key).index;
+            } else if (key instanceof FunctionCallUtil.FieldRef) {
+                int leftIdx = ((FunctionCallUtil.FieldRef) key).index;
                 inputMapping[cnt] = leftIdx;
                 orderedLookupKeyLogicalTypes[cnt] = inputFieldTypes[leftIdx];
             } else {

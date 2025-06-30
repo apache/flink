@@ -30,7 +30,7 @@ import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.AS
 import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC_TIMEOUT;
 
 /** Utils for {@code ML_PREDICT}. */
-public class MLPredictUtils extends FunctionCallUtils {
+public class MLPredictUtil extends FunctionCallUtil {
 
     public static AsyncOptions getMergedMLPredictAsyncOptions(
             Map<String, String> runtimeConfig, TableConfig config) {

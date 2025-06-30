@@ -43,9 +43,9 @@ import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTransl
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DeltaJoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.DeltaJoinUtil;
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.AsyncOptions;
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FunctionParam;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.AsyncOptions;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.FunctionParam;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -348,7 +348,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
 
         RowType resultRowType = (RowType) getOutputType();
 
-        List<FunctionCallUtils.FunctionParam> convertedKeys =
+        List<FunctionCallUtil.FunctionParam> convertedKeys =
                 Arrays.stream(LookupJoinUtil.getOrderedLookupKeys(lookupKeys.keySet()))
                         .mapToObj(lookupKeys::get)
                         .collect(Collectors.toList());

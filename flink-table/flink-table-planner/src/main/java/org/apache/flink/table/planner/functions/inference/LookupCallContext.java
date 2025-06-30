@@ -21,8 +21,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.functions.UserDefinedFunction;
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.Constant;
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FunctionParam;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.Constant;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.FunctionParam;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.table.functions.UserDefinedFunctionHelper.generateInlineFunctionName;
-import static org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FieldRef;
+import static org.apache.flink.table.planner.plan.utils.FunctionCallUtil.FieldRef;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
