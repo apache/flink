@@ -1,0 +1,43 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This workflow is meant for as a basic CI run covering the most-important features
+# and default Java version. It is meant to run before a PullRequest is merged.
+
+name: "Flink community review"
+description: "Flink community review to showcase the review activity of non-committers"
+
+# 3 times a day
+on:
+  schedule:
+    - cron: '00 00,08,16 * * *'
+
+# Same permission as stale Github action
+permissions:
+  issues: write
+  pull-requests: write
+  actions: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      -  run: |
+            chmod +x ${{ github.workspace }}/.github/workflows/community-review.sh
+      - name: Run community review script to set labels
+        shell: bash
+        env:
+          token: ${{ secrets.GITHUB_TOKEN }}
+        run: bash ${{ github.workspace }}/.github/workflows/community-review.sh "$token"
