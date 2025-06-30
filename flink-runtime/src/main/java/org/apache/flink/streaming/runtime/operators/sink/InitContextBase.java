@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -29,7 +30,8 @@ import java.util.OptionalLong;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Base implementation for the {@link InitContext}. */
-class InitContextBase implements InitContext {
+@Internal
+public class InitContextBase implements InitContext {
 
     private final OptionalLong restoredCheckpointId;
 
@@ -55,7 +57,7 @@ class InitContextBase implements InitContext {
         return runtimeContext.getTaskInfo();
     }
 
-    RuntimeContext getRuntimeContext() {
+    public RuntimeContext getRuntimeContext() {
         return runtimeContext;
     }
 }
