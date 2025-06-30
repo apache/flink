@@ -227,7 +227,7 @@ process_pr_reviews() {
 
   local label_to_post=
   local label_to_delete=
-  if [[ $communityApproves -ge 2 && $requestForChanges = 0 && $committerApproves = 0 ]]; then
+  if [[ $communityApproves -ge 2 && $requestForChanges -eq 0 && $committerApproves -eq 0 ]]; then
     label_to_post=$LGTM_LABEL
     label_to_delete=$COMMUNITY_REVIEW_LABEL
   elif [[ $communityReviews -gt 0 ]]; then
