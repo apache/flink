@@ -36,7 +36,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AsyncScalarUtil;
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.operators.calc.async.AsyncFunctionRunner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -153,7 +153,7 @@ public abstract class CommonExecAsyncCalc extends ExecNodeBase<RowData>
                         config,
                         classLoader);
         AsyncFunctionRunner func = new AsyncFunctionRunner(generatedFunction);
-        FunctionCallUtils.AsyncOptions options = AsyncScalarUtil.getAsyncOptions(config);
+        FunctionCallUtil.AsyncOptions options = AsyncScalarUtil.getAsyncOptions(config);
         return new AsyncWaitOperatorFactory<>(
                 func,
                 options.asyncTimeout,

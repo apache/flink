@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DeltaJoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeltaJoin;
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -87,8 +87,8 @@ public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel,
     @Override
     public ExecNode<?> translateToExecNode() {
         TableConfig config = unwrapTableConfig(this);
-        FunctionCallUtils.AsyncOptions asyncLookupOptions =
-                new FunctionCallUtils.AsyncOptions(
+        FunctionCallUtil.AsyncOptions asyncLookupOptions =
+                new FunctionCallUtil.AsyncOptions(
                         config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY),
                         config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT)
                                 .toMillis(),
