@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
@@ -69,7 +70,7 @@ class DefaultSlotAssignerTest {
     @Parameter int parallelism;
 
     @Parameter(value = 1)
-    Collection<? extends SlotInfo> freeSlots;
+    Collection<PhysicalSlot> freeSlots;
 
     @Parameter(value = 2)
     List<TaskManagerLocation> expectedTaskManagerLocations;
@@ -77,7 +78,10 @@ class DefaultSlotAssignerTest {
     @TestTemplate
     void testPickSlotsIfNeeded() {
         final DefaultSlotAssigner slotAssigner =
-                new DefaultSlotAssigner(APPLICATION_MODE_EXECUTION_TARGET, true);
+                new DefaultSlotAssigner(
+                        APPLICATION_MODE_EXECUTION_TARGET,
+                        true,
+                        SimpleRequestSlotMatchingStrategy.INSTANCE);
         final Set<TaskManagerLocation> keptTaskExecutors =
                 slotAssigner.pickSlotsIfNeeded(parallelism, freeSlots).stream()
                         .map(SlotInfo::getTaskManagerLocation)
