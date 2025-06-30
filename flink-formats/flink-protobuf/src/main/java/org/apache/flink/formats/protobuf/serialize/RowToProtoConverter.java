@@ -53,9 +53,17 @@ public class RowToProtoConverter {
     private static final Logger LOG = LoggerFactory.getLogger(ProtoToRowConverter.class);
     private final Method encodeMethod;
     private boolean isCodeSplit = false;
+    private MessageSerializer messageSerializer;
 
     public RowToProtoConverter(RowType rowType, PbFormatConfig formatConfig)
             throws PbCodegenException {
+        this(rowType, formatConfig, new BaseMessageSerializer());
+    }
+
+    public RowToProtoConverter(
+            RowType rowType, PbFormatConfig formatConfig, MessageSerializer messageSerializer)
+            throws PbCodegenException {
+        this.messageSerializer = messageSerializer;
         try {
             Descriptors.Descriptor descriptor =
                     PbFormatUtils.getDescriptor(formatConfig.getMessageClassName());
@@ -115,7 +123,7 @@ public class RowToProtoConverter {
 
     public byte[] convertRowToProtoBinary(RowData rowData) throws Exception {
         AbstractMessage message = (AbstractMessage) encodeMethod.invoke(null, rowData);
-        return message.toByteArray();
+        return messageSerializer.serialize(message);
     }
 
     @VisibleForTesting
