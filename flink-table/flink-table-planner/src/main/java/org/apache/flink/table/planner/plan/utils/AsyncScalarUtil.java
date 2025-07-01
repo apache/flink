@@ -37,7 +37,7 @@ import static org.apache.flink.table.runtime.operators.calc.async.RetryPredicate
 import static org.apache.flink.table.runtime.operators.calc.async.RetryPredicates.EMPTY_RESPONSE;
 
 /** Contains utilities for {@link org.apache.flink.table.functions.AsyncScalarFunction}. */
-public class AsyncScalarUtil extends FunctionCallUtils {
+public class AsyncScalarUtil extends FunctionCallUtil {
 
     /**
      * Checks whether it contains the specified kind of async function call in the specified node.

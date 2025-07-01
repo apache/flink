@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils.FunctionParam;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.FunctionParam;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
