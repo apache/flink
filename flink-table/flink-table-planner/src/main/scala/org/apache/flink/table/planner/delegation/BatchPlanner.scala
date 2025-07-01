@@ -71,7 +71,7 @@ class BatchPlanner(
 
   override protected def getOptimizer: Optimizer = new BatchCommonSubGraphBasedOptimizer(this)
 
-  override protected def getExecNodeGraphProcessors: Seq[ExecNodeGraphProcessor] = {
+  override def getExecNodeGraphProcessors: Seq[ExecNodeGraphProcessor] = {
     val processors = new util.ArrayList[ExecNodeGraphProcessor]()
     // deadlock breakup
     processors.add(new DeadlockBreakupProcessor())

@@ -73,7 +73,7 @@ class StreamPlanner(
 
   override protected def getOptimizer: Optimizer = new StreamCommonSubGraphBasedOptimizer(this)
 
-  override protected def getExecNodeGraphProcessors: Seq[ExecNodeGraphProcessor] = Seq()
+  override def getExecNodeGraphProcessors: Seq[ExecNodeGraphProcessor] = Seq()
 
   override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
     beforeTranslation()
