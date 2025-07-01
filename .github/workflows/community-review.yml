@@ -30,7 +30,7 @@ permissions:
   pull-requests: write
   actions: write
 jobs:
-  test:
+  label:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
