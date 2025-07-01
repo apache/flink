@@ -111,7 +111,7 @@ class TableLineageUtilsTest {
         assertThat(lineageDataset).isInstanceOf(TableLineageDatasetImpl.class);
 
         TableLineageDatasetImpl tableLineageDataset = (TableLineageDatasetImpl) lineageDataset;
-        assertThat(tableLineageDataset.catalogContext().getCatalogName()).isEqualTo("");
+        assertThat(tableLineageDataset.catalogContext().getCatalogName()).isEmpty();
         assertThat(tableLineageDataset.name()).isEqualTo(objectIdentifier.asSummaryString());
     }
 }
