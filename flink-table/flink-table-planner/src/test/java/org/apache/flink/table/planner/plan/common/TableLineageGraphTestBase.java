@@ -172,6 +172,19 @@ public abstract class TableLineageGraphTestBase extends TableTestBase {
                 isBatchMode() ? "plain-catalog-batch.json" : "plain-catalog-stream.json");
     }
 
+    @Test
+    void testWithoutCatalog() throws Exception {
+        util.getTableEnv().executeSql("CREATE TEMPORARY TABLE Src LIKE FirstTable");
+        util.getTableEnv().executeSql("CREATE TEMPORARY TABLE Snk LIKE SecondTable");
+
+        List<Transformation<?>> transformations =
+                util.generateTransformations("INSERT INTO Snk SELECT * FROM Src");
+        LineageGraph lineageGraph = generateLineageGraph(transformations);
+        verify(
+                lineageGraph,
+                isBatchMode() ? "without-catalog-batch.json" : "without-catalog-stream.json");
+    }
+
     private LineageGraph generateLineageGraph(List<Transformation<?>> transformations) {
         StreamGraphGenerator streamGraphGenerator =
                 new StreamGraphGenerator(
