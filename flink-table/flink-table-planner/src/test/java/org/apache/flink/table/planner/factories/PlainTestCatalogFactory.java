@@ -208,8 +208,10 @@ public class PlainTestCatalogFactory implements CatalogFactory {
         @Override
         public List<CatalogPartitionSpec> listPartitions(
                 ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-                throws TableNotExistException, TableNotPartitionedException,
-                        PartitionSpecInvalidException, CatalogException {
+                throws TableNotExistException,
+                        TableNotPartitionedException,
+                        PartitionSpecInvalidException,
+                        CatalogException {
             return innerCatalog.listPartitions(tablePath, partitionSpec);
         }
 
@@ -239,8 +241,10 @@ public class PlainTestCatalogFactory implements CatalogFactory {
                 CatalogPartitionSpec partitionSpec,
                 CatalogPartition partition,
                 boolean ignoreIfExists)
-                throws TableNotExistException, TableNotPartitionedException,
-                        PartitionSpecInvalidException, PartitionAlreadyExistsException,
+                throws TableNotExistException,
+                        TableNotPartitionedException,
+                        PartitionSpecInvalidException,
+                        PartitionAlreadyExistsException,
                         CatalogException {
             innerCatalog.createPartition(tablePath, partitionSpec, partition, ignoreIfExists);
         }
