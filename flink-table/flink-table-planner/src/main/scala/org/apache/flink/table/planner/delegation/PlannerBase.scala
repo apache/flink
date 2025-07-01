@@ -436,7 +436,7 @@ abstract class PlannerBase(
     processors.foldLeft(execGraph)((graph, processor) => processor.process(graph, context))
   }
 
-  protected def getExecNodeGraphProcessors: Seq[ExecNodeGraphProcessor]
+  def getExecNodeGraphProcessors: Seq[ExecNodeGraphProcessor]
 
   /**
    * Translates an [[ExecNodeGraph]] into a [[Transformation]] DAG.
