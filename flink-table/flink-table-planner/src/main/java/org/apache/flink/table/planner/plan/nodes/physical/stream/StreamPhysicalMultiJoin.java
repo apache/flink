@@ -167,6 +167,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         final RexNode multiJoinCondition = createMultiJoinCondition();
         final List<List<int[]>> inputUpsertKeys = getUpsertKeysForInputs();
         final List<FlinkJoinType> execJoinTypes = getExecJoinTypes();
+        final List<InputProperty> inputProperties = createInputProperties();
 
         return new StreamExecMultiJoin(
                 unwrapTableConfig(this),
@@ -177,7 +178,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                 inputUpsertKeys,
                 Collections.emptyMap(), // TODO Enable hint-based state ttl. See ticket
                 // TODO https://issues.apache.org/jira/browse/FLINK-37936
-                inputs.stream().map(i -> InputProperty.DEFAULT).collect(Collectors.toList()),
+                inputProperties,
                 FlinkTypeFactory.toLogicalRowType(getRowType()),
                 getRelDetailedDescription());
     }
@@ -263,7 +264,31 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         }
 
         final ImmutableBitSet commonJoinKeys = ImmutableBitSet.of(commonJoinKeyIndices);
-
         return inputUniqueKeys.stream().anyMatch(uniqueKey -> uniqueKey.contains(commonJoinKeys));
+    }
+
+    private List<InputProperty> createInputProperties() {
+        final List<InputProperty> inputProperties = new ArrayList<>();
+
+        for (int i = 0; i < inputs.size(); i++) {
+            final InputProperty inputProperty = createHashDistributedInputProperty(i);
+            inputProperties.add(inputProperty);
+        }
+
+        return inputProperties;
+    }
+
+    private InputProperty createHashDistributedInputProperty(final int inputIndex) {
+        final int[] commonJoinKeyIndices = keyExtractor.getCommonJoinKeyIndices(inputIndex);
+
+        if (commonJoinKeyIndices.length > 0) {
+            return InputProperty.builder()
+                    .requiredDistribution(InputProperty.hashDistribution(commonJoinKeyIndices))
+                    .damBehavior(InputProperty.DamBehavior.PIPELINED)
+                    .priority(inputIndex)
+                    .build();
+        } else {
+            return InputProperty.DEFAULT;
+        }
     }
 }
