@@ -87,30 +87,29 @@ main() {
   local hasNextPage=true
   local cursor=""
   local payload
-  
+
   echo "=== Community review GitHub Action ==="
-  while [ "$hasNextPage" = "true" ]
-  do
-      if [[ -n $cursor ]]; then
-        # we have a cursor - so need to page
-        payload="$(replace_template_value "$payloadTemplate" 'AFTER_CURSOR' "after: \\\\\"$cursor\\\\\",")"
-      else
-        # no cursor so no need to page
-        payload="$(replace_template_value "$payloadTemplate" 'AFTER_CURSOR' '')"
-      fi
-      restResponse="$(call_github_graphql_api "$token" "$payload")"
-      check_github_graphql_response "$restResponse"
-      receivedPullRequests="$(jq '.data.repository.pullRequests.edges' <<< "$restResponse")"    
-      
-      printf "Filtering %4s received pull requests... "  "$(JSONArrayLength "$receivedPullRequests")"
-      receivedPullRequests=$(jq '[.[] | select((.node.isDraft = false) and (.node.timelineItems.nodes | type != "array" or length > 0))]' <<< "$receivedPullRequests")
-      printf " %2s PR retained" "$(JSONArrayLength "$receivedPullRequests")"
-      
-      pullRequests=$(jq --argjson a1 "$pullRequests" --argjson a2 "$receivedPullRequests" '$a1 + $a2' <<< '{}')   
-      
-      hasNextPage=$(jq  '.data.repository.pullRequests.pageInfo.hasNextPage' <<< "$restResponse")
-      cursor=$(jq -r '.data.repository.pullRequests.pageInfo.endCursor' <<< "$restResponse")
-      printf " | hasNextPage: %-5s | cursor: %s\n" "${hasNextPage}" "${cursor}"
+  while [[ "$hasNextPage" == "true" ]]; do
+    if [[ -n $cursor ]]; then
+      # we have a cursor - so need to page
+      payload="$(replace_template_value "$payloadTemplate" 'AFTER_CURSOR' "after: \\\\\"$cursor\\\\\",")"
+    else
+      # no cursor so no need to page
+      payload="$(replace_template_value "$payloadTemplate" 'AFTER_CURSOR' '')"
+    fi
+    restResponse="$(call_github_graphql_api "$token" "$payload")"
+    check_github_graphql_response "$restResponse"
+    receivedPullRequests="$(jq '.data.repository.pullRequests.edges' <<< "$restResponse")"
+
+    printf "Filtering %4s received pull requests... "  "$(JSONArrayLength "$receivedPullRequests")"
+    receivedPullRequests=$(jq '[.[] | select((.node.isDraft = false) and (.node.timelineItems.nodes | type != "array" or length > 0))]' <<< "$receivedPullRequests")
+    printf " %2s PR retained" "$(JSONArrayLength "$receivedPullRequests")"
+
+    pullRequests=$(jq --argjson a1 "$pullRequests" --argjson a2 "$receivedPullRequests" '$a1 + $a2' <<< '{}')
+
+    hasNextPage=$(jq  '.data.repository.pullRequests.pageInfo.hasNextPage' <<< "$restResponse")
+    cursor=$(jq -r '.data.repository.pullRequests.pageInfo.endCursor' <<< "$restResponse")
+    printf " | hasNextPage: %-5s | cursor: %s\n" "${hasNextPage}" "${cursor}"
   done
 
   process_each_pr "${token}" "${pullRequests}" || exit
@@ -142,25 +141,24 @@ process_each_pr() {
   local counter=1
 
   # Process each pr separately in a loop
-  while IFS= read -r line;
-  do
+  while IFS= read -r line; do
     local pr_number=${line%-*}
     local hasNextPage=${line#*-}
-    
+
     printf "\n(%s/%s) PR %s - " "$counter" "$prCount" "$pr_number"
-    
+
     # find the node for our pr
     local pr_reviews
     if [[ "$hasNextPage" == "false" ]]; then
       all_reviews="$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | .node.timelineItems.nodes'  <<< "$pullRequests")"
     else
-      all_reviews="$(get_all_reviews_for_pr "$token" "$pr_number")" 
+      all_reviews="$(get_all_reviews_for_pr "$token" "$pr_number")"
     fi
     # leave only the latest reviews per reviewer in a comma separated form
     pr_reviewers="$(jq  '. | sort_by([.author.login, .createdAt]) | reverse | unique_by(.author.login) | .[] | [.author.login, .state, .createdAt] | join(",")' <<< "$all_reviews")"
-    
+
     printf "Reviews %s Reviewers %s\n" "$(JSONArrayLength "$all_reviews")" "$(wc -l <<< "$pr_reviewers" | xargs)"
-    
+
     process_pr_reviews "$token" "$pr_number" "$pr_reviewers" || exit
     ((counter++))
   done <<< "$prNumbersAndPaging" || exit
@@ -202,26 +200,25 @@ process_pr_reviews() {
 
   while IFS=, read -r user state time
   do
-      printf "%-15s | %-20s | %-20s - checking user permissions..." "$user" "$state" "$time"
-      push_permission=$(call_github_get_user_push_permission "$token" "$user") || exit
-      printf "%s\n" "$push_permission"
+    printf "%-15s | %-20s | %-20s - checking user permissions..." "$user" "$state" "$time"
+    push_permission=$(call_github_get_user_push_permission "$token" "$user") || exit
+    printf "%s\n" "$push_permission"
 
-      #see if the user has read role
+    #see if the user has read role
+    if [[ "$push_permission" == "true" ]]; then
+      if [[ "$state" == "APPROVED" ]]; then
+        ((++committerApproves))
+      fi
+    else
+      ((++communityReviews))
+      if [[ "$state" == "APPROVED" ]]; then
+        ((++communityApproves))
+      fi
+    fi
 
-      if [[ "$push_permission" == "true" ]]; then
-          if [[ "$state" == "APPROVED" ]]; then
-             ((++committerApproves))
-          fi
-     else
-          ((++communityReviews))
-          if [[ "$state" == "APPROVED" ]]; then
-             ((++communityApproves))
-          fi
-     fi
-
-     if [[ "$state" == "CHANGES_REQUESTED" ]]; then
-        ((++requestForChanges))
-     fi
+    if [[ "$state" == "CHANGES_REQUESTED" ]]; then
+      ((++requestForChanges))
+    fi
   done <<< "$pr_reviews"
   echo "communityApproves $communityApproves requestForChanges $requestForChanges committerApproves $committerApproves communityReviews $communityReviews"
 
@@ -301,8 +298,7 @@ get_all_reviews_for_pr() {
   payloadTemplate="$(replace_template_value "$payloadTemplate" "PR_NUMBER" "${pr_number}")"
 
   local all_reviews_for_pr=""
-  while [[ "$hasNextPage" == "true" ]]
-  do
+  while [[ "$hasNextPage" == "true" ]]; do
     if [[ -n $cursor ]]; then
        payload="$(replace_template_value "$payloadTemplate" 'AFTER_CURSOR' "after: \\\\\"$cursor\\\\\", ")"
     else
@@ -340,8 +336,8 @@ get_all_reviews_for_pr() {
 call_github_graphql_api() {
   local token="${1?missing token}"
   local payload="${2?missing payload}"
-  
-   curl --fail --no-progress-meter \
+
+  curl --fail --no-progress-meter \
     -H "Content-Type: application/json" \
     -X POST \
     -H "Authorization: Bearer ${token}" \
@@ -356,7 +352,7 @@ call_github_graphql_api() {
 # =============================================================================
 check_github_graphql_response() {
   local response="${1?missing response}"
-  
+
   # check if response contains a valid JSON
   if jq -e . >/dev/null 2>&1 <<<"$response"; then
     # The cURL request can be successful, but still return an error if the data it receives is
@@ -414,9 +410,9 @@ call_github_mutate_label_api() {
 
   echo "${operation} label: ${labelName}"
   curl --fail --no-progress-meter -s \
-     -H 'Content-Type: application/json' \
-     -H "Authorization: bearer $token" \
-     -X "$operation" -d "{ \"labels\":[\"${labelName}\"]}" "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/${prNumber}/labels"
+    -H 'Content-Type: application/json' \
+    -H "Authorization: bearer $token" \
+    -X "$operation" -d "{ \"labels\":[\"${labelName}\"]}" "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/${prNumber}/labels"
 }
 
 # =============================================================================
@@ -431,7 +427,6 @@ call_github_mutate_label_api() {
 #    pushPermission="$(call_github_get_user_push_permission "$token" "$userName")"
 # =============================================================================
 call_github_get_user_push_permission() {
-
   local token="${1?missing token}"
   local user_name="${2?missing user}"
 
@@ -440,13 +435,11 @@ call_github_get_user_push_permission() {
   local push_permission
   if [[ -e "$file_name" ]]; then
 
-    while IFS=, read -r user_from_file pushperm_from_file
-    do
-      if [[ "$user_from_file" = "$user_name" ]]; then
-         push_permission=$pushperm_from_file
-         break
+    while IFS=, read -r user_from_file pushperm_from_file; do
+      if [[ "$user_from_file" == "$user_name" ]]; then
+        push_permission=$pushperm_from_file
+        break
       fi
-
     done < $file_name
   fi
 
@@ -454,7 +447,7 @@ call_github_get_user_push_permission() {
     # not in the cache so get it from github
     permissions=$(curl --fail --no-progress-meter \
       -H "Accept: application/json" \
-      -H "Authorization: Bearer $token"\
+      -H "Authorization: Bearer $token" \
       "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/collaborators/$user_name/permission") || exit
     push_permission=$(jq -r '.user.permissions.push' <<< "$permissions")
     # write line to file
