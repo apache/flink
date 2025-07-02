@@ -23,6 +23,8 @@ import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultiJoin;
+import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
+import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
@@ -271,24 +273,42 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         final List<InputProperty> inputProperties = new ArrayList<>();
 
         for (int i = 0; i < inputs.size(); i++) {
-            final InputProperty inputProperty = createHashDistributedInputProperty(i);
+            final InputProperty inputProperty = createInputPropertyFromTrait(getInput(i), i);
             inputProperties.add(inputProperty);
         }
 
         return inputProperties;
     }
 
-    private InputProperty createHashDistributedInputProperty(final int inputIndex) {
-        final int[] commonJoinKeyIndices = keyExtractor.getCommonJoinKeyIndices(inputIndex);
+    private InputProperty createInputPropertyFromTrait(final RelNode input, final int inputIndex) {
+        final FlinkRelDistribution distribution =
+                input.getTraitSet().getTrait(FlinkRelDistributionTraitDef.INSTANCE());
 
-        if (commonJoinKeyIndices.length > 0) {
-            return InputProperty.builder()
-                    .requiredDistribution(InputProperty.hashDistribution(commonJoinKeyIndices))
-                    .damBehavior(InputProperty.DamBehavior.PIPELINED)
-                    .priority(inputIndex)
-                    .build();
-        } else {
+        if (distribution == null) {
             return InputProperty.DEFAULT;
         }
+
+        final InputProperty.RequiredDistribution requiredDistribution;
+        switch (distribution.getType()) {
+            case HASH_DISTRIBUTED:
+                final int[] keys = distribution.getKeys().toIntArray();
+                if (keys.length == 0) {
+                    requiredDistribution = InputProperty.SINGLETON_DISTRIBUTION;
+                } else {
+                    requiredDistribution = InputProperty.hashDistribution(keys);
+                }
+                break;
+            case SINGLETON:
+                requiredDistribution = InputProperty.SINGLETON_DISTRIBUTION;
+                break;
+            default:
+                return InputProperty.DEFAULT;
+        }
+
+        return InputProperty.builder()
+                .requiredDistribution(requiredDistribution)
+                .damBehavior(InputProperty.DamBehavior.PIPELINED)
+                .priority(inputIndex)
+                .build();
     }
 }
