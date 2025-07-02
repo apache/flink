@@ -23,6 +23,7 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -217,6 +218,10 @@ public enum PackagedProgramUtils {
             return uri;
         }
         return new File(path).getAbsoluteFile().toURI();
+    }
+
+    public static boolean usingSystemClassPath(Configuration configuration) {
+        return configuration.get(PipelineOptions.JARS) == null;
     }
 
     private static ProgramInvocationException generateException(
