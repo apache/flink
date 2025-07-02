@@ -224,6 +224,7 @@ process_pr_reviews() {
 
   local label_to_post=
   local label_to_delete=
+  local existing_labels
   if [[ $communityApproves -ge 2 && $requestForChanges -eq 0 && $committerApproves -eq 0 ]]; then
     label_to_post=$LGTM_LABEL
     label_to_delete=$COMMUNITY_REVIEW_LABEL
@@ -233,8 +234,12 @@ process_pr_reviews() {
   fi
 
   if [[ -n "$label_to_post" ]]; then
-   call_github_mutate_label_api "$token" "$label_to_delete" "DELETE" "$pr_number" || exit
-   call_github_mutate_label_api "$token" "$label_to_post" "POST" "$pr_number" || exit
+    existing_labels=$(call_github_get_labels_api "$pr_number")
+
+    if [[ ! "$existing_labels" =~ (^|[[:space:]])"$label_to_post"($|[[:space:]]) ]]; then
+      call_github_mutate_label_api "$token" "$label_to_delete" "DELETE" "$pr_number" || exit
+      call_github_mutate_label_api "$token" "$label_to_post" "POST" "$pr_number" || exit
+    fi
   fi
 }
 
@@ -388,6 +393,23 @@ replace_template_value() {
 JSONArrayLength() {
   local jsonArray=${1?missing array}
   echo "${jsonArray}" | jq 'length'
+}
+
+# =============================================================================
+# Retrieves existing label names on a Flink PR
+# Arguments:
+#   $1 - pr number to fetch labels from
+# =============================================================================
+call_github_get_labels_api() {
+  local prNumber="${1?missing pr number}"
+
+  local labels
+  labels=$(curl --fail --no-progress-meter -s \
+    -H 'Content-Type: application/json' \
+    "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/issues/$prNumber/labels")
+
+  # extract label names as a space separated string
+  jq -r '.[].name' <<< "$labels" | tr '\n' ' '
 }
 
 # =============================================================================
