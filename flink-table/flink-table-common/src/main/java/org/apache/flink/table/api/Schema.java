@@ -680,24 +680,29 @@ public final class Schema {
         // ----------------------------------------------------------------------------------------
 
         private void addResolvedColumns(List<Column> columns) {
-            columns.forEach(
-                    c -> {
-                        if (c instanceof PhysicalColumn) {
-                            final PhysicalColumn physicalColumn = (PhysicalColumn) c;
+            for (Column c : columns) {
+                if (c instanceof PhysicalColumn) {
+                    PhysicalColumn physicalColumn = (PhysicalColumn) c;
+                    final Builder builder =
                             column(physicalColumn.getName(), physicalColumn.getDataType());
-                        } else if (c instanceof ComputedColumn) {
-                            final ComputedColumn computedColumn = (ComputedColumn) c;
+                    c.getComment().ifPresent(builder::withComment);
+                } else if (c instanceof ComputedColumn) {
+                    ComputedColumn computedColumn = (ComputedColumn) c;
+                    final Builder builder =
                             columnByExpression(
                                     computedColumn.getName(), computedColumn.getExpression());
-                        } else if (c instanceof MetadataColumn) {
-                            final MetadataColumn metadataColumn = (MetadataColumn) c;
+                    c.getComment().ifPresent(builder::withComment);
+                } else if (c instanceof MetadataColumn) {
+                    MetadataColumn metadataColumn = (MetadataColumn) c;
+                    final Builder builder =
                             columnByMetadata(
                                     metadataColumn.getName(),
                                     metadataColumn.getDataType(),
                                     metadataColumn.getMetadataKey().orElse(null),
                                     metadataColumn.isVirtual());
-                        }
-                    });
+                    c.getComment().ifPresent(builder::withComment);
+                }
+            }
         }
 
         private void addResolvedWatermarkSpec(List<WatermarkSpec> specs) {
