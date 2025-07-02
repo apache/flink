@@ -214,9 +214,11 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
 
         applicationConfiguration.applyToConfiguration(flinkConfig);
 
-        // No need to do pipelineJars validation if it is a PyFlink job.
+        // No need to do pipelineJars validation if it is a PyFlink job or using system classpath.
         if (!(PackagedProgramUtils.isPython(applicationConfiguration.getApplicationClassName())
-                || PackagedProgramUtils.isPython(applicationConfiguration.getProgramArguments()))) {
+                        || PackagedProgramUtils.isPython(
+                                applicationConfiguration.getProgramArguments()))
+                && !PackagedProgramUtils.usingSystemClassPath(flinkConfig)) {
             final List<URI> pipelineJars =
                     KubernetesUtils.checkJarFileForApplicationMode(flinkConfig);
             Preconditions.checkArgument(
