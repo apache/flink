@@ -438,8 +438,8 @@ services:
 
   ```Dockerfile
   FROM flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
-  ARG kafka_connector_verion=4.0.0-2.0
-  RUN wget -P /opt/flink/lib https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/$kafka_connector_verion/flink-sql-connector-kafka-$kafka_connector_verion.jar
+  ARG kafka_connector_version=4.0.0-2.0
+  RUN wget -P /opt/flink/lib https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/$kafka_connector_version/flink-sql-connector-kafka-$kafka_connector_version.jar
   ```
 
 * 接下来，将 jobmanager、taskmanager 和 sql-client 服务中的`image` 配置替换为 `build` 命令。
