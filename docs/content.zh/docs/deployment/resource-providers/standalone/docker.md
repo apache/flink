@@ -431,16 +431,26 @@ services:
   ```
   You can then start creating tables and queries those.
 
-* Note, that all required dependencies (e.g. for connectors) need to be available in the cluster as well as the client.
-  For example, if you would like to use the Kafka Connector create a custom image with the following Dockerfile
+* 请注意，集群和客户端中都需要安装各种运行库包括各种Source和Sink连接器。
+  例如，如果你想使用卡夫卡（SQL Kafka） 连接器，那么你需要构建一个自定义Docker镜像。
+
+  创建一个名为 `kafka.Dockerfile` 的 Dockerfile，内容如下：
 
   ```Dockerfile
   FROM flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
-  RUN wget -P /opt/flink/lib https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka_2.12/{{< version >}}/flink-sql-connector-kafka_scala{{< scala_version >}}-{{< version >}}.jar
+  ARG kafka_connector_verion=4.0.0-2.0
+  RUN wget -P /opt/flink/lib https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/$kafka_connector_verion/flink-sql-connector-kafka-$kafka_connector_verion.jar
   ```
 
-  and reference it (e.g via the `build`) command in the Dockerfile.
-  and reference it (e.g via the `build`) command in the Dockerfile.
+* 接下来，将 jobmanager、taskmanager 和 sql-client 服务中的`image` 配置替换为 `build` 命令。
+  下面展示在docker-compose.yml 文件中，jobmanager 服务使用自定义Docker镜像，而不是默认的官方镜像：
+  ```yaml
+  jobmanager:
+    build:
+      dockerfile: ./kafka.Dockerfile
+    ...
+  ```
+
   SQL Commands like `ADD JAR` will not work for JARs located on the host machine as they only work with the local filesystem, which in this case is Docker's overlay filesystem.
 
 ## Using Flink Python on Docker
