@@ -85,6 +85,10 @@ JSON 函数使用符合 ISO/IEC TR 19075-6 SQL标准的 JSON 路径表达式。 
 
 {{< sql_functions_zh "json" >}}
 
+### Variant 函数
+
+{{< sql_functions_zh "variant" >}}
+
 ### 值构建函数
 
 {{< sql_functions_zh "valueconstruction" >}}
