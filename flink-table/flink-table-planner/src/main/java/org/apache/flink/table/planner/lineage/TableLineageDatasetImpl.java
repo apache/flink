@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.lineage;
 
 import org.apache.flink.streaming.api.lineage.LineageDataset;
 import org.apache.flink.streaming.api.lineage.LineageDatasetFacet;
-import org.apache.flink.table.catalog.AbstractCatalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -49,8 +48,7 @@ public class TableLineageDatasetImpl implements TableLineageDataset {
         this.catalogContext =
                 CatalogContext.createContext(
                         contextResolvedTable.getCatalog().isPresent()
-                                ? ((AbstractCatalog) contextResolvedTable.getCatalog().get())
-                                        .getName()
+                                ? contextResolvedTable.getIdentifier().getCatalogName()
                                 : "",
                         contextResolvedTable.getCatalog().orElse(null));
         this.catalogBaseTable = contextResolvedTable.getTable();
