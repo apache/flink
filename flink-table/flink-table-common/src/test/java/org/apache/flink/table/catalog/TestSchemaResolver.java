@@ -125,6 +125,9 @@ public class TestSchemaResolver implements SchemaResolver {
     }
 
     private ResolvedExpression resolveExpression(Expression expression) {
+        if (expression instanceof ResolvedExpression) {
+            return (ResolvedExpression) expression;
+        }
         if (expression instanceof SqlCallExpression) {
             String callString = ((SqlCallExpression) expression).getSqlExpression();
             if (resolveExpressionTable.containsKey(callString)) {

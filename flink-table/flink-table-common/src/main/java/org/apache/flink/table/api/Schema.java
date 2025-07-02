@@ -683,24 +683,20 @@ public final class Schema {
             for (Column c : columns) {
                 if (c instanceof PhysicalColumn) {
                     PhysicalColumn physicalColumn = (PhysicalColumn) c;
-                    final Builder builder =
-                            column(physicalColumn.getName(), physicalColumn.getDataType());
-                    c.getComment().ifPresent(builder::withComment);
+                    column(physicalColumn.getName(), physicalColumn.getDataType());
+                    c.getComment().ifPresent(this::withComment);
                 } else if (c instanceof ComputedColumn) {
                     ComputedColumn computedColumn = (ComputedColumn) c;
-                    final Builder builder =
-                            columnByExpression(
-                                    computedColumn.getName(), computedColumn.getExpression());
-                    c.getComment().ifPresent(builder::withComment);
+                    columnByExpression(computedColumn.getName(), computedColumn.getExpression());
+                    c.getComment().ifPresent(this::withComment);
                 } else if (c instanceof MetadataColumn) {
                     MetadataColumn metadataColumn = (MetadataColumn) c;
-                    final Builder builder =
-                            columnByMetadata(
-                                    metadataColumn.getName(),
-                                    metadataColumn.getDataType(),
-                                    metadataColumn.getMetadataKey().orElse(null),
-                                    metadataColumn.isVirtual());
-                    c.getComment().ifPresent(builder::withComment);
+                    columnByMetadata(
+                            metadataColumn.getName(),
+                            metadataColumn.getDataType(),
+                            metadataColumn.getMetadataKey().orElse(null),
+                            metadataColumn.isVirtual());
+                    c.getComment().ifPresent(this::withComment);
                 }
             }
         }
