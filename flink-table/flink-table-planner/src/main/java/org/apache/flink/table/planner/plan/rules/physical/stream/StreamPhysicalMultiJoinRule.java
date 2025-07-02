@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.plan.rules.physical.stream;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMultiJoin;
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSnapshot;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
+import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
@@ -60,27 +60,18 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
     @Override
     public RelNode convert(final RelNode rel) {
         final FlinkLogicalMultiJoin multiJoin = (FlinkLogicalMultiJoin) rel;
-        final List<RelNode> newInputs =
-                multiJoin.getInputs().stream()
-                        .map(
-                                input ->
-                                        RelOptRule.convert(
-                                                input,
-                                                input.getTraitSet()
-                                                        .replace(FlinkConventions.STREAM_PHYSICAL())
-                                                        .simplify()))
-                        .collect(Collectors.toList());
-
-        final RelTraitSet traitSet = rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
         final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap =
                 createJoinAttributeMap(multiJoin);
-
-        final JoinKeyExtractor keyExtractor;
         final List<RowType> inputRowTypes =
-                newInputs.stream()
+                multiJoin.getInputs().stream()
                         .map(i -> FlinkTypeFactory.toLogicalRowType(i.getRowType()))
                         .collect(Collectors.toList());
-        keyExtractor = new AttributeBasedJoinKeyExtractor(joinAttributeMap, inputRowTypes);
+        final JoinKeyExtractor keyExtractor =
+                new AttributeBasedJoinKeyExtractor(joinAttributeMap, inputRowTypes);
+        // Apply hash distribution traits to all inputs based on the commonJoinKeys
+        final List<RelNode> newInputs =
+                createHashDistributedInputs(multiJoin.getInputs(), keyExtractor);
+        final RelTraitSet traitSet = rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
 
         return new StreamPhysicalMultiJoin(
                 multiJoin.getCluster(),
@@ -96,10 +87,35 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
                 keyExtractor);
     }
 
-    private boolean isTemporalJoin(final FlinkLogicalMultiJoin multiJoin) {
-        // Not supported
-        return multiJoin.getInputs().stream()
-                .anyMatch(input -> input instanceof FlinkLogicalSnapshot);
+    private List<RelNode> createHashDistributedInputs(
+            final List<RelNode> inputs, final JoinKeyExtractor keyExtractor) {
+        final List<RelNode> newInputs = new ArrayList<>();
+
+        for (int i = 0; i < inputs.size(); i++) {
+            final RelNode input = inputs.get(i);
+            final RelTraitSet inputTraitSet = createInputTraitSet(input, keyExtractor, i);
+            final RelNode convertedInput = RelOptRule.convert(input, inputTraitSet.simplify());
+            newInputs.add(convertedInput);
+        }
+
+        return newInputs;
+    }
+
+    private RelTraitSet createInputTraitSet(
+            final RelNode input, final JoinKeyExtractor keyExtractor, final int inputIndex) {
+        final int[] commonJoinKeyIndices = keyExtractor.getCommonJoinKeyIndices(inputIndex);
+
+        RelTraitSet inputTraitSet = input.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
+
+        if (commonJoinKeyIndices.length > 0) {
+            final FlinkRelDistribution hashDistribution =
+                    FlinkRelDistribution.hash(commonJoinKeyIndices, true);
+            inputTraitSet = inputTraitSet.replace(hashDistribution);
+        } else {
+            inputTraitSet = inputTraitSet.replace(FlinkRelDistribution.SINGLETON());
+        }
+
+        return inputTraitSet;
     }
 
     private Map<Integer, List<ConditionAttributeRef>> createJoinAttributeMap(
