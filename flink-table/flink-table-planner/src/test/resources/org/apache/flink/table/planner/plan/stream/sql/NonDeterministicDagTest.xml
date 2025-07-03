@@ -727,7 +727,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, ve
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, c], upsertMaterialize=[true])
 +- Calc(select=[a, b AS version, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], where=[(b > (UNIX_TIMESTAMP() - 300))], select=[a, a, b, c], upsertKey=[[0]])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], joinCondition=[(b > (UNIX_TIMESTAMP() - 300))], select=[a, a0, b, c], upsertKey=[[0]])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a], metadata=[]]], fields=[a])
 ]]>
     </Resource>
@@ -759,7 +759,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, b, c])
 +- Calc(select=[a, b, c])
-   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], where=[(ndFunc(b) > 100)], select=[a, b, c, a], upsertKey=[[0]])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[InnerJoin], lookup=[a=a], joinCondition=[(ndFunc(b0) > 100)], select=[a, b, c, a0, b0], upsertKey=[[0]])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b, c], metadata=[]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -1563,56 +1563,6 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], up
 +- Calc(select=[CAST(a AS INTEGER) AS a, CAST(metadata_1 AS BIGINT) AS b, EXPR$0 AS c])
    +- Correlate(invocation=[str_split($cor0.c)], correlate=[table(str_split($cor0.c))], select=[a,b,c,d,metadata_1,metadata_2,metadata_3,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, BOOLEAN d, INTEGER metadata_1, VARCHAR(2147483647) metadata_2, BIGINT metadata_3, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
       +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]], fields=[a, b, c, d, metadata_1, metadata_2, metadata_3])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testCdcWithMetaLegacySinkWithPk[nonDeterministicUpdateStrategy=IGNORE]">
-    <Resource name="sql">
-      <![CDATA[
-insert into legacy_upsert_sink
-select a, metadata_3, c
-from cdc_with_meta
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`legacy_upsert_sink`], fields=[a, b, c])
-+- LogicalProject(a=[CAST($0):INTEGER], b=[$6], c=[CAST($2):VARCHAR(100) CHARACTER SET "UTF-16LE"])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
-      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-LegacySink(name=[`default_catalog`.`default_database`.`legacy_upsert_sink`], fields=[a, b, c])
-+- Calc(select=[CAST(a AS INTEGER) AS a, metadata_3 AS b, CAST(c AS VARCHAR(100)) AS c])
-   +- DropUpdateBefore
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta, project=[a, c], metadata=[metadata_3]]], fields=[a, c, metadata_3])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testCdcWithMetaLegacySinkWithPk[nonDeterministicUpdateStrategy=TRY_RESOLVE]">
-    <Resource name="sql">
-      <![CDATA[
-insert into legacy_upsert_sink
-select a, metadata_3, c
-from cdc_with_meta
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`legacy_upsert_sink`], fields=[a, b, c])
-+- LogicalProject(a=[CAST($0):INTEGER], b=[$6], c=[CAST($2):VARCHAR(100) CHARACTER SET "UTF-16LE"])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
-      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-LegacySink(name=[`default_catalog`.`default_database`.`legacy_upsert_sink`], fields=[a, b, c])
-+- Calc(select=[CAST(a AS INTEGER) AS a, metadata_3 AS b, CAST(c AS VARCHAR(100)) AS c])
-   +- DropUpdateBefore
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta, project=[a, c], metadata=[metadata_3]]], fields=[a, c, metadata_3])
 ]]>
     </Resource>
   </TestCase>

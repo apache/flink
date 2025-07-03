@@ -2119,6 +2119,45 @@ class AggregateITCase(
 
     tEnv.dropTemporarySystemFunction("PERCENTILE")
   }
+
+  @TestTemplate
+  def testCalcWithNonDeterministicFilterAfterJoin(): Unit = {
+    val data1 = List(
+      changelogRow("+I", Int.box(1), Int.box(1), String.valueOf("2022-01-01 11:11:11")),
+      changelogRow("+I", Int.box(2), Int.box(2), String.valueOf("2022-01-01 11:11:11")),
+      changelogRow("+I", Int.box(3), Int.box(3), String.valueOf("2023-01-01 11:11:11")),
+      changelogRow("+I", Int.box(4), Int.box(4), String.valueOf("2023-01-01 11:11:11")),
+      changelogRow("+I", Int.box(5), Int.box(5), String.valueOf("2077-01-01 11:11:11"))
+    )
+
+    tEnv.executeSql(s"""
+                       |create table MyTable(
+                       |  a int,
+                       |  b int,
+                       |  c string
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'false',
+                       |  'data-id' = '${TestValuesTableFactory.registerData(data1)}'
+                       |)
+                       |""".stripMargin)
+
+    val sqlQuery =
+      """
+        |SELECT MAX(b)
+        |FROM MyTable
+        |GROUP BY c
+        |HAVING c > '2022-01-01 00:00:00'
+        |AND TO_TIMESTAMP(c, 'yyyy-MM-dd HH:mm:ss') < TIMESTAMPADD(HOUR, -2, NOW())
+        |""".stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List("2", "4")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
 }
 
 object AggregateITCase {
