@@ -184,7 +184,11 @@ public class TimeWindowUtil {
 
     /** Method to get the next watermark to trigger window. */
     public static long getNextTriggerWatermark(
-            long currentWatermark, long interval, ZoneId shiftTimezone, boolean useDayLightSaving) {
+            long currentWatermark,
+            long interval,
+            long windowOffset,
+            ZoneId shiftTimezone,
+            boolean useDayLightSaving) {
         if (currentWatermark == Long.MAX_VALUE) {
             return currentWatermark;
         }
@@ -194,10 +198,12 @@ public class TimeWindowUtil {
         if (useDayLightSaving) {
             long utcWindowStart =
                     getWindowStartWithOffset(
-                            toUtcTimestampMills(currentWatermark, shiftTimezone), 0L, interval);
+                            toUtcTimestampMills(currentWatermark, shiftTimezone),
+                            windowOffset,
+                            interval);
             triggerWatermark = toEpochMillsForTimer(utcWindowStart + interval - 1, shiftTimezone);
         } else {
-            long start = getWindowStartWithOffset(currentWatermark, 0L, interval);
+            long start = getWindowStartWithOffset(currentWatermark, windowOffset, interval);
             triggerWatermark = start + interval - 1;
         }
 
