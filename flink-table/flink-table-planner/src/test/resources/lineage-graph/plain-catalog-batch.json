@@ -1,0 +1,56 @@
+{
+  "lineageEdges" : [ {
+    "sourceLineageVertex" : {
+      "datasets" : [ {
+        "name" : "MyPlainCat.MyDatabase.Src",
+        "namespace" : "values://FromElementsFunction",
+        "objectPath" : {
+          "databaseName" : "MyDatabase",
+          "objectName" : "Src",
+          "fullName" : "MyDatabase.Src"
+        },
+        "facets" : { }
+      } ],
+      "boundedness" : "BOUNDED"
+    },
+    "sinkVertex" : {
+      "datasets" : [ {
+        "name" : "MyPlainCat.MyDatabase.Snk",
+        "namespace" : "values://AppendingSinkFunction",
+        "objectPath" : {
+          "databaseName" : "MyDatabase",
+          "objectName" : "Snk",
+          "fullName" : "MyDatabase.Snk"
+        },
+        "facets" : { }
+      } ],
+      "modifyType" : "INSERT"
+    }
+  } ],
+  "sources" : [ {
+    "datasets" : [ {
+      "name" : "MyPlainCat.MyDatabase.Src",
+      "namespace" : "values://FromElementsFunction",
+      "objectPath" : {
+        "databaseName" : "MyDatabase",
+        "objectName" : "Src",
+        "fullName" : "MyDatabase.Src"
+      },
+      "facets" : { }
+    } ],
+    "boundedness" : "BOUNDED"
+  } ],
+  "sinks" : [ {
+    "datasets" : [ {
+      "name" : "MyPlainCat.MyDatabase.Snk",
+      "namespace" : "values://AppendingSinkFunction",
+      "objectPath" : {
+        "databaseName" : "MyDatabase",
+        "objectName" : "Snk",
+        "fullName" : "MyDatabase.Snk"
+      },
+      "facets" : { }
+    } ],
+    "modifyType" : "INSERT"
+  } ]
+}
