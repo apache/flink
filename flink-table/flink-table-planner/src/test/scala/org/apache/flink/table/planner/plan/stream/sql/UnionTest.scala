@@ -147,4 +147,20 @@ class UnionTest extends TableTestBase {
     error.isInstanceOf(classOf[ValidationException])
     error.hasMessageContaining("Type mismatch in column 3 of UNION ALL")
   }
+
+  @Test
+  def testCalcWithNonDeterministicFilterAfterUnion(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT *
+        |FROM (
+        |      SELECT a, c FROM MyTable1
+        |      UNION
+        |      SELECT a, c FROM MyTable2
+        |)
+        |WHERE TO_TIMESTAMP(c, 'yyyy-MM-dd HH:mm:ss')
+        |      < NOW()
+        |""".stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
 }
