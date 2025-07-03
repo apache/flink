@@ -138,11 +138,12 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
 
     @Override
     public RowType getCommonJoinKeyType() {
-        return this.commonJoinKeyType;
+        // We return an empty RowType if no common join key is defined.
+        return Objects.requireNonNullElseGet(this.commonJoinKeyType, RowType::of);
     }
 
     @Override
-    public RowData getCommonJoinKey(RowData row, int inputId) {
+    public @Nullable RowData getCommonJoinKey(RowData row, int inputId) {
         List<KeyExtractor> extractors = commonJoinKeyExtractors.get(inputId);
         if (extractors == null || extractors.isEmpty()) {
             return null;

@@ -182,6 +182,15 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    void testThreeWayJoinNoJoinKeyExecPlan() {
+        util.verifyExecPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "LEFT JOIN Orders o ON TRUE "
+                        + "INNER JOIN Payments p ON TRUE ");
+    }
+
+    @Test
     void testFourWayJoinNoCommonJoinKeyRelPlan() {
         util.verifyRelPlan(
                 "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "

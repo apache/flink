@@ -488,6 +488,37 @@ Calc(select=[user_id_0, name, order_id, payment_id])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testThreeWayJoinNoJoinKeyExecPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON TRUE INNER JOIN Payments p ON TRUE ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[true], joinType=[left])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id])
++- MultiJoin(joinFilter=[true], joinTypes=[[INNER, INNER]], joinConditions=[[true, true]], joinAttributeMap=[{}], select=[user_id_0,name,cash,order_id,user_id_1,product,payment_id,price,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[single])
+   :  +- MultiJoin(joinFilter=[true], joinTypes=[[INNER, LEFT]], joinConditions=[[true, true]], joinAttributeMap=[{}], select=[user_id_0,name,cash,order_id,user_id_1,product], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product)])
+   :     :- Exchange(distribution=[single])
+   :     :  +- ChangelogNormalize(key=[user_id_0])
+   :     :     +- Exchange(distribution=[hash[user_id_0]])
+   :     :        +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id_0, name, cash])
+   :     +- Exchange(distribution=[single])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[order_id, user_id_1, product])
+   +- Exchange(distribution=[single])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testThreeWayJoinWithTimeAttributesMaterialization">
     <Resource name="sql">
       <![CDATA[SELECT u.name, u.proctime, o.rowtime, p.price FROM UsersWithProctime u JOIN OrdersWithRowtime o ON u.user_id_0 = o.user_id_1 JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
