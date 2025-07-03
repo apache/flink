@@ -384,6 +384,80 @@ public class MultiJoinTestPrograms {
                                     + "INNER JOIN Payments p ON u.user_id = p.user_id")
                     .build();
 
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN_NO_JOIN_KEY =
+            TableTestProgram.of(
+                            "three-way-inner-join-no-join-key",
+                            "three way inner join with no join key")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(USERS_SOURCE)
+                    .setupTableSource(ORDERS_SOURCE)
+                    .setupTableSource(PAYMENTS_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "user_id STRING",
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "payment_id STRING")
+                                    .consumedValues(
+                                            "+I[1, Gus, order1, payment2]",
+                                            "+I[1, Gus, order1, payment5]",
+                                            "+I[1, Gus, order1, payment3]",
+                                            "+I[1, Gus, order1, payment1]",
+                                            "+I[2, Bob, order1, payment2]",
+                                            "+I[2, Bob, order1, payment5]",
+                                            "+I[2, Bob, order1, payment3]",
+                                            "+I[2, Bob, order1, payment1]",
+                                            "+I[3, Alice, order1, payment2]",
+                                            "+I[3, Alice, order1, payment5]",
+                                            "+I[3, Alice, order1, payment3]",
+                                            "+I[3, Alice, order1, payment1]",
+                                            "+I[3, Alice, order2, payment2]",
+                                            "+I[3, Alice, order2, payment5]",
+                                            "+I[3, Alice, order2, payment3]",
+                                            "+I[3, Alice, order2, payment1]",
+                                            "+I[1, Gus, order2, payment2]",
+                                            "+I[1, Gus, order2, payment5]",
+                                            "+I[1, Gus, order2, payment3]",
+                                            "+I[1, Gus, order2, payment1]",
+                                            "+I[2, Bob, order2, payment2]",
+                                            "+I[2, Bob, order2, payment5]",
+                                            "+I[2, Bob, order2, payment3]",
+                                            "+I[2, Bob, order2, payment1]",
+                                            "+I[3, Alice, order3, payment2]",
+                                            "+I[3, Alice, order3, payment5]",
+                                            "+I[3, Alice, order3, payment3]",
+                                            "+I[3, Alice, order3, payment1]",
+                                            "+I[1, Gus, order3, payment2]",
+                                            "+I[1, Gus, order3, payment5]",
+                                            "+I[1, Gus, order3, payment3]",
+                                            "+I[1, Gus, order3, payment1]",
+                                            "+I[2, Bob, order3, payment2]",
+                                            "+I[2, Bob, order3, payment5]",
+                                            "+I[2, Bob, order3, payment3]",
+                                            "+I[2, Bob, order3, payment1]",
+                                            "+I[3, Alice, order4, payment2]",
+                                            "+I[3, Alice, order4, payment5]",
+                                            "+I[3, Alice, order4, payment3]",
+                                            "+I[3, Alice, order4, payment1]",
+                                            "+I[1, Gus, order4, payment2]",
+                                            "+I[1, Gus, order4, payment5]",
+                                            "+I[1, Gus, order4, payment3]",
+                                            "+I[1, Gus, order4, payment1]",
+                                            "+I[2, Bob, order4, payment2]",
+                                            "+I[2, Bob, order4, payment5]",
+                                            "+I[2, Bob, order4, payment3]",
+                                            "+I[2, Bob, order4, payment1]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id "
+                                    + "FROM Users u "
+                                    + "LEFT JOIN Orders o ON TRUE "
+                                    + "INNER JOIN Payments p ON TRUE")
+                    .build();
+
     public static final TableTestProgram MULTI_JOIN_FOUR_WAY_NO_COMMON_JOIN_KEY_RESTORE =
             TableTestProgram.of(
                             "four-way-join-no-common-join-key-with-restore",
