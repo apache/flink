@@ -20,9 +20,16 @@ package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.testproto.MultipleLevelMessageTest;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
+import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
@@ -43,16 +50,34 @@ public class MultiLevelMessageProtoToRowTest {
         MultipleLevelMessageTest multipleLevelMessageTest =
                 MultipleLevelMessageTest.newBuilder().setD(innerMessageTest).setA(1).build();
 
+        // pick nested field to verify the deserialization effect
+        DataType dataType =
+                ROW(
+                        FIELD("a", INT()),
+                        FIELD("d_c", BOOLEAN()),
+                        FIELD("d_a_a", INT()),
+                        FIELD("d_a_b", BIGINT()));
+        RowType schema = (RowType) dataType.getLogicalType();
+        String[][] projectedField =
+                new String[][] {
+                    new String[] {"a"},
+                    new String[] {"d", "c"},
+                    new String[] {"d", "a", "a"},
+                    new String[] {"d", "a", "b"}
+                };
+
         RowData row =
-                ProtobufTestHelper.pbBytesToRow(
-                        MultipleLevelMessageTest.class, multipleLevelMessageTest.toByteArray());
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        multipleLevelMessageTest.toByteArray(),
+                        new PbFormatConfig(
+                                MultipleLevelMessageTest.class.getName(), false, false, ""),
+                        projectedField);
 
         assertEquals(4, row.getArity());
-        RowData subRow = (RowData) row.getRow(3, 2);
-        assertFalse(subRow.getBoolean(1));
-
-        RowData subSubRow = (RowData) subRow.getRow(0, 2);
-        assertEquals(1, subSubRow.getInt(0));
-        assertEquals(2L, subSubRow.getLong(1));
+        assertFalse(row.getBoolean(1));
+        // test the nested field A B in InnerMessageTest2
+        assertEquals(1, row.getInt(2));
+        assertEquals(2L, row.getLong(3));
     }
 }
