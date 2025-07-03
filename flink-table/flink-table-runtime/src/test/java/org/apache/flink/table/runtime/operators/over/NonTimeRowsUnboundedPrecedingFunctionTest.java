@@ -25,8 +25,6 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.types.RowKind;
 
 import org.junit.Test;
@@ -54,8 +52,7 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
                 accTypes,
                 inputFieldTypes,
                 SORT_KEY_TYPES,
-                SORT_KEY_SELECTOR,
-                InternalTypeInfo.ofFields(new BigIntType())) {};
+                SORT_KEY_SELECTOR) {};
     }
 
     @Test
@@ -64,6 +61,55 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
                 new KeyedProcessOperator<>(
                         getNonTimeRowsUnboundedPrecedingFunction(
                                 0L, GENERATED_SORT_KEY_COMPARATOR_ASC));
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+        testHarness.open();
+
+        // put some records
+        testHarness.processElement(insertRecord("key1", 1L, 100L));
+        testHarness.processElement(insertRecord("key1", 2L, 200L));
+        testHarness.processElement(insertRecord("key1", 5L, 500L));
+        testHarness.processElement(insertRecord("key1", 6L, 600L));
+        testHarness.processElement(insertRecord("key2", 1L, 100L));
+        testHarness.processElement(insertRecord("key2", 2L, 200L));
+
+        // out of order record should trigger updates for all records after its inserted position
+        testHarness.processElement(insertRecord("key1", 4L, 400L));
+
+        List<RowData> expectedRows =
+                Arrays.asList(
+                        outputRecord(RowKind.INSERT, "key1", 1L, 100L, 1L),
+                        outputRecord(RowKind.INSERT, "key1", 2L, 200L, 3L),
+                        outputRecord(RowKind.INSERT, "key1", 5L, 500L, 8L),
+                        outputRecord(RowKind.INSERT, "key1", 6L, 600L, 14L),
+                        outputRecord(RowKind.INSERT, "key2", 1L, 100L, 1L),
+                        outputRecord(RowKind.INSERT, "key2", 2L, 200L, 3L),
+                        outputRecord(RowKind.INSERT, "key1", 4L, 400L, 7L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 8L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 12L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 14L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 18L));
+
+        List<RowData> actualRows = testHarness.extractOutputValues();
+
+        validateRows(actualRows, expectedRows);
+    }
+
+    @Test
+    public void testInsertOnlyRecordsWithCustomSortKeyAndLongSumAgg() throws Exception {
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(
+                        new NonTimeRowsUnboundedPrecedingFunction<RowData>(
+                                0L,
+                                aggsSumLongHandleFunction,
+                                GENERATED_ROW_VALUE_EQUALISER,
+                                GENERATED_SORT_KEY_EQUALISER,
+                                GENERATED_SORT_KEY_COMPARATOR_ASC,
+                                accTypes,
+                                inputFieldTypes,
+                                SORT_KEY_TYPES,
+                                SORT_KEY_SELECTOR) {});
 
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(operator);

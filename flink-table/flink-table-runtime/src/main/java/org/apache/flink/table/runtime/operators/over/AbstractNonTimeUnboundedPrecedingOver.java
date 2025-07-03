@@ -32,7 +32,6 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
@@ -124,8 +123,6 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
     private final LogicalType[] sortKeyTypes;
     transient JoinedRowData output;
 
-    private final InternalTypeInfo<RowData> accKeyRowTypeInfo;
-
     // state to hold the Long ID counter
     transient ValueState<Long> idState;
     @VisibleForTesting transient ValueStateDescriptor<Long> idStateDescriptor;
@@ -170,8 +167,7 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
             LogicalType[] accTypes,
             LogicalType[] inputFieldTypes,
             LogicalType[] sortKeyTypes,
-            RowDataKeySelector sortKeySelector,
-            InternalTypeInfo<RowData> accKeyRowTypeInfo) {
+            RowDataKeySelector sortKeySelector) {
         this.stateRetentionTime = stateRetentionTime;
         this.generatedAggsHandler = genAggsHandler;
         this.generatedRecordEqualiser = genRecordEqualiser;
@@ -181,7 +177,6 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
         this.inputFieldTypes = inputFieldTypes;
         this.sortKeyTypes = sortKeyTypes;
         this.sortKeySelector = sortKeySelector;
-        this.accKeyRowTypeInfo = accKeyRowTypeInfo;
     }
 
     @Override
@@ -260,9 +255,7 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
     /**
      * Puts an element from the input stream into state or removes it from state if the input is a
      * retraction. Emits the aggregated value for the newly inserted element and updates all results
-     * that are affected by the added or removed row. To comply with the sql RANGE syntax, emits the
-     * same aggregated value for all elements with the same sort key. To comply with the sql ROWS
-     * syntax, emits different aggregated values for all elements with the same sort key.
+     * that are affected by the added or removed row.
      *
      * @param input The input value.
      * @param ctx A {@link Context} that allows querying the timestamp of the element and getting a
@@ -307,7 +300,9 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
      * and newly aggregated values. Some updates are skipped if the previously accumulated value is
      * the same as the newly accumulated value to save on network bandwidth and downstream
      * processing including writing the result to the sink system. Implementation differs for rows
-     * vs range.
+     * vs range. To comply with the sql RANGE syntax, emits the same aggregated value for all
+     * elements with the same sort key. To comply with the sql ROWS syntax, emits different
+     * aggregated values for all elements with the same sort key.
      *
      * @param insRow The input value.
      * @param out The collector for returning result values.
@@ -414,52 +409,6 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
     RowData setAccumulatorAndGetValue(RowData accumulator) throws Exception {
         aggFuncs.setAccumulators(accumulator);
         return aggFuncs.getValue();
-    }
-
-    /**
-     * Helper method to set the accumulator based on the prevIndex.
-     *
-     * @param sortedList
-     * @param prevIndex
-     * @throws Exception
-     */
-    void setAccumulatorOfPrevRow(List<Tuple2<RowData, List<Long>>> sortedList, int prevIndex)
-            throws Exception {
-        if (prevIndex < 0) {
-            aggFuncs.createAccumulators();
-        } else {
-            RowData prevAcc = accMapState.get(sortedList.get(prevIndex).f0);
-            if (prevAcc == null) {
-                aggFuncs.createAccumulators();
-            } else {
-                aggFuncs.setAccumulators(prevAcc);
-            }
-        }
-    }
-
-    /**
-     * Helper method to set the accumulator based on the prevIndex and the ids index j.
-     *
-     * @param sortedList
-     * @param prevIndex
-     * @param idIndex
-     * @throws Exception
-     */
-    void setAccumulatorOfPrevId(
-            List<Tuple2<RowData, List<Long>>> sortedList, int prevIndex, int idIndex)
-            throws Exception {
-        if (prevIndex < 0) {
-            aggFuncs.createAccumulators();
-        } else {
-            int jIndex = idIndex == -1 ? sortedList.get(prevIndex).f1.size() - 1 : idIndex;
-            RowData prevAcc =
-                    accMapState.get(GenericRowData.of(sortedList.get(prevIndex).f1.get(jIndex)));
-            if (prevAcc == null) {
-                aggFuncs.createAccumulators();
-            } else {
-                aggFuncs.setAccumulators(prevAcc);
-            }
-        }
     }
 
     /**
@@ -588,37 +537,16 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
     abstract void removeFromSortedList(RowData delRow, Collector<RowData> out) throws Exception;
 
     /**
-     * Helper method to re-accumulate the aggregated value for all ids without the id that will be
-     * removed.
-     *
-     * @param ids
-     * @param delRow
-     * @return the index position of the id that should be removed
-     * @throws Exception
-     */
-    int reAccumulateIdsAndGetRemoveIndex(List<Long> ids, RowData delRow) throws Exception {
-        int removeIndex = -1;
-        for (int j = 0; j < ids.size(); j++) {
-            RowData curValue = valueMapState.get(ids.get(j));
-            if (valueEqualiser.equals(curValue, delRow)) {
-                removeIndex = j;
-            } else {
-                aggFuncs.accumulate(curValue);
-            }
-        }
-        return removeIndex;
-    }
-
-    /**
-     * Remove the ith element from the sortedList if the list of ids is empty and return the ith
-     * location OR update the sorted list with the list of ids and return the next location of the
+     * Remove the element at index idx from the sortedList if the list of ids is empty and return
+     * the idx location OR update the sorted list with the list of ids and return the next location
+     * of the sortedList. The idx/next location is used to process remaining elements in the
      * sortedList.
      *
      * @param sortedList
      * @param idx
      * @param ids
      * @param curSortKey
-     * @return
+     * @return the next index position in the sortedList after removal or update
      */
     int removeIdFromSortedList(
             List<Tuple2<RowData, List<Long>>> sortedList,
@@ -633,76 +561,6 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
             idx++;
         }
         return idx;
-    }
-
-    /**
-     * Helper method to find the index of the id to be removed from the list of ids.
-     *
-     * @param ids
-     * @param delRow
-     * @return
-     * @throws Exception
-     */
-    int findIndexOfIdToBeRemoved(List<Long> ids, RowData delRow) throws Exception {
-        for (int j = 0; j < ids.size(); j++) {
-            RowData curValue = valueMapState.get(ids.get(j));
-            if (valueEqualiser.equals(curValue, delRow)) {
-                return j;
-            }
-        }
-        return -1;
-    }
-
-    /**
-     * Helper method to get the previous accumulator based on the index of the sortedList and the
-     * index of the list of ids.
-     *
-     * @param sortedList
-     * @param i
-     * @param j
-     * @return
-     * @throws Exception
-     */
-    RowData getPreviousAccumulator(List<Tuple2<RowData, List<Long>>> sortedList, int i, int j)
-            throws Exception {
-        if (j == 0) {
-            if (i - 1 < 0) {
-                return null;
-            } else {
-                Long prevId = sortedList.get(i - 1).f1.get(sortedList.get(i - 1).f1.size() - 1);
-                return accMapState.get(GenericRowData.of(prevId));
-            }
-        } else {
-            return accMapState.get(GenericRowData.of(sortedList.get(i).f1.get(j - 1)));
-        }
-    }
-
-    /**
-     * Helper method to re-accumulate the aggregated value for all ids after the id was removed from
-     * the list of ids.
-     *
-     * @param ids
-     * @param removeIndex
-     * @param out
-     * @throws Exception
-     */
-    void reAccumulateIdsAndEmitUpdates(List<Long> ids, int removeIndex, Collector<RowData> out)
-            throws Exception {
-        for (int j = removeIndex; j < ids.size(); j++) {
-            RowData value = valueMapState.get(ids.get(j));
-            if (j == removeIndex) {
-                collectDelete(out, value, accMapState.get(GenericRowData.of(ids.get(j))));
-            } else {
-                aggFuncs.accumulate(value);
-                // Logic to early out
-                if (aggFuncs.getValue().equals(accMapState.get(GenericRowData.of(ids.get(j))))) {
-                    break;
-                }
-                collectUpdateBefore(out, value, accMapState.get(GenericRowData.of(ids.get(j))));
-                collectUpdateAfter(out, value, aggFuncs.getValue());
-                accMapState.put(GenericRowData.of(ids.get(j)), aggFuncs.getValue());
-            }
-        }
     }
 
     @Override

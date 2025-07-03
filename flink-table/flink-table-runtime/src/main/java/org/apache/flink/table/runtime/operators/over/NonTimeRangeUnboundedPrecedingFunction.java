@@ -24,7 +24,6 @@ import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
@@ -91,8 +90,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
             LogicalType[] accTypes,
             LogicalType[] inputFieldTypes,
             LogicalType[] sortKeyTypes,
-            RowDataKeySelector sortKeySelector,
-            InternalTypeInfo<RowData> accKeyRowTypeInfo) {
+            RowDataKeySelector sortKeySelector) {
         super(
                 stateRetentionTime,
                 genAggsHandler,
@@ -102,8 +100,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
                 accTypes,
                 inputFieldTypes,
                 sortKeyTypes,
-                sortKeySelector,
-                accKeyRowTypeInfo);
+                sortKeySelector);
     }
 
     /**
@@ -122,6 +119,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
      * @param out The collector for returning result values.
      * @throws Exception
      */
+    @Override
     void insertIntoSortedList(RowData insRow, Collector<RowData> out) throws Exception {
         Long id = getNextId();
         List<Tuple2<RowData, List<Long>>> sortedList = getSortedList();
@@ -171,6 +169,29 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
     }
 
     /**
+     * Helper method to set the accumulator based on the prevIndex.
+     *
+     * @param sortedList
+     * @param prevIndex
+     * @throws Exception
+     */
+    private void setAccumulatorOfPrevRow(
+            List<Tuple2<RowData, List<Long>>> sortedList, int prevIndex) throws Exception {
+        if (prevIndex < 0) {
+            RowData accData = aggFuncs.createAccumulators();
+            aggFuncs.setAccumulators(accData);
+        } else {
+            RowData prevAcc = accMapState.get(sortedList.get(prevIndex).f0);
+            if (prevAcc == null) {
+                RowData accData = aggFuncs.createAccumulators();
+                aggFuncs.setAccumulators(accData);
+            } else {
+                aggFuncs.setAccumulators(prevAcc);
+            }
+        }
+    }
+
+    /**
      * Helper method to re-accumulate the aggregated value for all ids after an id was inserted to
      * the end of the ids list.
      *
@@ -179,6 +200,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
      * @param insRow
      * @throws Exception
      */
+    @Override
     void reAccumulateIdsAfterInsert(RowData currAcc, List<Long> ids, RowData insRow)
             throws Exception {
         aggFuncs.setAccumulators(currAcc);
@@ -193,8 +215,8 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
     }
 
     /**
-     * Helper method to send updates for ids. To comply with sql rows syntax, only send update for
-     * the changed row.
+     * Helper method to send updates for ids. To comply with sql range syntax, send updates for all
+     * the ids with the same sort key.
      *
      * @param ids
      * @param idxOfChangedRow
@@ -204,6 +226,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
      * @param prevAggValue
      * @param currAggValue
      */
+    @Override
     void sendUpdatesForIds(
             List<Long> ids,
             int idxOfChangedRow,
@@ -235,6 +258,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
      * @param out
      * @throws Exception
      */
+    @Override
     void processRemainingElements(
             List<Tuple2<RowData, List<Long>>> sortedList,
             int startPos,
@@ -297,6 +321,7 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
      * @param out
      * @throws Exception
      */
+    @Override
     void removeFromSortedList(RowData delRow, Collector<RowData> out) throws Exception {
         delRow.setRowKind(RowKind.INSERT);
         RowData inputSortKey = sortKeySelector.getKey(delRow);
@@ -344,5 +369,27 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
         sortedListState.update(sortedList);
 
         processRemainingElements(sortedList, i, aggFuncs.getAccumulators(), out);
+    }
+
+    /**
+     * Helper method to re-accumulate the aggregated value for all ids without the id that will be
+     * removed.
+     *
+     * @param ids
+     * @param delRow
+     * @return the index position of the id that should be removed
+     * @throws Exception
+     */
+    private int reAccumulateIdsAndGetRemoveIndex(List<Long> ids, RowData delRow) throws Exception {
+        int removeIndex = -1;
+        for (int j = 0; j < ids.size(); j++) {
+            RowData curValue = valueMapState.get(ids.get(j));
+            if (valueEqualiser.equals(curValue, delRow)) {
+                removeIndex = j;
+            } else {
+                aggFuncs.accumulate(curValue);
+            }
+        }
+        return removeIndex;
     }
 }
