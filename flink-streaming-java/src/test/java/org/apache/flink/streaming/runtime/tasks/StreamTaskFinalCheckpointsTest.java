@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -62,6 +63,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -117,7 +119,9 @@ class StreamTaskFinalCheckpointsTest {
             try (StreamTaskMailboxTestHarness<String> testHarness =
                     new StreamTaskMailboxTestHarnessBuilder<>(
                                     OneInputStreamTask::new, STRING_TYPE_INFO)
-                            .modifyStreamConfig(config -> config.setCheckpointingEnabled(false))
+                            .addJobConfig(
+                                    CheckpointingOptions.CHECKPOINTING_INTERVAL,
+                                    Duration.ofSeconds(1))
                             .addInput(STRING_TYPE_INFO)
                             .addAdditionalOutput(partitionWriters)
                             .setupOperatorChain(new EmptyOperator())
@@ -228,12 +232,10 @@ class StreamTaskFinalCheckpointsTest {
         StreamTaskMailboxTestHarness<String> testHarness =
                 testHarnessBuilder
                         .addInput(STRING_TYPE_INFO, 3)
-                        .modifyStreamConfig(
-                                config -> {
-                                    config.setCheckpointingEnabled(true);
-                                    config.setUnalignedCheckpointsEnabled(
-                                            enableUnalignedCheckpoint);
-                                })
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
+                        .addJobConfig(
+                                CheckpointingOptions.ENABLE_UNALIGNED, enableUnalignedCheckpoint)
                         .setCheckpointResponder(checkpointResponder)
                         .setupOperatorChain(new EmptyOperator())
                         .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
@@ -452,10 +454,8 @@ class StreamTaskFinalCheckpointsTest {
 
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
-                        .modifyStreamConfig(
-                                config -> {
-                                    config.setCheckpointingEnabled(true);
-                                })
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .setCheckpointResponder(checkpointResponder)
                         .setupOutputForSingletonOperatorChain(
                                 new StreamSource<>(new ImmediatelyFinishingSource()))
@@ -619,7 +619,9 @@ class StreamTaskFinalCheckpointsTest {
                             .addInput(BasicTypeInfo.STRING_TYPE_INFO, 1)
                             .addAdditionalOutput(partitionWriters)
                             .setCheckpointResponder(checkpointResponder)
-                            .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                            .addJobConfig(
+                                    CheckpointingOptions.CHECKPOINTING_INTERVAL,
+                                    Duration.ofSeconds(1))
                             .setupOperatorChain(new StatefulOperator())
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                             .build()) {
@@ -848,8 +850,9 @@ class StreamTaskFinalCheckpointsTest {
         try (StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                        .modifyStreamConfig(
-                                streamConfig -> streamConfig.setUnalignedCheckpointsEnabled(true))
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
+                        .addJobConfig(CheckpointingOptions.ENABLE_UNALIGNED, true)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
                         .setCollectNetworkEvents()
                         .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED_ON_RESTORE)

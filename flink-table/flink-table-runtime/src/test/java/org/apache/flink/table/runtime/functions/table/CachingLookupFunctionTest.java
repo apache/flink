@@ -74,7 +74,7 @@ class CachingLookupFunctionTest {
                 new CachingLookupFunction(
                         DefaultLookupCache.newBuilder().maximumSize(Long.MAX_VALUE).build(),
                         delegate);
-        function.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 0)));
+        function.open(new FunctionContext(new MockStreamingRuntimeContext(1, 0)));
         return function;
     }
 

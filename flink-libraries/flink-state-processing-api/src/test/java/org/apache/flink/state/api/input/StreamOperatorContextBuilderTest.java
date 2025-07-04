@@ -45,7 +45,7 @@ public class StreamOperatorContextBuilderTest {
                 StateBackendOptions.STATE_BACKEND,
                 CustomStateBackendFactory.class.getCanonicalName());
 
-        MockStreamingRuntimeContext context = new MockStreamingRuntimeContext(true, 1, 0);
+        MockStreamingRuntimeContext context = new MockStreamingRuntimeContext(1, 0);
         StreamOperatorContextBuilder builder =
                 new StreamOperatorContextBuilder(
                         context,
