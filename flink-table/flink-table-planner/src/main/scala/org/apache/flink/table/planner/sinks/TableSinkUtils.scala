@@ -230,7 +230,7 @@ object TableSinkUtils {
     // class of the resulting type. For example, converts the given [[Table]] into
     // an append [[DataStream]]. If the class is Row, then the return type only is
     // [[GenericTypeInfo[Row]]. So it should convert to the [[RowTypeInfo]] in order
-    // to better serialize performance.
+    // for better serialization performance.
     requestedTypeInfo match {
       case gt: GenericTypeInfo[Row] if gt.getTypeClass == classOf[Row] =>
         fromLogicalToDataType(queryLogicalType).bridgedTo(classOf[Row])
