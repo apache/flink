@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
+import org.apache.flink.table.planner.functions.aggfunctions.LiteralAggFunction
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, SortUtil}
 import org.apache.flink.table.runtime.generated.{NormalizedKeyComputer, RecordComparator}
 import org.apache.flink.table.runtime.operators.aggregate.BytesHashMapSpillMemorySegmentPool
@@ -203,7 +204,13 @@ object HashAggCodeGenHelper {
 
     val initAggCallBufferExprs = aggInfos
       .map(_.function.asInstanceOf[DeclarativeAggregateFunction])
-      .flatMap(_.initialValuesExpressions)
+      .flatMap(
+        e =>
+          e match {
+            case f: LiteralAggFunction =>
+              f.getValueExpressions
+            case _ => e.initialValuesExpressions
+          })
       .map(_.accept(converter))
       .map(exprCodeGen.generateExpression)
 
@@ -442,6 +449,19 @@ object HashAggCodeGenHelper {
       .map(_.function)
       .zipWithIndex
       .flatMap {
+        case (agg: LiteralAggFunction, aggIndex) =>
+          val aggBufferIdx = auxGrouping.length + aggIndex
+          val bindRefOffset = inputType.getFieldCount
+          val ref = ResolveReference(
+            ctx,
+            builder,
+            isMerge = true,
+            bindRefOffset,
+            agg,
+            aggBufferIdx,
+            argsMapping,
+            aggBuffMapping)
+          agg.getValueExpressions.map(_.accept(ref))
         case (agg: DeclarativeAggregateFunction, aggIndex) =>
           val aggBufferIdx = auxGrouping.length + aggIndex
           val bindRefOffset = inputType.getFieldCount
