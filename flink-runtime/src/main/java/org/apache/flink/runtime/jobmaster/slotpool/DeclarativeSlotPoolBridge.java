@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -301,7 +302,8 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             AllocationID allocationId,
             ResourceProfile resourceProfile) {
         log.debug("Reserve slot {} for slot request id {}", allocationId, slotRequestId);
-        getDeclarativeSlotPool().reserveFreeSlot(allocationId, resourceProfile);
+        getDeclarativeSlotPool()
+                .reserveFreeSlot(allocationId, resourceProfile, DefaultLoadingWeight.EMPTY);
         fulfilledRequests.put(slotRequestId, allocationId);
     }
 
@@ -331,7 +333,9 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                 .increaseResourceRequirementsBy(
                         ResourceCounter.withResource(requiredSlotProfile, 1));
         final PhysicalSlot physicalSlot =
-                getDeclarativeSlotPool().reserveFreeSlot(allocationId, requiredSlotProfile);
+                getDeclarativeSlotPool()
+                        .reserveFreeSlot(
+                                allocationId, requiredSlotProfile, DefaultLoadingWeight.EMPTY);
         fulfilledRequests.put(slotRequestId, allocationId);
 
         return physicalSlot;
