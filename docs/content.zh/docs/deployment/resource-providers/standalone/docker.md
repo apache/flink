@@ -431,19 +431,18 @@ services:
   ```
   You can then start creating tables and queries those.
 
-* 请注意，集群和客户端中都需要安装各种运行库包括各种Source和Sink连接器。
-  例如，如果你想使用卡夫卡（SQL Kafka） 连接器，那么你需要构建一个自定义Docker镜像。
-
-  创建一个名为 `kafka.Dockerfile` 的 Dockerfile，内容如下：
+* Note that all required dependencies (e.g. for connectors) need to be available in the cluster as well as the client.
+  For example, if you would like to add and use the SQL Kafka Connector, you need to build a custom image.
+  1. Create a Dockerfile named `kafka.Dockerfile` as follows:
 
   ```Dockerfile
   FROM flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
   ARG kafka_connector_version=4.0.0-2.0
   RUN wget -P /opt/flink/lib https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/$kafka_connector_version/flink-sql-connector-kafka-$kafka_connector_version.jar
   ```
-
-* 接下来，将 jobmanager、taskmanager 和 sql-client 服务中的`image` 配置替换为 `build` 命令。
-  下面展示在docker-compose.yml 文件中，jobmanager 服务使用自定义Docker镜像，而不是默认的官方镜像：
+  
+  2. Replace the `image` config with the `build` command that references the Dockerfile for jobmanager, taskmanager and sql-client services.
+  For example, the jobmanager service will start with the following setting:
   ```yaml
   jobmanager:
     build:
