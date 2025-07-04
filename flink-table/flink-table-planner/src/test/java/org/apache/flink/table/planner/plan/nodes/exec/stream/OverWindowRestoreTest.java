@@ -54,6 +54,8 @@ public class OverWindowRestoreTest extends RestoreTestBase {
         return Arrays.asList(
                 OverWindowTestPrograms.LAG_OVER_FUNCTION,
                 OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SORT_BY_KEY,
                 OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_APPEND_MODE,
                 OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_AVG_APPEND_MODE,
                 OverWindowTestPrograms
@@ -66,6 +68,22 @@ public class OverWindowRestoreTest extends RestoreTestBase {
                 OverWindowTestPrograms
                         .OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY,
                 OverWindowTestPrograms
-                        .OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK);
+                        .OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK,
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_SUM_RETRACT_MODE,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_SUM_RETRACT_MODE_SORT_BY_KEY,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_PRIMARY_KEY,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_SUM_RETRACT_MODE_SINK_PRIMARY_KEY,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK,
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_SUM_APPEND_MODE,
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_AVG_APPEND_MODE,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_MULTIPLE_AGGS_APPEND_MODE,
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_SUM_NO_PARTITION_BY);
     }
 }
