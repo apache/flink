@@ -25,6 +25,8 @@ import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
@@ -101,7 +103,8 @@ public class NonTimeRowsUnboundedPrecedingFunction<K>
                 accTypes,
                 inputFieldTypes,
                 sortKeyTypes,
-                sortKeySelector);
+                sortKeySelector,
+                InternalTypeInfo.ofFields(new BigIntType()));
     }
 
     /**

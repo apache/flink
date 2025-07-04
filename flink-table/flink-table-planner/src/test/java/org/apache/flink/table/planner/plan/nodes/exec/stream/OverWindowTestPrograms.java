@@ -154,6 +154,57 @@ public class OverWindowTestPrograms {
                                     + "FROM source_t")
                     .build();
 
+    static final TableTestProgram
+            OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SORT_BY_KEY =
+                    TableTestProgram.of(
+                                    "over-aggregate-non-time-range-unbounded-sum-retract-mode-sort-by-key",
+                                    "validates restoring a non-time unbounded preceding sum function in retract mode")
+                            .setupTableSource(
+                                    getSource(
+                                            new String[] {"key STRING", "val BIGINT", "ts BIGINT"}))
+                            .setupTableSink(
+                                    SinkTestStep.newBuilder("sink_t")
+                                            .addSchema(
+                                                    "key STRING",
+                                                    "val BIGINT",
+                                                    "ts BIGINT",
+                                                    "sum_val BIGINT")
+                                            .consumedBeforeRestore(
+                                                    Row.of("key1", 1L, 100L, 1L),
+                                                    Row.of("key1", 2L, 200L, 2L),
+                                                    Row.of("key1", 5L, 500L, 5L),
+                                                    Row.of("key1", 6L, 600L, 6L),
+                                                    Row.ofKind(
+                                                            RowKind.DELETE, "key1", 2L, 200L, 2L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            3L,
+                                                            200L,
+                                                            3L),
+                                                    Row.of("key2", 1L, 100L, 2L),
+                                                    Row.of("key2", 2L, 200L, 2L))
+                                            .consumedAfterRestore(
+                                                    Row.of("key3", 1L, 100L, 3L),
+                                                    Row.of("key1", 4L, 400L, 4L),
+                                                    Row.ofKind(
+                                                            RowKind.DELETE, "key1", 3L, 200L, 3L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            3L,
+                                                            300L,
+                                                            3L))
+                                            .build())
+                            .runSql(
+                                    "INSERT INTO sink_t SELECT key, val, ts, SUM(val) OVER ("
+                                            + "PARTITION BY val "
+                                            + "ORDER BY key "
+                                            + "RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) "
+                                            + "AS sum_val "
+                                            + "FROM source_t")
+                            .build();
+
     static final TableTestProgram OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_SUM_RETRACT_MODE =
             TableTestProgram.of(
                             "over-aggregate-non-time-rows-unbounded-sum-retract-mode",
@@ -173,6 +224,57 @@ public class OverWindowTestPrograms {
                                     + "AS sum_val "
                                     + "FROM source_t")
                     .build();
+
+    static final TableTestProgram
+            OVER_AGGREGATE_NON_TIME_ROWS_UNBOUNDED_SUM_RETRACT_MODE_SORT_BY_KEY =
+                    TableTestProgram.of(
+                                    "over-aggregate-non-time-rows-unbounded-sum-retract-mode-sort-by-key",
+                                    "validates restoring a non-time unbounded preceding sum function in retract mode")
+                            .setupTableSource(
+                                    getSource(
+                                            new String[] {"key STRING", "val BIGINT", "ts BIGINT"}))
+                            .setupTableSink(
+                                    SinkTestStep.newBuilder("sink_t")
+                                            .addSchema(
+                                                    "key STRING",
+                                                    "val BIGINT",
+                                                    "ts BIGINT",
+                                                    "sum_val BIGINT")
+                                            .consumedBeforeRestore(
+                                                    Row.of("key1", 1L, 100L, 1L),
+                                                    Row.of("key1", 2L, 200L, 2L),
+                                                    Row.of("key1", 5L, 500L, 5L),
+                                                    Row.of("key1", 6L, 600L, 6L),
+                                                    Row.ofKind(
+                                                            RowKind.DELETE, "key1", 2L, 200L, 2L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            3L,
+                                                            200L,
+                                                            3L),
+                                                    Row.of("key2", 1L, 100L, 2L),
+                                                    Row.of("key2", 2L, 200L, 2L))
+                                            .consumedAfterRestore(
+                                                    Row.of("key3", 1L, 100L, 3L),
+                                                    Row.of("key1", 4L, 400L, 4L),
+                                                    Row.ofKind(
+                                                            RowKind.DELETE, "key1", 3L, 200L, 3L),
+                                                    Row.ofKind(
+                                                            RowKind.UPDATE_AFTER,
+                                                            "key1",
+                                                            3L,
+                                                            300L,
+                                                            3L))
+                                            .build())
+                            .runSql(
+                                    "INSERT INTO sink_t SELECT key, val, ts, SUM(val) OVER ("
+                                            + "PARTITION BY val "
+                                            + "ORDER BY key "
+                                            + "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) "
+                                            + "AS sum_val "
+                                            + "FROM source_t")
+                            .build();
 
     static final TableTestProgram
             OVER_AGGREGATE_NON_TIME_RANGE_UNBOUNDED_SUM_RETRACT_MODE_SOURCE_PRIMARY_KEY =

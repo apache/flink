@@ -121,6 +121,7 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
     private final LogicalType[] accTypes;
     private final LogicalType[] inputFieldTypes;
     private final LogicalType[] sortKeyTypes;
+    private final InternalTypeInfo<RowData> accKeyRowTypeInfo;
     transient JoinedRowData output;
 
     // state to hold the Long ID counter
@@ -167,7 +168,8 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
             LogicalType[] accTypes,
             LogicalType[] inputFieldTypes,
             LogicalType[] sortKeyTypes,
-            RowDataKeySelector sortKeySelector) {
+            RowDataKeySelector sortKeySelector,
+            InternalTypeInfo<RowData> accKeyRowTypeInfo) {
         this.stateRetentionTime = stateRetentionTime;
         this.generatedAggsHandler = genAggsHandler;
         this.generatedRecordEqualiser = genRecordEqualiser;
@@ -177,6 +179,7 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
         this.inputFieldTypes = inputFieldTypes;
         this.sortKeyTypes = sortKeyTypes;
         this.sortKeySelector = sortKeySelector;
+        this.accKeyRowTypeInfo = accKeyRowTypeInfo;
     }
 
     @Override
@@ -239,7 +242,7 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
         InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
         accStateDescriptor =
                 new MapStateDescriptor<RowData, RowData>(
-                        "accMapState", sortKeyRowTypeInfo, accTypeInfo);
+                        "accMapState", accKeyRowTypeInfo, accTypeInfo);
         if (ttlConfig.isEnabled()) {
             accStateDescriptor.enableTimeToLive(ttlConfig);
         }
