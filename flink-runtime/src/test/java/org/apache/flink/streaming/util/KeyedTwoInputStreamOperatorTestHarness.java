@@ -106,7 +106,7 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
         }
     }
 
-    public void endAllInput() throws Exception {
+    public void endAllInputs() throws Exception {
         TwoInputStreamOperator<IN1, IN2, OUT> op = (TwoInputStreamOperator<IN1, IN2, OUT>) operator;
         if (op instanceof BoundedMultiInput) {
             ((BoundedMultiInput) op).endInput(1);

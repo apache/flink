@@ -143,8 +143,9 @@ public class StreamingDeltaJoinOperator
 
     private final boolean[] isInputEnded;
 
-    // ---------------------------- Metrics -----------------------------------
     private final transient AtomicInteger totalInflightNum = new AtomicInteger(0);
+
+    // ---------------------------- Metrics -----------------------------------
 
     private final transient AtomicLong asyncIOTime = new AtomicLong(Long.MIN_VALUE);
 

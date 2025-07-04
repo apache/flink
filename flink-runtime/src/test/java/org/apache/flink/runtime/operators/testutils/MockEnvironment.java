@@ -72,6 +72,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -133,6 +134,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
     private Optional<Class<? extends Throwable>> expectedExternalFailureCause = Optional.empty();
 
     private Optional<? extends Throwable> actualExternalFailureCause = Optional.empty();
+
+    private Optional<Consumer<Throwable>> externalFailureCauseConsumer = Optional.empty();
 
     private final TaskMetricGroup taskMetricGroup;
 
@@ -413,6 +416,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     @Override
     public void failExternally(Throwable cause) {
+        if (externalFailureCauseConsumer.isPresent()) {
+            externalFailureCauseConsumer.get().accept(cause);
+            return;
+        }
+
         if (!expectedExternalFailureCause.isPresent()) {
             throw new UnsupportedOperationException(
                     "MockEnvironment does not support external task failure.");
@@ -482,5 +490,9 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     public Optional<? extends Throwable> getActualExternalFailureCause() {
         return actualExternalFailureCause;
+    }
+
+    public void setExternalFailureCauseConsumer(Consumer<Throwable> externalFailureCauseConsumer) {
+        this.externalFailureCauseConsumer = Optional.of(externalFailureCauseConsumer);
     }
 }
