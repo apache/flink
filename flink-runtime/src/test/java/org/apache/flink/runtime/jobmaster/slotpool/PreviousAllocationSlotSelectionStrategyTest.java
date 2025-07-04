@@ -47,7 +47,7 @@ class PreviousAllocationSlotSelectionStrategyTest
         SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        resourceProfile,
+                        resourceProfile.toEmptyLoadable(),
                         Collections.singletonList(tml2),
                         Collections.singleton(aid3),
                         Collections.emptySet());
@@ -57,7 +57,7 @@ class PreviousAllocationSlotSelectionStrategyTest
         slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        resourceProfile,
+                        resourceProfile.toEmptyLoadable(),
                         Arrays.asList(tmlX, tml1),
                         new HashSet<>(Arrays.asList(aidX, aid2)),
                         Collections.emptySet());
@@ -71,7 +71,7 @@ class PreviousAllocationSlotSelectionStrategyTest
         SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        resourceProfile,
+                        resourceProfile.toEmptyLoadable(),
                         Collections.singletonList(tml4),
                         Collections.singleton(aidX),
                         Collections.emptySet());
@@ -89,7 +89,7 @@ class PreviousAllocationSlotSelectionStrategyTest
         SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        resourceProfile,
+                        resourceProfile.toEmptyLoadable(),
                         Collections.singletonList(tml4),
                         Collections.singletonList(aidX),
                         blacklisted);
@@ -108,7 +108,7 @@ class PreviousAllocationSlotSelectionStrategyTest
         SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        resourceProfile,
+                        resourceProfile.toEmptyLoadable(),
                         Collections.singletonList(tml4),
                         Collections.singletonList(aidX),
                         blacklisted);
