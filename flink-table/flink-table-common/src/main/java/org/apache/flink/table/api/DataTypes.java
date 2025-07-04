@@ -1006,7 +1006,7 @@ public final class DataTypes {
      * @see DataTypes#of(Class)
      * @see StructuredType
      */
-    public static <T> DataType STRUCTURED(String className, Field... fields) {
+    public static DataType STRUCTURED(String className, Field... fields) {
         return buildStructuredType(StructuredType.newBuilder(className), fields);
     }
 
