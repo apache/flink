@@ -838,7 +838,7 @@ After implemented above catalog modification factory and listener, you can regis
 ```java
 Configuration configuration = new Configuration();
 
-// Add the factory identifier, you can set multiple listeners in the configuraiton.
+// Add the factory identifier, you can set multiple listeners in the configuration.
 configuration.set(TableConfigOptions.TABLE_CATALOG_MODIFICATION_LISTENERS, Arrays.asList("your_factory"));
 TableEnvironment env = TableEnvironment.create(
             EnvironmentSettings.newInstance()

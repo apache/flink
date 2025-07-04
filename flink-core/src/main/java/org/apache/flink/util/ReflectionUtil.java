@@ -134,10 +134,10 @@ public final class ReflectionUtil {
         }
     }
 
-    public static Class<?>[] getTemplateTypes(ParameterizedType paramterizedType) {
-        Class<?>[] types = new Class<?>[paramterizedType.getActualTypeArguments().length];
+    public static Class<?>[] getTemplateTypes(ParameterizedType parameterizedType) {
+        Class<?>[] types = new Class<?>[parameterizedType.getActualTypeArguments().length];
         int i = 0;
-        for (Type templateArgument : paramterizedType.getActualTypeArguments()) {
+        for (Type templateArgument : parameterizedType.getActualTypeArguments()) {
             assert templateArgument instanceof Class<?>;
             types[i++] = (Class<?>) templateArgument;
         }
@@ -147,10 +147,10 @@ public final class ReflectionUtil {
     public static Class<?>[] getTemplateTypes(Class<?> clazz) {
         Type type = clazz.getGenericSuperclass();
         assert (type instanceof ParameterizedType);
-        ParameterizedType paramterizedType = (ParameterizedType) type;
-        Class<?>[] types = new Class<?>[paramterizedType.getActualTypeArguments().length];
+        ParameterizedType parameterizedType = (ParameterizedType) type;
+        Class<?>[] types = new Class<?>[parameterizedType.getActualTypeArguments().length];
         int i = 0;
-        for (Type templateArgument : paramterizedType.getActualTypeArguments()) {
+        for (Type templateArgument : parameterizedType.getActualTypeArguments()) {
             assert (templateArgument instanceof Class<?>);
             types[i++] = (Class<?>) templateArgument;
         }

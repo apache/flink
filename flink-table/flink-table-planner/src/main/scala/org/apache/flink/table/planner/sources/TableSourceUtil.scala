@@ -220,7 +220,7 @@ object TableSourceUtil {
         if (descriptors.size() == 0) {
           None
         } else if (descriptors.size > 1) {
-          throw new ValidationException("Table with has more than a single rowtime attribute..")
+          throw new ValidationException("Table has more than a single rowtime attribute.")
         } else {
           // exactly one rowtime attribute descriptor
           val descriptor = descriptors.get(0)

@@ -118,7 +118,7 @@ public class BlobsCleanupITCase extends TestLogger {
 
     /** Specifies which test case to run in {@link #testBlobServerCleanup(TestCase)}. */
     private enum TestCase {
-        JOB_FINISHES_SUCESSFULLY,
+        JOB_FINISHES_SUCCESSFULLY,
         JOB_IS_CANCELLED,
         JOB_FAILS,
         JOB_SUBMISSION_FAILS
@@ -127,7 +127,7 @@ public class BlobsCleanupITCase extends TestLogger {
     /** Test cleanup for a job that finishes ordinarily. */
     @Test
     public void testBlobServerCleanupFinishedJob() throws Exception {
-        testBlobServerCleanup(TestCase.JOB_FINISHES_SUCESSFULLY);
+        testBlobServerCleanup(TestCase.JOB_FINISHES_SUCCESSFULLY);
     }
 
     /** Test cleanup for a job which is cancelled after submission. */

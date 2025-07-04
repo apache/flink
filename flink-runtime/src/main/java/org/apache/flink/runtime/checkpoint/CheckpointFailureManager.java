@@ -76,7 +76,7 @@ public class CheckpointFailureManager {
      *   <li>all checkpoints - go against failure counter (failover might help and we want to notify
      *       users).
      *   <li>sync savepoints - we must always fail, otherwise we risk deadlock when the job
-     *       cancelation waiting for finishing savepoint which never happens.
+     *       cancellation waiting for finishing savepoint which never happens.
      *   <li>non sync savepoints - go against failure counter (failover might help solve the
      *       problem).
      * </ul>

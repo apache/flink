@@ -1148,7 +1148,7 @@ public class DataFormatConverters {
         private final DataFormatConverter<Object, T> elementConverter;
         private final int elementSize;
         private final TypeSerializer<T> eleSer;
-        private final boolean isEleIndentity;
+        private final boolean isEleIdentity;
 
         private transient BinaryArrayData reuseArray;
         private transient BinaryArrayWriter reuseWriter;
@@ -1160,12 +1160,12 @@ public class DataFormatConverters {
             this.elementConverter = DataFormatConverters.getConverterForDataType(elementType);
             this.elementSize = BinaryArrayData.calculateFixLengthPartSize(this.elementType);
             this.eleSer = InternalSerializers.create(this.elementType);
-            this.isEleIndentity = elementConverter instanceof IdentityConverter;
+            this.isEleIdentity = elementConverter instanceof IdentityConverter;
         }
 
         @Override
         ArrayData toInternalImpl(T[] value) {
-            return isEleIndentity ? new GenericArrayData(value) : toBinaryArray(value);
+            return isEleIdentity ? new GenericArrayData(value) : toBinaryArray(value);
         }
 
         private ArrayData toBinaryArray(T[] value) {
@@ -1196,7 +1196,7 @@ public class DataFormatConverters {
 
         @Override
         T[] toExternalImpl(ArrayData value) {
-            return (isEleIndentity && value instanceof GenericArrayData)
+            return (isEleIdentity && value instanceof GenericArrayData)
                     ? genericArrayToJavaArray((GenericArrayData) value, elementType)
                     : arrayDataToJavaArray(value, elementGetter, componentClass, elementConverter);
         }
@@ -1275,7 +1275,7 @@ public class DataFormatConverters {
         private final TypeSerializer keySer;
         private final TypeSerializer valueSer;
 
-        private final boolean isKeyValueIndentity;
+        private final boolean isKeyValueIdentity;
 
         private transient BinaryArrayData reuseKArray;
         private transient BinaryArrayWriter reuseKWriter;
@@ -1293,7 +1293,7 @@ public class DataFormatConverters {
             this.valueElementSize = BinaryArrayData.calculateFixLengthPartSize(valueType);
             this.keyComponentClass = keyTypeInfo.getConversionClass();
             this.valueComponentClass = valueTypeInfo.getConversionClass();
-            this.isKeyValueIndentity =
+            this.isKeyValueIdentity =
                     keyConverter instanceof IdentityConverter
                             && valueConverter instanceof IdentityConverter;
             this.keySer = InternalSerializers.create(this.keyType);
@@ -1302,7 +1302,7 @@ public class DataFormatConverters {
 
         @Override
         MapData toInternalImpl(Map value) {
-            return isKeyValueIndentity ? new GenericMapData(value) : toBinaryMap(value);
+            return isKeyValueIdentity ? new GenericMapData(value) : toBinaryMap(value);
         }
 
         private MapData toBinaryMap(Map value) {

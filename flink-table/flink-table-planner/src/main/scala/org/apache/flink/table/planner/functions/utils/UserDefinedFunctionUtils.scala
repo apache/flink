@@ -789,7 +789,7 @@ object UserDefinedFunctionUtils {
     if (isRaw(internal) && isRaw(paraInternalType)) {
       getDefaultExternalClassForType(internal) == getDefaultExternalClassForType(paraInternalType)
     } else {
-      // There is a special equal to GenericType. We need rewrite type extract to RowData etc...
+      // There is a special equal to GenericType. We need to rewrite type extraction to RowData etc...
       paraInternalType == internal ||
       toInternalConversionClass(internal) == toInternalConversionClass(paraInternalType)
     }

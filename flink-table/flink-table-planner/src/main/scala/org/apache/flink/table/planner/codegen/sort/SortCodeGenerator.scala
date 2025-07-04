@@ -266,7 +266,7 @@ class SortCodeGenerator(
   }
 
   /**
-   * In order to better performance and not use MemorySegment's compare() and swap(), we CodeGen
+   * In order to improve performance and not use MemorySegment's compare() and swap(), we CodeGen
    * more efficient chunk method.
    */
   def calculateChunks(numKeyBytes: Int): Array[Int] = {

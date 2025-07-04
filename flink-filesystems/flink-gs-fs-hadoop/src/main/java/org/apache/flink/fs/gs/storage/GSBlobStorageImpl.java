@@ -57,7 +57,7 @@ public class GSBlobStorageImpl implements GSBlobStorage {
 
     @Override
     public GSBlobStorage.WriteChannel writeBlob(GSBlobIdentifier blobIdentifier) {
-        LOGGER.trace("Creating writeable blob for identifier {}", blobIdentifier);
+        LOGGER.trace("Creating writable blob for identifier {}", blobIdentifier);
         Preconditions.checkNotNull(blobIdentifier);
 
         BlobInfo blobInfo = BlobInfo.newBuilder(blobIdentifier.getBlobId()).build();
@@ -69,7 +69,7 @@ public class GSBlobStorageImpl implements GSBlobStorage {
     public GSBlobStorage.WriteChannel writeBlob(
             GSBlobIdentifier blobIdentifier, MemorySize chunkSize) {
         LOGGER.trace(
-                "Creating writeable blob for identifier {} with chunk size {}",
+                "Creating writable blob for identifier {} with chunk size {}",
                 blobIdentifier,
                 chunkSize);
         Preconditions.checkNotNull(blobIdentifier);
