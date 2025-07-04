@@ -1183,7 +1183,7 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     </tr>
     <tr>
       <td>lastCheckpointMetadataSize</td>
-      <td>上次检查点 _metadata 文件的大小（字节）.</td>
+      <td>The metadata file size of the last checkpoint (in bytes).</td>
       <td>Gauge</td>
     </tr>
     <tr>
