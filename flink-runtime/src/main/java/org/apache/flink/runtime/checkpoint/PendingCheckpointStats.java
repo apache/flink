@@ -157,7 +157,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 
     @Override
     public long getMetadataSize() {
-        return 0;
+        return -1;
     }
 
     @Override
