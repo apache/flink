@@ -126,13 +126,16 @@ public class BridgingSqlFunction extends SqlFunction {
                 functionKind == FunctionKind.SCALAR
                         || functionKind == FunctionKind.ASYNC_SCALAR
                         || functionKind == FunctionKind.TABLE
+                        || functionKind == FunctionKind.ASYNC_TABLE
                         || functionKind == FunctionKind.PROCESS_TABLE,
                 "Scalar or table function kind expected.");
 
         final TypeInference systemTypeInference =
                 SystemTypeInference.of(functionKind, typeInference);
 
-        if (functionKind == FunctionKind.TABLE || functionKind == FunctionKind.PROCESS_TABLE) {
+        if (functionKind == FunctionKind.TABLE
+                || functionKind == FunctionKind.ASYNC_TABLE
+                || functionKind == FunctionKind.PROCESS_TABLE) {
             return new BridgingSqlFunction.WithTableFunction(
                     dataTypeFactory,
                     typeFactory,

@@ -271,12 +271,9 @@ class LookupJoinTest extends TableTestBase with Serializable {
     expectExceptionThrown(
       "SELECT * FROM T JOIN LookupTable7 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
-      "Could not find an implementation method 'eval' in class " +
+      "Method 'eval' of function class " +
         "'org.apache.flink.table.planner.plan.utils.InvalidAsyncTableFunctionEvalSignature1' " +
-        "for function 'default_catalog.default_database.LookupTable7' that matches the " +
-        "following signature:\n" +
-        "void eval(java.util.concurrent.CompletableFuture, java.lang.Integer, " +
-        "org.apache.flink.table.data.StringData, org.apache.flink.table.data.TimestampData)",
+        "must have a first argument of type java.util.concurrent.CompletableFuture<java.util.Collection>.",
       classOf[ValidationException]
     )
 
@@ -284,12 +281,9 @@ class LookupJoinTest extends TableTestBase with Serializable {
     expectExceptionThrown(
       "SELECT * FROM T JOIN LookupTable8 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
-      "Could not find an implementation method 'eval' in class " +
+      "Method 'eval' of function class " +
         "'org.apache.flink.table.planner.plan.utils.InvalidAsyncTableFunctionEvalSignature2' " +
-        "for function 'default_catalog.default_database.LookupTable8' that matches the " +
-        "following signature:\nvoid eval(java.util.concurrent.CompletableFuture, " +
-        "java.lang.Integer, java.lang.String, " +
-        "java.time.LocalDateTime)",
+        "must have a first argument of type java.util.concurrent.CompletableFuture<java.util.Collection>.",
       classOf[ValidationException]
     )
 
@@ -303,12 +297,19 @@ class LookupJoinTest extends TableTestBase with Serializable {
     expectExceptionThrown(
       "SELECT * FROM T JOIN LookupTable10 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
-      "Could not find an implementation method 'eval' in class " +
+      "Method 'eval' of function class " +
         "'org.apache.flink.table.planner.plan.utils.InvalidAsyncTableFunctionEvalSignature3' " +
-        "for function 'default_catalog.default_database.LookupTable10' that matches the " +
-        "following signature:\n" +
-        "void eval(java.util.concurrent.CompletableFuture, java.lang.Integer, " +
-        "org.apache.flink.table.data.StringData, org.apache.flink.table.data.TimestampData)",
+        "must have a first argument of type java.util.concurrent.CompletableFuture<java.util.Collection>.",
+      classOf[ValidationException]
+    )
+
+    createLookupTable("LookupTable11", new InvalidAsyncTableFunctionType)
+    expectExceptionThrown(
+      "SELECT * FROM T JOIN LookupTable11 " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
+      "Method 'eval' of function class " +
+        "'org.apache.flink.table.planner.plan.utils.InvalidAsyncTableFunctionType' " +
+        "must have a first argument of type java.util.concurrent.CompletableFuture<java.util.Collection>.",
       classOf[ValidationException]
     )
   }
