@@ -279,6 +279,10 @@ object FlinkStreamRuleSets {
     // using variants of aggregate union rule
     CoreRules.AGGREGATE_UNION_AGGREGATE_FIRST,
     CoreRules.AGGREGATE_UNION_AGGREGATE_SECOND,
+    CoreRules.PROJECT_JOIN_JOIN_REMOVE,
+    CoreRules.PROJECT_JOIN_REMOVE,
+    CoreRules.AGGREGATE_JOIN_JOIN_REMOVE,
+    CoreRules.AGGREGATE_JOIN_REMOVE,
 
     // reduce aggregate functions like AVG, STDDEV_POP etc.
     CoreRules.AGGREGATE_REDUCE_FUNCTIONS,
