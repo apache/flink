@@ -555,7 +555,7 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
         @Override
         public Long getValue() {
             CompletedCheckpointStats completed = latestCompletedCheckpoint;
-            return completed != null ? completed.getStateSize() : -1L;
+            return completed != null ? completed.getMetadataSize() : -1L;
         }
     }
 
