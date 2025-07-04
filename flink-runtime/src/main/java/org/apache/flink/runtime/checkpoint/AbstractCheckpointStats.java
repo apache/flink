@@ -96,9 +96,7 @@ public abstract class AbstractCheckpointStats implements Serializable {
     /**
      * @return The metadata file size, 0 if unknown.
      */
-    public long getMetadataSize() {
-        return 0;
-    }
+    public abstract long getMetadataSize();
 
     /**
      * @return the total number of processed bytes during the checkpoint.
