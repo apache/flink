@@ -64,18 +64,4 @@ public class ChangelogStateBackendMigrationTest
         // TODO support checking key serializer
         return false;
     }
-
-    @Override
-    protected void testStateMigrationAfterChangingTTLFromDisablingToEnabling() throws Exception {
-        if (!(this.delegatedStateBackendSupplier.get() instanceof EmbeddedRocksDBStateBackend)) {
-            super.testStateMigrationAfterChangingTTLFromDisablingToEnabling();
-        }
-    }
-
-    @Override
-    protected void testStateMigrationAfterChangingTTLFromEnablingToDisabling() throws Exception {
-        if (!(this.delegatedStateBackendSupplier.get() instanceof EmbeddedRocksDBStateBackend)) {
-            super.testStateMigrationAfterChangingTTLFromEnablingToDisabling();
-        }
-    }
 }
