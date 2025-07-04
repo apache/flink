@@ -230,4 +230,47 @@ class CalcTest extends TableTestBase {
                            |SELECT my_row = ROW(1, 'str') from src
                            |""".stripMargin)
   }
+
+  @Test
+  def testCalcWithNonDeterministicFilterAfterJoin1(): Unit = {
+    util.addTableSource[(Long, Int, String)]("MyTable2", 'a, 'b, 'c)
+    val sqlQuery =
+      """
+        |SELECT a
+        |FROM (
+        |  SELECT
+        |    t1.a,
+        |    t1.c AS t1c,
+        |    t2.c AS t2c
+        |  FROM MyTable t1
+        |  JOIN MyTable2 t2
+        |    ON t1.b = t2.b
+        |) t
+        |WHERE TO_TIMESTAMP(t.t1c, 'yyyy-MM-dd HH:mm:ss') <
+        |      TIMESTAMPADD(HOUR, -2, NOW())
+        |  AND t.t2c > '2022-01-01 00:00:00'
+        |""".stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testCalcWithNonDeterministicFilterAfterJoin2(): Unit = {
+    util.addTableSource[(Long, Int, String)]("MyTable2", 'a, 'b, 'c)
+    val sqlQuery =
+      """
+        |SELECT a
+        |FROM (
+        |  SELECT t1.a,
+        |         t1.c AS t1c,
+        |         t2.c AS t2c
+        |  FROM  MyTable t1
+        |  JOIN  MyTable2 t2
+        |  ON    t1.b = t2.b
+        |) t
+        |WHERE TO_TIMESTAMP(t.t1c, 'yyyy-MM-dd HH:mm:ss')
+        |      < TIMESTAMPADD(HOUR, -2, CAST(CURRENT_TIME AS TIMESTAMP(3)))
+        |  AND t.t2c > '2022-01-01 00:00:00'
+        |""".stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
 }

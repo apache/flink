@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.data.{GenericRowData, MapData}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -823,6 +824,76 @@ class CalcITCase extends StreamingTestBase {
     env.execute()
 
     val expected = List("16")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @Test
+  def testCalcWithNonDeterministicFilterAfterJoin(): Unit = {
+    val data1 = List(
+      changelogRow("+I", Int.box(1), Int.box(1), String.valueOf("2022-01-01 11:11:11")),
+      changelogRow("+I", Int.box(3), Int.box(3), String.valueOf("2022-01-01 11:11:13")),
+      // will not match
+      changelogRow("+I", Int.box(2), Int.box(2), String.valueOf("2022-01-01 11:11:12")),
+      changelogRow("+I", Int.box(4), Int.box(44), String.valueOf("2022-01-01 11:11:14")),
+      changelogRow("+I", Int.box(5), Int.box(5), String.valueOf("2077-01-01 11:11:15"))
+    )
+    val data2 = List(
+      changelogRow("+I", Int.box(1), Int.box(1), String.valueOf("2022-01-01 11:11:11")),
+      changelogRow("+I", Int.box(3), Int.box(3), String.valueOf("2022-01-01 11:11:13")),
+      // will not match
+      changelogRow("+I", Int.box(2), Int.box(2), String.valueOf("2012-01-01 11:11:12")),
+      changelogRow("+I", Int.box(4), Int.box(4), String.valueOf("2022-01-01 11:11:14")),
+      changelogRow("+I", Int.box(5), Int.box(5), String.valueOf("2022-01-01 11:11:15"))
+    )
+
+    tEnv.executeSql("drop table if exists MyTable1")
+    tEnv.executeSql(s"""
+                       |create table MyTable1(
+                       |  a int,
+                       |  b int,
+                       |  c string
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'false',
+                       |  'data-id' = '${TestValuesTableFactory.registerData(data1)}'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql("drop table if exists MyTable2")
+    tEnv.executeSql(s"""
+                       |create table MyTable2(
+                       |  a int,
+                       |  b int,
+                       |  c string
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'false',
+                       |  'data-id' = '${TestValuesTableFactory.registerData(data2)}'
+                       |)
+                       |""".stripMargin)
+
+    val sqlQuery =
+      """
+        |SELECT a
+        |FROM (
+        |  SELECT t1.a,
+        |         t1.c AS t1c,
+        |         t2.c AS t2c
+        |  FROM  MyTable1 t1
+        |  JOIN  MyTable2 t2
+        |  ON    t1.b = t2.b
+        |) t
+        |WHERE TO_TIMESTAMP(t.t1c, 'yyyy-MM-dd HH:mm:ss') <
+        |      TIMESTAMPADD(HOUR, -2, NOW())
+        |  AND t.t2c > '2022-01-01 00:00:00'
+        |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery)
+    val sink = new TestingAppendSink
+    tEnv.toDataStream(result, DataTypes.ROW(DataTypes.INT())).addSink(sink)
+    env.execute()
+
+    val expected = List("1", "3")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 }

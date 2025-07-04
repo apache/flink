@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -505,8 +506,11 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
 
         @Override
         public boolean matches(RelOptRuleCall call) {
+            Filter filter = call.rel(0);
             Join join = call.rel(1);
-            return !isEventTimeTemporalJoin(join.getCondition()) && super.matches(call);
+            return !isFilterContainsNonDeterministicCall(filter.getCondition())
+                    && !isEventTimeTemporalJoin(join.getCondition())
+                    && super.matches(call);
         }
 
         @Override
@@ -539,6 +543,10 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
                 return new FlinkFilterIntoJoinRule(this);
             }
         }
+    }
+
+    protected boolean isFilterContainsNonDeterministicCall(RexNode filterCondition) {
+        return FlinkRexUtil.getNonDeterministicCallName(filterCondition).isPresent();
     }
 
     protected boolean isEventTimeTemporalJoin(RexNode joinCondition) {

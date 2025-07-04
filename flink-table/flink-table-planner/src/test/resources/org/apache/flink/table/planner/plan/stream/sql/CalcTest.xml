@@ -103,6 +103,85 @@ Calc(select=[a], where=[>(random_udf(b), 10)])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCalcWithNonDeterministicFilterAfterJoin1">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a
+FROM (
+  SELECT
+    t1.a,
+    t1.c AS t1c,
+    t2.c AS t2c
+  FROM MyTable t1
+  JOIN MyTable2 t2
+    ON t1.b = t2.b
+) t
+WHERE TO_TIMESTAMP(t.t1c, 'yyyy-MM-dd HH:mm:ss') <
+      TIMESTAMPADD(HOUR, -2, NOW())
+  AND t.t2c > '2022-01-01 00:00:00'
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[AND(<(TO_TIMESTAMP($1, _UTF-16LE'yyyy-MM-dd HH:mm:ss'), +(NOW(), *(3600000:INTERVAL HOUR, -2))), >($2, _UTF-16LE'2022-01-01 00:00:00'))])
+   +- LogicalProject(a=[$0], t1c=[$2], t2c=[$5])
+      +- LogicalJoin(condition=[=($1, $4)], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a], where=[((TO_TIMESTAMP(c, 'yyyy-MM-dd HH:mm:ss') < (NOW() + -7200000:INTERVAL HOUR)) AND (c0 > '2022-01-01 00:00:00'))])
++- Join(joinType=[InnerJoin], where=[(b = b0)], select=[a, b, c, b0, c0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[b]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNonDeterministicFilterAfterJoin2">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a
+FROM (
+  SELECT t1.a,
+         t1.c AS t1c,
+         t2.c AS t2c
+  FROM  MyTable t1
+  JOIN  MyTable2 t2
+  ON    t1.b = t2.b
+) t
+WHERE TO_TIMESTAMP(t.t1c, 'yyyy-MM-dd HH:mm:ss')
+      < TIMESTAMPADD(HOUR, -2, CAST(CURRENT_TIME AS TIMESTAMP(3)))
+  AND t.t2c > '2022-01-01 00:00:00'
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[AND(<(TO_TIMESTAMP($1, _UTF-16LE'yyyy-MM-dd HH:mm:ss'), +(CAST(CURRENT_TIME()):TIMESTAMP(3) NOT NULL, *(3600000:INTERVAL HOUR, -2))), >($2, _UTF-16LE'2022-01-01 00:00:00'))])
+   +- LogicalProject(a=[$0], t1c=[$2], t2c=[$5])
+      +- LogicalJoin(condition=[=($1, $4)], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a], where=[((TO_TIMESTAMP(c, 'yyyy-MM-dd HH:mm:ss') < (CAST(CURRENT_TIME() AS TIMESTAMP(3)) + -7200000:INTERVAL HOUR)) AND (c0 > '2022-01-01 00:00:00'))])
++- Join(joinType=[InnerJoin], where=[(b = b0)], select=[a, b, c, b0, c0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[b]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testConjunctiveFilter">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE a < 10 AND b > 20]]>
