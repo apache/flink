@@ -30,8 +30,7 @@ import { JobsItem } from '@flink-runtime-web/interfaces';
   templateUrl: './job.component.html',
   styleUrls: ['./job.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, JobListComponent, RouterOutlet],
-  standalone: true
+  imports: [NgIf, JobListComponent, RouterOutlet]
 })
 export class JobComponent implements OnInit, OnDestroy {
   jobIdSelected?: string;

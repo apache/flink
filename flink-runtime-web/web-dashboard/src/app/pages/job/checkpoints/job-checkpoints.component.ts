@@ -60,8 +60,7 @@ import { JobLocalService } from '../job-local.service';
     NzEmptyModule,
     NzCollapseModule,
     NzToolTipModule
-  ],
-  standalone: true
+  ]
 })
 export class JobCheckpointsComponent implements OnInit, OnDestroy {
   disabledInterval = 0x7fffffffffffffff;

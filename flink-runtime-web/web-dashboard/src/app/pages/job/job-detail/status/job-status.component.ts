@@ -53,8 +53,7 @@ import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
     NavigationComponent,
     NzSkeletonModule,
     HumanizeDurationPipe
-  ],
-  standalone: true
+  ]
 })
 export class JobStatusComponent implements OnInit, OnDestroy {
   @Input() isLoading = true;

@@ -35,12 +35,11 @@ import {
 } from "@flink-runtime-web/components/addon-compact/addon-compact.component";
 
 @Component({
-  selector: 'flink-task-manager-logs',
-  templateUrl: './task-manager-logs.component.html',
-  styleUrls: ['./task-manager-logs.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
-  standalone: true
+    selector: 'flink-task-manager-logs',
+    templateUrl: './task-manager-logs.component.html',
+    styleUrls: ['./task-manager-logs.component.less'],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent]
 })
 export class TaskManagerLogsComponent implements OnInit, OnDestroy {
   public editorOptions: EditorOptions;

@@ -26,8 +26,7 @@ import { TaskManagerStatusComponent } from '@flink-runtime-web/pages/task-manage
   templateUrl: './task-manager.component.html',
   styleUrls: ['./task-manager.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TaskManagerStatusComponent, RouterOutlet],
-  standalone: true
+  imports: [TaskManagerStatusComponent, RouterOutlet]
 })
 export class TaskManagerComponent {
   constructor() {}
