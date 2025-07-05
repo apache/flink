@@ -43,8 +43,7 @@ import {
   VerticesItem
 } from '@flink-runtime-web/interfaces';
 import { JobService } from '@flink-runtime-web/services';
-import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+import { NzTableModule, NzTableSortFn } from 'ng-zorro-antd/table';
 
 import { JobLocalService } from '../../job-local.service';
 

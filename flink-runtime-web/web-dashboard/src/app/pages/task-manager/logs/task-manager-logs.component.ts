@@ -19,17 +19,16 @@
 import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestroy, Inject } from '@angular/core';
 import {catchError, takeUntil} from 'rxjs/operators';
 import { ConfigService, TaskManagerService } from '@flink-runtime-web/services';
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
 import {of, Subject} from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
 import {
   TASK_MANAGER_MODULE_CONFIG,
   TASK_MANAGER_MODULE_DEFAULT_CONFIG,
 } from '@flink-runtime-web/pages/task-manager/task-manager.config';
-import {ModuleConfig} from "@flink-runtime-web/core/module-config";
-import {NzCodeEditorModule} from "ng-zorro-antd/code-editor";
-import {AutoResizeDirective} from "@flink-runtime-web/components/editor/auto-resize.directive";
-import {FormsModule} from "@angular/forms";
+import { ModuleConfig } from "@flink-runtime-web/core/module-config";
+import { EditorOptions, NzCodeEditorModule } from "ng-zorro-antd/code-editor";
+import { AutoResizeDirective } from "@flink-runtime-web/components/editor/auto-resize.directive";
+import { FormsModule } from "@angular/forms";
 import {
   AddonCompactComponent
 } from "@flink-runtime-web/components/addon-compact/addon-compact.component";
