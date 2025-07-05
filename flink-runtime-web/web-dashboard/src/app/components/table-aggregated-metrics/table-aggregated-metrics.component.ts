@@ -34,6 +34,4 @@ import { NzTableModule } from 'ng-zorro-antd/table';
 export class TableAggregatedMetricsComponent {
   @Input() isLoading = false;
   @Input() aggregated?: JobVertexAggregated;
-
-  constructor() {}
 }

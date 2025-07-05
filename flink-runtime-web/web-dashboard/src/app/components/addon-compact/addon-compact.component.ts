@@ -33,6 +33,4 @@ export class AddonCompactComponent {
   @Input() downloadHref: string;
   @Input() loading = false;
   @Output() reload = new EventEmitter<void>();
-
-  constructor() {}
 }
