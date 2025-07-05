@@ -76,7 +76,7 @@ class RetryableLookupFunctionDelegatorTest {
 
     @Test
     void testLookupWithRetry() throws Exception {
-        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 0)));
+        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(1, 0)));
         for (int i = 1; i <= 5; i++) {
             RowData key = GenericRowData.of(i);
             assertor.assertOutputEquals(

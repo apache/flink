@@ -308,7 +308,7 @@ class AsyncLookupJoinHarnessTest {
         assertThat(joinRunner.getAllResultFutures()).isNull();
         closeAsyncLookupJoinRunner(joinRunner);
 
-        joinRunner.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+        joinRunner.setRuntimeContext(new MockStreamingRuntimeContext(1, 0));
         joinRunner.open(DefaultOpenContext.INSTANCE);
         assertThat(joinRunner.getAllResultFutures()).isNotNull();
         closeAsyncLookupJoinRunner(joinRunner);

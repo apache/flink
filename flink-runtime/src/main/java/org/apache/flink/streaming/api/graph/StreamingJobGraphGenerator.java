@@ -31,7 +31,6 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -526,12 +525,6 @@ public class StreamingJobGraphGenerator {
                     }
                 }
             }
-        }
-
-        if (checkpointConfig.isUnalignedCheckpointsEnabled()
-                && streamGraph.getCheckpointingMode() != CheckpointingMode.EXACTLY_ONCE) {
-            LOG.warn("Unaligned checkpoints can only be used with checkpointing mode EXACTLY_ONCE");
-            checkpointConfig.enableUnalignedCheckpoints(false);
         }
     }
 
@@ -1251,18 +1244,10 @@ public class StreamingJobGraphGenerator {
                 streamGraph.getCheckpointingSettings().getDefaultCheckpointStorage());
         config.setGraphContainingLoops(streamGraph.isIterative());
         config.setTimerServiceProvider(streamGraph.getTimerServiceProvider());
-        config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
         config.getConfiguration()
                 .set(
                         CheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
                         streamGraph.isEnableCheckpointsAfterTasksFinish());
-        config.setCheckpointMode(StreamGraph.getCheckpointingMode(checkpointCfg));
-        config.setUnalignedCheckpointsEnabled(checkpointCfg.isUnalignedCheckpointsEnabled());
-        config.setUnalignedCheckpointsSplittableTimersEnabled(
-                checkpointCfg.isUnalignedCheckpointsInterruptibleTimersEnabled());
-        config.setAlignedCheckpointTimeout(checkpointCfg.getAlignedCheckpointTimeout());
-        config.setMaxSubtasksPerChannelStateFile(checkpointCfg.getMaxSubtasksPerChannelStateFile());
-        config.setMaxConcurrentCheckpoints(checkpointCfg.getMaxConcurrentCheckpoints());
 
         for (int i = 0; i < vertex.getStatePartitioners().length; i++) {
             config.setStatePartitioner(i, vertex.getStatePartitioners()[i]);
