@@ -59,8 +59,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
     NzSelectModule,
     NzToolTipModule,
     NzIconModule
-  ],
-  standalone: true
+  ]
 })
 export class JobManagerProfilerComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();

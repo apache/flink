@@ -66,8 +66,7 @@ function createSortFn(selector: (item: JobVertexSubTask) => number | string): Nz
     DynamicHostComponent,
     NgForOf,
     TableAggregatedMetricsComponent
-  ],
-  standalone: true
+  ]
 })
 export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
   readonly trackBySubtask = (_: number, node: JobVertexSubTask): number => node.subtask;

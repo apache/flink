@@ -43,8 +43,7 @@ interface WatermarkData {
   templateUrl: './job-overview-drawer-watermarks.component.html',
   styleUrls: ['./job-overview-drawer-watermarks.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NgIf, HumanizeWatermarkPipe, HumanizeWatermarkToDatetimePipe, NzIconModule, NzToolTipModule],
-  standalone: true
+  imports: [NzTableModule, NgIf, HumanizeWatermarkPipe, HumanizeWatermarkToDatetimePipe, NzIconModule, NzToolTipModule]
 })
 export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
   public readonly trackBySubtaskIndex = (_: number, node: { subTaskIndex: number; watermark: number }): number =>

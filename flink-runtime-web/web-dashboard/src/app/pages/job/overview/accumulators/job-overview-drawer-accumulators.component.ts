@@ -34,8 +34,7 @@ import { JobLocalService } from '../../job-local.service';
   templateUrl: './job-overview-drawer-accumulators.component.html',
   styleUrls: ['./job-overview-drawer-accumulators.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTabsModule, NzTableModule, NgIf, DecimalPipe],
-  standalone: true
+  imports: [NzTabsModule, NzTableModule, NgIf, DecimalPipe]
 })
 export class JobOverviewDrawerAccumulatorsComponent implements OnInit, OnDestroy {
   public readonly trackByName = (_: number, node: UserAccumulators): string => node.name;

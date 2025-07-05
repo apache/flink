@@ -30,8 +30,7 @@ import { NzTableModule } from 'ng-zorro-antd/table';
   templateUrl: './configuration-cards.component.html',
   styleUrls: ['./configuration-cards.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCardModule, NgIf, NzTableModule, NgForOf, NzEmptyModule, TableDisplayComponent],
-  standalone: true
+  imports: [NzCardModule, NgIf, NzTableModule, NgForOf, NzEmptyModule, TableDisplayComponent]
 })
 export class ConfigurationCardsComponent {
   @Input() title: string = 'Configurations';

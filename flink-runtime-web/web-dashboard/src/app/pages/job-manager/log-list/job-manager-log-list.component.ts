@@ -39,8 +39,7 @@ import { typeDefinition } from '../../../utils/strong-type';
   templateUrl: './job-manager-log-list.component.html',
   styleUrls: ['./job-manager-log-list.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NgIf, RouterLinkWithHref, HumanizeDatePipe, DecimalPipe],
-  standalone: true
+  imports: [NzTableModule, NgIf, RouterLinkWithHref, HumanizeDatePipe, DecimalPipe]
 })
 export class JobManagerLogListComponent implements OnInit, OnDestroy {
   public readonly trackByName = (_: number, log: JobManagerLogItem): string => log.name;

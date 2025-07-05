@@ -88,8 +88,7 @@ const markGlobalFailure = function (exception: ExceptionInfo): ExceptionInfo {
     NzButtonModule,
     NzTagModule,
     KeyValuePipe
-  ],
-  standalone: true
+  ]
 })
 export class JobExceptionsComponent implements OnInit, OnDestroy {
   public readonly trackByTimestamp = (_: number, node: ExceptionInfo): number => node.timestamp;

@@ -49,8 +49,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
     NgForOf,
     NgIf,
     NgTemplateOutlet
-  ],
-  standalone: true
+  ]
 })
 export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
   public taskManagerDetail?: TaskManagerDetail;

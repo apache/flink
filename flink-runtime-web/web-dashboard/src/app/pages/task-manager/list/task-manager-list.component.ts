@@ -40,8 +40,7 @@ function createSortFn(selector: (item: TaskManagersItem) => number): NzTableSort
   templateUrl: './task-manager-list.component.html',
   styleUrls: ['./task-manager-list.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCardModule, NzTableModule, NgForOf, BlockedBadgeComponent, NgIf, DatePipe, HumanizeBytesPipe],
-  standalone: true
+  imports: [NzCardModule, NzTableModule, NgForOf, BlockedBadgeComponent, NgIf, DatePipe, HumanizeBytesPipe]
 })
 export class TaskManagerListComponent implements OnInit, OnDestroy {
   public readonly trackById = (_: number, node: TaskManagersItem): string => node.id;

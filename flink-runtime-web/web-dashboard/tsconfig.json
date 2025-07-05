@@ -2,11 +2,11 @@
   "compileOnSave": false,
   "compilerOptions": {
     "baseUrl": "./",
-    "downlevelIteration": true,
     "paths": {
       "*": ["./src/@types/*"],
       "@flink-runtime-web/*": ["./src/app/*", "./src/environments/*"]
     },
+    "esModuleInterop": true,
     "outDir": "./dist/out-tsc",
     "sourceMap": true,
     "declaration": false,

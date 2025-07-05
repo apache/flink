@@ -63,8 +63,7 @@ function createSortFn(
   templateUrl: './job-checkpoints-subtask.component.html',
   styleUrls: ['./job-checkpoints-subtask.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, HumanizeDurationPipe, HumanizeBytesPipe, NgIf, DatePipe, NgForOf, RouterModule],
-  standalone: true
+  imports: [NzTableModule, HumanizeDurationPipe, HumanizeBytesPipe, NgIf, DatePipe, NgForOf, RouterModule]
 })
 export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges, OnDestroy {
   @Input() public vertex: VerticesItem;

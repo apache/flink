@@ -37,8 +37,7 @@ import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
   templateUrl: './job-manager-stdout.component.html',
   styleUrls: ['./job-manager-stdout.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
-  standalone: true
+  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent]
 })
 export class JobManagerStdoutComponent implements OnInit, OnDestroy {
   public readonly downloadName = `jobmanager_stdout`;

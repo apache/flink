@@ -54,8 +54,7 @@ import { JobLocalService } from '../../job-local.service';
     HumanizeBytesPipe,
     NzIconModule,
     NzToolTipModule
-  ],
-  standalone: true
+  ]
 })
 export class JobOverviewDrawerDetailComponent implements OnInit, OnDestroy {
   public node: NodesItemCorrect | null;

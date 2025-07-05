@@ -31,8 +31,7 @@ const colorMap: Record<string, string> = {
   templateUrl: './backpressure-badge.component.html',
   styleUrls: ['./backpressure-badge.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [UpperCasePipe],
-  standalone: true
+  imports: [UpperCasePipe]
 })
 export class BackpressureBadgeComponent {
   @Input() public state: string;
