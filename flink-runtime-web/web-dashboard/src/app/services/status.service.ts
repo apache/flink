@@ -17,7 +17,7 @@
  */
 
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { EMPTY, fromEvent, interval, merge, Observable, Subject } from 'rxjs';
 import { debounceTime, filter, map, share, startWith, switchMap, tap } from 'rxjs/operators';
@@ -30,6 +30,8 @@ import { ConfigService } from './config.service';
   providedIn: 'root'
 })
 export class StatusService {
+  private readonly router = inject(Router);
+
   constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
 
   /** Error server response message cache list. */
@@ -47,33 +49,28 @@ export class StatusService {
   }
 
   /**
-   * Create refresh stream when APP_INITIALIZER
+   * Create refresh stream when app is initializing
    * refresh interval stream will be regenerated when NavigationEnd || forceRefresh || visibility change
-   *
-   * @param router
    */
-  public boot(router: Router): Promise<Configuration | undefined> {
-    return this.httpClient
-      .get<Configuration>(`${this.configService.BASE_URL}/config`)
-      .pipe(
-        tap(data => {
-          this.configuration = data;
-          const navigationEnd$ = router.events.pipe(
-            filter(item => item instanceof NavigationEnd),
-            map(() => true)
-          );
-          const interval$ = interval(this.configuration['refresh-interval']).pipe(
-            map(() => true),
-            startWith(true)
-          );
-          this.refresh$ = merge(this.visibility$, this.forceRefresh$, navigationEnd$).pipe(
-            startWith(true),
-            debounceTime(300),
-            switchMap(active => (active ? interval$ : EMPTY)),
-            share()
-          );
-        })
-      )
-      .toPromise();
+  public boot(): Observable<Configuration> {
+    return this.httpClient.get<Configuration>(`${this.configService.BASE_URL}/config`).pipe(
+      tap(data => {
+        this.configuration = data;
+        const navigationEnd$ = this.router.events.pipe(
+          filter(item => item instanceof NavigationEnd),
+          map(() => true)
+        );
+        const interval$ = interval(this.configuration['refresh-interval']).pipe(
+          map(() => true),
+          startWith(true)
+        );
+        this.refresh$ = merge(this.visibility$, this.forceRefresh$, navigationEnd$).pipe(
+          startWith(true),
+          debounceTime(300),
+          switchMap(active => (active ? interval$ : EMPTY)),
+          share()
+        );
+      })
+    );
   }
 }

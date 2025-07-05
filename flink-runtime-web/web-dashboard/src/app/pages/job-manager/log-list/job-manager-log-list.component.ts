@@ -30,9 +30,8 @@ import {
   JobManagerModuleConfig
 } from '@flink-runtime-web/pages/job-manager/job-manager.config';
 import { JobManagerService } from '@flink-runtime-web/services';
+import { typeDefinition } from '@flink-runtime-web/utils';
 import { NzTableModule } from 'ng-zorro-antd/table';
-
-import { typeDefinition } from '../../../utils/strong-type';
 
 @Component({
   selector: 'flink-job-manager-log-list',

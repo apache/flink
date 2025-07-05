@@ -26,7 +26,7 @@ import {
   HumanizeWatermarkToDatetimePipe
 } from '@flink-runtime-web/components/humanize-watermark.pipe';
 import { MetricsService } from '@flink-runtime-web/services';
-import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
+import { typeDefinition } from '@flink-runtime-web/utils';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
