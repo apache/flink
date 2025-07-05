@@ -27,12 +27,13 @@
     "d3-tip": "^0.9.1",
     "dagre": "^0.8.5",
     "monaco-editor": "^0.31.1",
-    "ng-zorro-antd": "^18.2.1",
+    "ng-zorro-antd": "^19.3.1",
     "rxjs": "^7.5.7",
     "tslib": "^2.0.0",
     "zone.js": "~0.15.1"
   },
   "devDependencies": {
+    "@angular-devkit/core": "^19.2.15",
     "@angular-eslint/builder": "19.8.1",
     "@angular-eslint/eslint-plugin": "19.8.1",
     "@angular-eslint/eslint-plugin-template": "19.8.1",
@@ -65,7 +66,6 @@
     "stylelint-config-standard": "^24.0.0",
     "stylelint-order": "^5.0.0",
     "stylelint-prettier": "^2.0.0",
-    "ts-node": "^10.4.0",
     "typescript": "~5.5.4"
   },
   "lint-staged": {
