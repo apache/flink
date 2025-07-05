@@ -88,16 +88,8 @@ export class JobCheckpointsComponent implements OnInit, OnDestroy {
       .pipe(
         switchMap(() =>
           forkJoin([
-            this.jobService.loadCheckpointStats(this.jobDetail.jid).pipe(
-              catchError(() => {
-                return of(undefined);
-              })
-            ),
-            this.jobService.loadCheckpointConfig(this.jobDetail.jid).pipe(
-              catchError(() => {
-                return of(undefined);
-              })
-            )
+            this.jobService.loadCheckpointStats(this.jobDetail.jid).pipe(catchError(() => of(undefined))),
+            this.jobService.loadCheckpointConfig(this.jobDetail.jid).pipe(catchError(() => of(undefined)))
           ])
         ),
         takeUntil(this.destroy$)

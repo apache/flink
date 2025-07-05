@@ -20,7 +20,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { EMPTY, fromEvent, interval, merge, Observable, Subject } from 'rxjs';
-import { debounceTime, filter, map, mapTo, share, startWith, switchMap, tap } from 'rxjs/operators';
+import { debounceTime, filter, map, share, startWith, switchMap, tap } from 'rxjs/operators';
 
 import { Configuration } from '@flink-runtime-web/interfaces';
 
@@ -60,9 +60,12 @@ export class StatusService {
           this.configuration = data;
           const navigationEnd$ = router.events.pipe(
             filter(item => item instanceof NavigationEnd),
-            mapTo(true)
+            map(() => true)
           );
-          const interval$ = interval(this.configuration['refresh-interval']).pipe(mapTo(true), startWith(true));
+          const interval$ = interval(this.configuration['refresh-interval']).pipe(
+            map(() => true),
+            startWith(true)
+          );
           this.refresh$ = merge(this.visibility$, this.forceRefresh$, navigationEnd$).pipe(
             startWith(true),
             debounceTime(300),
