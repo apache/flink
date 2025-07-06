@@ -87,7 +87,7 @@ public class SavepointOutputFormatTest {
     }
 
     private SavepointOutputFormat createSavepointOutputFormat(Path path) throws Exception {
-        RuntimeContext ctx = new MockStreamingRuntimeContext(false, 1, 0);
+        RuntimeContext ctx = new MockStreamingRuntimeContext(1, 0);
 
         SavepointOutputFormat format = new SavepointOutputFormat(path);
         format.setRuntimeContext(ctx);
