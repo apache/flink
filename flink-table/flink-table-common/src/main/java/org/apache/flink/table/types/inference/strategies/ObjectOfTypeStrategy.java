@@ -112,6 +112,9 @@ public class ObjectOfTypeStrategy implements TypeStrategy {
         if (logicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             return DataTypes.STRING().nullable();
         }
+        if (logicalType.is(LogicalTypeFamily.BINARY_STRING)) {
+            return DataTypes.BYTES().nullable();
+        }
 
         return TypeConversions.fromLogicalToDataType(logicalType.copy(true));
     }
