@@ -55,18 +55,38 @@ class JoinRemoveRulesTest extends TableTestBase {
     )
     util.replaceBatchProgram(programs)
 
-    util.addTableSource[(Int, String, String, Int, Timestamp, Int, Int, Int, Boolean)](
-      "emp",
-      'empno,
-      'ename,
-      'job,
-      'mgr,
-      'hiredate,
-      'sal,
-      'comm,
-      'deptno,
-      'slacker)
-    util.addTableSource[(Int, String)]("dept", 'deptno, 'name)
+    val empDDL =
+      """
+        |CREATE TABLE emp (
+        |  empno    INT,
+        |  ename    STRING,
+        |  `job`      STRING,
+        |  mgr      INT,
+        |  hiredate TIMESTAMP,
+        |  sal      INT,
+        |  comm     INT,
+        |  deptno   INT,
+        |  slacker  BOOLEAN,
+        |  PRIMARY KEY (empno) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'bounded' = 'true'
+        |)
+        |""".stripMargin
+    util.tableEnv.executeSql(empDDL)
+
+    val deptDDL =
+      """
+        |CREATE TABLE dept (
+        |  deptno INT,
+        |  `name` STRING,
+        |  PRIMARY KEY (deptno) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'bounded' = 'true'
+        |)
+        |""".stripMargin
+    util.tableEnv.executeSql(deptDDL)
   }
 
   @Test
