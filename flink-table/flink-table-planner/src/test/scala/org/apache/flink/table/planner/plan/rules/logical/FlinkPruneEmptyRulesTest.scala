@@ -46,8 +46,18 @@ class FlinkPruneEmptyRulesTest extends TableTestBase {
           FlinkSubQueryRemoveRule.FILTER,
           CoreRules.FILTER_REDUCE_EXPRESSIONS,
           CoreRules.PROJECT_REDUCE_EXPRESSIONS,
-          PruneEmptyRules.FILTER_INSTANCE,
+          CoreRules.FILTER_SET_OP_TRANSPOSE,
+          CoreRules.FILTER_PROJECT_TRANSPOSE,
+          CoreRules.PROJECT_MERGE,
+          CoreRules.PROJECT_FILTER_VALUES_MERGE,
+          FlinkPruneEmptyRules.UNION_INSTANCE,
+          PruneEmptyRules.INTERSECT_INSTANCE,
+          FlinkPruneEmptyRules.MINUS_INSTANCE,
           PruneEmptyRules.PROJECT_INSTANCE,
+          PruneEmptyRules.FILTER_INSTANCE,
+          PruneEmptyRules.SORT_INSTANCE,
+          PruneEmptyRules.AGGREGATE_INSTANCE,
+          PruneEmptyRules.JOIN_LEFT_INSTANCE,
           PruneEmptyRules.JOIN_RIGHT_INSTANCE
         ))
         .build()
@@ -68,4 +78,84 @@ class FlinkPruneEmptyRulesTest extends TableTestBase {
     util.verifyRelPlan("SELECT * FROM T1 WHERE a NOT IN (SELECT d FROM T2 WHERE 1=0)")
   }
 
+  @Test
+  def testEmptyFilterProjectUnion(): Unit = {
+    val sqlQuery =
+      s"""
+         |SELECT * FROM (
+         |SELECT * FROM (VALUES (10, 1), (30, 3)) AS T (x, y)
+         |UNION ALL
+         |SELECT * FROM (VALUES (20, 2))
+         |)
+         |WHERE x + y > 30
+       """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testEmptyFilterProjectUnion2(): Unit = {
+    val sqlQuery =
+      s"""
+         |SELECT * FROM (
+         |SELECT * FROM (VALUES (10, 1), (30, 3), (30, 3)) AS T (X, Y)
+         |UNION
+         |SELECT * FROM (VALUES (20, 2))
+         |)
+         |WHERE X + Y > 30
+       """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testEmptyIntersect(): Unit = {
+    val sqlQuery =
+      s"""
+         |SELECT * FROM (VALUES (30, 3))
+         |INTERSECT
+         |SELECT * FROM (VALUES (10, 1), (30, 3)) AS T (x, y) WHERE x > 50
+         |INTERSECT
+         |SELECT * FROM (VALUES (30, 3))
+       """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testEmptyMinus(): Unit = {
+    val sqlQuery =
+      s"""
+         |SELECT * FROM (VALUES (30, 3)) AS T (x, y)
+         |WHERE x > 30
+         |EXCEPT
+         |SELECT * FROM (VALUES (20, 2))
+         |EXCEPT
+         |SELECT * FROM (VALUES (40, 4))
+       """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testEmptyMinus2(): Unit = {
+    val sqlQuery =
+      s"""
+         |SELECT * FROM (VALUES (30, 3)) AS T (x, y)
+         |EXCEPT
+         |SELECT * FROM (VALUES (20, 2)) AS T (x, y) WHERE x > 30
+         |EXCEPT
+         |SELECT * FROM (VALUES (40, 4))
+         |EXCEPT
+         |SELECT * FROM (VALUES (50, 5)) AS T (x, y) WHERE x > 50
+       """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testEmptyMinus3(): Unit = {
+    val sqlQuery =
+      s"""
+         |SELECT * FROM (VALUES (30, 3), (30, 3)) AS T (X, Y)
+         |EXCEPT
+         |SELECT * FROM (VALUES (20, 2)) AS T (X, Y) WHERE X > 30
+       """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
 }
