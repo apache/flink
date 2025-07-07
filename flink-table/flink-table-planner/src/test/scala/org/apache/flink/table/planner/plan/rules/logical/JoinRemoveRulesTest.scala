@@ -93,6 +93,11 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /**
+   * Test case for <a href="https://issues.apache.org/jira/browse/CALCITE-2712">[CALCITE-2712]
+   * Should remove the left join since the aggregate has no call and only uses column in the left
+   * input of the bottom join as group key</a>.
+   */
   @Test
   def testAggregateJoinRemove1(): Unit = {
     val sqlQuery =
@@ -103,6 +108,7 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /** Similar to [[testAggregateJoinRemove1]] but has aggregate call with distinct. */
   @Test
   def testAggregateJoinRemove2(): Unit = {
     val sqlQuery =
@@ -114,6 +120,10 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /**
+   * Similar to [[testAggregateJoinRemove1]] but should not remove the left join since the aggregate
+   * uses column in the right input of the bottom join.
+   */
   @Test
   def testAggregateJoinRemove3(): Unit = {
     val sqlQuery =
@@ -125,6 +135,7 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /** Similar to [[testAggregateJoinRemove1]] but right join. */
   @Test
   def testAggregateJoinRemove4(): Unit = {
     val sqlQuery =
@@ -135,6 +146,7 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /** Similar to [[testAggregateJoinRemove2]] but right join. */
   @Test
   def testAggregateJoinRemove5(): Unit = {
     val sqlQuery =
@@ -146,6 +158,7 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /** Similar to [[testAggregateJoinRemove3]]  but right join. */
   @Test
   def testAggregateJoinRemove6(): Unit = {
     val sqlQuery =
@@ -157,6 +170,10 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /**
+   * Similar to [[testAggregateJoinRemove1]] ; Should remove the bottom join since the aggregate has
+   * no aggregate call.
+   */
   @Test
   def testAggregateJoinRemove7(): Unit = {
     val sqlQuery =
@@ -169,6 +186,7 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /** Similar to [[testAggregateJoinRemove7]] but has aggregate call. */
   @Test
   def testAggregateJoinRemove8(): Unit = {
     val sqlQuery =
@@ -182,6 +200,7 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /** Similar to [[testAggregateJoinRemove7]] but use columns in the right input of the top join. */
   @Test
   def testAggregateJoinRemove9(): Unit = {
     val sqlQuery =
@@ -194,6 +213,10 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /**
+   * Similar to [[testAggregateJoinRemove1]]; Should not remove the bottom join since the aggregate
+   * uses column in the right input of bottom join.
+   */
   @Test
   def testAggregateJoinRemove10(): Unit = {
     val sqlQuery =
@@ -207,6 +230,10 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /**
+   * Similar to [[testAggregateJoinRemove1]]; Should remove the bottom join since the project uses
+   * column in the right input of bottom join.
+   */
   @Test
   def testProjectJoinRemove1(): Unit = {
     val sqlQuery =
@@ -219,6 +246,10 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /**
+   * Similar to [[testAggregateJoinRemove1]]; Should not remove the bottom join since the project
+   * uses column in the left input of bottom join.
+   */
   @Test
   def testProjectJoinRemove2(): Unit = {
     val sqlQuery =
@@ -231,6 +262,10 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /**
+   * Similar to [[testAggregateJoinRemove1]]; Should not remove the bottom join since the right join
+   * keys of bottom join are not unique.
+   */
   @Test
   def testProjectJoinRemove3(): Unit = {
     val sqlQuery =
@@ -243,6 +278,10 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /**
+   * Similar to [[testAggregateJoinRemove1]]; Should remove the left join since the join key of the
+   * right input is unique.
+   */
   @Test
   def testProjectJoinRemove4(): Unit = {
     val sqlQuery =
@@ -254,6 +293,10 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /**
+   * Similar to [[testAggregateJoinRemove1]]; Should not remove the left join since the join key of
+   * the right input is not unique.
+   */
   @Test
   def testProjectJoinRemove5(): Unit = {
     val sqlQuery =
@@ -265,6 +308,10 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /**
+   * Similar to [[testAggregateJoinRemove1]]; Should not remove the left join since the project use
+   * columns in the right input of the join.
+   */
   @Test
   def testProjectJoinRemove6(): Unit = {
     val sqlQuery =
@@ -276,6 +323,10 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /**
+   * Similar to [[testAggregateJoinRemove1]]; Should remove the right join since the join key of the
+   * left input is unique.
+   */
   @Test
   def testProjectJoinRemove7(): Unit = {
     val sqlQuery =
@@ -287,6 +338,10 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /**
+   * Similar to [[testAggregateJoinRemove1]]; Should not remove the right join since the join key of
+   * the left input is not unique.
+   */
   @Test
   def testProjectJoinRemove8(): Unit = {
     val sqlQuery =
@@ -298,6 +353,10 @@ class JoinRemoveRulesTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
+  /**
+   * Similar to [[testAggregateJoinRemove1]]; Should not remove the right join since the project
+   * uses columns in the left input of the join.
+   */
   @Test
   def testProjectJoinRemove9(): Unit = {
     val sqlQuery =
