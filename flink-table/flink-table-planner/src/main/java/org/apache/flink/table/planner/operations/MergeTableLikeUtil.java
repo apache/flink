@@ -47,12 +47,15 @@ import org.apache.calcite.sql.validate.SqlValidator;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+
+import static org.apache.flink.sql.parser.ddl.SqlTableLike.INVALID_STRATEGY_MSG_PATTERN;
 
 /** A utility class with logic for handling the {@code CREATE TABLE ... LIKE} clause. */
 class MergeTableLikeUtil {
@@ -184,25 +187,105 @@ class MergeTableLikeUtil {
      *
      * <p>Partitioning is a single property of a Table, thus there can be at most a single instance
      * of partitioning. Therefore, it is not possible to use {@link MergingStrategy#INCLUDING} with
-     * partitioning defined in both source and derived table.
+     * different partitioning defined in both source and derived table.
+     *
+     * <p>The effective matrix is as follows:
+     *
+     * <table>
+     *     <thead>
+     *         <td>partitions exist on old table</td>
+     *         <td>partitions exist on new table</td>
+     *         <td>merge strategy</td>
+     *         <td>merge result</td>
+     *     </thead>
+     *     <tr>
+     *         <td>yes</td>
+     *         <td>yes</td>
+     *         <td>INCLUDING</td>
+     *         <td>if partitions on new table are same as those on the old table, use them;
+     *               else an error will be thrown</td>
+     *     </tr>
+     *     <tr>
+     *         <td>yes</td>
+     *         <td>no</td>
+     *         <td>INCLUDING</td>
+     *         <td>partitions on old table</td>
+     *     </tr>
+     *     <tr>
+     *         <td>no</td>
+     *         <td>yes</td>
+     *         <td>INCLUDING</td>
+     *         <td>partitions on new table</td>
+     *     </tr>
+     *     <tr>
+     *         <td>no</td>
+     *         <td>no</td>
+     *         <td>INCLUDING</td>
+     *         <td>none</td>
+     *     </tr>
+     *     <tr>
+     *         <td>yes</td>
+     *         <td>yes</td>
+     *         <td>EXCLUDING</td>
+     *         <td>partitions on new table</td>
+     *     </tr>
+     *     <tr>
+     *         <td>yes</td>
+     *         <td>no</td>
+     *         <td>EXCLUDING</td>
+     *         <td>none</td>
+     *     </tr>
+     *     <tr>
+     *         <td>no</td>
+     *         <td>yes</td>
+     *         <td>EXCLUDING</td>
+     *         <td>partitions on new table</td>
+     *     </tr>
+     *     <tr>
+     *         <td>no</td>
+     *         <td>no</td>
+     *         <td>EXCLUDING</td>
+     *         <td>none</td>
+     *     </tr>
+     * </table>
      */
     public List<String> mergePartitions(
             MergingStrategy mergingStrategy,
             List<String> sourcePartitions,
             List<String> derivedPartitions) {
+        switch (mergingStrategy) {
+            case INCLUDING:
+                boolean sourcePartitionExists = !sourcePartitions.isEmpty();
+                boolean derivedPartitionExists = !derivedPartitions.isEmpty();
+                if (sourcePartitionExists && derivedPartitionExists) {
+                    if (sourcePartitions.equals(derivedPartitions)) {
+                        return sourcePartitions;
+                    }
+                    throw new ValidationException(
+                            "The base table already has partitions defined. You might want to specify "
+                                    + "EXCLUDING PARTITIONS.");
+                }
+                if (sourcePartitionExists) {
+                    return sourcePartitions;
+                }
+                if (derivedPartitionExists) {
+                    return derivedPartitions;
+                }
+                return Collections.emptyList();
 
-        if (!derivedPartitions.isEmpty()
-                && !sourcePartitions.isEmpty()
-                && mergingStrategy != MergingStrategy.EXCLUDING) {
-            throw new ValidationException(
-                    "The base table already has partitions defined. You might want to specify "
-                            + "EXCLUDING PARTITIONS.");
-        }
+            case EXCLUDING:
+                return derivedPartitions;
 
-        if (!derivedPartitions.isEmpty()) {
-            return derivedPartitions;
+                // should not happen because it is checked while parsing
+                // see more in SqlTableLike#invalidCombinations
+            case OVERWRITING:
+            default:
+                throw new ValidationException(
+                        String.format(
+                                INVALID_STRATEGY_MSG_PATTERN,
+                                mergingStrategy,
+                                FeatureOption.PARTITIONS));
         }
-        return sourcePartitions;
     }
 
     /** Merges the options part of {@code CREATE TABLE} statement. */

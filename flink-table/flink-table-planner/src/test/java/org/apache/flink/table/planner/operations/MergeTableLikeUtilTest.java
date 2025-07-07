@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.utils.PlannerMocks;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
+import org.apache.flink.types.Either;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.SqlBasicCall;
@@ -52,6 +53,9 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -59,10 +63,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.params.provider.Arguments.of;
 
 /** Tests for {@link MergeTableLikeUtil}. */
 class MergeTableLikeUtilTest {
@@ -837,33 +844,28 @@ class MergeTableLikeUtilTest {
         assertThat(mergePartitions).isEqualTo(derivedPartitions);
     }
 
-    @Test
-    void mergeIncludingPartitionsFailsOnDuplicate() {
-        List<String> sourcePartitions = Arrays.asList("col3", "col4");
-        List<String> derivedPartitions = Arrays.asList("col1", "col2");
+    @ParameterizedTest(
+            name =
+                    "sourcePartitions = {0}, "
+                            + "derivedPartitions = {1}, "
+                            + "mergingStrategy = {2}, "
+                            + "expectedResult = {3}")
+    @MethodSource("partitionsMatrixSpecs")
+    void mergePartitionsMatrix(
+            List<String> sourcePartitions,
+            List<String> derivedPartitions,
+            MergingStrategy mergingStrategy,
+            Either<List<String>, String> expectedPartitionsOrErrorMessage) {
+        Supplier<List<String>> resultSupplier =
+                () -> util.mergePartitions(mergingStrategy, sourcePartitions, derivedPartitions);
 
-        assertThatThrownBy(
-                        () ->
-                                util.mergePartitions(
-                                        MergingStrategy.INCLUDING,
-                                        sourcePartitions,
-                                        derivedPartitions))
-                .isInstanceOf(ValidationException.class)
-                .hasMessage(
-                        "The base table already has partitions defined. You might want "
-                                + "to specify EXCLUDING PARTITIONS.");
-    }
-
-    @Test
-    void mergeExcludingPartitionsOnDuplicate() {
-        List<String> sourcePartitions = Arrays.asList("col3", "col4");
-        List<String> derivedPartitions = Arrays.asList("col1", "col2");
-
-        List<String> mergedPartitions =
-                util.mergePartitions(
-                        MergingStrategy.EXCLUDING, sourcePartitions, derivedPartitions);
-
-        assertThat(mergedPartitions).isEqualTo(derivedPartitions);
+        if (expectedPartitionsOrErrorMessage.isRight()) {
+            assertThatThrownBy(resultSupplier::get)
+                    .isInstanceOf(ValidationException.class)
+                    .hasMessage(expectedPartitionsOrErrorMessage.right());
+        } else {
+            assertThat(resultSupplier.get()).isEqualTo(expectedPartitionsOrErrorMessage.left());
+        }
     }
 
     @Test
@@ -1104,5 +1106,66 @@ class MergeTableLikeUtilTest {
                 SqlConstraintEnforcement.ENFORCED.symbol(SqlParserPos.ZERO),
                 true,
                 SqlParserPos.ZERO);
+    }
+
+    private static Stream<Arguments> partitionsMatrixSpecs() {
+        List<String> emptyPartitions = Collections.emptyList();
+        List<String> sourcePartitions = Arrays.asList("col3", "col4");
+        List<String> derivedPartitions = Arrays.asList("col1", "col2");
+
+        return Stream.of(
+                of(
+                        sourcePartitions,
+                        derivedPartitions,
+                        MergingStrategy.INCLUDING,
+                        Either.Right(
+                                "The base table already has partitions defined. You might want "
+                                        + "to specify EXCLUDING PARTITIONS.")),
+                of(
+                        sourcePartitions,
+                        sourcePartitions,
+                        MergingStrategy.INCLUDING,
+                        Either.Left(sourcePartitions)),
+                of(
+                        sourcePartitions,
+                        emptyPartitions,
+                        MergingStrategy.INCLUDING,
+                        Either.Left(sourcePartitions)),
+                of(
+                        emptyPartitions,
+                        derivedPartitions,
+                        MergingStrategy.INCLUDING,
+                        Either.Left(derivedPartitions)),
+                of(
+                        emptyPartitions,
+                        emptyPartitions,
+                        MergingStrategy.INCLUDING,
+                        Either.Left(emptyPartitions)),
+                of(
+                        sourcePartitions,
+                        derivedPartitions,
+                        MergingStrategy.EXCLUDING,
+                        Either.Left(derivedPartitions)),
+                of(
+                        sourcePartitions,
+                        emptyPartitions,
+                        MergingStrategy.EXCLUDING,
+                        Either.Left(emptyPartitions)),
+                of(
+                        emptyPartitions,
+                        derivedPartitions,
+                        MergingStrategy.EXCLUDING,
+                        Either.Left(derivedPartitions)),
+                of(
+                        emptyPartitions,
+                        emptyPartitions,
+                        MergingStrategy.EXCLUDING,
+                        Either.Left(emptyPartitions)),
+                of(
+                        sourcePartitions,
+                        derivedPartitions,
+                        MergingStrategy.OVERWRITING,
+                        Either.Right(
+                                "Illegal merging strategy 'OVERWRITING' for 'PARTITIONS' option.")));
     }
 }
