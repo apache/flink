@@ -235,12 +235,16 @@ object FlinkStreamRuleSets {
   )
 
   val MULTI_JOIN_RULES: RuleSet = RuleSets.ofList(
+    // convert right joins to the left ones
+    FlinkRightJoinToLeftJoinRule.INSTANCE,
     // merge project to MultiJoin
     CoreRules.PROJECT_MULTI_JOIN_MERGE,
     // merge filter to MultiJoin
     CoreRules.FILTER_MULTI_JOIN_MERGE,
     // merge join to MultiJoin
-    JoinToMultiJoinRule.INSTANCE
+    JoinToMultiJoinRule.INSTANCE,
+    // remove conflicting projections
+    FlinkOrderPreservingProjectRemoveRule.INSTANCE
   )
 
   /** RuleSet to do logical optimize. This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]]. */
