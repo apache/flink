@@ -182,12 +182,11 @@ public class CheckpointingConfigurationAccessRules {
                             })
                     .allowEmptyShould(true) // Allow until we refactor all existing usages
                     .because(
-                            """
-                                    Direct use of certain CheckpointingOptions configuration fields with Configuration.get() or Configuration.getOptional() should be avoided. \
-                                    Use the appropriate helper methods which include proper validation logic:
-                                    - ENABLE_UNALIGNED: Use CheckpointingOptions.isUnalignedCheckpointEnabled(Configuration)
-                                    - CHECKPOINTING_CONSISTENCY_MODE: Use CheckpointingOptions.getCheckpointingMode(Configuration)
-                                    - ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS: Use CheckpointingOptions.isUnalignedCheckpointInterruptibleTimersEnabled(Configuration)""");
+                            "Direct use of certain CheckpointingOptions configuration fields with Configuration.get() or Configuration.getOptional() should be avoided. \n"
+                                    + "Use the appropriate helper methods which include proper validation logic:\n"
+                                    + "- ENABLE_UNALIGNED: Use CheckpointingOptions.isUnalignedCheckpointEnabled(Configuration)\n"
+                                    + "- CHECKPOINTING_CONSISTENCY_MODE: Use CheckpointingOptions.getCheckpointingMode(Configuration)\n"
+                                    + "- ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS: Use CheckpointingOptions.isUnalignedCheckpointInterruptibleTimersEnabled(Configuration)");
 
     private static boolean isProhibitedConfigFieldAccess(JavaFieldAccess fieldAccess) {
         return PROHIBITED_CONFIG_FIELDS.contains(fieldAccess.getTarget().getName())
