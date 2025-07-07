@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -25,8 +24,6 @@ import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.RuleSets
 import org.junit.jupiter.api.{BeforeEach, Test}
-
-import java.sql.Timestamp
 
 /**
  * Tests for [[ProjectJoinJoinRemoveRule]], [[ProjectJoinRemoveRule]],
@@ -87,30 +84,6 @@ class JoinRemoveRulesTest extends TableTestBase {
         |)
         |""".stripMargin
     util.tableEnv.executeSql(deptDDL)
-  }
-
-  @Test
-  def testAggregateJoinRemoveRule1(): Unit = {
-    val sqlQuery =
-      s"""
-         |select count(distinct sal) from emp e
-         |left outer join dept d1 on e.job = d1.name
-         |left outer join dept d2 on e.job = d2.name
-         |group by e.job
-       """.stripMargin
-    util.verifyRelPlan(sqlQuery)
-  }
-
-  @Test
-  def testAggregateJoinRemoveRule2(): Unit = {
-    val sqlQuery =
-      s"""
-         |select count(distinct sal) from emp e
-         |left outer join dept d1 on e.job = d1.name
-         |left outer join dept d2 on e.job = d2.name
-         |group by e.job
-       """.stripMargin
-    util.verifyRelPlan(sqlQuery)
   }
 
   /**
@@ -251,6 +224,22 @@ class JoinRemoveRulesTest extends TableTestBase {
   }
 
   /**
+   * Similar to [[testAggregateJoinRemove3]] but with agg call referencing the last column of the
+   * left input.
+   */
+  @Test
+  def testAggregateJoinRemove11(): Unit = {
+    val sqlQuery =
+      s"""
+         |select e.deptno, count(distinct e.slacker)
+         |from emp e
+         |left outer join dept d on e.deptno = d.deptno
+         |group by e.deptno
+       """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  /**
    * Similar to [[testAggregateJoinRemove1]]; Should remove the bottom join since the project uses
    * column in the right input of bottom join.
    */
@@ -368,7 +357,7 @@ class JoinRemoveRulesTest extends TableTestBase {
       s"""
          |SELECT e2.deptno
          |FROM emp e1
-         |LEFT JOIN emp e2 ON e1.deptno = e2.deptno
+         |RIGHT JOIN emp e2 ON e1.deptno = e2.deptno
        """.stripMargin
     util.verifyRelPlan(sqlQuery)
   }
@@ -384,6 +373,21 @@ class JoinRemoveRulesTest extends TableTestBase {
          |SELECT e.deptno, d.name
          |FROM dept d
          |RIGHT JOIN emp e ON e.deptno = d.deptno
+       """.stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  /**
+   * Similar to [[testAggregateJoinRemove4]]; The project references the last column of the left
+   * input. The rule should be fired.
+   */
+  @Test
+  def testProjectJoinRemove10(): Unit = {
+    val sqlQuery =
+      s"""
+         |SELECT e.deptno, e.slacker
+         |FROM emp e
+         |LEFT JOIN dept d ON e.deptno = d.deptno
        """.stripMargin
     util.verifyRelPlan(sqlQuery)
   }
