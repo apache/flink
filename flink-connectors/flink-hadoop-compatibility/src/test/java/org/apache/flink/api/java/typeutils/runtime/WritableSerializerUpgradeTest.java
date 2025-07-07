@@ -45,7 +45,7 @@ class WritableSerializerUpgradeTest
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
         testSpecifications.add(
                 new TestSpecification<>(
-                        "writable-serializer",
+                        "writeable-serializer",
                         flinkVersion,
                         WritableSerializerSetup.class,
                         WritableSerializerVerifier.class));
@@ -93,7 +93,7 @@ class WritableSerializerUpgradeTest
     }
 
     // ----------------------------------------------------------------------------------------------
-    //  Specification for "writable-serializer"
+    //  Specification for "writeable-serializer"
     // ----------------------------------------------------------------------------------------------
 
     /**
