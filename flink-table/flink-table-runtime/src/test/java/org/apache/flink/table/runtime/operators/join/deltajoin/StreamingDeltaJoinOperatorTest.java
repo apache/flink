@@ -212,7 +212,7 @@ public class StreamingDeltaJoinOperatorTest {
         leftTableCurrentData.clear();
         rightTableCurrentData.clear();
         latestException = Optional.empty();
-        MyAsyncFunction.clearException();
+        MyAsyncFunction.clearExpectedThrownException();
     }
 
     @Test
@@ -550,7 +550,7 @@ public class StreamingDeltaJoinOperatorTest {
     @Test
     void testMeetExceptionWhenLookup() throws Exception {
         Throwable expectedException = new IllegalStateException("Mock to fail");
-        MyAsyncFunction.throwException(expectedException);
+        MyAsyncFunction.setExpectedThrownException(expectedException);
 
         StreamRecord<RowData> record = insertRecord(100, true, "jklk1");
         testHarness.processElement1(record);
@@ -730,11 +730,11 @@ public class StreamingDeltaJoinOperatorTest {
             Objects.requireNonNull(lock).countDown();
         }
 
-        public static void throwException(Throwable t) {
+        public static void setExpectedThrownException(Throwable t) {
             expectedThrownException = Optional.of(t);
         }
 
-        public static void clearException() {
+        public static void clearExpectedThrownException() {
             expectedThrownException = Optional.empty();
         }
 
