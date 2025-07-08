@@ -276,8 +276,8 @@ class MergeTableLikeUtil {
             case EXCLUDING:
                 return derivedPartitions;
 
-                // should not happen because it is checked while parsing
-                // see more in SqlTableLike#invalidCombinations
+            // should not happen because it is checked while parsing
+            // see more in SqlTableLike#invalidCombinations
             case OVERWRITING:
             default:
                 throw new ValidationException(
