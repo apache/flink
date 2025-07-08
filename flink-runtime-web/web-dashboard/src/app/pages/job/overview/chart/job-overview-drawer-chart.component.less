@@ -17,14 +17,43 @@
  */
 
 nz-select {
-  width: 300px;
+  width: 100%;
+  max-width: 100%;
+  flex: 1;
 }
 
 .metric-selector {
   text-align: center;
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.metric-option-text {
+  display: block;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: break-all;
+  max-width: none;
+  width: 100%;
+  min-width: max-content;
 }
 
 :host {
   display: block;
   padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure dropdown options display properly */
+::ng-deep .ant-select-item-option-content {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: break-all;
 }

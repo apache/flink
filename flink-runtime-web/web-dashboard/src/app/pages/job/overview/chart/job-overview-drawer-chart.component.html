@@ -26,6 +26,8 @@
       nzShowSearch
       [nzPlaceHolder]="'Select Metric Name'"
       (ngModelChange)="updateMetric($event)"
+      nzDropdownMatchSelectWidth="false"
+      [nzDropdownStyle]="{ 'min-width': dropdownWidth + 'px', 'max-width': '80vw' }"
     >
       <nz-option
         *ngFor="let name of listOfUnselectedMetric"
@@ -33,7 +35,7 @@
         [nzValue]="name"
         nzCustomContent
       >
-        <span [title]="name">{{ name }}</span>
+        <span [title]="name" class="metric-option-text">{{ name }}</span>
       </nz-option>
     </nz-select>
   </ng-template>
