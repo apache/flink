@@ -248,7 +248,7 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 // test for literal values
                                 lit("Hello world".getBytes(StandardCharsets.UTF_8)).decode($("f2")),
-                                "DECODE(" + EncodingUtils.hex("Hello world") + ", f2)",
+                                "DECODE(x'" + EncodingUtils.hex("Hello world") + "', f2)",
                                 "Hello world",
                                 DataTypes.STRING().nullable()));
     }
