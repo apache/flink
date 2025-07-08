@@ -352,7 +352,8 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                     .execute(
                             () ->
                                     assertThat(testHarness.getTask().isRunning())
-                                            .as("This should never execute before task cancelation")
+                                            .as(
+                                                    "This should never execute before task cancellation")
                                             .isFalse(),
                             "Test");
         }

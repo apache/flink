@@ -72,14 +72,14 @@ public class CliFrontendTestUtils {
     }
 
     public static void pipeSystemOutToNull() {
-        System.setOut(new PrintStream(new BlackholeOutputSteam()));
+        System.setOut(new PrintStream(new BlackholeOutputStream()));
     }
 
     public static void restoreSystemOut() {
         System.setOut(previousSysout);
     }
 
-    private static final class BlackholeOutputSteam extends java.io.OutputStream {
+    private static final class BlackholeOutputStream extends java.io.OutputStream {
         @Override
         public void write(int b) {}
     }
