@@ -144,11 +144,21 @@ public class InternalSourceReaderMetricGroup extends ProxyMetricGroup<MetricGrou
     }
 
     boolean isIdling() {
+        return isIdling(idleStartTime);
+    }
+
+    private boolean isIdling(long idleStartTime) {
         return idleStartTime != ACTIVE;
     }
 
     long getIdleTime() {
-        return isIdling() ? this.clock.absoluteTimeMillis() - idleStartTime : 0;
+        // this class is not thread-safe, use the local variable to get a snapshot value.
+        long currentIdleStartTime = idleStartTime;
+        if (isIdling(currentIdleStartTime)) {
+            // isIdling
+            return this.clock.absoluteTimeMillis() - currentIdleStartTime;
+        }
+        return 0;
     }
 
     /**
@@ -157,7 +167,13 @@ public class InternalSourceReaderMetricGroup extends ProxyMetricGroup<MetricGrou
      * </code>. If it's idling, we just take the time it started idling as the last emit time.
      */
     private long getLastEmitTime() {
-        return isIdling() ? idleStartTime : clock.absoluteTimeMillis();
+        // this class is not thread-safe, use the local variable to get a snapshot value.
+        long currentIdleStartTime = idleStartTime;
+        if (isIdling(currentIdleStartTime)) {
+            // isIdling
+            return currentIdleStartTime;
+        }
+        return clock.absoluteTimeMillis();
     }
 
     long getEmitTimeLag() {
