@@ -61,6 +61,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -71,6 +72,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test class for {@link StreamingDeltaJoinOperator}. */
 public class StreamingDeltaJoinOperatorTest {
@@ -155,12 +157,22 @@ public class StreamingDeltaJoinOperatorTest {
 
     private RowDataHarnessAssertor assertor;
 
+    private Optional<Throwable> latestException = Optional.empty();
+
     @BeforeEach
     public void beforeEach() throws Exception {
         testHarness = createDeltaJoinOperatorTestHarness();
         testHarness.setup();
         testHarness.open();
         StreamingDeltaJoinOperator operator = unwrapOperator(testHarness);
+        // set external failure cause consumer to prevent hang
+        testHarness
+                .getEnvironment()
+                .setExternalFailureCauseConsumer(
+                        error -> {
+                            latestException = Optional.of(error);
+                            // DO NOT throw exception up again to avoid hang
+                        });
         operator.setAsyncExecutionController(
                 new MyAsyncExecutionControllerDelegate(operator.getAsyncExecutionController()));
         prepareOperatorRuntimeInfo(operator);
@@ -199,6 +211,8 @@ public class StreamingDeltaJoinOperatorTest {
         testHarness.close();
         leftTableCurrentData.clear();
         rightTableCurrentData.clear();
+        latestException = Optional.empty();
+        MyAsyncFunction.clearExpectedThrownException();
     }
 
     @Test
@@ -232,7 +246,7 @@ public class StreamingDeltaJoinOperatorTest {
         testHarness.processElement2(rightRecord4);
         testHarness.processElement2(rightRecord5);
 
-        testHarness.endAllInput();
+        waitAllDataProcessed();
 
         final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -310,7 +324,7 @@ public class StreamingDeltaJoinOperatorTest {
 
         MyAsyncFunction.release();
 
-        testHarness.endAllInput();
+        waitAllDataProcessed();
         final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         expectedOutput.add(insertRecord(100, true, "jklk1", "jklk1", 300, true));
         expectedOutput.add(insertRecord(100, false, "jklk2", "jklk2", 300, false));
@@ -366,7 +380,7 @@ public class StreamingDeltaJoinOperatorTest {
         testHarness.processElement1(leftRecord3);
         testHarness.processElement2(rightRecord3);
 
-        testHarness.endAllInput();
+        waitAllDataProcessed();
 
         final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -434,9 +448,12 @@ public class StreamingDeltaJoinOperatorTest {
 
         // checkpointing
         OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0L);
-        testHarness.close();
-        assertThat(testHarness.getOutput()).isEmpty();
 
+        // release async function to avoid timeout when closing
+        MyAsyncFunction.release();
+        testHarness.close();
+
+        MyAsyncFunction.block();
         // restoring
         testHarness = createDeltaJoinOperatorTestHarness();
 
@@ -446,6 +463,7 @@ public class StreamingDeltaJoinOperatorTest {
         operator.setAsyncExecutionController(
                 new MyAsyncExecutionControllerDelegate(operator.getAsyncExecutionController()));
 
+        latestException = Optional.empty();
         testHarness.initializeState(snapshot);
 
         testHarness.open();
@@ -462,7 +480,7 @@ public class StreamingDeltaJoinOperatorTest {
 
         MyAsyncFunction.release();
 
-        testHarness.endAllInput();
+        waitAllDataProcessed();
         final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
         expectedOutput.add(insertRecord(100, true, "jklk1", "jklk1", 300, true));
         expectedOutput.add(insertRecord(200, true, "jklk1", "jklk1", 300, true));
@@ -504,7 +522,7 @@ public class StreamingDeltaJoinOperatorTest {
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(2);
 
         MyAsyncFunction.release();
-        testHarness.endAllInput();
+        waitAllDataProcessed();
 
         MyAsyncFunction.block();
 
@@ -515,7 +533,7 @@ public class StreamingDeltaJoinOperatorTest {
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(1);
 
         MyAsyncFunction.release();
-        testHarness.endAllInput();
+        waitAllDataProcessed();
 
         testHarness.snapshot(2L, 0L);
         assertThat(testHarness.numKeyedStateEntries()).isEqualTo(0);
@@ -527,6 +545,33 @@ public class StreamingDeltaJoinOperatorTest {
 
         assertor.assertOutputEqualsSorted(
                 "result mismatch", expectedOutput, testHarness.getOutput());
+    }
+
+    @Test
+    void testMeetExceptionWhenLookup() throws Exception {
+        Throwable expectedException = new IllegalStateException("Mock to fail");
+        MyAsyncFunction.setExpectedThrownException(expectedException);
+
+        StreamRecord<RowData> record = insertRecord(100, true, "jklk1");
+        testHarness.processElement1(record);
+
+        // IllegalStateException(Failed to wait all data processed)
+        //  +- Exception(Could not complete the stream element ...)
+        //    +- RuntimeException(Failed to lookup table)
+        //      +- Actual Exception
+        assertThatThrownBy(this::waitAllDataProcessed)
+                .cause()
+                .cause()
+                .cause()
+                .isEqualTo(expectedException);
+    }
+
+    private void waitAllDataProcessed() throws Exception {
+        testHarness.endAllInputs();
+        if (latestException.isPresent()) {
+            throw new IllegalStateException(
+                    "Failed to wait all data processed", latestException.get());
+        }
     }
 
     private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
@@ -639,9 +684,13 @@ public class StreamingDeltaJoinOperatorTest {
         RowData rowData = record.getValue();
         try {
             if (insertLeftTable) {
-                leftTableCurrentData.add(rowData);
+                synchronized (leftTableCurrentData) {
+                    leftTableCurrentData.add(rowData);
+                }
             } else {
-                rightTableCurrentData.add(rowData);
+                synchronized (rightTableCurrentData) {
+                    rightTableCurrentData.add(rowData);
+                }
             }
         } catch (Exception e) {
             throw new IllegalStateException("Failed to insert table data", e);
@@ -664,6 +713,8 @@ public class StreamingDeltaJoinOperatorTest {
 
         private static final AtomicInteger rightInvokeCount = new AtomicInteger(0);
 
+        private static Optional<Throwable> expectedThrownException = Optional.empty();
+
         // ===== runtime info =====
         private Boolean treatRightAsLookupTable;
 
@@ -679,11 +730,23 @@ public class StreamingDeltaJoinOperatorTest {
             Objects.requireNonNull(lock).countDown();
         }
 
+        public static void setExpectedThrownException(Throwable t) {
+            expectedThrownException = Optional.of(t);
+        }
+
+        public static void clearExpectedThrownException() {
+            expectedThrownException = Optional.empty();
+        }
+
         @Override
         public void asyncInvoke(final RowData input, final ResultFuture<Object> resultFuture) {
             executorService.submit(
                     () -> {
                         try {
+                            if (expectedThrownException.isPresent()) {
+                                throw expectedThrownException.get();
+                            }
+
                             if (lock != null) {
                                 lock.await();
                             }
@@ -692,13 +755,17 @@ public class StreamingDeltaJoinOperatorTest {
                             RowDataKeySelector streamSideJoinKeySelector;
                             RowDataKeySelector lookupSideJoinKeySelector;
                             if (Objects.requireNonNull(treatRightAsLookupTable)) {
-                                lookupTableData = new LinkedList<>(rightTableCurrentData);
+                                synchronized (rightTableCurrentData) {
+                                    lookupTableData = new LinkedList<>(rightTableCurrentData);
+                                }
 
                                 streamSideJoinKeySelector = leftJoinKeySelector.copy();
                                 lookupSideJoinKeySelector = rightJoinKeySelector.copy();
                                 leftInvokeCount.incrementAndGet();
                             } else {
-                                lookupTableData = new LinkedList<>(leftTableCurrentData);
+                                synchronized (leftTableCurrentData) {
+                                    lookupTableData = new LinkedList<>(leftTableCurrentData);
+                                }
 
                                 streamSideJoinKeySelector = rightJoinKeySelector.copy();
                                 lookupSideJoinKeySelector = leftJoinKeySelector.copy();
@@ -715,7 +782,7 @@ public class StreamingDeltaJoinOperatorTest {
                             }
 
                             resultFuture.complete(results);
-                        } catch (Exception e) {
+                        } catch (Throwable e) {
                             resultFuture.completeExceptionally(
                                     new RuntimeException("Failed to look up table", e));
                         }
