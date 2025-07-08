@@ -155,7 +155,6 @@ public class InternalSourceReaderMetricGroup extends ProxyMetricGroup<MetricGrou
         // this class is not thread-safe, use the local variable to get a snapshot value.
         long currentIdleStartTime = idleStartTime;
         if (isIdling(currentIdleStartTime)) {
-            // isIdling
             return this.clock.absoluteTimeMillis() - currentIdleStartTime;
         }
         return 0;
@@ -170,7 +169,6 @@ public class InternalSourceReaderMetricGroup extends ProxyMetricGroup<MetricGrou
         // this class is not thread-safe, use the local variable to get a snapshot value.
         long currentIdleStartTime = idleStartTime;
         if (isIdling(currentIdleStartTime)) {
-            // isIdling
             return currentIdleStartTime;
         }
         return clock.absoluteTimeMillis();
