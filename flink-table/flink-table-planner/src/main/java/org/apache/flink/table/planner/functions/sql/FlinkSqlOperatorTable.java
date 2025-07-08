@@ -920,7 +920,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     "ENCODE",
                     SqlKind.OTHER_FUNCTION,
                     ReturnTypes.cascade(
-                            ReturnTypes.explicit(SqlTypeName.BINARY),
+                            ReturnTypes.explicit(SqlTypeName.VARBINARY),
                             SqlTypeTransforms.FORCE_NULLABLE),
                     null,
                     OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER),
