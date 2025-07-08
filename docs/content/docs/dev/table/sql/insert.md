@@ -140,7 +140,7 @@ table_env.execute_sql("CREATE TABLE RubberOrders(product STRING, amount INT) WIT
 table_result1 = table_env \
     .execute_sql("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 # get job status through TableResult
-print(table_result1get_job_client().get_job_status())
+print(table_result1.get_job_client().get_job_status())
 
 #----------------------------------------------------------------------------
 # register another sink table named "GlassOrders" for multiple INSERT queries
