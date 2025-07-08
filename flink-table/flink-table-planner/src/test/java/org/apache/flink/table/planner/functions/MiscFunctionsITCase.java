@@ -222,6 +222,12 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f1").encode($("f2")),
                                 "ENCODE(f1, f2)",
                                 "Hello world".getBytes(StandardCharsets.UTF_8),
+                                DataTypes.BYTES().nullable())
+                        .testResult(
+                                // test for static values
+                                lit("Hello world").encode($("f2")),
+                                "ENCODE('Hello world', f2)",
+                                "Hello world".getBytes(StandardCharsets.UTF_8),
                                 DataTypes.BYTES().nullable()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.DECODE)
                         .onFieldsWithData(
@@ -236,6 +242,12 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 $("f1").decode($("f2")),
                                 "DECODE(f1, f2)",
+                                "Hello world",
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                // test for static values
+                                lit("Hello world".getBytes(StandardCharsets.UTF_8)).decode($("f2")),
+                                "DECODE(" + toHexString("Hello world") + ", f2)",
                                 "Hello world",
                                 DataTypes.STRING().nullable()));
     }
@@ -266,5 +278,16 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
         public String eval(int i, @ArgumentHint(isOptional = true) String optional) {
             return String.format("i=%s,optional=%s", i, optional);
         }
+    }
+
+    private static String toHexString(String input) {
+        final byte[] bytes = input.getBytes(StandardCharsets.UTF_8);
+        final StringBuilder res = new StringBuilder();
+        res.append("x'");
+        for (byte b : bytes) {
+            res.append(String.format("%02x", b));
+        }
+        res.append("'");
+        return res.toString();
     }
 }
