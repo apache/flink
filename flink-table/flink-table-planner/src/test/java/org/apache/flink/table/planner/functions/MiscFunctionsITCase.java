@@ -23,6 +23,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -224,7 +225,7 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 "Hello world".getBytes(StandardCharsets.UTF_8),
                                 DataTypes.BYTES().nullable())
                         .testResult(
-                                // test for static values
+                                // test for literal values
                                 lit("Hello world").encode($("f2")),
                                 "ENCODE('Hello world', f2)",
                                 "Hello world".getBytes(StandardCharsets.UTF_8),
@@ -245,9 +246,9 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 "Hello world",
                                 DataTypes.STRING().nullable())
                         .testResult(
-                                // test for static values
+                                // test for literal values
                                 lit("Hello world".getBytes(StandardCharsets.UTF_8)).decode($("f2")),
-                                "DECODE(" + toHexString("Hello world") + ", f2)",
+                                "DECODE(" + EncodingUtils.hex("Hello world") + ", f2)",
                                 "Hello world",
                                 DataTypes.STRING().nullable()));
     }
@@ -278,16 +279,5 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
         public String eval(int i, @ArgumentHint(isOptional = true) String optional) {
             return String.format("i=%s,optional=%s", i, optional);
         }
-    }
-
-    private static String toHexString(String input) {
-        final byte[] bytes = input.getBytes(StandardCharsets.UTF_8);
-        final StringBuilder res = new StringBuilder();
-        res.append("x'");
-        for (byte b : bytes) {
-            res.append(String.format("%02x", b));
-        }
-        res.append("'");
-        return res.toString();
     }
 }
