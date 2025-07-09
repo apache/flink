@@ -52,13 +52,13 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy, After
   public listOfUnselectedMetric: string[] = [];
   public cacheMetricKey: string;
   public dropdownWidth: number = 300; // Default width
-  
+
   // Computed dropdown styles to ensure reactivity
-  public get dropdownStyles() {
+  public get dropdownStyles(): { [key: string]: string } {
     return {
-      'min-width': this.dropdownWidth + 'px',
+      'min-width': `${this.dropdownWidth}px`,
       'max-width': '80vw',
-      'width': this.dropdownWidth + 'px',
+      width: `${this.dropdownWidth}px`,
       'box-sizing': 'border-box'
     };
   }
@@ -139,8 +139,6 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy, After
     this.listOfUnselectedMetric = this.listOfMetricName.filter(item => this.listOfSelectedMetric.indexOf(item) === -1);
   }
 
-
-
   private calculateOptimalDropdownWidth(): void {
     if (this.listOfUnselectedMetric.length === 0) {
       this.dropdownWidth = 300; // Default width when no metrics
@@ -172,14 +170,12 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy, After
 
     // Set dropdown width to fit the longest metric name with comfortable padding
     const calculatedWidth = Math.ceil(maxWidth + padding + 60); // Extra padding for comfort and breathing room
-    
+
     // Only cap at viewport width, no artificial minimum
     const maxDropdownWidth = Math.min(window.innerWidth * 0.8, 1200); // Allow wider for long metrics
-    
-    this.dropdownWidth = Math.min(calculatedWidth, maxDropdownWidth);
-    
 
-    
+    this.dropdownWidth = Math.min(calculatedWidth, maxDropdownWidth);
+
     // Force change detection when width changes
     this.cdr.markForCheck();
   }

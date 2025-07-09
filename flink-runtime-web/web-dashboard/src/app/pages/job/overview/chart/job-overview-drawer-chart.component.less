@@ -17,60 +17,60 @@
  */
 
 nz-select {
+  flex: 1;
   width: 100%;
   max-width: 100%;
-  flex: 1;
 }
 
 .metric-selector {
-  text-align: center;
-  width: 100%;
-  max-width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 8px;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  text-align: center;
 }
 
 .metric-option-text {
   display: block;
-  white-space: nowrap;
   overflow: visible;
-  text-overflow: unset;
-  word-break: break-all;
-  max-width: none;
   width: 100%;
   min-width: max-content;
+  max-width: none;
+  text-overflow: unset;
+  white-space: nowrap;
+  word-break: break-all;
 }
 
 :host {
   display: block;
-  padding: 16px;
-  width: 100%;
   box-sizing: border-box;
+  width: 100%;
+  padding: 16px;
 }
 
 /* Ensure dropdown options display properly */
 ::ng-deep .ant-select-item-option-content {
-  white-space: nowrap;
   overflow: visible;
   text-overflow: unset;
+  white-space: nowrap;
   word-break: break-all;
 }
 
 /* Force dropdown width to respect our custom styling */
 ::ng-deep .custom-dropdown-width {
   .ant-select-dropdown {
-    min-width: var(--dropdown-width) !important;
     width: var(--dropdown-width) !important;
+    min-width: var(--dropdown-width) !important;
     max-width: 80vw !important;
   }
-  
+
   .ant-select-item {
-    min-width: max-content;
     width: auto;
+    min-width: max-content;
   }
-  
+
   .ant-select-item-option-content {
     width: max-content;
     min-width: max-content;
