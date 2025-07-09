@@ -122,6 +122,13 @@ under the License.
 			<fileMode>0644</fileMode>
 		</file>
 
+		<file>
+			<source>../flink-models/flink-model-openai/target/flink-model-openai-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-model-openai-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
 		<!-- copy the config file -->
 		<file>
 			<source>src/main/resources/config.yaml</source>
