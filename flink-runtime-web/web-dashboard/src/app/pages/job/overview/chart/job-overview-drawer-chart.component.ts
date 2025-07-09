@@ -56,9 +56,9 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy, After
   // Computed dropdown styles to ensure reactivity
   public get dropdownStyles() {
     return {
-      'min-width': this.dropdownWidth + 'px !important',
+      'min-width': this.dropdownWidth + 'px',
       'max-width': '80vw',
-      'width': this.dropdownWidth + 'px !important',
+      'width': this.dropdownWidth + 'px',
       'box-sizing': 'border-box'
     };
   }
@@ -139,39 +139,12 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy, After
     this.listOfUnselectedMetric = this.listOfMetricName.filter(item => this.listOfSelectedMetric.indexOf(item) === -1);
   }
 
-  public onDropdownOpen(): void {
-    // Force apply dropdown width via DOM manipulation
-    setTimeout(() => {
-      this.forceDropdownWidth();
-    }, 0);
-  }
 
-  public onDropdownOpenChange(isOpen: boolean): void {
-    if (isOpen) {
-      // Force apply dropdown width when dropdown opens
-      setTimeout(() => {
-        this.forceDropdownWidth();
-      }, 50);
-    }
-  }
-
-  private forceDropdownWidth(): void {
-    // Set CSS custom property for dropdown width
-    document.documentElement.style.setProperty('--dropdown-width', this.dropdownWidth + 'px');
-    
-    // Also force apply via direct DOM manipulation as backup
-    const dropdown = document.querySelector('.custom-dropdown-width .ant-select-dropdown');
-    if (dropdown && dropdown instanceof HTMLElement) {
-      dropdown.style.minWidth = this.dropdownWidth + 'px';
-      dropdown.style.width = this.dropdownWidth + 'px';
-    }
-  }
 
   private calculateOptimalDropdownWidth(): void {
     if (this.listOfUnselectedMetric.length === 0) {
       this.dropdownWidth = 300; // Default width when no metrics
       this.cdr.markForCheck(); // Force change detection
-      document.documentElement.style.setProperty('--dropdown-width', this.dropdownWidth + 'px');
       return;
     }
 
@@ -209,8 +182,5 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy, After
     
     // Force change detection when width changes
     this.cdr.markForCheck();
-    
-    // Set CSS custom property immediately
-    document.documentElement.style.setProperty('--dropdown-width', this.dropdownWidth + 'px');
   }
 }
