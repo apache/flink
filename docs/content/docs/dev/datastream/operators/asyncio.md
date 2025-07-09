@@ -152,8 +152,9 @@ All subsequent `complete` calls will be ignored.
 
 The following three parameters control the asynchronous operations:
 
-  - **Timeout**: The timeout defines how long an asynchronous operation take before it is finally considered failed,
-    may include multiple retry requests if retry enabled. This parameter guards against dead/failed requests.
+  - **Timeout**: The timeout defines the maximum duration from the first invocation to the final completion of an asynchronous operation,
+    This duration may include multiple retry attempts (if retries are enabled) and determines when the operation is ultimately considered failed.
+    This parameter guards against dead/failed requests.
 
   - **Capacity**: This parameter defines how many asynchronous requests may be in progress at the same time.
     Even though the async I/O approach leads typically to much better throughput, the operator can still be the bottleneck in
