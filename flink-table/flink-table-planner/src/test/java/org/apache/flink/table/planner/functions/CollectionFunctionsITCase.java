@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
@@ -57,7 +58,8 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         arraySortTestCases(),
                         arrayExceptTestCases(),
                         arrayIntersectTestCases(),
-                        splitTestCases())
+                        splitTestCases(),
+                        arrayElementTestCases())
                 .flatMap(s -> s);
     }
 
@@ -1878,5 +1880,18 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlValidationError(
                                 "SPLIT(f1, '1', '2')",
                                 "No match found for function signature SPLIT(<CHARACTER>, <CHARACTER>, <CHARACTER>)"));
+    }
+
+    private Stream<TestSetSpec> arrayElementTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_ELEMENT)
+                        .onFieldsWithData(new Integer[] {1}, new Integer[] {1, 2})
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()), DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult($("f0").element(), "ELEMENT(f0)", 1, DataTypes.INT())
+                        .testSqlRuntimeError(
+                                "ELEMENT(f1)",
+                                TableRuntimeException.class,
+                                "Array has more than one element."));
     }
 }

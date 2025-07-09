@@ -1423,7 +1423,7 @@ object ScalarOperatorGens {
          |    $resultTerm = $nullTerm ? $defaultValue : $arrayGet;
          |    break;
          |  default:
-         |    throw new RuntimeException("Array has more than one element.");
+         |    throw new org.apache.flink.table.api.TableRuntimeException("Array has more than one element.");
          |}
          |""".stripMargin
 
