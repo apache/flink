@@ -156,6 +156,32 @@ under the License.
 									<include>*:*</include>
 								</includes>
 							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>com.fasterxml.jackson</pattern>
+									<shadedPattern>org.apache.flink.model.openai.com.fasterxml.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.httpcomponents</pattern>
+									<shadedPattern>org.apache.flink.model.openai.org.apache.httpcomponents</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.squareup</pattern>
+									<shadedPattern>org.apache.flink.model.openai.com.squareup</shadedPattern>
+								</relocation>
+							</relocations>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>properties.dtd</exclude>
+										<exclude>PropertyList-1.0.dtd</exclude>
+										<exclude>mozilla/**</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
+										<exclude>okhttp3/internal/publicsuffix/NOTICE</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>
