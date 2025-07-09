@@ -29,9 +29,11 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
+import org.apache.flink.streaming.api.checkpoint.RetriableAsyncOperateException;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +42,8 @@ import java.io.Closeable;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -187,6 +191,9 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
             OperatorID operatorID = entry.getKey();
             OperatorSnapshotFutures snapshotInProgress = entry.getValue();
 
+            // complete custom async snapshot state
+            completeCustomAsyncOperate(snapshotInProgress.getAsyncOperateFuture());
+
             // finalize the async part of all by executing all snapshot runnables
             OperatorSnapshotFinalizer finalizedSnapshots =
                     new OperatorSnapshotFinalizer(snapshotInProgress);
@@ -213,6 +220,21 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 jobManagerTaskOperatorSubtaskStates,
                 localTaskOperatorSubtaskStates,
                 bytesPersistedDuringAlignment);
+    }
+
+    private void completeCustomAsyncOperate(RunnableFuture<Void> asyncOperateFuture)
+            throws Exception {
+        try {
+            if (!asyncOperateFuture.isDone()) {
+                final long startNanos = System.nanoTime();
+                FutureUtils.runIfNotDoneAndGet(asyncOperateFuture);
+                long costNanos = System.nanoTime() - startNanos;
+                LOG.info("Async operate completed, cost:{}ns.", costNanos);
+            }
+        } catch (ExecutionException e) {
+            throw new AsyncOperateException(
+                    "custom async snapshot state error, task name:" + taskName, e.getCause());
+        }
     }
 
     private void reportCompletedSnapshotStates(
@@ -326,6 +348,17 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                                 "Failure in asynchronous checkpoint materialization",
                                 asyncException);
                     }
+
+                    // Asynchronous snapshot failure can lead to task failure, if you don't want
+                    // task to fail can throw RetriableAsyncOperateException, this will only
+                    // lead to the failure checkpoint.
+                    if (e instanceof AsyncOperateException
+                            && !ExceptionUtils.findThrowable(
+                                            e, RetriableAsyncOperateException.class)
+                                    .isPresent()) {
+                        asyncExceptionHandler.handleAsyncException(
+                                "Failure in asynchronous snapshot state", e);
+                    }
                 } else {
                     // We never decline checkpoint after task is not running to avoid unexpected job
                     // failover, which caused by exceeding checkpoint tolerable failure threshold.
@@ -425,6 +458,13 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
             this.jobManagerTaskOperatorSubtaskStates = jobManagerTaskOperatorSubtaskStates;
             this.localTaskOperatorSubtaskStates = localTaskOperatorSubtaskStates;
             this.bytesPersistedDuringAlignment = bytesPersistedDuringAlignment;
+        }
+    }
+
+    private static class AsyncOperateException extends RuntimeException {
+
+        public AsyncOperateException(final String message, final Throwable cause) {
+            super(message, cause);
         }
     }
 }
