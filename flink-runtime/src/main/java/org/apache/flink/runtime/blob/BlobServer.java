@@ -33,6 +33,7 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -59,13 +60,17 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.Timer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -137,7 +142,9 @@ public class BlobServer extends Thread
     private final long cleanupInterval;
 
     /** Timer task to execute the cleanup at regular intervals. */
-    private final Timer cleanupTimer;
+    private final ScheduledExecutorService cleanupTimer;
+
+    private final ScheduledFuture<?> timerFuture;
 
     @VisibleForTesting
     public BlobServer(Configuration config, File storageDir, BlobStore blobStore)
@@ -187,13 +194,17 @@ public class BlobServer extends Thread
         }
 
         // Initializing the clean up task
-        this.cleanupTimer = new Timer(true);
+        this.cleanupTimer =
+                Executors.newSingleThreadScheduledExecutor(
+                        new ExecutorThreadFactory("blob-cleanup"));
 
         this.cleanupInterval = config.get(BlobServerOptions.CLEANUP_INTERVAL) * 1000;
-        this.cleanupTimer.schedule(
-                new TransientBlobCleanupTask(blobExpiryTimes, this::deleteInternal, LOG),
-                cleanupInterval,
-                cleanupInterval);
+        this.timerFuture =
+                cleanupTimer.scheduleAtFixedRate(
+                        new TransientBlobCleanupTask(blobExpiryTimes, this::deleteInternal, LOG),
+                        cleanupInterval,
+                        cleanupInterval,
+                        TimeUnit.MILLISECONDS);
 
         this.shutdownHook = ShutdownHookUtil.addShutdownHook(this, getClass().getSimpleName(), LOG);
 
@@ -350,7 +361,15 @@ public class BlobServer extends Thread
     /** Shuts down the BLOB server. */
     @Override
     public void close() throws IOException {
-        cleanupTimer.cancel();
+        timerFuture.cancel(false);
+        cleanupTimer.shutdown();
+        try {
+            if (!cleanupTimer.awaitTermination(5L, TimeUnit.MINUTES)) {
+                throw new TimeoutException("Timeout to shutdown the blob cleanup thread.");
+            }
+        } catch (InterruptedException | TimeoutException e) {
+            ExceptionUtils.rethrow(e);
+        }
 
         if (shutdownRequested.compareAndSet(false, true)) {
             Exception exception = null;
