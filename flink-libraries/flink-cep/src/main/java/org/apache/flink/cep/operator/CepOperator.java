@@ -161,7 +161,7 @@ public class CepOperator<IN, KEY, OUT>
     }
 
     @Override
-    public boolean useSplittableTimers() {
+    public boolean useInterruptibleTimers() {
         return true;
     }
 

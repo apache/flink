@@ -52,7 +52,7 @@ public abstract class AsyncStateTableStreamOperator<OUT>
     }
 
     @Override
-    public boolean useSplittableTimers() {
+    public boolean useInterruptibleTimers() {
         return true;
     }
 
