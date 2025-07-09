@@ -83,6 +83,9 @@ FULL OUTER JOIN Product
 ON Orders.product_id = Product.id
 ```
 
+### Multiple Regular Joins
+If you are facing issues with the performance of your multiple chained joins and these generate a lot of state, consider using the `MultiJoin` operator. See [tuning multiple regular joins]({{< ref "docs/dev/table/tuning" >}}#multiple-regular-joins) for details.
+
 Interval Joins
 --------------
 
