@@ -57,3 +57,22 @@ nz-select {
   text-overflow: unset;
   word-break: break-all;
 }
+
+/* Force dropdown width to respect our custom styling */
+::ng-deep .custom-dropdown-width {
+  .ant-select-dropdown {
+    min-width: var(--dropdown-width) !important;
+    width: var(--dropdown-width) !important;
+    max-width: 80vw !important;
+  }
+  
+  .ant-select-item {
+    min-width: max-content;
+    width: auto;
+  }
+  
+  .ant-select-item-option-content {
+    width: max-content;
+    min-width: max-content;
+  }
+}

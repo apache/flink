@@ -21,13 +21,17 @@
   <ng-template #elseTemplate>
     Add Metric:
     <nz-select
+      #metricSelect
       nzSize="small"
       [ngModel]="null"
       nzShowSearch
       [nzPlaceHolder]="'Select Metric Name'"
       (ngModelChange)="updateMetric($event)"
       nzDropdownMatchSelectWidth="false"
-      [nzDropdownStyle]="{ 'min-width': dropdownWidth + 'px', 'max-width': '80vw' }"
+      [nzDropdownStyle]="dropdownStyles"
+      nzDropdownClassName="custom-dropdown-width"
+      (nzOnSearch)="onDropdownOpen()"
+      (nzOpenChange)="onDropdownOpenChange($event)"
     >
       <nz-option
         *ngFor="let name of listOfUnselectedMetric"
