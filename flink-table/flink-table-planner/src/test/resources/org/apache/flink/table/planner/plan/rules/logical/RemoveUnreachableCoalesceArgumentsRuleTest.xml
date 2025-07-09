@@ -157,8 +157,7 @@ LogicalProject(EXPR$0=[COALESCE(1)], EXPR$1=[COALESCE(1, 2)], EXPR$2=[COALESCE(n
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[1 AS EXPR$0, 1 AS EXPR$1, 2 AS EXPR$2, 1 AS EXPR$3, 3 AS EXPR$4, 4 AS EXPR$5, '1' AS EXPR$6, '1' AS EXPR$7, '2' AS EXPR$8, '1' AS EXPR$9, '3' AS EXPR$10, '4' AS EXPR$11, 1.0 AS EXPR$12, 1.0 AS EXPR$13, 2E0 AS EXPR$14, 2E0 AS EXPR$15, 2.0 AS EXPR$16, null:DOUBLE AS EXPR$17])
-+- Values(tuples=[[{ 0 }]])
+Values(tuples=[[{ 1, 1, 2, 1, 3, 4, _UTF-16LE'1', _UTF-16LE'1', _UTF-16LE'2', _UTF-16LE'1', _UTF-16LE'3', _UTF-16LE'4', 1.0, 1.0, 2E0, 2E0, 2.0, null }]])
 ]]>
     </Resource>
   </TestCase>
