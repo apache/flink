@@ -47,13 +47,6 @@ under the License.
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
-		<dependency>
-			<groupId>com.squareup.okhttp3</groupId>
-			<artifactId>okhttp</artifactId>
-			<version>${okhttp.version}</version>
-			<optional>${flink.markBundledAsOptional}</optional>
-		</dependency>
-
 		<!-- Core dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
