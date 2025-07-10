@@ -114,6 +114,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -193,6 +194,7 @@ public class OperationExecutor {
                     String.format(
                             "Unsupported statement for configuring session:%s\n"
                                     + "The configureSession API only supports to execute statement of type "
+                                    + "SET, RESET, "
                                     + "CREATE TABLE, DROP TABLE, ALTER TABLE, "
                                     + "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
                                     + "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, "
@@ -290,7 +292,7 @@ public class OperationExecutor {
     public Set<TableInfo> listTables(
             String catalogName, String databaseName, Set<TableKind> tableKinds) {
         checkArgument(
-                Arrays.asList(TableKind.TABLE, TableKind.VIEW).containsAll(tableKinds),
+                EnumSet.of(TableKind.TABLE, TableKind.VIEW).containsAll(tableKinds),
                 "Currently only support to list TABLE, VIEW or TABLE AND VIEW.");
         if (tableKinds.contains(TableKind.TABLE) && tableKinds.contains(TableKind.VIEW)) {
             return listTables(catalogName, databaseName, true);
@@ -608,7 +610,7 @@ public class OperationExecutor {
             // set a property
             sessionContext.set(setOp.getKey().get().trim(), setOp.getValue().get().trim());
             return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
-        } else if (!setOp.getKey().isPresent() && !setOp.getValue().isPresent()) {
+        } else if (setOp.getKey().isEmpty() && setOp.getValue().isEmpty()) {
             // show all properties
             Map<String, String> configMap = tableEnv.getConfig().getConfiguration().toMap();
             return ResultFetcher.fromResults(
@@ -743,23 +745,21 @@ public class OperationExecutor {
                                                 ObjectIdentifier.of(
                                                         catalogName, databaseName, name),
                                                 TableKind.TABLE)));
-        return Collections.unmodifiableSet(new HashSet<>(ans.values()));
+        return ans.values().stream().collect(Collectors.toUnmodifiableSet());
     }
 
     private Set<TableInfo> listViews(String catalogName, String databaseName) {
-        return Collections.unmodifiableSet(
-                sessionContext
-                        .getSessionState()
-                        .catalogManager
-                        .listViews(catalogName, databaseName)
-                        .stream()
-                        .map(
-                                name ->
-                                        new TableInfo(
-                                                ObjectIdentifier.of(
-                                                        catalogName, databaseName, name),
-                                                TableKind.VIEW))
-                        .collect(Collectors.toSet()));
+        return sessionContext
+                .getSessionState()
+                .catalogManager
+                .listViews(catalogName, databaseName)
+                .stream()
+                .map(
+                        name ->
+                                new TableInfo(
+                                        ObjectIdentifier.of(catalogName, databaseName, name),
+                                        TableKind.VIEW))
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     public ResultFetcher callStopJobOperation(
@@ -890,7 +890,7 @@ public class OperationExecutor {
                             }
                         });
 
-        if (!jobStatusOp.isPresent()) {
+        if (jobStatusOp.isEmpty()) {
             throw new SqlExecutionException(
                     String.format("Described job %s does not exist in the cluster.", jobId));
         }
