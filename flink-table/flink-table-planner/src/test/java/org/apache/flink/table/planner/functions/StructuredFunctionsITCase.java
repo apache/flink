@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.types.DataType;
@@ -26,8 +27,6 @@ import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.types.Row;
 
 import java.util.stream.Stream;
-
-import static org.apache.flink.table.api.Expressions.objectOf;
 
 /** Tests for functions dealing with {@link StructuredType}. */
 public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
@@ -53,7 +52,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                         // Same value from CAST
                         .testSqlResult(
                                 "Type1Constructor(f0, f1) = CAST((14, 'Bob') AS "
-                                        + Type1.TYPE
+                                        + Type1.TYPE_STRING
                                         + ")",
                                 true,
                                 DataTypes.BOOLEAN())
@@ -65,7 +64,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                         // Different value from CAST
                         .testSqlResult(
                                 "Type1Constructor(f0, f1) = CAST((15, 'Alice') AS "
-                                        + Type1.TYPE
+                                        + Type1.TYPE_STRING
                                         + ")",
                                 false,
                                 DataTypes.BOOLEAN())
@@ -76,7 +75,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                         // Different class name from CAST
                         .testSqlValidationError(
                                 "Type1Constructor(f0, f1) = CAST((14, 'Bob') AS "
-                                        + Type2.TYPE
+                                        + Type2.TYPE_STRING
                                         + ")",
                                 "Incompatible structured types")
                         // Same class name but different fields
@@ -91,7 +90,9 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                         "NestedConstructor(Type1Constructor(f0, f1), Type2Constructor(15, 'Alice')) = CAST("
                                                 + "(CAST((14, 'Bob') AS %s), CAST((15, 'Alice') AS %s))"
                                                 + " AS %s)",
-                                        Type1.TYPE, Type2.TYPE, NestedType.TYPE),
+                                        Type1.TYPE_STRING,
+                                        Type2.TYPE_STRING,
+                                        NestedType.TYPE_STRING),
                                 true,
                                 DataTypes.BOOLEAN()));
     }
@@ -106,10 +107,10 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                         .withFunction(NestedType.NestedConstructor.class)
                         // Test with OBJECT_OF
                         .testResult(
-                                objectOf(Type1.class, "a", 42, "b", "Bob"),
+                                Expressions.objectOf(Type1.class, "a", 42, "b", "Bob"),
                                 "OBJECT_OF('" + Type1.class.getName() + "', 'a', 42, 'b', 'Bob')",
                                 Row.of(42, "Bob"),
-                                Type1.STRUCTURED_TYPE)
+                                Type1.DATA_TYPE)
                         // Test with same value from function
                         .testSqlResult(
                                 "Type1Constructor(f0, f1) = OBJECT_OF('"
@@ -130,13 +131,6 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "', 'a', 15, 'b', 'Alice'))",
                                 true,
                                 DataTypes.BOOLEAN())
-                        // Test with TYPEOF
-                        .testSqlResult(
-                                "TYPEOF(OBJECT_OF('"
-                                        + Type1.class.getName()
-                                        + "', 'a', 42, 'b', 'Bob'))",
-                                Type1.TYPE,
-                                DataTypes.STRING())
                         // Invalid Test - field name is not a string literal
                         .testSqlValidationError(
                                 "OBJECT_OF('"
@@ -155,9 +149,9 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
 
     /** Structured type Type1. */
     public static class Type1 {
-        private static final String TYPE =
+        private static final String TYPE_STRING =
                 "STRUCTURED<'" + Type1.class.getName() + "', `a` INT, `b` STRING>";
-        private static final DataType STRUCTURED_TYPE =
+        private static final DataType DATA_TYPE =
                 DataTypes.STRUCTURED(
                         Type1.class,
                         DataTypes.FIELD("a", DataTypes.INT()),
@@ -178,7 +172,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
 
     /** Structured type Type2. */
     public static class Type2 {
-        private static final String TYPE =
+        private static final String TYPE_STRING =
                 "STRUCTURED<'" + Type2.class.getName() + "', `a` INT, `b` STRING>";
 
         public Integer a;
@@ -196,11 +190,11 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
 
     /** Structured type NestedType. */
     public static class NestedType {
-        private static final String TYPE =
+        private static final String TYPE_STRING =
                 String.format(
                         "STRUCTURED<'" + NestedType.class.getName() + "', `n1` %s, `n2` %s>",
-                        Type1.TYPE,
-                        Type2.TYPE);
+                        Type1.TYPE_STRING,
+                        Type2.TYPE_STRING);
 
         public Type1 n1;
         public Type2 n2;

@@ -1202,15 +1202,15 @@ valueconstruction:
     table: objectOf(STRING, Object...)
     description: |
       Creates a structured object from a list of key-value pairs.
-
-      The function creates an instance of a structured type identified by the given class name.
+      
+      This function creates an instance of a structured type identified by the given class name.
       The structured type is created by providing alternating key-value pairs where keys must be
       string literals and values can be arbitrary expressions.
-
-      Users are responsible for providing a valid fully qualified class name that exists
-      in the classpath. The class name should follow Java naming conventions (e.g., 'com.example.User').
-      If an invalid or non-existent class name is provided, the function will fall back to using
-      Row.class as the type representation.
+      
+      Note: The class name is only used for distinguishing two structured types with identical fields.
+      Structured types are internally handled with suitable data structures. Thus, serialization and equality checks are managed by the system.
+      In Table API and UDF calls, the system will attempt to resolve the class name to an actual implementation class.
+      In this case the class name needs to be present in the user classpath. If resolution fails, Row is used as a fallback.
 
       ```sql
       -- Creates a User object with name="Bob" and age=42

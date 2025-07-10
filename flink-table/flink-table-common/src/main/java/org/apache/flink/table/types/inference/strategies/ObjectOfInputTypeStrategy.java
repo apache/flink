@@ -25,6 +25,7 @@ import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.inference.Signature.Argument;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
@@ -41,29 +42,14 @@ import java.util.Set;
  *
  * <ul>
  *   <li>The argument count is odd (className + pairs of key-value arguments)
- *   <li>The first argument is a STRING/VARCHAR representing the class name
- *   <li>All key arguments (odd positions after the first) are STRING/VARCHAR types
+ *   <li>The first argument is a non-null STRING/VARCHAR representing the class name
+ *   <li>All key arguments (odd positions after the first) are non-null STRING/VARCHAR types
  *   <li>Field names are unique across all key-value pairs
  *   <li>Value arguments (even positions after the first) can be any type
  * </ul>
  *
  * <p>The expected function signature is: {@code OBJECT_OF(className, key1, value1, key2, value2,
  * ...)}
- *
- * <p>Validation rules:
- *
- * <ul>
- *   <li>Minimum 1 argument (just the class name)
- *   <li>Odd total number of arguments (className + key-value pairs)
- *   <li>Keys must be string literals for field name extraction
- *   <li>No duplicate field names allowed
- * </ul>
- *
- * <p><b>Note: Users are responsible for providing a valid fully qualified class name that exists in
- * the classpath. The class name should follow Java naming conventions. While this strategy
- * validates the format and type of the class name argument, it does not verify the class existence
- * in the classpath. If an invalid or non-existent class name is provided, the function will fall
- * back to using Row.class as the type representation.</b>
  *
  * <p>Example valid calls:
  *
@@ -166,12 +152,13 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
 
     @Override
     public List<Signature> getExpectedSignatures(final FunctionDefinition definition) {
-        // OBJECT_OF expects: name, key1, value1, key2, value2, ...
-        // OBJECT_OF(<name>, [<key>, <value> [, <key>, <value> , ...]] )
+        // OBJECT_OF expects: className, key1, value1, key2, value2, ...
+        // OBJECT_OF(<class name>, [<key>, <value> [, <key>, <value> , ...]] )
         final List<Signature.Argument> arguments = new ArrayList<>();
 
         // Class name (required)
-        arguments.add(Signature.Argument.of("STRING"));
+        final Argument classArgument = Argument.of("class name", "STRING");
+        arguments.add(classArgument);
 
         // Key-value pairs (optional, repeating)
         arguments.add(Signature.Argument.ofVarying("[STRING, ANY]*"));

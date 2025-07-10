@@ -42,7 +42,7 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                 TestSpec.forStrategy("Valid OBJECT_OF with only class", OBJECT_OF_INPUT_STRATEGY)
                         .calledWithArgumentTypes(DataTypes.STRING().notNull())
                         .calledWithLiteralAt(0, USER_CLASS_PATH)
-                        .expectSignature("f(STRING, [STRING, ANY]*...)")
+                        .expectSignature("f(class name STRING, [STRING, ANY]*...)")
                         .expectArgumentTypes(DataTypes.STRING().notNull()),
 
                 // Test valid number of arguments (odd number >= 1)
