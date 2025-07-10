@@ -983,6 +983,7 @@ public class SqlGatewayServiceITCase {
                                 UnsupportedOperationException.class,
                                 "Unsupported statement for configuring session:SELECT 1;\n"
                                         + "The configureSession API only supports to execute statement of type "
+                                        + "SET, RESET, "
                                         + "CREATE TABLE, DROP TABLE, ALTER TABLE, "
                                         + "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
                                         + "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, "
