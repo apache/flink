@@ -155,8 +155,11 @@ under the License.
 								<includes>
 									<include>*:*</include>
 								</includes>
+								<excludes>
+									<exclude>com.google.code.findbugs:jsr305</exclude>
+								</excludes>
 							</artifactSet>
-							<relocations>
+							<relocations combine.children="append">
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
 									<shadedPattern>org.apache.flink.model.openai.com.fasterxml.jackson</shadedPattern>
@@ -174,10 +177,6 @@ under the License.
 								<filter>
 									<artifact>*</artifact>
 									<excludes>
-										<exclude>properties.dtd</exclude>
-										<exclude>PropertyList-1.0.dtd</exclude>
-										<exclude>mozilla/**</exclude>
-										<exclude>META-INF/LICENSE.txt</exclude>
 										<exclude>okhttp3/internal/publicsuffix/NOTICE</exclude>
 									</excludes>
 								</filter>
