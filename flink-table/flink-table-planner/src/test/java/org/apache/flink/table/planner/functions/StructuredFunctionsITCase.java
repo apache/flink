@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.types.DataType;
@@ -30,8 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
-
-import static org.apache.flink.table.api.Expressions.objectOf;
 
 /** Tests for functions dealing with {@link StructuredType}. */
 public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
@@ -125,10 +124,10 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                         .withFunction(NestedType.NestedConstructor.class)
                         // Test with OBJECT_OF
                         .testResult(
-                                objectOf(Type1.class, "a", 42, "b", "Bob"),
+                                Expressions.objectOf(Type1.class, "a", 42, "b", "Bob"),
                                 "OBJECT_OF('" + Type1.class.getName() + "', 'a', 42, 'b', 'Bob')",
                                 Row.of(42, "Bob"),
-                                Type1.STRUCTURED_TYPE)
+                                Type1.DATA_TYPE)
                         // Test with same value from function
                         .testSqlResult(
                                 "Type1Constructor(f0, f1) = OBJECT_OF('"
@@ -149,13 +148,6 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "', 'a', 15, 'b', 'Alice'))",
                                 true,
                                 DataTypes.BOOLEAN())
-                        // Test with TYPEOF
-                        .testSqlResult(
-                                "TYPEOF(OBJECT_OF('"
-                                        + Type1.class.getName()
-                                        + "', 'a', 42, 'b', 'Bob'))",
-                                Type1.TYPE,
-                                DataTypes.STRING())
                         // Invalid Test - field name is not a string literal
                         .testSqlValidationError(
                                 "OBJECT_OF('"

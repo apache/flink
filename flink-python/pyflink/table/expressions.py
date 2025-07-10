@@ -17,8 +17,6 @@
 ################################################################################
 from typing import Union
 
-from py4j.java_gateway import JavaClass, get_java_class
-
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit, JsonOnNull
@@ -562,7 +560,7 @@ def map_from_arrays(key, value) -> Expression:
     return _binary_op("mapFromArrays", key, value)
 
 
-def object_of(class_name: Union[str, 'JavaClass'], *args) -> Expression:
+def object_of(class_name: str, *args) -> Expression:
     """
     Creates a structured object from a list of key-value pairs.
 
@@ -570,36 +568,26 @@ def object_of(class_name: Union[str, 'JavaClass'], *args) -> Expression:
     The structured type is created by providing alternating key-value pairs where keys must be
     string literals and values can be arbitrary expressions.
 
-    This function corresponds to the SQL `OBJECT_OF` function.
+    Note: The class name is only used for distinguishing two structured types with identical fields.
+    Structured types are internally handled with suitable data structures.
+    Thus, serialization and equality checks are managed by the system.
 
-    Note: Users are responsible for providing a valid fully qualified class name that exists
-    in the classpath. The class name should follow Java naming conventions (e.g., 'com.example.User').
-    If an invalid or non-existent class name is provided, the function will fall back to using
-    Row.class as the type representation.
+    In Table API and UDF calls, the system will attempt to resolve
+    the class name to an actual implementation class.
+    In this case the class name needs to be present in the user classpath.
+    If resolution fails, Row class is used as a fallback.
 
-    :param class_name: The fully qualified class name or the JavaClass object.
+    :param class_name: The fully qualified class name
     :param args: Alternating key-value pairs: key1, value1, key2, value2, ...
     :return: A structured object expression
-
     Examples:
     ::
-
         >>> # Creates a User object with name="Alice" and age=30
         >>> object_of("com.example.User", "name", "Alice", "age", 30)
-
-        >>> # Using JavaClass (loaded via java gateway)
-        >>> from pyflink.util.java_utils import load_java_class
-        >>> user_class = load_java_class("com.example.User")
-        >>> object_of(user_class, "name", "Bob", "age", 25)
-
     .. seealso:: SQL function: OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 25)
     """
-    if isinstance(class_name, JavaClass):
-        # Extract the class name from JavaClass object
-        class_name_str = get_java_class(class_name).getName()
-    else:
-        class_name_str = class_name
     return _varargs_op("objectOf", class_name, *args)
+
 
 @PublicEvolving()
 def row_interval(rows: int) -> Expression:

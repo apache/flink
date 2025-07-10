@@ -1283,19 +1283,19 @@ valueconstruction:
   - sql: OBJECT_OF(className, [key, value [, key, value , ...]])
     table: objectOf(STRING, Object...)
     description: |
-      根据键值对列表创建结构化对象。
-
-      该函数通过给定的类名创建结构化类型的实例。
-      结构化类型通过提供交替的键值对来创建，其中键必须是
-      字符串字面量，值可以是任意表达式。
-
-      用户有责任提供在类路径中存在的有效完全限定类名。
-      类名应遵循Java命名约定（例如，'com.example.User'）。
-      如果提供的类名无效或不存在，该函数将回退到使用
-      Row.class作为类型表示。
+      Creates a structured object from a list of key-value pairs.
+      
+      This function creates an instance of a structured type identified by the given class name.
+      The structured type is created by providing alternating key-value pairs where keys must be
+      string literals and values can be arbitrary expressions.
+      
+      Note: The class name is only used for distinguishing two structured types with identical fields.
+      Structured types are internally handled with suitable data structures. Thus, serialization and equality checks are managed by the system.
+      In Table API and UDF calls, the system will attempt to resolve the class name to an actual implementation class.
+      In this case the class name needs to be present in the user classpath. If resolution fails, Row.class is used as a fallback.
 
       ```sql
-      -- 创建一个具有name="Bob"和age=42的User对象
+      -- Creates a User object with name="Bob" and age=42
       OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 42)
       ```
   - table: NUMERIC.rows
