@@ -1366,7 +1366,7 @@ public final class BuiltInFunctionDefinitions {
                             sequence(
                                     logical(LogicalTypeFamily.BINARY_STRING),
                                     logical(LogicalTypeFamily.CHARACTER_STRING)))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
+                    .outputTypeStrategy(explicit(DataTypes.STRING()))
                     .build();
 
     public static final BuiltInFunctionDefinition ENCODE =
@@ -1377,7 +1377,7 @@ public final class BuiltInFunctionDefinitions {
                             sequence(
                                     logical(LogicalTypeFamily.CHARACTER_STRING),
                                     logical(LogicalTypeFamily.CHARACTER_STRING)))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BYTES())))
+                    .outputTypeStrategy(explicit(DataTypes.BYTES()))
                     .build();
 
     public static final BuiltInFunctionDefinition LEFT =
