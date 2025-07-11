@@ -23,9 +23,6 @@ import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeStrategy;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeFamily;
-import org.apache.flink.table.types.utils.TypeConversions;
 
 import java.util.List;
 import java.util.Optional;
@@ -42,18 +39,9 @@ import java.util.stream.IntStream;
  * <p>The strategy performs the following operations:
  *
  * <ul>
- *   <li>Extracts the class name from the first argument (must be a string literal)
+ *   <li>Extracts the class name from the first argument (must be a non-null string literal)
  *   <li>Processes key-value pairs starting from the second argument
  *   <li>Extracts field names (keys) from odd-positioned arguments (indices 1, 3, 5, ...)
- *   <li>Normalizes field types (values) from even-positioned arguments (indices 2, 4, 6, ...)
- *   <li>Creates a structured type with the given class name and normalized fields
- * </ul>
- *
- * <p>Field type normalization includes:
- *
- * <ul>
- *   <li>Converting CHARACTER_STRING types (CHAR, VARCHAR) to nullable VARCHAR (STRING)
- *   <li>Making all field types nullable for flexibility in structured types
  * </ul>
  *
  * <p><b>Examples:</b>
@@ -78,7 +66,9 @@ public class ObjectOfTypeStrategy implements TypeStrategy {
                         .mapToObj(keyIdx -> toFieldDataType(callContext, keyIdx))
                         .toArray(DataTypes.Field[]::new);
 
-        return DataTypes.STRUCTURED(className, fields);
+        final String serializableString =
+                DataTypes.STRUCTURED(className, fields).getLogicalType().asSerializableString();
+        return callContext.getDataTypeFactory().createDataType(serializableString);
     }
 
     private static Field toFieldDataType(final CallContext callContext, final int keyIdx) {
@@ -90,25 +80,7 @@ public class ObjectOfTypeStrategy implements TypeStrategy {
                         .orElseThrow(IllegalStateException::new);
 
         final DataType fieldValueType = argumentDataTypes.get(keyIdx + 1);
-        final DataType normalizedFieldValueType = normalizeFieldType(fieldValueType);
-        return DataTypes.FIELD(fieldName, normalizedFieldValueType);
-    }
-
-    /**
-     * Normalizes field types for structured types: - Converts CHARACTER_STRING types (CHAR,
-     * VARCHAR) to VARCHAR (STRING) - Makes all types nullable for flexibility in structured types.
-     */
-    private static DataType normalizeFieldType(final DataType fieldType) {
-        final LogicalType logicalType = fieldType.getLogicalType();
-
-        if (logicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
-            return DataTypes.STRING().nullable();
-        }
-        if (logicalType.is(LogicalTypeFamily.BINARY_STRING)) {
-            return DataTypes.BYTES().nullable();
-        }
-
-        return TypeConversions.fromLogicalToDataType(logicalType.copy(true));
+        return DataTypes.FIELD(fieldName, fieldValueType);
     }
 
     @Override
