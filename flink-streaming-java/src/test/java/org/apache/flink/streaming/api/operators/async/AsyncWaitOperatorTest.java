@@ -1350,14 +1350,11 @@ public class AsyncWaitOperatorTest {
                                 OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.INT_TYPE_INFO);
 
+        AlwaysTimeoutAsyncFunction asyncFunction = new AlwaysTimeoutAsyncFunction();
         try (StreamTaskMailboxTestHarness<Integer> testHarness =
                 builder.setupOutputForSingletonOperatorChain(
                                 new AsyncWaitOperatorFactory<Integer, Integer>(
-                                        new AlwaysTimeoutAsyncFunction(),
-                                        TIMEOUT,
-                                        10,
-                                        mode,
-                                        exceptionRetryStrategy))
+                                        asyncFunction, TIMEOUT, 10, mode, exceptionRetryStrategy))
                         .build()) {
 
             final long initialTime = 0L;
@@ -1374,6 +1371,8 @@ public class AsyncWaitOperatorTest {
                 error.set(e);
             }
             ExceptionUtils.assertThrowableWithMessage(error.get(), "Dummy timeout error");
+            // verify the 1st element's try count is exactly 1
+            assertThat(asyncFunction.getTryCount(1)).isEqualTo(1);
         }
     }
 
@@ -1569,7 +1568,7 @@ public class AsyncWaitOperatorTest {
 
         private static final long serialVersionUID = 1L;
 
-        private static Map<Integer, Integer> tryCounts = new HashMap<>();
+        protected static Map<Integer, Integer> tryCounts = new HashMap<>();
 
         @VisibleForTesting
         public int getTryCount(Integer item) {
@@ -1604,9 +1603,27 @@ public class AsyncWaitOperatorTest {
         }
     }
 
-    private static class AlwaysTimeoutAsyncFunction extends LazyAsyncFunction {
+    private static class AlwaysTimeoutAsyncFunction
+            extends AlwaysTimeoutWithDefaultValueAsyncFunction {
+
+        private final transient CountDownLatch latch = new CountDownLatch(1);
+
+        @Override
+        public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
+            tryCounts.merge(input, 1, Integer::sum);
+            CompletableFuture.runAsync(
+                    () -> {
+                        try {
+                            latch.await();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+        }
+
         @Override
         public void timeout(Integer input, ResultFuture<Integer> resultFuture) {
+            // simulate the use case in https://issues.apache.org/jira/browse/FLINK-38082
             resultFuture.completeExceptionally(new TimeoutException("Dummy timeout error"));
         }
     }
