@@ -25,13 +25,9 @@ import org.apache.flink.table.planner.plan.optimize.program.FlinkOptimizeProgram
 import org.apache.flink.table.planner.plan.optimize.program.StreamOptimizeContext;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexProgram;
-import org.apache.calcite.rex.RexUtil;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -186,7 +182,9 @@ public class FlinkMarkChangelogNormalizeProgram
                         (StreamPhysicalChangelogNormalize) input;
                 if (curRelNode instanceof StreamPhysicalCalc) {
                     StreamPhysicalCalc calc = (StreamPhysicalCalc) curRelNode;
-                    final List<RexNode> conditions = getConditions(calc, rexBuilder);
+                    final List<RexNode> conditions =
+                            FlinkRexUtil.extractConjunctiveConditions(
+                                    rexBuilder, calc.getProgram());
                     gatherTableScanToChangelogNormalizeMap(
                             input,
                             ChangelogNormalizeContext.of(changelogNormalize, conditions),
@@ -196,19 +194,6 @@ public class FlinkMarkChangelogNormalizeProgram
                 gatherTableScanToChangelogNormalizeMap(input, map, rexBuilder);
             }
         }
-    }
-
-    private List<RexNode> getConditions(StreamPhysicalCalc calc, RexBuilder rexBuilder) {
-        final RexProgram program = calc.getProgram();
-        if (program.getCondition() == null) {
-            return List.of();
-        }
-        final RexNode rexNode =
-                RexUtil.toCnf(
-                        rexBuilder,
-                        FlinkRexUtil.expandSearch(
-                                rexBuilder, program.expandLocalRef(program.getCondition())));
-        return RelOptUtil.conjunctions(rexNode);
     }
 
     private void gatherTableScanToChangelogNormalizeMap(

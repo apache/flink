@@ -27,7 +27,6 @@ import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
@@ -40,7 +39,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.rex.RexShuttle;
-import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.Pair;
 import org.immutables.value.Value;
@@ -134,32 +132,19 @@ public class PushCalcPastChangelogNormalizeRule
                 call, newChangelogNormalize, usedInputFields, nonCommonConditions, rexExecutor);
     }
 
-    private List<RexNode> conditionsFromProgram(RexBuilder rexBuilder, RexProgram program) {
-        if (program.getCondition() == null) {
-            return List.of();
-        }
-        final RexNode condition =
-                RexUtil.toCnf(
-                        rexBuilder,
-                        RexUtil.expandSearch(
-                                rexBuilder,
-                                program,
-                                program.expandLocalRef(program.getCondition())));
-        return RelOptUtil.conjunctions(condition);
-    }
-
     private List<RexNode> getCommonConditions(
             RexBuilder rexBuilder, RexNode[] commonFilter, RexProgram rexProgram) {
         if (commonFilter.length > 0) {
             return List.of(commonFilter);
         }
-        return conditionsFromProgram(rexBuilder, rexProgram);
+        return FlinkRexUtil.extractConjunctiveConditions(rexBuilder, rexProgram);
     }
 
     private List<RexNode> getNonCommonConditions(
             RexBuilder rexBuilder, RexNode[] commonFilter, RexProgram rexProgram) {
         if (commonFilter.length > 0) {
-            List<RexNode> conditionsFromProgram = conditionsFromProgram(rexBuilder, rexProgram);
+            List<RexNode> conditionsFromProgram =
+                    FlinkRexUtil.extractConjunctiveConditions(rexBuilder, rexProgram);
             conditionsFromProgram.removeAll(List.of(commonFilter));
             return conditionsFromProgram;
         }
