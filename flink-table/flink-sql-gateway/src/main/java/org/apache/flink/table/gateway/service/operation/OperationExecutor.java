@@ -117,6 +117,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -181,29 +182,28 @@ public class OperationExecutor {
         }
         Operation op = parsedOperations.get(0);
 
-        if (!(op instanceof SetOperation)
-                && !(op instanceof ResetOperation)
-                && !(op instanceof CreateOperation)
-                && !(op instanceof DropOperation)
-                && !(op instanceof UseOperation)
-                && !(op instanceof AlterOperation)
-                && !(op instanceof LoadModuleOperation)
-                && !(op instanceof UnloadModuleOperation)
-                && !(op instanceof AddJarOperation)) {
+        // Use LinkedHashMap to preserve insertion order
+        Map<Class<?>, String> ops = new LinkedHashMap<>();
+        ops.put(SetOperation.class, "SET");
+        ops.put(ResetOperation.class, "RESET");
+        ops.put(
+                CreateOperation.class,
+                "CREATE TABLE, CREATE DATABASE, CREATE FUNCTION, CREATE CATALOG, CREATE VIEW");
+        ops.put(
+                DropOperation.class,
+                "DROP TABLE, DROP DATABASE, DROP FUNCTION, DROP CATALOG, DROP VIEW");
+        ops.put(AlterOperation.class, "ALTER TABLE, ALTER DATABASE, ALTER FUNCTION");
+        ops.put(UseOperation.class, "USE CATALOG, USE [CATALOG.]DATABASE, USE MODULE");
+        ops.put(LoadModuleOperation.class, "LOAD MODULE");
+        ops.put(UnloadModuleOperation.class, "UNLOAD MODULE");
+        ops.put(AddJarOperation.class, "ADD JAR");
+
+        if (ops.keySet().stream().noneMatch(c -> c.isInstance(op))) {
             throw new UnsupportedOperationException(
                     String.format(
-                            "Unsupported statement for configuring session:%s\n"
-                                    + "The configureSession API only supports to execute statement of type "
-                                    + "SET, RESET, "
-                                    + "CREATE TABLE, DROP TABLE, ALTER TABLE, "
-                                    + "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
-                                    + "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, "
-                                    + "CREATE CATALOG, DROP CATALOG, "
-                                    + "USE CATALOG, USE [CATALOG.]DATABASE, "
-                                    + "CREATE VIEW, DROP VIEW, "
-                                    + "LOAD MODULE, UNLOAD MODULE, USE MODULE, "
-                                    + "ADD JAR.",
-                            statement));
+                            "Unsupported statement for configuring session: %s\n"
+                                    + "The configureSession API only supports executing statements of type %s.",
+                            statement, String.join(", ", ops.values())));
         }
 
         if (op instanceof SetOperation) {
@@ -293,7 +293,7 @@ public class OperationExecutor {
             String catalogName, String databaseName, Set<TableKind> tableKinds) {
         checkArgument(
                 EnumSet.of(TableKind.TABLE, TableKind.VIEW).containsAll(tableKinds),
-                "Currently only support to list TABLE, VIEW or TABLE AND VIEW.");
+                "Currently only supports listing TABLE, VIEW or TABLE AND VIEW.");
         if (tableKinds.contains(TableKind.TABLE) && tableKinds.contains(TableKind.VIEW)) {
             return listTables(catalogName, databaseName, true);
         } else if (tableKinds.contains(TableKind.TABLE)) {
