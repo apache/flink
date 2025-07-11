@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -119,7 +118,6 @@ public class PreferredAllocationRequestSlotMatchingStrategy implements RequestSl
         return requestSlotMatches;
     }
 
-    @VisibleForTesting
     @Override
     public boolean equals(Object o) {
         if (this == o) {
