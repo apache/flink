@@ -145,7 +145,7 @@ to enhance the watermark observability:
 
 #### Introduce SQL Connector for Keyed State
 
-##### [FLINK-36929](https://issues.apache.org/jira/browse/FLINK-36929), [FLINK-37407](https://issues.apache.org/jira/browse/FLINK-37407), [FLINK-37674](https://issues.apache.org/jira/browse/FLINK-37674)
+##### [FLINK-36929](https://issues.apache.org/jira/browse/FLINK-36929)
 
 In this release, we introduce a new connector for keyed state. This connector allows
 users to query keyed state directly from checkpoint or savepoint using Flink SQL, making it easier
