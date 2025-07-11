@@ -1295,8 +1295,8 @@ valueconstruction:
       In this case the class name needs to be present in the user classpath. If resolution fails, Row.class is used as a fallback.
 
       ```sql
-      -- Creates a User object with name="Bob" and age=42
-      OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 42)
+      -- Creates a User object with complex fields "name", "age", and "address"
+      OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 21, 'address', OBJECT_OF('com.example.Address', 'street', 'primary', 'city', 'Berlin'))
       ```
   - table: NUMERIC.rows
     description: 创建一个 NUMERIC 行间隔（通常用于窗口创建）。

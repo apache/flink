@@ -142,6 +142,9 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
     @Override
     public Optional<List<DataType>> inferInputTypes(
             final CallContext callContext, final boolean throwOnFailure) {
+        if (!throwOnFailure) {
+            return Optional.empty();
+        }
         final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
 
         validateClassArgument(argumentDataTypes.get(0));
