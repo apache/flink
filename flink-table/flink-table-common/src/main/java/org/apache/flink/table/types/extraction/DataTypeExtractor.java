@@ -19,7 +19,6 @@
 package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.typeutils.AvroUtils;
 import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.DataTypeHint;
@@ -119,7 +118,6 @@ public final class DataTypeExtractor {
     }
 
     /** Extracts a data type from a type without considering surrounding classes but templates. */
-    @VisibleForTesting
     static DataType extractFromType(
             DataTypeFactory typeFactory, DataTypeTemplate template, Type type) {
         return extractDataTypeWithClassContext(typeFactory, template, null, type, "");
