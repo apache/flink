@@ -47,8 +47,8 @@ import static org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecAs
         name = "stream-exec-async-correlate",
         version = 1,
         producedTransformations = ASYNC_CORRELATE_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v2_1,
-        minStateVersion = FlinkVersion.v2_1)
+        minPlanVersion = FlinkVersion.v2_2,
+        minStateVersion = FlinkVersion.v2_2)
 public class StreamExecAsyncCorrelate extends CommonExecAsyncCorrelate
         implements StreamExecNode<RowData> {
 
