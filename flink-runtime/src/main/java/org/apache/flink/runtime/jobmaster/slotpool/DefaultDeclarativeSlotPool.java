@@ -117,7 +117,6 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     @Nonnull private final Duration slotRequestMaxInterval;
     @Nullable private ScheduledFuture<?> slotRequestFuture;
     private boolean resourceRequestStable;
-    @Nullable private Long lastRequestMillisOfInterval;
 
     public DefaultDeclarativeSlotPool(
             JobID jobId,
@@ -174,7 +173,6 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
             if (!internalAdjust) {
                 resourceRequestStable = false;
-                lastRequestMillisOfInterval = System.currentTimeMillis();
             }
 
             slotRequestFuture =
@@ -183,7 +181,6 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
                                 declareResourceRequirements();
                                 if (!internalAdjust) {
                                     resourceRequestStable = true;
-                                    lastRequestMillisOfInterval = null;
                                     resourceRequestStableListener.notifyResourceRequestStable();
                                 }
                             },
