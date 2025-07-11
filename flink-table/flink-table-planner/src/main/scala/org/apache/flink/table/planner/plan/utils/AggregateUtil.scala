@@ -26,7 +26,7 @@ import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.functions.aggfunctions.{AvgAggFunction, CountAggFunction, LiteralAggFunction, Sum0AggFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.{AvgAggFunction, CountAggFunction, Sum0AggFunction}
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
@@ -1004,11 +1004,6 @@ object AggregateUtil extends Enumeration {
             val name = aggInfoList.aggInfos(i).agg.getAggregation.getName.toLowerCase
             index += 1
             Array(s"$name$$$index")
-
-          case daf: LiteralAggFunction =>
-            index += 1
-            Array(s"${daf.getAttrName}$$$index")
-
           case daf: DeclarativeAggregateFunction =>
             daf.aggBufferAttributes.map {
               a =>
@@ -1113,11 +1108,6 @@ object AggregateUtil extends Enumeration {
             val name = aggInfoList.aggInfos(i).agg.getAggregation.getName.toLowerCase
             index += 1
             Array(s"$name$$$index")
-
-          case daf: LiteralAggFunction =>
-            index += 1
-            Array(s"${daf.getAttrName}$$$index")
-
           case daf: DeclarativeAggregateFunction =>
             daf.aggBufferAttributes.map {
               a =>

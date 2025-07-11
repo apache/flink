@@ -31,7 +31,6 @@ import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.STREAM_RECOR
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
-import org.apache.flink.table.planner.functions.aggfunctions.LiteralAggFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.runtime.context.ExecutionContextImpl
 import org.apache.flink.table.runtime.generated.{GeneratedAggsHandleFunction, GeneratedOperator}
@@ -65,9 +64,6 @@ object AggCodeGenHelper {
 
         aggInfo.function match {
 
-          case function: LiteralAggFunction =>
-            Array(s"lateral_agg$aggBufferIdx")
-
           // create one buffer for each attribute in declarative functions
           case function: DeclarativeAggregateFunction =>
             function.aggBufferAttributes.map(
@@ -90,15 +86,7 @@ object AggCodeGenHelper {
       .map(index => Array(inputType.getTypeAt(index)))
 
     val aggTypes = aggInfos
-      .map({
-        a =>
-          a.function match {
-            case f: LiteralAggFunction =>
-              Array(fromDataTypeToLogicalType(f.getResultType))
-            case _ =>
-              a.externalAccTypes.map(fromDataTypeToLogicalType)
-          }
-      })
+      .map({ a => a.externalAccTypes.map(fromDataTypeToLogicalType) })
 
     auxGroupingTypes ++ aggTypes
   }
@@ -384,11 +372,6 @@ object AggCodeGenHelper {
     val initAggCallBufferExprs = aggInfos.flatMap {
       aggInfo =>
         aggInfo.function match {
-
-          case function: LiteralAggFunction =>
-            val expressions = function.getValueExpressions
-            val rexNodes = expressions.map(_.accept(converter))
-            rexNodes.map(exprCodeGen.generateExpression)
 
           // generate code for each agg buffer in declarative functions
           case function: DeclarativeAggregateFunction =>

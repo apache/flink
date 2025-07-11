@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.CalcitePair
-import org.apache.flink.table.planner.functions.aggfunctions.LiteralAggFunction
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
@@ -196,11 +195,6 @@ object RelExplainUtil {
               val argList = List(offset)
               offset = offset + 1
               argList
-            case daf: LiteralAggFunction =>
-              val aggBufferTypes = Array(daf.getResultType).map(_.getLogicalType)
-              val argList = aggBufferTypes.indices.map(offset + _).toList
-              offset = offset + aggBufferTypes.length
-              argList
             case daf: DeclarativeAggregateFunction =>
               val aggBufferTypes = daf.getAggBufferTypes.map(_.getLogicalType)
               val argList = aggBufferTypes.indices.map(offset + _).toList
@@ -241,13 +235,6 @@ object RelExplainUtil {
               val name = outputFieldNames(offset)
               offset = offset + 1
               name
-            case daf: LiteralAggFunction =>
-              val aggBufferTypes = Array(daf.getResultType).map(_.getLogicalType)
-              val name = aggBufferTypes.indices
-                .map(i => outputFieldNames(offset + i))
-                .mkString(", ")
-              offset = offset + aggBufferTypes.length
-              if (aggBufferTypes.length > 1) s"($name)" else name
             case daf: DeclarativeAggregateFunction =>
               val aggBufferTypes = daf.getAggBufferTypes.map(_.getLogicalType)
               val name = aggBufferTypes.indices

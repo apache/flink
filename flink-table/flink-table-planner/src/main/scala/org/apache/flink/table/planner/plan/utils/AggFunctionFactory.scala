@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{BuiltInFunctionDefinitions, DeclarativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.functions.aggfunctions._
-import org.apache.flink.table.planner.functions.aggfunctions.LiteralAggFunction.{BooleanLiteralAggFunction, ByteLiteralAggFunction, DoubleLiteralAggFunction, FloatLiteralAggFunction, IntLiteralAggFunction, LongLiteralAggFunction, ShortLiteralAggFunction}
 import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
@@ -162,9 +161,6 @@ class AggFunctionFactory(
         val onNull = fn.asInstanceOf[SqlJsonArrayAggAggFunction].getNullClause
         new JsonArrayAggFunction(argTypes, onNull == SqlJsonConstructorNullClause.ABSENT_ON_NULL)
 
-      case a: SqlAggFunction if a.getKind == SqlKind.LITERAL_AGG =>
-        createLiteralAggFunction(call.getType, call.rexList.get(0))
-
       case udagg: AggSqlFunction =>
         // Can not touch the literals, Calcite make them in previous RelNode.
         // In here, all inputs are input refs.
@@ -281,31 +277,6 @@ class AggFunctionFactory(
       case t =>
         throw new TableException(
           s"Sum0 aggregate function does not support type: ''$t''.\n" +
-            s"Please re-check the data type.")
-    }
-  }
-
-  private def createLiteralAggFunction(
-      relDataType: RelDataType,
-      rexNode: RexNode): UserDefinedFunction = {
-    relDataType.getSqlTypeName match {
-      case SqlTypeName.BOOLEAN =>
-        new BooleanLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
-      case SqlTypeName.TINYINT =>
-        new ByteLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
-      case SqlTypeName.SMALLINT =>
-        new ShortLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
-      case SqlTypeName.INTEGER =>
-        new IntLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
-      case SqlTypeName.BIGINT =>
-        new LongLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
-      case SqlTypeName.FLOAT =>
-        new FloatLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
-      case SqlTypeName.DOUBLE =>
-        new DoubleLiteralAggFunction(rexNode.asInstanceOf[RexLiteral])
-      case t =>
-        throw new TableException(
-          s"Literal aggregate function does not support type: ''$t''.\n" +
             s"Please re-check the data type.")
     }
   }

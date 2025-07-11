@@ -27,7 +27,6 @@ import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.functions.DeclarativeAggregateFunction;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexDistinctKeyVariable;
-import org.apache.flink.table.planner.functions.aggfunctions.LiteralAggFunction;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -60,9 +59,6 @@ public abstract class DeclarativeExpressionResolver
             UnresolvedReferenceExpression expr = (UnresolvedReferenceExpression) expression;
             String name = expr.getName();
             int localIndex = ArrayUtils.indexOf(function.aggBufferAttributes(), expr);
-            if (function instanceof LiteralAggFunction) {
-                localIndex = 0;
-            }
             if (localIndex == -1) {
                 // We always use UnresolvedFieldReference to represent reference of input field.
                 // In non-merge case, the input is operand of the aggregate function. But in merge
