@@ -1271,11 +1271,38 @@ object TestData {
   )
 
   val windowDataForOffsetWithLtzInShanghai: Seq[Row] = List(
-    row(toEpochMills("2020-10-10T00:07:59", shanghaiZone), 1, 1d, 1f, new JBigDecimal("1.11"), "Hi", "a"),
-    row(toEpochMills("2020-10-10T00:07:59", shanghaiZone), 2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a"),
-    row(toEpochMills("2020-10-10T11:11:59", shanghaiZone), 1, 1d, 1f, new JBigDecimal("1.11"), "Hi", "a"),
-    row(toEpochMills("2020-10-10T11:11:59", shanghaiZone), 2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a"),
-
+    row(
+      toEpochMills("2020-10-10T00:07:59", shanghaiZone),
+      1,
+      1d,
+      1f,
+      new JBigDecimal("1.11"),
+      "Hi",
+      "a"),
+    row(
+      toEpochMills("2020-10-10T00:07:59", shanghaiZone),
+      2,
+      2d,
+      2f,
+      new JBigDecimal("2.22"),
+      "Comment#1",
+      "a"),
+    row(
+      toEpochMills("2020-10-10T11:11:59", shanghaiZone),
+      1,
+      1d,
+      1f,
+      new JBigDecimal("1.11"),
+      "Hi",
+      "a"),
+    row(
+      toEpochMills("2020-10-10T11:11:59", shanghaiZone),
+      2,
+      2d,
+      2f,
+      new JBigDecimal("2.22"),
+      "Comment#1",
+      "a"),
     row(toEpochMills("2020-10-11T00:00:07", shanghaiZone), 3, 3d, 3f, null, "Hello", "b"),
     row(
       toEpochMills("2020-10-11T00:00:06", shanghaiZone),
