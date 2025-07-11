@@ -981,14 +981,16 @@ public class SqlGatewayServiceITCase {
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 UnsupportedOperationException.class,
-                                "Unsupported statement for configuring session:SELECT 1;\n"
-                                        + "The configureSession API only supports to execute statement of type "
+                                "Unsupported statement for configuring session: SELECT 1;\n"
+                                        + "The configureSession API only supports executing statements of type "
                                         + "SET, RESET, "
-                                        + "CREATE TABLE, DROP TABLE, ALTER TABLE, "
-                                        + "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
-                                        + "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, "
-                                        + "CREATE CATALOG, DROP CATALOG, USE CATALOG, USE [CATALOG.]DATABASE, "
-                                        + "CREATE VIEW, DROP VIEW, LOAD MODULE, UNLOAD MODULE, USE MODULE, ADD JAR."));
+                                        + "CREATE TABLE, CREATE DATABASE, CREATE FUNCTION, CREATE CATALOG, CREATE VIEW, "
+                                        + "DROP TABLE, DROP DATABASE, DROP FUNCTION, DROP CATALOG, DROP VIEW, "
+                                        + "ALTER TABLE, ALTER DATABASE, ALTER FUNCTION, "
+                                        + "USE CATALOG, USE [CATALOG.]DATABASE, USE MODULE, "
+                                        + "LOAD MODULE, "
+                                        + "UNLOAD MODULE, "
+                                        + "ADD JAR"));
     }
 
     @Test
