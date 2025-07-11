@@ -23,6 +23,7 @@ import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
@@ -30,7 +31,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.types.utils.DataTypeUtils.isInternal;
@@ -96,7 +96,6 @@ final class DataTypeJsonSerializer extends StdSerializer<DataType> {
     // ROW, STRUCTURED_TYPE, DISTINCT_TYPE
     static final String FIELD_NAME_FIELDS = "fields";
     static final String FIELD_NAME_FIELD_NAME = "name";
-    static final String FIELD_NAME_FIELD_CLASS = "fieldClass";
 
     DataTypeJsonSerializer() {
         super(DataType.class);
@@ -106,7 +105,7 @@ final class DataTypeJsonSerializer extends StdSerializer<DataType> {
     public void serialize(
             DataType dataType, JsonGenerator jsonGenerator, SerializerProvider serializerProvider)
             throws IOException {
-        if (isDefaultClassNested(dataType)) {
+        if (DataTypeUtils.isDefaultClassNested(dataType)) {
             serializerProvider.defaultSerializeValue(dataType.getLogicalType(), jsonGenerator);
         } else {
             jsonGenerator.writeStartObject();
@@ -120,7 +119,7 @@ final class DataTypeJsonSerializer extends StdSerializer<DataType> {
     private static void serializeClass(DataType dataType, JsonGenerator jsonGenerator)
             throws IOException {
         // skip the conversion class if only nested types contain custom conversion classes
-        if (!isDefaultClass(dataType)) {
+        if (!DataTypeUtils.isDefaultClass(dataType)) {
             jsonGenerator.writeStringField(
                     FIELD_NAME_CONVERSION_CLASS, dataType.getConversionClass().getName());
         }
@@ -149,7 +148,10 @@ final class DataTypeJsonSerializer extends StdSerializer<DataType> {
             case STRUCTURED_TYPE:
                 final List<Field> nonDefaultFields =
                         DataType.getFields(dataType).stream()
-                                .filter(field -> !isDefaultClassNested(field.getDataType()))
+                                .filter(
+                                        field ->
+                                                !DataTypeUtils.isDefaultClassNested(
+                                                        field.getDataType()))
                                 .collect(Collectors.toList());
                 if (nonDefaultFields.isEmpty()) {
                     break;
@@ -167,7 +169,7 @@ final class DataTypeJsonSerializer extends StdSerializer<DataType> {
                 break;
             case DISTINCT_TYPE:
                 final DataType sourceDataType = dataType.getChildren().get(0);
-                if (!isDefaultClassNested(sourceDataType)) {
+                if (!DataTypeUtils.isDefaultClassNested(sourceDataType)) {
                     serializeClass(sourceDataType, jsonGenerator);
                 }
                 break;
@@ -178,22 +180,11 @@ final class DataTypeJsonSerializer extends StdSerializer<DataType> {
 
     private static void serializeFieldIfNotDefaultClass(
             DataType dataType, String fieldName, JsonGenerator jsonGenerator) throws IOException {
-        if (!isDefaultClassNested(dataType)) {
+        if (!DataTypeUtils.isDefaultClassNested(dataType)) {
             jsonGenerator.writeFieldName(fieldName);
             jsonGenerator.writeStartObject();
             serializeClass(dataType, jsonGenerator);
             jsonGenerator.writeEndObject();
         }
-    }
-
-    private static boolean isDefaultClassNested(DataType dataType) {
-        return isDefaultClass(dataType)
-                && dataType.getChildren().stream()
-                        .allMatch(DataTypeJsonSerializer::isDefaultClassNested);
-    }
-
-    private static boolean isDefaultClass(DataType dataType) {
-        return Objects.equals(
-                dataType.getConversionClass(), dataType.getLogicalType().getDefaultConversion());
     }
 }

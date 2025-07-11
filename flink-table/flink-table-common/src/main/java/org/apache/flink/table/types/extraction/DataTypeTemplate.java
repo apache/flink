@@ -119,8 +119,8 @@ final class DataTypeTemplate {
      * Creates an instance from the given {@link ArgumentHint} with a resolved data type if
      * available.
      */
-    static DataTypeTemplate fromAnnotation(ArgumentHint argumentHint, @Nullable DataType dataType) {
-        return fromAnnotation(argumentHint.type(), dataType);
+    static DataTypeTemplate fromAnnotation(ArgumentHint argumentHint) {
+        return fromAnnotation(argumentHint.type(), null);
     }
 
     /**
