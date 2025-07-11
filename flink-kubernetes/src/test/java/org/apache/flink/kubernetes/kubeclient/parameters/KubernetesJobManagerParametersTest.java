@@ -97,9 +97,7 @@ class KubernetesJobManagerParametersTest extends KubernetesTestBase {
 
     @Test
     void testGetRestServiceAnnotations() {
-        final Map<String, String> expectedAnnotations = new HashMap<>();
-        expectedAnnotations.put("a1", "v1");
-        expectedAnnotations.put("a2", "v2");
+        final Map<String, String> expectedAnnotations = Map.of("a1", "v1", "a2", "v2");
 
         flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_ANNOTATIONS, expectedAnnotations);
 
@@ -111,9 +109,7 @@ class KubernetesJobManagerParametersTest extends KubernetesTestBase {
 
     @Test
     void testGetRestServiceLabels() {
-        final Map<String, String> expectedLabels = new HashMap<>();
-        expectedLabels.put("a1", "v1");
-        expectedLabels.put("a2", "v2");
+        final Map<String, String> expectedLabels = Map.of("a1", "v1", "a2", "v2");
 
         flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_LABELS, expectedLabels);
 

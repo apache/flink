@@ -31,7 +31,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -43,20 +42,14 @@ class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
     private ExternalServiceDecorator externalServiceDecorator;
 
     private Map<String, String> customizedAnnotations =
-            new HashMap<String, String>() {
-                {
-                    put("annotation1", "annotation-value1");
-                    put("annotation2", "annotation-value2");
-                }
-            };
+            Map.of(
+                    "annotation1", "annotation-value1",
+                    "annotation2", "annotation-value2");
 
     private Map<String, String> customizedLabels =
-            new HashMap<String, String>() {
-                {
-                    put("label1", "label-value1");
-                    put("label2", "label-value2");
-                }
-            };
+            Map.of(
+                    "label1", "label-value1",
+                    "label2", "label-value2");
 
     @Override
     protected void onSetup() throws Exception {
