@@ -19,10 +19,13 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.StructuredType;
 
+import java.util.Objects;
 import java.util.stream.Stream;
 
 /** Tests for functions dealing with {@link StructuredType}. */
@@ -30,6 +33,10 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
+        return Stream.of(structuredTypeTestCases(), objectOfTestCases()).flatMap(s -> s);
+    }
+
+    private static Stream<TestSetSpec> structuredTypeTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.EQUALS)
                         .onFieldsWithData(14, "Bob")
@@ -45,7 +52,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                         // Same value from CAST
                         .testSqlResult(
                                 "Type1Constructor(f0, f1) = CAST((14, 'Bob') AS "
-                                        + Type1.TYPE
+                                        + Type1.TYPE_STRING
                                         + ")",
                                 true,
                                 DataTypes.BOOLEAN())
@@ -57,7 +64,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                         // Different value from CAST
                         .testSqlResult(
                                 "Type1Constructor(f0, f1) = CAST((15, 'Alice') AS "
-                                        + Type1.TYPE
+                                        + Type1.TYPE_STRING
                                         + ")",
                                 false,
                                 DataTypes.BOOLEAN())
@@ -68,7 +75,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                         // Different class name from CAST
                         .testSqlValidationError(
                                 "Type1Constructor(f0, f1) = CAST((14, 'Bob') AS "
-                                        + Type2.TYPE
+                                        + Type2.TYPE_STRING
                                         + ")",
                                 "Incompatible structured types")
                         // Same class name but different fields
@@ -83,9 +90,90 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                         "NestedConstructor(Type1Constructor(f0, f1), Type2Constructor(15, 'Alice')) = CAST("
                                                 + "(CAST((14, 'Bob') AS %s), CAST((15, 'Alice') AS %s))"
                                                 + " AS %s)",
-                                        Type1.TYPE, Type2.TYPE, NestedType.TYPE),
+                                        Type1.TYPE_STRING,
+                                        Type2.TYPE_STRING,
+                                        NestedType.TYPE_STRING),
                                 true,
                                 DataTypes.BOOLEAN()));
+    }
+
+    private static Stream<TestSetSpec> objectOfTestCases() {
+        final Type1 type1 = Type1.of(42, "Bob");
+        final Type2 type2 = Type2.of(15, "Alice");
+        final NestedType nestedType = NestedType.of(type1, type2);
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.OBJECT_OF)
+                        .onFieldsWithData(42, "Bob")
+                        .andDataTypes(DataTypes.INT(), DataTypes.STRING())
+                        .withFunction(Type1.Type1Constructor.class)
+                        .withFunction(Type2.Type2Constructor.class)
+                        .withFunction(NestedType.NestedConstructor.class)
+                        // Test with OBJECT_OF
+                        .testResult(
+                                Expressions.objectOf(Type1.class, "a", 42, "b", "Bob"),
+                                "OBJECT_OF('" + Type1.class.getName() + "', 'a', 42, 'b', 'Bob')",
+                                type1,
+                                DataTypes.STRUCTURED(
+                                        Type1.class.getName(),
+                                        DataTypes.FIELD("a", DataTypes.INT().notNull()),
+                                        DataTypes.FIELD("b", DataTypes.CHAR(3).notNull())))
+
+                        // TODO: Types are not inferred correctly see FLINK-38083
+                        // Test with same value from function
+                        // correctly to the object_of function.
+                        //                        .testSqlResult(
+                        //                                "Type1Constructor(f0, f1) = OBJECT_OF('"
+                        //                                        + Type1.class.getName()
+                        //                                        + "', 'a', 42, 'b', 'Bob')",
+                        //                                true,
+                        //                                DataTypes.BOOLEAN())
+
+                        // Test with nested structured types
+                        .testResult(
+                                Expressions.objectOf(
+                                        NestedType.class,
+                                        "n1",
+                                        Expressions.objectOf(Type1.class, "a", 42, "b", "Bob"),
+                                        "n2",
+                                        Expressions.objectOf(Type2.class, "a", 15, "b", "Alice")),
+                                "OBJECT_OF('"
+                                        + NestedType.class.getName()
+                                        + "', 'n1', OBJECT_OF('"
+                                        + Type1.class.getName()
+                                        + "', 'a', 42, 'b', 'Bob'), "
+                                        + "'n2', OBJECT_OF('"
+                                        + Type2.class.getName()
+                                        + "', 'a', 15, 'b', 'Alice'))",
+                                nestedType,
+                                DataTypes.STRUCTURED(
+                                        NestedType.class.getName(),
+                                        DataTypes.FIELD(
+                                                "n1",
+                                                DataTypes.STRUCTURED(
+                                                        Type1.class.getName(),
+                                                        DataTypes.FIELD(
+                                                                "a", DataTypes.INT().notNull()),
+                                                        DataTypes.FIELD(
+                                                                "b", DataTypes.CHAR(3).notNull()))),
+                                        DataTypes.FIELD(
+                                                "n2",
+                                                DataTypes.STRUCTURED(
+                                                        Type2.class.getName(),
+                                                        DataTypes.FIELD(
+                                                                "a", DataTypes.INT().notNull()),
+                                                        DataTypes.FIELD(
+                                                                "b",
+                                                                DataTypes.CHAR(5).notNull())))))
+                        // Invalid Test - field name is not a string literal
+                        .testSqlValidationError(
+                                "OBJECT_OF('"
+                                        + Type1.class.getName()
+                                        + "', CAST(NULL AS STRING), 42, 'b', 'Bob')",
+                                "The field key at position 2 must be a non-nullable STRING/VARCHAR type.")
+                        // Invalid Test - first argument is type string but null
+                        .testSqlValidationError(
+                                "OBJECT_OF(CAST(NULL AS STRING), 'a', '12', 'b', 'Alice')",
+                                "The first argument must be a non-nullable STRING/VARCHAR type representing the class name."));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -94,11 +182,40 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
 
     /** Structured type Type1. */
     public static class Type1 {
-        private static final String TYPE =
-                "STRUCTURED<'" + Type1.class.getName() + "', a INT, b STRING>";
+        private static final String TYPE_STRING =
+                "STRUCTURED<'" + Type1.class.getName() + "', `a` INT, `b` STRING>";
+        private static final DataType DATA_TYPE =
+                DataTypes.STRUCTURED(
+                        Type1.class,
+                        DataTypes.FIELD("a", DataTypes.INT()),
+                        DataTypes.FIELD("b", DataTypes.STRING()));
 
         public Integer a;
         public String b;
+
+        public static Type1 of(final Integer a, final String b) {
+            final Type1 t = new Type1();
+            t.a = a;
+            t.b = b;
+            return t;
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Type1 that = (Type1) o;
+            return Objects.equals(this.a, that.a) && Objects.equals(this.b, that.b);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(a, b);
+        }
 
         public static class Type1Constructor extends ScalarFunction {
             public Type1 eval(Integer a, String b) {
@@ -112,11 +229,35 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
 
     /** Structured type Type2. */
     public static class Type2 {
-        private static final String TYPE =
-                "STRUCTURED<'" + Type2.class.getName() + "', a INT, b STRING>";
+        private static final String TYPE_STRING =
+                "STRUCTURED<'" + Type2.class.getName() + "', `a` INT, `b` STRING>";
 
         public Integer a;
         public String b;
+
+        public static Type2 of(final Integer a, final String b) {
+            final Type2 t = new Type2();
+            t.a = a;
+            t.b = b;
+            return t;
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            Type2 that = (Type2) o;
+            return Objects.equals(a, that.a) && Objects.equals(b, that.b);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(a, b);
+        }
 
         public static class Type2Constructor extends ScalarFunction {
             public Type2 eval(Integer a, String b) {
@@ -130,14 +271,38 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
 
     /** Structured type NestedType. */
     public static class NestedType {
-        private static final String TYPE =
+        private static final String TYPE_STRING =
                 String.format(
-                        "STRUCTURED<'" + NestedType.class.getName() + "', n1 %s, n2 %s>",
-                        Type1.TYPE,
-                        Type2.TYPE);
+                        "STRUCTURED<'" + NestedType.class.getName() + "', `n1` %s, `n2` %s>",
+                        Type1.TYPE_STRING,
+                        Type2.TYPE_STRING);
 
         public Type1 n1;
         public Type2 n2;
+
+        public static NestedType of(final Type1 n1, final Type2 n2) {
+            final NestedType t = new NestedType();
+            t.n1 = n1;
+            t.n2 = n2;
+            return t;
+        }
+
+        @Override
+        public boolean equals(final Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            NestedType that = (NestedType) o;
+            return Objects.equals(n1, that.n1) && Objects.equals(n2, that.n2);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(n1, n2);
+        }
 
         public static class NestedConstructor extends ScalarFunction {
             public NestedType eval(Type1 n1, Type2 n2) {
