@@ -20,7 +20,7 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.transforms.DataTypeConversionClassTransformation;
+import org.apache.flink.table.types.inference.transforms.ConversionClassTransformation;
 import org.apache.flink.table.types.inference.transforms.LegacyRawTypeTransformation;
 import org.apache.flink.table.types.inference.transforms.LegacyToNonLegacyTransformation;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -55,7 +55,7 @@ public final class TypeTransformations {
         conversions.put(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE, Timestamp.class);
         conversions.put(LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE, Time.class);
         conversions.put(LogicalTypeRoot.DATE, Date.class);
-        return new DataTypeConversionClassTransformation(conversions);
+        return new ConversionClassTransformation(conversions);
     }
 
     /**

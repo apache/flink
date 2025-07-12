@@ -610,7 +610,7 @@ abstract class BaseMappingExtractor {
                     arg.pos);
         }
         if (argumentHint != null) {
-            final DataTypeTemplate template = DataTypeTemplate.fromAnnotation(argumentHint, null);
+            final DataTypeTemplate template = DataTypeTemplate.fromAnnotation(argumentHint);
             if (template.inputGroup != null) {
                 return Optional.of(FunctionArgumentTemplate.ofInputGroup(template.inputGroup));
             }

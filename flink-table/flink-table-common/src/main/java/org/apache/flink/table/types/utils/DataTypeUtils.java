@@ -21,18 +21,19 @@ package org.apache.flink.table.types.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.DataTypeVisitor;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
+import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.inference.TypeTransformation;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DistinctType;
@@ -40,6 +41,7 @@ import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
@@ -49,7 +51,6 @@ import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
-import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -57,6 +58,7 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -76,95 +78,9 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInte
 @Internal
 public final class DataTypeUtils {
 
-    /**
-     * @deprecated Use the {@link Projection} type
-     * @see Projection#project(DataType)
-     */
-    @Deprecated
-    public static DataType projectRow(DataType dataType, int[][] indexPaths) {
-        return Projection.of(indexPaths).project(dataType);
-    }
-
-    /**
-     * @deprecated Use the {@link Projection} type
-     * @see Projection#project(DataType)
-     */
-    @Deprecated
-    public static DataType projectRow(DataType dataType, int[] indexPaths) {
-        return Projection.of(indexPaths).project(dataType);
-    }
-
-    /** Removes a string prefix from the fields of the given row data type. */
-    public static DataType stripRowPrefix(DataType dataType, String prefix) {
-        Preconditions.checkArgument(dataType.getLogicalType().is(ROW), "Row data type expected.");
-        final RowType rowType = (RowType) dataType.getLogicalType();
-        final List<String> newFieldNames =
-                rowType.getFieldNames().stream()
-                        .map(
-                                s -> {
-                                    if (s.startsWith(prefix)) {
-                                        return s.substring(prefix.length());
-                                    }
-                                    return s;
-                                })
-                        .collect(Collectors.toList());
-        final LogicalType newRowType = LogicalTypeUtils.renameRowFields(rowType, newFieldNames);
-        return new FieldsDataType(
-                newRowType, dataType.getConversionClass(), dataType.getChildren());
-    }
-
-    /** Appends the given list of fields to an existing row data type. */
-    public static DataType appendRowFields(DataType dataType, List<DataTypes.Field> fields) {
-        Preconditions.checkArgument(dataType.getLogicalType().is(ROW), "Row data type expected.");
-        if (fields.size() == 0) {
-            return dataType;
-        }
-        DataType newRow =
-                Stream.concat(DataType.getFields(dataType).stream(), fields.stream())
-                        .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW));
-        if (!dataType.getLogicalType().isNullable()) {
-            newRow = newRow.notNull();
-        }
-        return newRow;
-    }
-
-    /**
-     * Creates a {@link DataType} from the given {@link LogicalType} with internal data structures.
-     */
-    public static DataType toInternalDataType(LogicalType logicalType) {
-        final DataType defaultDataType = TypeConversions.fromLogicalToDataType(logicalType);
-        return toInternalDataType(defaultDataType);
-    }
-
-    /** Creates a {@link DataType} from the given {@link DataType} with internal data structures. */
-    public static DataType toInternalDataType(DataType dataType) {
-        return dataType.bridgedTo(toInternalConversionClass(dataType.getLogicalType()));
-    }
-
-    /** Checks whether a given data type is an internal data structure. */
-    public static boolean isInternal(DataType dataType) {
-        return isInternal(dataType, true);
-    }
-
-    /** Checks whether a given data type is an internal data structure. */
-    public static boolean isInternal(DataType dataType, boolean autobox) {
-        final Class<?> clazz;
-        if (autobox) {
-            clazz = primitiveToWrapper(dataType.getConversionClass());
-        } else {
-            clazz = dataType.getConversionClass();
-        }
-
-        return clazz == toInternalConversionClass(dataType.getLogicalType());
-    }
-
-    /**
-     * Replaces the {@link LogicalType} of a {@link DataType}, i.e., it keeps the bridging class.
-     */
-    public static DataType replaceLogicalType(DataType dataType, LogicalType replacement) {
-        return LogicalTypeDataTypeConverter.toDataType(replacement)
-                .bridgedTo(dataType.getConversionClass());
-    }
+    // --------------------------------------------------------------------------------------------
+    // Time attribute utilities
+    // --------------------------------------------------------------------------------------------
 
     /**
      * Removes time attributes from the {@link DataType}. As everywhere else in the code base, this
@@ -178,41 +94,46 @@ public final class DataTypeUtils {
         return dataType;
     }
 
-    /**
-     * Transforms the given data type to a different data type using the given transformations.
-     *
-     * @see #transform(DataTypeFactory, DataType, TypeTransformation...)
-     */
-    public static DataType transform(
-            DataType typeToTransform, TypeTransformation... transformations) {
-        return transform(null, typeToTransform, transformations);
+    /** Returns a PROCTIME data type. */
+    public static DataType createProctimeDataType() {
+        return new AtomicDataType(new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3));
     }
 
     /**
-     * Transforms the given data type to a different data type using the given transformations.
-     *
-     * <p>The transformations will be called in the given order. In case of constructed or composite
-     * types, a transformation will be applied transitively to children first.
-     *
-     * <p>Both the {@link DataType#getLogicalType()} and {@link DataType#getConversionClass()} can
-     * be transformed.
-     *
-     * @param factory {@link DataTypeFactory} if available
-     * @param typeToTransform data type to be transformed.
-     * @param transformations the transformations to transform data type to another type.
-     * @return the new data type
+     * {@link ResolvedSchema#toPhysicalRowDataType()} erases time attributes. This method keeps them
+     * during conversion for very specific use cases mostly in Table API.
      */
-    public static DataType transform(
-            @Nullable DataTypeFactory factory,
-            DataType typeToTransform,
-            TypeTransformation... transformations) {
-        Preconditions.checkArgument(
-                transformations.length > 0, "transformations should not be empty.");
-        DataType newType = typeToTransform;
-        for (TypeTransformation transformation : transformations) {
-            newType = newType.accept(new DataTypeTransformer(factory, transformation));
+    public static DataType fromResolvedSchemaPreservingTimeAttributes(
+            ResolvedSchema resolvedSchema) {
+        final List<String> fieldNames = resolvedSchema.getColumnNames();
+        final List<DataType> fieldTypes = resolvedSchema.getColumnDataTypes();
+        return DataTypes.ROW(
+                        IntStream.range(0, fieldNames.size())
+                                .mapToObj(
+                                        pos ->
+                                                DataTypes.FIELD(
+                                                        fieldNames.get(pos), fieldTypes.get(pos)))
+                                .collect(Collectors.toList()))
+                .notNull();
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Composite data type utilities
+    // --------------------------------------------------------------------------------------------
+
+    /** Appends the given list of fields to an existing row data type. */
+    public static DataType appendRowFields(DataType dataType, List<Field> fields) {
+        Preconditions.checkArgument(dataType.getLogicalType().is(ROW), "Row data type expected.");
+        if (fields.isEmpty()) {
+            return dataType;
         }
-        return newType;
+        DataType newRow =
+                Stream.concat(DataType.getFields(dataType).stream(), fields.stream())
+                        .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW));
+        if (!dataType.getLogicalType().isNullable()) {
+            newRow = newRow.notNull();
+        }
+        return newRow;
     }
 
     /**
@@ -239,6 +160,56 @@ public final class DataTypeUtils {
         }
 
         throw new IllegalArgumentException("Expected a composite type");
+    }
+
+    private static ResolvedSchema expandCompositeType(FieldsDataType dataType) {
+        DataType[] fieldDataTypes = dataType.getChildren().toArray(new DataType[0]);
+        return dataType.getLogicalType()
+                .accept(
+                        new LogicalTypeDefaultVisitor<>() {
+                            @Override
+                            public ResolvedSchema visit(RowType rowType) {
+                                return expandCompositeType(rowType, fieldDataTypes);
+                            }
+
+                            @Override
+                            public ResolvedSchema visit(StructuredType structuredType) {
+                                return expandCompositeType(structuredType, fieldDataTypes);
+                            }
+
+                            @Override
+                            public ResolvedSchema visit(DistinctType distinctType) {
+                                return distinctType.getSourceType().accept(this);
+                            }
+
+                            @Override
+                            protected ResolvedSchema defaultMethod(LogicalType logicalType) {
+                                throw new IllegalArgumentException("Expected a composite type");
+                            }
+                        });
+    }
+
+    private static ResolvedSchema expandLegacyCompositeType(DataType dataType) {
+        // legacy composite type
+        CompositeType<?> compositeType =
+                (CompositeType<?>)
+                        ((LegacyTypeInformationType<?>) dataType.getLogicalType())
+                                .getTypeInformation();
+
+        String[] fieldNames = compositeType.getFieldNames();
+        DataType[] fieldTypes =
+                Arrays.stream(fieldNames)
+                        .map(compositeType::getTypeAt)
+                        .map(TypeConversions::fromLegacyInfoToDataType)
+                        .toArray(DataType[]::new);
+
+        return ResolvedSchema.physical(fieldNames, fieldTypes);
+    }
+
+    private static ResolvedSchema expandCompositeType(
+            LogicalType compositeType, DataType[] fieldDataTypes) {
+        final String[] fieldNames = getFieldNames(compositeType).toArray(new String[0]);
+        return ResolvedSchema.physical(fieldNames, fieldDataTypes);
     }
 
     /**
@@ -306,6 +277,74 @@ public final class DataTypeUtils {
         }
     }
 
+    // --------------------------------------------------------------------------------------------
+    // Logical type utilities
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Replaces the {@link LogicalType} of a {@link DataType}, i.e., it keeps the bridging class.
+     */
+    public static DataType replaceLogicalType(DataType dataType, LogicalType replacement) {
+        return LogicalTypeDataTypeConverter.toDataType(replacement)
+                .bridgedTo(dataType.getConversionClass());
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Conversion class utilities
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Creates a {@link DataType} from the given {@link LogicalType} with internal data structures.
+     */
+    public static DataType toInternalDataType(LogicalType logicalType) {
+        final DataType defaultDataType = TypeConversions.fromLogicalToDataType(logicalType);
+        return toInternalDataType(defaultDataType);
+    }
+
+    /** Creates a {@link DataType} from the given {@link DataType} with internal data structures. */
+    public static DataType toInternalDataType(DataType dataType) {
+        return dataType.bridgedTo(toInternalConversionClass(dataType.getLogicalType()));
+    }
+
+    /** Checks whether a given data type is an internal data structure. */
+    public static boolean isInternal(DataType dataType) {
+        return isInternal(dataType, true);
+    }
+
+    /** Checks whether a given data type is an internal data structure. */
+    public static boolean isInternal(DataType dataType, boolean autobox) {
+        final Class<?> clazz;
+        if (autobox) {
+            clazz = primitiveToWrapper(dataType.getConversionClass());
+        } else {
+            clazz = dataType.getConversionClass();
+        }
+
+        return clazz == toInternalConversionClass(dataType.getLogicalType());
+    }
+
+    /**
+     * Checks whether this data type and its children use the {@link
+     * LogicalType#getDefaultConversion()} defined by the logical type.
+     */
+    public static boolean isDefaultClassNested(DataType dataType) {
+        return isDefaultClass(dataType)
+                && dataType.getChildren().stream().allMatch(DataTypeUtils::isDefaultClassNested);
+    }
+
+    /**
+     * Checks whether this data type uses the {@link LogicalType#getDefaultConversion()} defined by
+     * the logical type.
+     */
+    public static boolean isDefaultClass(DataType dataType) {
+        return Objects.equals(
+                dataType.getConversionClass(), dataType.getLogicalType().getDefaultConversion());
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Data type validation
+    // --------------------------------------------------------------------------------------------
+
     /**
      * The {@link DataType} class can only partially verify the conversion class. This method can
      * perform the final check when we know if the data type should be used for input.
@@ -321,35 +360,6 @@ public final class DataTypeUtils {
     public static void validateOutputDataType(DataType dataType) {
         dataType.accept(DataTypeOutputClassValidator.INSTANCE);
     }
-
-    /** Returns a PROCTIME data type. */
-    public static DataType createProctimeDataType() {
-        return new AtomicDataType(new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3));
-    }
-
-    /**
-     * {@link ResolvedSchema#toPhysicalRowDataType()} erases time attributes. This method keeps them
-     * during conversion for very specific use cases mostly in Table API.
-     */
-    public static DataType fromResolvedSchemaPreservingTimeAttributes(
-            ResolvedSchema resolvedSchema) {
-        final List<String> fieldNames = resolvedSchema.getColumnNames();
-        final List<DataType> fieldTypes = resolvedSchema.getColumnDataTypes();
-        return DataTypes.ROW(
-                        IntStream.range(0, fieldNames.size())
-                                .mapToObj(
-                                        pos ->
-                                                DataTypes.FIELD(
-                                                        fieldNames.get(pos), fieldTypes.get(pos)))
-                                .collect(Collectors.toList()))
-                .notNull();
-    }
-
-    private DataTypeUtils() {
-        // no instantiation
-    }
-
-    // ------------------------------------------------------------------------------------------
 
     private static class DataTypeInputClassValidator extends DataTypeDefaultVisitor<Void> {
 
@@ -386,6 +396,47 @@ public final class DataTypeUtils {
             dataType.getChildren().forEach(child -> child.accept(this));
             return null;
         }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Data type transformations
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Transforms the given data type to a different data type using the given transformations.
+     *
+     * @see #transform(DataTypeFactory, DataType, TypeTransformation...)
+     */
+    public static DataType transform(
+            DataType typeToTransform, TypeTransformation... transformations) {
+        return transform(null, typeToTransform, transformations);
+    }
+
+    /**
+     * Transforms the given data type to a different data type using the given transformations.
+     *
+     * <p>The transformations will be called in the given order. In case of constructed or composite
+     * types, a transformation will be applied transitively to children first.
+     *
+     * <p>Both the {@link DataType#getLogicalType()} and {@link DataType#getConversionClass()} can
+     * be transformed.
+     *
+     * @param factory {@link DataTypeFactory} if available
+     * @param typeToTransform data type to be transformed.
+     * @param transformations the transformations to transform data type to another type.
+     * @return the new data type
+     */
+    public static DataType transform(
+            @Nullable DataTypeFactory factory,
+            DataType typeToTransform,
+            TypeTransformation... transformations) {
+        Preconditions.checkArgument(
+                transformations.length > 0, "transformations should not be empty.");
+        DataType newType = typeToTransform;
+        for (TypeTransformation transformation : transformations) {
+            newType = newType.accept(new DataTypeTransformer(factory, transformation));
+        }
+        return newType;
     }
 
     /**
@@ -543,53 +594,81 @@ public final class DataTypeUtils {
         }
     }
 
-    private static ResolvedSchema expandCompositeType(FieldsDataType dataType) {
-        DataType[] fieldDataTypes = dataType.getChildren().toArray(new DataType[0]);
-        return dataType.getLogicalType()
-                .accept(
-                        new LogicalTypeDefaultVisitor<ResolvedSchema>() {
-                            @Override
-                            public ResolvedSchema visit(RowType rowType) {
-                                return expandCompositeType(rowType, fieldDataTypes);
-                            }
+    // --------------------------------------------------------------------------------------------
+    // Structured type alignment
+    // --------------------------------------------------------------------------------------------
 
-                            @Override
-                            public ResolvedSchema visit(StructuredType structuredType) {
-                                return expandCompositeType(structuredType, fieldDataTypes);
-                            }
-
-                            @Override
-                            public ResolvedSchema visit(DistinctType distinctType) {
-                                return distinctType.getSourceType().accept(this);
-                            }
-
-                            @Override
-                            protected ResolvedSchema defaultMethod(LogicalType logicalType) {
-                                throw new IllegalArgumentException("Expected a composite type");
-                            }
-                        });
+    /**
+     * Aligns the {@link DataType} and its nested conversion classes with the given {@link
+     * StructuredType#getImplementationClass()}.
+     *
+     * <p>By default, a data type is created from a {@link LogicalType} and uses default conversion
+     * classes. But for conversion to the implementation class, the data type must reflect the
+     * correct expected classes (e.g. {@code List<Integer>} instead of {@code Integer[]}) for all
+     * attributes.
+     */
+    public static DataType alignStructuredTypes(DataTypeFactory factory, DataType dataType) {
+        return dataType.accept(new StructuredTypeAligner(factory));
     }
 
-    private static ResolvedSchema expandLegacyCompositeType(DataType dataType) {
-        // legacy composite type
-        CompositeType<?> compositeType =
-                (CompositeType<?>)
-                        ((LegacyTypeInformationType<?>) dataType.getLogicalType())
-                                .getTypeInformation();
+    private static class StructuredTypeAligner implements DataTypeVisitor<DataType> {
 
-        String[] fieldNames = compositeType.getFieldNames();
-        DataType[] fieldTypes =
-                Arrays.stream(fieldNames)
-                        .map(compositeType::getTypeAt)
-                        .map(TypeConversions::fromLegacyInfoToDataType)
-                        .toArray(DataType[]::new);
+        private final DataTypeFactory factory;
 
-        return ResolvedSchema.physical(fieldNames, fieldTypes);
+        public StructuredTypeAligner(DataTypeFactory factory) {
+            this.factory = factory;
+        }
+
+        @Override
+        public DataType visit(AtomicDataType atomicDataType) {
+            return atomicDataType;
+        }
+
+        @Override
+        public DataType visit(CollectionDataType collectionDataType) {
+            return new CollectionDataType(
+                    collectionDataType.getLogicalType(),
+                    collectionDataType.getConversionClass(),
+                    collectionDataType.getElementDataType().accept(this));
+        }
+
+        @Override
+        public DataType visit(FieldsDataType fieldsDataType) {
+            final LogicalType logicalType = fieldsDataType.getLogicalType();
+            if (logicalType.is(LogicalTypeRoot.STRUCTURED_TYPE)
+                    && logicalType.getDefaultConversion() != StructuredType.FALLBACK_CONVERSION) {
+                return alignDataType(fieldsDataType, (StructuredType) logicalType);
+            }
+            return new FieldsDataType(
+                    fieldsDataType.getLogicalType(),
+                    fieldsDataType.getConversionClass(),
+                    fieldsDataType.getChildren().stream()
+                            .map(f -> f.accept(this))
+                            .collect(Collectors.toList()));
+        }
+
+        @Override
+        public DataType visit(KeyValueDataType keyValueDataType) {
+            return new KeyValueDataType(
+                    keyValueDataType.getLogicalType(),
+                    keyValueDataType.getConversionClass(),
+                    keyValueDataType.getKeyDataType().accept(this),
+                    keyValueDataType.getValueDataType().accept(this));
+        }
+
+        private DataType alignDataType(DataType defaultDataType, StructuredType structuredType) {
+            final Class<?> implementationClass =
+                    structuredType.getImplementationClass().orElseThrow(IllegalStateException::new);
+            try {
+                return DataTypeExtractor.extractFromStructuredClass(factory, implementationClass);
+            } catch (ValidationException e) {
+                // Necessary for legacy code paths and tests written in Scala
+                return defaultDataType;
+            }
+        }
     }
 
-    private static ResolvedSchema expandCompositeType(
-            LogicalType compositeType, DataType[] fieldDataTypes) {
-        final String[] fieldNames = getFieldNames(compositeType).toArray(new String[0]);
-        return ResolvedSchema.physical(fieldNames, fieldDataTypes);
+    private DataTypeUtils() {
+        // no instantiation
     }
 }

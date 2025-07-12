@@ -19,7 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -62,6 +61,11 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
             @Nullable SerializerConfig serializerConfig) {
         this.classLoader = classLoader;
         this.serializerConfig = createSerializerConfig(classLoader, config, serializerConfig);
+    }
+
+    @Override
+    public ClassLoader getClassLoader() {
+        return classLoader;
     }
 
     @Override
@@ -124,9 +128,9 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
     // --------------------------------------------------------------------------------------------
 
     /**
-     * Creates a lazy {@link ExecutionConfig} that contains options for {@link TypeSerializer}s with
-     * information from existing {@link ExecutionConfig} (if available) enriched with table {@link
-     * ReadableConfig}.
+     * Creates a lazy {@link SerializerConfig} that contains options for {@link TypeSerializer}s
+     * with information from existing {@link SerializerConfig} (if available) enriched with table
+     * {@link ReadableConfig}.
      */
     private static Supplier<SerializerConfig> createSerializerConfig(
             ClassLoader classLoader, ReadableConfig config, SerializerConfig serializerConfig) {
