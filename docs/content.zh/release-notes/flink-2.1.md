@@ -29,6 +29,13 @@ planning to upgrade your Flink version to 2.1.
 
 ### Table SQL / API
 
+#### Model DDLs using Table API
+
+##### [FLINK-37548](https://issues.apache.org/jira/browse/FLINK-37548)
+
+Flink 2.1 introduces Model DDLs Table API support, allowing users to define and manage AI models
+programmatically through the Table API in both Java and Python.
+
 #### Realtime AI Function
 
 ##### [FLINK-34992](https://issues.apache.org/jira/browse/FLINK-34992), [FLINK-37777](https://issues.apache.org/jira/browse/FLINK-37777)
@@ -37,10 +44,11 @@ Since Flink 2.0, we have introduced dedicated syntax for AI models, enabling use
 as easily as creating catalog objects and invoke them like standard functions or table functions in
 SQL statements. In this release, we expanded the `ML_PREDICT` table-valued function (TVF) to perform
 realtime model inference in SQL queries, applying machine learning models to data streams
-seamlessly. The implementation supports both embedded models (including OpenAI) and custom model
-providers, accelerating Flink's evolution from a real-time data processing engine to a unified
-realtime AI platform. Looking ahead, we plan to introduce more AI functions to unlock
-end-to-end experience for real-time data processing, model training, and inference.
+seamlessly. The implementation supports both Flink builtin model providers (OpenAI) and interfaces
+for users to define custom model providers, accelerating Flink's evolution from a real-time data
+processing engine to a unified realtime AI platform. Looking ahead, we plan to introduce more AI
+functions to unlock end-to-end experience for real-time data processing, model training, and
+inference.
 
 See more details about the capabilities and usages of
 Flink's [Model Inference](https://nightlies.apache.org/flink/flink-docs-release-2.1/docs/dev/table/sql/queries/model-inference/).
@@ -55,8 +63,8 @@ field type information in a JSON-like structure. Unlike ROW and STRUCTURED types
 superior flexibility for handling deeply nested and evolving schemas.
 
 Users can use `PARSE_JSON` or`TRY_PARSE_JSON` to convert JSON-formatted VARCHAR data to VARIANT. In
-addition, table formats like Apache Paimon and Iceberg now support the VARIANT type, this enable
-users to efficiently process semi-structured data in Lakehouse using Flink SQL.
+addition, table formats like Apache Paimon now support the VARIANT type, this enable
+users to efficiently process semi-structured data in lakehouse using Flink SQL.
 
 #### Structured Type Enhancements
 
@@ -104,10 +112,10 @@ processing changelog data stream.
 
 ##### [FLINK-37227](https://issues.apache.org/jira/browse/FLINK-37227)
 
-Within a single Flink job, when write multiple `INSERT INTO` statements update identical or
-different columns of a target table, the planner will optimize the execution plan and merge the sink
-nodes to achieve reuse. This would be a great usability improvement for users using partial-update
-features with data lake storages like Apache Paimon.
+Within a single Flink job, when write multiple `INSERT INTO` statements update identical columns(
+different columns will be supported in next release) of a target table, the planner will optimize
+the execution plan and merge the sink nodes to achieve reuse. This would be a great usability
+improvement for users using partial-update features with data lake storages like Apache Paimon.
 
 #### Support Smile Format for Compiled Plan Serialization
 
