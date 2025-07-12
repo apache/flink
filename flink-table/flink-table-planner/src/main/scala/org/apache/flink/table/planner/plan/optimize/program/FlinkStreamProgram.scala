@@ -22,7 +22,7 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets
 import org.apache.flink.table.planner.plan.rules.logical.EventTimeTemporalJoinRewriteRule
-import org.apache.flink.table.planner.plan.rules.physical.stream.FlinkDuplicateChangesTraitInitProgram
+import org.apache.flink.table.planner.plan.rules.physical.stream.{FlinkDuplicateChangesTraitInitProgram, FlinkMarkChangelogNormalizeProgram}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 
@@ -306,6 +306,9 @@ object FlinkStreamProgram {
       PHYSICAL_REWRITE,
       FlinkGroupProgramBuilder
         .newBuilder[StreamOptimizeContext]
+        .addProgram(
+          new FlinkMarkChangelogNormalizeProgram,
+          "mark changelog normalize reusing same source")
         // add a HEP program for watermark transpose rules to make this optimization deterministic
         // Applying these rules before the changelog mode inference is important because
         // 1. if we transpose calc and projection before we infer the changelog mode, we

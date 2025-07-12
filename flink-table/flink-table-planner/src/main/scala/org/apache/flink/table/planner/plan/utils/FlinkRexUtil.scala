@@ -651,6 +651,18 @@ object FlinkRexUtil {
 
     RexNodeExtractor.extractConjunctiveConditions(filterExpression, rexBuilder, converter);
   }
+
+  def extractConjunctiveConditions(
+      rexBuilder: RexBuilder,
+      program: RexProgram): util.List[RexNode] = {
+    if (program.getCondition == null) {
+      return util.List.of[RexNode]
+    }
+    val condition = RexUtil.toCnf(
+      rexBuilder,
+      RexUtil.expandSearch(rexBuilder, program, program.expandLocalRef(program.getCondition)))
+    RelOptUtil.conjunctions(condition)
+  }
 }
 
 /**
