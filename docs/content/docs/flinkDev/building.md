@@ -90,7 +90,7 @@ The `fast` and `skip-webui-build` profiles have a significant impact on the buil
     You also need to install the dependencies with following command:
 
     ```shell
-    $ python -m pip install -r flink-python/dev/dev-requirements.txt
+    $ python -m pip install --group flink-python/pyproject.toml:dev
     ```
 
 #### Installation

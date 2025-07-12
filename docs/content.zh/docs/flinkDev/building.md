@@ -92,7 +92,7 @@ mvn clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
     还需要使用以下命令安装依赖项：
 
     ```shell
-    $ python -m pip install -r flink-python/dev/dev-requirements.txt
+    $ python -m pip install --group flink-python/pyproject.toml:dev
     ```
 
 #### 安装
