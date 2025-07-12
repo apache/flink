@@ -901,6 +901,21 @@ public class SqlNodeToOperationConversion {
             operation = convertSqlInsert((RichSqlInsert) sqlNode);
         } else if (sqlNode instanceof SqlStatementSet) {
             operation = convertSqlStatementSet((SqlStatementSet) sqlNode);
+        } else if (sqlNode instanceof SqlExecute) {
+            // Handle EXPLAIN EXECUTE STATEMENT SET by extracting the inner statement
+            SqlNode innerStatement = ((SqlExecute) sqlNode).getStatement();
+            if (innerStatement instanceof SqlStatementSet) {
+                operation = convertSqlStatementSet((SqlStatementSet) innerStatement);
+            } else if (innerStatement instanceof RichSqlInsert) {
+                operation = convertSqlInsert((RichSqlInsert) innerStatement);
+            } else if (innerStatement.getKind().belongsTo(SqlKind.QUERY)) {
+                operation = convertSqlQuery(innerStatement);
+            } else {
+                throw new ValidationException(
+                        String.format(
+                                "EXPLAIN EXECUTE statement doesn't support %s",
+                                innerStatement.getKind()));
+            }
         } else if (sqlNode.getKind().belongsTo(SqlKind.QUERY)) {
             operation = convertSqlQuery(sqlExplain.getStatement());
         } else if ((sqlNode instanceof SqlCreateTableAs)
