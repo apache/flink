@@ -277,6 +277,16 @@ public class SqlFunction extends SqlOperator {
                                 getKind(),
                                 validator.getCatalogReader().nameMatcher(),
                                 false);
+
+        // If the call already has an operator and its syntax is SPECIAL, it must
+        // have been created intentionally by the parser.
+        if (function == null
+                && call.getOperator().getSyntax() == SqlSyntax.SPECIAL
+                && call.getOperator() instanceof SqlFunction
+                && validator.getOperatorTable().getOperatorList().contains(call.getOperator())) {
+            function = (SqlFunction) call.getOperator();
+        }
+
         try {
             // if we have a match on function name and parameter count, but
             // couldn't find a function with  a COLUMN_LIST type, retry, but
