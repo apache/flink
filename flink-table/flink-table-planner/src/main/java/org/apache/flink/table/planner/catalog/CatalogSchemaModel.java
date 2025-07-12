@@ -96,7 +96,7 @@ public class CatalogSchemaModel {
         FlinkContext context = ShortcutUtils.unwrapContext(cluster);
         ModelProvider modelProvider = createModelProvider(context, contextResolvedModel);
         return new RexModelCall(
-                getInputRowType(validator.getTypeFactory()), contextResolvedModel, modelProvider);
+                getOutputRowType(validator.getTypeFactory()), contextResolvedModel, modelProvider);
     }
 
     private static RelDataType schemaToRelDataType(
