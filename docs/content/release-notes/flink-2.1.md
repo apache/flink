@@ -33,16 +33,16 @@ planning to upgrade your Flink version to 2.1.
 
 ##### [FLINK-37548](https://issues.apache.org/jira/browse/FLINK-37548)
 
-Flink 2.1 introduces Model DDLs Table API support, allowing users to define and manage AI models
-programmatically through the Table API in both Java and Python.
+Since Flink 2.0, we have introduced dedicated syntax for AI models, enabling users to define models
+as easily as creating catalog objects and invoke them like standard functions or table functions in
+SQL statements. In Flink 2.1, we also added Model DDLs Table API support, allowing users to define
+and manage AI models programmatically through the Table API in both Java and Python.
 
 #### Realtime AI Function
 
 ##### [FLINK-34992](https://issues.apache.org/jira/browse/FLINK-34992), [FLINK-37777](https://issues.apache.org/jira/browse/FLINK-37777)
 
-Since Flink 2.0, we have introduced dedicated syntax for AI models, enabling users to define models
-as easily as creating catalog objects and invoke them like standard functions or table functions in
-SQL statements. In this release, we expanded the `ML_PREDICT` table-valued function (TVF) to perform
+Based on the AI model DDL, we also expanded the `ML_PREDICT` table-valued function (TVF) to perform
 realtime model inference in SQL queries, applying machine learning models to data streams
 seamlessly. The implementation supports both Flink builtin model providers (OpenAI) and interfaces
 for users to define custom model providers, accelerating Flink's evolution from a real-time data
@@ -112,7 +112,7 @@ processing changelog data stream.
 
 ##### [FLINK-37227](https://issues.apache.org/jira/browse/FLINK-37227)
 
-Within a single Flink job, when write multiple `INSERT INTO` statements update identical columns(
+Within a single Flink job, when write multiple `INSERT INTO` statements update identical columns (
 different columns will be supported in next release) of a target table, the planner will optimize
 the execution plan and merge the sink nodes to achieve reuse. This would be a great usability
 improvement for users using partial-update features with data lake storages like Apache Paimon.
@@ -174,7 +174,7 @@ PyFlink 2.1 will support Python 3.12 and remove the support of Python 3.8.
 
 ##### [FLINK-37376](https://issues.apache.org/jira/browse/FLINK-37376)
 
-Bump flink-shaded version to 20.0 to Smile format.
+Bump flink-shaded version to 20.0 to support Smile format.
 
 #### Upgrade Parquet version to 1.15.3
 
