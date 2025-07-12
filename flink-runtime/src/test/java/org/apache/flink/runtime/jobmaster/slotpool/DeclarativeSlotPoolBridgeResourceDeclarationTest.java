@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
@@ -94,7 +95,8 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
         // requesting the allocation of a new slot should increase the requirements
         declarativeSlotPoolBridge.requestNewAllocatedSlot(
                 new SlotRequestId(),
-                ResourceProfile.UNKNOWN.toEmptyLoadable(),
+                ResourceProfile.UNKNOWN,
+                DefaultLoadingWeight.EMPTY,
                 Duration.ofMinutes(5));
 
         requirementListener.tryWaitSlotRequestIsDone();
@@ -122,7 +124,8 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
                                     () ->
                                             declarativeSlotPoolBridge.requestNewAllocatedSlot(
                                                     new SlotRequestId(),
-                                                    ResourceProfile.UNKNOWN.toEmptyLoadable(),
+                                                    ResourceProfile.UNKNOWN,
+                                                    DefaultLoadingWeight.EMPTY,
                                                     Duration.ofMillis(
                                                             slotRequestMaxInterval.toMillis() * 2)),
                                     mainThreadExecutor)
@@ -172,7 +175,8 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
         declarativeSlotPoolBridge.allocateAvailableSlot(
                 slotRequestId,
                 newSlot.getAllocationId(),
-                ResourceProfile.UNKNOWN.toEmptyLoadable());
+                ResourceProfile.UNKNOWN,
+                DefaultLoadingWeight.EMPTY);
 
         requirementListener.tryWaitSlotRequestIsDone();
 
@@ -191,7 +195,8 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
         declarativeSlotPoolBridge.allocateAvailableSlot(
                 slotRequestId,
                 newSlot.getAllocationId(),
-                ResourceProfile.UNKNOWN.toEmptyLoadable());
+                ResourceProfile.UNKNOWN,
+                DefaultLoadingWeight.EMPTY);
 
         requirementListener.tryWaitSlotRequestIsDone();
 
@@ -212,7 +217,8 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
         declarativeSlotPoolBridge.allocateAvailableSlot(
                 new SlotRequestId(),
                 newSlot.getAllocationId(),
-                ResourceProfile.UNKNOWN.toEmptyLoadable());
+                ResourceProfile.UNKNOWN,
+                DefaultLoadingWeight.EMPTY);
 
         requirementListener.tryWaitSlotRequestIsDone();
 

@@ -51,7 +51,6 @@ import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -110,6 +109,7 @@ import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNG;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNGFactory;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.scheduler.metrics.AllSubTasksRunningOrFinishedStateTimeMetrics;
 import org.apache.flink.runtime.shuffle.DefaultPartitionWithMetrics;
 import org.apache.flink.runtime.shuffle.DefaultShuffleMetrics;
@@ -612,7 +612,8 @@ class JobMasterTest {
         public Optional<PhysicalSlot> allocateAvailableSlot(
                 @Nonnull SlotRequestId slotRequestId,
                 @Nonnull AllocationID allocationID,
-                @Nonnull LoadableResourceProfile loadableResourceProfile) {
+                @Nonnull ResourceProfile resourceProfile,
+                @Nonnull LoadingWeight loadingWeight) {
             throw new UnsupportedOperationException(
                     "TestingSlotPool does not support this operation.");
         }
@@ -621,7 +622,8 @@ class JobMasterTest {
         @Override
         public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
                 @Nonnull SlotRequestId slotRequestId,
-                @Nonnull LoadableResourceProfile loadableResourceProfile,
+                @Nonnull ResourceProfile resourceProfile,
+                @Nonnull LoadingWeight loadingWeight,
                 @Nonnull Collection<AllocationID> preferredAllocations,
                 @Nullable Duration timeout) {
             return new CompletableFuture<>();
@@ -631,7 +633,8 @@ class JobMasterTest {
         @Override
         public CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
                 @Nonnull SlotRequestId slotRequestId,
-                @Nonnull LoadableResourceProfile resourceProfile,
+                @Nonnull ResourceProfile resourceProfile,
+                @Nonnull LoadingWeight loadingWeight,
                 @Nonnull Collection<AllocationID> preferredAllocations) {
             return new CompletableFuture<>();
         }

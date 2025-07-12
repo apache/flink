@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
@@ -51,14 +50,6 @@ public class PhysicalSlotRequest implements WeightLoadable {
 
     public SlotProfile getSlotProfile() {
         return slotProfile;
-    }
-
-    /**
-     * Returns the desired resource profile with the loading for the physical slot to host this task
-     * slot.
-     */
-    public LoadableResourceProfile getPhysicalSlotLoadableResourceProfile() {
-        return slotProfile.getLoadablePhysicalSlotResourceProfile();
     }
 
     public boolean willSlotBeOccupiedIndefinitely() {

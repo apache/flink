@@ -102,11 +102,13 @@ class PreferredAllocationRequestSlotMatchingStrategyTest {
                 Arrays.asList(
                         PendingRequest.createNormalRequest(
                                 new SlotRequestId(),
-                                ResourceProfile.UNKNOWN.toEmptyLoadable(),
+                                ResourceProfile.UNKNOWN,
+                                DefaultLoadingWeight.EMPTY,
                                 Collections.singleton(allocationId2)),
                         PendingRequest.createNormalRequest(
                                 new SlotRequestId(),
-                                ResourceProfile.UNKNOWN.toEmptyLoadable(),
+                                ResourceProfile.UNKNOWN,
+                                DefaultLoadingWeight.EMPTY,
                                 Collections.singleton(allocationId1)));
 
         final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
@@ -201,7 +203,8 @@ class PreferredAllocationRequestSlotMatchingStrategyTest {
                         : Collections.singletonList(preferAllocationId);
         return PendingRequest.createNormalRequest(
                 new SlotRequestId(),
-                requestProfile.toLoadable(new DefaultLoadingWeight(loading)),
+                requestProfile,
+                new DefaultLoadingWeight(loading),
                 preferAllocationIds);
     }
 

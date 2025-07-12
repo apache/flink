@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,8 @@ class PreviousAllocationSlotSelectionStrategyTest
         SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        resourceProfile.toEmptyLoadable(),
+                        resourceProfile,
+                        DefaultLoadingWeight.EMPTY,
                         Collections.singletonList(tml2),
                         Collections.singleton(aid3),
                         Collections.emptySet());
@@ -57,7 +59,8 @@ class PreviousAllocationSlotSelectionStrategyTest
         slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        resourceProfile.toEmptyLoadable(),
+                        resourceProfile,
+                        DefaultLoadingWeight.EMPTY,
                         Arrays.asList(tmlX, tml1),
                         new HashSet<>(Arrays.asList(aidX, aid2)),
                         Collections.emptySet());
@@ -71,7 +74,8 @@ class PreviousAllocationSlotSelectionStrategyTest
         SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        resourceProfile.toEmptyLoadable(),
+                        resourceProfile,
+                        DefaultLoadingWeight.EMPTY,
                         Collections.singletonList(tml4),
                         Collections.singleton(aidX),
                         Collections.emptySet());
@@ -89,7 +93,8 @@ class PreviousAllocationSlotSelectionStrategyTest
         SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        resourceProfile.toEmptyLoadable(),
+                        resourceProfile,
+                        DefaultLoadingWeight.EMPTY,
                         Collections.singletonList(tml4),
                         Collections.singletonList(aidX),
                         blacklisted);
@@ -108,7 +113,8 @@ class PreviousAllocationSlotSelectionStrategyTest
         SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        resourceProfile.toEmptyLoadable(),
+                        resourceProfile,
+                        DefaultLoadingWeight.EMPTY,
                         Collections.singletonList(tml4),
                         Collections.singletonList(aidX),
                         blacklisted);

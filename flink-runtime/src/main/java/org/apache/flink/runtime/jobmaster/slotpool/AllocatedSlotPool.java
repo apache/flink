@@ -89,6 +89,7 @@ public interface AllocatedSlotPool {
      * Reserves the free slot specified by the given allocationId.
      *
      * @param allocationId allocationId identifying the free slot to reserve
+     * @param loadingWeight the loading weight to represent the static loading of the allocation id.
      * @return the {@link AllocatedSlot} which has been reserved
      * @throws IllegalStateException if there is no free slot with the given allocationId
      */

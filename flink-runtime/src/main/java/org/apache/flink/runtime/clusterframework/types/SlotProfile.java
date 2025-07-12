@@ -44,7 +44,9 @@ public class SlotProfile implements WeightLoadable {
     private final ResourceProfile taskResourceProfile;
 
     /** This specifies the desired resource profile for the physical slot to host this task slot. */
-    private final LoadableResourceProfile loadablePhysicalSlotResourceProfile;
+    private final ResourceProfile physicalSlotResourceProfile;
+
+    private final LoadingWeight loadingWeight;
 
     /** This specifies the preferred locations for the slot. */
     private final Collection<TaskManagerLocation> preferredLocations;
@@ -57,14 +59,15 @@ public class SlotProfile implements WeightLoadable {
 
     private SlotProfile(
             final ResourceProfile taskResourceProfile,
-            final LoadableResourceProfile loadablePhysicalSlotResourceProfile,
+            final ResourceProfile physicalSlotResourceProfile,
+            final LoadingWeight loadingWeight,
             final Collection<TaskManagerLocation> preferredLocations,
             final Collection<AllocationID> preferredAllocations,
             final Set<AllocationID> reservedAllocations) {
 
         this.taskResourceProfile = checkNotNull(taskResourceProfile);
-        this.loadablePhysicalSlotResourceProfile =
-                checkNotNull(loadablePhysicalSlotResourceProfile);
+        this.physicalSlotResourceProfile = checkNotNull(physicalSlotResourceProfile);
+        this.loadingWeight = checkNotNull(loadingWeight);
         this.preferredLocations = checkNotNull(preferredLocations);
         this.preferredAllocations = checkNotNull(preferredAllocations);
         this.reservedAllocations = checkNotNull(reservedAllocations);
@@ -77,17 +80,13 @@ public class SlotProfile implements WeightLoadable {
 
     /** Returns the desired resource profile for the physical slot to host this task slot. */
     public ResourceProfile getPhysicalSlotResourceProfile() {
-        return loadablePhysicalSlotResourceProfile.getResourceProfile();
-    }
-
-    public LoadableResourceProfile getLoadablePhysicalSlotResourceProfile() {
-        return loadablePhysicalSlotResourceProfile;
+        return physicalSlotResourceProfile;
     }
 
     @Nonnull
     @Override
     public LoadingWeight getLoading() {
-        return loadablePhysicalSlotResourceProfile.getLoading();
+        return loadingWeight;
     }
 
     /** Returns the preferred locations for the slot. */
@@ -116,8 +115,9 @@ public class SlotProfile implements WeightLoadable {
      * allocation ids from the whole execution graph.
      *
      * @param taskResourceProfile specifying the required resources for the task slot
-     * @param physicalLoadableSlotResourceProfile specifying the required resources with the loading
-     *     for the physical slot to host this task slot
+     * @param physicalSlotResourceProfile specifying the required resources for the physical slot to
+     *     host this task slot
+     * @param loadingWeight The loading weight of the slot profile when requesting resource.
      * @param preferredLocations specifying the preferred locations
      * @param priorAllocations specifying the prior allocations
      * @param reservedAllocations specifying all reserved allocations
@@ -125,14 +125,16 @@ public class SlotProfile implements WeightLoadable {
      */
     public static SlotProfile priorAllocation(
             final ResourceProfile taskResourceProfile,
-            final LoadableResourceProfile physicalLoadableSlotResourceProfile,
+            final ResourceProfile physicalSlotResourceProfile,
+            final LoadingWeight loadingWeight,
             final Collection<TaskManagerLocation> preferredLocations,
             final Collection<AllocationID> priorAllocations,
             final Set<AllocationID> reservedAllocations) {
 
         return new SlotProfile(
                 taskResourceProfile,
-                physicalLoadableSlotResourceProfile,
+                physicalSlotResourceProfile,
+                loadingWeight,
                 preferredLocations,
                 priorAllocations,
                 reservedAllocations);
@@ -143,8 +145,10 @@ public class SlotProfile implements WeightLoadable {
         return "SlotProfile{"
                 + "taskResourceProfile="
                 + taskResourceProfile
-                + ", loadablePhysicalSlotResourceProfile="
-                + loadablePhysicalSlotResourceProfile
+                + ", physicalSlotResourceProfile="
+                + physicalSlotResourceProfile
+                + ", loadingWeight="
+                + loadingWeight
                 + ", preferredLocations="
                 + preferredLocations
                 + ", preferredAllocations="

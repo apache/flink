@@ -22,6 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
@@ -93,7 +94,10 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
 
             CompletableFuture<PhysicalSlot> slotAllocationFuture =
                     declarativeSlotPoolBridge.requestNewAllocatedSlot(
-                            slotRequestId, ResourceProfile.UNKNOWN.toEmptyLoadable(), null);
+                            slotRequestId,
+                            ResourceProfile.UNKNOWN,
+                            DefaultLoadingWeight.EMPTY,
+                            null);
 
             requirementListener.tryWaitSlotRequestIsDone();
 
@@ -119,7 +123,8 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                                     () ->
                                             declarativeSlotPoolBridge.requestNewAllocatedSlot(
                                                     slotRequestId,
-                                                    ResourceProfile.UNKNOWN.toEmptyLoadable(),
+                                                    ResourceProfile.UNKNOWN,
+                                                    DefaultLoadingWeight.EMPTY,
                                                     Duration.ofMinutes(5)),
                                     componentMainThreadExecutor)
                             .get();
@@ -165,7 +170,8 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
             declarativeSlotPoolBridge.allocateAvailableSlot(
                     slotRequestId,
                     expectedAllocationId,
-                    allocatedSlot.getResourceProfile().toEmptyLoadable());
+                    allocatedSlot.getResourceProfile(),
+                    DefaultLoadingWeight.EMPTY);
 
             tryWaitSlotRequestIsDone(declarativeSlotPoolBridge);
 
@@ -192,7 +198,8 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                                         final CompletableFuture<PhysicalSlot> slotFuture =
                                                 declarativeSlotPoolBridge.requestNewAllocatedSlot(
                                                         slotRequestId,
-                                                        ResourceProfile.UNKNOWN.toEmptyLoadable(),
+                                                        ResourceProfile.UNKNOWN,
+                                                        DefaultLoadingWeight.EMPTY,
                                                         RPC_TIMEOUT);
                                         slotFuture.whenComplete(
                                                 (physicalSlot, throwable) -> {
@@ -225,7 +232,8 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
             final CompletableFuture<PhysicalSlot> slotFuture =
                     declarativeSlotPoolBridge.requestNewAllocatedSlot(
                             new SlotRequestId(),
-                            ResourceProfile.UNKNOWN.toEmptyLoadable(),
+                            ResourceProfile.UNKNOWN,
+                            DefaultLoadingWeight.EMPTY,
                             RPC_TIMEOUT);
 
             tryWaitSlotRequestIsDone(declarativeSlotPoolBridge);
@@ -305,7 +313,8 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                 futures.add(
                         slotPoolBridge.requestNewAllocatedSlot(
                                 new SlotRequestId(),
-                                ResourceProfile.UNKNOWN.toEmptyLoadable(),
+                                ResourceProfile.UNKNOWN,
+                                DefaultLoadingWeight.EMPTY,
                                 null));
             }
 

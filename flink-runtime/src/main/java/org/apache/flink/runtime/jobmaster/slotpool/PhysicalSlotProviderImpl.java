@@ -19,9 +19,10 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,9 +81,6 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
                                     PhysicalSlotRequest physicalSlotRequest =
                                             physicalSlotRequestsById.get(slotRequestId);
                                     SlotProfile slotProfile = physicalSlotRequest.getSlotProfile();
-                                    LoadableResourceProfile loadableResourceProfile =
-                                            physicalSlotRequest
-                                                    .getPhysicalSlotLoadableResourceProfile();
 
                                     CompletableFuture<PhysicalSlot> slotFuture =
                                             availablePhysicalSlot
@@ -91,7 +89,10 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
                                                             () ->
                                                                     requestNewSlot(
                                                                             slotRequestId,
-                                                                            loadableResourceProfile,
+                                                                            slotProfile
+                                                                                    .getPhysicalSlotResourceProfile(),
+                                                                            slotProfile
+                                                                                    .getLoading(),
                                                                             slotProfile
                                                                                     .getPreferredAllocations(),
                                                                             physicalSlotRequest
@@ -108,9 +109,9 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
         if (LOG.isDebugEnabled()) {
             for (PhysicalSlotRequest physicalSlotRequest : physicalSlotRequests) {
                 LOG.debug(
-                        "Received slot request [{}] with loadable resource requirements: {}",
-                        physicalSlotRequest,
-                        physicalSlotRequest.getPhysicalSlotLoadableResourceProfile());
+                        "Received slot request [{}] with resource requirements: {}",
+                        physicalSlotRequest.getSlotRequestId(),
+                        physicalSlotRequest.getSlotProfile());
             }
         }
     }
@@ -133,8 +134,8 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
                                 return slotPool.allocateAvailableSlot(
                                         request.getSlotRequestId(),
                                         slotInfoAndLocality.getSlotInfo().getAllocationId(),
-                                        request.getSlotProfile()
-                                                .getLoadablePhysicalSlotResourceProfile());
+                                        request.getSlotProfile().getPhysicalSlotResourceProfile(),
+                                        request.getLoading());
                             }));
         }
         return allocateResult;
@@ -142,15 +143,16 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
 
     private CompletableFuture<PhysicalSlot> requestNewSlot(
             SlotRequestId slotRequestId,
-            LoadableResourceProfile loadableResourceProfile,
+            ResourceProfile resourceProfile,
+            LoadingWeight loadingWeight,
             Collection<AllocationID> preferredAllocations,
             boolean willSlotBeOccupiedIndefinitely) {
         if (willSlotBeOccupiedIndefinitely) {
             return slotPool.requestNewAllocatedSlot(
-                    slotRequestId, loadableResourceProfile, preferredAllocations, null);
+                    slotRequestId, resourceProfile, loadingWeight, preferredAllocations, null);
         } else {
             return slotPool.requestNewAllocatedBatchSlot(
-                    slotRequestId, loadableResourceProfile, preferredAllocations);
+                    slotRequestId, resourceProfile, loadingWeight, preferredAllocations);
         }
     }
 

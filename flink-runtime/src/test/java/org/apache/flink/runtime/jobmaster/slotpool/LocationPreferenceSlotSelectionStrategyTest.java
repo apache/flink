@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfileTestingUtils;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -52,7 +53,8 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
         final SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        biggerResourceProfile.toEmptyLoadable(),
+                        biggerResourceProfile,
+                        DefaultLoadingWeight.EMPTY,
                         Collections.emptyList(),
                         Collections.emptyList(),
                         Collections.emptySet());
@@ -77,7 +79,8 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
         final SlotProfile slotProfileNotMatching =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        evenBiggerResourceProfile.toEmptyLoadable(),
+                        evenBiggerResourceProfile,
+                        DefaultLoadingWeight.EMPTY,
                         Collections.emptyList(),
                         Collections.emptyList(),
                         Collections.emptySet());
@@ -157,7 +160,8 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
         SlotProfile slotProfile =
                 SlotProfile.priorAllocation(
                         resourceProfile,
-                        resourceProfile.toEmptyLoadable(),
+                        resourceProfile,
+                        DefaultLoadingWeight.EMPTY,
                         Collections.singletonList(tml3),
                         Collections.singletonList(aid3),
                         blacklisted);

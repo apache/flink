@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
@@ -37,7 +36,9 @@ final class PendingRequest implements WeightLoadable {
 
     private final SlotRequestId slotRequestId;
 
-    private final LoadableResourceProfile loadableResourceProfile;
+    private final ResourceProfile resourceProfile;
+
+    private final LoadingWeight loadingWeight;
 
     private final HashSet<AllocationID> preferredAllocations;
 
@@ -49,11 +50,13 @@ final class PendingRequest implements WeightLoadable {
 
     private PendingRequest(
             SlotRequestId slotRequestId,
-            LoadableResourceProfile loadableResourceProfile,
+            ResourceProfile resourceProfile,
+            LoadingWeight loadingWeight,
             Collection<AllocationID> preferredAllocations,
             boolean isBatchRequest) {
         this.slotRequestId = slotRequestId;
-        this.loadableResourceProfile = Preconditions.checkNotNull(loadableResourceProfile);
+        this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
+        this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
         this.preferredAllocations = new HashSet<>(preferredAllocations);
         this.isBatchRequest = isBatchRequest;
         this.slotFuture = new CompletableFuture<>();
@@ -62,18 +65,20 @@ final class PendingRequest implements WeightLoadable {
 
     static PendingRequest createBatchRequest(
             SlotRequestId slotRequestId,
-            LoadableResourceProfile loadableResourceProfile,
+            ResourceProfile resourceProfile,
+            LoadingWeight loadingWeight,
             Collection<AllocationID> preferredAllocations) {
         return new PendingRequest(
-                slotRequestId, loadableResourceProfile, preferredAllocations, true);
+                slotRequestId, resourceProfile, loadingWeight, preferredAllocations, true);
     }
 
     static PendingRequest createNormalRequest(
             SlotRequestId slotRequestId,
-            LoadableResourceProfile loadableResourceProfile,
+            ResourceProfile resourceProfile,
+            LoadingWeight loadingWeight,
             Collection<AllocationID> preferredAllocations) {
         return new PendingRequest(
-                slotRequestId, loadableResourceProfile, preferredAllocations, false);
+                slotRequestId, resourceProfile, loadingWeight, preferredAllocations, false);
     }
 
     SlotRequestId getSlotRequestId() {
@@ -81,7 +86,7 @@ final class PendingRequest implements WeightLoadable {
     }
 
     ResourceProfile getResourceProfile() {
-        return loadableResourceProfile.getResourceProfile();
+        return resourceProfile;
     }
 
     Set<AllocationID> getPreferredAllocations() {
@@ -90,10 +95,6 @@ final class PendingRequest implements WeightLoadable {
 
     CompletableFuture<PhysicalSlot> getSlotFuture() {
         return slotFuture;
-    }
-
-    LoadableResourceProfile getLoadableResourceProfile() {
-        return loadableResourceProfile;
     }
 
     void failRequest(Exception cause) {
@@ -134,8 +135,10 @@ final class PendingRequest implements WeightLoadable {
         return "PendingRequest{"
                 + "slotRequestId="
                 + slotRequestId
-                + ", loadableResourceProfile="
-                + loadableResourceProfile
+                + ", resourceProfile="
+                + resourceProfile
+                + ", loadingWeight="
+                + loadingWeight
                 + ", preferredAllocations="
                 + preferredAllocations
                 + ", isBatchRequest="
@@ -147,6 +150,6 @@ final class PendingRequest implements WeightLoadable {
 
     @Override
     public @Nonnull LoadingWeight getLoading() {
-        return loadableResourceProfile.getLoading();
+        return loadingWeight;
     }
 }
