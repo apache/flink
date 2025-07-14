@@ -2564,6 +2564,33 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testExplainExecuteStatementSet() {
+        sql("explain execute statement set begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "EXPLAIN EXECUTE STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "SELECT *\n"
+                                + "FROM `T2`\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "SELECT *\n"
+                                + "FROM `T3`\n"
+                                + ";\n"
+                                + "END");
+    }
+
+    @Test
+    void testExplainExecuteSelect() {
+        sql("explain execute select * from emps").ok("EXPLAIN EXECUTE SELECT *\nFROM `EMPS`");
+    }
+
+    @Test
+    void testExplainExecuteInsert() {
+        sql("explain execute insert into emps1 select * from emps2")
+                .ok("EXPLAIN EXECUTE INSERT INTO `EMPS1`\nSELECT *\nFROM `EMPS2`");
+    }
+
+    @Test
     void testExplain() {
         String sql = "explain select * from emps";
         String expected = "EXPLAIN SELECT *\nFROM `EMPS`";

@@ -116,6 +116,33 @@ Sink(table=[default_catalog.default_database.StreamingTable], fields=[EXPR$0, EX
    +- Reused(reference_id=[1])
 !ok
 
+EXPLAIN EXECUTE STATEMENT SET BEGIN
+INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
+INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
+END;
+!output
+== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.StreamingTable], fields=[EXPR$0, EXPR$1])
++- LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
+   +- LogicalValues(tuples=[[{ 1, _UTF-16LE'Hello World' }, { 2, _UTF-16LE'Hi' }, { 2, _UTF-16LE'Hi' }, { 3, _UTF-16LE'Hello' }, { 3, _UTF-16LE'World' }, { 4, _UTF-16LE'ADD' }, { 5, _UTF-16LE'LINE' }]])
+
+LogicalSink(table=[default_catalog.default_database.StreamingTable], fields=[EXPR$0, EXPR$1])
++- LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
+   +- LogicalValues(tuples=[[{ 1, _UTF-16LE'Hello World' }, { 2, _UTF-16LE'Hi' }, { 2, _UTF-16LE'Hi' }, { 3, _UTF-16LE'Hello' }, { 3, _UTF-16LE'World' }, { 4, _UTF-16LE'ADD' }, { 5, _UTF-16LE'LINE' }]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.StreamingTable], fields=[EXPR$0, EXPR$1])
++- Union(all=[true], union=[EXPR$0, EXPR$1])
+   :- Values(type=[RecordType(INTEGER EXPR$0, VARCHAR(11) EXPR$1)], tuples=[[{ 1, _UTF-16LE'Hello World' }, { 2, _UTF-16LE'Hi' }, { 2, _UTF-16LE'Hi' }, { 3, _UTF-16LE'Hello' }, { 3, _UTF-16LE'World' }, { 4, _UTF-16LE'ADD' }, { 5, _UTF-16LE'LINE' }]])
+   +- Values(type=[RecordType(INTEGER EXPR$0, VARCHAR(11) EXPR$1)], tuples=[[{ 1, _UTF-16LE'Hello World' }, { 2, _UTF-16LE'Hi' }, { 2, _UTF-16LE'Hi' }, { 3, _UTF-16LE'Hello' }, { 3, _UTF-16LE'World' }, { 4, _UTF-16LE'ADD' }, { 5, _UTF-16LE'LINE' }]])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.StreamingTable], fields=[EXPR$0, EXPR$1])
++- Union(all=[true], union=[EXPR$0, EXPR$1])
+   :- Values(tuples=[[{ 1, _UTF-16LE'Hello World' }, { 2, _UTF-16LE'Hi' }, { 2, _UTF-16LE'Hi' }, { 3, _UTF-16LE'Hello' }, { 3, _UTF-16LE'World' }, { 4, _UTF-16LE'ADD' }, { 5, _UTF-16LE'LINE' }]])(reuse_id=[1])
+   +- Reused(reference_id=[1])
+!ok
+
 EXECUTE STATEMENT SET BEGIN
 INSERT INTO StreamingTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
 INSERT INTO StreamingTable2 SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
@@ -137,6 +164,35 @@ SELECT * FROM StreamingTable;
 | +I |  4 |         ADD |
 | +I |  5 |        LINE |
 +----+----+-------------+
+7 rows in set
+!ok
+
+EXPLAIN EXECUTE SELECT * FROM StreamingTable;
+!output
+== Abstract Syntax Tree ==
+LogicalProject(id=[$0], str=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, StreamingTable]])
+
+== Optimized Physical Plan ==
+TableSourceScan(table=[[default_catalog, default_database, StreamingTable]], fields=[id, str])
+
+== Optimized Execution Plan ==
+TableSourceScan(table=[[default_catalog, default_database, StreamingTable]], fields=[id, str])
+!ok
+
+EXECUTE SELECT * FROM StreamingTable;
+!output
++----+-------------+
+| id |         str |
++----+-------------+
+|  1 | Hello World |
+|  2 |          Hi |
+|  2 |          Hi |
+|  3 |       Hello |
+|  3 |       World |
+|  4 |         ADD |
+|  5 |        LINE |
++----+-------------+
 7 rows in set
 !ok
 

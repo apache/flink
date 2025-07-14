@@ -2854,6 +2854,8 @@ SqlNode SqlRichExplain() :
         |
         stmt = SqlStatementSet()
         |
+        stmt = SqlExecute()
+        |
         stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
         |
         stmt = RichSqlInsert()
