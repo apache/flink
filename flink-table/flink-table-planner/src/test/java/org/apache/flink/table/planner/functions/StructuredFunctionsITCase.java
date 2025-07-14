@@ -23,6 +23,10 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.types.logical.StructuredType;
 
+import java.sql.Timestamp;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 /** Tests for functions dealing with {@link StructuredType}. */
@@ -45,7 +49,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                         // Same value from CAST
                         .testSqlResult(
                                 "Type1Constructor(f0, f1) = CAST((14, 'Bob') AS "
-                                        + Type1.TYPE
+                                        + Type1.TYPE_STRING
                                         + ")",
                                 true,
                                 DataTypes.BOOLEAN())
@@ -57,7 +61,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                         // Different value from CAST
                         .testSqlResult(
                                 "Type1Constructor(f0, f1) = CAST((15, 'Alice') AS "
-                                        + Type1.TYPE
+                                        + Type1.TYPE_STRING
                                         + ")",
                                 false,
                                 DataTypes.BOOLEAN())
@@ -68,7 +72,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                         // Different class name from CAST
                         .testSqlValidationError(
                                 "Type1Constructor(f0, f1) = CAST((14, 'Bob') AS "
-                                        + Type2.TYPE
+                                        + Type2.TYPE_STRING
                                         + ")",
                                 "Incompatible structured types")
                         // Same class name but different fields
@@ -83,9 +87,24 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                         "NestedConstructor(Type1Constructor(f0, f1), Type2Constructor(15, 'Alice')) = CAST("
                                                 + "(CAST((14, 'Bob') AS %s), CAST((15, 'Alice') AS %s))"
                                                 + " AS %s)",
-                                        Type1.TYPE, Type2.TYPE, NestedType.TYPE),
+                                        Type1.TYPE_STRING,
+                                        Type2.TYPE_STRING,
+                                        NestedType.TYPE_STRING),
                                 true,
-                                DataTypes.BOOLEAN()));
+                                DataTypes.BOOLEAN())
+                        .testSqlResult(
+                                String.format(
+                                        "CAST((42, ARRAY['1', '2', '3'], MAP['A', TIMESTAMP '2025-06-20 12:00:01', 'B', TIMESTAMP '2025-06-20 12:00:02']) AS %s)",
+                                        NonDefaultType.TYPE_STRING),
+                                new NonDefaultType(
+                                        42,
+                                        List.of("1", "2", "3"),
+                                        Map.of(
+                                                "A",
+                                                Timestamp.valueOf("2025-06-20 12:00:01"),
+                                                "B",
+                                                Timestamp.valueOf("2025-06-20 12:00:02"))),
+                                DataTypes.of(NonDefaultType.class).notNull()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -94,8 +113,8 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
 
     /** Structured type Type1. */
     public static class Type1 {
-        private static final String TYPE =
-                "STRUCTURED<'" + Type1.class.getName() + "', a INT, b STRING>";
+        private static final String TYPE_STRING =
+                String.format("STRUCTURED<'%s', a INT, b STRING>", Type1.class.getName());
 
         public Integer a;
         public String b;
@@ -112,8 +131,8 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
 
     /** Structured type Type2. */
     public static class Type2 {
-        private static final String TYPE =
-                "STRUCTURED<'" + Type2.class.getName() + "', a INT, b STRING>";
+        private static final String TYPE_STRING =
+                String.format("STRUCTURED<'%s', a INT, b STRING>", Type2.class.getName());
 
         public Integer a;
         public String b;
@@ -130,11 +149,10 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
 
     /** Structured type NestedType. */
     public static class NestedType {
-        private static final String TYPE =
+        private static final String TYPE_STRING =
                 String.format(
-                        "STRUCTURED<'" + NestedType.class.getName() + "', n1 %s, n2 %s>",
-                        Type1.TYPE,
-                        Type2.TYPE);
+                        "STRUCTURED<'%s', n1 %s, n2 %s>",
+                        NestedType.class.getName(), Type1.TYPE_STRING, Type2.TYPE_STRING);
 
         public Type1 n1;
         public Type2 n2;
@@ -146,6 +164,41 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                 t.n2 = n2;
                 return t;
             }
+        }
+    }
+
+    /**
+     * Structured type that does not use default conversion classes but e.g. {@link List} for arrays
+     * and primitive types.
+     */
+    public static class NonDefaultType {
+        private static final String TYPE_STRING =
+                String.format(
+                        "STRUCTURED<'%s', i INT NOT NULL, l ARRAY<STRING>, m MAP<STRING, TIMESTAMP(9)>>",
+                        NonDefaultType.class.getName());
+
+        public final int i;
+        public final List<String> l;
+        public final Map<String, Timestamp> m;
+
+        public NonDefaultType(int i, List<String> l, Map<String, Timestamp> m) {
+            this.i = i;
+            this.l = l;
+            this.m = m;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            final NonDefaultType that = (NonDefaultType) o;
+            return i == that.i && Objects.equals(l, that.l) && Objects.equals(m, that.m);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(i, l, m);
         }
     }
 }
