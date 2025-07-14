@@ -230,6 +230,26 @@ class PythonEnvUtilsTest {
     }
 
     @Test
+    void testRedactSensitiveEnvVariables() {
+        Map<String, String> env = new HashMap<>();
+        env.put("AWS_SECRET_ACCESS_KEY", "very-secret-key");
+        env.put("MY_TOKEN", "abcd1234");
+        env.put("NORMAL_VAR", "visible");
+        env.put("password", "supersecret");
+
+        String redacted = PythonEnvUtils.redactEnv(env);
+
+        assertTrue(redacted.contains("AWS_SECRET_ACCESS_KEY=***REDACTED***"));
+        assertTrue(redacted.contains("MY_TOKEN=***REDACTED***"));
+        assertTrue(redacted.contains("password=***REDACTED***"));
+        assertTrue(redacted.contains("NORMAL_VAR=visible"));
+
+        assertFalse(redacted.contains("very-secret-key"));
+        assertFalse(redacted.contains("abcd1234"));
+        assertFalse(redacted.contains("supersecret"));
+    }
+
+    @Test
     void testPrepareEnvironmentWithEntryPointScript() throws IOException {
         File entryFile = new File(tmpDirPath + File.separator + "test.py");
         // The file must actually exist
