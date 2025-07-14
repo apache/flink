@@ -368,13 +368,18 @@ final class PythonEnvUtils {
             // set the child process the output same as the parent process.
             pythonProcessBuilder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
         }
-
         LOG.info(
-                "Starting Python process with environment variables: {{}}, command: {}",
-                env.entrySet().stream()
-                        .map(e -> e.getKey() + "=" + e.getValue())
-                        .collect(Collectors.joining(", ")),
-                String.join(" ", commands));
+            "Starting Python process with environment variables: {}, command: {}",
+            env.entrySet().stream()
+                .map(e -> {
+                    String key = e.getKey();
+                    String value = key.toUpperCase().matches(".*(SECRET|TOKEN|PASSWORD|KEY).*")
+                        ? "***REDACTED***"
+                        : e.getValue();
+                    return key + "=" + value;
+                    })
+                .collect(Collectors.joining(", ")),
+            String.join(" ", commands));
         Process process = pythonProcessBuilder.start();
         if (!process.isAlive()) {
             throw new RuntimeException("Failed to start Python process. ");
