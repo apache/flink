@@ -27,16 +27,16 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import java.util.Map;
 
 /**
- * This type transformation transforms the specified data types to a new one with the expected
+ * This type transformation transforms the specified {@link DataType} to a new one with the expected
  * conversion class. The mapping from data type to conversion class is defined by the constructor
  * parameter {@link #conversions} map that maps from type root to the expected conversion class.
  */
 @Internal
-public class DataTypeConversionClassTransformation implements TypeTransformation {
+public class ConversionClassTransformation implements TypeTransformation {
 
     private final Map<LogicalTypeRoot, Class<?>> conversions;
 
-    public DataTypeConversionClassTransformation(Map<LogicalTypeRoot, Class<?>> conversions) {
+    public ConversionClassTransformation(Map<LogicalTypeRoot, Class<?>> conversions) {
         this.conversions = conversions;
     }
 
