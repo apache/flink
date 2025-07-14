@@ -263,16 +263,16 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
     }
 
     @TestTemplate
-    void testSlotsBatchAllocatableLogic() throws Exception {
-        testSlotsBatchAllocatableLogic(1);
-        testSlotsBatchAllocatableLogic(2);
-        testSlotsBatchAllocatableLogic(4);
-        testSlotsBatchAllocatableLogic(7);
-        testSlotsBatchAllocatableLogic(10);
-        testSlotsBatchAllocatableLogic(32);
+    void testDeferSlotAllocationLogic() throws Exception {
+        testDeferSlotAllocationLogic(1);
+        testDeferSlotAllocationLogic(2);
+        testDeferSlotAllocationLogic(4);
+        testDeferSlotAllocationLogic(7);
+        testDeferSlotAllocationLogic(10);
+        testDeferSlotAllocationLogic(32);
     }
 
-    private void testSlotsBatchAllocatableLogic(int requestSlotNum) throws Exception {
+    private void testDeferSlotAllocationLogic(int requestSlotNum) throws Exception {
 
         final Set<AllocationID> availableSlotsIds = new HashSet<>();
         final Set<PhysicalSlot> freeSlotsInformation = new HashSet<>();
@@ -294,7 +294,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
             for (int i = 0; i < requestSlotNum; i++) {
                 final PhysicalSlot slot = createAllocatedSlot(new AllocationID());
                 newSlotsAreAvailable(slotPoolBridge, freeSlotsInformation, availableSlotsIds, slot);
-                if (slotBatchAllocatable) {
+                if (deferSlotAllocation) {
                     checkForSlotBatchAllocating(requestSlotNum, i, futures);
                 } else {
                     // Check for allocating slots directly.
