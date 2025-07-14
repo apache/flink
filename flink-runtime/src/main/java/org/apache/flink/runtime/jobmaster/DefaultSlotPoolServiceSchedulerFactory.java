@@ -172,7 +172,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
 
         // TODO: It will be assigned by the corresponding logic after
         //  https://issues.apache.org/jira/browse/FLINK-35966
-        final boolean slotBatchAllocatable = false;
+        final boolean deferSlotAllocation = false;
 
         if (configuration
                 .getOptional(JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT)
@@ -193,7 +193,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                                 slotIdleTimeout,
                                 batchSlotTimeout,
                                 slotRequestMaxInterval,
-                                slotBatchAllocatable,
+                                deferSlotAllocation,
                                 getRequestSlotMatchingStrategy(configuration, jobType));
                 break;
             case Adaptive:
@@ -214,7 +214,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                                 slotIdleTimeout,
                                 batchSlotTimeout,
                                 slotRequestMaxInterval,
-                                slotBatchAllocatable,
+                                deferSlotAllocation,
                                 getRequestSlotMatchingStrategy(configuration, jobType));
                 break;
             default:

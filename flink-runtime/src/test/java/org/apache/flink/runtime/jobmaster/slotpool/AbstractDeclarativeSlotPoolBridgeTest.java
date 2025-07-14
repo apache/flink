@@ -52,11 +52,11 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
     protected Duration slotRequestMaxInterval;
 
     @Parameter(2)
-    boolean slotBatchAllocatable;
+    boolean deferSlotAllocation;
 
     @Parameters(
             name =
-                    "requestSlotMatchingStrategy: {0}, slotRequestMaxInterval: {1}, slotBatchAllocatable: {2}")
+                    "requestSlotMatchingStrategy: {0}, slotRequestMaxInterval: {1}, deferSlotAllocation: {2}")
     private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[] {SimpleRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO, false},
@@ -105,7 +105,7 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
                 Duration.ofSeconds(20),
                 requestSlotMatchingStrategy,
                 slotRequestMaxInterval,
-                slotBatchAllocatable,
+                deferSlotAllocation,
                 componentMainThreadExecutor);
     }
 
