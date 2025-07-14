@@ -47,8 +47,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DeclarativeSlotPoolBridgePreferredAllocationsTest {
 
     @ValueSource(booleans = {true, false})
-    @ParameterizedTest(name = "slotBatchAllocatable: {0}")
-    void testDeclarativeSlotPoolTakesPreferredAllocationsIntoAccount(boolean slotBatchAllocatable)
+    @ParameterizedTest(name = "deferSlotAllocation: {0}")
+    void testDeclarativeSlotPoolTakesPreferredAllocationsIntoAccount(boolean deferSlotAllocation)
             throws Exception {
         final DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
                 new DeclarativeSlotPoolBridge(
@@ -60,7 +60,7 @@ class DeclarativeSlotPoolBridgePreferredAllocationsTest {
                         TestingUtils.infiniteDuration(),
                         PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
                         Duration.ZERO,
-                        slotBatchAllocatable,
+                        deferSlotAllocation,
                         forMainThread());
 
         declarativeSlotPoolBridge.start(JobMasterId.generate(), "localhost");
