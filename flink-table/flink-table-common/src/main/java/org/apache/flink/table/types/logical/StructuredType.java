@@ -110,11 +110,10 @@ public final class StructuredType extends UserDefinedType {
 
     public static final String CATALOG_FORMAT = "%s";
     public static final String INLINE_FORMAT = "STRUCTURED<'%s', %s>";
+    public static final Class<?> FALLBACK_CONVERSION = Row.class;
 
     private static final Set<String> INPUT_OUTPUT_CONVERSION =
             conversionSet(Row.class.getName(), RowData.class.getName());
-
-    private static final Class<?> FALLBACK_CONVERSION = Row.class;
 
     /** Defines an attribute of a {@link StructuredType}. */
     @PublicEvolving
