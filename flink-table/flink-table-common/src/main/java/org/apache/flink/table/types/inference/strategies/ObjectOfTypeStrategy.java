@@ -60,15 +60,20 @@ public class ObjectOfTypeStrategy implements TypeStrategy {
 
     private static DataType toStructuredType(
             final String className, final CallContext callContext) {
-        final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
-        final DataTypes.Field[] fields =
-                IntStream.iterate(1, i -> i < argumentDataTypes.size(), i -> i + 2)
-                        .mapToObj(keyIdx -> toFieldDataType(callContext, keyIdx))
-                        .toArray(DataTypes.Field[]::new);
+        try {
+            final Class<?> loadedClass =
+                    callContext.getDataTypeFactory().getClassLoader().loadClass(className);
+            return callContext.getDataTypeFactory().createDataType(loadedClass);
+        } catch (final ClassNotFoundException ignored) {
+            final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
 
-        final String serializableString =
-                DataTypes.STRUCTURED(className, fields).getLogicalType().asSerializableString();
-        return callContext.getDataTypeFactory().createDataType(serializableString);
+            final DataTypes.Field[] fields =
+                    IntStream.iterate(1, i -> i < argumentDataTypes.size(), i -> i + 2)
+                            .mapToObj(keyIdx -> toFieldDataType(callContext, keyIdx))
+                            .toArray(DataTypes.Field[]::new);
+
+            return DataTypes.ROW(fields);
+        }
     }
 
     private static Field toFieldDataType(final CallContext callContext, final int keyIdx) {

@@ -108,29 +108,27 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
             final LogicalType logicalType,
             final Set<String> fieldNames) {
         final int keyIndex = idx + 1;
-        if (!logicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
-            throw new ValidationException(
-                    "The field key at position "
-                            + keyIndex
-                            + " must be a non-nullable STRING/VARCHAR type, but was "
-                            + logicalType.asSummaryString()
-                            + ".");
-        }
+        final boolean nullable = logicalType.isNullable();
 
-        if (logicalType.isNullable()) {
-            throw new ValidationException(
-                    "The field key at position "
-                            + keyIndex
-                            + " must be a non-nullable STRING/VARCHAR type.");
+        if (nullable || !logicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
+            final String nullableType = nullable ? "nullable" : "non-nullable";
+            final String message =
+                    String.format(
+                            "The field key at position %d must be a non-nullable STRING/VARCHAR type, but was %s %s.",
+                            keyIndex, nullableType, logicalType.asSummaryString());
+            throw new ValidationException(message);
         }
 
         final String fieldName =
                 callContext
                         .getArgumentValue(idx, String.class)
                         .orElseThrow(IllegalStateException::new);
+
         if (!fieldNames.add(fieldName)) {
-            throw new ValidationException(
-                    "The field name '" + fieldName + "' at position " + keyIndex + " is repeated.");
+            final String message =
+                    String.format(
+                            "The field name '%s' at position %d is repeated.", fieldName, keyIndex);
+            throw new ValidationException(message);
         }
     }
 

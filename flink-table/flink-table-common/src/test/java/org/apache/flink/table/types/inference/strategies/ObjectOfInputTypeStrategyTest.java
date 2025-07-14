@@ -129,7 +129,7 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithLiteralAt(1, 5)
                         .expectArgumentTypes(DataTypes.STRING(), DataTypes.INT(), DataTypes.INT())
                         .expectErrorMessage(
-                                "The field key at position 2 must be a non-nullable STRING/VARCHAR type, but was INT."),
+                                "The field key at position 2 must be a non-nullable STRING/VARCHAR type, but was nullable INT."),
 
                 // Invalid test case - repeated field names
                 TestSpec.forStrategy(
