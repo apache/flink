@@ -315,8 +315,10 @@ In most joins, a significant portion of processing time is spent fetching record
 The main benefits of the MultiJoin operator are:
 
 1) Considerably smaller state size due to zero intermediate state.
-3) Improved performance for chained joins with record amplification.
-4) Improved stability: linear state growth with amount of records processed, instead of polynomial growth with binary joins.
+2) Improved performance for chained joins with record amplification.
+3) Improved stability: linear state growth with amount of records processed, instead of polynomial growth with binary joins. 
+
+Also, pipelines with MultiJoin instead of binary joins usually have faster initialization and recovery times due to smaller state and fewer amount of nodes.
 
 ### When to enable the MultiJoin?
 
@@ -349,7 +351,7 @@ For this 10-way join above, involving record amplification, we've observed signi
 
 The total state is always smaller with the MultiJoin operator. In this case, the performance is initially the same, but as the intermediate state grows, the performance of binary joins degrade and the multi join remains stable and outperforms.
 
-This general benchmark for the 10-way join was run with the following configuration: 10 upsert kafka topics, 10 parallelism, 1 record per second per topic. We used rocksdb with unaligned checkpoints and with incremental checkpoints. The sink uses a blackhole connector so we only benchmark the joins. This is the SQL used to generate the benchmark data:
+This general benchmark for the 10-way join was run with the following configuration: 10 upsert kafka topics, 10 parallelism, 1 record per second per topic. We used rocksdb with unaligned checkpoints and with incremental checkpoints. Each job ran in one TaskManager containing 8GB process memory, 1GB off-heap memory and 20% network memory. The JobManager had 4GB process memory. The host machine contained a M1 processor chip, 32GB RAM and 1TB SSD. The sink uses a blackhole connector so we only benchmark the joins. The SQL used to generate the benchmark data had this structure:
 
 ```sql
 INSERT INTO JoinResultsMJ
