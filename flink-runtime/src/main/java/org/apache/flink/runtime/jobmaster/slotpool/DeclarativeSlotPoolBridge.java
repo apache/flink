@@ -70,7 +70,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
     private boolean isJobRestarting = false;
 
-    private final boolean slotBatchAllocatable;
+    private final boolean deferSlotAllocation;
 
     public DeclarativeSlotPoolBridge(
             JobID jobId,
@@ -81,7 +81,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             Duration batchSlotTimeout,
             RequestSlotMatchingStrategy requestSlotMatchingStrategy,
             Duration slotRequestMaxInterval,
-            boolean slotBatchAllocatable,
+            boolean deferSlotAllocation,
             @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         super(
                 jobId,
@@ -99,7 +99,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                 "Using the request slot matching strategy: {}",
                 requestSlotMatchingStrategy.getClass().getSimpleName());
         this.requestSlotMatchingStrategy = requestSlotMatchingStrategy;
-        this.slotBatchAllocatable = slotBatchAllocatable;
+        this.deferSlotAllocation = deferSlotAllocation;
 
         this.isBatchSlotRequestTimeoutCheckDisabled = false;
 
@@ -210,15 +210,14 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             return;
         }
 
-        if (slotBatchAllocatable) {
-            newSlotsAvailableForSlotBatchAllocatable(newSlots);
+        if (deferSlotAllocation) {
+            newSlotsAvailableForDeferAllocation(newSlots);
         } else {
-            newSlotsAvailableForDirectlyAllocatable(newSlots);
+            newSlotsAvailableForDirectlyAllocation(newSlots);
         }
     }
 
-    private void newSlotsAvailableForSlotBatchAllocatable(
-            Collection<? extends PhysicalSlot> newSlots) {
+    private void newSlotsAvailableForDeferAllocation(Collection<? extends PhysicalSlot> newSlots) {
         log.debug("Received new available slots: {}", newSlots);
 
         final FreeSlotTracker freeSlotInfoTracker = getDeclarativeSlotPool().getFreeSlotTracker();
@@ -253,7 +252,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         }
     }
 
-    private void newSlotsAvailableForDirectlyAllocatable(
+    private void newSlotsAvailableForDirectlyAllocation(
             Collection<? extends PhysicalSlot> newSlots) {
         final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
                 requestSlotMatchingStrategy.matchRequestsAndSlots(
