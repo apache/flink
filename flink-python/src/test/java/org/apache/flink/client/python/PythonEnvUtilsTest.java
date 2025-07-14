@@ -252,6 +252,33 @@ class PythonEnvUtilsTest {
         assertThat(actualPaths).isEqualTo(expectedPythonPaths);
     }
 
+    @Test
+    public void testRedactEnv() {
+        Map<String, String> env = new HashMap<>();
+        env.put("AWS_SECRET_ACCESS_KEY", "secret123");
+        env.put("MY_TOKEN", "token456");
+        env.put("DATABASE_PASSWORD", "pass789");
+        env.put("ACCESS_KEY", "keyABC");
+        env.put("NORMAL_VAR", "safe-value");
+
+        String result = PythonEnvUtils.redactEnv(env);
+
+        // Assert sensitive values are redacted
+        assertTrue(result.contains("AWS_SECRET_ACCESS_KEY=***REDACTED***"));
+        assertTrue(result.contains("MY_TOKEN=***REDACTED***"));
+        assertTrue(result.contains("DATABASE_PASSWORD=***REDACTED***"));
+        assertTrue(result.contains("ACCESS_KEY=***REDACTED***"));
+
+        // Assert normal values are intact
+        assertTrue(result.contains("NORMAL_VAR=safe-value"));
+
+        // Ensure no sensitive values are leaked
+        assertFalse(result.contains("secret123"));
+        assertFalse(result.contains("token456"));
+        assertFalse(result.contains("pass789"));
+        assertFalse(result.contains("keyABC"));
+    }
+
     @AfterEach
     void cleanEnvironment() {
         FileUtils.deleteDirectoryQuietly(new File(tmpDirPath));

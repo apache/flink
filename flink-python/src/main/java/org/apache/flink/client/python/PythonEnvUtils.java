@@ -368,13 +368,10 @@ final class PythonEnvUtils {
             // set the child process the output same as the parent process.
             pythonProcessBuilder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
         }
-
         LOG.info(
-                "Starting Python process with environment variables: {{}}, command: {}",
-                env.entrySet().stream()
-                        .map(e -> e.getKey() + "=" + e.getValue())
-                        .collect(Collectors.joining(", ")),
-                String.join(" ", commands));
+            "Starting Python process with environment variables: {}, command: {}",
+            redactEnv(env),
+            String.join(" ", commands));
         Process process = pythonProcessBuilder.start();
         if (!process.isAlive()) {
             throw new RuntimeException("Failed to start Python process. ");
@@ -543,5 +540,25 @@ final class PythonEnvUtils {
                 gatewayServer.shutdown();
             }
         }
+    }
+
+    /**
+     * Redacts values of sensitive environment variables before logging.
+     * Keys containing patterns such as SECRET, TOKEN, PASSWORD, or KEY (case-insensitive)
+     * will have their values replaced with "***REDACTED***".
+     *
+     * @param environment a map of environment variables
+     * @return a string of key=value pairs with sensitive values redacted
+     */
+    public static String redactEnv(Map<String, String> environment) {
+    return environment.entrySet().stream()
+        .map(e -> {
+            String key = e.getKey();
+            String value = key.toUpperCase().matches(".*(SECRET|TOKEN|PASSWORD|KEY).*")
+                ? "***REDACTED***"
+                : e.getValue();
+            return key + "=" + value;
+        })
+        .collect(Collectors.joining(", "));
     }
 }
