@@ -29,8 +29,10 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeDuplicator;
 
@@ -39,7 +41,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,7 +64,8 @@ class LogicalTypeDuplicatorTest {
                 Arguments.of(
                         createDistinctType(new IntType()), createDistinctType(new BigIntType())),
                 Arguments.of(createUserType(new IntType()), createUserType(new BigIntType())),
-                Arguments.of(createHumanType(), createHumanType()));
+                Arguments.of(createHumanType(), createHumanType()),
+                Arguments.of(createNonClassType(), createNonClassType()));
     }
 
     @ParameterizedTest(name = "{index}: {0}")
@@ -107,17 +110,15 @@ class LogicalTypeDuplicatorTest {
     private static RowType createRowType(LogicalType replacedType) {
         return new RowType(
                 Arrays.asList(
-                        new RowType.RowField("field1", new CharType(2)),
-                        new RowType.RowField("field2", new BooleanType()),
-                        new RowType.RowField("field3", replacedType)));
+                        new RowField("field1", new CharType(2)),
+                        new RowField("field2", new BooleanType()),
+                        new RowField("field3", replacedType)));
     }
 
     private static StructuredType createHumanType() {
         return StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "Human"), Human.class)
                 .attributes(
-                        Collections.singletonList(
-                                new StructuredType.StructuredAttribute(
-                                        "name", new VarCharType(), "Description.")))
+                        List.of(new StructuredAttribute("name", new VarCharType(), "Description.")))
                 .description("Human type desc.")
                 .setFinal(false)
                 .setInstantiable(false)
@@ -126,9 +127,7 @@ class LogicalTypeDuplicatorTest {
 
     private static StructuredType createUserType(LogicalType replacedType) {
         return StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", "User"), User.class)
-                .attributes(
-                        Collections.singletonList(
-                                new StructuredType.StructuredAttribute("setting", replacedType)))
+                .attributes(List.of(new StructuredAttribute("setting", replacedType)))
                 .description("User type desc.")
                 .setFinal(false)
                 .setInstantiable(true)
@@ -136,10 +135,18 @@ class LogicalTypeDuplicatorTest {
                 .build();
     }
 
+    private static StructuredType createNonClassType() {
+        return StructuredType.newBuilder("NotInClassPathType")
+                .attributes(List.of(new StructuredAttribute("setting", new BooleanType())))
+                .build();
+    }
+
+    @SuppressWarnings("unused")
     private abstract static class Human {
         public String name;
     }
 
+    @SuppressWarnings("unused")
     private static final class User extends Human {
         public int setting;
     }
