@@ -31,7 +31,7 @@ import static org.apache.flink.table.runtime.operators.calc.async.RetryPredicate
 import static org.apache.flink.table.runtime.operators.calc.async.RetryPredicates.EMPTY_RESPONSE;
 
 /** Contains utilities for {@link org.apache.flink.table.functions.AsyncTableFunction}. */
-public class AsyncTableUtil extends FunctionCallUtils {
+public class AsyncTableUtil extends FunctionCallUtil {
 
     /**
      * Gets the options required to run the operator.

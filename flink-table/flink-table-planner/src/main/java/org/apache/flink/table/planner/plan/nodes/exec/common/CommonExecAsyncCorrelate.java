@@ -38,7 +38,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AsyncTableUtil;
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtils;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.operators.correlate.async.AsyncCorrelateRunner;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -138,7 +138,7 @@ public class CommonExecAsyncCorrelate extends ExecNodeBase<RowData>
                                 TypeConversions.fromLogicalToDataType(
                                         FlinkTypeFactory.toLogicalType(invocation.getType()))));
         AsyncCorrelateRunner func = new AsyncCorrelateRunner(generatedFunction, fetcherConverter);
-        FunctionCallUtils.AsyncOptions options = AsyncTableUtil.getAsyncOptions(config);
+        FunctionCallUtil.AsyncOptions options = AsyncTableUtil.getAsyncOptions(config);
         return new AsyncWaitOperatorFactory<>(
                 func,
                 options.asyncTimeout,
