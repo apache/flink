@@ -1,27 +1,42 @@
-This example demonstrates how to use **Apache Flink SQL** to consume JSON messages from a Kafka topic, process the data by transforming and filtering it, and then produce the output to another Kafka topic.
+## Kafka to Kafka Example with Flink SQL
+
+This example demonstrates how to use **Apache Flink SQL** to consume JSON messages from a Kafka topic, **transform and filter** the data, and then produce the output to another Kafka topic.
+
+---
 
 ## Set Up Kafka Topics
 
+You can use the Kafka Docker container to create the required topics.
+
+> ℹ️ This example assumes you're running Kafka via Docker. If not, adjust the paths accordingly.
+> 
+> The Kafka Docker image can be pulled from [Docker Hub](https://hub.docker.com/r/bitnami/kafka) or [Confluent](https://hub.docker.com/r/confluentinc/cp-kafka).
+
 ```bash
 # Create input topic
-docker exec -it docker-kafka-1 kafka-topics.sh \
-  --create --topic i-topic \
+docker exec -it docker-kafka-1 /opt/kafka/bin/kafka-topics.sh \
+  --create \
+  --topic input-topic \
   --bootstrap-server localhost:9092 \
-  --partitions 1 --replication-factor 1
+  --partitions 1 \
+  --replication-factor 1
 
 # Create output topic
-docker exec -it docker-kafka-1 kafka-topics.sh \
-  --create --topic o-topic \
+docker exec -it docker-kafka-1 /opt/kafka/bin/kafka-topics.sh \
+  --create \
+  --topic output-topic \
   --bootstrap-server localhost:9092 \
-  --partitions 1 --replication-factor 1
+  --partitions 1 \
+  --replication-factor 1
 ````
+---
 
 ## Producer Script
 
-Run the following Python script to send JSON messages to the `i-topic`.
+Run the following Python script to send JSON messages to the `input-topic`.
 
 ```bash
-C:\tmp\flink-sql\kafka-scripts>python producer.py
+python producer.py
 ```
 
 Sample output:
@@ -32,20 +47,21 @@ Sending: {'name': 'Crystal Osborne', 'email': 'travis02@example.net', 'role': 'a
 ...
 ✅ All messages sent.
 ```
+---
 
 ## Define Flink SQL Tables
 
-In Flink SQL CLI:
+Use the **Flink SQL CLI** to define the source and sink tables:
 
 ```sql
--- Input Table
+-- Source: Input Table (Kafka Consumer)
 CREATE TABLE kafka_input (
   name STRING,
   email STRING,
   role STRING
 ) WITH (
   'connector' = 'kafka',
-  'topic' = 'i-topic',
+  'topic' = 'input-topic',
   'properties.bootstrap.servers' = 'kafka:9093',
   'properties.group.id' = 'flink-i-consumer',
   'scan.startup.mode' = 'earliest-offset',
@@ -53,47 +69,51 @@ CREATE TABLE kafka_input (
   'json.ignore-parse-errors' = 'true'
 );
 
--- Output Table
+-- Sink: Output Table (Kafka Producer)
 CREATE TABLE kafka_output (
   name STRING,
   email STRING,
   role STRING
 ) WITH (
   'connector' = 'kafka',
-  'topic' = 'o-topic',
+  'topic' = 'output-topic',
   'properties.bootstrap.servers' = 'kafka:9093',
   'format' = 'json'
 );
 ```
+---
 
 ## Submit SQL Job
+
+Run the following SQL query:
 
 ```sql
 INSERT INTO kafka_output
 SELECT
-  UPPER(name) AS name,
+  UPPER(name) AS name,    -- transformation: convert name to uppercase
   email,
   role
 FROM kafka_input
-WHERE role = 'developer';
+WHERE role = 'developer'; -- filter: only include developers
 ```
 
-Output:
+
+**Sample output:**
 
 ```
 [INFO] SQL update statement has been successfully submitted to the cluster:
 Job ID: 2d034349fb5fa2af873658e7abdb0579
 ```
-
+---
 ## Consumer Script
 
-Run the consumer to listen on the `o-topic`.
+Run the consumer to read messages from the `output-topic`.
 
 ```bash
-C:\tmp\flink-sql\kafka-scripts>python consumer.py
+python consumer.py
 ```
 
-Sample output:
+**Sample output:**
 
 ```
 🔹 Received message: {'name': 'SHEILA GRANT', 'email': 'sylvia83@example.net', 'role': 'developer'}
@@ -103,4 +123,10 @@ Sample output:
 
 ## Summary
 
-This example shows how Flink SQL can be used to build an end-to-end Kafka pipeline with transformation and filtering logic in real time.
+This example demonstrates how **Apache Flink SQL** can be used to build an end-to-end Kafka streaming pipeline. It highlights how to:
+
+* **Transform** data using SQL functions like `UPPER()`
+* **Filter** records using a `WHERE` clause
+* Integrate Kafka as both **source and sink** with Flink SQL in real time.
+
+---
