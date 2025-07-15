@@ -34,7 +34,7 @@ start_hadoop_cluster_and_prepare_flink
 
 # copy test files
 docker cp "${FLINK_PYTHON_DIR}/dev/lint-python.sh" master:/tmp/
-docker cp "${FLINK_PYTHON_DIR}/dev/dev-requirements.txt" master:/tmp/
+docker cp "${FLINK_PYTHON_DIR}/pyproject.toml" master:/tmp/
 docker cp "${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar" master:/tmp/
 docker cp "${FLINK_PYTHON_TEST_DIR}/python/add_one.py" master:/tmp/
 docker cp "${REQUIREMENTS_PATH}" master:/tmp/
@@ -48,7 +48,7 @@ docker cp "${FLINK_PYTHON_DIR}/apache-flink-libraries/dist/${PYFLINK_LIBRARIES_P
 docker exec master bash -c "
 /tmp/lint-python.sh -s uv
 source /tmp/.uv/bin/activate
-pip install -r /tmp/dev-requirements.txt
+pip install --group /tmp/pyproject.toml:dev
 pip install /tmp/${PYFLINK_LIBRARIES_PACKAGE_FILE}
 pip install /tmp/${PYFLINK_PACKAGE_FILE}
 apt-get install -y zip
