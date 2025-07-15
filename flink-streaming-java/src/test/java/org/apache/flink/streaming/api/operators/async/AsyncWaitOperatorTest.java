@@ -1493,7 +1493,7 @@ class AsyncWaitOperatorTest {
 
         @Override
         public void timeout(Integer input, ResultFuture<Integer> resultFuture) {
-            // simulate the case reported in https://issues.apache.org/jira/browse/FLINK-38082
+            // simulate the case in https://issues.apache.org/jira/browse/FLINK-38082
             resultFuture.completeExceptionally(new TimeoutException("Dummy timeout error"));
         }
     }
