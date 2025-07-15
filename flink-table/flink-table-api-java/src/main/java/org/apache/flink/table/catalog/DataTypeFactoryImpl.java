@@ -34,8 +34,7 @@ import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeDuplicator;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 
@@ -48,8 +47,6 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 /** Implementation of a {@link DataTypeFactory}. */
 @Internal
 final class DataTypeFactoryImpl implements DataTypeFactory {
-
-    private final LogicalTypeResolver resolver = new LogicalTypeResolver();
 
     private final ClassLoader classLoader;
 
@@ -114,15 +111,18 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
     @Override
     public LogicalType createLogicalType(String typeString) {
         final LogicalType parsedType = LogicalTypeParser.parse(typeString, classLoader);
-        return parsedType.accept(resolver);
+        if (LogicalTypeChecks.hasNested(parsedType, t -> t.is(LogicalTypeRoot.UNRESOLVED))) {
+            throw unsupportedUserDefinedTypes();
+        }
+        return parsedType;
     }
 
     @Override
     public LogicalType createLogicalType(UnresolvedIdentifier identifier) {
-        if (!identifier.getDatabaseName().isPresent()) {
+        if (identifier.getDatabaseName().isEmpty()) {
             return createLogicalType(identifier.getObjectName());
         }
-        return resolveType(identifier);
+        throw unsupportedUserDefinedTypes();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -146,25 +146,7 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
         };
     }
 
-    /** Resolves all {@link UnresolvedUserDefinedType}s. */
-    private class LogicalTypeResolver extends LogicalTypeDuplicator {
-
-        @Override
-        protected LogicalType defaultMethod(LogicalType logicalType) {
-            if (logicalType.is(LogicalTypeRoot.UNRESOLVED)) {
-                final UnresolvedUserDefinedType unresolvedType =
-                        (UnresolvedUserDefinedType) logicalType;
-                return resolveType(unresolvedType.getUnresolvedIdentifier())
-                        .copy(unresolvedType.isNullable());
-            }
-            return logicalType;
-        }
-    }
-
-    private LogicalType resolveType(UnresolvedIdentifier identifier) {
-        assert identifier != null;
-        // TODO validate implementation class of structured types when converting from LogicalType
-        //  to DataType
-        throw new TableException("User-defined types are not supported yet.");
+    private TableException unsupportedUserDefinedTypes() {
+        return new TableException("User-defined types are not supported yet.");
     }
 }
