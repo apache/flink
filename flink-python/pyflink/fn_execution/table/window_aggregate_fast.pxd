@@ -25,7 +25,7 @@ cdef class NamespaceAggsHandleFunctionBase:
     cdef void retract(self, InternalRow input_data)
     cpdef void merge(self, object namespace, list accumulators)
     cpdef void set_accumulators(self, object namespace, list accumulators)
-    cdef list get_accumulators(self)
+    cpdef list get_accumulators(self)
     cpdef list create_accumulators(self)
     cpdef void cleanup(self, object namespace)
     cdef void close(self)
