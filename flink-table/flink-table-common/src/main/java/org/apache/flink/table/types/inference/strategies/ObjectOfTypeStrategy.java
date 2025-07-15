@@ -20,9 +20,11 @@ package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.DataTypes.Field;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.StructuredType;
 
 import java.util.List;
 import java.util.Optional;
@@ -48,7 +50,7 @@ import java.util.stream.IntStream;
  *
  * <ul>
  *   <li>{@code OBJECT_OF('com.example.User', 'name', 'Alice', 'age', 30)} → {@code
- *       STRUCTURED<com.example.User>(name STRING, age INT)}
+ *       STRUCTURED<com.example.User>(name CHAR(5), age INT)}
  *   <li>{@code OBJECT_OF('com.example.Point', 'x', 1.5, 'y', 2.0)} → {@code
  *       STRUCTURED<com.example.Point>(x DOUBLE, y DOUBLE)}
  * </ul>
@@ -60,20 +62,24 @@ public class ObjectOfTypeStrategy implements TypeStrategy {
 
     private static DataType toStructuredType(
             final String className, final CallContext callContext) {
-        try {
-            final Class<?> loadedClass =
-                    callContext.getDataTypeFactory().getClassLoader().loadClass(className);
-            return callContext.getDataTypeFactory().createDataType(loadedClass);
-        } catch (final ClassNotFoundException ignored) {
-            final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+        final DataTypeFactory dataTypeFactory = callContext.getDataTypeFactory();
+        final ClassLoader classLoader = dataTypeFactory.getClassLoader();
+        final Optional<Class<?>> resolveClass = StructuredType.resolveClass(classLoader, className);
+        return resolveClass
+                .map(dataTypeFactory::createDataType)
+                .orElse(fallbackStructuredType(className, callContext));
+    }
 
-            final DataTypes.Field[] fields =
-                    IntStream.iterate(1, i -> i < argumentDataTypes.size(), i -> i + 2)
-                            .mapToObj(keyIdx -> toFieldDataType(callContext, keyIdx))
-                            .toArray(DataTypes.Field[]::new);
+    private static DataType fallbackStructuredType(
+            final String className, final CallContext callContext) {
+        final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
 
-            return DataTypes.ROW(fields);
-        }
+        final Field[] fields =
+                IntStream.iterate(1, i -> i < argumentDataTypes.size(), i -> i + 2)
+                        .mapToObj(keyIdx -> toFieldDataType(callContext, keyIdx))
+                        .toArray(Field[]::new);
+
+        return DataTypes.STRUCTURED(className, fields);
     }
 
     private static Field toFieldDataType(final CallContext callContext, final int keyIdx) {

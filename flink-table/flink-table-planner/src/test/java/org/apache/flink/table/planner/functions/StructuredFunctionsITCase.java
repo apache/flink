@@ -158,9 +158,10 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.BOOLEAN())
                         // Test OBJECT_OF when class not found
                         .testSqlResult(
-                                "OBJECT_OF('not.existing.class', 'a', 42, 'b', 'Bob')",
+                                "OBJECT_OF('not.existing.clazz', 'a', 42, 'b', 'Bob')",
                                 Row.of(42, "Bob"),
-                                DataTypes.ROW(
+                                DataTypes.STRUCTURED(
+                                        "not.existing.clazz",
                                         DataTypes.FIELD("a", DataTypes.INT().notNull()),
                                         DataTypes.FIELD("b", DataTypes.CHAR(3).notNull())))
                         // Invalid Test - field name is not a string literal
@@ -172,7 +173,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                         // Invalid Test - first argument is type string but null
                         .testSqlValidationError(
                                 "OBJECT_OF(CAST(NULL AS STRING), 'a', '12', 'b', 'Alice')",
-                                "The first argument must be a non-nullable STRING/VARCHAR type representing the class name."));
+                                "The first argument must be a non-nullable character string representing the class name."));
     }
 
     // --------------------------------------------------------------------------------------------

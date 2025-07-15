@@ -631,6 +631,10 @@ public final class Expressions {
      * structured type is created by providing alternating key-value pairs where keys must be string
      * literals and values can be arbitrary expressions.
      *
+     * <p>Note: The class is only used for distinguishing two structured types with identical
+     * fields. Structured types are internally handled with suitable data structures. Thus,
+     * serialization and equality checks are managed by the system.
+     *
      * <p>Examples:
      *
      * <pre>{@code
@@ -657,6 +661,10 @@ public final class Expressions {
      * <p>This function creates an instance of a structured type identified by the given class name.
      * The structured type is created by providing alternating key-value pairs where keys must be
      * string literals and values can be arbitrary expressions.
+     *
+     * <p>Note: The class name is only used for distinguishing two structured types with identical
+     * fields. Structured types are internally handled with suitable data structures. Thus,
+     * serialization and equality checks are managed by the system.
      *
      * <p>Examples:
      *

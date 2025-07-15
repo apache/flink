@@ -91,7 +91,7 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithArgumentTypes(DataTypes.NULL())
                         .calledWithLiteralAt(0, null)
                         .expectErrorMessage(
-                                "The first argument must be a non-nullable STRING/VARCHAR type representing the class name."),
+                                "The first argument must be a non-nullable character string representing the class name."),
 
                 // Invalid test case - even number of arguments
                 TestSpec.forStrategy(
@@ -116,7 +116,7 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithLiteralAt(0, 72)
                         .expectArgumentTypes(DataTypes.INT())
                         .expectErrorMessage(
-                                "The first argument must be a non-nullable STRING/VARCHAR type representing the class name."),
+                                "The first argument must be a non-nullable character string representing the class name."),
 
                 // Invalid test case - field name not a string
                 TestSpec.forStrategy(

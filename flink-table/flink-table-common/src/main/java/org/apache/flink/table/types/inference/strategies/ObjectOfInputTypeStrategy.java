@@ -86,7 +86,7 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
         final LogicalType classArgumentType = firstArgumentDataType.getLogicalType();
 
         final String errorMessage =
-                "The first argument must be a non-nullable STRING/VARCHAR type representing the class name.";
+                "The first argument must be a non-nullable character string representing the class name.";
         if (classArgumentType.isNullable()
                 || !classArgumentType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             throw new ValidationException(errorMessage);
@@ -140,13 +140,13 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
     @Override
     public Optional<List<DataType>> inferInputTypes(
             final CallContext callContext, final boolean throwOnFailure) {
-        if (!throwOnFailure) {
-            return Optional.empty();
-        }
         final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
-
-        validateClassArgument(argumentDataTypes.get(0));
-        validateKeyArguments(callContext, argumentDataTypes);
+        try {
+            validateClassArgument(argumentDataTypes.get(0));
+            validateKeyArguments(callContext, argumentDataTypes);
+        } catch (ValidationException e) {
+            callContext.fail(throwOnFailure, e.getMessage(), argumentDataTypes);
+        }
 
         return Optional.of(argumentDataTypes);
     }

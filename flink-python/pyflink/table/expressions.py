@@ -560,6 +560,7 @@ def map_from_arrays(key, value) -> Expression:
     return _binary_op("mapFromArrays", key, value)
 
 
+@PublicEvolving()
 def object_of(class_name: str, *args) -> Expression:
     """
     Creates a structured object from a list of key-value pairs.
