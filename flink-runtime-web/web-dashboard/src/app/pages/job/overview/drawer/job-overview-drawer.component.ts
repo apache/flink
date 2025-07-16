@@ -25,14 +25,13 @@ import { map, takeUntil } from 'rxjs/operators';
 import { JobChartService } from '@flink-runtime-web/components/job-chart/job-chart.service';
 import { NavigationComponent } from '@flink-runtime-web/components/navigation/navigation.component';
 import { RouterTab } from '@flink-runtime-web/core/module-config';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import {
   JOB_OVERVIEW_MODULE_CONFIG,
   JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
   JobOverviewModuleConfig
 } from '@flink-runtime-web/pages/job/overview/job-overview.config';
 import { NzIconModule } from 'ng-zorro-antd/icon';
-
-import { JobLocalService } from '../../job-local.service';
 
 @Component({
   selector: 'flink-job-overview-drawer',

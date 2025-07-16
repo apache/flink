@@ -31,11 +31,10 @@ import {
   CheckpointConfig
 } from '@flink-runtime-web/interfaces';
 import { JobCheckpointsSubtaskComponent } from '@flink-runtime-web/pages/job/checkpoints/subtask/job-checkpoints-subtask.component';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobService } from '@flink-runtime-web/services';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzTableModule } from 'ng-zorro-antd/table';
-
-import { JobLocalService } from '../../job-local.service';
 
 @Component({
   selector: 'flink-job-checkpoints-detail',

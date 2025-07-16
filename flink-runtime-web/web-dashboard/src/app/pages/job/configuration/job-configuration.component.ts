@@ -22,11 +22,10 @@ import { Subject } from 'rxjs';
 import { mergeMap, takeUntil } from 'rxjs/operators';
 
 import { JobConfig } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobService } from '@flink-runtime-web/services';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzTableModule } from 'ng-zorro-antd/table';
-
-import { JobLocalService } from '../job-local.service';
 
 @Component({
   selector: 'flink-job-configuration',

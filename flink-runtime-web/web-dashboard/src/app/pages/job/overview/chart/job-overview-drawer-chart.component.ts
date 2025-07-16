@@ -31,10 +31,9 @@ import { Subject } from 'rxjs';
 import { distinctUntilChanged, filter, mergeMap, takeUntil } from 'rxjs/operators';
 
 import { JobChartComponent } from '@flink-runtime-web/components/job-chart/job-chart.component';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { MetricsService } from '@flink-runtime-web/services';
 import { NzSelectModule } from 'ng-zorro-antd/select';
-
-import { JobLocalService } from '../../job-local.service';
 
 @Component({
   selector: 'flink-job-overview-drawer-chart',

@@ -26,6 +26,7 @@ import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.
 import { HumanizeDatePipe } from '@flink-runtime-web/components/humanize-date.pipe';
 import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
 import { NodesItemCorrect } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import {
   JOB_OVERVIEW_MODULE_CONFIG,
   JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
@@ -35,8 +36,6 @@ import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzGridModule } from 'ng-zorro-antd/grid';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
-
-import { JobLocalService } from '../../job-local.service';
 
 @Component({
   selector: 'flink-job-overview-drawer-detail',
