@@ -403,6 +403,9 @@ in a number (*scale*). `p` must have a value between `1` and `38` (both inclusiv
 must have a value between `0` and `p` (both inclusive). The default value for `p` is 10.
 The default value for `s` is `0`.
 
+**注意**：precision 和 scale 的定义在 SQL 标准和 Java 的 BigDecimal 中并不一致。例如，精确值 0.011 在 SQL 中
+被表示为 `DECIMAL(4, 3)`，而其 BigDecimal 表示的 precision 为 2，scale 为 3。
+
 `NUMERIC(p, s)` and `DEC(p, s)` are synonyms for this type.
 
 #### `TINYINT`

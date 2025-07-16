@@ -122,16 +122,17 @@ public final class ValueDataTypeConverter {
     }
 
     private static DataType convertToDecimalType(BigDecimal decimal) {
-        final int precision = decimal.precision();
-        final int scale = decimal.scale();
+        int precision = decimal.precision();
+        int scale = decimal.scale();
         // let underlying layers check if precision and scale are supported
         if (scale < 0) {
             // negative scale is not supported, normalize it
-            return DataTypes.DECIMAL(precision - scale, 0);
-        }
-
-        if (scale > precision) {
-            return DataTypes.DECIMAL(precision + scale, scale);
+            precision -= scale;
+            scale = 0;
+        } else if (scale >= precision) {
+            // if scale >= precision, it implies that abs(decimal) < 1
+            // in this case, the SQL precision becomes scale + 1 to account for the leading zero
+            precision = scale + 1;
         }
         return DataTypes.DECIMAL(precision, scale);
     }
