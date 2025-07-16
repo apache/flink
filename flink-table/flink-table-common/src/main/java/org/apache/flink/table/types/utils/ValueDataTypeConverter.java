@@ -130,8 +130,8 @@ public final class ValueDataTypeConverter {
             precision -= scale;
             scale = 0;
         } else if (scale >= precision) {
-            // scale > precision: 0.011, 0.000
-            // scale = precision: 0.11, 0.0
+            // if scale >= precision, it implies that abs(decimal) < 1
+            // in this case, the SQL precision becomes scale + 1 to account for the leading zero
             precision = scale + 1;
         }
         return DataTypes.DECIMAL(precision, scale);
