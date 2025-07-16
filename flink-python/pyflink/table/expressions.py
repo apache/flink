@@ -578,13 +578,16 @@ def object_of(class_name: str, *args) -> Expression:
     In this case the class name needs to be present in the user classpath.
     If resolution fails, Row class is used as a fallback.
 
+    Examples:
+    ::
+
+        >>> # Creates a User object with name="Alice" and age=30
+        >>> object_of("com.example.User", "name", "Alice", "age", 30)
+
     :param class_name: The fully qualified class name
     :param args: Alternating key-value pairs: key1, value1, key2, value2, ...
     :return: A structured object expression
-    Examples:
-    ::
-        >>> # Creates a User object with name="Alice" and age=30
-        >>> object_of("com.example.User", "name", "Alice", "age", 30)
+
     .. seealso:: SQL function: OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 25)
     """
     return _varargs_op("objectOf", class_name, *args)

@@ -261,7 +261,7 @@ advanced type helper functions
     Expression.array_except
     Expression.array_intersect
     Expression.split
-    Expression.object_of
+
 
 time definition functions
 -------------------------

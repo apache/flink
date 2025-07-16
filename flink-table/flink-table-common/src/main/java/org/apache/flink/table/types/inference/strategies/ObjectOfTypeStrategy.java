@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.inference.strategies;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -58,6 +59,7 @@ import java.util.stream.IntStream;
  * @see org.apache.flink.table.functions.BuiltInFunctionDefinitions#OBJECT_OF
  * @see ObjectOfInputTypeStrategy
  */
+@Internal
 public class ObjectOfTypeStrategy implements TypeStrategy {
 
     private static DataType toStructuredType(
