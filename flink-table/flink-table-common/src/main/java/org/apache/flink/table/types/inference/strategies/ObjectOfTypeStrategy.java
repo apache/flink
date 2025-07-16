@@ -64,14 +64,6 @@ public class ObjectOfTypeStrategy implements TypeStrategy {
             final String className, final CallContext callContext) {
         final DataTypeFactory dataTypeFactory = callContext.getDataTypeFactory();
         final ClassLoader classLoader = dataTypeFactory.getClassLoader();
-        final Optional<Class<?>> resolveClass = StructuredType.resolveClass(classLoader, className);
-        return resolveClass
-                .map(dataTypeFactory::createDataType)
-                .orElse(fallbackStructuredType(className, callContext));
-    }
-
-    private static DataType fallbackStructuredType(
-            final String className, final CallContext callContext) {
         final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
 
         final Field[] fields =
@@ -79,7 +71,11 @@ public class ObjectOfTypeStrategy implements TypeStrategy {
                         .mapToObj(keyIdx -> toFieldDataType(callContext, keyIdx))
                         .toArray(Field[]::new);
 
-        return DataTypes.STRUCTURED(className, fields);
+        final Optional<Class<?>> resolveClass = StructuredType.resolveClass(classLoader, className);
+
+        return resolveClass
+                .map(clazz -> DataTypes.STRUCTURED(clazz, fields))
+                .orElse(DataTypes.STRUCTURED(className, fields));
     }
 
     private static Field toFieldDataType(final CallContext callContext, final int keyIdx) {
@@ -90,8 +86,9 @@ public class ObjectOfTypeStrategy implements TypeStrategy {
                         .getArgumentValue(keyIdx, String.class)
                         .orElseThrow(IllegalStateException::new);
 
-        final DataType fieldValueType = argumentDataTypes.get(keyIdx + 1);
-        return DataTypes.FIELD(fieldName, fieldValueType);
+        final DataType fieldDataType = argumentDataTypes.get(keyIdx + 1);
+
+        return DataTypes.FIELD(fieldName, fieldDataType);
     }
 
     @Override

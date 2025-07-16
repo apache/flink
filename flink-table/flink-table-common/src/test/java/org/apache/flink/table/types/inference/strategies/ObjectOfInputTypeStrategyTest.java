@@ -84,14 +84,25 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 DataTypes.STRUCTURED(
                                         "c2", DataTypes.FIELD("f1", DataTypes.FLOAT()))),
 
-                // Invalid test case - first argument is null
+                // Invalid test case - class argument is type STRING with value null
                 TestSpec.forStrategy(
-                                "Invalid OBJECT_OF with first argument as null",
+                                "Invalid OBJECT_OF with class argument as type STRING with null value",
                                 OBJECT_OF_INPUT_STRATEGY)
-                        .calledWithArgumentTypes(DataTypes.NULL())
+                        .calledWithArgumentTypes(DataTypes.STRING())
                         .calledWithLiteralAt(0, null)
                         .expectErrorMessage(
-                                "The first argument must be a non-nullable character string representing the class name."),
+                                "The first argument must be a non-nullable character string literal representing the class name."),
+
+                // Invalid test case - key is type STRING with value null
+                TestSpec.forStrategy(
+                                "Valid OBJECT_OF with key as type STRING with null value",
+                                OBJECT_OF_INPUT_STRATEGY)
+                        .calledWithArgumentTypes(
+                                DataTypes.STRING().notNull(), DataTypes.STRING(), DataTypes.INT())
+                        .calledWithLiteralAt(0, USER_CLASS_PATH)
+                        .calledWithLiteralAt(1, null)
+                        .expectErrorMessage(
+                                "The field key at position 2 must be a non-nullable character string literal."),
 
                 // Invalid test case - even number of arguments
                 TestSpec.forStrategy(
@@ -116,7 +127,7 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithLiteralAt(0, 72)
                         .expectArgumentTypes(DataTypes.INT())
                         .expectErrorMessage(
-                                "The first argument must be a non-nullable character string representing the class name."),
+                                "The first argument must be a non-nullable character string representing the class name, but was INT."),
 
                 // Invalid test case - field name not a string
                 TestSpec.forStrategy(
@@ -129,7 +140,7 @@ class ObjectOfInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithLiteralAt(1, 5)
                         .expectArgumentTypes(DataTypes.STRING(), DataTypes.INT(), DataTypes.INT())
                         .expectErrorMessage(
-                                "The field key at position 2 must be a non-nullable STRING/VARCHAR type, but was nullable INT."),
+                                "The field key at position 2 must be a non-nullable character string, but was INT."),
 
                 // Invalid test case - repeated field names
                 TestSpec.forStrategy(

@@ -82,13 +82,22 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
                 }
             };
 
-    private static void validateClassArgument(final DataType firstArgumentDataType) {
+    private static void validateClassArgument(
+            final CallContext callContext, final DataType firstArgumentDataType) {
         final LogicalType classArgumentType = firstArgumentDataType.getLogicalType();
 
-        final String errorMessage =
-                "The first argument must be a non-nullable character string representing the class name.";
-        if (classArgumentType.isNullable()
-                || !classArgumentType.is(LogicalTypeFamily.CHARACTER_STRING)) {
+        if (!classArgumentType.is(LogicalTypeFamily.CHARACTER_STRING)) {
+            final String errorMessage =
+                    String.format(
+                            "The first argument must be a non-nullable character string representing the class name, but was %s.",
+                            classArgumentType.asSummaryString());
+            throw new ValidationException(errorMessage);
+        }
+
+        final Optional<String> argumentValue = callContext.getArgumentValue(0, String.class);
+        if (argumentValue.isEmpty()) {
+            final String errorMessage =
+                    "The first argument must be a non-nullable character string literal representing the class name.";
             throw new ValidationException(errorMessage);
         }
     }
@@ -104,30 +113,32 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
 
     private static void validateFieldNameArgument(
             final CallContext callContext,
-            final int idx,
+            final int pos,
             final LogicalType logicalType,
             final Set<String> fieldNames) {
-        final int keyIndex = idx + 1;
-        final boolean nullable = logicalType.isNullable();
-
-        if (nullable || !logicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
-            final String nullableType = nullable ? "nullable" : "non-nullable";
+        if (!logicalType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             final String message =
                     String.format(
-                            "The field key at position %d must be a non-nullable STRING/VARCHAR type, but was %s %s.",
-                            keyIndex, nullableType, logicalType.asSummaryString());
+                            "The field key at position %d must be a non-nullable character string, but was %s.",
+                            pos + 1, logicalType.asSummaryString());
             throw new ValidationException(message);
         }
 
-        final String fieldName =
-                callContext
-                        .getArgumentValue(idx, String.class)
-                        .orElseThrow(IllegalStateException::new);
+        final Optional<String> argumentValue = callContext.getArgumentValue(pos, String.class);
+        if (argumentValue.isEmpty()) {
+            final String message =
+                    String.format(
+                            "The field key at position %d must be a non-nullable character string literal.",
+                            pos + 1);
+            throw new ValidationException(message);
+        }
+
+        final String fieldName = argumentValue.orElseThrow(IllegalStateException::new);
 
         if (!fieldNames.add(fieldName)) {
             final String message =
                     String.format(
-                            "The field name '%s' at position %d is repeated.", fieldName, keyIndex);
+                            "The field name '%s' at position %d is repeated.", fieldName, pos + 1);
             throw new ValidationException(message);
         }
     }
@@ -142,7 +153,7 @@ public class ObjectOfInputTypeStrategy implements InputTypeStrategy {
             final CallContext callContext, final boolean throwOnFailure) {
         final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
         try {
-            validateClassArgument(argumentDataTypes.get(0));
+            validateClassArgument(callContext, argumentDataTypes.get(0));
             validateKeyArguments(callContext, argumentDataTypes);
         } catch (ValidationException e) {
             callContext.fail(throwOnFailure, e.getMessage(), argumentDataTypes);
