@@ -26,6 +26,7 @@ import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.
 import { HumanizeDatePipe } from '@flink-runtime-web/components/humanize-date.pipe';
 import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
 import { VertexTaskManagerDetail } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import {
   JOB_OVERVIEW_MODULE_CONFIG,
   JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
@@ -34,8 +35,6 @@ import {
 import { JobService } from '@flink-runtime-web/services';
 import { typeDefinition } from '@flink-runtime-web/utils';
 import { NzTableModule, NzTableSortFn } from 'ng-zorro-antd/table';
-
-import { JobLocalService } from '../../job-local.service';
 
 function createSortFn(
   selector: (item: VertexTaskManagerDetail) => number | string

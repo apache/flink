@@ -18,7 +18,7 @@
 
 import { NgForOf, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, Type } from '@angular/core';
-import { RouterModule } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { of, Subject } from 'rxjs';
 import { catchError, mergeMap, takeUntil, tap } from 'rxjs/operators';
 
@@ -32,6 +32,7 @@ import {
   JobVertexSubTaskDetail,
   NodesItemCorrect
 } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import {
   JOB_OVERVIEW_MODULE_CONFIG,
   JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
@@ -42,14 +43,12 @@ import { typeDefinition } from '@flink-runtime-web/utils';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzTableModule } from 'ng-zorro-antd/table';
 
-import { JobLocalService } from '../../job-local.service';
-
 @Component({
   selector: 'flink-job-overview-drawer-backpressure',
   templateUrl: './job-overview-drawer-backpressure.component.html',
   styleUrls: ['./job-overview-drawer-backpressure.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NgIf, HumanizeDurationPipe, NzDividerModule, DynamicHostComponent, NgForOf, RouterModule]
+  imports: [NzTableModule, NgIf, HumanizeDurationPipe, NzDividerModule, DynamicHostComponent, NgForOf, RouterLink]
 })
 export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy {
   readonly trackBySubtask = (_: number, node: JobBackpressureSubtask): number => node.subtask;
@@ -89,11 +88,9 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
           this.cdr.markForCheck();
         }),
         mergeMap(data =>
-          this.jobService.loadOperatorBackPressure(data.job.jid, data.vertex!.id).pipe(
-            catchError(() => {
-              return of({} as JobBackpressure);
-            })
-          )
+          this.jobService
+            .loadOperatorBackPressure(data.job.jid, data.vertex!.id)
+            .pipe(catchError(() => of({} as JobBackpressure)))
         ),
         takeUntil(this.destroy$)
       )
@@ -109,16 +106,14 @@ export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy
       .jobWithVertexChanges()
       .pipe(
         mergeMap(data =>
-          this.jobService.loadSubTasks(data.job.jid, data.vertex!.id).pipe(
-            catchError(() => {
-              return of({} as JobVertexSubTaskDetail);
-            })
-          )
+          this.jobService
+            .loadSubTasks(data.job.jid, data.vertex!.id)
+            .pipe(catchError(() => of({} as JobVertexSubTaskDetail)))
         ),
         takeUntil(this.destroy$)
       )
       .subscribe(data => {
-        this.mapOfSubtask = data?.subtasks.reduce(function (map: Map<number, JobVertexSubTaskData>, obj) {
+        this.mapOfSubtask = data?.subtasks.reduce((map: Map<number, JobVertexSubTaskData>, obj) => {
           map.set(obj.subtask, obj);
           return map;
         }, new Map());

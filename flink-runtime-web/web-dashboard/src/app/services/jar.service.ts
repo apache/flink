@@ -33,13 +33,13 @@ export class JarService {
 
   public loadJarList(): Observable<JarList> {
     return this.httpClient.get<JarList>(`${this.configService.BASE_URL}/jars`).pipe(
-      catchError(() => {
-        return of({
+      catchError(() =>
+        of({
           address: '',
           error: true,
           files: []
-        });
-      })
+        })
+      )
     );
   }
 

@@ -33,12 +33,11 @@ import { catchError, filter, map, mergeMap, takeUntil } from 'rxjs/operators';
 import { DagreComponent } from '@flink-runtime-web/components/dagre/dagre.component';
 import { ResizeComponent } from '@flink-runtime-web/components/resize/resize.component';
 import { NodesItemCorrect, NodesItemLink } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobOverviewListComponent } from '@flink-runtime-web/pages/job/overview/list/job-overview-list.component';
 import { JobService, MetricsService } from '@flink-runtime-web/services';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
-
-import { JobLocalService } from '../job-local.service';
 
 @Component({
   selector: 'flink-job-overview',

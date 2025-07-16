@@ -26,6 +26,7 @@ import { distinctUntilChanged, mergeMap, takeUntil, tap } from 'rxjs/operators';
 import { AutoResizeDirective } from '@flink-runtime-web/components/editor/auto-resize.directive';
 import { flinkEditorOptions } from '@flink-runtime-web/components/editor/editor-config';
 import { ExceptionInfo, RootExceptionInfo } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobService } from '@flink-runtime-web/services';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { EditorOptions, NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
@@ -35,8 +36,6 @@ import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
-
-import { JobLocalService } from '../job-local.service';
 
 interface ExceptionHistoryItem {
   /**

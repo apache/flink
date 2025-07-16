@@ -33,6 +33,7 @@ import {
   JobVertexSubTask,
   JobVertexSubTaskData
 } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import {
   JOB_OVERVIEW_MODULE_CONFIG,
   JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
@@ -42,8 +43,6 @@ import { JobService } from '@flink-runtime-web/services';
 import { typeDefinition } from '@flink-runtime-web/utils';
 import { NzTableModule, NzTableSortFn } from 'ng-zorro-antd/table';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
-
-import { JobLocalService } from '../../job-local.service';
 
 function createSortFn(selector: (item: JobVertexSubTask) => number | string): NzTableSortFn<JobVertexSubTask> {
   return (pre, next) => (selector(pre) > selector(next) ? 1 : -1);
