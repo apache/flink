@@ -100,8 +100,8 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
         }),
         takeUntil(this.destroy$)
       )
-      .subscribe(
-        data => {
+      .subscribe({
+        next: data => {
           this.now = Date.now();
           if (this.flameGraph.endTimestamp !== data['endTimestamp']) {
             this.isLoading = false;
@@ -110,11 +110,11 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
           }
           this.cdr.markForCheck();
         },
-        () => {
+        error: () => {
           this.isLoading = false;
           this.cdr.markForCheck();
         }
-      );
+      });
   }
 
   private requestRunningSubtasks(): void {
@@ -122,13 +122,11 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
       .jobWithVertexChanges()
       .pipe(
         tap(data => (this.selectedVertex = data.vertex)),
-        mergeMap(data => {
-          return this.jobService.loadSubTasks(data.job.jid, data.vertex!.id);
-        }),
+        mergeMap(data => this.jobService.loadSubTasks(data.job.jid, data.vertex!.id)),
         takeUntil(this.destroy$)
       )
-      .subscribe(
-        data => {
+      .subscribe({
+        next: data => {
           const sampleableSubtasks = data?.subtasks
             .filter(subtaskInfo => subtaskInfo.status === 'RUNNING' || subtaskInfo.status === 'INITIALIZING')
             .map(subtaskInfo => subtaskInfo.subtask.toString());
@@ -138,11 +136,11 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
           this.listOfSampleableSubtasks = [this.allSubtasks, ...sampleableSubtasks];
           this.cdr.markForCheck();
         },
-        () => {
+        error: () => {
           this.listOfSampleableSubtasks = [this.allSubtasks];
           this.cdr.markForCheck();
         }
-      );
+      });
   }
 
   public selectSubtask(subtaskIndex: string): void {

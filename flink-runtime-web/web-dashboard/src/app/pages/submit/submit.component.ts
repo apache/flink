@@ -103,20 +103,20 @@ export class SubmitComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$),
         mergeMap(() => this.jarService.loadJarList())
       )
-      .subscribe(
-        data => {
+      .subscribe({
+        next: data => {
           this.isLoading = false;
           this.listOfJar = data.files;
           this.address = data.address;
           this.cdr.markForCheck();
           this.noAccess = Boolean(data.error);
         },
-        () => {
+        error: () => {
           this.isLoading = false;
           this.noAccess = true;
           this.cdr.markForCheck();
         }
-      );
+      });
   }
 
   public ngOnDestroy(): void {
@@ -125,8 +125,8 @@ export class SubmitComponent implements OnInit, OnDestroy {
   }
 
   public uploadJar(file: File): void {
-    this.jarService.uploadJar(file).subscribe(
-      event => {
+    this.jarService.uploadJar(file).subscribe({
+      next: event => {
         if (event.type === HttpEventType.UploadProgress && event.total) {
           this.isUploading = true;
           this.progress = Math.round((100 * event.loaded) / event.total);
@@ -135,11 +135,11 @@ export class SubmitComponent implements OnInit, OnDestroy {
           this.statusService.forceRefresh();
         }
       },
-      () => {
+      error: () => {
         this.isUploading = false;
         this.progress = 0;
       }
-    );
+    });
   }
 
   public deleteJar(jar: JarFilesItem): void {

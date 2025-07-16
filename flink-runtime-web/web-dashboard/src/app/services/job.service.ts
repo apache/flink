@@ -196,12 +196,12 @@ export class JobService {
         })
       )
       .pipe(
-        mergeMap(jobResourceRequirements => {
-          return this.httpClient.put<void>(
+        mergeMap(jobResourceRequirements =>
+          this.httpClient.put<void>(
             `${this.configService.BASE_URL}/jobs/${jobId}/resource-requirements`,
             jobResourceRequirements
-          );
-        })
+          )
+        )
       );
   }
 
