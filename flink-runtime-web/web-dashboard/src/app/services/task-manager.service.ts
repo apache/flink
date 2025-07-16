@@ -64,24 +64,13 @@ export class TaskManagerService {
     const url = `${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/logs/${logName}`;
     return this.httpClient
       .get(url, { responseType: 'text', headers: new HttpHeaders().append('Cache-Control', 'no-cache') })
-      .pipe(
-        map(data => {
-          return {
-            data,
-            url
-          };
-        })
-      );
+      .pipe(map(data => ({ data, url })));
   }
 
   loadThreadDump(taskManagerId: string): Observable<string> {
     return this.httpClient
       .get<TaskManagerThreadDump>(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/thread-dump`)
-      .pipe(
-        map(taskManagerThreadDump => {
-          return taskManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
-        })
-      );
+      .pipe(map(({ threadInfos }) => threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('')));
   }
 
   loadLogs(taskManagerId: string): Observable<string> {
@@ -126,10 +115,9 @@ export class TaskManagerService {
   }
 
   createProfilingInstance(taskManagerId: string, mode: string, duration: number): Observable<ProfilingDetail> {
-    const requestParam = { mode, duration };
     return this.httpClient.post<ProfilingDetail>(
       `${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/profiler`,
-      requestParam
+      { mode, duration }
     );
   }
 
@@ -137,13 +125,6 @@ export class TaskManagerService {
     const url = `${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/profiler/${filePath}`;
     return this.httpClient
       .get(url, { responseType: 'text', headers: new HttpHeaders().append('Cache-Control', 'no-cache') })
-      .pipe(
-        map(data => {
-          return {
-            data,
-            url
-          };
-        })
-      );
+      .pipe(map(data => ({ data, url })));
   }
 }

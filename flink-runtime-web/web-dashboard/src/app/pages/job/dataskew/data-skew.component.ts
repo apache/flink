@@ -53,13 +53,7 @@ export class DataSkewComponent implements OnInit, OnDestroy {
   public ngOnInit(): void {
     this.refresh$
       .pipe(
-        map(() => {
-          return this.jobDetail;
-        }),
-        takeUntil(this.destroy$)
-      )
-      .pipe(map(jobDetail => jobDetail.vertices))
-      .pipe(
+        map(() => this.jobDetail.vertices),
         mergeMap(vertices => {
           const result: Array<{ vertexName: string; skewPct: number }> = [];
           vertices.forEach(v => {
@@ -75,9 +69,10 @@ export class DataSkewComponent implements OnInit, OnDestroy {
               });
           });
           return result;
-        })
+        }),
+        takeUntil(this.destroy$)
       )
-      .subscribe(_ => {}); // no-op subscriber to trigger the execution of the lazy processing
+      .subscribe(); // no-op subscriber to trigger the execution of the lazy processing
 
     this.jobLocalService
       .jobDetailChanges()

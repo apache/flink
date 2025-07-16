@@ -108,8 +108,8 @@ export class JobCheckpointsDetailComponent implements OnInit, OnDestroy {
         this.jobService.loadCheckpointDetails(this.jobDetail.jid, this.checkPoint.id)
       ])
         .pipe(takeUntil(this.destroy$))
-        .subscribe(
-          ([config, detail]) => {
+        .subscribe({
+          next: ([config, detail]) => {
             this.checkPointConfig = config;
             this.checkPointDetail = detail;
             if (this.checkPointDetail.checkpoint_type === 'CHECKPOINT') {
@@ -126,11 +126,11 @@ export class JobCheckpointsDetailComponent implements OnInit, OnDestroy {
             this.isLoading = false;
             this.cdr.markForCheck();
           },
-          () => {
+          error: () => {
             this.isLoading = false;
             this.cdr.markForCheck();
           }
-        );
+        });
     }
   }
 }
