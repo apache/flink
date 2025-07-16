@@ -264,19 +264,19 @@ class PythonEnvUtilsTest {
         String result = PythonEnvUtils.redactEnv(env);
 
         // Assert sensitive values are redacted
-        assertTrue(result.contains("AWS_SECRET_ACCESS_KEY=***REDACTED***"));
-        assertTrue(result.contains("MY_TOKEN=***REDACTED***"));
-        assertTrue(result.contains("DATABASE_PASSWORD=***REDACTED***"));
-        assertTrue(result.contains("ACCESS_KEY=***REDACTED***"));
+        assertThat(result.contains("AWS_SECRET_ACCESS_KEY=***REDACTED***")).isTrue();
+        assertThat(result.contains("MY_TOKEN=***REDACTED***")).isTrue();
+        assertThat(result.contains("DATABASE_PASSWORD=***REDACTED***")).isTrue();
+        assertThat(result.contains("ACCESS_KEY=***REDACTED***")).isTrue();
 
         // Assert normal values are intact
-        assertTrue(result.contains("NORMAL_VAR=safe-value"));
+        assertThat(result.contains("NORMAL_VAR=safe-value")).isTrue();
 
         // Ensure no sensitive values are leaked
-        assertFalse(result.contains("secret123"));
-        assertFalse(result.contains("token456"));
-        assertFalse(result.contains("pass789"));
-        assertFalse(result.contains("keyABC"));
+        assertThat(result.contains("secret123")).isFalse();
+        assertThat(result.contains("token456")).isFalse();
+        assertThat(result.contains("pass789")).isFalse();
+        assertThat(result.contains("keyABC")).isFalse();
     }
 
     @AfterEach
