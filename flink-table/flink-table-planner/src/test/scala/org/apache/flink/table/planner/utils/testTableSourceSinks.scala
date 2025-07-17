@@ -329,7 +329,7 @@ class TestPartitionableTableSource(
 
   override def explainSource(): String = {
     if (remainingPartitions != null) {
-      s"partitions=${remainingPartitions.mkString(", ")}"
+      s"partitions=${PartitionUtils.sortPartitionsByKey(remainingPartitions)}"
     } else {
       ""
     }
