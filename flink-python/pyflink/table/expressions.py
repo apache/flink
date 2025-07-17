@@ -561,6 +561,39 @@ def map_from_arrays(key, value) -> Expression:
 
 
 @PublicEvolving()
+def object_of(class_name: str, *args) -> Expression:
+    """
+    Creates a structured object from a list of key-value pairs.
+
+    This function creates an instance of a structured type identified by the given class name.
+    The structured type is created by providing alternating key-value pairs where keys must be
+    string literals and values can be arbitrary expressions.
+
+    Note: The class name is only used for distinguishing two structured types with identical fields.
+    Structured types are internally handled with suitable data structures.
+    Thus, serialization and equality checks are managed by the system.
+
+    In Table API and UDF calls, the system will attempt to resolve
+    the class name to an actual implementation class.
+    In this case the class name needs to be present in the user classpath.
+    If resolution fails, Row class is used as a fallback.
+
+    Examples:
+    ::
+
+        >>> # Creates a User object with name="Alice" and age=30
+        >>> object_of("com.example.User", "name", "Alice", "age", 30)
+
+    :param class_name: The fully qualified class name
+    :param args: Alternating key-value pairs: key1, value1, key2, value2, ...
+    :return: A structured object expression
+
+    .. seealso:: SQL function: OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 25)
+    """
+    return _varargs_op("objectOf", class_name, *args)
+
+
+@PublicEvolving()
 def row_interval(rows: int) -> Expression:
     """
     Creates an interval of rows.

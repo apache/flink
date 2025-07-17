@@ -81,7 +81,7 @@ public abstract class BaseTwoInputStreamOperatorWithStateRetention
     }
 
     @Override
-    public boolean useSplittableTimers() {
+    public boolean useInterruptibleTimers() {
         return true;
     }
 

@@ -377,12 +377,28 @@ public class KubernetesConfigOptions {
                             "The user-specified annotations that are set to the rest Service. The value should be "
                                     + "in the form of a1:v1,a2:v2");
 
+    public static final ConfigOption<Map<String, String>> REST_SERVICE_LABELS =
+            key("kubernetes.rest-service.labels")
+                    .mapType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The user-specified labels that are set to the rest Service. The value should be "
+                                    + "in the form of a1:v1,a2:v2");
+
     public static final ConfigOption<Map<String, String>> INTERNAL_SERVICE_ANNOTATIONS =
             key("kubernetes.internal-service.annotations")
                     .mapType()
                     .noDefaultValue()
                     .withDescription(
                             "The user-specified annotations that are set to the internal Service. The value should be "
+                                    + "in the form of a1:v1,a2:v2");
+
+    public static final ConfigOption<Map<String, String>> INTERNAL_SERVICE_LABELS =
+            key("kubernetes.internal-service.labels")
+                    .mapType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The user-specified labels that are set to the internal Service. The value should be "
                                     + "in the form of a1:v1,a2:v2");
 
     /**

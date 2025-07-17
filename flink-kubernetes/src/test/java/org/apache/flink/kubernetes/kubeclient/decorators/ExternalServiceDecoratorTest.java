@@ -31,7 +31,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -43,12 +42,14 @@ class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
     private ExternalServiceDecorator externalServiceDecorator;
 
     private Map<String, String> customizedAnnotations =
-            new HashMap<String, String>() {
-                {
-                    put("annotation1", "annotation-value1");
-                    put("annotation2", "annotation-value2");
-                }
-            };
+            Map.of(
+                    "annotation1", "annotation-value1",
+                    "annotation2", "annotation-value2");
+
+    private Map<String, String> customizedLabels =
+            Map.of(
+                    "label1", "label-value1",
+                    "label2", "label-value2");
 
     @Override
     protected void onSetup() throws Exception {
@@ -56,6 +57,7 @@ class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
 
         this.flinkConfig.set(
                 KubernetesConfigOptions.REST_SERVICE_ANNOTATIONS, customizedAnnotations);
+        this.flinkConfig.set(KubernetesConfigOptions.REST_SERVICE_LABELS, customizedLabels);
         this.externalServiceDecorator =
                 new ExternalServiceDecorator(this.kubernetesJobManagerParameters);
     }
@@ -74,6 +76,7 @@ class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
                 .isEqualTo(ExternalServiceDecorator.getExternalServiceName(CLUSTER_ID));
 
         final Map<String, String> expectedLabels = getCommonLabels();
+        expectedLabels.putAll(customizedLabels);
         assertThat(restService.getMetadata().getLabels()).isEqualTo(expectedLabels);
 
         assertThat(restService.getSpec().getType())
@@ -88,8 +91,9 @@ class ExternalServiceDecoratorTest extends KubernetesJobManagerTestBase {
                                 .build());
         assertThat(restService.getSpec().getPorts()).isEqualTo(expectedServicePorts);
 
-        expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
-        assertThat(restService.getSpec().getSelector()).isEqualTo(expectedLabels);
+        final Map<String, String> expectedSelectors = getCommonLabels();
+        expectedSelectors.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_JOB_MANAGER);
+        assertThat(restService.getSpec().getSelector()).isEqualTo(expectedSelectors);
 
         final Map<String, String> resultAnnotations = restService.getMetadata().getAnnotations();
         assertThat(resultAnnotations).isEqualTo(customizedAnnotations);

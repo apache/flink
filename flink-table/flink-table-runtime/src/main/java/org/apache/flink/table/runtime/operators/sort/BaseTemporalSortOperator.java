@@ -39,7 +39,7 @@ abstract class BaseTemporalSortOperator extends AbstractStreamOperator<RowData>
     BaseTemporalSortOperator() {}
 
     @Override
-    public boolean useSplittableTimers() {
+    public boolean useInterruptibleTimers() {
         return true;
     }
 

@@ -294,7 +294,7 @@ public class LogicalTypeJsonSerdeTest {
                                                         "f2", new VarCharType(200), "desc")))
                                 .build(),
                         // inline structured type with class name only
-                        StructuredType.newBuilder(PojoClass.class.getName())
+                        StructuredType.newBuilder("NotInClassPathPojo")
                                 .attributes(
                                         Arrays.asList(
                                                 new StructuredAttribute("f0", new IntType(true)),
