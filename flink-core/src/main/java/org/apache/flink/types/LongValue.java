@@ -115,8 +115,8 @@ public class LongValue
      */
     @Override
     public boolean equals(final Object obj) {
-        if (obj instanceof LongValue) {
-            return ((LongValue) obj).value == this.value;
+        if (obj instanceof LongValue other) {
+            return other.value == this.value;
         }
         return false;
     }
