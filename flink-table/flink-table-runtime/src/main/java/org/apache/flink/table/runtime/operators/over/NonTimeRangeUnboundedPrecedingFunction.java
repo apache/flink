@@ -422,11 +422,13 @@ public class NonTimeRangeUnboundedPrecedingFunction<K>
     private void setAccumulatorOfPrevRow(
             List<Tuple2<RowData, List<Long>>> sortedList, int prevIndex) throws Exception {
         if (prevIndex < 0) {
-            aggFuncs.createAccumulators();
+            RowData accData = aggFuncs.createAccumulators();
+            aggFuncs.setAccumulators(accData);
         } else {
             RowData prevAcc = accMapState.get(sortedList.get(prevIndex).f0);
             if (prevAcc == null) {
-                aggFuncs.createAccumulators();
+                RowData accData = aggFuncs.createAccumulators();
+                aggFuncs.setAccumulators(accData);
             } else {
                 aggFuncs.setAccumulators(prevAcc);
             }
