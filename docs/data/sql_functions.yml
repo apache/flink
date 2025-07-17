@@ -1198,6 +1198,24 @@ valueconstruction:
       ```sql
       f(columns => DESCRIPTOR(`col1`, `col2`), on_time => DESCRIPTOR(`ts`))
       ```
+  - sql: OBJECT_OF(className, [key, value [, key, value , ...]])
+    table: objectOf(STRING, Object...)
+    description: |
+      Creates a structured object from a list of key-value pairs.
+      
+      This function creates an instance of a structured type identified by the given class name.
+      The structured type is created by providing alternating key-value pairs where keys must be
+      string literals and values can be arbitrary expressions.
+      
+      Note: The class name is only used for distinguishing two structured types with identical fields.
+      Structured types are internally handled with suitable data structures. Thus, serialization and equality checks are managed by the system.
+      In Table API and UDF calls, the system will attempt to resolve the class name to an actual implementation class.
+      In this case the class name needs to be present in the user classpath. If resolution fails, Row is used as a fallback.
+
+      ```sql
+      -- Creates a User object with complex fields "name", "age", and "address"
+      OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 21, 'address', OBJECT_OF('com.example.Address', 'street', 'primary', 'city', 'Berlin'))
+      ```
   - table: NUMERIC.rows
     description: Creates a NUMERIC interval of rows (commonly used in window creation).
 

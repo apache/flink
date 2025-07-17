@@ -63,6 +63,9 @@ public final class SpecificInputTypeStrategies {
     /** See {@link OverTypeStrategy}. */
     public static final InputTypeStrategy OVER = new OverTypeStrategy();
 
+    /** See {@link ObjectOfInputTypeStrategy}. */
+    public static final InputTypeStrategy OBJECT_OF = new ObjectOfInputTypeStrategy();
+
     /** See {@link WindowTimeIndictorInputTypeStrategy}. */
     public static InputTypeStrategy windowTimeIndicator(TimestampKind timestampKind) {
         return new WindowTimeIndictorInputTypeStrategy(timestampKind);

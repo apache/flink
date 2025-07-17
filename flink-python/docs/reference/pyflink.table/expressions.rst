@@ -55,6 +55,7 @@ Expressions
     row
     map_
     map_from_arrays
+    object_of
     row_interval
     pi
     e
@@ -260,6 +261,7 @@ advanced type helper functions
     Expression.array_except
     Expression.array_intersect
     Expression.split
+
 
 time definition functions
 -------------------------
