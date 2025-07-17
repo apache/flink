@@ -671,6 +671,7 @@ public class Execution
                             jobMasterMainThreadExecutor);
 
         } catch (Throwable t) {
+            ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
             markFailed(t);
         }
     }
