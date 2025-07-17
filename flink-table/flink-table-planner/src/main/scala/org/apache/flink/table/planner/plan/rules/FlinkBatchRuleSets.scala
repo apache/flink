@@ -63,10 +63,15 @@ object FlinkBatchRuleSets {
 
   /** RuleSet to reduce expressions */
   private val REDUCE_EXPRESSION_RULES: RuleSet = RuleSets.ofList(
-    CoreRules.FILTER_REDUCE_EXPRESSIONS,
     CoreRules.PROJECT_REDUCE_EXPRESSIONS,
+    CoreRules.FILTER_REDUCE_EXPRESSIONS,
     CoreRules.CALC_REDUCE_EXPRESSIONS,
-    CoreRules.JOIN_REDUCE_EXPRESSIONS
+//    CoreRules.WINDOW_REDUCE_EXPRESSIONS,
+    CoreRules.JOIN_REDUCE_EXPRESSIONS,
+//    CoreRules.FILTER_VALUES_MERGE,
+//    CoreRules.PROJECT_FILTER_VALUES_MERGE,
+    CoreRules.PROJECT_VALUES_MERGE,
+    CoreRules.AGGREGATE_VALUES
   )
 
   /** RuleSet to simplify coalesce invocations */
