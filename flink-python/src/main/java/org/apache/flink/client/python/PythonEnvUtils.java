@@ -20,6 +20,7 @@ package org.apache.flink.client.python;
 
 import org.apache.flink.client.deployment.application.UnsuccessfulExecutionException;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.python.util.PythonDependencyUtils;
@@ -369,8 +370,18 @@ final class PythonEnvUtils {
             pythonProcessBuilder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
         }
         LOG.info(
-                "Starting Python process with environment variables: {}, command: {}",
-                redactEnv(env),
+                "Starting Python process with environment variables: {{}}, command: {}",
+                env.entrySet().stream()
+                        .map(
+                                e -> {
+                                    String key = e.getKey();
+                                    String value =
+                                            GlobalConfiguration.isSensitive(key)
+                                                    ? GlobalConfiguration.HIDDEN_CONTENT
+                                                    : e.getValue();
+                                    return key + "=" + value;
+                                })
+                        .collect(Collectors.joining(", ")),
                 String.join(" ", commands));
         Process process = pythonProcessBuilder.start();
         if (!process.isAlive()) {
@@ -540,24 +551,5 @@ final class PythonEnvUtils {
                 gatewayServer.shutdown();
             }
         }
-    }
-
-    /**
-     * Redacts values of sensitive environment variables before logging.
-     * Keys containing patterns such as SECRET, TOKEN, PASSWORD, or KEY (case-insensitive)
-     * will have their values replaced with "***REDACTED***".
-     */
-    public static String redactEnv(Map<String, String> environment) {
-        return environment.entrySet().stream()
-                .map(
-                        e -> {
-                            String key = e.getKey();
-                            String value =
-                                    key.toUpperCase().matches(".*(SECRET|TOKEN|PASSWORD|KEY).*")
-                                            ? "***REDACTED***"
-                                            : e.getValue();
-                            return key + "=" + value;
-                        })
-                .collect(Collectors.joining(", "));
     }
 }
