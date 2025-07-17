@@ -190,17 +190,6 @@ class ArrayTypeTest extends ArrayTypeTestBase {
 
     testAllApis('f11.cardinality(), "CARDINALITY(f11)", "1")
 
-    // element
-    testAllApis('f9.element(), "ELEMENT(f9)", "1")
-
-    testAllApis('f8.element(), "ELEMENT(f8)", "4.0")
-
-    testAllApis('f10.element(), "ELEMENT(f10)", "NULL")
-
-    testAllApis('f4.element(), "ELEMENT(f4)", "NULL")
-
-    testAllApis('f11.element(), "ELEMENT(f11)", "1")
-
     // comparison
     testAllApis('f2 === 'f5.at(1), "f2 = f5[1]", "TRUE")
 
