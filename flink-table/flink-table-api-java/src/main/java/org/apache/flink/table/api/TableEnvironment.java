@@ -1176,6 +1176,49 @@ public interface TableEnvironment {
     Table fromCall(Class<? extends UserDefinedFunction> function, Object... arguments);
 
     /**
+     * Returns a {@link Model} object that is backed by the specified model path.
+     *
+     * <p>This method creates a {@link Model} object from a given model path in the catalog. The
+     * model path can be fully or partially qualified (e.g., "catalog.db.model" or just "model"),
+     * depending on the current catalog and database context.
+     *
+     * <p>The returned {@link Model} object can be used for further transformations or as input to
+     * other operations in the Table API.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * Model model = tableEnv.fromModelPath("my_model");
+     * }</pre>
+     *
+     * @param modelPath The path of the model in the catalog.
+     * @return The {@link Model} object describing the model resource.
+     */
+    Model fromModelPath(String modelPath);
+
+    /**
+     * Returns a {@link Model} object that is backed by the specified {@link ModelDescriptor}.
+     *
+     * <p>This method creates a {@link Model} object using the provided {@link ModelDescriptor},
+     * which contains the necessary information to identify and configure the model resource in the
+     * catalog.
+     *
+     * <p>The returned {@link Model} object can be used for further transformations or as input to
+     * other operations in the Table API.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * ModelDescriptor descriptor = ...;
+     * Model model = tableEnv.from(descriptor);
+     * }</pre>
+     *
+     * @param descriptor The {@link ModelDescriptor} describing the model resource.
+     * @return The {@link Model} object representing the model resource.
+     */
+    Model from(ModelDescriptor descriptor);
+
+    /**
      * Gets the names of all catalogs registered in this environment.
      *
      * @return A list of the names of all registered catalogs.

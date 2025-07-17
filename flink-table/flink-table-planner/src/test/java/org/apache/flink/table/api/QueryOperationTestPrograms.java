@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.QueryOperation;
@@ -30,6 +31,7 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunction
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
+import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
@@ -39,6 +41,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
+import java.util.Map;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.UNBOUNDED_ROW;
@@ -49,6 +52,10 @@ import static org.apache.flink.table.api.Expressions.lag;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.nullOf;
 import static org.apache.flink.table.api.Expressions.row;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.ASYNC_MODEL;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.SIMPLE_FEATURES_SOURCE;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.SIMPLE_SINK;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.SYNC_MODEL;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.BASIC_VALUES;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.KEYED_TIMED_BASE_SINK_SCHEMA;
@@ -1114,6 +1121,62 @@ public class QueryOperationTestPrograms {
                                         ptf1.partitionBy($("name")).asArgument("r"),
                                         descriptor("rowtime").asArgument("on_time"));
                             },
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram ML_PREDICT_MODEL_API =
+            TableTestProgram.of("ml-predict-model-api", "ml-predict using model API")
+                    .setupTableSource(SIMPLE_FEATURES_SOURCE)
+                    .setupModel(SYNC_MODEL)
+                    .setupTableSink(SIMPLE_SINK)
+                    .runTableApi(
+                            env ->
+                                    env.fromModel("chatgpt")
+                                            .predict(
+                                                    env.from("features"), ColumnList.of("feature")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram ASYNC_ML_PREDICT_MODEL_API =
+            TableTestProgram.of("async-ml-predict-model-api", "async ml-predict using model API")
+                    .setupTableSource(SIMPLE_FEATURES_SOURCE)
+                    .setupModel(ASYNC_MODEL)
+                    .setupTableSink(SIMPLE_SINK)
+                    .setupConfig(
+                            ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE,
+                            ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED)
+                    .runTableApi(
+                            env ->
+                                    env.fromModel("chatgpt")
+                                            .predict(
+                                                    env.from("features"),
+                                                    ColumnList.of("feature"),
+                                                    Map.of(
+                                                            "async",
+                                                            "true",
+                                                            "max-concurrent-operations",
+                                                            "10")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram ASYNC_ML_PREDICT_TABLE_API_MAP_EXPRESSION_CONFIG =
+            TableTestProgram.of(
+                            "async-ml-predict-table-api-map-expression-config",
+                            "ml-predict in async mode using Table API and map expression.")
+                    .setupTableSource(SIMPLE_FEATURES_SOURCE)
+                    .setupModel(ASYNC_MODEL)
+                    .setupTableSink(SIMPLE_SINK)
+                    .setupConfig(
+                            ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE,
+                            ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED)
+                    .runTableApi(
+                            env ->
+                                    env.fromCall(
+                                            "ML_PREDICT",
+                                            env.from("features").asArgument("INPUT"),
+                                            env.fromModel("chatgpt").asArgument("MODEL"),
+                                            descriptor("feature").asArgument("ARGS"),
+                                            Expressions.map("async", "true").asArgument("CONFIG")),
                             "sink")
                     .build();
 

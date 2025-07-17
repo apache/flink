@@ -61,6 +61,10 @@ public final class ColumnList implements Serializable {
         return of(names, List.of());
     }
 
+    public static ColumnList of(String... names) {
+        return of(List.of(names));
+    }
+
     /**
      * Returns a list of column names.
      *

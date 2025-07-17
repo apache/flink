@@ -157,6 +157,19 @@ public final class Expressions {
     }
 
     /**
+     * Creates a literal describing an arbitrary, unvalidated list of column names.
+     *
+     * <p>Passing a column list can be useful for parameterizing a function. In particular, it
+     * enables declaring the {@code on_time} argument for {@link ProcessTableFunction} or the {@code
+     * inputColumns} for {@link Model#predict}.
+     *
+     * <p>The data type will be {@link DataTypes#DESCRIPTOR()}.
+     */
+    public static ApiExpression descriptor(ColumnList columnList) {
+        return new ApiExpression(valueLiteral(columnList));
+    }
+
+    /**
      * Indicates a range from 'start' to 'end', which can be used in columns selection.
      *
      * <p>Example:

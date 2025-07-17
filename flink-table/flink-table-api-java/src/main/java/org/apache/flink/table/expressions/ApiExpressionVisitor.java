@@ -49,6 +49,8 @@ public abstract class ApiExpressionVisitor<R> implements ExpressionVisitor<R> {
 
     public abstract R visit(TableReferenceExpression tableReference);
 
+    public abstract R visit(ModelReferenceExpression modelReferenceExpression);
+
     public abstract R visit(LocalReferenceExpression localReference);
 
     /** For resolved expressions created by the planner. */

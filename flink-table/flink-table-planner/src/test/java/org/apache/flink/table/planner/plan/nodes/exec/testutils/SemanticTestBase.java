@@ -22,10 +22,12 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.planner.factories.TestValuesModelFactory;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.test.program.ConfigOptionTestStep;
 import org.apache.flink.table.test.program.FailingSqlTestStep;
 import org.apache.flink.table.test.program.FunctionTestStep;
+import org.apache.flink.table.test.program.ModelTestStep;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.SqlTestStep;
@@ -62,6 +64,7 @@ public abstract class SemanticTestBase implements TableTestProgramRunner {
     public EnumSet<TestKind> supportedSetupSteps() {
         return EnumSet.of(
                 TestKind.CONFIG,
+                TestKind.MODEL,
                 TestKind.SOURCE_WITH_DATA,
                 TestKind.SINK_WITH_DATA,
                 TestKind.FUNCTION,
@@ -143,6 +146,15 @@ public abstract class SemanticTestBase implements TableTestProgramRunner {
                 {
                     final FailingSqlTestStep sqlTestStep = (FailingSqlTestStep) testStep;
                     sqlTestStep.apply(env);
+                }
+                break;
+            case MODEL:
+                {
+                    final ModelTestStep modelTestStep = (ModelTestStep) testStep;
+                    final Map<String, String> options = new HashMap<>();
+                    options.put("provider", "values");
+                    options.put("data-id", TestValuesModelFactory.registerData(modelTestStep.data));
+                    modelTestStep.apply(env, options);
                 }
                 break;
             case TABLE_API:
