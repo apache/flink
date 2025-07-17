@@ -24,6 +24,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.LookupCallExpression;
+import org.apache.flink.table.expressions.ModelReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
@@ -276,6 +277,11 @@ public class OperationExpressionsUtils {
         @Override
         public Optional<String> visit(TableReferenceExpression tableReference) {
             return Optional.of(tableReference.getName());
+        }
+
+        @Override
+        public Optional<String> visit(ModelReferenceExpression modelReference) {
+            return Optional.of(modelReference.getName());
         }
 
         @Override

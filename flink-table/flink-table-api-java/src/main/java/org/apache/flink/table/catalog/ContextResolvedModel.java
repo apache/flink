@@ -19,12 +19,14 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * This class contains information about a model and its relationship with a {@link Catalog}, if
@@ -48,28 +50,46 @@ import java.util.Optional;
 @Internal
 public final class ContextResolvedModel {
 
+    private static final AtomicInteger uniqueId = new AtomicInteger(0);
     private final ObjectIdentifier objectIdentifier;
     private final @Nullable Catalog catalog;
     private final ResolvedCatalogModel resolvedModel;
+    private final boolean anonymous;
 
     public static ContextResolvedModel permanent(
             ObjectIdentifier identifier, Catalog catalog, ResolvedCatalogModel resolvedModel) {
         return new ContextResolvedModel(
-                identifier, Preconditions.checkNotNull(catalog), resolvedModel);
+                identifier, Preconditions.checkNotNull(catalog), resolvedModel, false);
     }
 
     public static ContextResolvedModel temporary(
             ObjectIdentifier identifier, ResolvedCatalogModel resolvedModel) {
-        return new ContextResolvedModel(identifier, null, resolvedModel);
+        return new ContextResolvedModel(identifier, null, resolvedModel, false);
+    }
+
+    public static ContextResolvedModel anonymous(ResolvedCatalogModel resolvedModel) {
+        return anonymous(null, resolvedModel);
+    }
+
+    public static ContextResolvedModel anonymous(
+            @Nullable String hint, ResolvedCatalogModel resolvedModel) {
+        return new ContextResolvedModel(
+                ObjectIdentifier.ofAnonymous(
+                        generateAnonymousStringIdentifier(hint, resolvedModel)),
+                null,
+                resolvedModel,
+                true);
     }
 
     private ContextResolvedModel(
             ObjectIdentifier objectIdentifier,
             @Nullable Catalog catalog,
-            ResolvedCatalogModel resolvedModel) {
+            ResolvedCatalogModel resolvedModel,
+            boolean anonymous) {
         this.objectIdentifier = Preconditions.checkNotNull(objectIdentifier);
         this.catalog = catalog;
         this.resolvedModel = Preconditions.checkNotNull(resolvedModel);
+        this.anonymous = anonymous;
     }
 
     /**
@@ -81,6 +101,10 @@ public final class ContextResolvedModel {
 
     public boolean isPermanent() {
         return !isTemporary();
+    }
+
+    public boolean isAnonymous() {
+        return anonymous;
     }
 
     public ObjectIdentifier getIdentifier() {
@@ -116,13 +140,39 @@ public final class ContextResolvedModel {
             return false;
         }
         ContextResolvedModel that = (ContextResolvedModel) o;
-        return Objects.equals(objectIdentifier, that.objectIdentifier)
+        return anonymous == that.anonymous
+                && Objects.equals(objectIdentifier, that.objectIdentifier)
                 && Objects.equals(catalog, that.catalog)
                 && Objects.equals(resolvedModel, that.resolvedModel);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(objectIdentifier, catalog, resolvedModel);
+        return Objects.hash(objectIdentifier, catalog, resolvedModel, anonymous);
+    }
+
+    /**
+     * This method tries to return the provider name of the model, trying to provide a bit more
+     * helpful toString for anonymous models. It's only to help users to debug, and its return value
+     * should not be relied on.
+     */
+    private static String generateAnonymousStringIdentifier(
+            @Nullable String hint, ResolvedCatalogModel resolvedModel) {
+        // Planner can do some fancy optimizations' logic squashing two sources together in the same
+        // operator. Because this logic is string based, anonymous models still need some kind of
+        // unique string based identifier that can be used later by the planner.
+        if (hint == null) {
+            try {
+                hint = resolvedModel.getOptions().get(FactoryUtil.PROVIDER.key());
+            } catch (Exception ignored) {
+            }
+        }
+
+        int id = uniqueId.incrementAndGet();
+        if (hint == null) {
+            return "*anonymous$" + id + "*";
+        }
+
+        return "*anonymous_" + hint + "$" + id + "*";
     }
 }
