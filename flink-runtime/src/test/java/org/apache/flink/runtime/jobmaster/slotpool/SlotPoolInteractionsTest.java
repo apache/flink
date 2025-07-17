@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 
 import org.junit.jupiter.api.Test;
@@ -60,6 +61,7 @@ class SlotPoolInteractionsTest {
                                     pool.requestNewAllocatedSlot(
                                             new SlotRequestId(),
                                             ResourceProfile.UNKNOWN,
+                                            DefaultLoadingWeight.EMPTY,
                                             fastTimeout));
 
             assertThatThrownBy(future::get)
@@ -80,6 +82,7 @@ class SlotPoolInteractionsTest {
                                     pool.requestNewAllocatedSlot(
                                             new SlotRequestId(),
                                             ResourceProfile.UNKNOWN,
+                                            DefaultLoadingWeight.EMPTY,
                                             fastTimeout));
 
             assertThatThrownBy(future::get)
@@ -103,6 +106,7 @@ class SlotPoolInteractionsTest {
                                     pool.requestNewAllocatedSlot(
                                             new SlotRequestId(),
                                             ResourceProfile.UNKNOWN,
+                                            DefaultLoadingWeight.EMPTY,
                                             fastTimeout));
 
             assertThatThrownBy(future::get)
