@@ -26,10 +26,9 @@ import { BlockedBadgeComponent } from '@flink-runtime-web/components/blocked-bad
 import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.pipe';
 import { TaskManagersItem } from '@flink-runtime-web/interfaces';
 import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
-import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
+import { typeDefinition } from '@flink-runtime-web/utils';
 import { NzCardModule } from 'ng-zorro-antd/card';
-import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+import { NzTableModule, NzTableSortFn } from 'ng-zorro-antd/table';
 
 function createSortFn(selector: (item: TaskManagersItem) => number): NzTableSortFn<TaskManagersItem> {
   return (pre, next) => (selector(pre) > selector(next) ? 1 : -1);
@@ -40,8 +39,7 @@ function createSortFn(selector: (item: TaskManagersItem) => number): NzTableSort
   templateUrl: './task-manager-list.component.html',
   styleUrls: ['./task-manager-list.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCardModule, NzTableModule, NgForOf, BlockedBadgeComponent, NgIf, DatePipe, HumanizeBytesPipe],
-  standalone: true
+  imports: [NzCardModule, NzTableModule, NgForOf, BlockedBadgeComponent, NgIf, DatePipe, HumanizeBytesPipe]
 })
 export class TaskManagerListComponent implements OnInit, OnDestroy {
   public readonly trackById = (_: number, node: TaskManagersItem): string => node.id;

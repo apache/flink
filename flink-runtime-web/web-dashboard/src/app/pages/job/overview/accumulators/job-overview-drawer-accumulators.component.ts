@@ -22,20 +22,18 @@ import { of, Subject } from 'rxjs';
 import { catchError, mergeMap, takeUntil } from 'rxjs/operators';
 
 import { JobAccumulators, SubTaskAccumulators, UserAccumulators } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobService } from '@flink-runtime-web/services';
-import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
+import { typeDefinition } from '@flink-runtime-web/utils';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
-
-import { JobLocalService } from '../../job-local.service';
 
 @Component({
   selector: 'flink-job-overview-drawer-accumulators',
   templateUrl: './job-overview-drawer-accumulators.component.html',
   styleUrls: ['./job-overview-drawer-accumulators.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTabsModule, NzTableModule, NgIf, DecimalPipe],
-  standalone: true
+  imports: [NzTabsModule, NzTableModule, NgIf, DecimalPipe]
 })
 export class JobOverviewDrawerAccumulatorsComponent implements OnInit, OnDestroy {
   public readonly trackByName = (_: number, node: UserAccumulators): string => node.name;
@@ -61,12 +59,12 @@ export class JobOverviewDrawerAccumulatorsComponent implements OnInit, OnDestroy
       .pipe(
         mergeMap(data =>
           this.jobService.loadAccumulators(data.job.jid, data.vertex!.id).pipe(
-            catchError(() => {
-              return of({
+            catchError(() =>
+              of({
                 main: [],
                 subtasks: []
-              } as JobAccumulators);
-            })
+              } as JobAccumulators)
+            )
           )
         ),
         takeUntil(this.destroy$)
