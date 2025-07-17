@@ -28,7 +28,7 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
+import { NzInputNumberLegacyModule } from 'ng-zorro-antd/input-number-legacy';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSpaceModule } from 'ng-zorro-antd/space';
@@ -43,7 +43,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
   imports: [
     NzCardModule,
     NzFormModule,
-    NzInputNumberModule,
+    NzInputNumberLegacyModule,
     FormsModule,
     NzButtonModule,
     NzAlertModule,

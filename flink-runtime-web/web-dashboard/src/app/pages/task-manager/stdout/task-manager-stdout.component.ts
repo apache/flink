@@ -30,8 +30,7 @@ import {
   TASK_MANAGER_MODULE_DEFAULT_CONFIG
 } from '@flink-runtime-web/pages/task-manager/task-manager.config';
 import { ConfigService, TaskManagerService } from '@flink-runtime-web/services';
-import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { NzCodeEditorModule, EditorOptions } from 'ng-zorro-antd/code-editor';
 
 @Component({
   selector: 'flink-task-manager-stdout',
