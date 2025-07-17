@@ -287,6 +287,17 @@ Supported Environment:
 {{< label Google Cloud >}}
 {{< label On-Premise >}}
 
+#### Confluent 
+
+[Website](https://www.confluent.io/product/flink/)
+
+Supported Environment:
+{{< label AWS >}}
+{{< label Azure >}}
+{{< label Google Cloud >}}
+{{< label On-Premise >}}
+{{< label Private-Cloud >}}
+
 #### Huawei Cloud Stream Service
 
 [Website](https://www.huaweicloud.com/intl/en-us/product/cs.html)
