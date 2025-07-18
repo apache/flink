@@ -1009,6 +1009,11 @@ public class BlobServer extends Thread
         return this.serverSocket.getLocalPort();
     }
 
+    @Override
+    public InetAddress getAddress() {
+        return this.serverSocket.getInetAddress();
+    }
+
     /**
      * Returns the blob expiry times - for testing purposes only!
      *

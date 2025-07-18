@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.blob;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 /** No-op {@link TaskExecutorBlobService} implementation for testing purposes. */
@@ -35,6 +36,11 @@ public class NoOpTaskExecutorBlobService implements TaskExecutorBlobService {
     @Override
     public int getPort() {
         return 0;
+    }
+
+    @Override
+    public InetAddress getAddress() {
+        return null;
     }
 
     @Override

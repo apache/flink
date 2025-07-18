@@ -42,6 +42,7 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.ObjectInputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -188,18 +189,22 @@ public final class JobSubmitHandler
             Collection<Tuple2<String, Path>> artifacts,
             Configuration configuration) {
         CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
+        CompletableFuture<InetAddress> blobServerAddressFuture =
+                gateway.getBlobServerAddress(timeout);
 
         return executionPlanFuture.thenCombine(
-                blobServerPortFuture,
-                (ExecutionPlan executionPlan, Integer blobServerPort) -> {
-                    final InetSocketAddress address =
-                            new InetSocketAddress(gateway.getHostname(), blobServerPort);
+                blobServerPortFuture.thenCombine(
+                        blobServerAddressFuture,
+                        (blobServerPort, blobServerAddress) ->
+                                new InetSocketAddress(
+                                        blobServerAddress.getHostName(), blobServerPort)),
+                (ExecutionPlan executionPlan, InetSocketAddress blobSocketAddress) -> {
                     try {
                         ClientUtils.uploadExecutionPlanFiles(
                                 executionPlan,
                                 jarFiles,
                                 artifacts,
-                                () -> new BlobClient(address, configuration));
+                                () -> new BlobClient(blobSocketAddress, configuration));
                     } catch (FlinkException e) {
                         throw new CompletionException(
                                 new RestHandlerException(

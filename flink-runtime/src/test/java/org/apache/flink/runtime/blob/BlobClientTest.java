@@ -242,7 +242,8 @@ class BlobClientTest {
             byte[] digest = md.digest();
 
             InetSocketAddress serverAddress =
-                    new InetSocketAddress("localhost", getBlobServer().getPort());
+                    new InetSocketAddress(
+                            getBlobServer().getAddress().getHostName(), getBlobServer().getPort());
             client = new BlobClient(serverAddress, getBlobClientConfig());
 
             JobID jobId = new JobID();
@@ -329,7 +330,9 @@ class BlobClientTest {
 
         try (BlobClient client =
                 new BlobClient(
-                        new InetSocketAddress("localhost", getBlobServer().getPort()),
+                        new InetSocketAddress(
+                                getBlobServer().getAddress().getHostName(),
+                                getBlobServer().getPort()),
                         getBlobClientConfig())) {
 
             JobID jobId = new JobID();
@@ -403,7 +406,9 @@ class BlobClientTest {
 
         try (BlobClient client =
                 new BlobClient(
-                        new InetSocketAddress("localhost", getBlobServer().getPort()),
+                        new InetSocketAddress(
+                                getBlobServer().getAddress().getHostName(),
+                                getBlobServer().getPort()),
                         getBlobClientConfig())) {
 
             byte[] data = new byte[5000000];
@@ -462,7 +467,8 @@ class BlobClientTest {
         testFile.deleteOnExit();
         prepareTestFile(testFile);
 
-        InetSocketAddress serverAddress = new InetSocketAddress("localhost", blobServer.getPort());
+        InetSocketAddress serverAddress =
+                new InetSocketAddress(blobServer.getAddress().getHostName(), blobServer.getPort());
 
         uploadJarFile(serverAddress, blobClientConfig, testFile);
         uploadJarFile(serverAddress, blobClientConfig, testFile);
@@ -504,7 +510,8 @@ class BlobClientTest {
                         10_000L)) {
             testBlobServer.start();
             InetSocketAddress serverAddress =
-                    new InetSocketAddress("localhost", testBlobServer.getPort());
+                    new InetSocketAddress(
+                            getBlobServer().getAddress().getHostName(), testBlobServer.getPort());
 
             try (BlobClient client = new BlobClient(serverAddress, clientConfig)) {
                 client.getInternal(new JobID(), BlobKey.createKey(TRANSIENT_BLOB));
@@ -523,7 +530,9 @@ class BlobClientTest {
     void testUnresolvedInetSocketAddress() throws Exception {
         try (BlobClient client =
                 new BlobClient(
-                        InetSocketAddress.createUnresolved("localhost", getBlobServer().getPort()),
+                        InetSocketAddress.createUnresolved(
+                                getBlobServer().getAddress().getHostName(),
+                                getBlobServer().getPort()),
                         getBlobClientConfig())) {
             assertThat(client.isConnected()).isTrue();
         }
