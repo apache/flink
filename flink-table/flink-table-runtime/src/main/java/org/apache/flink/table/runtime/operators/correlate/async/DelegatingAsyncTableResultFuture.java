@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 /**
  * Delegates actions of {@link java.util.concurrent.CompletableFuture} to {@link ResultFuture}. This
@@ -36,8 +37,7 @@ import java.util.function.BiConsumer;
 public class DelegatingAsyncTableResultFuture implements BiConsumer<Collection<Object>, Throwable> {
 
     private final ResultFuture<Object> delegatedResultFuture;
-    private final boolean needsWrapping;
-    private final boolean isInternalResultType;
+    private final Function<Collection<Object>, Collection<Object>> wrapFunction;
 
     private final CompletableFuture<Collection<Object>> completableFuture;
 
@@ -46,8 +46,10 @@ public class DelegatingAsyncTableResultFuture implements BiConsumer<Collection<O
             boolean needsWrapping,
             boolean isInternalResultType) {
         this.delegatedResultFuture = delegatedResultFuture;
-        this.needsWrapping = needsWrapping;
-        this.isInternalResultType = isInternalResultType;
+        this.wrapFunction =
+                needsWrapping
+                        ? (isInternalResultType ? this::wrapInternal : this::wrapExternal)
+                        : outs -> outs;
         this.completableFuture = new CompletableFuture<>();
         this.completableFuture.whenComplete(this);
     }
@@ -57,19 +59,24 @@ public class DelegatingAsyncTableResultFuture implements BiConsumer<Collection<O
         if (throwable != null) {
             delegatedResultFuture.completeExceptionally(throwable);
         } else {
-            if (needsWrapping) {
-                List<Object> wrapped = new ArrayList<>();
-                for (Object value : outs) {
-                    if (isInternalResultType) {
-                        wrapped.add(GenericRowData.of(value));
-                    } else {
-                        wrapped.add(Row.of(value));
-                    }
-                }
-                outs = wrapped;
-            }
-            delegatedResultFuture.complete(outs);
+            delegatedResultFuture.complete(wrapFunction.apply(outs));
         }
+    }
+
+    private Collection<Object> wrapInternal(Collection<Object> outs) {
+        List<Object> wrapped = new ArrayList<>();
+        for (Object value : outs) {
+            wrapped.add(GenericRowData.of(value));
+        }
+        return wrapped;
+    }
+
+    private Collection<Object> wrapExternal(Collection<Object> outs) {
+        List<Object> wrapped = new ArrayList<>();
+        for (Object value : outs) {
+            wrapped.add(Row.of(value));
+        }
+        return wrapped;
     }
 
     public CompletableFuture<Collection<Object>> getCompletableFuture() {
