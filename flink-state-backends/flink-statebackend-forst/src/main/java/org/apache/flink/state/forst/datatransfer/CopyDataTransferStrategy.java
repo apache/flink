@@ -127,7 +127,8 @@ public class CopyDataTransferStrategy extends DataTransferStrategy {
                         sourceStateHandle,
                         checkpointStreamFactory,
                         stateScope,
-                        tmpResourcesRegistry);
+                        tmpResourcesRegistry,
+                        maxTransferBytes);
         if (targetStateHandle != null) {
             LOG.trace("Path-copy file to checkpoint: {} {}", dbFilePath, targetStateHandle);
         } else {
@@ -153,15 +154,22 @@ public class CopyDataTransferStrategy extends DataTransferStrategy {
      * @param checkpointStreamFactory The checkpoint stream factory
      * @param stateScope The state scope
      * @param tmpResourcesRegistry The temporary resources registry
+     * @param maxTransferBytes The max transfer bytes
      * @return The target state handle if path-copying is successful, otherwise null
      */
     private @Nullable StreamStateHandle tryPathCopyingToCheckpoint(
             @Nonnull StreamStateHandle sourceHandle,
             CheckpointStreamFactory checkpointStreamFactory,
             CheckpointedStateScope stateScope,
-            CloseableRegistry tmpResourcesRegistry) {
+            CloseableRegistry tmpResourcesRegistry,
+            long maxTransferBytes) {
 
         try {
+            // skip if there is a limit of transfer bytes
+            if (maxTransferBytes > 0 && maxTransferBytes != Long.MAX_VALUE) {
+                return null;
+            }
+
             // copy the file by duplicating
             if (!checkpointStreamFactory.canFastDuplicate(sourceHandle, stateScope)) {
                 return null;
