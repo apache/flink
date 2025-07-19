@@ -45,7 +45,9 @@ class StreamPhysicalChangelogNormalize(
     traitSet: RelTraitSet,
     input: RelNode,
     val uniqueKeys: Array[Int],
-    val filterCondition: RexNode = null)
+    val filterCondition: RexNode = null,
+    var sourceReused: Boolean = false,
+    var commonFilter: Array[RexNode] = Array())
   extends SingleRel(cluster, traitSet, input)
   with StreamPhysicalRel {
 
@@ -59,7 +61,9 @@ class StreamPhysicalChangelogNormalize(
       traitSet,
       inputs.get(0),
       uniqueKeys,
-      filterCondition)
+      filterCondition,
+      sourceReused,
+      commonFilter)
   }
 
   def copy(
@@ -67,7 +71,22 @@ class StreamPhysicalChangelogNormalize(
       input: RelNode,
       uniqueKeys: Array[Int],
       filterCondition: RexNode): RelNode = {
-    new StreamPhysicalChangelogNormalize(cluster, traitSet, input, uniqueKeys, filterCondition)
+    new StreamPhysicalChangelogNormalize(
+      cluster,
+      traitSet,
+      input,
+      uniqueKeys,
+      filterCondition,
+      sourceReused,
+      commonFilter)
+  }
+
+  def markSourceReuse(): Unit = {
+    sourceReused = true
+  }
+
+  def setCommonFilter(list: Array[RexNode]): Unit = {
+    commonFilter = list
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
