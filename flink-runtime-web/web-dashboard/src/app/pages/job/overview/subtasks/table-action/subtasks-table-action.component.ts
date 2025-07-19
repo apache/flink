@@ -33,8 +33,7 @@ export interface JobOverviewSubtasksTableAction {
   templateUrl: './subtasks-table-action.component.html',
   styleUrls: ['./subtasks-table-action.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, NzDropDownModule, NzIconModule, RouterLinkWithHref],
-  standalone: true
+  imports: [NgIf, NzDropDownModule, NzIconModule, RouterLinkWithHref]
 })
 export class SubtasksTableActionComponent implements JobOverviewSubtasksTableAction {
   @Input() subtask?: JobVertexSubTask;

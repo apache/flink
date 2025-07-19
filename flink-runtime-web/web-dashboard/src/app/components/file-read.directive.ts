@@ -19,8 +19,7 @@
 import { Directive, EventEmitter, HostListener, Output } from '@angular/core';
 
 @Directive({
-  selector: '[flinkFileRead]',
-  standalone: true
+  selector: '[flinkFileRead]'
 })
 export class FileReadDirective {
   @Output() fileRead = new EventEmitter();
@@ -30,6 +29,4 @@ export class FileReadDirective {
     const target = changeEvent.target as HTMLInputElement;
     this.fileRead.emit(target!.files![0]);
   }
-
-  constructor() {}
 }

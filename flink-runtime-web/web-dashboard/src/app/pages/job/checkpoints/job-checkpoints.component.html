@@ -16,7 +16,7 @@
   ~ limitations under the License.
   -->
 
-<nz-tabset
+<nz-tabs
   *ngIf="checkPointStats"
   [nzSize]="'small'"
   [nzAnimated]="{ inkBar: true, tabPane: false }"
@@ -576,7 +576,7 @@
       </tbody>
     </nz-table>
   </nz-tab>
-</nz-tabset>
+</nz-tabs>
 
 <ng-template #extraTemplate>
   <button nz-button nzType="primary" class="refresh" nzSize="small" (click)="refresh()">

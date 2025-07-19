@@ -32,18 +32,16 @@ import { distinctUntilChanged, filter, takeUntil } from 'rxjs/operators';
 import * as G2 from '@antv/g2';
 import { Chart } from '@antv/g2';
 import { JobDetailCorrect, VerticesItemRange } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobService, ColorKey, ConfigService } from '@flink-runtime-web/services';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
-
-import { JobLocalService } from '../job-local.service';
 
 @Component({
   selector: 'flink-job-timeline',
   templateUrl: './job-timeline.component.html',
   styleUrls: ['./job-timeline.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzDividerModule, NgIf],
-  standalone: true
+  imports: [NzDividerModule, NgIf]
 })
 export class JobTimelineComponent implements AfterViewInit, OnDestroy {
   public listOfVertex: VerticesItemRange[] = [];

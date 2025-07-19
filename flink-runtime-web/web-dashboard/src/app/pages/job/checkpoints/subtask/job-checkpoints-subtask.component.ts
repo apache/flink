@@ -27,7 +27,7 @@ import {
   OnInit,
   SimpleChanges
 } from '@angular/core';
-import { RouterModule } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { forkJoin, of, Subject } from 'rxjs';
 import { catchError, first, takeUntil } from 'rxjs/operators';
 
@@ -42,11 +42,9 @@ import {
   SubTaskCheckpointStatisticsItem,
   VerticesItem
 } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobService } from '@flink-runtime-web/services';
-import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
-
-import { JobLocalService } from '../../job-local.service';
+import { NzTableModule, NzTableSortFn } from 'ng-zorro-antd/table';
 
 function createSortFn(
   selector: (item: CompletedSubTaskCheckpointStatistics) => number | boolean
@@ -63,8 +61,7 @@ function createSortFn(
   templateUrl: './job-checkpoints-subtask.component.html',
   styleUrls: ['./job-checkpoints-subtask.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, HumanizeDurationPipe, HumanizeBytesPipe, NgIf, DatePipe, NgForOf, RouterModule],
-  standalone: true
+  imports: [NzTableModule, HumanizeDurationPipe, HumanizeBytesPipe, NgIf, DatePipe, NgForOf, RouterLink]
 })
 export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges, OnDestroy {
   @Input() public vertex: VerticesItem;
@@ -74,8 +71,6 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges, OnDest
   public subTaskCheckPoint: CheckpointSubTask;
   public listOfSubTaskCheckPoint: SubTaskCheckpointStatisticsItem[] = [];
   public isLoading = true;
-  public sortName: string;
-  public sortValue: string;
   public mapOfSubtask: Map<number, JobVertexSubTaskData> = new Map();
 
   public readonly sortAckTimestampFn = createSortFn(item => item.ack_timestamp);
@@ -120,25 +115,19 @@ export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges, OnDest
 
   public refresh(): void {
     if (this.jobDetail && this.jobDetail.jid) {
-      let subtaskDetails = this.jobService.loadSubTasks(this.jobDetail.jid, this.vertex.id).pipe(
-        catchError(() => {
-          return of({} as JobVertexSubTaskDetail);
-        })
-      );
+      let subtaskDetails = this.jobService
+        .loadSubTasks(this.jobDetail.jid, this.vertex.id)
+        .pipe(catchError(() => of({} as JobVertexSubTaskDetail)));
       let checkpointDetail = this.jobService
         .loadCheckpointSubtaskDetails(this.jobDetail.jid, this.checkPointId, this.vertex.id)
         .pipe(takeUntil(this.destroy$));
       forkJoin([subtaskDetails, checkpointDetail]).subscribe({
         next: data => {
           const [jobVertexSubTaskDetail, checkpointSubTasks] = data;
-          this.mapOfSubtask = jobVertexSubTaskDetail?.subtasks.reduce(function (
-            map: Map<number, JobVertexSubTaskData>,
-            obj
-          ) {
+          this.mapOfSubtask = jobVertexSubTaskDetail?.subtasks.reduce((map: Map<number, JobVertexSubTaskData>, obj) => {
             map.set(obj.subtask, obj);
             return map;
-          },
-          new Map());
+          }, new Map());
           this.subTaskCheckPoint = checkpointSubTasks;
           this.listOfSubTaskCheckPoint = (checkpointSubTasks && checkpointSubTasks.subtasks) || [];
           this.isLoading = false;

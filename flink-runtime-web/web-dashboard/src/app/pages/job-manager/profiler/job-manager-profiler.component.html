@@ -24,11 +24,12 @@
             [(ngModel)]="duration"
             [nzMin]="1"
             [nzStep]="30"
-            [nzFormatter]="formatterDuration"
-            [nzParser]="parserDuration"
             nzPlaceHolder="Duration"
             name="duration"
-          ></nz-input-number>
+            [style.width.px]="120"
+          >
+            <span nzInputAddonAfter>s</span>
+          </nz-input-number>
         </nz-form-control>
       </nz-form-item>
       <nz-form-item>
