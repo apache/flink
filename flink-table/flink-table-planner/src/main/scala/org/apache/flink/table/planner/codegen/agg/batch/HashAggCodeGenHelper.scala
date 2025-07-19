@@ -203,7 +203,7 @@ object HashAggCodeGenHelper {
 
     val initAggCallBufferExprs = aggInfos
       .map(_.function.asInstanceOf[DeclarativeAggregateFunction])
-      .flatMap(_.initialValuesExpressions)
+      .flatMap(e => e.initialValuesExpressions)
       .map(_.accept(converter))
       .map(exprCodeGen.generateExpression)
 

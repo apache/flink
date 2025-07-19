@@ -55,8 +55,7 @@ Calc(select=[a1, a2])
 LogicalProject(a1=[$1])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[right])
    :- LogicalAggregate(group=[{}], cnt=[COUNT()])
-   :  +- LogicalProject($f0=[0])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, B]])
    +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
     </Resource>
@@ -76,8 +75,7 @@ Calc(select=[a1])
 LogicalProject(a1=[$1])
 +- LogicalJoin(condition=[<($0, $2)], joinType=[right])
    :- LogicalAggregate(group=[{}], cnt=[COUNT()])
-   :  +- LogicalProject($f0=[0])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, B]])
    +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
     </Resource>
@@ -98,8 +96,7 @@ LogicalProject(a2=[$1])
 +- LogicalJoin(condition=[>($0, $2)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalAggregate(group=[{}], cnt=[COUNT()])
-      +- LogicalProject($f0=[0])
-         +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -148,8 +145,7 @@ LogicalProject(a2=[$1])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalAggregate(group=[{}], cnt=[COUNT()])
-      +- LogicalProject($f0=[0])
-         +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
