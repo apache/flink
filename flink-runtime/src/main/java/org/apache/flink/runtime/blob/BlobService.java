@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.blob;
 
 import java.io.Closeable;
+import java.net.InetAddress;
 
 /** A simple store and retrieve binary large objects (BLOBs). */
 public interface BlobService extends Closeable {
@@ -43,4 +44,6 @@ public interface BlobService extends Closeable {
      * @return the port of the blob server.
      */
     int getPort();
+
+    InetAddress getAddress();
 }
