@@ -18,12 +18,15 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkOrderPreservingProjection;
+
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.rules.TransformationRule;
 import org.apache.calcite.rex.RexNode;
@@ -71,7 +74,7 @@ public class FlinkRightJoinToLeftJoinRule extends RelRule<FlinkRightJoinToLeftJo
 
         RelNode project = reorderProjectedFields(left, right, relBuilder);
 
-        call.transformTo(project);
+        call.transformTo(new FlinkOrderPreservingProjection((Project) project));
     }
 
     private RelNode reorderProjectedFields(RelNode left, RelNode right, RelBuilder relBuilder) {
