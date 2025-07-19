@@ -1301,6 +1301,35 @@ valueconstruction:
   - table: NUMERIC.rows
     description: 创建一个 NUMERIC 行间隔（通常用于窗口创建）。
 
+valuemodification:
+  - sql: OBJECT_UPDATE(object, key, value [, key, value , ...])
+    table: OBJECT.objectUpdate(key, value [, key, value , ...])
+    description: |
+      Updates existing fields in a structured object by providing key-value pairs.
+      
+      This function takes a structured object and updates specified fields with new values.
+      The keys must be string literals that correspond to existing fields in the structured type.
+      If a key does not exist in the input object, an exception will be thrown.
+      If the value type is not compatible with the corresponding structured field type, 
+      an exception will also be thrown.
+      
+      The function expects alternating key-value pairs where keys are field names (non-null strings) 
+      and values are the new values for those fields. At least one key-value pair must be provided.
+      The total number of arguments must be odd (object + pairs of key-value arguments).
+      
+      The result type is the same structured type as the input, with the specified fields
+      updated to their new values.
+      
+      ```sql
+      -- Update the 'name' field of a user object
+      OBJECT_UPDATE(OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 14), 'name', 'Alice')
+      -- Returns: User{name='Alice', age=14})
+      
+      -- Update multiple fields
+      OBJECT_UPDATE(OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 14), 'name', 'Alice', 'age', 30)
+      -- Returns: User{name='Alice', age=30})
+      ```
+
 valueaccess:
   - sql: tableName.compositeType.field
     table: |
