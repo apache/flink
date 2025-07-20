@@ -36,7 +36,7 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.runtime.functions.DefaultExpressionEvaluator
 import org.apache.flink.table.runtime.generated.GeneratedFunction
-import org.apache.flink.table.runtime.operators.join.lookup.DelegatingResultFuture
+import org.apache.flink.table.runtime.operators.correlate.async.DelegatingAsyncTableResultFuture
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper
 import org.apache.flink.table.types.inference.{CallContext, TypeInference, TypeInferenceUtil}
@@ -44,10 +44,11 @@ import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowTy
 import org.apache.flink.table.types.logical.RowType.RowField
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType
+import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.flink.table.types.utils.DataTypeUtils.{isInternal, validateInputDataType, validateOutputDataType}
 import org.apache.flink.util.Preconditions
 
-import AsyncCodeGenerator.DEFAULT_DELEGATING_FUTURE_TERM
+import AsyncCodeGenerator.{generateFunction, DEFAULT_DELEGATING_FUTURE_TERM}
 
 import java.util.concurrent.CompletableFuture
 
@@ -152,7 +153,12 @@ object BridgingFunctionGenUtil {
         contextTerm
       )
     } else if (udf.getKind == FunctionKind.ASYNC_TABLE) {
-      generateAsyncTableFunctionCall(functionTerm, externalOperands, returnType, skipIfArgsNull)
+      generateAsyncTableFunctionCall(
+        functionTerm,
+        externalOperands,
+        returnType,
+        outputDataType,
+        skipIfArgsNull)
     } else if (udf.getKind == FunctionKind.ASYNC_SCALAR) {
       generateAsyncScalarFunctionCall(
         ctx,
@@ -205,37 +211,47 @@ object BridgingFunctionGenUtil {
   private def generateAsyncTableFunctionCall(
       functionTerm: String,
       externalOperands: Seq[GeneratedExpression],
-      outputType: LogicalType,
+      returnType: LogicalType,
+      outputDataType: DataType,
       skipIfArgsNull: Boolean): GeneratedExpression = {
 
-    val DELEGATE = className[DelegatingResultFuture[_]]
+    val DELEGATE_ASYNC_TABLE = className[DelegatingAsyncTableResultFuture]
+    val outputType = outputDataType.getLogicalType
+
+    // If we need to wrap data in a row, it's done in the delegating class.
+    val needsWrapping = !isCompositeType(outputType)
+    val isInternal = DataTypeUtils.isInternal(outputDataType);
+    val arguments = Seq(
+      s"""
+         |delegates.getCompletableFuture()
+         |""".stripMargin
+    ) ++ externalOperands.map(_.resultTerm)
+    val anyNull = externalOperands.map(_.nullTerm) ++ Seq("false")
 
     val functionCallCode = {
       if (skipIfArgsNull) {
         s"""
            |${externalOperands.map(_.code).mkString("\n")}
-           |if (${externalOperands.map(_.nullTerm).mkString(" || ")}) {
+           |if (${anyNull.mkString(" || ")}) {
            |  $DEFAULT_COLLECTOR_TERM.complete(java.util.Collections.emptyList());
            |} else {
-           |  $DELEGATE delegates = new $DELEGATE($DEFAULT_COLLECTOR_TERM);
-           |  $functionTerm.eval(
-           |    delegates.getCompletableFuture(),
-           |    ${externalOperands.map(_.resultTerm).mkString(", ")});
+           |  $DELEGATE_ASYNC_TABLE delegates = new $DELEGATE_ASYNC_TABLE($DEFAULT_COLLECTOR_TERM,
+           |      $needsWrapping, $isInternal);
+           |  $functionTerm.eval(${arguments.mkString(", ")});
            |}
            |""".stripMargin
       } else {
         s"""
            |${externalOperands.map(_.code).mkString("\n")}
-           |$DELEGATE delegates = new $DELEGATE($DEFAULT_COLLECTOR_TERM);
-           |$functionTerm.eval(
-           |  delegates.getCompletableFuture(),
-           |  ${externalOperands.map(_.resultTerm).mkString(", ")});
+           |$DELEGATE_ASYNC_TABLE delegates = new $DELEGATE_ASYNC_TABLE($DEFAULT_COLLECTOR_TERM,
+           |      $needsWrapping, $isInternal);
+           |  $functionTerm.eval(${arguments.mkString(", ")});
            |""".stripMargin
       }
     }
 
     // has no result
-    GeneratedExpression(NO_CODE, NEVER_NULL, functionCallCode, outputType)
+    GeneratedExpression(NO_CODE, NEVER_NULL, functionCallCode, returnType)
   }
 
   private def generateAsyncScalarFunctionCall(
@@ -389,7 +405,7 @@ object BridgingFunctionGenUtil {
       udf: UserDefinedFunction): Unit = {
     val enrichedType = enrichedDataType.getLogicalType
     if (
-      (udf.getKind == FunctionKind.TABLE || udf.getKind == FunctionKind.PROCESS_TABLE) && !isCompositeType(
+      (udf.getKind == FunctionKind.TABLE || udf.getKind == FunctionKind.ASYNC_TABLE || udf.getKind == FunctionKind.PROCESS_TABLE) && !isCompositeType(
         enrichedType)
     ) {
       // logically table functions wrap atomic types into ROW, however, the physical function might
@@ -401,10 +417,6 @@ object BridgingFunctionGenUtil {
       )
       val atomicOutputType = returnType.asInstanceOf[RowType].getChildren.get(0)
       verifyOutputType(atomicOutputType, enrichedDataType)
-    } else if (udf.getKind == FunctionKind.ASYNC_TABLE && !isCompositeType(enrichedType)) {
-      throw new CodeGenException(
-        "Async table functions must not emit an atomic type. " +
-          "Only a composite type such as the row type are supported.")
     } else if (
       udf.getKind == FunctionKind.TABLE || udf.getKind == FunctionKind.PROCESS_TABLE || udf.getKind == FunctionKind.ASYNC_TABLE
     ) {

@@ -141,6 +141,12 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
     }
 
     @Test
+    public void testNestedSystemCall() {
+        String sqlQuery = "SELECT func1(ABS(1))";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
     public void testWhereCondition() {
         String sqlQuery = "SELECT a from MyTable where REGEXP(func2(a), 'string (2|3)')";
         util.verifyRelPlan(sqlQuery);
