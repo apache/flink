@@ -20,7 +20,7 @@ package org.apache.flink.client.python;
 
 import org.apache.flink.client.deployment.application.UnsuccessfulExecutionException;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.python.util.PythonDependencyUtils;
@@ -371,16 +371,8 @@ final class PythonEnvUtils {
         }
         LOG.info(
                 "Starting Python process with environment variables: {{}}, command: {}",
-                env.entrySet().stream()
-                        .map(
-                                e -> {
-                                    String key = e.getKey();
-                                    String value =
-                                            GlobalConfiguration.isSensitive(key)
-                                                    ? GlobalConfiguration.HIDDEN_CONTENT
-                                                    : e.getValue();
-                                    return key + "=" + value;
-                                })
+                ConfigurationUtils.hideSensitiveValues(env).entrySet().stream()
+                        .map(e -> e.getKey() + "=" + e.getValue())
                         .collect(Collectors.joining(", ")),
                 String.join(" ", commands));
         Process process = pythonProcessBuilder.start();
