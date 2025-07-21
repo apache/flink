@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.runtime.util.SingleElementIterator
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.ApiExpressionUtils.localRef
@@ -36,7 +35,6 @@ import org.apache.flink.table.runtime.context.ExecutionContextImpl
 import org.apache.flink.table.runtime.generated.{GeneratedAggsHandleFunction, GeneratedOperator}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter._
 import org.apache.flink.table.runtime.typeutils.InternalSerializers
-import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{DistinctType, LogicalType, RowType}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 
@@ -86,7 +84,7 @@ object AggCodeGenHelper {
       .map(index => Array(inputType.getTypeAt(index)))
 
     val aggTypes = aggInfos
-      .map({ a => a.externalAccTypes.map(fromDataTypeToLogicalType) })
+      .map(_.externalAccTypes.map(fromDataTypeToLogicalType))
 
     auxGroupingTypes ++ aggTypes
   }

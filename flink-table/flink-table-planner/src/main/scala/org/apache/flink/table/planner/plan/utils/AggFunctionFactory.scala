@@ -31,10 +31,7 @@ import org.apache.flink.table.runtime.functions.aggregate.PercentileAggFunction.
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rex.{RexLiteral, RexNode}
-import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlAggFunction, SqlJsonConstructorNullClause, SqlKind, SqlRankFunction}
 import org.apache.calcite.sql.fun._
 
