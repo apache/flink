@@ -675,6 +675,7 @@ class MatchCodeGenerator(
             false,
             false,
             false,
+            new util.ArrayList[RexNode](),
             a.exprIndices,
             -1,
             null,

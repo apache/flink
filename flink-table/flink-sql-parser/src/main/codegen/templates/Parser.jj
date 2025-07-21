@@ -54,6 +54,7 @@ import org.apache.calcite.sql.SqlDynamicParam;
 import org.apache.calcite.sql.SqlExplain;
 import org.apache.calcite.sql.SqlExplainFormat;
 import org.apache.calcite.sql.SqlExplainLevel;
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlHint;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -1133,6 +1134,10 @@ SqlNode SqlStmt() :
 </#if>
 <#if (parser.dropStatementParserMethods!default.parser.dropStatementParserMethods)?size != 0>
         stmt = SqlDrop()
+    |
+</#if>
+<#if (parser.truncateStatementParserMethods!default.parser.truncateStatementParserMethods)?size != 0>
+        stmt = SqlTruncate()
     |
 </#if>
         stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
@@ -3627,6 +3632,7 @@ List<Object> Expression2(ExprContext exprContext) :
     final List<Object> list3 = new ArrayList();
     SqlNodeList nodeList;
     SqlNode e;
+    SqlOperator itemOp;
     SqlOperator op;
     SqlIdentifier p;
     final Span s = span();
@@ -3767,11 +3773,12 @@ List<Object> Expression2(ExprContext exprContext) :
                 AddExpression2b(list, ExprContext.ACCEPT_SUB_QUERY)
             |
                 <LBRACKET>
+                itemOp = getItemOp()
                 e = Expression(ExprContext.ACCEPT_SUB_QUERY)
                 <RBRACKET> {
                     list.add(
                         new SqlParserUtil.ToTreeListItem(
-                            SqlStdOperatorTable.ITEM, getPos()));
+                            itemOp, getPos()));
                     list.add(e);
                 }
                 (
@@ -3800,6 +3807,22 @@ List<Object> Expression2(ExprContext exprContext) :
             return list;
         }
     )
+}
+
+/** Returns the appropriate ITEM operator for indexing arrays. */
+SqlOperator getItemOp() :
+{
+}
+{
+    <OFFSET> { return SqlLibraryOperators.OFFSET; }
+|
+    <ORDINAL> { return SqlLibraryOperators.ORDINAL; }
+|
+    <SAFE_OFFSET> { return SqlLibraryOperators.SAFE_OFFSET; }
+|
+    <SAFE_ORDINAL> { return SqlLibraryOperators.SAFE_ORDINAL; }
+|
+    { return SqlStdOperatorTable.ITEM; }
 }
 
 /** Parses a comparison operator inside a SOME / ALL predicate. */
@@ -4077,6 +4100,59 @@ SqlCall StringAggFunctionCall() :
 }
 
 /**
+ * Parses both the standard and the BigQuery PERCENTILE_CONT/PERCENTILE_DISC
+ * functions.
+ *
+ * <p>The standard is of the form "PERCENTILE_CONT(fraction)" while BigQuery is
+ * of the form "PERCENTILE_CONT(value, fraction [ {RESPECT | IGNORE} NULLS ] )".
+ * Handles the parsing of the operator and its operands but not the WITHIN GROUP
+ * (for the standard) or OVER (for BigQuery) clauses.
+ */
+SqlCall PercentileFunctionCall() :
+{
+   final Span s;
+   SqlOperator op;
+   final SqlNode e;
+   final List<SqlNode> args = new ArrayList<SqlNode>();
+   final Pair<SqlParserPos, SqlOperator> nullTreatment;
+}
+{
+   (
+       <PERCENTILE_CONT> { op = SqlStdOperatorTable.PERCENTILE_CONT; }
+   |   <PERCENTILE_DISC> { op = SqlStdOperatorTable.PERCENTILE_DISC; }
+   )
+   { s = span(); }
+   <LPAREN>
+   AddArg(args, ExprContext.ACCEPT_SUB_QUERY)
+   (
+       <RPAREN> {
+           return op.createCall(s.end(this), args);
+       }
+   |
+       <COMMA>
+       e = NumericLiteral() { args.add(e); }
+       (
+           nullTreatment = NullTreatment()
+       |   { nullTreatment = null; }
+       )
+       <RPAREN>
+       {
+           op =
+               op == SqlStdOperatorTable.PERCENTILE_CONT
+                   ? SqlLibraryOperators.PERCENTILE_CONT2
+                   : SqlLibraryOperators.PERCENTILE_DISC2;
+           SqlCall call = op.createCall(s.end(this), args);
+           if (nullTreatment != null) {
+               // Wrap in RESPECT_NULLS or IGNORE_NULLS.
+               call = nullTreatment.right.createCall(nullTreatment.left, call);
+           }
+           return call;
+       }
+   )
+}
+
+
+/**
  * Parses an atomic row expression.
  */
 SqlNode AtomicRowExpression() :
@@ -4316,6 +4392,30 @@ SqlDrop SqlDrop() :
     )
     {
         return drop;
+    }
+}
+</#if>
+
+<#if (parser.truncateStatementParserMethods!default.parser.truncateStatementParserMethods)?size != 0>
+/**
+ * Parses a TRUNCATE statement.
+ */
+SqlTruncate SqlTruncate() :
+{
+    final Span s;
+    final SqlTruncate truncate;
+}
+{
+    <TRUNCATE> { s = span(); }
+    (
+<#-- additional literal parser methods are included here -->
+<#list (parser.truncateStatementParserMethods!default.parser.truncateStatementParserMethods) as method>
+        truncate = ${method}(s)
+        <#sep>|</#sep>
+</#list>
+    )
+    {
+        return truncate;
     }
 }
 </#if>
@@ -4738,7 +4838,7 @@ SqlNode MultisetConstructor() :
 /** Parses an ARRAY constructor */
 SqlNode ArrayConstructor() :
 {
-    SqlNodeList args;
+    final SqlNodeList args;
     SqlNode e;
     final Span s;
     final String p;
@@ -4746,14 +4846,22 @@ SqlNode ArrayConstructor() :
 {
     <ARRAY> { s = span(); }
     (
-        LOOKAHEAD(1)
-        <LPAREN>
-        // by sub query "MULTISET(SELECT * FROM T)"
-        e = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
-        <RPAREN>
+        (
+            // nullary array function call: "array()" (Apache Spark)
+            LOOKAHEAD(2)
+            <LPAREN> <RPAREN> { args = SqlNodeList.EMPTY; }
+        |
+            args = ParenthesizedQueryOrCommaList(ExprContext.ACCEPT_ALL)
+        )
         {
-            return SqlStdOperatorTable.ARRAY_QUERY.createCall(
-                s.end(this), e);
+            if (args.size() == 1 && args.get(0).isA(SqlKind.QUERY)) {
+                // Array query constructor, 'ARRAY (SELECT * FROM t)'
+                return SqlStdOperatorTable.ARRAY_QUERY.createCall(s.end(this), args.get(0));
+            } else {
+                // Spark ARRAY function, 'ARRAY(1, 2)',
+                // equivalent to standard 'ARRAY [1, 2]'
+                return SqlLibraryOperators.ARRAY.createCall(s.end(this), args.getList());
+            }
         }
     |
         // by enumeration "ARRAY[e0, e1, ..., eN]"
@@ -5165,6 +5273,8 @@ SqlIntervalQualifier TimeUnit() : {
 |   <MINUTE> { return new SqlIntervalQualifier(TimeUnit.MINUTE, null, getPos()); }
 |   <HOUR> { return new SqlIntervalQualifier(TimeUnit.HOUR, null, getPos()); }
 |   <DAY> { return new SqlIntervalQualifier(TimeUnit.DAY, null, getPos()); }
+|   <DAYOFWEEK> { return new SqlIntervalQualifier(TimeUnit.DOW, null, getPos()); }
+|   <DAYOFYEAR> { return new SqlIntervalQualifier(TimeUnit.DOY, null, getPos()); }
 |   <DOW> { return new SqlIntervalQualifier(TimeUnit.DOW, null, getPos()); }
 |   <DOY> { return new SqlIntervalQualifier(TimeUnit.DOY, null, getPos()); }
 |   <ISODOW> { return new SqlIntervalQualifier(TimeUnit.ISODOW, null, getPos()); }
@@ -6034,11 +6144,17 @@ SqlNode BuiltinFunctionCall() :
     SqlDataTypeSpec dt;
     final SqlIntervalQualifier unit;
     final SqlNode node;
+    final SqlLiteral style; // mssql convert 'style' operand
+    final SqlFunction f;
 }
 {
     //~ FUNCTIONS WITH SPECIAL SYNTAX ---------------------------------------
     (
-        <CAST> { s = span(); }
+        (  <CAST> { f = SqlStdOperatorTable.CAST; }
+        | <SAFE_CAST> { f = SqlLibraryOperators.SAFE_CAST; }
+        | <TRY_CAST> { f = SqlLibraryOperators.TRY_CAST; }
+        )
+        { s = span(); }
         <LPAREN> AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
         <AS>
         (
@@ -6047,7 +6163,7 @@ SqlNode BuiltinFunctionCall() :
             <INTERVAL> e = IntervalQualifier() { args.add(e); }
         )
         <RPAREN> {
-            return SqlStdOperatorTable.CAST.createCall(s.end(this), args);
+            return f.createCall(s.end(this), args);
         }
     |
         <EXTRACT> { s = span(); }
@@ -6075,11 +6191,47 @@ SqlNode BuiltinFunctionCall() :
     |
         <CONVERT> { s = span(); }
         <LPAREN>
-        AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
-        <USING> name = SimpleIdentifier() { args.add(name); }
-        <RPAREN> {
-            return SqlStdOperatorTable.CONVERT.createCall(s.end(this), args);
-        }
+        (
+            // CONVERT in the form of CONVERT(x USING y)
+
+            // "AddExpression" matches INTERVAL,
+            // which can also be 1st token in args of MSSQL CONVERT
+            // So lookahead another token (to match <USING> vs. <COMMA>)
+            LOOKAHEAD(2)
+            AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
+            (
+                <USING> name = SimpleIdentifier() { args.add(name); }
+                <RPAREN> {
+                    return SqlStdOperatorTable.TRANSLATE.createCall(s.end(this), args);
+                }
+            |
+                <COMMA> e = SimpleIdentifier() { args.add(e); }
+                <COMMA> e = SimpleIdentifier() { args.add(e); }
+                <RPAREN> {
+                    return SqlStdOperatorTable.CONVERT.createCall(s.end(this), args);
+                }
+            )
+        |
+            // MSSql CONVERT(type, val [,style])
+            (
+                dt = DataType() { args.add(dt); }
+            |
+                <INTERVAL> e = IntervalQualifier() { args.add(e); }
+            )
+            <COMMA>
+            AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
+            [
+                <COMMA>
+                (
+                    style = UnsignedNumericLiteral() { args.add(style); }
+                |
+                    <NULL> { args.add(SqlLiteral.createNull(getPos())); }
+                )
+            ]
+            <RPAREN> {
+                return SqlLibraryOperators.MSSQL_CONVERT.createCall(s.end(this), args);
+            }
+        )
     |
         <TRANSLATE> { s = span(); }
         <LPAREN>
@@ -6195,6 +6347,8 @@ SqlNode BuiltinFunctionCall() :
         node = DateDiffFunctionCall() { return node; }
     |
         node = DateTruncFunctionCall() { return node; }
+    |
+        node = DatetimeTruncFunctionCall() { return node; }
     |
         node = TimestampAddFunctionCall() { return node; }
     |
@@ -6901,6 +7055,27 @@ SqlCall TimeDiffFunctionCall() :
 }
 
 /**
+ * Parses a call to DATETIME_TRUNC.
+ */
+SqlNode DatetimeTruncFunctionCall() :
+{
+    final List<SqlNode> args = new ArrayList<SqlNode>();
+    final Span s;
+    final SqlIntervalQualifier unit;
+    final SqlNode literal;
+}
+{
+    <DATETIME_TRUNC> { s = span(); }
+    <LPAREN>
+    AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
+    <COMMA>
+    unit = TimeUnitOrName() { args.add(unit); }
+    <RPAREN> {
+        return SqlLibraryOperators.DATETIME_TRUNC.createCall(s.end(this), args);
+    }
+}
+
+/**
  * Parses a call to TIME_TRUNC.
  */
 SqlCall TimeTruncFunctionCall() :
@@ -7135,6 +7310,9 @@ SqlNode NamedFunctionCall() :
         LOOKAHEAD(2)
         call = StringAggFunctionCall()
     |
+        LOOKAHEAD(1)
+        call = PercentileFunctionCall()
+    |
         call = NamedCall()
     )
     [
@@ -7231,9 +7409,7 @@ SqlNode StandardFloorCeilOptions(Span s, boolean floorFlag) :
         }
     )?
     <RPAREN> {
-        SqlOperator op = floorFlag
-            ? SqlStdOperatorTable.FLOOR
-            : SqlStdOperatorTable.CEIL;
+        SqlOperator op = SqlStdOperatorTable.floorCeil(floorFlag, this.conformance);
         function =  op.createCall(s.end(this), args);
     }
     (
@@ -7337,8 +7513,6 @@ SqlIdentifier ReservedFunctionName() :
     |   <NULLIF>
     |   <OCTET_LENGTH>
     |   <PERCENT_RANK>
-    |   <PERCENTILE_CONT>
-    |   <PERCENTILE_DISC>
     |   <POWER>
     |   <RANK>
     |   <REGR_COUNT>
@@ -7823,13 +7997,16 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < DATA: "DATA" >
 |   < DATABASE: "DATABASE" >
 |   < DATE: "DATE" >
+|   < DATE_DIFF: "DATE_DIFF" >
 |   < DATE_TRUNC: "DATE_TRUNC" >
 |   < DATETIME: "DATETIME" >
 |   < DATETIME_DIFF: "DATETIME_DIFF" >
 |   < DATETIME_INTERVAL_CODE: "DATETIME_INTERVAL_CODE" >
 |   < DATETIME_INTERVAL_PRECISION: "DATETIME_INTERVAL_PRECISION" >
-|   < DATE_DIFF: "DATE_DIFF" >
+|   < DATETIME_TRUNC: "DATETIME_TRUNC" >
 |   < DAY: "DAY" >
+|   < DAYOFWEEK: "DAYOFWEEK" >
+|   < DAYOFYEAR: "DAYOFYEAR" >
 |   < DAYS: "DAYS" >
 |   < DEALLOCATE: "DEALLOCATE" >
 |   < DEC: "DEC" >
@@ -8076,6 +8253,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < OR: "OR" >
 |   < ORDER: "ORDER" >
 |   < ORDERING: "ORDERING" >
+|   < ORDINAL: "ORDINAL" >
 |   < ORDINALITY: "ORDINALITY" >
 |   < OTHERS: "OTHERS" >
 |   < OUT: "OUT" >
@@ -8179,6 +8357,9 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < ROW_NUMBER: "ROW_NUMBER" >
 |   < ROWS: "ROWS" >
 |   < RUNNING: "RUNNING" >
+|   < SAFE_CAST: "SAFE_CAST" >
+|   < SAFE_OFFSET: "SAFE_OFFSET" >
+|   < SAFE_ORDINAL: "SAFE_ORDINAL" >
 |   < SATURDAY: "SATURDAY" >
 |   < SAVEPOINT: "SAVEPOINT" >
 |   < SCALAR: "SCALAR" >
@@ -8337,6 +8518,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < TRIM_ARRAY: "TRIM_ARRAY" >
 |   < TRUE: "TRUE" >
 |   < TRUNCATE: "TRUNCATE" >
+|   < TRY_CAST: "TRY_CAST" >
 |   < TUESDAY: "TUESDAY" >
 |   < TUMBLE: "TUMBLE" >
 |   < TYPE: "TYPE" >
@@ -8780,7 +8962,11 @@ MORE :
 
 <DEFAULT, DQID, BTID, BQID> TOKEN :
 {
-    < IDENTIFIER: <LETTER> (<LETTER>|<DIGIT>)* >
+    <#if parser.customIdentifierToken?has_content>
+        ${parser.customIdentifierToken}
+    <#else>
+        < IDENTIFIER: <LETTER> (<LETTER>|<DIGIT>)* >
+    </#if>
 }
 
 <DEFAULT, DQID, BTID, BQID, BQHID> TOKEN :
