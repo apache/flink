@@ -18,9 +18,15 @@
 
 package org.apache.flink.test.streaming.api;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -60,8 +66,22 @@ public class StreamingOperatorsITCase extends AbstractTestBaseJUnit4 {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
+        // Create type information for Tuple2<Integer, NonSerializable>
+        TypeInformation<Tuple2<Integer, NonSerializable>> tupleTypeInfo =
+                new TupleTypeInfo<>(Types.INT, TypeInformation.of(NonSerializable.class));
+
+        // Create generator function for NonSerializable tuples
+        GeneratorFunction<Long, Tuple2<Integer, NonSerializable>> generateNonSerializableTuple =
+                index -> new Tuple2<>(index.intValue(), new NonSerializable(index.intValue()));
+
+        // Create DataGeneratorSource with the generator function
+        DataGeneratorSource<Tuple2<Integer, NonSerializable>> source =
+                new DataGeneratorSource<>(generateNonSerializableTuple, numElements, tupleTypeInfo);
+
+        // Create data stream using Source V2 API
         DataStream<Tuple2<Integer, NonSerializable>> input =
-                env.addSource(new NonSerializableTupleSource(numElements));
+                env.fromSource(source, WatermarkStrategy.noWatermarks(), "NonSerializable Source")
+                        .setParallelism(1);
 
         AsyncFunction<Tuple2<Integer, NonSerializable>, Integer> function =
                 new RichAsyncFunction<Tuple2<Integer, NonSerializable>, Integer>() {
@@ -143,26 +163,6 @@ public class StreamingOperatorsITCase extends AbstractTestBaseJUnit4 {
         public NonSerializable(int value) {
             this.value = value;
         }
-    }
-
-    private static class NonSerializableTupleSource
-            implements SourceFunction<Tuple2<Integer, NonSerializable>> {
-        private static final long serialVersionUID = 3949171986015451520L;
-        private final int numElements;
-
-        public NonSerializableTupleSource(int numElements) {
-            this.numElements = numElements;
-        }
-
-        @Override
-        public void run(SourceContext<Tuple2<Integer, NonSerializable>> ctx) throws Exception {
-            for (int i = 0; i < numElements; i++) {
-                ctx.collect(new Tuple2<>(i, new NonSerializable(i)));
-            }
-        }
-
-        @Override
-        public void cancel() {}
     }
 
     private static class TupleSource implements SourceFunction<Tuple2<Integer, Integer>> {
