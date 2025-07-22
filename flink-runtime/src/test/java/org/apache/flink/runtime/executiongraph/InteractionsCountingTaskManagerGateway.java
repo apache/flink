@@ -33,20 +33,21 @@ class InteractionsCountingTaskManagerGateway extends SimpleAckingTaskManagerGate
 
     private final AtomicInteger submitTaskCount = new AtomicInteger(0);
 
-    private CountDownLatch submitLatch;
+    private final CountDownLatch submitOrCancelLatch;
 
     public InteractionsCountingTaskManagerGateway() {
-        submitLatch = new CountDownLatch(0);
+        submitOrCancelLatch = new CountDownLatch(0);
     }
 
     public InteractionsCountingTaskManagerGateway(final int expectedSubmitCount) {
-        this.submitLatch = new CountDownLatch(expectedSubmitCount);
+        this.submitOrCancelLatch = new CountDownLatch(expectedSubmitCount);
     }
 
     @Override
     public CompletableFuture<Acknowledge> cancelTask(
             ExecutionAttemptID executionAttemptID, Duration timeout) {
         cancelTaskCount.incrementAndGet();
+        submitOrCancelLatch.countDown();
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
@@ -54,7 +55,7 @@ class InteractionsCountingTaskManagerGateway extends SimpleAckingTaskManagerGate
     public CompletableFuture<Acknowledge> submitTask(
             TaskDeploymentDescriptor tdd, Duration timeout) {
         submitTaskCount.incrementAndGet();
-        submitLatch.countDown();
+        submitOrCancelLatch.countDown();
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
@@ -77,7 +78,7 @@ class InteractionsCountingTaskManagerGateway extends SimpleAckingTaskManagerGate
 
     void waitUntilAllTasksAreSubmitted() {
         try {
-            submitLatch.await();
+            submitOrCancelLatch.await();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

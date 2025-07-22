@@ -25,6 +25,8 @@ import org.apache.flink.runtime.blob.BlobCacheSizeTracker;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -59,6 +61,7 @@ import java.util.concurrent.BlockingQueue;
 
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests {@link ExecutionGraph} deployment when job and task information are offloaded into the BLOB
@@ -121,6 +124,8 @@ class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
         taskManagerGateway.setSubmitConsumer(
                 FunctionUtils.uncheckedConsumer(
                         taskDeploymentDescriptor -> {
+                            assertThatThrownBy(taskDeploymentDescriptor::getTaskRestore)
+                                    .isInstanceOf(IllegalStateException.class);
                             taskDeploymentDescriptor.loadBigData(
                                     blobCache,
                                     new NoOpGroupCache<>(),
@@ -138,9 +143,12 @@ class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
                         new TestingLogicalSlotBuilder()
                                 .setTaskManagerGateway(taskManagerGateway)
                                 .createTestingLogicalSlot();
+                JobManagerTaskRestore jobManagerTaskRestore =
+                        new JobManagerTaskRestore(0, new TaskStateSnapshot());
                 final Execution execution = ev.getCurrentExecutionAttempt();
                 execution.transitionState(ExecutionState.SCHEDULED);
                 execution.registerProducedPartitions(slot.getTaskManagerLocation()).get();
+                execution.setInitialState(jobManagerTaskRestore);
                 ev.deployToSlot(slot);
                 assertThat(ev.getExecutionState()).isEqualTo(ExecutionState.DEPLOYING);
 
@@ -149,6 +157,10 @@ class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
 
                 List<InputGateDeploymentDescriptor> igdds = tdd.getInputGates();
                 assertThat(igdds).hasSize(ev.getAllConsumedPartitionGroups().size());
+
+                assertThat(tdd.getTaskRestore()).isNotNull();
+                assertThat(tdd.getTaskRestore().getRestoreCheckpointId())
+                        .isEqualTo(jobManagerTaskRestore.getRestoreCheckpointId());
 
                 if (igdds.size() > 0) {
                     checkShuffleDescriptors(igdds.get(0), ev.getConsumedPartitionGroup(0));

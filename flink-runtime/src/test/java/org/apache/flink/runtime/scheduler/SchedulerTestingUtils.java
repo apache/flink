@@ -63,6 +63,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
+import org.apache.flink.util.function.RunnableWithException;
 
 import javax.annotation.Nullable;
 
@@ -81,6 +82,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.finishJobVertex;
+import static org.apache.flink.runtime.executiongraph.utils.ExecutionUtils.waitForTaskDeploymentDescriptorsCreation;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -415,35 +417,44 @@ public class SchedulerTestingUtils {
         final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
         final TestingLogicalSlotBuilder slotBuilder = new TestingLogicalSlotBuilder();
 
-        CompletableFuture.runAsync(
-                        () -> {
-                            try {
-                                if (isAdaptive) {
-                                    initializeExecutionJobVertex(producer.getID(), executionGraph);
-                                }
-                                // Deploy upstream source vertices
-                                deployTasks(executionGraph, producer.getID(), slotBuilder);
-                                // Transition upstream vertices into FINISHED
-                                finishJobVertex(executionGraph, producer.getID());
-                                // Deploy downstream sink vertices
-                                for (JobVertex consumer : consumers) {
-                                    if (isAdaptive) {
-                                        initializeExecutionJobVertex(
-                                                consumer.getID(), executionGraph);
-                                    }
-                                    deployTasks(executionGraph, consumer.getID(), slotBuilder);
-                                }
-                            } catch (Exception e) {
-                                throw new RuntimeException("Exceptions shouldn't happen here.", e);
-                            }
-                        },
-                        mainThreadExecutor)
-                .join();
+        runUnsafe(
+                () -> {
+                    initializeExecutionJobVertex(producer.getID(), executionGraph, isAdaptive);
+                    deployTasks(executionGraph, producer.getID(), slotBuilder);
+                },
+                mainThreadExecutor);
+
+        waitForTaskDeploymentDescriptorsCreation(
+                Objects.requireNonNull(executionGraph.getJobVertex(producer.getID()))
+                        .getTaskVertices());
+
+        // Transition upstream vertices into FINISHED
+        runUnsafe(() -> finishJobVertex(executionGraph, producer.getID()), mainThreadExecutor);
+
+        // Deploy downstream sink vertices
+        for (JobVertex consumer : consumers) {
+            runUnsafe(
+                    () -> {
+                        initializeExecutionJobVertex(consumer.getID(), executionGraph, isAdaptive);
+                        deployTasks(executionGraph, consumer.getID(), slotBuilder);
+                    },
+                    mainThreadExecutor);
+            waitForTaskDeploymentDescriptorsCreation(
+                    Objects.requireNonNull(executionGraph.getJobVertex(consumer.getID()))
+                            .getTaskVertices());
+        }
+
         return scheduler;
     }
 
     private static void initializeExecutionJobVertex(
-            JobVertexID jobVertex, ExecutionGraph executionGraph) {
+            JobVertexID jobVertex,
+            ExecutionGraph executionGraph,
+            final boolean adaptiveSchedulerEnabled) {
+        if (!adaptiveSchedulerEnabled) {
+            // This method call only needed for adaptive scheduler, no-op otherwise.
+            return;
+        }
         try {
             executionGraph.initializeJobVertex(
                     executionGraph.getJobVertex(jobVertex), System.currentTimeMillis());
@@ -529,5 +540,24 @@ public class SchedulerTestingUtils {
     public static TaskExecutionState createCanceledTaskExecutionState(
             ExecutionAttemptID attemptId) {
         return new TaskExecutionState(attemptId, ExecutionState.CANCELED);
+    }
+
+    private static void runUnsafe(
+            final RunnableWithException callback, final ComponentMainThreadExecutor executor) {
+        try {
+            CompletableFuture.runAsync(
+                            () -> {
+                                try {
+                                    callback.run();
+                                } catch (Throwable e) {
+                                    throw new RuntimeException(
+                                            "Exception shouldn't happen here.", e);
+                                }
+                            },
+                            executor)
+                    .join();
+        } catch (Exception e) {
+            throw new RuntimeException("Exception shouldn't happen here.", e);
+        }
     }
 }

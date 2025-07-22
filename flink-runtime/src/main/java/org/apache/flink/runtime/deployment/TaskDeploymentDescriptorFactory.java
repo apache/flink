@@ -112,7 +112,7 @@ public class TaskDeploymentDescriptorFactory {
     public TaskDeploymentDescriptor createDeploymentDescriptor(
             Execution execution,
             AllocationID allocationID,
-            @Nullable JobManagerTaskRestore taskRestore,
+            @Nullable Either<SerializedValue<JobManagerTaskRestore>, PermanentBlobKey> taskRestore,
             Collection<ResultPartitionDeploymentDescriptor> producedPartitions)
             throws IOException, ClusterDatasetCorruptedException {
         final ExecutionVertex executionVertex = execution.getVertex();
@@ -124,7 +124,7 @@ public class TaskDeploymentDescriptorFactory {
                         executionVertex.getJobVertex().getTaskInformationOrBlobKey()),
                 execution.getAttemptId(),
                 allocationID,
-                taskRestore,
+                taskRestore != null ? getSerializedTaskRestore(taskRestore) : null,
                 new ArrayList<>(producedPartitions),
                 createInputGateDeploymentDescriptors(executionVertex));
     }
@@ -293,6 +293,13 @@ public class TaskDeploymentDescriptorFactory {
         return taskInfo.isLeft()
                 ? new TaskDeploymentDescriptor.NonOffloaded<>(taskInfo.left())
                 : new TaskDeploymentDescriptor.Offloaded<>(taskInfo.right());
+    }
+
+    private static MaybeOffloaded<JobManagerTaskRestore> getSerializedTaskRestore(
+            Either<SerializedValue<JobManagerTaskRestore>, PermanentBlobKey> either) {
+        return either.isLeft()
+                ? new TaskDeploymentDescriptor.NonOffloaded<>(either.left())
+                : new TaskDeploymentDescriptor.Offloaded<>(either.right());
     }
 
     public static ShuffleDescriptor getConsumedPartitionShuffleDescriptor(
