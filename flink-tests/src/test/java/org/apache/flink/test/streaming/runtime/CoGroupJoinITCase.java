@@ -113,7 +113,7 @@ public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
                                 out.collect(result.toString());
                             }
                         })
-                .sinkTo(new CollectingSink());
+                .sinkTo(new TestSink());
 
         env.execute("CoGroup Test");
 
@@ -177,7 +177,7 @@ public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
                                 return first + ":" + second;
                             }
                         })
-                .sinkTo(new CollectingSink());
+                .sinkTo(new TestSink());
 
         env.execute("Join Test");
 
@@ -243,7 +243,7 @@ public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
                                 return first + ":" + second;
                             }
                         })
-                .sinkTo(new CollectingSink());
+                .sinkTo(new TestSink());
 
         env.execute("Self-Join Test");
 
@@ -379,7 +379,7 @@ public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
         }
     }
 
-    private static class CollectingSink implements Sink<String> {
+    private static class TestSink implements Sink<String> {
 
         @Override
         public SinkWriter<String> createWriter(WriterInitContext context) {
