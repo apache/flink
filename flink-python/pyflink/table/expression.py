@@ -8,6 +8,7 @@
 #  with the License.  You may obtain a copy of the License at
 #
 #      http://www.apache.org/licenses/LICENSE-2.0
+#      http://www.apache.org/licenses/LICENSE-2.0
 #
 #  Unless required by applicable law or agreed to in writing, software
 #  distributed under the License is distributed on an "AS IS" BASIS,
@@ -1712,6 +1713,12 @@ class Expression(Generic[T]):
         if necessary.
         """
         return _binary_op("arrayContains")(self, needle)
+
+    def array_contains_seq(self, array) -> 'Expression':
+        """
+        Return true if array1 contains all of array2 as a subsequence (all values in the same consecutive order).
+        """
+        return _binary_op("arrayContainsSeq")(self, array)
 
     def array_distinct(self) -> 'Expression':
         """
