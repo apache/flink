@@ -86,11 +86,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
             // register functions based on batch or streaming mode
             final FlinkSqlOperatorTable finalInstance = instance;
-            dynamicFunctions(isBatchMode)
-                    .forEach(
-                            f -> {
-                                finalInstance.register(f);
-                            });
+            dynamicFunctions(isBatchMode).forEach(finalInstance::register);
             cachedInstances.put(isBatchMode, finalInstance);
         }
         return instance;

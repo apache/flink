@@ -191,13 +191,6 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
     }
 
     @Override
-    public void validateColumnListParams(
-            SqlFunction function, List<RelDataType> argTypes, List<SqlNode> operands) {
-        // There is no validation necessary for column list parameters.
-        // This method will be dropped once we update Calcite to 1.36 (see CALCITE-5644).
-    }
-
-    @Override
     protected void registerNamespace(
             @Nullable SqlValidatorScope usingScope,
             @Nullable String alias,
