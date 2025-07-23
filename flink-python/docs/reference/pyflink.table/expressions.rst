@@ -331,6 +331,6 @@ value modification functions
 .. currentmodule:: pyflink.table.expression
 
 .. autosummary::
-
     :toctree: api/
+
     Expression.object_update

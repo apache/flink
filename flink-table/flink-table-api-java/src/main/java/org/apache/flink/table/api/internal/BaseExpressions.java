@@ -2502,27 +2502,12 @@ public abstract class BaseExpressions<InType, OutType> {
      * strings) and values are the new values for those fields. At least one key-value pair must be
      * provided.
      *
-     * <p>Example usage:
-     *
-     * <pre>{@code
-     * // Create a structured object representing a user
-     * User userObject = objectOf("com.example.User", "name", "Bob", "age", 25);
-     *
-     * // Update the 'name' field of a user object
-     * User updatedUser1 = userObject.objectUpdate("name", "Alice")
-     *
-     * // Update multiple fields
-     * User updatedUser2 = userObject.objectUpdate("name", "Alice", "age", 30)
-     *
-     * }</pre>
-     *
      * <p>The result type is the same structured type as the input, with the specified fields
      * updated to their new values.
      *
      * @param kv key-value pairs where even-indexed elements are field names (strings) and
      *     odd-indexed elements are the new values for those fields
      * @return expression representing a new structured object with updated field values
-     * @see org.apache.flink.table.functions.BuiltInFunctionDefinitions#OBJECT_UPDATE
      */
     public OutType objectUpdate(InType... kv) {
         final Expression[] expressions =

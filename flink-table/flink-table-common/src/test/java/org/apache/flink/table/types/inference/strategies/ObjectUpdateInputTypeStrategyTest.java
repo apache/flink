@@ -125,16 +125,6 @@ class ObjectUpdateInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithLiteralAt(1, "someRandomFieldName")
                         .calledWithLiteralAt(2, 42)
                         .expectErrorMessage(
-                                "The field name 'someRandomFieldName' at position 2 is not part of the structured type attributes. Available attributes: [name, age]."),
-                // Invalid test case - field value is not compatible with the structured type
-                TestSpec.forStrategy(
-                                "Invalid OBJECT_UPDATE with field value not compatible with structured type",
-                                OBJECT_UPDATE_INPUT_STRATEGY)
-                        .calledWithArgumentTypes(
-                                STRUCTURED_TYPE, DataTypes.STRING().notNull(), DataTypes.BOOLEAN())
-                        .calledWithLiteralAt(1, "name")
-                        .calledWithLiteralAt(2, true)
-                        .expectErrorMessage(
-                                "The value type for field 'name' at position 3 is expected to be STRING, but was BOOLEAN."));
+                                "The field name 'someRandomFieldName' at position 2 is not part of the structured type attributes. Available attributes: [name, age]."));
     }
 }

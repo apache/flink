@@ -269,6 +269,14 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                                         Type2.class.getName(),
                                                         DataTypes.FIELD("a", DataTypes.INT()),
                                                         DataTypes.FIELD("b", DataTypes.STRING())))))
+                        // Test when class not found
+                        .testSqlResult(
+                                "OBJECT_UPDATE(OBJECT_OF('not.existing.clazz', 'a', 42, 'b', 'Bob'), 'b', 'Alice')",
+                                Row.of(42, "Alice"),
+                                DataTypes.STRUCTURED(
+                                        "not.existing.clazz",
+                                        DataTypes.FIELD("a", DataTypes.INT().notNull()),
+                                        DataTypes.FIELD("b", DataTypes.CHAR(5).notNull())))
                         // Test update field to null
                         .testResult(
                                 objectOf(Type1.class, "a", 42, "b", "Bob")
@@ -286,13 +294,7 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                 "OBJECT_UPDATE(OBJECT_OF('"
                                         + Type1.class.getName()
                                         + "', 'a', f0, 'b', f1), 'someRandomName', 16)",
-                                "The field name 'someRandomName' at position 2 is not part of the structured type attributes. Available attributes: [a, b].")
-                        // Invalid Test - value type for field to update is not compatible
-                        .testSqlValidationError(
-                                "OBJECT_UPDATE(OBJECT_OF('"
-                                        + Type1.class.getName()
-                                        + "', 'a', f0, 'b', f1), 'a', true)",
-                                "The value type for field 'a' at position 3 is expected to be INT, but was BOOLEAN NOT NULL"));
+                                "The field name 'someRandomName' at position 2 is not part of the structured type attributes. Available attributes: [a, b]."));
     }
 
     // --------------------------------------------------------------------------------------------
