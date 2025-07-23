@@ -443,6 +443,12 @@ object UserDefinedFunctionTestUtils {
     override def getResultType(signature: Array[Class[_]]): TypeInformation[_] = Types.BOOLEAN
   }
 
+  @SerialVersionUID(1L)
+  object RawOutUDF extends ScalarFunction {
+    @DataTypeHint(value = "RAW", bridgedTo = classOf[String])
+    def eval(id: Int): String = id.toString
+  }
+
   // ------------------------------------------------------------------------------------
   // POJOs
   // ------------------------------------------------------------------------------------

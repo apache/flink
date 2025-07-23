@@ -857,22 +857,22 @@ class CalcITCase extends BatchTestBase {
   }
 
   // TODO
-//  @Test
-//  def testUDFWithGetResultTypeFromLiteral(): Unit = {
-//    registerFunction("hashCode0", LiteralHashCode)
-//    registerFunction("hashCode1", LiteralHashCode)
-//    val data = Seq(row("a"), row("b"), row("c"))
-//    tEnv.registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
-//    checkResult(
-//      "SELECT hashCode0(text, 'int') FROM MyTable",
-//      Seq(row(97), row(98), row(99)
-//      ))
-//
-//    checkResult(
-//      "SELECT hashCode1(text, 'string') FROM MyTable",
-//      Seq(row("str97"), row("str98"), row("str99")
-//      ))
-//  }
+  //  @Test
+  //  def testUDFWithGetResultTypeFromLiteral(): Unit = {
+  //    registerFunction("hashCode0", LiteralHashCode)
+  //    registerFunction("hashCode1", LiteralHashCode)
+  //    val data = Seq(row("a"), row("b"), row("c"))
+  //    tEnv.registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
+  //    checkResult(
+  //      "SELECT hashCode0(text, 'int') FROM MyTable",
+  //      Seq(row(97), row(98), row(99)
+  //      ))
+  //
+  //    checkResult(
+  //      "SELECT hashCode1(text, 'string') FROM MyTable",
+  //      Seq(row("str97"), row("str98"), row("str99")
+  //      ))
+  //  }
 
   @Test
   def testInNonConstantValue(): Unit = {
@@ -1692,9 +1692,10 @@ class CalcITCase extends BatchTestBase {
 
     tEnv.createTemporaryView("myTable", source)
 
-    val query = """
-                  |select * from myTable where f0 in (1.0, 2.0, 3.0)
-                  |""".stripMargin
+    val query =
+      """
+        |select * from myTable where f0 in (1.0, 2.0, 3.0)
+        |""".stripMargin
 
     checkResult(
       query,
@@ -2332,5 +2333,20 @@ class CalcITCase extends BatchTestBase {
   def testIfNull(): Unit = {
     // reported in FLINK-35832
     checkResult("SELECT IFNULL(JSON_VALUE('{\"a\":16}','$.a'),'0')", Seq(row("16")));
+  }
+
+  @Test
+  def testRawHash(): Unit = {
+    // reported in FLINK-38135
+    tEnv.createTemporarySystemFunction("RawOutUDF", RawOutUDF)
+    checkResult(
+      s"""
+         |SELECT str, COUNT(1) FROM (
+         |  SELECT RawOutUDF(id) AS str FROM (VALUES (0), (1), (2)) AS t(id)
+         |)
+         |GROUP BY str
+         |""".stripMargin,
+      Seq(row(0, 1), row(1, 1), row(2, 1))
+    );
   }
 }
