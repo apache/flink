@@ -26,8 +26,7 @@ import { NavigationComponent } from '@flink-runtime-web/components/navigation/na
   templateUrl: './job-manager.component.html',
   styleUrls: ['./job-manager.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NavigationComponent, RouterOutlet],
-  standalone: true
+  imports: [NavigationComponent, RouterOutlet]
 })
 export class JobManagerComponent {
   public readonly listOfNavigation = [

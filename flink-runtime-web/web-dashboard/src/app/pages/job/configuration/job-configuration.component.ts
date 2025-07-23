@@ -22,19 +22,17 @@ import { Subject } from 'rxjs';
 import { mergeMap, takeUntil } from 'rxjs/operators';
 
 import { JobConfig } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobService } from '@flink-runtime-web/services';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzTableModule } from 'ng-zorro-antd/table';
-
-import { JobLocalService } from '../job-local.service';
 
 @Component({
   selector: 'flink-job-configuration',
   templateUrl: './job-configuration.component.html',
   styleUrls: ['./job-configuration.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCardModule, NzTableModule, NgIf, NgForOf],
-  standalone: true
+  imports: [NzCardModule, NzTableModule, NgIf, NgForOf]
 })
 export class JobConfigurationComponent implements OnInit, OnDestroy {
   public config: JobConfig;

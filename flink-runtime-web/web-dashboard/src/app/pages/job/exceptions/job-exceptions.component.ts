@@ -26,18 +26,16 @@ import { distinctUntilChanged, mergeMap, takeUntil, tap } from 'rxjs/operators';
 import { AutoResizeDirective } from '@flink-runtime-web/components/editor/auto-resize.directive';
 import { flinkEditorOptions } from '@flink-runtime-web/components/editor/editor-config';
 import { ExceptionInfo, RootExceptionInfo } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobService } from '@flink-runtime-web/services';
 import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { EditorOptions, NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
-
-import { JobLocalService } from '../job-local.service';
 
 interface ExceptionHistoryItem {
   /**
@@ -88,8 +86,7 @@ const markGlobalFailure = function (exception: ExceptionInfo): ExceptionInfo {
     NzButtonModule,
     NzTagModule,
     KeyValuePipe
-  ],
-  standalone: true
+  ]
 })
 export class JobExceptionsComponent implements OnInit, OnDestroy {
   public readonly trackByTimestamp = (_: number, node: ExceptionInfo): number => node.timestamp;

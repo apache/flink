@@ -38,14 +38,14 @@ import { HumanizeChartNumericPipe } from '@flink-runtime-web/components/humanize
 import { JobChartService } from '@flink-runtime-web/components/job-chart/job-chart.service';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzSpaceModule } from 'ng-zorro-antd/space';
 
 @Component({
   selector: 'flink-job-chart',
   templateUrl: './job-chart.component.html',
   styleUrls: ['./job-chart.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzButtonModule, NzIconModule, HumanizeChartNumericPipe],
-  standalone: true
+  imports: [NzButtonModule, NzIconModule, NzSpaceModule, HumanizeChartNumericPipe]
 })
 export class JobChartComponent implements AfterViewInit, OnDestroy {
   @Input() title: string;

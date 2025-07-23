@@ -31,18 +31,16 @@ import { Subject } from 'rxjs';
 import { distinctUntilChanged, filter, mergeMap, takeUntil } from 'rxjs/operators';
 
 import { JobChartComponent } from '@flink-runtime-web/components/job-chart/job-chart.component';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { MetricsService } from '@flink-runtime-web/services';
 import { NzSelectModule } from 'ng-zorro-antd/select';
-
-import { JobLocalService } from '../../job-local.service';
 
 @Component({
   selector: 'flink-job-overview-drawer-chart',
   templateUrl: './job-overview-drawer-chart.component.html',
   styleUrls: ['./job-overview-drawer-chart.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, NzSelectModule, FormsModule, NgForOf, JobChartComponent],
-  standalone: true
+  imports: [NgIf, NzSelectModule, FormsModule, NgForOf, JobChartComponent]
 })
 export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
   public data = [];

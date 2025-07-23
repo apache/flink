@@ -22,21 +22,19 @@ import { Subject } from 'rxjs';
 import { distinctUntilChanged, takeUntil, map, mergeMap } from 'rxjs/operators';
 
 import { JobDetailCorrect } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { MetricsService } from '@flink-runtime-web/services';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzTableModule } from 'ng-zorro-antd/table';
 
-import { JobLocalService } from '../job-local.service';
-
 @Component({
   selector: 'flink-data-skew',
   templateUrl: './data-skew.component.html',
   styleUrls: ['./data-skew.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzButtonModule, NzCardModule, NzTableModule, NgForOf, NzIconModule],
-  standalone: true
+  imports: [NzButtonModule, NzCardModule, NzTableModule, NgForOf, NzIconModule]
 })
 export class DataSkewComponent implements OnInit, OnDestroy {
   public listOfVerticesAndSkew: Array<{ vertexName: string; skewPct: number }> = [];
@@ -55,13 +53,7 @@ export class DataSkewComponent implements OnInit, OnDestroy {
   public ngOnInit(): void {
     this.refresh$
       .pipe(
-        map(() => {
-          return this.jobDetail;
-        }),
-        takeUntil(this.destroy$)
-      )
-      .pipe(map(jobDetail => jobDetail.vertices))
-      .pipe(
+        map(() => this.jobDetail.vertices),
         mergeMap(vertices => {
           const result: Array<{ vertexName: string; skewPct: number }> = [];
           vertices.forEach(v => {
@@ -77,9 +69,10 @@ export class DataSkewComponent implements OnInit, OnDestroy {
               });
           });
           return result;
-        })
+        }),
+        takeUntil(this.destroy$)
       )
-      .subscribe(_ => {}); // no-op subscriber to trigger the execution of the lazy processing
+      .subscribe(); // no-op subscriber to trigger the execution of the lazy processing
 
     this.jobLocalService
       .jobDetailChanges()

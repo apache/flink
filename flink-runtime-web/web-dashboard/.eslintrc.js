@@ -68,6 +68,7 @@ module.exports = {
             allowConciseArrowFunctionExpressionsStartingWithVoid: true
           }
         ],
+        '@angular-eslint/prefer-inject': 'off',
         'prefer-arrow/prefer-arrow-functions': 'off',
         'unused-imports/no-unused-imports': 'error',
         'import/no-duplicates': 'error',
