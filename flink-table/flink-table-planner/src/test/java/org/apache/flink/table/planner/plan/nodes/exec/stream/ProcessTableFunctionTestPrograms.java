@@ -37,6 +37,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiInputFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NamedTimersFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NonNullMapStateFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OptionalOnTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.OptionalPartitionOnTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PojoArgsFunction;
@@ -70,6 +71,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 import static org.apache.flink.table.api.Expressions.$;
@@ -82,12 +84,15 @@ import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTable
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.KEYED_TIMED_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MULTI_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MULTI_VALUES;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MULTI_VALUES_SOURCE;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MULTI_VALUES_SOURCE_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.PASS_THROUGH_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_CITY_SOURCE;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_MULTI_BASE_SINK_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE_LATE_EVENTS;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TIMED_SOURCE_SCHEMA;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.UPDATING_VALUES;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecProcessTableFunction}. */
@@ -130,6 +135,27 @@ public class ProcessTableFunctionTestPrograms {
                                     .addSchema(BASE_SINK_SCHEMA)
                                     .consumedValues(
                                             "+I[{+I[Bob, 12], 1}]", "+I[{+I[Alice, 42], 1}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t, i => 1)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_ROW_SEMANTIC_TABLE_RESTORE =
+            TableTestProgram.of(
+                            "process-row-semantic-table-restore",
+                            "table with row semantics for restore tests")
+                    .setupTemporarySystemFunction("f", RowSemanticTableFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(MULTI_VALUES_SOURCE_SCHEMA)
+                                    .addOption("changelog-mode", "I")
+                                    .producedBeforeRestore(Row.ofKind(RowKind.INSERT, "Bob", 12))
+                                    .producedAfterRestore(Row.ofKind(RowKind.INSERT, "Alice", 42))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedBeforeRestore("+I[{+I[Bob, 12], 1}]")
+                                    .consumedAfterRestore("+I[{+I[Alice, 42], 1}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t, i => 1)")
                     .build();
@@ -549,6 +575,40 @@ public class ProcessTableFunctionTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
                     .build();
 
+    public static final TableTestProgram PROCESS_UPDATING_OUTPUT_UPSERT_RESTORE =
+            TableTestProgram.of(
+                            "process-updating-output-upsert-restore", "outputs upsert changelog")
+                    .setupTemporarySystemFunction("f", UpdatingUpsertFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "EXPR$1 BIGINT")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, "Bob", 1L),
+                                            Row.ofKind(RowKind.INSERT, "Alice", 1L))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "Bob", 2L),
+                                            Row.ofKind(RowKind.DELETE, "Alice", 1L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "`name` STRING PRIMARY KEY NOT ENFORCED",
+                                            "`name0` STRING",
+                                            "`count` BIGINT",
+                                            "`mode` STRING")
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,D")
+                                    .consumedBeforeRestore(
+                                            "+I[Bob, Bob, 1, upsert-full-delete]",
+                                            "+I[Alice, Alice, 1, upsert-full-delete]")
+                                    .consumedAfterRestore(
+                                            "+U[Bob, Bob, 2, upsert-full-delete]",
+                                            "-D[Alice, Alice, 1, upsert-full-delete]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
     public static final TableTestProgram PROCESS_UPDATING_OUTPUT_PARTIAL_DELETES =
             TableTestProgram.of(
                             "process-updating-output-partial-deletes",
@@ -743,6 +803,26 @@ public class ProcessTableFunctionTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
                     .build();
 
+    public static final TableTestProgram PROCESS_MULTI_STATE_RESTORE =
+            TableTestProgram.of(
+                            "process-multi-state-restore",
+                            "multiple state entries for restore tests")
+                    .setupTemporarySystemFunction("f", MultiStateFunction.class)
+                    .setupTableSource(MULTI_VALUES_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[Bob, {+I[null], +I[null], +I[Bob, 12]}]",
+                                            "+I[Alice, {+I[null], +I[null], +I[Alice, 42]}]")
+                                    .consumedAfterRestore(
+                                            "+I[Bob, {+I[1], +I[0], +I[Bob, 99]}]",
+                                            "+I[Bob, {+I[2], +I[1], +I[Bob, 100]}]",
+                                            "+I[Alice, {+I[1], +I[0], +I[Alice, 400]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
     public static final TableTestProgram PROCESS_CLEARING_STATE =
             TableTestProgram.of(
                             "process-clearing-state", "state for Bob is cleared after second row")
@@ -922,6 +1002,51 @@ public class ProcessTableFunctionTestPrograms {
                                             "+I[Bob, {Processing input row +I[Bob, 6, 1970-01-01T00:00:00.006Z] at time 6 watermark 4}, 1970-01-01T00:00:00.006Z]",
                                             "+I[Bob, {Timer timeout2 fired at time 5 watermark 5}, 1970-01-01T00:00:00.005Z]",
                                             "+I[Bob, {Clearing all timers at time 5 watermark 5}, 1970-01-01T00:00:00.005Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))")
+                    .build();
+
+    public static final TableTestProgram PROCESS_NAMED_TIMERS_RESTORE =
+            TableTestProgram.of(
+                            "process-partitioned-named-timers-restore",
+                            "test create/fire/replace/clear/clear-all named timers")
+                    .setupTemporarySystemFunction("f", NamedTimersFunction.class)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(TIMED_SOURCE_SCHEMA)
+                                    .producedBeforeRestore(
+                                            Row.of("Bob", 1, Instant.ofEpochMilli(0)),
+                                            Row.of("Alice", 1, Instant.ofEpochMilli(1)),
+                                            Row.of("Bob", 2, Instant.ofEpochMilli(2)))
+                                    .producedAfterRestore(
+                                            Row.of("Bob", 3, Instant.ofEpochMilli(3)),
+                                            Row.of("Bob", 4, Instant.ofEpochMilli(4)),
+                                            Row.of("Bob", 5, Instant.ofEpochMilli(5)),
+                                            Row.of("Bob", 6, Instant.ofEpochMilli(6)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_TIMED_BASE_SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[Bob, {Processing input row +I[Bob, 1, 1970-01-01T00:00:00Z] at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer timeout1 for 1 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer timeout2 for 2 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer timeout3 for 3 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer timeout4 for 9223372036854775807 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Bob, {Registering timer timeout5 for 9223372036854775807 at time 0 watermark null}, 1970-01-01T00:00:00Z]",
+                                            "+I[Alice, {Processing input row +I[Alice, 1, 1970-01-01T00:00:00.001Z] at time 1 watermark null}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 2, 1970-01-01T00:00:00.002Z] at time 2 watermark null}, 1970-01-01T00:00:00.002Z]")
+                                    .consumedAfterRestore(
+                                            "+I[Bob, {Timer timeout1 fired at time 1 watermark 9223372036854775807}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Registering timer timeout2 for 5 at time 1 watermark 9223372036854775807}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Clearing timer timeout3 at time 1 watermark 9223372036854775807}, 1970-01-01T00:00:00.001Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 3, 1970-01-01T00:00:00.003Z] at time 3 watermark null}, 1970-01-01T00:00:00.003Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 4, 1970-01-01T00:00:00.004Z] at time 4 watermark null}, 1970-01-01T00:00:00.004Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 5, 1970-01-01T00:00:00.005Z] at time 5 watermark null}, 1970-01-01T00:00:00.005Z]",
+                                            "+I[Bob, {Processing input row +I[Bob, 6, 1970-01-01T00:00:00.006Z] at time 6 watermark null}, 1970-01-01T00:00:00.006Z]",
+                                            "+I[Bob, {Timer timeout2 fired at time 2 watermark 9223372036854775807}, 1970-01-01T00:00:00.002Z]",
+                                            "+I[Bob, {Clearing all timers at time 2 watermark 9223372036854775807}, 1970-01-01T00:00:00.002Z]")
                                     .build())
                     .runSql(
                             "INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name, on_time => DESCRIPTOR(ts))")
@@ -1226,6 +1351,24 @@ public class ProcessTableFunctionTestPrograms {
                     .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
                     .build();
 
+    public static final TableTestProgram PROCESS_MAP_STATE_RESTORE =
+            TableTestProgram.of("process-map-state-restore", "map view state entry")
+                    .setupTemporarySystemFunction("f", NonNullMapStateFunction.class)
+                    .setupTableSource(MULTI_VALUES_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(KEYED_BASE_SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[Bob, {{}, KeyedStateMapViewWithKeysNotNull, +I[Bob, 12]}]",
+                                            "+I[Alice, {{}, KeyedStateMapViewWithKeysNotNull, +I[Alice, 42]}]")
+                                    .consumedAfterRestore(
+                                            "+I[Bob, {{Bob=2, oldBob=1}, KeyedStateMapViewWithKeysNotNull, +I[Bob, 99]}]",
+                                            "+I[Bob, {{}, KeyedStateMapViewWithKeysNotNull, +I[Bob, 100]}]",
+                                            "+I[Alice, {{Alice=2, oldAlice=1}, KeyedStateMapViewWithKeysNotNull, +I[Alice, 400]}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(r => TABLE t PARTITION BY name)")
+                    .build();
+
     public static final TableTestProgram PROCESS_MULTI_INPUT =
             TableTestProgram.of("process-multi-input", "takes multiple tables")
                     .setupTemporarySystemFunction("f", MultiInputFunction.class)
@@ -1239,6 +1382,35 @@ public class ProcessTableFunctionTestPrograms {
                                             "+I[Bob, Bob, {null, +I[Bob, London]}]",
                                             "+I[Alice, Alice, {+I[Alice, 42], null}]",
                                             "+I[Alice, Alice, {null, +I[Alice, Berlin]}]",
+                                            "+I[Bob, Bob, {+I[Bob, 99], null}]",
+                                            "+I[Charly, Charly, {null, +I[Charly, Paris]}]",
+                                            "+I[Bob, Bob, {+I[Bob, 100], null}]",
+                                            "+I[Alice, Alice, {+I[Alice, 400], null}]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink SELECT * FROM f(in1 => TABLE t PARTITION BY name, in2 => TABLE city PARTITION BY name)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_MULTI_INPUT_RESTORE =
+            TableTestProgram.of("process-multi-input-restore", "takes multiple tables")
+                    .setupTemporarySystemFunction("f", MultiInputFunction.class)
+                    .setupTableSource(MULTI_VALUES_SOURCE)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("city")
+                                    .addSchema("name STRING", "city STRING")
+                                    .producedBeforeRestore(
+                                            Row.of("Bob", "London"), Row.of("Alice", "Berlin"))
+                                    .producedAfterRestore(Row.of("Charly", "Paris"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(MULTI_BASE_SINK_SCHEMA)
+                                    .consumedBeforeRestore(
+                                            "+I[Bob, Bob, {+I[Bob, 12], null}]",
+                                            "+I[Bob, Bob, {null, +I[Bob, London]}]",
+                                            "+I[Alice, Alice, {+I[Alice, 42], null}]",
+                                            "+I[Alice, Alice, {null, +I[Alice, Berlin]}]")
+                                    .consumedAfterRestore(
                                             "+I[Bob, Bob, {+I[Bob, 99], null}]",
                                             "+I[Charly, Charly, {null, +I[Charly, Paris]}]",
                                             "+I[Bob, Bob, {+I[Bob, 100], null}]",

@@ -64,6 +64,17 @@ public class ProcessTableFunctionTestUtils {
             "CREATE VIEW t AS SELECT * FROM "
                     + "(VALUES ('Bob', 12), ('Alice', 42)) AS T(name, score)";
 
+    public static final List<String> MULTI_VALUES_SOURCE_SCHEMA =
+            List.of("name STRING", "score INT");
+    public static final SourceTestStep MULTI_VALUES_SOURCE =
+            SourceTestStep.newBuilder("t")
+                    .addSchema(MULTI_VALUES_SOURCE_SCHEMA)
+                    .addOption("changelog-mode", "I")
+                    .producedBeforeRestore(Row.of("Bob", 12), Row.of("Alice", 42))
+                    .producedAfterRestore(
+                            Row.of("Bob", 99), Row.of("Bob", 100), Row.of("Alice", 400))
+                    .build();
+
     public static final String MULTI_VALUES =
             "CREATE VIEW t AS SELECT * FROM "
                     + "(VALUES ('Bob', 12), ('Alice', 42), ('Bob', 99), ('Bob', 100), ('Alice', 400)) AS T(name, score)";
@@ -87,13 +98,16 @@ public class ProcessTableFunctionTestUtils {
                     + "(VALUES ('Bob', 12), ('Alice', 42), ('Bob', 14)) AS T(name, score) "
                     + "GROUP BY name";
 
+    public static final List<String> TIMED_SOURCE_SCHEMA =
+            List.of(
+                    "name STRING",
+                    "score INT",
+                    "ts TIMESTAMP_LTZ(3)",
+                    "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND");
+
     public static final SourceTestStep TIMED_SOURCE =
             SourceTestStep.newBuilder("t")
-                    .addSchema(
-                            "name STRING",
-                            "score INT",
-                            "ts TIMESTAMP_LTZ(3)",
-                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
+                    .addSchema(TIMED_SOURCE_SCHEMA)
                     .producedValues(
                             Row.of("Bob", 1, Instant.ofEpochMilli(0)),
                             Row.of("Alice", 1, Instant.ofEpochMilli(1)),
@@ -106,11 +120,7 @@ public class ProcessTableFunctionTestUtils {
 
     public static final SourceTestStep TIMED_SOURCE_LATE_EVENTS =
             SourceTestStep.newBuilder("t")
-                    .addSchema(
-                            "name STRING",
-                            "score INT",
-                            "ts TIMESTAMP_LTZ(3)",
-                            "WATERMARK FOR ts AS ts - INTERVAL '0.001' SECOND")
+                    .addSchema(TIMED_SOURCE_SCHEMA)
                     .producedValues(
                             Row.of("Bob", 1, Instant.ofEpochMilli(0)),
                             Row.of("Alice", 1, Instant.ofEpochMilli(1)),
@@ -382,8 +392,8 @@ public class ProcessTableFunctionTestUtils {
             if (i == null) {
                 i = 0;
             }
-            s2.setField("s", i.toString());
             s1.setField("i", i + 1);
+            s2.setField("s", i.toString());
         }
     }
 
@@ -736,6 +746,38 @@ public class ProcessTableFunctionTestUtils {
                     .isInstanceOf(TableRuntimeException.class)
                     .hasMessageContaining("Map views don't support null keys.");
             s.put("nullValue", null);
+
+            // clear
+            if (count == 2) {
+                ctx.clearState("s");
+            }
+        }
+    }
+
+    /** Testing function. */
+    public static class NonNullMapStateFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                @StateHint MapView<String, Integer> s,
+                @ArgumentHint({SET_SEMANTIC_TABLE, OPTIONAL_PARTITION_BY}) Row r)
+                throws Exception {
+            final String viewToString =
+                    s.getMap().entrySet().stream()
+                            .map(Objects::toString)
+                            .sorted()
+                            .collect(Collectors.joining(", ", "{", "}"));
+            collectObjects(viewToString, s.getClass().getSimpleName(), r);
+
+            // get
+            final String name = r.getFieldAs("name");
+            int count = 1;
+            if (s.contains(name)) {
+                count = s.get(name);
+            }
+
+            // create
+            s.put("old" + name, count);
+            s.put(name, count + 1);
 
             // clear
             if (count == 2) {
