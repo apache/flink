@@ -63,12 +63,14 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -142,7 +144,7 @@ public class RexUtil {
             if (lhsType.equals(rhsType)) {
                 castExps.add(rhsExp);
             } else {
-                castExps.add(rexBuilder.makeCast(lhsType, rhsExp));
+                castExps.add(rexBuilder.makeCast(lhsType, rhsExp, true, false));
             }
         }
         return castExps;
@@ -665,7 +667,7 @@ public class RexUtil {
                                                             type,
                                                             true,
                                                             true)))
-                            .collect(Util.toImmutableList());
+                            .collect(toImmutableList());
             orList.add(composeConjunction(rexBuilder, list));
         } else {
             final RangeSets.Consumer<C> consumer = new RangeToRex<>(ref, orList, rexBuilder, type);
@@ -1581,9 +1583,8 @@ public class RexUtil {
      * Returns whether a call to {@code op} with {@code exprs} as arguments would be considered
      * "flat".
      *
-     * <p>For example, {@code isFlat([w, AND[x, y], z, AND)} returns false;
-     *
-     * <p>{@code isFlat([w, x, y, z], AND)} returns true.
+     * <p>For example, {@code isFlat([w, AND[x, y], z, AND)} returns false; {@code isFlat([w, x, y,
+     * z], AND)} returns true.
      */
     private static boolean isFlat(List<? extends RexNode> exprs, final SqlOperator op) {
         return !isAssociative(op)
@@ -2689,8 +2690,9 @@ public class RexUtil {
             return list;
         }
 
-        private static Map<RexNode, RexNode> commonFactors(List<RexNode> nodes) {
-            final Map<RexNode, RexNode> map = new HashMap<>();
+        private static LinkedHashMap<RexNode, RexNode> commonFactors(List<RexNode> nodes) {
+            // make sure the result is in deterministic order
+            final LinkedHashMap<RexNode, RexNode> map = new LinkedHashMap<>();
             int i = 0;
             for (RexNode node : nodes) {
                 if (i++ == 0) {

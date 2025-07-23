@@ -108,7 +108,7 @@ import static org.apache.calcite.util.Util.first;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in Flink-35216: Lines 832 ~ 878
+ *   <li>Added in Flink-35216: Lines 833 ~ 879
  * </ol>
  */
 public class StandardConvertletTable extends ReflectiveConvertletTable {
@@ -130,6 +130,7 @@ public class StandardConvertletTable extends ReflectiveConvertletTable {
         addAlias(SqlLibraryOperators.NULL_SAFE_EQUAL, SqlStdOperatorTable.IS_NOT_DISTINCT_FROM);
         addAlias(SqlStdOperatorTable.PERCENT_REMAINDER, SqlStdOperatorTable.MOD);
         addAlias(SqlLibraryOperators.IFNULL, SqlLibraryOperators.NVL);
+        addAlias(SqlLibraryOperators.REGEXP_SUBSTR, SqlLibraryOperators.REGEXP_EXTRACT);
 
         // Register convertlets for specific objects.
         registerOp(SqlStdOperatorTable.CAST, this::convertCast);
@@ -2018,8 +2019,8 @@ public class StandardConvertletTable extends ReflectiveConvertletTable {
             final TimeUnit unit = first(timeFrame.unit(), TimeUnit.EPOCH);
             final RexNode interval2Sub;
             switch (unit) {
-                // Fractional second units are converted to seconds using their associated
-                // multiplier.
+                // Fractional second units are converted to seconds using their
+                // associated multiplier.
                 case MICROSECOND:
                 case NANOSECOND:
                     interval2Sub =
