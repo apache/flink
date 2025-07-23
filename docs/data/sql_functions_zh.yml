@@ -1323,11 +1323,11 @@ valuemodification:
       ```sql
       -- Update the 'name' field of a user object
       OBJECT_UPDATE(OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 14), 'name', 'Alice')
-      -- Returns: User{name='Alice', age=14})
+      -- Returns: User{name='Alice', age=14}
       
       -- Update multiple fields
       OBJECT_UPDATE(OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 14), 'name', 'Alice', 'age', 30)
-      -- Returns: User{name='Alice', age=30})
+      -- Returns: User{name='Alice', age=30}
       ```
 
 valueaccess:

@@ -19,7 +19,6 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -50,7 +49,7 @@ import java.util.stream.Collectors;
  *
  * <ul>
  *   <li>Ensures the function has an odd number of arguments (at least 3)
- *   <li>Validates the first argument is a non-null structured type
+ *   <li>Validates the first argument is a structured type
  *   <li>Validates that key arguments are non-null string literals
  *   <li>Ensures field names are not repeated in the key-value pairs
  *   <li>Ensures field names are part of the structured type's attributes
@@ -111,9 +110,6 @@ public class ObjectUpdateInputTypeStrategy implements InputTypeStrategy {
                             i,
                             structuredTypeAttributeNameToLogicalType,
                             fieldNames);
-
-            validateValueArgument(
-                    argumentDataTypes, i + 1, structuredTypeAttributeNameToLogicalType, keyName);
         }
     }
 
@@ -162,32 +158,6 @@ public class ObjectUpdateInputTypeStrategy implements InputTypeStrategy {
         }
 
         return fieldName;
-    }
-
-    private static void validateValueArgument(
-            final List<DataType> argumentDataTypes,
-            final int pos,
-            final Map<String, LogicalType> structuredTypeAttributes,
-            final String keyNameToBeUpdated) {
-        final DataType argumentValueDataType = argumentDataTypes.get(pos);
-        final LogicalType argumentValueLogicalType = argumentValueDataType.getLogicalType();
-
-        final LogicalType expectedType = structuredTypeAttributes.get(keyNameToBeUpdated);
-        final DataType expectedDataType = DataTypes.of(expectedType);
-
-        // Validate that the updated value type matches the expected type
-        if (!argumentValueLogicalType
-                .getDefaultConversion()
-                .equals(expectedDataType.getConversionClass())) {
-            final String message =
-                    String.format(
-                            "The value type for field '%s' at position %d is expected to be %s, but was %s.",
-                            keyNameToBeUpdated,
-                            pos + 1,
-                            expectedType.asSummaryString(),
-                            argumentValueDataType.getLogicalType().asSummaryString());
-            throw new ValidationException(message);
-        }
     }
 
     @Override

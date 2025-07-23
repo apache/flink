@@ -21,7 +21,6 @@ package org.apache.flink.table.types.inference.strategies;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.DataTypes.Field;
-import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
@@ -45,7 +44,6 @@ import java.util.stream.IntStream;
  * <ul>
  *   <li>Extracting the field definitions from the input structured type
  *   <li>Resolving the class from the structured type
- *   <li>
  *   <li>Creating a new structured type with the same class but updating field types to match the
  *       types of the new values being assigned
  * </ul>
@@ -56,16 +54,6 @@ import java.util.stream.IntStream;
  */
 @Internal
 public class ObjectUpdateTypeStrategy implements TypeStrategy {
-
-    private static Class<?> extractClass(
-            final CallContext callContext, final StructuredType structuredType) {
-        final DataTypeFactory dataTypeFactory = callContext.getDataTypeFactory();
-        final ClassLoader classLoader = dataTypeFactory.getClassLoader();
-        String className = structuredType.getClassName().orElseThrow(IllegalStateException::new);
-
-        return StructuredType.resolveClass(classLoader, className)
-                .orElseThrow(IllegalStateException::new);
-    }
 
     private static Field[] extractFields(
             final CallContext callContext,
@@ -109,13 +97,20 @@ public class ObjectUpdateTypeStrategy implements TypeStrategy {
     @Override
     public Optional<DataType> inferType(final CallContext callContext) {
         final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
-        final DataType firstArgumentDataType = argumentDataTypes.get(0);
         final StructuredType structuredType =
-                (StructuredType) firstArgumentDataType.getLogicalType();
+                (StructuredType) argumentDataTypes.get(0).getLogicalType();
 
-        final Class<?> resolveClass = extractClass(callContext, structuredType);
         final Field[] fields = extractFields(callContext, argumentDataTypes, structuredType);
 
-        return Optional.of(DataTypes.STRUCTURED(resolveClass, fields));
+        final String className =
+                structuredType.getClassName().orElseThrow(IllegalStateException::new);
+        final Optional<Class<?>> resolvedClass =
+                StructuredType.resolveClass(
+                        callContext.getDataTypeFactory().getClassLoader(), className);
+
+        return Optional.of(
+                resolvedClass
+                        .map(clazz -> DataTypes.STRUCTURED(clazz, fields))
+                        .orElse(DataTypes.STRUCTURED(className, fields)));
     }
 }

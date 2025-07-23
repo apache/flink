@@ -2233,14 +2233,7 @@ class Expression(Generic[T]):
         :return: expression representing the updated structured type with modified
                  field values
         """
-        gateway = get_gateway()
-        ApiExpressionUtils = (
-            gateway.jvm.org.apache.flink.table.expressions.ApiExpressionUtils
-        )
-        exprs = [
-            ApiExpressionUtils.objectToExpression(_get_java_expression(e)) for e in kv
-        ]
-        return _binary_op("objectUpdate")(self, to_jarray(gateway.jvm.Object, exprs))
+        return _varargs_op("objectUpdate")(self, *kv)
 
 
 # add the docs
