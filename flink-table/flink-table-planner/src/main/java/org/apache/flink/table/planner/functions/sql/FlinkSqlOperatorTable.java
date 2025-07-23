@@ -54,6 +54,7 @@ import org.apache.calcite.sql.util.ReflectiveSqlOperatorTable;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.sql.validate.SqlNameMatchers;
+import org.apache.calcite.util.Util;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -86,94 +87,40 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
             // register functions based on batch or streaming mode
             final FlinkSqlOperatorTable finalInstance = instance;
-            dynamicFunctions(isBatchMode)
-                    .forEach(
-                            f -> {
-                                finalInstance.register(f);
-                            });
+            dynamicFunctions(isBatchMode).forEach(finalInstance::register);
             cachedInstances.put(isBatchMode, finalInstance);
         }
         return instance;
     }
 
     public static List<SqlFunction> dynamicFunctions(boolean isBatchMode) {
-        List<SqlFunction> sqlFunctions =
-                Arrays.asList(
-                        new FlinkTimestampDynamicFunction(
-                                SqlStdOperatorTable.LOCALTIME.getName(),
-                                SqlTypeName.TIME,
-                                isBatchMode) {
-                            @Override
-                            public SqlSyntax getSyntax() {
-                                return SqlSyntax.FUNCTION;
-                            }
-                        },
-                        new FlinkTimestampDynamicFunction(
-                                SqlStdOperatorTable.LOCALTIME.getName(),
-                                SqlTypeName.TIME,
-                                isBatchMode),
-                        new FlinkTimestampDynamicFunction(
-                                SqlStdOperatorTable.CURRENT_TIME.getName(),
-                                SqlTypeName.TIME,
-                                isBatchMode) {
-                            @Override
-                            public SqlSyntax getSyntax() {
-                                return SqlSyntax.FUNCTION;
-                            }
-                        },
-                        new FlinkTimestampDynamicFunction(
-                                SqlStdOperatorTable.CURRENT_TIME.getName(),
-                                SqlTypeName.TIME,
-                                isBatchMode),
-                        new FlinkCurrentDateDynamicFunction(isBatchMode) {
-                            @Override
-                            public SqlSyntax getSyntax() {
-                                return SqlSyntax.FUNCTION;
-                            }
-                        },
-                        new FlinkCurrentDateDynamicFunction(isBatchMode),
-                        new FlinkTimestampWithPrecisionDynamicFunction(
-                                SqlStdOperatorTable.LOCALTIMESTAMP.getName(),
-                                SqlTypeName.TIMESTAMP,
-                                isBatchMode,
-                                3) {
-                            @Override
-                            public SqlSyntax getSyntax() {
-                                return SqlSyntax.FUNCTION;
-                            }
-                        },
-                        new FlinkTimestampWithPrecisionDynamicFunction(
-                                SqlStdOperatorTable.LOCALTIMESTAMP.getName(),
-                                SqlTypeName.TIMESTAMP,
-                                isBatchMode,
-                                3),
-                        new FlinkTimestampWithPrecisionDynamicFunction(
-                                SqlStdOperatorTable.CURRENT_TIMESTAMP.getName(),
-                                SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE,
-                                isBatchMode,
-                                3) {
-                            @Override
-                            public SqlSyntax getSyntax() {
-                                return SqlSyntax.FUNCTION;
-                            }
-                        },
-                        new FlinkTimestampWithPrecisionDynamicFunction(
-                                SqlStdOperatorTable.CURRENT_TIMESTAMP.getName(),
-                                SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE,
-                                isBatchMode,
-                                3),
-                        new FlinkTimestampWithPrecisionDynamicFunction(
-                                FlinkTimestampWithPrecisionDynamicFunction.NOW,
-                                SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE,
-                                isBatchMode,
-                                3) {
-                            @Override
-                            public SqlSyntax getSyntax() {
-                                return SqlSyntax.FUNCTION;
-                            }
-                        });
+        return Arrays.asList(
+                new FlinkTimestampDynamicFunction(
+                        SqlStdOperatorTable.LOCALTIME.getName(), SqlTypeName.TIME, isBatchMode),
+                new FlinkTimestampDynamicFunction(
+                        SqlStdOperatorTable.CURRENT_TIME.getName(), SqlTypeName.TIME, isBatchMode),
+                new FlinkCurrentDateDynamicFunction(isBatchMode),
+                new FlinkTimestampWithPrecisionDynamicFunction(
+                        SqlStdOperatorTable.LOCALTIMESTAMP.getName(),
+                        SqlTypeName.TIMESTAMP,
+                        isBatchMode,
+                        3),
+                new FlinkTimestampWithPrecisionDynamicFunction(
+                        SqlStdOperatorTable.CURRENT_TIMESTAMP.getName(),
+                        SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        isBatchMode,
+                        3),
+                new FlinkTimestampWithPrecisionDynamicFunction(
+                        FlinkTimestampWithPrecisionDynamicFunction.NOW,
+                        SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                        isBatchMode,
+                        3) {
 
-        return sqlFunctions;
+                    @Override
+                    public SqlSyntax getSyntax() {
+                        return SqlSyntax.FUNCTION;
+                    }
+                });
     }
 
     private static void validateNoDynamicFunction(FlinkSqlOperatorTable instance)
@@ -201,9 +148,32 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             SqlSyntax syntax,
             List<SqlOperator> operatorList,
             SqlNameMatcher nameMatcher) {
-        // set caseSensitive=false to make sure the behavior is same with before.
-        super.lookupOperatorOverloads(
-                opName, category, syntax, operatorList, SqlNameMatchers.withCaseSensitive(false));
+
+        final SqlNameMatcher matcher = SqlNameMatchers.withCaseSensitive(false);
+        String simpleName;
+        if (opName.names.size() > 1) {
+            if (opName.names.get(opName.names.size() - 2).equals(IS_NAME)) {
+                // per SQL99 Part 2 Section 10.4 Syntax Rule 7.b.ii.1
+                simpleName = Util.last(opName.names);
+            } else {
+                return;
+            }
+        } else {
+            simpleName = opName.getSimple();
+        }
+
+        lookUpOperators(
+                simpleName,
+                matcher.isCaseSensitive(),
+                op -> {
+                    if (op.getSyntax() == syntax) {
+                        operatorList.add(op);
+                    } else if (syntax == SqlSyntax.FUNCTION && op instanceof SqlFunction) {
+                        // this special case is needed for operators like CAST,
+                        // which are treated as functions but have special syntax
+                        operatorList.add(op);
+                    }
+                });
     }
 
     // -----------------------------------------------------------------------------

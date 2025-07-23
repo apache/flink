@@ -123,6 +123,7 @@ import org.apache.calcite.util.Util;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.apiguardian.api.API;
 import org.checkerframework.checker.nullness.qual.KeyFor;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.dataflow.qual.Pure;
@@ -1067,6 +1068,15 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             List<SqlNode> operands = ((SqlCall) node).getOperandList();
             SqlSampleSpec sampleSpec = SqlLiteral.sampleValue(operands.get(1));
             if (sampleSpec instanceof SqlSampleSpec.SqlTableSampleSpec) {
+                // The sampling percentage must be between 0 (0%) and 1 (100%).
+                BigDecimal samplePercentage =
+                        ((SqlSampleSpec.SqlTableSampleSpec) sampleSpec).sampleRate;
+                // Check the samplePercentage whether is between 0 and 1
+                if (samplePercentage.compareTo(BigDecimal.ZERO) < 0
+                        || samplePercentage.compareTo(BigDecimal.ONE) > 0) {
+                    throw SqlUtil.newContextException(
+                            node.getParserPosition(), RESOURCE.invalidSampleSize());
+                }
                 validateFeature(RESOURCE.sQLFeature_T613(), node.getParserPosition());
             } else if (sampleSpec instanceof SqlSampleSpec.SqlSubstitutionSampleSpec) {
                 validateFeature(
@@ -2009,27 +2019,27 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
         final String signature;
         if (unresolvedFunction instanceof SqlFunction) {
-            // ----- FLINK MODIFICATION BEGIN -----
             final SqlOperandTypeChecker typeChecking =
                     new AssignableOperandTypeChecker(argTypes, argNames);
-            final String invocation =
-                    typeChecking.getAllowedSignatures(
-                            unresolvedFunction, unresolvedFunction.getName());
+            // ----- FLINK MODIFICATION BEGIN -----
             if (unresolvedFunction.getOperandTypeChecker() != null) {
                 final String allowedSignatures =
                         unresolvedFunction
                                 .getOperandTypeChecker()
                                 .getAllowedSignatures(
                                         unresolvedFunction, unresolvedFunction.getName());
+                final String invocation =
+                        typeChecking.getAllowedSignatures(
+                                unresolvedFunction, unresolvedFunction.getName());
                 throw newValidationError(
                         call,
                         EXTRA_RESOURCE.validatorNoFunctionMatch(invocation, allowedSignatures));
             } else {
+                // ----- FLINK MODIFICATION END -----
                 signature =
                         typeChecking.getAllowedSignatures(
                                 unresolvedFunction, unresolvedFunction.getName());
             }
-            // ----- FLINK MODIFICATION END -----
         } else {
             signature = unresolvedFunction.getName();
         }
@@ -2273,6 +2283,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             @Nullable String alias,
             SqlValidatorNamespace ns,
             boolean forceNullable) {
+        // FLINK MODIFICATION BEGIN
         namespaces.put(requireNonNull(ns.getNode(), () -> "ns.getNode() for " + ns), ns);
         if (usingScope != null) {
             assert alias != null
@@ -2283,6 +2294,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                             + ", so alias must not be null";
             usingScope.addChild(ns, alias, forceNullable);
         }
+        // FLINK MODIFICATION END
     }
 
     /**
@@ -2351,7 +2363,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 case PIVOT:
                 case UNPIVOT:
                 case MATCH_RECOGNIZE:
-
+                case WITH:
                     // give this anonymous construct a name since later
                     // query processing stages rely on it
                     alias = SqlValidatorUtil.alias(node, nextGeneratedId++);
@@ -2877,7 +2889,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 break;
 
             case UNION:
-                registerSetop(parentScope, usingScope, node, node, alias, forceNullable);
+                registerSetop(parentScope, usingScope, node, enclosingNode, alias, forceNullable);
                 break;
 
             case WITH:
@@ -3039,8 +3051,24 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
         // A setop is in the same scope as its parent.
         scopes.put(call, parentScope);
-        for (SqlNode operand : call.getOperandList()) {
-            registerQuery(parentScope, null, operand, operand, null, false);
+        @NonNull SqlValidatorScope recursiveScope = parentScope;
+        if (enclosingNode.getKind() == SqlKind.WITH_ITEM) {
+            if (node.getKind() != SqlKind.UNION) {
+                throw newValidationError(node, RESOURCE.recursiveWithMustHaveUnionSetOp());
+            } else if (call.getOperandList().size() > 2) {
+                throw newValidationError(node, RESOURCE.recursiveWithMustHaveTwoChildUnionSetOp());
+            }
+            final WithScope scope = (WithScope) scopes.get(enclosingNode);
+            // recursive scope is only set for the recursive queries.
+            recursiveScope =
+                    scope != null && scope.recursiveScope != null
+                            ? Objects.requireNonNull(scope.recursiveScope)
+                            : parentScope;
+        }
+        for (int i = 0; i < call.getOperandList().size(); i++) {
+            SqlNode operand = call.getOperandList().get(i);
+            @NonNull SqlValidatorScope scope = i == 0 ? parentScope : recursiveScope;
+            registerQuery(scope, null, operand, operand, null, false);
         }
     }
 
@@ -3059,15 +3087,26 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         SqlValidatorScope scope = parentScope;
         for (SqlNode withItem_ : with.withList) {
             final SqlWithItem withItem = (SqlWithItem) withItem_;
-            final WithScope withScope = new WithScope(scope, withItem);
+
+            final boolean isRecursiveWith = withItem.recursive.booleanValue();
+            final SqlValidatorScope withScope =
+                    new WithScope(
+                            scope,
+                            withItem,
+                            isRecursiveWith ? new WithRecursiveScope(scope, withItem) : null);
             scopes.put(withItem, withScope);
 
-            registerQuery(scope, null, withItem.query, with, withItem.name.getSimple(), false);
+            registerQuery(
+                    scope,
+                    null,
+                    withItem.query,
+                    withItem.recursive.booleanValue() ? withItem : with,
+                    withItem.name.getSimple(),
+                    forceNullable);
             registerNamespace(
                     null, alias, new WithItemNamespace(this, withItem, enclosingNode), false);
             scope = withScope;
         }
-
         registerQuery(scope, null, with.body, enclosingNode, alias, forceNullable, checkUpdate);
     }
 
@@ -3538,11 +3577,12 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         // Which join types require/allow a ON/USING condition, or allow
         // a NATURAL keyword?
         switch (joinType) {
+            case LEFT_ANTI_JOIN:
             case LEFT_SEMI_JOIN:
                 if (!this.config.conformance().isLiberal()) {
                     throw newValidationError(
                             join.getJoinTypeNode(),
-                            RESOURCE.dialectDoesNotSupportFeature("LEFT SEMI JOIN"));
+                            RESOURCE.dialectDoesNotSupportFeature(joinType.name()));
                 }
             // fall through
             case INNER:
@@ -5202,6 +5242,20 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         SqlInsert insertCallAfterValidate = call.getInsertCall();
         if (insertCallAfterValidate != null) {
             validateInsert(insertCallAfterValidate);
+            // Throw if select list contains NULL literal and target is NOT NULL
+            if (insertCallAfterValidate.getSource() instanceof SqlSelect) {
+                final SqlSelect sourceSelect = (SqlSelect) insertCallAfterValidate.getSource();
+                final SqlNodeList sourceSelectList = sourceSelect.getSelectList();
+                for (int i = 0; i < sourceSelectList.size(); i++) {
+                    final RelDataTypeField targetField = targetRowType.getFieldList().get(i);
+                    final SqlNode selectItem = sourceSelect.getSelectList().get(i);
+                    if (!targetField.getType().isNullable()
+                            && SqlUtil.isNullLiteral(selectItem, true)) {
+                        throw newValidationError(
+                                selectItem, RESOURCE.columnNotNullable(targetField.getName()));
+                    }
+                }
+            }
         }
     }
 
@@ -6317,12 +6371,6 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                         return types.size();
                     }
                 });
-    }
-
-    @Override
-    public void validateColumnListParams(
-            SqlFunction function, List<RelDataType> argTypes, List<SqlNode> operands) {
-        throw new UnsupportedOperationException();
     }
 
     private static boolean isPhysicalNavigation(SqlKind kind) {

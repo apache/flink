@@ -101,14 +101,14 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, EXPR$2])
     <Resource name="ast">
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
-+- LogicalProject(a=[5:BIGINT], b=[1:BIGINT], c=[1:BIGINT])
++- LogicalProject(a=[CAST(5:BIGINT):BIGINT], b=[CAST(1:BIGINT):BIGINT], c=[CAST(1:BIGINT):BIGINT])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
-+- Calc(select=[5 AS a, 1 AS b, 1 AS c])
++- Calc(select=[CAST(5 AS BIGINT) AS a, CAST(1 AS BIGINT) AS b, CAST(1 AS BIGINT) AS c])
    +- Values(tuples=[[{ 0 }]], values=[ZERO])
 ]]>
     </Resource>

@@ -1211,6 +1211,16 @@ public abstract class SqlUtil {
     }
 
     /**
+     * Returns whether a given node contains a {@link SqlKind#DEFAULT} expression.
+     *
+     * @param node AST tree
+     */
+    public static boolean containsDefault(SqlNode node) {
+        final Predicate<SqlCall> callPredicate = call -> call.getKind() == SqlKind.DEFAULT;
+        return containsCall(node, callPredicate);
+    }
+
+    /**
      * Returns whether an AST tree contains a call to an aggregate function.
      *
      * @param node AST tree

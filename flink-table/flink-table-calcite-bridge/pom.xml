@@ -45,9 +45,9 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.35.0:
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.35.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.35.0:compile
+				"mvn dependency:tree" as of Calcite 1.36.0:
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.36.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.36.0:compile
 				[INFO] |  +- org.locationtech.jts:jts-core:jar:1.19.0:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.18.2:compile
 				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.23.0:compile
@@ -160,6 +160,10 @@ under the License.
 				<exclusion>
 					<groupId>com.jayway.jsonpath</groupId>
 					<artifactId>json-path</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-text</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
