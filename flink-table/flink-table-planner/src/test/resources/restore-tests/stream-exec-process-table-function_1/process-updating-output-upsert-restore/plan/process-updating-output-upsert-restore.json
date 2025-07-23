@@ -1,0 +1,152 @@
+{
+  "flinkVersion" : "2.2",
+  "nodes" : [ {
+    "id" : 23,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "EXPR$1",
+              "dataType" : "BIGINT"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_name",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "name" ]
+            }
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `EXPR$1` BIGINT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, t]], fields=[name, EXPR$1])"
+  }, {
+    "id" : 24,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `EXPR$1` BIGINT>",
+    "description" : "Exchange(distribution=[hash[name]])"
+  }, {
+    "id" : 25,
+    "type" : "stream-exec-process-table-function_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `name0` VARCHAR(2147483647), `count` BIGINT, `mode` VARCHAR(2147483647)>",
+    "description" : "ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), DEFAULT(), DEFAULT())], uid=[f], select=[name,name0,count,mode], rowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) name0, BIGINT count, VARCHAR(2147483647) mode)])",
+    "uid" : "f",
+    "functionCall" : {
+      "kind" : "CALL",
+      "systemName" : "f",
+      "operands" : [ {
+        "kind" : "TABLE_ARG_CALL",
+        "inputIndex" : 0,
+        "partitionKeys" : [ 0 ],
+        "orderKeys" : [ ],
+        "type" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `EXPR$1` BIGINT> NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "operands" : [ ],
+        "type" : "DESCRIPTOR"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$DEFAULT$1",
+        "operands" : [ ],
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "type" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `name0` VARCHAR(2147483647), `count` BIGINT, `mode` VARCHAR(2147483647)> NOT NULL"
+    },
+    "inputChangelogModes" : [ [ "INSERT", "UPDATE_AFTER", "DELETE" ] ],
+    "outputChangelogMode" : [ "INSERT", "UPDATE_AFTER", "DELETE" ]
+  }, {
+    "id" : 26,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "name0",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "count",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "mode",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_name",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "name" ]
+            }
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER", "DELETE" ],
+    "inputUpsertKey" : [ 0 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `name0` VARCHAR(2147483647), `count` BIGINT, `mode` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[name, name0, count, mode])"
+  } ],
+  "edges" : [ {
+    "source" : 23,
+    "target" : 24,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 24,
+    "target" : 25,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 25,
+    "target" : 26,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
