@@ -19,12 +19,17 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
+import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
+import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Parser;
+import org.apache.avro.generic.GenericContainer;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -45,7 +50,8 @@ import java.util.Objects;
  *
  * @param <T> the type to be serialized
  */
-public class AvroSerializationSchema<T> implements SerializationSchema<T> {
+public class AvroSerializationSchema<T>
+        implements SerializationSchema<T>, ResultTypeQueryable<GenericContainer> {
 
     /**
      * Creates {@link AvroSerializationSchema} that serializes {@link SpecificRecord} using provided
@@ -219,5 +225,23 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
     @Override
     public int hashCode() {
         return Objects.hash(recordClazz, schema);
+    }
+
+    /**
+     * Returns the type information of the produced type. Depending on the type of the record,
+     * whether it is a specific or generic record, the type information will be different. It can be
+     * either a {@link AvroTypeInfo} or a {@link GenericRecordAvroTypeInfo}.
+     *
+     * @return TypeInformation of the produced type
+     */
+    @Override
+    public TypeInformation getProducedType() {
+        if (recordClazz != null && SpecificRecord.class.isAssignableFrom(recordClazz)) {
+            // if the record class is a specific record, we can use the schema to get the type info
+            return new AvroTypeInfo(recordClazz);
+        } else {
+            // generic record
+            return new GenericRecordAvroTypeInfo(schema);
+        }
     }
 }
