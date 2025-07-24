@@ -22,9 +22,9 @@ import io.fabric8.kubernetes.client.server.mock.KubernetesCrudDispatcher;
 import io.fabric8.mockwebserver.ServerRequest;
 import io.fabric8.mockwebserver.ServerResponse;
 import io.fabric8.mockwebserver.dsl.HttpMethod;
+import io.fabric8.mockwebserver.http.MockResponse;
+import io.fabric8.mockwebserver.http.RecordedRequest;
 import io.fabric8.mockwebserver.internal.SimpleRequest;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.RecordedRequest;
 
 import java.util.Map;
 import java.util.Queue;
