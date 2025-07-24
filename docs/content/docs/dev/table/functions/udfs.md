@@ -1035,7 +1035,7 @@ A user-defined asynchronous scalar function maps zero, one, or multiple scalar v
 
 In order to define an asynchronous scalar function, one has to extend the base class `AsyncScalarFunction` in `org.apache.flink.table.functions` and implement one or more evaluation methods named `eval(...)`.  The first argument must be a `CompletableFuture<...>` which is used to return the result, with subsequent arguments being the parameters passed to the function.
 
-The number of outstanding calls to `eval` may be configured by `table.exec.async-scalar.buffer-capacity`.
+The number of outstanding calls to `eval` may be configured by `table.exec.async-scalar.max-concurrent-operations`.
 
 #### Asynchronous Semantics
 While calls to an `AsyncScalarFunction` may be completed out of the original input order, to maintain correct semantics, the outputs of the function are guaranteed to maintain that input order to downstream components of the query. The data itself could reveal completion order (e.g. by containing fetch timestamps), so the user should consider whether this is acceptable for the use-case. 
@@ -1084,7 +1084,7 @@ public static class BackgroundFunction extends AsyncScalarFunction {
 }
 
 TableEnvironment env = TableEnvironment.create(...);
-env.getConfig().set("table.exec.async-scalar.buffer-capacity", "5");
+env.getConfig().set("table.exec.async-scalar.max-concurrent-operations", "5");
 env.getConfig().set("table.exec.async-scalar.timeout", "1m");
 
 // call function "inline" without registration in Table API
@@ -1130,7 +1130,7 @@ class BackgroundFunc extends AsyncScalarFunction {
 }
 
 val env = TableEnvironment.create(...)
-env.getConfig.set("table.exec.async-scalar.buffer-capacity", "5")
+env.getConfig.set("table.exec.async-scalar.max-concurrent-operations", "5")
 env.getConfig.set("table.exec.async-scalar.timeout", "1m")
 
 // call function "inline" without registration in Table API
