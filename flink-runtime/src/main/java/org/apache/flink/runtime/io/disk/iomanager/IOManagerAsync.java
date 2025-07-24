@@ -121,8 +121,7 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
         }
 
         // install a shutdown hook that makes sure the temp directories get deleted
-        this.shutdownHook =
-                ShutdownHookUtil.addShutdownHook(this::close, getClass().getSimpleName(), LOG);
+        this.shutdownHook = ShutdownHookUtil.addShutdownHook(this, getClass().getSimpleName(), LOG);
     }
 
     /**
