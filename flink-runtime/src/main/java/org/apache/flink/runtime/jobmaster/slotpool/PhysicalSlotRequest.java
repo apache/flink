@@ -20,9 +20,13 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
+
+import javax.annotation.Nonnull;
 
 /** Represents a request for a physical slot. */
-public class PhysicalSlotRequest {
+public class PhysicalSlotRequest implements WeightLoadable {
 
     private final SlotRequestId slotRequestId;
 
@@ -50,6 +54,11 @@ public class PhysicalSlotRequest {
 
     public boolean willSlotBeOccupiedIndefinitely() {
         return slotWillBeOccupiedIndefinitely;
+    }
+
+    @Override
+    public @Nonnull LoadingWeight getLoading() {
+        return slotProfile.getLoading();
     }
 
     /** Result of a {@link PhysicalSlotRequest}. */
