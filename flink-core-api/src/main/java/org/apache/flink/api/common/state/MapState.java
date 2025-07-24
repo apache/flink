@@ -35,6 +35,9 @@ import java.util.Map;
  * the current element. That way, the system can handle stream and state partitioning consistently
  * together.
  *
+ * <p>The user value could be null, but change log state backend is not compatible with the user
+ * value is null, see FLINK-38144 for more details.
+ *
  * @param <UK> Type of the keys in the state.
  * @param <UV> Type of the values in the state.
  */
