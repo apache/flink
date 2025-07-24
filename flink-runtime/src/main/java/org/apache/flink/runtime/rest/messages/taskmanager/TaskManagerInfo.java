@@ -161,8 +161,8 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
                 lastHeartbeat,
                 numberSlots,
                 numberAvailableSlots,
-                ResourceProfileInfo.fromResrouceProfile(totalResource),
-                ResourceProfileInfo.fromResrouceProfile(freeResource),
+                ResourceProfileInfo.fromResourceProfile(totalResource),
+                ResourceProfileInfo.fromResourceProfile(freeResource),
                 hardwareDescription,
                 memoryConfiguration,
                 blocked);

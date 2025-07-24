@@ -63,7 +63,7 @@ public class SlotInfo implements ResponseBody, Serializable {
     }
 
     public SlotInfo(JobID jobId, ResourceProfile resource) {
-        this(jobId, ResourceProfileInfo.fromResrouceProfile(resource));
+        this(jobId, ResourceProfileInfo.fromResourceProfile(resource));
     }
 
     @JsonIgnore
