@@ -172,7 +172,10 @@ public abstract class AbstractForStSyncState<K, N, V> implements InternalKvState
             throws IOException {
         dataOutputView.clear();
         dataOutputView.writeBoolean(value == null);
-        return serializeValueInternal(value, serializer);
+        if (value != null) {
+            serializer.serialize(value, dataOutputView);
+        }
+        return dataOutputView.getCopyOfBuffer();
     }
 
     <T> byte[] serializeValue(T value, TypeSerializer<T> serializer) throws IOException {
