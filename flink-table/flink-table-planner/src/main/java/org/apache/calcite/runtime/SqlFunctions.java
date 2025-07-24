@@ -128,13 +128,10 @@ import static org.apache.calcite.linq4j.Nullness.castNonNull;
 import static org.apache.calcite.util.Static.RESOURCE;
 
 /**
- * Helper methods to implement SQL functions in generated code.
+ * Flink modifications:
  *
- * <p>Not present: and, or, not (builtin operators are better, because they use lazy evaluation.
- * Implementations do not check for null values; the calling code must do that.
- *
- * <p>Many of the functions do not check for null values. This is intentional. If null arguments are
- * possible, the code-generation framework checks for nulls before calling the functions.
+ * <p>so far there are no Flink modifications. Could be removed once upgraded to the version with
+ * fixed CALCITE-6393.
  */
 @SuppressWarnings("UnnecessaryUnboxing")
 @Deterministic

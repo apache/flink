@@ -25,9 +25,9 @@ import org.apache.calcite.util.Litmus;
 /**
  * Flink modifications
  *
- * <p>Lines 73 ~ 75 to mitigate the impact of CALCITE-5570.
+ * <p>Lines 71 ~ 76 to mitigate the impact of CALCITE-5570.
  *
- * <p>Lines 81 ~ 83 to mitigate the impact of CALCITE-5570.
+ * <p>Lines 79 ~ 84 to mitigate the impact of CALCITE-5570.
  */
 public class SqlMapTypeNameSpec extends SqlTypeNameSpec {
 
@@ -68,20 +68,20 @@ public class SqlMapTypeNameSpec extends SqlTypeNameSpec {
         SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "<", ">");
         writer.sep(","); // configures the writer
         keyType.unparse(writer, leftPrec, rightPrec);
+        // BEGIN FLINK MODIFICATION
         // Default is not null.
-        if (Boolean.TRUE.equals(keyType.getNullable())) {
-            // BEGIN FLINK MODIFICATION
-            // writer.keyword("NULL");
-            // END FLINK MODIFICATION
-        }
+        // if (Boolean.TRUE.equals(keyType.getNullable())) {
+        // writer.keyword("NULL");
+        // }
+        // END FLINK MODIFICATION
         writer.sep(",");
         valType.unparse(writer, leftPrec, rightPrec);
+        // BEGIN FLINK MODIFICATION
         // Default is not null.
-        if (Boolean.TRUE.equals(valType.getNullable())) {
-            // BEGIN FLINK MODIFICATION
-            // writer.keyword("NULL");
-            // END FLINK MODIFICATION
-        }
+        // if (Boolean.TRUE.equals(valType.getNullable())) {
+        // writer.keyword("NULL");
+        // }
+        // END FLINK MODIFICATION
         writer.endList(frame);
     }
 
