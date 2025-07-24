@@ -34,7 +34,7 @@ import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
+import org.apache.flink.runtime.dispatcher.DefaultDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
@@ -85,7 +85,7 @@ class ApplicationDispatcherBootstrapITCase {
                     applicationDispatcherLeaderProcessFactoryFactory =
                             ApplicationDispatcherLeaderProcessFactoryFactory.create(
                                     new Configuration(configuration),
-                                    SessionDispatcherFactory.INSTANCE,
+                                    DefaultDispatcherFactory.INSTANCE,
                                     program);
             return new DefaultDispatcherResourceManagerComponentFactory(
                     new DefaultDispatcherRunnerFactory(
