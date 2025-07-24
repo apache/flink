@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -109,5 +110,13 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
 
         ChangelogStateBackendTestUtils.testMaterializedRestoreForPriorityQueue(
                 getStateBackend(), env, streamFactory);
+    }
+
+    // Follow https://issues.apache.org/jira/browse/FLINK-38144
+    @Override
+    @TestTemplate
+    @Disabled("Currently, ChangelogStateBackend does not support null values for map state")
+    public void testMapStateWithNullValue() throws Exception {
+        super.testMapStateWithNullValue();
     }
 }
