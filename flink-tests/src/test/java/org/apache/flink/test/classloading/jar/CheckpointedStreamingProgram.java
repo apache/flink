@@ -18,13 +18,16 @@
 
 package org.apache.flink.test.classloading.jar;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 
 import java.util.Collections;
@@ -46,37 +49,18 @@ public class CheckpointedStreamingProgram {
         RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 100L);
         env.disableOperatorChaining();
 
-        DataStream<String> text = env.addSource(new SimpleStringGenerator());
+        DataStream<String> text =
+                env.fromSource(
+                        new DataGeneratorSource<>(
+                                index -> "someString",
+                                Long.MAX_VALUE, // Effectively unbounded
+                                RateLimiterStrategy.perSecond(1000), // 1000/sec ≈ 1ms delay
+                                Types.STRING),
+                        WatermarkStrategy.noWatermarks(),
+                        "String Generator");
         text.map(new StatefulMapper()).sinkTo(new DiscardingSink<>());
         env.setParallelism(1);
         env.execute("Checkpointed Streaming Program");
-    }
-
-    // with Checkpointing
-    private static class SimpleStringGenerator
-            implements SourceFunction<String>, ListCheckpointed<Integer> {
-        public boolean running = true;
-
-        @Override
-        public void run(SourceContext<String> ctx) throws Exception {
-            while (running) {
-                Thread.sleep(1);
-                ctx.collect("someString");
-            }
-        }
-
-        @Override
-        public void cancel() {
-            running = false;
-        }
-
-        @Override
-        public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
-            return Collections.emptyList();
-        }
-
-        @Override
-        public void restoreState(List<Integer> state) throws Exception {}
     }
 
     private static class StatefulMapper
