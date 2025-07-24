@@ -36,6 +36,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -119,4 +120,10 @@ public class ChangelogDelegateMemoryStateBackendTest extends MemoryStateBackendT
         ChangelogStateBackendTestUtils.testMaterializedRestoreForPriorityQueue(
                 getStateBackend(), env, streamFactory);
     }
+
+    // Follow https://issues.apache.org/jira/browse/FLINK-38144
+    @Override
+    @TestTemplate
+    @Disabled("Currently, ChangelogStateBackend does not support null values for map state")
+    public void testMapStateWithNullValue() {}
 }
