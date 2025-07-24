@@ -208,6 +208,33 @@ class WindowAggregateITCase(
          |)
          |""".stripMargin)
 
+    val insertOnlyOffsetDataId = if (useTimestampLtz) {
+      TestValuesTableFactory
+        .registerData(TestData.windowDataForOffsetWithLtzInShanghai)
+    } else {
+      TestValuesTableFactory.registerData(TestData.windowDataForOffsetWithTimestamp)
+    }
+
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE T3 (
+         | `ts` ${if (useTimestampLtz) "BIGINT" else "STRING"},
+         | `int` INT,
+         | `double` DOUBLE,
+         | `float` FLOAT,
+         | `bigdec` DECIMAL(10, 2),
+         | `string` STRING,
+         | `name` STRING,
+         | `rowtime` AS
+         | ${if (useTimestampLtz) "TO_TIMESTAMP_LTZ(`ts`, 3)" else "TO_TIMESTAMP(`ts`)"},
+         | WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND
+         |) WITH (
+         | 'connector' = 'values',
+         | 'data-id' = '$insertOnlyOffsetDataId',
+         | 'failing-source' = 'false'
+         |)
+         |""".stripMargin)
+
     tEnv.createFunction("concat_distinct_agg", classOf[ConcatDistinctAggFunction])
 
     tEnv.getConfig.setLocalTimeZone(SHANGHAI_ZONE)
@@ -226,10 +253,35 @@ class WindowAggregateITCase(
     )
 
     verifyWindowAgg("TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)", expected)
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
-  def testEventTimeTumbleWindowWithOffset(): Unit = {
+  def testEventTimeTumbleWindowWithOffsetWithoutFailed(): Unit = {
+    val expected = if (useTimestampLtz) {
+      // TODO FLINK-38075 fix wrong result caused by ltz in window
+      Seq(
+        "a,2020-10-10T08:00,2020-10-11T08:00,2,3.33,2.0,1.0,2,Hi|Comment#1",
+        "b,2020-10-10T08:00,2020-10-11T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+        "null,2020-10-10T08:00,2020-10-11T08:00,1,7.77,7.0,7.0,0,null"
+      )
+    } else {
+      Seq(
+        "a,2020-10-09T08:00,2020-10-10T08:00,2,3.33,2.0,1.0,2,Hi|Comment#1",
+        "a,2020-10-10T08:00,2020-10-11T08:00,2,3.33,2.0,1.0,2,Hi|Comment#1",
+        "b,2020-10-10T08:00,2020-10-11T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+        "null,2020-10-10T08:00,2020-10-11T08:00,1,7.77,7.0,7.0,0,null"
+      )
+    }
+
+    verifyWindowAgg(
+      "TUMBLE(TABLE T3, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '8' HOUR)",
+      expected)
+    this.enableFailedBefore = false
+  }
+
+  @TestTemplate
+  def testEventTimeTumbleWindowWithOffsetWithFailed(): Unit = {
     val expected = Seq(
       "a,2020-10-09T08:00,2020-10-10T08:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
@@ -239,6 +291,7 @@ class WindowAggregateITCase(
     verifyWindowAgg(
       "TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '8' HOUR)",
       expected)
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -258,7 +311,7 @@ class WindowAggregateITCase(
         |    window_end,
         |    COUNT(DISTINCT `string`) AS cnt
         |    FROM TABLE(
-        |      TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '8' HOUR))
+        |      TUMBLE(TABLE T3, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '8' HOUR))
         |    GROUP BY `name`, window_start, window_end
         |) GROUP BY cnt, window_start, window_end
       """.stripMargin
@@ -267,23 +320,38 @@ class WindowAggregateITCase(
     tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
-    val expected =
-      Seq("0,2020-10-09T08:00,2020-10-10T08:00,1", "3,2020-10-09T08:00,2020-10-10T08:00,2")
+    val expected = if (useTimestampLtz) {
+      // TODO FLINK-38075 fix wrong result caused by ltz in window
+      Seq(
+        "0,2020-10-10T08:00,2020-10-11T08:00,1",
+        "2,2020-10-10T08:00,2020-10-11T08:00,1",
+        "3,2020-10-10T08:00,2020-10-11T08:00,1"
+      )
+    } else {
+      Seq(
+        "0,2020-10-10T08:00,2020-10-11T08:00,1",
+        "2,2020-10-09T08:00,2020-10-10T08:00,1",
+        "2,2020-10-10T08:00,2020-10-11T08:00,1",
+        "3,2020-10-10T08:00,2020-10-11T08:00,1"
+      )
+    }
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))
+    this.enableFailedBefore = false
   }
 
   @TestTemplate
   def testEventTimeTumbleWindowWithNegativeOffset(): Unit = {
     val expected = Seq(
-      "a,2020-10-09T16:00,2020-10-10T16:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
-      "b,2020-10-09T16:00,2020-10-10T16:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
-      "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null"
+      "a,2020-10-09T16:00,2020-10-10T16:00,4,6.66,2.0,1.0,2,Hi|Comment#1",
+      "b,2020-10-10T16:00,2020-10-11T16:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+      "null,2020-10-10T16:00,2020-10-11T16:00,1,7.77,7.0,7.0,0,null"
     )
 
     verifyWindowAgg(
-      "TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '-8' HOUR)",
+      "TUMBLE(TABLE T3, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '-8' HOUR)",
       expected)
+    this.enableFailedBefore = false
   }
 
   @TestTemplate
@@ -292,6 +360,7 @@ class WindowAggregateITCase(
       "TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
       "GROUPING SETS((`name`),())",
       TumbleWindowGroupSetExpectedData)
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -300,6 +369,7 @@ class WindowAggregateITCase(
       "TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
       "CUBE(`name`)",
       TumbleWindowCubeExpectedData)
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -308,6 +378,7 @@ class WindowAggregateITCase(
       "TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
       "ROLLUP(`name`)",
       TumbleWindowRollupExpectedData)
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -350,6 +421,7 @@ class WindowAggregateITCase(
     }
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -382,6 +454,7 @@ class WindowAggregateITCase(
     )
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -411,6 +484,7 @@ class WindowAggregateITCase(
       "2,11.10,7.0,3.0,1,Comment#3")
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -432,10 +506,37 @@ class WindowAggregateITCase(
     verifyWindowAgg(
       "HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND)",
       expected)
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
-  def testEventTimeHopWindowWithOffset(): Unit = {
+  def testEventTimeHopWindowWithOffsetWithoutFailed(): Unit = {
+    val expected = Seq(
+      "a,2020-10-09T08:00,2020-10-10T08:00,2,3.33,2.0,1.0,2,Hi|Comment#1",
+      "a,2020-10-09T20:00,2020-10-10T20:00,4,6.66,2.0,1.0,2,Hi|Comment#1",
+      "a,2020-10-10T08:00,2020-10-11T08:00,2,3.33,2.0,1.0,2,Hi|Comment#1",
+      "b,2020-10-10T08:00,2020-10-11T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+      "b,2020-10-10T20:00,2020-10-11T20:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+      "null,2020-10-10T08:00,2020-10-11T08:00,1,7.77,7.0,7.0,0,null",
+      "null,2020-10-10T20:00,2020-10-11T20:00,1,7.77,7.0,7.0,0,null"
+    )
+
+    verifyWindowAgg(
+      """
+        |HOP(
+        |  TABLE T3,
+        |  DESCRIPTOR(rowtime),
+        |  INTERVAL '12' HOUR,
+        |  INTERVAL '1' DAY,
+        |  INTERVAL '8' HOUR)
+        |""".stripMargin,
+      expected
+    )
+    this.enableFailedBefore = false
+  }
+
+  @TestTemplate
+  def testEventTimeHopWindowWithOffsetWithFailed(): Unit = {
     val expected = Seq(
       "a,2020-10-09T08:00,2020-10-10T08:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "a,2020-10-09T20:00,2020-10-10T20:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
@@ -456,6 +557,7 @@ class WindowAggregateITCase(
         |""".stripMargin,
       expected
     )
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -480,6 +582,7 @@ class WindowAggregateITCase(
         |""".stripMargin,
       expected
     )
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -488,6 +591,7 @@ class WindowAggregateITCase(
       "HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND)",
       "GROUPING SETS((`name`),())",
       HopWindowGroupSetExpectedData)
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -496,6 +600,7 @@ class WindowAggregateITCase(
       "HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND)",
       "CUBE(`name`)",
       HopWindowCubeExpectedData)
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -504,6 +609,7 @@ class WindowAggregateITCase(
       "HOP(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND)",
       "ROLLUP(`name`)",
       HopWindowRollupExpectedData)
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -535,10 +641,34 @@ class WindowAggregateITCase(
         |""".stripMargin,
       expected
     )
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
-  def testEventTimeCumulateWindowWithOffset(): Unit = {
+  def testEventTimeCumulateWindowWithOffsetWithoutFailed(): Unit = {
+    val expected = Seq(
+      "a,2020-10-09T08:00,2020-10-10T08:00,2,3.33,2.0,1.0,2,Hi|Comment#1",
+      "a,2020-10-10T08:00,2020-10-10T20:00,2,3.33,2.0,1.0,2,Hi|Comment#1",
+      "a,2020-10-10T08:00,2020-10-11T08:00,2,3.33,2.0,1.0,2,Hi|Comment#1",
+      "b,2020-10-10T08:00,2020-10-11T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+      "null,2020-10-10T08:00,2020-10-11T08:00,1,7.77,7.0,7.0,0,null"
+    )
+    verifyWindowAgg(
+      """
+        |CUMULATE(
+        |  TABLE T3,
+        |  DESCRIPTOR(rowtime),
+        |  INTERVAL '12' HOUR,
+        |  INTERVAL '1' DAY,
+        |  INTERVAL '8' HOUR)
+        |""".stripMargin,
+      expected
+    )
+    this.enableFailedBefore = false
+  }
+
+  @TestTemplate
+  def testEventTimeCumulateWindowWithOffsetWithFailed(): Unit = {
     val expected = Seq(
       "a,2020-10-09T08:00,2020-10-10T08:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
       "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
@@ -555,6 +685,7 @@ class WindowAggregateITCase(
         |""".stripMargin,
       expected
     )
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -578,6 +709,7 @@ class WindowAggregateITCase(
         |""".stripMargin,
       expected
     )
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -593,6 +725,7 @@ class WindowAggregateITCase(
       "GROUPING SETS((`name`),())",
       CumulateWindowGroupSetExpectedData
     )
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -608,6 +741,7 @@ class WindowAggregateITCase(
       "Cube(`name`)",
       CumulateWindowCubeExpectedData
     )
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -623,6 +757,7 @@ class WindowAggregateITCase(
       "ROLLUP(`name`)",
       CumulateWindowRollupExpectedData
     )
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -659,6 +794,7 @@ class WindowAggregateITCase(
     }
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -704,6 +840,7 @@ class WindowAggregateITCase(
     res.toRetractStream[Row].addSink(sink)
     // do not verify the result due to proctime window aggregate result is non-deterministic
     env.execute()
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -719,6 +856,7 @@ class WindowAggregateITCase(
       expected,
       isCdcSource = true
     )
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -737,6 +875,7 @@ class WindowAggregateITCase(
       expected,
       isCdcSource = true
     )
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -756,6 +895,7 @@ class WindowAggregateITCase(
       expected,
       isCdcSource = true
     )
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -808,6 +948,7 @@ class WindowAggregateITCase(
     )
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -824,6 +965,7 @@ class WindowAggregateITCase(
       "SESSION(TABLE T1 PARTITION BY `name`, DESCRIPTOR(rowtime), INTERVAL '5' SECOND)",
       expected
     )
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -861,6 +1003,7 @@ class WindowAggregateITCase(
     )
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -875,6 +1018,7 @@ class WindowAggregateITCase(
       expected,
       isCdcSource = true
     )
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -916,6 +1060,7 @@ class WindowAggregateITCase(
     )
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))
+    this.enableFailedBefore = true
   }
 
   @TestTemplate
@@ -981,6 +1126,7 @@ class WindowAggregateITCase(
         }
       }
     }
+    this.enableFailedBefore = true
   }
 
   private def verifyWindowAgg(

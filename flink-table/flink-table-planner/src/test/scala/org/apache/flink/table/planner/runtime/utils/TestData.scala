@@ -1270,6 +1270,87 @@ object TestData {
       "b")
   )
 
+  val windowDataForOffsetWithLtzInShanghai: Seq[Row] = List(
+    row(
+      toEpochMills("2020-10-10T00:07:59", shanghaiZone),
+      1,
+      1d,
+      1f,
+      new JBigDecimal("1.11"),
+      "Hi",
+      "a"),
+    row(
+      toEpochMills("2020-10-10T00:07:59", shanghaiZone),
+      2,
+      2d,
+      2f,
+      new JBigDecimal("2.22"),
+      "Comment#1",
+      "a"),
+    row(
+      toEpochMills("2020-10-10T11:11:59", shanghaiZone),
+      1,
+      1d,
+      1f,
+      new JBigDecimal("1.11"),
+      "Hi",
+      "a"),
+    row(
+      toEpochMills("2020-10-10T11:11:59", shanghaiZone),
+      2,
+      2d,
+      2f,
+      new JBigDecimal("2.22"),
+      "Comment#1",
+      "a"),
+    row(toEpochMills("2020-10-11T00:00:07", shanghaiZone), 3, 3d, 3f, null, "Hello", "b"),
+    row(
+      toEpochMills("2020-10-11T00:00:06", shanghaiZone),
+      6,
+      6d,
+      6f,
+      new JBigDecimal("6.66"),
+      "Hi",
+      "b"
+    ), // out of order
+    row(
+      toEpochMills("2020-10-11T00:00:16", shanghaiZone),
+      4,
+      4d,
+      4f,
+      new JBigDecimal("4.44"),
+      "Hi",
+      "b"),
+    row(
+      toEpochMills("2020-10-11T00:00:32", shanghaiZone),
+      7,
+      7d,
+      7f,
+      new JBigDecimal("7.77"),
+      null,
+      null),
+    row(
+      toEpochMills("2020-10-11T00:00:34", shanghaiZone),
+      1,
+      3d,
+      3f,
+      new JBigDecimal("3.33"),
+      "Comment#3",
+      "b")
+  )
+
+  val windowDataForOffsetWithTimestamp: Seq[Row] = List(
+    row("2020-10-10 00:07:59", 1, 1d, 1f, new JBigDecimal("1.11"), "Hi", "a"),
+    row("2020-10-10 00:07:59", 2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a"),
+    row("2020-10-10 11:11:59", 1, 1d, 1f, new JBigDecimal("1.11"), "Hi", "a"),
+    row("2020-10-10 11:11:59", 2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a"),
+    row("2020-10-11 00:00:07", 3, 3d, 3f, null, "Hello", "b"),
+    row("2020-10-11 00:00:06", 6, 6d, 6f, new JBigDecimal("6.66"), "Hi", "b"),
+    row("2020-10-11 00:00:16", 4, 4d, 4f, new JBigDecimal("4.44"), "Hi", "b"),
+    row("2020-10-11 00:00:32", 7, 7d, 7f, new JBigDecimal("7.77"), null, null),
+    row("2020-10-11 00:00:34", 1, 3d, 3f, new JBigDecimal("3.33"), "Comment#3", "b")
+  )
+
   val timestampData: Seq[Row] = List(
     row("1970-01-01 00:00:00.001", 1, 1d, 1f, new JBigDecimal("1"), "Hi", "a"),
     row("1970-01-01 00:00:00.002", 2, 2d, 2f, new JBigDecimal("2"), "Hallo", "a"),
