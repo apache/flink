@@ -128,4 +128,10 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
     protected boolean checkMetrics() {
         return false;
     }
+
+    // Follow https://issues.apache.org/jira/browse/FLINK-38144
+    @Override
+    @TestTemplate
+    @Disabled("Currently, ChangelogStateBackend does not support null values for map state")
+    public void testMapStateWithNullValue() {}
 }
