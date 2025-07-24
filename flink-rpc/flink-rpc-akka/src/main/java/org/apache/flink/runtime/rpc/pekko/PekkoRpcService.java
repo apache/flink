@@ -196,6 +196,7 @@ public class PekkoRpcService implements RpcService {
         return port;
     }
 
+    @Override
     public <C extends RpcGateway> C getSelfGateway(Class<C> selfGatewayType, RpcServer rpcServer) {
         if (selfGatewayType.isInstance(rpcServer)) {
             @SuppressWarnings("unchecked")
