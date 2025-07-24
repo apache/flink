@@ -36,11 +36,13 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
 import org.apache.flink.api.common.typeutils.base.FloatSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -51,6 +53,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateLatencyTrackOptions;
 import org.apache.flink.configuration.StateSizeTrackOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -5433,6 +5437,95 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry, 0L);
         }
         return jobManagerOwnedSnapshot;
+    }
+
+    @TestTemplate
+    public void testMapStateWithNullValue() throws Exception {
+        CheckpointableKeyedStateBackend<String> keyedBackend =
+                createKeyedBackend(new NullUnsafeTypeSerializer());
+        MapStateDescriptor<Integer, String> kvId =
+                new MapStateDescriptor<>(
+                        "id", IntSerializer.INSTANCE, new NullUnsafeTypeSerializer());
+        MapState<Integer, String> state =
+                keyedBackend.getPartitionedState(
+                        VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+        String key = "key";
+        int userKey = 1;
+        keyedBackend.setCurrentKey(key);
+        // this should not throw an exception
+        state.put(userKey, null);
+        assertThat(state.contains(userKey)).isTrue();
+        assertThat(state.get(userKey)).isNull();
+    }
+
+    /**
+     * A test utility serializer that simulates the behavior of built-in Flink serializers which do
+     * not support null values.
+     *
+     * <p>Many core serializers in Flink, such as {@link
+     * org.apache.flink.api.common.typeutils.base.IntSerializer} and {@link
+     * org.apache.flink.api.common.typeutils.base.BooleanSerializer}, are designed to be null-unsafe
+     * and will throw a {@link NullPointerException} if they encounter a null value.
+     */
+    private static class NullUnsafeTypeSerializer extends TypeSerializerSingleton<String> {
+
+        private static final long serialVersionUID = 1L;
+
+        private final StringSerializer stringSerializer = new StringSerializer();
+
+        @Override
+        public boolean isImmutableType() {
+            return stringSerializer.isImmutableType();
+        }
+
+        @Override
+        public String createInstance() {
+            return stringSerializer.createInstance();
+        }
+
+        @Override
+        public String copy(String from) {
+            return stringSerializer.copy(from);
+        }
+
+        @Override
+        public String copy(String from, String reuse) {
+            return stringSerializer.copy(from, reuse);
+        }
+
+        @Override
+        public int getLength() {
+            return stringSerializer.getLength();
+        }
+
+        @Override
+        public void serialize(String record, DataOutputView target) throws IOException {
+            if (record == null) {
+                throw new NullPointerException("This serializer cannot serialize nulls.");
+            }
+            stringSerializer.serialize(record, target);
+        }
+
+        @Override
+        public String deserialize(DataInputView source) throws IOException {
+            return stringSerializer.deserialize(source);
+        }
+
+        @Override
+        public String deserialize(String reuse, DataInputView source) throws IOException {
+            return stringSerializer.deserialize(reuse, source);
+        }
+
+        @Override
+        public void copy(DataInputView source, DataOutputView target) throws IOException {
+            stringSerializer.copy(source, target);
+        }
+
+        @Override
+        public TypeSerializerSnapshot<String> snapshotConfiguration() {
+            return stringSerializer.snapshotConfiguration();
+        }
     }
 
     public static class TestPojo implements Serializable {
