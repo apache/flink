@@ -20,8 +20,10 @@ package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.testproto.Pb3Test;
 import org.apache.flink.formats.protobuf.testproto.Pb3Test.Corpus;
+import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.logical.RowType;
 
 import com.google.protobuf.ByteString;
 import org.junit.Test;
@@ -55,7 +57,28 @@ public class Pb3ToRowTest {
                         .putMap2("f", innerMessageTest)
                         .build();
 
-        RowData row = ProtobufTestHelper.pbBytesToRow(Pb3Test.class, mapTest.toByteArray());
+        RowType schema = PbToRowTypeUtil.generateRowType(Pb3Test.getDescriptor());
+        String[][] projectedField =
+                new String[][] {
+                    new String[] {"a"},
+                    new String[] {"b"},
+                    new String[] {"c"},
+                    new String[] {"d"},
+                    new String[] {"e"},
+                    new String[] {"f"},
+                    new String[] {"g"},
+                    new String[] {"h"},
+                    new String[] {"i"},
+                    new String[] {"map1"},
+                    new String[] {"map2"},
+                };
+
+        RowData row =
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        mapTest.toByteArray(),
+                        new PbFormatConfig(Pb3Test.class.getName(), false, false, ""),
+                        projectedField);
 
         assertEquals(1, row.getInt(0));
         assertEquals(2L, row.getLong(1));
@@ -91,7 +114,28 @@ public class Pb3ToRowTest {
     @Test
     public void testReadDefaultValues() throws Exception {
         Pb3Test pb3Test = Pb3Test.newBuilder().build();
-        RowData row = ProtobufTestHelper.pbBytesToRow(Pb3Test.class, pb3Test.toByteArray());
+        RowType schema = PbToRowTypeUtil.generateRowType(Pb3Test.getDescriptor());
+        String[][] projectedField =
+                new String[][] {
+                    new String[] {"a"},
+                    new String[] {"b"},
+                    new String[] {"c"},
+                    new String[] {"d"},
+                    new String[] {"e"},
+                    new String[] {"f"},
+                    new String[] {"g"},
+                    new String[] {"h"},
+                    new String[] {"i"},
+                    new String[] {"map1"},
+                    new String[] {"map2"},
+                };
+
+        RowData row =
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        pb3Test.toByteArray(),
+                        new PbFormatConfig(Pb3Test.class.getName(), false, false, ""),
+                        projectedField);
 
         // primitive types should have default values
         assertFalse(row.isNullAt(0));
