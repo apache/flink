@@ -411,6 +411,10 @@ in a number (*scale*). `p` must have a value between `1` and `38` (both inclusiv
 must have a value between `0` and `p` (both inclusive). The default value for `p` is 10.
 The default value for `s` is `0`.
 
+**Note**: The definitions of precision and scale are inconsistent between the SQL standard and
+Java's BigDecimal. For example, the exact value 0.011 is treated as `DECIMAL(4, 3)` in SQL, whereas
+its BigDecimal representation has a precision of 2 and a scale of 3.
+
 `NUMERIC(p, s)` and `DEC(p, s)` are synonyms for this type.
 
 #### `TINYINT`
