@@ -658,7 +658,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
       // not select lookup source field, but with NonDeterministicCondition, expect exception
       assertThatThrownBy(callable)
         .hasMessageContaining(
-          "exists non deterministic function: 'ndFunc' in condition: '>(ndFunc($1), 100)' which may cause wrong result")
+          "exists non deterministic function: 'ndFunc' in condition: '>(ndFunc($4), 100)' which may cause wrong result")
         .isInstanceOf[TableException]
     } else {
       assertThatCode(callable).doesNotThrowAnyException()
@@ -683,7 +683,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
     if (tryResolve) {
       assertThatThrownBy(callable)
         .hasMessageContaining(
-          "exists non deterministic function: 'UNIX_TIMESTAMP' in condition: '>($1, -(UNIX_TIMESTAMP(), 300))' which may cause wrong result")
+          "exists non deterministic function: 'UNIX_TIMESTAMP' in condition: '>($2, -(UNIX_TIMESTAMP(), 300))' which may cause wrong result")
         .isInstanceOf[TableException]
     } else {
       assertThatCode(callable).doesNotThrowAnyException()
