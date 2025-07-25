@@ -88,12 +88,6 @@ under the License.
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-text</artifactId>
-			<version>1.10.0</version>
-			<optional>${flink.markBundledAsOptional}</optional>
-		</dependency>
-		<dependency>
 			<groupId>commons-codec</groupId>
 			<artifactId>commons-codec</artifactId>
 			<version>1.15</version>
@@ -347,7 +341,6 @@ under the License.
 							<include>commons-codec:commons-codec</include>
 							<include>commons-io:commons-io</include>
 							<include>org.apache.commons:commons-math3</include>
-							<include>org.apache.commons:commons-text</include>
 							<include>org.checkerframework:checker-qual</include>
 
 							<!-- flink-table-planner dependencies -->
@@ -379,10 +372,6 @@ under the License.
 						<relocation>
 							<pattern>org.apache.commons.math3</pattern>
 							<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.math3</shadedPattern>
-						</relocation>
-						<relocation>
-							<pattern>org.apache.commons.text</pattern>
-							<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.text</shadedPattern>
 						</relocation>
 						<relocation>
 							<pattern>org.checkerframework</pattern>

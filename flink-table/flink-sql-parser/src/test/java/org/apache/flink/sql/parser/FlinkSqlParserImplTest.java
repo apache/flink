@@ -105,15 +105,6 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    void testCastAsMapType() {
-        this.expr("cast(a as map<int, int>)").ok("CAST(`A` AS MAP< INTEGER, INTEGER >)");
-        this.expr("cast(a as map<int, varchar array>)")
-                .ok("CAST(`A` AS MAP< INTEGER, VARCHAR ARRAY >)");
-        this.expr("cast(a as map<varchar multiset, map<int, int>>)")
-                .ok("CAST(`A` AS MAP< VARCHAR MULTISET, MAP< INTEGER, INTEGER > >)");
-    }
-
-    @Test
     void testAlterCatalog() {
         sql("alter catalog a set ('k1'='v1', 'k2'='v2')")
                 .ok("ALTER CATALOG `A` SET (\n" + "  'k1' = 'v1',\n" + "  'k2' = 'v2'\n" + ")");
@@ -137,6 +128,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + " ARRAY_AGG(`ENAME`) AS `C4`\n"
                                 + "FROM `EMP`\n"
                                 + "GROUP BY `GENDER`");
+    }
+
+    @Test
+    void testCastAsMapType() {
+        this.expr("cast(a as map<int, int>)").ok("CAST(`A` AS MAP< INTEGER, INTEGER >)");
+        this.expr("cast(a as map<int, varchar array>)")
+                .ok("CAST(`A` AS MAP< INTEGER, VARCHAR ARRAY >)");
+        this.expr("cast(a as map<varchar multiset, map<int, int>>)")
+                .ok("CAST(`A` AS MAP< VARCHAR MULTISET, MAP< INTEGER, INTEGER > >)");
     }
 
     // DESCRIBE SCHEMA

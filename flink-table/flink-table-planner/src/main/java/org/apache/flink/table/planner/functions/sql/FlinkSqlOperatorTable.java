@@ -54,6 +54,7 @@ import org.apache.calcite.sql.util.ReflectiveSqlOperatorTable;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.sql.validate.SqlNameMatchers;
+import org.apache.calcite.util.Util;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -197,9 +198,32 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             SqlSyntax syntax,
             List<SqlOperator> operatorList,
             SqlNameMatcher nameMatcher) {
-        // set caseSensitive=false to make sure the behavior is same with before.
-        super.lookupOperatorOverloads(
-                opName, category, syntax, operatorList, SqlNameMatchers.withCaseSensitive(false));
+
+        final SqlNameMatcher matcher = SqlNameMatchers.withCaseSensitive(false);
+        String simpleName;
+        if (opName.names.size() > 1) {
+            if (opName.names.get(opName.names.size() - 2).equals(IS_NAME)) {
+                // per SQL99 Part 2 Section 10.4 Syntax Rule 7.b.ii.1
+                simpleName = Util.last(opName.names);
+            } else {
+                return;
+            }
+        } else {
+            simpleName = opName.getSimple();
+        }
+
+        lookUpOperators(
+                simpleName,
+                matcher.isCaseSensitive(),
+                op -> {
+                    if (op.getSyntax() == syntax) {
+                        operatorList.add(op);
+                    } else if (syntax == SqlSyntax.FUNCTION && op instanceof SqlFunction) {
+                        // this special case is needed for operators like CAST,
+                        // which are treated as functions but have special syntax
+                        operatorList.add(op);
+                    }
+                });
     }
 
     // -----------------------------------------------------------------------------

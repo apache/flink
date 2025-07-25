@@ -56,7 +56,6 @@ under the License.
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.18.2:compile
 				[INFO] |  +- commons-codec:commons-codec:jar:1.15:runtime
 				[INFO] |  +- org.apache.commons:commons-math3:jar:3.6.1:runtime
-				[INFO] |  +- org.apache.commons:commons-text:jar:1.10.0:runtime
 				[INFO] |  \- commons-io:commons-io:jar:2.15.1:runtime
 				[INFO] +- com.jayway.jsonpath:json-path:jar:2.9.0:compile
 				[INFO] |  \- net.minidev:json-smart:jar:2.5.0:runtime
@@ -161,6 +160,10 @@ under the License.
 				<exclusion>
 					<groupId>com.jayway.jsonpath</groupId>
 					<artifactId>json-path</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-text</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
