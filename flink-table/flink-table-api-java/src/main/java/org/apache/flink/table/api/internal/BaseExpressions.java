@@ -18,26 +18,6 @@
 
 package org.apache.flink.table.api.internal;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.Expressions;
-import org.apache.flink.table.api.JsonExistsOnError;
-import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
-import org.apache.flink.table.api.JsonQueryWrapper;
-import org.apache.flink.table.api.JsonType;
-import org.apache.flink.table.api.JsonValueOnEmptyOrError;
-import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.expressions.ApiExpressionUtils;
-import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.TimeIntervalUnit;
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.types.DataType;
-
-import java.util.Arrays;
-import java.util.stream.Stream;
-
 import static org.apache.flink.table.expressions.ApiExpressionUtils.MILLIS_PER_DAY;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.MILLIS_PER_HOUR;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.MILLIS_PER_MINUTE;
@@ -148,6 +128,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MOD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT_BETWEEN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.NOT_EQUALS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OBJECT_UPDATE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_ASC;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_DESC;
@@ -214,6 +195,26 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.VAR_SA
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WINDOW_END;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WINDOW_START;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
+
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Expressions;
+import org.apache.flink.table.api.JsonExistsOnError;
+import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
+import org.apache.flink.table.api.JsonQueryWrapper;
+import org.apache.flink.table.api.JsonType;
+import org.apache.flink.table.api.JsonValueOnEmptyOrError;
+import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.expressions.ApiExpressionUtils;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.TimeIntervalUnit;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.types.DataType;
+
+import java.util.Arrays;
+import java.util.stream.Stream;
 
 /**
  * These are Java and Scala common operations that can be used to construct an {@link Expression}
@@ -2487,5 +2488,33 @@ public abstract class BaseExpressions<InType, OutType> {
                         toExpr(),
                         objectToExpression(percentage),
                         objectToExpression(frequency)));
+    }
+
+    /**
+     * Updates existing fields in a structured object by providing key-value pairs.
+     *
+     * <p>This function takes a structured object and updates specified fields with new values. The
+     * keys must be string literals that correspond to existing fields in the structured type. If a
+     * key does not exist in the input object, an exception will be thrown.
+     *
+     * <p>The function expects alternating key-value pairs where keys are field names (non-null
+     * strings) and values are the new values for those fields. At least one key-value pair must be
+     * provided.
+     *
+     * <p>The result type is the same structured type class, with the specified fields updated to
+     * their new values.
+     *
+     * @param kv key-value pairs where even-indexed elements are field names (strings) and
+     *     odd-indexed elements are the new values for those fields
+     * @return expression representing a new structured object with updated field values
+     */
+    public OutType objectUpdate(InType... kv) {
+        final Expression[] expressions =
+                Stream.concat(
+                                Stream.of(toExpr()),
+                                Stream.of(kv).map(ApiExpressionUtils::objectToExpression))
+                        .toArray(Expression[]::new);
+        return toApiSpecificExpression(
+                ApiExpressionUtils.unresolvedCall(OBJECT_UPDATE, expressions));
     }
 }
