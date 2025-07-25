@@ -769,11 +769,13 @@ class StreamExecutionEnvironment(object):
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
             .getEnvironmentConfig(self._j_stream_execution_environment)
         old_jars_path = env_config.getString(jars_key, None)
-        old_jars_list = Configuration.parse_list_value(
-            old_jars_path,
-            jvm.org.apache.flink.configuration.GlobalConfiguration.isStandardYaml())
+        standard_yaml = jvm.org.apache.flink.configuration.GlobalConfiguration.isStandardYaml()
+        old_jars_list = Configuration.parse_list_value(old_jars_path, standard_yaml)
         joined_jars_list = [*old_jars_list, *jars_path]
-        env_config.setString(jars_key, str(joined_jars_list))
+        if standard_yaml:
+            env_config.setString(jars_key, str(joined_jars_list))
+        else:
+            env_config.setString(jars_key, ';'.join(joined_jars_list))
 
     def add_classpaths(self, *classpaths: str):
         """
@@ -788,12 +790,13 @@ class StreamExecutionEnvironment(object):
         env_config = jvm.org.apache.flink.python.util.PythonConfigUtil \
             .getEnvironmentConfig(self._j_stream_execution_environment)
         old_classpaths = env_config.getString(classpaths_key, None)
-        old_classpaths_list = Configuration.parse_list_value(
-            old_classpaths,
-            jvm.org.apache.flink.configuration.GlobalConfiguration.isStandardYaml()
-        )
+        standard_yaml = jvm.org.apache.flink.configuration.GlobalConfiguration.isStandardYaml()
+        old_classpaths_list = Configuration.parse_list_value(old_classpaths, standard_yaml)
         joined_classpaths_list = [*old_classpaths_list, *classpaths]
-        env_config.setString(classpaths_key, str(joined_classpaths_list))
+        if standard_yaml:
+            env_config.setString(classpaths_key, str(joined_classpaths_list))
+        else:
+            env_config.setString(classpaths_key, ';'.join(joined_classpaths_list))
 
     def get_default_local_parallelism(self) -> int:
         """
