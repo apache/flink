@@ -976,7 +976,6 @@ env.sqlQuery("SELECT HashFunction(myField) FROM MyTable")
 
 {{< top >}}
 
-
 Asynchronous Scalar Functions
 ----------------
 
@@ -994,13 +993,13 @@ A user-defined asynchronous scalar function maps zero, one, or multiple scalar v
 
 In order to define an asynchronous scalar function, extend the base class `AsyncScalarFunction` in `org.apache.flink.table.functions` and implement one or more evaluation methods named `eval(...)`.  The first argument must be a `CompletableFuture<...>` which is used to return the result, with subsequent arguments being the parameters passed to the function.
 
-The number of outstanding calls to `eval` may be configured by `table.exec.async-scalar.max-concurrent-operations`.
+The number of outstanding calls to `eval` may be configured by [`table.exec.async-scalar.max-concurrent-operations`]({{< ref "docs/dev/table/config#table-exec-async-scalar-max-concurrent-operations" >}}).
 
 #### Asynchronous Semantics
 While calls to an `AsyncScalarFunction` may be completed out of the original input order, to maintain correct semantics, the outputs of the function are guaranteed to maintain that input order to downstream components of the query. The data itself could reveal completion order (e.g. by containing fetch timestamps), so the user should consider whether this is acceptable for their use-case.
 
 #### Error Handling
-The primary way for a user to indicate an error is to call `completableFuture.completeExceptionally(throwable)`. Similarly, if an exception is encountered by the system when invoking `eval`, that will also result in an error. When an error occurs, the system will consider the retry strategy, configured by `table.exec.async-scalar.retry-strategy`. If this is `NO_RETRY`, the job is failed. If it is set to `FIXED_DELAY`, a period of `table.exec.async-scalar.retry-delay` will be waited, and the function call will be retried. If there have been `table.exec.async-scalar.max-attempts` failed attempts or if the timeout `table.exec.async-scalar.timeout` expires (including all retry attempts), the job will fail.
+The primary way for a user to indicate an error is to call `completableFuture.completeExceptionally(throwable)`. Similarly, if an exception is encountered by the system when invoking `eval`, that will also result in an error. When an error occurs, the system will consider the retry strategy, configured by [`table.exec.async-scalar.retry-strategy`]({{< ref "docs/dev/table/config#table-exec-async-scalar-retry-strategy" >}}). If this is `NO_RETRY`, the job is failed. If it is set to `FIXED_DELAY`, a period of [`table.exec.async-scalar.retry-delay`]({{< ref "docs/dev/table/config#table-exec-async-scalar-retry-delay" >}}) will be waited, and the function call will be retried. If there have been [`table.exec.async-scalar.max-attempts`]({{< ref "docs/dev/table/config#table-exec-async-scalar-max-attempts" >}}) failed attempts or if the timeout [`table.exec.async-scalar.timeout`]({{< ref "docs/dev/table/config#table-exec-async-scalar-timeout" >}}) expires (including all retry attempts), the job will fail.
 
 #### Is AsyncScalarFunction Required?
 One thing to consider is if the UDF contains CPU intensive logic with no blocking calls.  If so, it likely doesn't require asynchronous functionality and could use a `ScalarFunction`. If the logic involves waiting for things like network or background operations (e.g. database lookups, RPCs, or REST calls), this may be a useful way to speed things up.
