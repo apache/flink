@@ -289,6 +289,16 @@ public class StructuredFunctionsITCase extends BuiltInFunctionTestBase {
                                         Type1.class.getName(),
                                         DataTypes.FIELD("a", DataTypes.INT().notNull()),
                                         DataTypes.FIELD("b", DataTypes.STRING())))
+                        // Test first argument is null
+                        .testSqlResult(
+                                "OBJECT_UPDATE(CAST(NULL AS STRUCTURED<'"
+                                        + Type1.class.getName()
+                                        + "', a INT, b STRING>), 'a', 16, 'b', 'Alice')",
+                                null,
+                                DataTypes.STRUCTURED(
+                                        Type1.class.getName(),
+                                        DataTypes.FIELD("a", DataTypes.INT().notNull()),
+                                        DataTypes.FIELD("b", DataTypes.CHAR(5).notNull())))
                         // Invalid Test - name of the field to update is not in the structured type
                         .testSqlValidationError(
                                 "OBJECT_UPDATE(OBJECT_OF('"

@@ -2495,15 +2495,14 @@ public abstract class BaseExpressions<InType, OutType> {
      *
      * <p>This function takes a structured object and updates specified fields with new values. The
      * keys must be string literals that correspond to existing fields in the structured type. If a
-     * key does not exist in the input object, an exception will be thrown. If the value type is not
-     * compatible with the corresponding structured field type, an exception will also be thrown.
+     * key does not exist in the input object, an exception will be thrown.
      *
      * <p>The function expects alternating key-value pairs where keys are field names (non-null
      * strings) and values are the new values for those fields. At least one key-value pair must be
      * provided.
      *
-     * <p>The result type is the same structured type as the input, with the specified fields
-     * updated to their new values.
+     * <p>The result type is the same structured type class, with the specified fields updated to
+     * their new values.
      *
      * @param kv key-value pairs where even-indexed elements are field names (strings) and
      *     odd-indexed elements are the new values for those fields
