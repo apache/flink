@@ -52,16 +52,16 @@ ORDERED ensures that the operator emits the result in the same order as the data
             <td>The async timeout for the asynchronous operation to complete. If the deadline fails, a timeout exception will be thrown to indicate the error.</td>
         </tr>
         <tr>
-            <td><h5>table.exec.async-scalar.buffer-capacity</h5><br> <span class="label label-primary">Streaming</span></td>
-            <td style="word-wrap: break-word;">10</td>
-            <td>Integer</td>
-            <td>The max number of async i/o operation that the async scalar function can trigger.</td>
-        </tr>
-        <tr>
             <td><h5>table.exec.async-scalar.max-attempts</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">3</td>
             <td>Integer</td>
             <td>The max number of async retry attempts to make before task execution is failed.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-scalar.max-concurrent-operations</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>Integer</td>
+            <td>The max number of async i/o operation that the async scalar function can trigger.</td>
         </tr>
         <tr>
             <td><h5>table.exec.async-scalar.retry-delay</h5><br> <span class="label label-primary">Streaming</span></td>

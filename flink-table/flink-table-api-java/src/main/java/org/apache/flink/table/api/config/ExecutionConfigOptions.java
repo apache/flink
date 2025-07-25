@@ -417,10 +417,11 @@ public class ExecutionConfigOptions {
     //  Async Scalar Function
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
-    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_SCALAR_BUFFER_CAPACITY =
-            key("table.exec.async-scalar.buffer-capacity")
+    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_SCALAR_MAX_CONCURRENT_OPERATIONS =
+            key("table.exec.async-scalar.max-concurrent-operations")
                     .intType()
                     .defaultValue(10)
+                    .withDeprecatedKeys("table.exec.async-scalar.buffer-capacity")
                     .withDescription(
                             "The max number of async i/o operation that the async scalar function can trigger.");
 

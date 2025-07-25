@@ -61,7 +61,8 @@ public class AsyncCalcITCase extends StreamingTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(2);
         tEnv = StreamTableEnvironment.create(env, EnvironmentSettings.inStreamingMode());
-        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_BUFFER_CAPACITY, 2);
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_MAX_CONCURRENT_OPERATIONS, 2);
         tEnv.getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_TIMEOUT, Duration.ofMinutes(1));
     }
@@ -231,7 +232,8 @@ public class AsyncCalcITCase extends StreamingTestBase {
     public void testFailures() {
         // If there is a failure after hitting the end of the input, then it doesn't retry. Having
         // the buffer = 1 triggers the end input only after completion.
-        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_BUFFER_CAPACITY, 1);
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_MAX_CONCURRENT_OPERATIONS, 1);
         Table t1 = tEnv.fromValues(1).as("f1");
         tEnv.createTemporaryView("t1", t1);
         AsyncFuncFail func = new AsyncFuncFail(2);
