@@ -1037,16 +1037,6 @@ In order to define an asynchronous scalar function, extend the base class `Async
 
 The number of outstanding calls to `eval` may be configured by [`table.exec.async-scalar.max-concurrent-operations`]({{< ref "docs/dev/table/config#table-exec-async-scalar-max-concurrent-operations" >}}).
 
-#### Asynchronous Semantics
-While calls to an `AsyncScalarFunction` may be completed out of the original input order, to maintain correct semantics, the outputs of the function are guaranteed to maintain that input order to downstream components of the query. The data itself could reveal completion order (e.g. by containing fetch timestamps), so the user should consider whether this is acceptable for their use-case.
-
-#### Error Handling
-The primary way for a user to indicate an error is to call `completableFuture.completeExceptionally(throwable)`. Similarly, if an exception is encountered by the system when invoking `eval`, that will also result in an error. When an error occurs, the system will consider the retry strategy, configured by [`table.exec.async-scalar.retry-strategy`]({{< ref "docs/dev/table/config#table-exec-async-scalar-retry-strategy" >}}). If this is `NO_RETRY`, the job is failed. If it is set to `FIXED_DELAY`, a period of [`table.exec.async-scalar.retry-delay`]({{< ref "docs/dev/table/config#table-exec-async-scalar-retry-delay" >}}) will be waited, and the function call will be retried. If there have been [`table.exec.async-scalar.max-attempts`]({{< ref "docs/dev/table/config#table-exec-async-scalar-max-attempts" >}}) failed attempts or if the timeout [`table.exec.async-scalar.timeout`]({{< ref "docs/dev/table/config#table-exec-async-scalar-timeout" >}}) expires (including all retry attempts), the job will fail.
-
-#### Is AsyncScalarFunction Required?
-One thing to consider is if the UDF contains CPU intensive logic with no blocking calls.  If so, it likely doesn't require asynchronous functionality and could use a `ScalarFunction`. If the logic involves waiting for things like network or background operations (e.g. database lookups, RPCs, or REST calls), this may be a useful way to speed things up.
-
-
 The following example shows how to do work on a thread pool in the background, though any libraries exposing an async interface may be directly used to complete the `CompletableFuture` from a callback. See the [Implementation Guide](#implementation-guide) for more details.
 
 ```java
@@ -1060,22 +1050,44 @@ import java.util.concurrent.Executors;
 
 import static org.apache.flink.table.api.Expressions.*;
 
-public static class BackgroundFunction extends AsyncScalarFunction {
+/**
+ * A function which simulates looking up a beverage name from a database.
+ * Since such lookups are often slow, we use an AsyncScalarFunction.
+ */
+public static class BeverageNameLookupFunction extends AsyncScalarFunction {
     private Executor executor;
 
     @Override
     public void open(FunctionContext context) {
+        // Create a thread pool for executing the background lookup.
         executor = Executors.newFixedThreadPool(10);
     }
 
-    // take any data type and return INT
-    public void eval(CompletableFuture<Long> future, Integer waitMax) {
+    // The eval method takes a future for the result and the beverage ID to lookup.
+    public void eval(CompletableFuture<String> future, Integer beverageId) {
+        // Submit a task to the thread pool. We don't want to block this main 
+        // thread since would prevent concurrent execution. The future can be 
+        // completed from another thread when the lookup is done.
         executor.execute(() -> {
-            long sleepTime = new Random().nextInt(waitMax);
+            // Simulate a database lookup by sleeping for 1s.
             try {
-                Thread.sleep(sleepTime);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {}
-            future.complete(sleepTime);
+            // Complete the future with the right beverage name.
+            switch (beverageId) {
+                case 0:
+                    future.complete("Latte");
+                    break;
+                case 1:
+                    future.complete("Cappuccino");
+                    break;
+                case 2:
+                    future.complete("Espresso");
+                    break;
+                default:
+                    // In the exceptional case, return an error.
+                    future.completeExceptionally(new IllegalArgumentException("Bad beverageId: " + beverageId));
+            }
         });
     }
 }
@@ -1085,18 +1097,27 @@ env.getConfig().set("table.exec.async-scalar.max-concurrent-operations", "5");
 env.getConfig().set("table.exec.async-scalar.timeout", "1m");
 
 // call function "inline" without registration in Table API
-env.from("MyTable").select(call(BackgroundFunction.class, $("myField")));
+env.from("Beverages").select(call(BeverageNameLookupFunction.class, $("beverageId")));
 
 // register function
-env.createTemporarySystemFunction("BackgroundFunction", BackgroundFunction.class);
+env.createTemporarySystemFunction("GetBeverageName", BeverageNameLookupFunction.class);
 
 // call registered function in Table API
-env.from("MyTable").select(call("BackgroundFunction", $("myField")));
+env.from("Beverages").select(call("GetBeverageName", $("beverageId")));
 
 // call registered function in SQL
-env.sqlQuery("SELECT BackgroundFunction(myField) FROM MyTable");
+env.sqlQuery("SELECT GetBeverageName(beverageId) FROM Beverages");
 
 ```
+
+#### Asynchronous Semantics
+While calls to an `AsyncScalarFunction` may be completed out of the original input order, to maintain correct semantics, the outputs of the function are guaranteed to maintain that input order to downstream components of the query. The data itself could reveal completion order (e.g. by containing fetch timestamps), so the user should consider whether this is acceptable for their use-case.
+
+#### Error Handling
+The primary way for a user to indicate an error is to call `CompletableFuture.completeExceptionally(Throwable)`. Similarly, if an exception is encountered by the system when invoking `eval`, that will also result in an error. When an error occurs, the system will consider the retry strategy, configured by [`table.exec.async-scalar.retry-strategy`]({{< ref "docs/dev/table/config#table-exec-async-scalar-retry-strategy" >}}). If this is `NO_RETRY`, the job is failed. If it is set to `FIXED_DELAY`, a period of [`table.exec.async-scalar.retry-delay`]({{< ref "docs/dev/table/config#table-exec-async-scalar-retry-delay" >}}) will be waited, and the function call will be retried. If there have been [`table.exec.async-scalar.max-attempts`]({{< ref "docs/dev/table/config#table-exec-async-scalar-max-attempts" >}}) failed attempts or if the timeout [`table.exec.async-scalar.timeout`]({{< ref "docs/dev/table/config#table-exec-async-scalar-timeout" >}}) expires (including all retry attempts), the job will fail.
+
+#### AsyncScalarFunction vs. ScalarFunction
+One thing to consider is if the UDF contains CPU intensive logic with no blocking calls. If so, it likely doesn't require asynchronous functionality and could use a `ScalarFunction`. If the logic involves waiting for things like network or background operations (e.g. database lookups, RPCs, or REST calls), this may be a useful way to speed things up. There are also some queries that don't support `AsyncScalarFunction`, so when in doubt, `ScalarFunction` should be used.
 
 {{< top >}}
 
