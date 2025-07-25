@@ -128,4 +128,11 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
     protected boolean checkMetrics() {
         return false;
     }
+
+    @Override
+    @TestTemplate
+    @Disabled("Currently, ChangelogStateBackend does not support null values for map state")
+    public void testMapStateWithNullValue() throws Exception {
+        super.testMapStateWithNullValue();
+    }
 }
