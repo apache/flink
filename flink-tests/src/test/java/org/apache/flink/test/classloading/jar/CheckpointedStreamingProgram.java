@@ -60,7 +60,7 @@ public class CheckpointedStreamingProgram {
 
         DataStream<String> text =
                 env.fromSource(
-                        new SimpleStringGeneratorV2(),
+                        new SimpleStringGenerator(),
                         WatermarkStrategy.noWatermarks(),
                         "String Generator");
         text.map(new StatefulMapper()).sinkTo(new DiscardingSink<>());
@@ -128,7 +128,7 @@ public class CheckpointedStreamingProgram {
         }
     }
 
-    private static class SimpleStringGeneratorV2 implements Source<String, SimpleSplit, Void> {
+    private static class SimpleStringGenerator implements Source<String, SimpleSplit, Void> {
         @Override
         public Boundedness getBoundedness() {
             return Boundedness.CONTINUOUS_UNBOUNDED;
