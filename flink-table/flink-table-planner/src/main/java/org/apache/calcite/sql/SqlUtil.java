@@ -75,9 +75,11 @@ import java.util.stream.Collectors;
 import static org.apache.calcite.util.Static.RESOURCE;
 
 /**
- * Flink modification because of CALCITE-7027
+ * Flink modifications
  *
- * <p>Lines 825 ~ 831, should be removed after upgrading to 1.40.
+ * <p>Lines 607 ~ 616 to mitigate the impact of CALCITE-6024.
+ *
+ * <p>Lines 843 ~ 849 because of CALCITE-7027, should be removed after upgrading to 1.40.
  */
 public abstract class SqlUtil {
     // ~ Constants --------------------------------------------------------------
@@ -603,6 +605,17 @@ public abstract class SqlUtil {
         opTab.lookupOperatorOverloads(funcName, category, syntax, sqlOperators, nameMatcher);
         switch (syntax) {
             case FUNCTION:
+                // BEGIN FLINK MODIFICATION
+                if (sqlOperators.size() > 1) {
+                    sqlOperators.sort(
+                            (o1, o2) -> {
+                                int o1Syntax = getSyntax(o1) == syntax ? 0 : 1;
+                                int o2Syntax = getSyntax(o2) == syntax ? 0 : 1;
+                                return o1Syntax - o2Syntax;
+                            });
+                }
+                // END FLINK MODIFICATION
+
                 return Iterators.filter(
                         sqlOperators.iterator(), Predicates.instanceOf(SqlFunction.class));
             default:
@@ -611,6 +624,10 @@ public abstract class SqlUtil {
                         operator ->
                                 Objects.requireNonNull(operator, "operator").getSyntax() == syntax);
         }
+    }
+
+    private static SqlSyntax getSyntax(SqlOperator op) {
+        return Objects.requireNonNull(op, "operator").getSyntax();
     }
 
     private static Iterator<SqlOperator> filterRoutinesByParameterCount(
@@ -1207,6 +1224,16 @@ public abstract class SqlUtil {
     public static boolean containsIn(SqlNode node) {
         final Predicate<SqlCall> callPredicate =
                 call -> call.getOperator() instanceof SqlInOperator;
+        return containsCall(node, callPredicate);
+    }
+
+    /**
+     * Returns whether a given node contains a {@link SqlKind#DEFAULT} expression.
+     *
+     * @param node AST tree
+     */
+    public static boolean containsDefault(SqlNode node) {
+        final Predicate<SqlCall> callPredicate = call -> call.getKind() == SqlKind.DEFAULT;
         return containsCall(node, callPredicate);
     }
 

@@ -98,6 +98,11 @@ public enum FlinkSqlConformance implements SqlConformance {
     }
 
     @Override
+    public boolean isRegexReplaceCaptureGroupDollarIndexed() {
+        return true;
+    }
+
+    @Override
     public boolean isApplyAllowed() {
         return false;
     }

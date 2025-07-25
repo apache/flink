@@ -148,7 +148,6 @@
     "org.apache.flink.sql.parser.dql.SqlDescribeJob"
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec"
     "org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec"
-    "org.apache.flink.sql.parser.type.SqlMapTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlRawTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlStructuredTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlTimestampLtzTypeNameSpec"

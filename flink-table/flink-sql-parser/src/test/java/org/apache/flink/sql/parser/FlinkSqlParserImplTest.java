@@ -69,6 +69,9 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     void testPercentileDiscBigQuery() {}
 
     @Test
+    void testMapQueryConstructor() {}
+
+    @Test
     void testShowCatalogs() {
         sql("show catalogs").ok("SHOW CATALOGS");
 
@@ -125,6 +128,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + " ARRAY_AGG(`ENAME`) AS `C4`\n"
                                 + "FROM `EMP`\n"
                                 + "GROUP BY `GENDER`");
+    }
+
+    @Test
+    void testCastAsMapType() {
+        this.expr("cast(a as map<int, int>)").ok("CAST(`A` AS MAP< INTEGER, INTEGER >)");
+        this.expr("cast(a as map<int, varchar array>)")
+                .ok("CAST(`A` AS MAP< INTEGER, VARCHAR ARRAY >)");
+        this.expr("cast(a as map<varchar multiset, map<int, int>>)")
+                .ok("CAST(`A` AS MAP< VARCHAR MULTISET, MAP< INTEGER, INTEGER > >)");
     }
 
     // DESCRIBE SCHEMA
