@@ -44,6 +44,10 @@ public class ObjectUpdateFunction extends BuiltInScalarFunction {
     }
 
     public RowData eval(RowData rowData, Object... fieldNameAndValuePairs) {
+        if (rowData == null) {
+            return null;
+        }
+
         GenericRowData updatedRow = (GenericRowData) rowData;
 
         for (int i = 0; i < fieldNameAndValuePairs.length; i += 2) {

@@ -43,7 +43,6 @@ import java.util.stream.IntStream;
  *
  * <ul>
  *   <li>Extracting the field definitions from the input structured type
- *   <li>Resolving the class from the structured type
  *   <li>Creating a new structured type with the same class but updating field types to match the
  *       types of the new values being assigned
  * </ul>

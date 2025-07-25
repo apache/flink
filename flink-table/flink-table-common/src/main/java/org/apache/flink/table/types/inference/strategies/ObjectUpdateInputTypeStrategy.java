@@ -53,7 +53,6 @@ import java.util.stream.Collectors;
  *   <li>Validates that key arguments are non-null string literals
  *   <li>Ensures field names are not repeated in the key-value pairs
  *   <li>Ensures field names are part of the structured type's attributes
- *   <li>Ensures field values match the expected types defined in the structured type
  * </ul>
  *
  * <p>The expected signature is: {@code OBJECT_UPDATE(object, key1, value1, key2, value2, ...)}
@@ -103,17 +102,16 @@ public class ObjectUpdateInputTypeStrategy implements InputTypeStrategy {
                                         StructuredAttribute::getType));
 
         for (int i = 1; i < argumentDataTypes.size(); i += 2) {
-            final String keyName =
-                    validateFieldNameArgument(
-                            callContext,
-                            argumentDataTypes,
-                            i,
-                            structuredTypeAttributeNameToLogicalType,
-                            fieldNames);
+            validateFieldNameArgument(
+                    callContext,
+                    argumentDataTypes,
+                    i,
+                    structuredTypeAttributeNameToLogicalType,
+                    fieldNames);
         }
     }
 
-    private static String validateFieldNameArgument(
+    private static void validateFieldNameArgument(
             final CallContext callContext,
             final List<DataType> argumentDataTypes,
             final int pos,
@@ -156,8 +154,6 @@ public class ObjectUpdateInputTypeStrategy implements InputTypeStrategy {
                             fieldName, pos + 1, attributes.keySet());
             throw new ValidationException(message);
         }
-
-        return fieldName;
     }
 
     @Override
