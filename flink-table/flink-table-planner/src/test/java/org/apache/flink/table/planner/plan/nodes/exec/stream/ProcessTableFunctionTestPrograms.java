@@ -582,7 +582,7 @@ public class ProcessTableFunctionTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
                                     .addSchema(
-                                            "name STRING PRIMARY KEY NOT ENFORCED", "EXPR$1 BIGINT")
+                                            "name STRING PRIMARY KEY NOT ENFORCED", "score BIGINT")
                                     .addOption("changelog-mode", "I,UA,D")
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "Bob", 1L),

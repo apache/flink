@@ -12,7 +12,7 @@
               "name" : "name",
               "dataType" : "VARCHAR(2147483647) NOT NULL"
             }, {
-              "name" : "EXPR$1",
+              "name" : "score",
               "dataType" : "BIGINT"
             } ],
             "primaryKey" : {
@@ -24,8 +24,8 @@
         }
       }
     },
-    "outputType" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `EXPR$1` BIGINT>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, t]], fields=[name, EXPR$1])"
+    "outputType" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `score` BIGINT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, t]], fields=[name, score])"
   }, {
     "id" : 24,
     "type" : "stream-exec-exchange_1",
@@ -37,7 +37,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `EXPR$1` BIGINT>",
+    "outputType" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `score` BIGINT>",
     "description" : "Exchange(distribution=[hash[name]])"
   }, {
     "id" : 25,
@@ -60,7 +60,7 @@
         "inputIndex" : 0,
         "partitionKeys" : [ 0 ],
         "orderKeys" : [ ],
-        "type" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `EXPR$1` BIGINT> NOT NULL"
+        "type" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `score` BIGINT> NOT NULL"
       }, {
         "kind" : "CALL",
         "syntax" : "SPECIAL",
