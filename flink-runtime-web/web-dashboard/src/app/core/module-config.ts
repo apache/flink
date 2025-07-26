@@ -18,7 +18,7 @@
 
 import { Type } from '@angular/core';
 
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { EditorOptions } from 'ng-zorro-antd/code-editor';
 
 type RouterFactory = (...args: string[]) => string | string[];
 

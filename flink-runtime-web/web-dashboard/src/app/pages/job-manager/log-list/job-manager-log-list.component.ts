@@ -30,17 +30,15 @@ import {
   JobManagerModuleConfig
 } from '@flink-runtime-web/pages/job-manager/job-manager.config';
 import { JobManagerService } from '@flink-runtime-web/services';
+import { typeDefinition } from '@flink-runtime-web/utils';
 import { NzTableModule } from 'ng-zorro-antd/table';
-
-import { typeDefinition } from '../../../utils/strong-type';
 
 @Component({
   selector: 'flink-job-manager-log-list',
   templateUrl: './job-manager-log-list.component.html',
   styleUrls: ['./job-manager-log-list.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NgIf, RouterLinkWithHref, HumanizeDatePipe, DecimalPipe],
-  standalone: true
+  imports: [NzTableModule, NgIf, RouterLinkWithHref, HumanizeDatePipe, DecimalPipe]
 })
 export class JobManagerLogListComponent implements OnInit, OnDestroy {
   public readonly trackByName = (_: number, log: JobManagerLogItem): string => log.name;

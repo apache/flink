@@ -30,8 +30,7 @@ import { NzTabsModule } from 'ng-zorro-antd/tabs';
   templateUrl: './navigation.component.html',
   styleUrls: ['./navigation.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTabsModule, NgForOf],
-  standalone: true
+  imports: [NzTabsModule, NgForOf]
 })
 export class NavigationComponent implements OnInit, OnDestroy {
   @Input() listOfNavigation: RouterTab[] = [];

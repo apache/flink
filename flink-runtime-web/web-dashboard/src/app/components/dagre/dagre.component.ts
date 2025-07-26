@@ -51,8 +51,7 @@ enum Visibility {
   templateUrl: './dagre.component.html',
   styleUrls: ['./dagre.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SvgContainerComponent, NodeComponent, NzSliderModule, FormsModule, CommonModule],
-  standalone: true
+  imports: [SvgContainerComponent, NodeComponent, NzSliderModule, FormsModule, CommonModule]
 })
 export class DagreComponent extends NzGraph {
   visibility: Visibility | string = Visibility.Hidden;

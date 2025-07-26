@@ -29,12 +29,9 @@ import { NzTableModule } from 'ng-zorro-antd/table';
   templateUrl: './table-aggregated-metrics.component.html',
   styleUrls: ['./table-aggregated-metrics.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, DecimalPipe, HumanizeDurationPipe, HumanizeBytesPipe],
-  standalone: true
+  imports: [NzTableModule, DecimalPipe, HumanizeDurationPipe, HumanizeBytesPipe]
 })
 export class TableAggregatedMetricsComponent {
   @Input() isLoading = false;
   @Input() aggregated?: JobVertexAggregated;
-
-  constructor() {}
 }

@@ -19,8 +19,7 @@
 import { Directive, ViewContainerRef } from '@angular/core';
 
 @Directive({
-  selector: '[flink-dynamic]',
-  standalone: true
+  selector: '[flink-dynamic]'
 })
 export class DynamicDirective {
   constructor(public readonly viewContainerRef: ViewContainerRef) {}

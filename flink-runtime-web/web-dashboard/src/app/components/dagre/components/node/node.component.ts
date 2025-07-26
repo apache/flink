@@ -26,8 +26,7 @@ import { NodesItemCorrect } from '@flink-runtime-web/interfaces';
   templateUrl: './node.component.html',
   styleUrls: ['./node.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf],
-  standalone: true
+  imports: [NgIf]
 })
 export class NodeComponent {
   description: string | null;

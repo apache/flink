@@ -26,6 +26,7 @@ import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.
 import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
 import { CheckpointConfig, CheckpointHistory, Checkpoint, JobDetailCorrect } from '@flink-runtime-web/interfaces';
 import { JobCheckpointsDetailComponent } from '@flink-runtime-web/pages/job/checkpoints/detail/job-checkpoints-detail.component';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobService } from '@flink-runtime-web/services';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCollapseModule } from 'ng-zorro-antd/collapse';
@@ -35,8 +36,6 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
-
-import { JobLocalService } from '../job-local.service';
 
 @Component({
   selector: 'flink-job-checkpoints',
@@ -60,8 +59,7 @@ import { JobLocalService } from '../job-local.service';
     NzEmptyModule,
     NzCollapseModule,
     NzToolTipModule
-  ],
-  standalone: true
+  ]
 })
 export class JobCheckpointsComponent implements OnInit, OnDestroy {
   disabledInterval = 0x7fffffffffffffff;
@@ -88,16 +86,8 @@ export class JobCheckpointsComponent implements OnInit, OnDestroy {
       .pipe(
         switchMap(() =>
           forkJoin([
-            this.jobService.loadCheckpointStats(this.jobDetail.jid).pipe(
-              catchError(() => {
-                return of(undefined);
-              })
-            ),
-            this.jobService.loadCheckpointConfig(this.jobDetail.jid).pipe(
-              catchError(() => {
-                return of(undefined);
-              })
-            )
+            this.jobService.loadCheckpointStats(this.jobDetail.jid).pipe(catchError(() => of(undefined))),
+            this.jobService.loadCheckpointConfig(this.jobDetail.jid).pipe(catchError(() => of(undefined)))
           ])
         ),
         takeUntil(this.destroy$)

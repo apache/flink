@@ -26,17 +26,15 @@ import { HumanizeBytesPipe } from '@flink-runtime-web/components/humanize-bytes.
 import { HumanizeDatePipe } from '@flink-runtime-web/components/humanize-date.pipe';
 import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
 import { VertexTaskManagerDetail } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import {
   JOB_OVERVIEW_MODULE_CONFIG,
   JOB_OVERVIEW_MODULE_DEFAULT_CONFIG,
   JobOverviewModuleConfig
 } from '@flink-runtime-web/pages/job/overview/job-overview.config';
 import { JobService } from '@flink-runtime-web/services';
-import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
-import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
-
-import { JobLocalService } from '../../job-local.service';
+import { typeDefinition } from '@flink-runtime-web/utils';
+import { NzTableModule, NzTableSortFn } from 'ng-zorro-antd/table';
 
 function createSortFn(
   selector: (item: VertexTaskManagerDetail) => number | string
@@ -57,8 +55,7 @@ function createSortFn(
     HumanizeDatePipe,
     HumanizeDurationPipe,
     DynamicHostComponent
-  ],
-  standalone: true
+  ]
 })
 export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy {
   public readonly trackByEndpoint = (_: number, node: VertexTaskManagerDetail): string => node.endpoint;

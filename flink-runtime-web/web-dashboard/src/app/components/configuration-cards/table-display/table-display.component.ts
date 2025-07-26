@@ -27,13 +27,10 @@ import { NzTableModule } from 'ng-zorro-antd/table';
   templateUrl: './table-display.component.html',
   styleUrls: ['./table-display.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NgForOf],
-  standalone: true
+  imports: [NzTableModule, NgForOf]
 })
 export class TableDisplayComponent {
   @Input() listOfData: Array<{ key: string; value: string }> = [];
 
   readonly trackByKey = (_: number, node: ClusterConfiguration): string => node.key;
-
-  constructor() {}
 }

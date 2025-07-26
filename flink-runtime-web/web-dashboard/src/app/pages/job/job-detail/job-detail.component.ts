@@ -33,8 +33,7 @@ import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
   templateUrl: './job-detail.component.html',
   styleUrls: ['./job-detail.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, JobStatusComponent, NzSkeletonModule, RouterOutlet, NzAlertModule],
-  standalone: true
+  imports: [NgIf, JobStatusComponent, NzSkeletonModule, RouterOutlet, NzAlertModule]
 })
 export class JobDetailComponent implements OnInit, OnDestroy {
   isLoading = true;

@@ -37,8 +37,7 @@ import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
   templateUrl: './job-manager-thread-dump.component.html',
   styleUrls: ['./job-manager-thread-dump.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
-  standalone: true
+  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent]
 })
 export class JobManagerThreadDumpComponent implements OnInit, OnDestroy {
   public readonly downloadName = `jobmanager_thread_dump`;

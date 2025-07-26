@@ -31,11 +31,10 @@ import {
   CheckpointConfig
 } from '@flink-runtime-web/interfaces';
 import { JobCheckpointsSubtaskComponent } from '@flink-runtime-web/pages/job/checkpoints/subtask/job-checkpoints-subtask.component';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobService } from '@flink-runtime-web/services';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzTableModule } from 'ng-zorro-antd/table';
-
-import { JobLocalService } from '../../job-local.service';
 
 @Component({
   selector: 'flink-job-checkpoints-detail',
@@ -52,8 +51,7 @@ import { JobLocalService } from '../../job-local.service';
     HumanizeBytesPipe,
     JobCheckpointsSubtaskComponent,
     DatePipe
-  ],
-  standalone: true
+  ]
 })
 export class JobCheckpointsDetailComponent implements OnInit, OnDestroy {
   public readonly trackById = (_: number, node: VerticesItem): string => node.id;
@@ -110,8 +108,8 @@ export class JobCheckpointsDetailComponent implements OnInit, OnDestroy {
         this.jobService.loadCheckpointDetails(this.jobDetail.jid, this.checkPoint.id)
       ])
         .pipe(takeUntil(this.destroy$))
-        .subscribe(
-          ([config, detail]) => {
+        .subscribe({
+          next: ([config, detail]) => {
             this.checkPointConfig = config;
             this.checkPointDetail = detail;
             if (this.checkPointDetail.checkpoint_type === 'CHECKPOINT') {
@@ -128,11 +126,11 @@ export class JobCheckpointsDetailComponent implements OnInit, OnDestroy {
             this.isLoading = false;
             this.cdr.markForCheck();
           },
-          () => {
+          error: () => {
             this.isLoading = false;
             this.cdr.markForCheck();
           }
-        );
+        });
     }
   }
 }

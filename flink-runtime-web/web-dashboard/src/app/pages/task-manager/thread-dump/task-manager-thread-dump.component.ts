@@ -41,8 +41,7 @@ import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
   templateUrl: './task-manager-thread-dump.component.html',
   styleUrls: ['./task-manager-thread-dump.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
-  standalone: true
+  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent]
 })
 export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
   public editorOptions: EditorOptions;

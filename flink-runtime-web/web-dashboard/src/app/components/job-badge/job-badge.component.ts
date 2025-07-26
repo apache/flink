@@ -24,8 +24,7 @@ import { ColorKey, ConfigService } from '@flink-runtime-web/services';
   selector: 'flink-job-badge',
   templateUrl: './job-badge.component.html',
   styleUrls: ['./job-badge.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobBadgeComponent {
   @Input() public state: string;

@@ -44,8 +44,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
   templateUrl: './job-chart.component.html',
   styleUrls: ['./job-chart.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzButtonModule, NzIconModule, HumanizeChartNumericPipe],
-  standalone: true
+  imports: [NzButtonModule, NzIconModule, HumanizeChartNumericPipe]
 })
 export class JobChartComponent implements AfterViewInit, OnDestroy {
   @Input() title: string;

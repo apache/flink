@@ -72,22 +72,13 @@ export class JobManagerService {
     const url = `${this.configService.BASE_URL}/jobmanager/logs/${logName}`;
     return this.httpClient
       .get(url, { responseType: 'text', headers: new HttpHeaders().append('Cache-Control', 'no-cache') })
-      .pipe(
-        map(data => {
-          return {
-            data,
-            url
-          };
-        })
-      );
+      .pipe(map(data => ({ data, url })));
   }
 
   loadThreadDump(): Observable<string> {
-    return this.httpClient.get<JobManagerThreadDump>(`${this.configService.BASE_URL}/jobmanager/thread-dump`).pipe(
-      map(JobManagerThreadDump => {
-        return JobManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
-      })
-    );
+    return this.httpClient
+      .get<JobManagerThreadDump>(`${this.configService.BASE_URL}/jobmanager/thread-dump`)
+      .pipe(map(({ threadInfos }) => threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('')));
   }
 
   loadMetricsName(): Observable<string[]> {
