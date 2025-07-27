@@ -112,8 +112,7 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
                 ConfigUtils.decodeListFromConfig(
                         configuration, PipelineOptions.CLASSPATHS, URL::new);
         classpath.addAll(program.getClasspaths());
-        return Collections.unmodifiableList(
-                classpath.stream().distinct().collect(Collectors.toList()));
+        return classpath.stream().distinct().collect(Collectors.toUnmodifiableList());
     }
 
     @Override

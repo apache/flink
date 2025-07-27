@@ -114,7 +114,7 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 
     @Override
     public int hashCode() {
-        return (int) (bytes ^ (bytes >>> 32));
+        return Long.hashCode(bytes);
     }
 
     @Override
