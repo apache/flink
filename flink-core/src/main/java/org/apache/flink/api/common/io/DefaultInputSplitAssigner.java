@@ -41,7 +41,7 @@ public class DefaultInputSplitAssigner implements InputSplitAssigner {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultInputSplitAssigner.class);
 
     /** The list of all splits */
-    private final List<InputSplit> splits = new ArrayList<InputSplit>();
+    private final List<InputSplit> splits = new ArrayList<>();
 
     public DefaultInputSplitAssigner(InputSplit[] splits) {
         Collections.addAll(this.splits, splits);
@@ -57,7 +57,7 @@ public class DefaultInputSplitAssigner implements InputSplitAssigner {
 
         // keep the synchronized part short
         synchronized (this.splits) {
-            if (this.splits.size() > 0) {
+            if (!this.splits.isEmpty()) {
                 next = this.splits.remove(this.splits.size() - 1);
             }
         }
@@ -73,9 +73,7 @@ public class DefaultInputSplitAssigner implements InputSplitAssigner {
     @Override
     public void returnInputSplit(List<InputSplit> splits, int taskId) {
         synchronized (this.splits) {
-            for (InputSplit split : splits) {
-                this.splits.add(split);
-            }
+            this.splits.addAll(splits);
         }
     }
 }

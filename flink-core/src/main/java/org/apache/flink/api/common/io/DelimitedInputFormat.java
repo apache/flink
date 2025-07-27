@@ -578,14 +578,13 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
                 // readBuffer is completely consumed. Fill it again but keep partially read
                 // delimiter bytes.
                 if (!fillBuffer(delimPos)) {
-                    int countInReadBuffer = delimPos;
-                    if (countInWrapBuffer + countInReadBuffer > 0) {
+                    if (countInWrapBuffer + delimPos > 0) {
                         // we have bytes left to emit
-                        if (countInReadBuffer > 0) {
+                        if (delimPos > 0) {
                             // we have bytes left in the readBuffer. Move them into the wrapBuffer
-                            if (this.wrapBuffer.length - countInWrapBuffer < countInReadBuffer) {
+                            if (this.wrapBuffer.length - countInWrapBuffer < delimPos) {
                                 // reallocate
-                                byte[] tmp = new byte[countInWrapBuffer + countInReadBuffer];
+                                byte[] tmp = new byte[countInWrapBuffer + delimPos];
                                 System.arraycopy(this.wrapBuffer, 0, tmp, 0, countInWrapBuffer);
                                 this.wrapBuffer = tmp;
                             }
@@ -596,8 +595,8 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT>
                                     0,
                                     this.wrapBuffer,
                                     countInWrapBuffer,
-                                    countInReadBuffer);
-                            countInWrapBuffer += countInReadBuffer;
+                                    delimPos);
+                            countInWrapBuffer += delimPos;
                         }
 
                         this.offset += countInWrapBuffer;

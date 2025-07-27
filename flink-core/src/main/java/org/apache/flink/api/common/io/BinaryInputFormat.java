@@ -104,7 +104,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
     public FileInputSplit[] createInputSplits(int minNumSplits) throws IOException {
         final List<FileStatus> files = this.getFiles();
 
-        final List<FileInputSplit> inputSplits = new ArrayList<FileInputSplit>(minNumSplits);
+        final List<FileInputSplit> inputSplits = new ArrayList<>(minNumSplits);
         for (FileStatus file : files) {
             final FileSystem fs = file.getPath().getFileSystem();
             final long blockSize =
@@ -132,7 +132,9 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
             LOG.warn(
                     String.format(
                             "With the given block size %d, the files %s cannot be split into %d blocks. Filling up with empty splits...",
-                            blockSize, Arrays.toString(getFilePaths()), minNumSplits));
+                            blockSize,
+                            Arrays.toString(getFilePaths()),
+                            minNumSplits));
             FileStatus last = files.get(files.size() - 1);
             final BlockLocation[] blocks =
                     last.getPath().getFileSystem().getFileBlockLocations(last, 0, last.getLen());
@@ -176,7 +178,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
                 cachedStats instanceof FileBaseStatistics ? (FileBaseStatistics) cachedStats : null;
 
         try {
-            final ArrayList<FileStatus> allFiles = new ArrayList<FileStatus>(1);
+            final ArrayList<FileStatus> allFiles = new ArrayList<>(1);
             final FileBaseStatistics stats =
                     getFileStats(cachedFileStats, getFilePaths(), allFiles);
             if (stats == null) {
@@ -368,18 +370,25 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
         @Override
         public int read(byte[] b, int off, int len) throws IOException {
             int totalRead = 0;
-            for (int remainingLength = len, offset = off; remainingLength > 0; ) {
-                int blockLen = Math.min(remainingLength, this.maxPayloadSize - this.blockPos);
+            int remainingLength = len;
+            int offset = off;
+            while (remainingLength > 0) {
+                int available = this.maxPayloadSize - this.blockPos;
+                if (available <= 0) {
+                    this.skipHeader();
+                    available = this.maxPayloadSize - this.blockPos;
+                    if (available <= 0) {
+                        break;
+                    }
+                }
+                int blockLen = Math.min(remainingLength, available);
                 int read = this.in.read(b, offset, blockLen);
                 if (read < 0) {
-                    return read;
+                    return totalRead == 0 ? -1 : totalRead;
                 }
                 totalRead += read;
                 this.blockPos += read;
                 offset += read;
-                if (this.blockPos >= this.maxPayloadSize) {
-                    this.skipHeader();
-                }
                 remainingLength -= read;
             }
             return totalRead;
@@ -401,7 +410,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
         return new Tuple2<>(
                 this.blockBasedInput.getCurrBlockPos(), // the last read index in the block
                 this.readRecords // the number of records read
-                );
+        );
     }
 
     @PublicEvolving

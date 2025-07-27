@@ -407,7 +407,7 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
 
             final String unit = trimmed.substring(pos).trim().toLowerCase(Locale.US);
 
-            return unit.length() > 0;
+            return !unit.isEmpty();
         }
 
         private static String concatenateUnits(final String[]... allUnits) {

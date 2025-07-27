@@ -48,7 +48,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
     private static final boolean[] EMPTY_INCLUDED = new boolean[0];
 
-    private static final byte[] DEFAULT_FIELD_DELIMITER = new byte[] {','};
+    private static final byte[] DEFAULT_FIELD_DELIMITER = new byte[]{','};
 
     private static final byte BACKSLASH = 92;
 
@@ -205,7 +205,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
         }
 
         this.fieldIncluded = new boolean[fieldTypes.length];
-        ArrayList<Class<?>> types = new ArrayList<Class<?>>();
+        ArrayList<Class<?>> types = new ArrayList<>();
 
         // check if we support parsers for these types
         for (int i = 0; i < fieldTypes.length; i++) {
@@ -241,7 +241,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
 
         int largestFieldIndex = max(sourceFieldIndices);
         this.fieldIncluded = new boolean[largestFieldIndex + 1];
-        ArrayList<Class<?>> types = new ArrayList<Class<?>>();
+        ArrayList<Class<?>> types = new ArrayList<>();
 
         // check if we support parsers for these types
         for (int i = 0; i < fieldTypes.length; i++) {
@@ -266,7 +266,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
         checkNotNull(includedMask);
         checkNotNull(fieldTypes);
 
-        ArrayList<Class<?>> types = new ArrayList<Class<?>>();
+        ArrayList<Class<?>> types = new ArrayList<>();
 
         // check if types are valid for included fields
         int typeIndex = 0;
@@ -531,7 +531,7 @@ public abstract class GenericCsvInputFormat<OT> extends DelimitedInputFormat<OT>
                     "The positions and types must be of the same length");
         }
 
-        TreeMap<Integer, Class<?>> map = new TreeMap<Integer, Class<?>>();
+        TreeMap<Integer, Class<?>> map = new TreeMap<>();
 
         for (int i = 0; i < positions.length; i++) {
             if (positions[i] < 0) {

@@ -81,7 +81,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
      * lead to unsplittable files.
      */
     protected static final Map<String, InflaterInputStreamFactory<?>>
-            INFLATER_INPUT_STREAM_FACTORIES = new HashMap<String, InflaterInputStreamFactory<?>>();
+            INFLATER_INPUT_STREAM_FACTORIES = new HashMap<>();
 
     /** The splitLength is set to -1L for reading the whole split. */
     protected static final long READ_WHOLE_SPLIT_FLAG = -1L;
