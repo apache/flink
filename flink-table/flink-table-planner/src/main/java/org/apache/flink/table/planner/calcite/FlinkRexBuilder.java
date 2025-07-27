@@ -43,7 +43,10 @@ public final class FlinkRexBuilder extends RexBuilder {
         RexNode field = super.makeFieldAccess(expr, fieldName, caseSensitive);
         if (expr.getType().isNullable() && !field.getType().isNullable()) {
             return makeCast(
-                    typeFactory.createTypeWithNullability(field.getType(), true), field, true);
+                    typeFactory.createTypeWithNullability(field.getType(), true),
+                    field,
+                    true,
+                    false);
         }
 
         return field;
@@ -61,7 +64,10 @@ public final class FlinkRexBuilder extends RexBuilder {
         RexNode field = super.makeFieldAccess(expr, i);
         if (expr.getType().isNullable() && !field.getType().isNullable()) {
             return makeCast(
-                    typeFactory.createTypeWithNullability(field.getType(), true), field, true);
+                    typeFactory.createTypeWithNullability(field.getType(), true),
+                    field,
+                    true,
+                    false);
         }
 
         return field;

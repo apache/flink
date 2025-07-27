@@ -282,17 +282,20 @@ public class WindowPropertiesRules {
             RexCall c = (RexCall) node;
             if (isWindowStart(c)) {
                 return rexBuilder.makeCast(
-                        c.getType(), builder.field(propertyName(window, "start")), false);
+                        c.getType(), builder.field(propertyName(window, "start")), false, false);
             } else if (isWindowEnd(c)) {
                 return rexBuilder.makeCast(
-                        c.getType(), builder.field(propertyName(window, "end")), false);
+                        c.getType(), builder.field(propertyName(window, "end")), false, false);
             } else if (isWindowRowtime(c)) {
                 switch (windowType) {
                     case STREAM_ROWTIME:
                     case BATCH_ROWTIME:
                         // replace expression by access to window rowtime
                         return rexBuilder.makeCast(
-                                c.getType(), builder.field(propertyName(window, "rowtime")), false);
+                                c.getType(),
+                                builder.field(propertyName(window, "rowtime")),
+                                false,
+                                false);
                     case STREAM_PROCTIME:
                         throw new ValidationException(
                                 "A proctime window cannot provide a rowtime attribute.");
@@ -309,6 +312,7 @@ public class WindowPropertiesRules {
                         return rexBuilder.makeCast(
                                 c.getType(),
                                 builder.field(propertyName(window, "proctime")),
+                                false,
                                 false);
                     case BATCH_ROWTIME:
                         throw new ValidationException(
