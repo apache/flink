@@ -324,3 +324,13 @@ JSON functions
     Expression.json_query
     Expression.json_quote
     Expression.json_unquote
+
+value modification functions
+----------------------------
+
+.. currentmodule:: pyflink.table.expression
+
+.. autosummary::
+    :toctree: api/
+
+    Expression.object_update

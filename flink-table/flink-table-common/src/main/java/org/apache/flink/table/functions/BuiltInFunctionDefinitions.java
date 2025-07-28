@@ -1628,6 +1628,16 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.ObjectOfFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition OBJECT_UPDATE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("OBJECT_UPDATE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.OBJECT_UPDATE)
+                    .outputTypeStrategy(SpecificTypeStrategies.OBJECT_UPDATE)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ObjectUpdateFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Math functions
     // --------------------------------------------------------------------------------------------

@@ -66,6 +66,9 @@ public final class SpecificInputTypeStrategies {
     /** See {@link ObjectOfInputTypeStrategy}. */
     public static final InputTypeStrategy OBJECT_OF = new ObjectOfInputTypeStrategy();
 
+    /** See {@link ObjectUpdateInputTypeStrategy}. */
+    public static final InputTypeStrategy OBJECT_UPDATE = new ObjectUpdateInputTypeStrategy();
+
     /** See {@link WindowTimeIndictorInputTypeStrategy}. */
     public static InputTypeStrategy windowTimeIndicator(TimestampKind timestampKind) {
         return new WindowTimeIndictorInputTypeStrategy(timestampKind);
