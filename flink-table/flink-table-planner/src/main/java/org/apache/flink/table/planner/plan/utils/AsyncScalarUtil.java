@@ -41,7 +41,8 @@ public class AsyncScalarUtil extends FunctionCallUtil {
      */
     public static AsyncOptions getAsyncOptions(ExecNodeConfig config) {
         return new AsyncOptions(
-                config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_BUFFER_CAPACITY),
+                config.get(
+                        ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_MAX_CONCURRENT_OPERATIONS),
                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_TIMEOUT).toMillis(),
                 false,
                 AsyncDataStream.OutputMode.ORDERED);
