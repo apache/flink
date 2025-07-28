@@ -1055,7 +1055,7 @@ import static org.apache.flink.table.api.Expressions.*;
  * Since such lookups are often slow, we use an AsyncScalarFunction.
  */
 public static class BeverageNameLookupFunction extends AsyncScalarFunction {
-    private Executor executor;
+    private transient Executor executor;
 
     @Override
     public void open(FunctionContext context) {
@@ -1066,7 +1066,7 @@ public static class BeverageNameLookupFunction extends AsyncScalarFunction {
     // The eval method takes a future for the result and the beverage ID to lookup.
     public void eval(CompletableFuture<String> future, Integer beverageId) {
         // Submit a task to the thread pool. We don't want to block this main 
-        // thread since would prevent concurrent execution. The future can be 
+        // thread since that would prevent concurrent execution. The future can be 
         // completed from another thread when the lookup is done.
         executor.execute(() -> {
             // Simulate a database lookup by sleeping for 1s.
