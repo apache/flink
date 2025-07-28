@@ -579,6 +579,8 @@ public final class LogicalRelDataTypeConverter {
                                                         toLogicalType(
                                                                 f.getType(), dataTypeFactory)))
                                 .collect(Collectors.toList()));
+            case COLUMN_LIST:
+                return new DescriptorType(false);
             case STRUCTURED:
             case OTHER:
                 if (relDataType instanceof StructuredRelDataType) {
@@ -591,7 +593,6 @@ public final class LogicalRelDataTypeConverter {
             case TIME_WITH_LOCAL_TIME_ZONE:
             case ANY:
             case CURSOR:
-            case COLUMN_LIST:
             case DYNAMIC_STAR:
             case GEOMETRY:
             case SARG:
