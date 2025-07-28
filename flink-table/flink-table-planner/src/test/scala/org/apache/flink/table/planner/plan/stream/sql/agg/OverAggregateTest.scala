@@ -22,8 +22,10 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
-import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType}
+import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, assertThatThrownBy}
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 class OverAggregateTest extends TableTestBase {
 
@@ -480,4 +482,32 @@ class OverAggregateTest extends TableTestBase {
     util.verifyExecPlan(sql)
   }
 
+  @Test
+  def testWindowBoundaryNotNumeric(): Unit = {
+    val sql =
+      """
+        |SELECT c,
+        |    COUNT(a) OVER (PARTITION BY b ORDER BY proctime
+        |        ROWS BETWEEN '2' PRECEDING AND CURRENT ROW) AS cnt1
+        |FROM MyTable
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExecPlan(sql))
+      .hasRootCauseMessage("CHARACTER type is not allowed for window boundary")
+      .hasRootCauseInstanceOf(classOf[ValidationException])
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = Array[String]("2 + 3", "power(2, 4)"))
+  def testWindowBoundaryWithSimplifiableExpressions(expr: String): Unit = {
+    val sql =
+      s"""
+         |SELECT c,
+         |    COUNT(a) OVER (PARTITION BY b ORDER BY proctime
+         |        ROWS BETWEEN $expr PRECEDING AND CURRENT ROW) AS cnt1
+         |FROM MyTable
+      """.stripMargin
+
+    util.verifyExecPlan(sql)
+  }
 }
