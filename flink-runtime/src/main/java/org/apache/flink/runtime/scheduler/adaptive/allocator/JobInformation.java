@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.adaptive.allocator;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 
 import javax.annotation.Nullable;
 
@@ -51,9 +52,15 @@ public interface JobInformation {
 
     Iterable<VertexInformation> getVertices();
 
+    default VertexParallelismStore getVertexParallelismStore() {
+        throw new UnsupportedOperationException();
+    }
+
     /** Information about a single vertex. */
     interface VertexInformation {
         JobVertexID getJobVertexID();
+
+        String getVertexName();
 
         int getMinParallelism();
 
