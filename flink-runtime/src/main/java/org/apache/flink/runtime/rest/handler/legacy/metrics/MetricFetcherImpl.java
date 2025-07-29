@@ -144,7 +144,7 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
                 jobDetailsFuture.whenCompleteAsync(
                         (MultipleJobsDetails jobDetails, Throwable throwable) -> {
                             if (throwable != null) {
-                                LOG.debug("Fetching of JobDetails failed.", throwable);
+                                LOG.error("Fetching of JobDetails failed.", throwable);
                             } else {
                                 ArrayList<String> toRetain =
                                         new ArrayList<>(jobDetails.getJobs().size());
@@ -163,7 +163,7 @@ public class MetricFetcherImpl<T extends RestfulGateway> implements MetricFetche
                 jmMetricsFuture.whenCompleteAsync(
                         (ignore, throwable) -> {
                             if (throwable != null) {
-                                LOG.debug("Failed to fetch the leader's metrics.", throwable);
+                                LOG.error("Failed to fetch the leader's metrics.", throwable);
                             }
                         },
                         executor);
