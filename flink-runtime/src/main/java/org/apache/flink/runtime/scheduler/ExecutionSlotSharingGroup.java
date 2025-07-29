@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -46,9 +45,8 @@ public class ExecutionSlotSharingGroup {
         executionVertexIds.add(executionVertexId);
     }
 
-    @VisibleForTesting
     @Nonnull
-    SlotSharingGroup getSlotSharingGroup() {
+    public SlotSharingGroup getSlotSharingGroup() {
         return slotSharingGroup;
     }
 
