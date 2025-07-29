@@ -872,7 +872,8 @@ public class AdaptiveScheduler
 
     @Override
     public ExecutionGraphInfo requestJob() {
-        return new ExecutionGraphInfo(state.getJob(), exceptionHistory.toArrayList());
+        return new ExecutionGraphInfo(
+                state.getJob(), exceptionHistory.toArrayList(), rescaleTimeline.createSnapshot());
     }
 
     @Override
