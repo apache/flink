@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.Collection;
@@ -54,6 +55,7 @@ public class SlotProfileTestingUtils {
         return SlotProfile.priorAllocation(
                 resourceProfile,
                 resourceProfile,
+                DefaultLoadingWeight.EMPTY,
                 preferredLocations,
                 Collections.emptyList(),
                 Collections.emptySet());
