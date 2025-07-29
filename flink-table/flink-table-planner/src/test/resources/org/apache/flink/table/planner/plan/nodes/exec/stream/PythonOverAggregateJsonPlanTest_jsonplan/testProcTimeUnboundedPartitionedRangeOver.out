@@ -331,7 +331,7 @@
         "fieldType" : "BIGINT"
       } ]
     },
-    "description" : "PythonOverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, $3, pyFunc(c, c) AS w0$o0])"
+    "description" : "PythonOverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, $3, pyFunc(c, c) AS w0$o0])"
   }, {
     "id" : 7,
     "type" : "stream-exec-calc_1",
