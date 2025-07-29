@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -41,7 +42,7 @@ public class JobGraphJobInformation implements JobInformation {
     private final JobGraph jobGraph;
     private final JobID jobID;
     private final String name;
-    private final VertexParallelismStore vertexParallelismStore;
+    protected final VertexParallelismStore vertexParallelismStore;
 
     public JobGraphJobInformation(
             JobGraph jobGraph, VertexParallelismStore vertexParallelismStore) {
@@ -91,17 +92,19 @@ public class JobGraphJobInformation implements JobInformation {
         return InstantiationUtil.cloneUnchecked(jobGraph);
     }
 
+    @Override
     public VertexParallelismStore getVertexParallelismStore() {
         return vertexParallelismStore;
     }
 
-    private static final class JobVertexInformation implements JobInformation.VertexInformation {
+    @VisibleForTesting
+    public static final class JobVertexInformation implements JobInformation.VertexInformation {
 
         private final JobVertex jobVertex;
 
         private final VertexParallelismInformation parallelismInfo;
 
-        private JobVertexInformation(
+        public JobVertexInformation(
                 JobVertex jobVertex, VertexParallelismInformation parallelismInfo) {
             this.jobVertex = jobVertex;
             this.parallelismInfo = parallelismInfo;
@@ -110,6 +113,11 @@ public class JobGraphJobInformation implements JobInformation {
         @Override
         public JobVertexID getJobVertexID() {
             return jobVertex.getID();
+        }
+
+        @Override
+        public String getVertexName() {
+            return jobVertex.getName();
         }
 
         @Override
@@ -136,6 +144,11 @@ public class JobGraphJobInformation implements JobInformation {
         @Override
         public CoLocationGroup getCoLocationGroup() {
             return jobVertex.getCoLocationGroup();
+        }
+
+        @VisibleForTesting
+        public VertexParallelismInformation getVertexParallelismInfo() {
+            return parallelismInfo;
         }
     }
 }
