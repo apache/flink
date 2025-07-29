@@ -121,6 +121,7 @@ class DefaultExecutionGraphFactoryTest {
                                         (execution, previousState, newState) -> {},
                                         rp -> false,
                                         NonAdaptiveExecutionPlanSchedulingContext.INSTANCE,
+                                        null,
                                         log))
                 .withFailMessage(
                         "Expected ExecutionGraph creation to fail because of non restored state.")
@@ -151,6 +152,7 @@ class DefaultExecutionGraphFactoryTest {
                 (execution, previousState, newState) -> {},
                 rp -> false,
                 NonAdaptiveExecutionPlanSchedulingContext.INSTANCE,
+                null,
                 log);
 
         final CompletedCheckpoint savepoint = completedCheckpointStore.getLatestCheckpoint();
@@ -206,6 +208,7 @@ class DefaultExecutionGraphFactoryTest {
                         (execution, previousState, newState) -> {},
                         rp -> false,
                         NonAdaptiveExecutionPlanSchedulingContext.INSTANCE,
+                        null,
                         log);
 
         checkpointStatsTracker.reportRestoredCheckpoint(

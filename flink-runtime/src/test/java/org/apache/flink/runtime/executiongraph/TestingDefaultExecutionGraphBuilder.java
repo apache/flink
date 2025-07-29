@@ -223,7 +223,8 @@ public class TestingDefaultExecutionGraphBuilder {
                 markPartitionFinishedStrategy,
                 nonFinishedHybridPartitionShouldBeUnknown,
                 metricGroup,
-                executionPlanSchedulingContext);
+                executionPlanSchedulingContext,
+                null);
     }
 
     public DefaultExecutionGraph build(ScheduledExecutorService executorService)

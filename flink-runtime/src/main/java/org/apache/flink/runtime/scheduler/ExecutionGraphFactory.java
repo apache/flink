@@ -28,6 +28,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.VertexAttemptNumberStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.rest.messages.job.rescales.JobRescaleConfigInfo;
 import org.apache.flink.runtime.scheduler.adaptivebatch.ExecutionPlanSchedulingContext;
 
 import org.slf4j.Logger;
@@ -71,6 +72,7 @@ public interface ExecutionGraphFactory {
             ExecutionStateUpdateListener executionStateUpdateListener,
             MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
             ExecutionPlanSchedulingContext executionPlanSchedulingContext,
+            JobRescaleConfigInfo jobRescaleConfigInfo,
             Logger log)
             throws Exception;
 }
