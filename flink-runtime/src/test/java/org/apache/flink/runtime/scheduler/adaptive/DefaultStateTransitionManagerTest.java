@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.scheduler.adaptive.DefaultStateTransitionManager.Idling;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.Test;
@@ -510,6 +511,16 @@ class DefaultStateTransitionManagerTest {
         // ///////////////////////////////////////////////
         // StateTransitionManager.Context interface methods
         // ///////////////////////////////////////////////
+
+        @Override
+        public State schedulerstate() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public RescaleTimeline getRescaleTimeline() {
+            return RescaleTimeline.NoOpRescaleTimeline.INSTANCE;
+        }
 
         @Override
         public boolean hasSufficientResources() {

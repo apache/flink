@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.scheduler.adaptive.timeline.Durable;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
 
 import org.slf4j.Logger;
 
@@ -104,5 +105,14 @@ abstract class StateWithoutExecutionGraph implements State {
          */
         ArchivedExecutionGraph getArchivedExecutionGraph(
                 JobStatus jobStatus, @Nullable Throwable cause);
+
+        /**
+         * Get the rescale timeline.
+         *
+         * @return The rescale timeline handler.
+         */
+        default RescaleTimeline getRescaleTimeline() {
+            throw new UnsupportedOperationException();
+        }
     }
 }
