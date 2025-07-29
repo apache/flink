@@ -493,6 +493,7 @@ class OverAggregateTest extends TableTestBase {
       """.stripMargin
 
     assertThatThrownBy(() => util.verifyExecPlan(sql))
+      .hasRootCauseMessage("CHARACTER type is not allowed for window boundary")
       .hasRootCauseInstanceOf(classOf[ValidationException])
   }
 

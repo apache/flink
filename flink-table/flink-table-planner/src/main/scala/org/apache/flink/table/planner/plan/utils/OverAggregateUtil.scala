@@ -40,7 +40,7 @@ object OverAggregateUtil {
 
   /** Convert [[Window]] to [[OverSpec]]. */
   def createOverSpec(logicalWindow: Window): OverSpec = {
-    val groups = logicalWindow.groups.asList()
+    val groups = logicalWindow.groups
     val partition = new PartitionSpec(groups.head.keys.toArray)
     groups.tail.foreach {
       g =>
@@ -52,7 +52,7 @@ object OverAggregateUtil {
     new OverSpec(
       partition,
       groups.map(createGroupSpec(_, logicalWindow)),
-      logicalWindow.constants.asList(),
+      logicalWindow.constants,
       calcOriginalInputFields(logicalWindow)
     )
   }
