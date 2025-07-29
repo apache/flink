@@ -898,6 +898,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JobPlanInfo"
+  /jobs/{jobid}/rescales/config:
+    get:
+      description: Returns the job rescale configuration.
+      operationId: getJobRescaleConfig
+      parameters:
+        - name: jobid
+          in: path
+          description: 32-character hexadecimal string value that identifies a job.
+          required: true
+          schema:
+            $ref: "#/components/schemas/JobID"
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRescaleConfigInfo"
   /jobs/{jobid}/rescaling:
     patch:
       description: Triggers the rescaling of a job. This async operation would return
@@ -2679,6 +2697,35 @@ components:
       properties:
         plan:
           $ref: "#/components/schemas/Plan"
+    JobRescaleConfigInfo:
+      type: object
+      properties:
+        executingCooldownTimeoutInMillis:
+          type: integer
+          format: int64
+        executingResourceStabilizationTimeoutInMillis:
+          type: integer
+          format: int64
+        maximumDelayForTriggeringRescaleInMillis:
+          type: integer
+          format: int64
+        rescaleHistoryMax:
+          type: integer
+          format: int32
+        rescaleOnFailedCheckpointCount:
+          type: integer
+          format: int32
+        schedulerExecutionMode:
+          $ref: "#/components/schemas/SchedulerExecutionMode"
+        slotIdleTimeoutInMillis:
+          type: integer
+          format: int64
+        submissionResourceStabilizationTimeoutInMillis:
+          type: integer
+          format: int64
+        submissionResourceWaitTimeoutInMillis:
+          type: integer
+          format: int64
     JobResourceRequirementsBody:
       type: object
       additionalProperties:
@@ -3071,6 +3118,10 @@ components:
         - Default
         - Adaptive
         - AdaptiveBatch
+    SchedulerExecutionMode:
+      type: string
+      enum:
+      - REACTIVE
     SerializedThrowable:
       type: object
       properties:
