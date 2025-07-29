@@ -26,7 +26,7 @@ LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.Jav
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, w0$o0 AS _c1])
-+- PythonOverAggregate(partitionBy=[b], orderBy=[$3 ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, b, c, $3, PandasAggregateFunction(a, c) AS w0$o0])
++- PythonOverAggregate(partitionBy=[b], orderBy=[$3 ASC], window=[ RANGE BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, b, c, $3, PandasAggregateFunction(a, c) AS w0$o0])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b, c, PROCTIME() AS $3])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
@@ -61,7 +61,7 @@ LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.Jav
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, w0$o0 AS _c1])
-+- PythonOverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, b, c, rowtime, PandasAggregateFunction(a, c) AS w0$o0])
++- PythonOverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ RANGE BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, b, c, rowtime, PandasAggregateFunction(a, c) AS w0$o0])
    +- Exchange(distribution=[hash[b]])
       +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])

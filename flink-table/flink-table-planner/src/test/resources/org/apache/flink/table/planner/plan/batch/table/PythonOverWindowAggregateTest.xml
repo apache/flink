@@ -26,7 +26,7 @@ LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.Jav
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, w0$o0 AS _c1])
-+- PythonOverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[PandasAggregateFunction(a, c) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, rowtime, w0$o0])
++- PythonOverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[PandasAggregateFunction(a, c) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, rowtime, w0$o0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, rowtime ASC])
          +- Exchange(distribution=[hash[b]])

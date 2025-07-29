@@ -621,7 +621,7 @@ object RelExplainUtil {
     }
 
     val buf = new StringBuilder
-    buf.append(if (groupWindow.isRows) " ROWS " else " RANG ")
+    buf.append(if (groupWindow.isRows) " ROWS " else " RANGE ")
     val lowerBound = groupWindow.lowerBound
     val upperBound = groupWindow.upperBound
     if (lowerBound != null) {

@@ -298,7 +298,7 @@ LogicalProject(b=[$0], EXPR$1=[RANK() OVER (ORDER BY $0 NULLS FIRST)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-OverAggregate(orderBy=[b ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[b, w0$o0])
+OverAggregate(orderBy=[b ASC], window#0=[RANK(*) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[b, w0$o0])
 +- Exchange(distribution=[forward])
    +- Sort(orderBy=[b ASC])
       +- Exchange(distribution=[forward])
@@ -330,7 +330,7 @@ LogicalProject(sum_b=[$1], avg_b=[/(CASE(>(COUNT($1) OVER (PARTITION BY $0), 0),
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[sum_b, (CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS avg_b, w1$o0 AS rn, c])
-+- OverAggregate(partitionBy=[c], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], window#1=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[c, sum_b, w0$o0, w0$o1, w1$o0])
++- OverAggregate(partitionBy=[c], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1 RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], window#1=[RANK(*) AS w1$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[c, sum_b, w0$o0, w0$o1, w1$o0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[c ASC])
          +- Exchange(distribution=[keep_input_as_is[hash[c]]])
@@ -355,7 +355,7 @@ LogicalProject(b=[$0], EXPR$1=[RANK() OVER (ORDER BY $0 NULLS FIRST)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-OverAggregate(orderBy=[b ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[b, w0$o0])
+OverAggregate(orderBy=[b ASC], window#0=[RANK(*) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[b, w0$o0])
 +- Exchange(distribution=[forward])
    +- Sort(orderBy=[b ASC])
       +- Exchange(distribution=[forward])
@@ -387,7 +387,7 @@ LogicalProject(sum_b=[$1], avg_b=[/(CASE(>(COUNT($1) OVER (PARTITION BY $0), 0),
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[sum_b, (CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS avg_b, w1$o0 AS rn, c])
-+- OverAggregate(partitionBy=[c], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], window#1=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[c, sum_b, w0$o0, w0$o1, w1$o0])
++- OverAggregate(partitionBy=[c], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1 RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], window#1=[RANK(*) AS w1$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[c, sum_b, w0$o0, w0$o1, w1$o0])
    +- Exchange(distribution=[forward])
       +- SortAggregate(isMerge=[true], groupBy=[c], select=[c, Final_SUM(sum$0) AS sum_b])
          +- Exchange(distribution=[forward])
