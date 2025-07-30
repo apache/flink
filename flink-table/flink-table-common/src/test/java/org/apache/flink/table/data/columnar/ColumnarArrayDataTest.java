@@ -23,7 +23,7 @@ import org.apache.flink.table.data.columnar.vector.heap.HeapBytesVector;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class ColumnarArrayDataTest {
 
@@ -40,7 +40,7 @@ class ColumnarArrayDataTest {
         byte[] actual = arrayData.getBinary(0);
 
         byte[] expected = new byte[] {10, 20, 30};
-        assertArrayEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -61,8 +61,8 @@ class ColumnarArrayDataTest {
 
         // Create a ColumnarArrayData that wraps the entire vector
         ColumnarArrayData arrayData = new ColumnarArrayData(vector, 0, 1);
-        assertArrayEquals(dummyData, arrayData.getBinary(0));
-        assertArrayEquals(sourceData1, arrayData.getBinary(1));
-        assertArrayEquals(sourceData2, arrayData.getBinary(2));
+        assertThat(arrayData.getBinary(0)).isEqualTo(dummyData);
+        assertThat(arrayData.getBinary(1)).isEqualTo(sourceData1);
+        assertThat(arrayData.getBinary(2)).isEqualTo(sourceData2);
     }
 }
