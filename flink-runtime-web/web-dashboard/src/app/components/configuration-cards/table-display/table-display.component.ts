@@ -33,6 +33,4 @@ export class TableDisplayComponent {
   @Input() listOfData: Array<{ key: string; value: string }> = [];
 
   readonly trackByKey = (_: number, node: ClusterConfiguration): string => node.key;
-
-  constructor() {}
 }

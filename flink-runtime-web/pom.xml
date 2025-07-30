@@ -263,7 +263,7 @@ under the License.
 							<goal>install-node-and-npm</goal>
 						</goals>
 						<configuration>
-							<nodeVersion>v22.11.0</nodeVersion>
+							<nodeVersion>v22.16.0</nodeVersion>
 							<npmVersion>10.9.0</npmVersion>
 						</configuration>
 					</execution>

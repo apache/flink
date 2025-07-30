@@ -28,14 +28,13 @@ import { flinkEditorOptions } from '@flink-runtime-web/components/editor/editor-
 import { ExceptionInfo, RootExceptionInfo } from '@flink-runtime-web/interfaces';
 import { JobService } from '@flink-runtime-web/services';
 import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { NzCodeEditorModule, EditorOptions } from 'ng-zorro-antd/code-editor';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { NzTagModule } from 'ng-zorro-antd/tag';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
 import { JobLocalService } from '../job-local.service';
 
@@ -81,7 +80,7 @@ const markGlobalFailure = function (exception: ExceptionInfo): ExceptionInfo {
     NgForOf,
     DatePipe,
     NzSelectModule,
-    NzToolTipModule,
+    NzTooltipModule,
     NgIf,
     FormsModule,
     NzIconModule,

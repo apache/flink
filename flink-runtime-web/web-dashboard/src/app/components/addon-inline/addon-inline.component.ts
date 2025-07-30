@@ -27,8 +27,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
   templateUrl: './addon-inline.component.html',
   styleUrls: ['./addon-inline.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, NzIconModule, NzDividerModule],
-  standalone: true
+  imports: [NgIf, NzIconModule, NzDividerModule]
 })
 export class AddonInlineComponent {
   @Input() downloadName: string;
