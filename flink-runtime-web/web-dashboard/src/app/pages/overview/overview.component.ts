@@ -31,8 +31,7 @@ import { JobService, StatusService } from '@flink-runtime-web/services';
   templateUrl: './overview.component.html',
   styleUrls: ['./overview.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [OverviewStatisticComponent, JobListComponent],
-  standalone: true
+  imports: [OverviewStatisticComponent, JobListComponent]
 })
 export class OverviewComponent implements OnInit, OnDestroy {
   public jobData$: Observable<JobsItem[]>;

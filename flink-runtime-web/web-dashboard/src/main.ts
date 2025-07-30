@@ -18,7 +18,7 @@
 import { registerLocaleData } from '@angular/common';
 import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import en from '@angular/common/locales/en';
-import { APP_INITIALIZER, enableProdMode, importProvidersFrom, Injector } from '@angular/core';
+import { enableProdMode, Injector, inject, provideAppInitializer } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter, Router, withHashLocation } from '@angular/router';
@@ -32,7 +32,6 @@ import { StatusService } from '@flink-runtime-web/services';
 import { NzConfig, provideNzConfig } from 'ng-zorro-antd/core/config';
 import { en_US, provideNzI18n } from 'ng-zorro-antd/i18n';
 import { provideNzIcons } from 'ng-zorro-antd/icon';
-import { NzNotificationModule } from 'ng-zorro-antd/notification';
 
 import { environment } from './environments/environment';
 
@@ -62,18 +61,15 @@ bootstrapApplication(AppComponent, {
       useClass: AppInterceptor,
       multi: true
     },
-    {
-      provide: APP_INITIALIZER,
-      useFactory: AppInitServiceFactory,
-      deps: [StatusService, Injector],
-      multi: true
-    },
+    provideAppInitializer(() => {
+      const initializerFn = AppInitServiceFactory(inject(StatusService), inject(Injector));
+      return initializerFn();
+    }),
     provideNzI18n(en_US),
     provideNzIcons(APP_ICONS),
     provideNzConfig(ngZorroConfig),
     provideHttpClient(withInterceptorsFromDi()),
     provideAnimationsAsync(),
-    importProvidersFrom(NzNotificationModule),
     provideRouter(APP_ROUTES, withHashLocation())
   ]
 }).catch(err => console.error(err));
