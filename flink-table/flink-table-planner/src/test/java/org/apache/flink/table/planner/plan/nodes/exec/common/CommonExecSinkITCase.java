@@ -18,13 +18,17 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
-import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.table.api.DataTypes;
@@ -42,9 +46,14 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.factories.TableFactoryHarness;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.test.util.source.AbstractTestSource;
+import org.apache.flink.test.util.source.SingleSplitEnumerator;
+import org.apache.flink.test.util.source.TestSourceReader;
+import org.apache.flink.test.util.source.TestSplit;
 import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.types.Row;
@@ -55,6 +64,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -574,7 +584,8 @@ class CommonExecSinkITCase {
         }
     }
 
-    private static class TestSource extends TableFactoryHarness.ScanSourceBase {
+    private static class TestSource extends TableFactoryHarness.ScanSourceBase
+            implements Serializable {
 
         private final List<Row> rows;
 
@@ -584,34 +595,60 @@ class CommonExecSinkITCase {
         }
 
         @Override
-        public ScanTableSource.ScanRuntimeProvider getScanRuntimeProvider(
-                ScanTableSource.ScanContext context) {
-            final DynamicTableSource.DataStructureConverter converter =
+        public ScanTableSource.ScanRuntimeProvider getScanRuntimeProvider(ScanContext context) {
+            DynamicTableSource.DataStructureConverter converter =
                     context.createDataStructureConverter(
                             getFactoryContext().getPhysicalRowDataType());
 
-            return SourceFunctionProvider.of(new TestSourceFunction(rows, converter), false);
+            return SourceProvider.of(
+                    new AbstractTestSource<>() {
+                        @Override
+                        public SplitEnumerator<TestSplit, Void> createEnumerator(
+                                SplitEnumeratorContext<TestSplit> enumCtx) {
+                            return new SingleSplitEnumerator(enumCtx);
+                        }
+
+                        @Override
+                        public SourceReader<RowData, TestSplit> createReader(
+                                SourceReaderContext ctx) {
+                            // Each subtask gets a reader, but only one will actually receive the
+                            // split.
+                            return new TestSourceReader<>(ctx) {
+                                private boolean hasSplit = false;
+                                private boolean noMoreSplits = false;
+                                private boolean emitted = false;
+
+                                @Override
+                                public void addSplits(List<TestSplit> splits) {
+                                    // Mark reader as active if it got a split
+                                    hasSplit = !splits.isEmpty();
+                                }
+
+                                @Override
+                                public void notifyNoMoreSplits() {
+                                    // Called for readers that never get a split → they can finish
+                                    noMoreSplits = true;
+                                }
+
+                                @Override
+                                public InputStatus pollNext(ReaderOutput<RowData> out) {
+                                    if (hasSplit && !emitted) {
+                                        rows.forEach(
+                                                r ->
+                                                        out.collect(
+                                                                (RowData) converter.toInternal(r)));
+                                        emitted = true;
+                                        return InputStatus.END_OF_INPUT;
+                                    }
+                                    if (!hasSplit && noMoreSplits) {
+                                        return InputStatus.END_OF_INPUT;
+                                    }
+                                    return InputStatus.NOTHING_AVAILABLE;
+                                }
+                            };
+                        }
+                    });
         }
-    }
-
-    private static class TestSourceFunction implements SourceFunction<RowData> {
-
-        private final List<Row> rows;
-        private final DynamicTableSource.DataStructureConverter converter;
-
-        public TestSourceFunction(
-                List<Row> rows, DynamicTableSource.DataStructureConverter converter) {
-            this.rows = rows;
-            this.converter = converter;
-        }
-
-        @Override
-        public void run(SourceContext<RowData> ctx) throws Exception {
-            rows.stream().map(row -> (RowData) converter.toInternal(row)).forEach(ctx::collect);
-        }
-
-        @Override
-        public void cancel() {}
     }
 
     private static class TestTimestampWriter extends TestSinkV2.DefaultSinkWriter<RowData> {
