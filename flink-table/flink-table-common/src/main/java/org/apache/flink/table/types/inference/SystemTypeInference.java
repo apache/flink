@@ -97,16 +97,26 @@ public class SystemTypeInference {
         final TypeInference.Builder builder = TypeInference.newBuilder();
 
         final List<StaticArgument> systemArgs =
-                deriveSystemArgs(functionKind, origin.getStaticArguments().orElse(null));
+                deriveSystemArgs(
+                        functionKind,
+                        origin.getStaticArguments().orElse(null),
+                        origin.allowSystemArguments());
         if (systemArgs != null) {
             builder.staticArguments(systemArgs);
         }
         builder.inputTypeStrategy(
-                deriveSystemInputStrategy(functionKind, systemArgs, origin.getInputTypeStrategy()));
+                deriveSystemInputStrategy(
+                        functionKind,
+                        systemArgs,
+                        origin.getInputTypeStrategy(),
+                        origin.allowSystemArguments()));
         builder.stateTypeStrategies(origin.getStateTypeStrategies());
         builder.outputTypeStrategy(
                 deriveSystemOutputStrategy(
-                        functionKind, systemArgs, origin.getOutputTypeStrategy()));
+                        functionKind,
+                        systemArgs,
+                        origin.getOutputTypeStrategy(),
+                        origin.allowSystemArguments()));
         return builder.build();
     }
 
@@ -130,7 +140,9 @@ public class SystemTypeInference {
     }
 
     private static @Nullable List<StaticArgument> deriveSystemArgs(
-            FunctionKind functionKind, @Nullable List<StaticArgument> declaredArgs) {
+            FunctionKind functionKind,
+            @Nullable List<StaticArgument> declaredArgs,
+            boolean allowSystemArgs) {
         if (functionKind != FunctionKind.PROCESS_TABLE) {
             if (declaredArgs != null) {
                 checkScalarArgsOnly(declaredArgs);
@@ -147,7 +159,9 @@ public class SystemTypeInference {
         checkPassThroughColumns(declaredArgs);
 
         final List<StaticArgument> newStaticArgs = new ArrayList<>(declaredArgs);
-        newStaticArgs.addAll(PROCESS_TABLE_FUNCTION_SYSTEM_ARGS);
+        if (allowSystemArgs) {
+            newStaticArgs.addAll(PROCESS_TABLE_FUNCTION_SYSTEM_ARGS);
+        }
         return newStaticArgs;
     }
 
@@ -197,23 +211,25 @@ public class SystemTypeInference {
     private static InputTypeStrategy deriveSystemInputStrategy(
             FunctionKind functionKind,
             @Nullable List<StaticArgument> staticArgs,
-            InputTypeStrategy inputStrategy) {
+            InputTypeStrategy inputStrategy,
+            boolean allowSystemArgs) {
         if (functionKind != FunctionKind.PROCESS_TABLE) {
             return inputStrategy;
         }
-        return new SystemInputStrategy(staticArgs, inputStrategy);
+        return new SystemInputStrategy(staticArgs, inputStrategy, allowSystemArgs);
     }
 
     private static TypeStrategy deriveSystemOutputStrategy(
             FunctionKind functionKind,
             @Nullable List<StaticArgument> staticArgs,
-            TypeStrategy outputStrategy) {
+            TypeStrategy outputStrategy,
+            boolean allowSystemArgs) {
         if (functionKind != FunctionKind.TABLE
                 && functionKind != FunctionKind.PROCESS_TABLE
                 && functionKind != FunctionKind.ASYNC_TABLE) {
             return outputStrategy;
         }
-        return new SystemOutputStrategy(functionKind, staticArgs, outputStrategy);
+        return new SystemOutputStrategy(functionKind, staticArgs, outputStrategy, allowSystemArgs);
     }
 
     private static class SystemOutputStrategy implements TypeStrategy {
@@ -221,12 +237,17 @@ public class SystemTypeInference {
         private final FunctionKind functionKind;
         private final List<StaticArgument> staticArgs;
         private final TypeStrategy origin;
+        private final boolean allowSystemArgs;
 
         private SystemOutputStrategy(
-                FunctionKind functionKind, List<StaticArgument> staticArgs, TypeStrategy origin) {
+                FunctionKind functionKind,
+                List<StaticArgument> staticArgs,
+                TypeStrategy origin,
+                boolean allowSystemArgs) {
             this.functionKind = functionKind;
             this.staticArgs = staticArgs;
             this.origin = origin;
+            this.allowSystemArgs = allowSystemArgs;
         }
 
         @Override
@@ -247,7 +268,10 @@ public class SystemTypeInference {
                                 // this whole topic is kind of vendor specific already
                                 fields.addAll(derivePassThroughFields(callContext));
                                 fields.addAll(deriveFunctionOutputFields(functionDataType));
-                                fields.addAll(deriveRowtimeField(callContext));
+
+                                if (allowSystemArgs) {
+                                    fields.addAll(deriveRowtimeField(callContext));
+                                }
 
                                 final List<Field> uniqueFields = makeFieldNamesUnique(fields);
 
@@ -480,10 +504,15 @@ public class SystemTypeInference {
 
         private final List<StaticArgument> staticArgs;
         private final InputTypeStrategy origin;
+        private final boolean allowSystemArgs;
 
-        private SystemInputStrategy(List<StaticArgument> staticArgs, InputTypeStrategy origin) {
+        private SystemInputStrategy(
+                List<StaticArgument> staticArgs,
+                InputTypeStrategy origin,
+                boolean allowSystemArgs) {
             this.staticArgs = staticArgs;
             this.origin = origin;
+            this.allowSystemArgs = allowSystemArgs;
         }
 
         @Override
@@ -514,7 +543,10 @@ public class SystemTypeInference {
 
             try {
                 checkTableArgs(staticArgs, callContext);
-                checkUidArg(callContext);
+                if (allowSystemArgs) {
+                    // Check that the static arguments are valid
+                    checkUidArg(callContext);
+                }
             } catch (ValidationException e) {
                 return callContext.fail(throwOnFailure, e.getMessage());
             }
