@@ -28,6 +28,4 @@ import { NzSizeDSType } from 'ng-zorro-antd/core/types';
 })
 export class BlockedBadgeComponent {
   @Input() size: NzSizeDSType = 'default';
-
-  constructor() {}
 }

@@ -29,6 +29,4 @@ export class FileReadDirective {
     const target = changeEvent.target as HTMLInputElement;
     this.fileRead.emit(target!.files![0]);
   }
-
-  constructor() {}
 }

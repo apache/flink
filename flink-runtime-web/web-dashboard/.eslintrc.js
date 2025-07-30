@@ -26,6 +26,7 @@ module.exports = {
           }
         ],
         '@angular-eslint/no-host-metadata-property': 'off',
+        '@angular-eslint/prefer-inject': 'off',
         '@typescript-eslint/no-explicit-any': 'error',
         '@typescript-eslint/no-non-null-assertion': 'off',
         '@typescript-eslint/array-type': [
