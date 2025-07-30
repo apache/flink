@@ -335,6 +335,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                                             inputStack.add(relBuilder.build());
                                             return tableArgCall;
                                         }
+                                        // TODO: Check ModelReferenceExpression and construct
+                                        // RexModelArgCall
                                         return convertExprToRexNode(resolvedArg);
                                     })
                             .collect(Collectors.toList());
@@ -342,6 +344,9 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             // relBuilder.build() works in LIFO fashion, this restores the original input order
             Collections.reverse(inputStack);
 
+            // TODO: should we check if contextFunction is builtin ml_predict and use
+            // SqlPredictFunction instead of BridgingSqlFunction? PTF BridgeSqlFunction will be
+            // handled by StreamPhysicalProcessTableFunctionRule which won't work for ml_predict
             final BridgingSqlFunction sqlFunction =
                     BridgingSqlFunction.of(relBuilder.getCluster(), contextFunction);
 

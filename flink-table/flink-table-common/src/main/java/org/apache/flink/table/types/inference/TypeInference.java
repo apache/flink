@@ -59,16 +59,19 @@ public final class TypeInference {
     private final InputTypeStrategy inputTypeStrategy;
     private final LinkedHashMap<String, StateTypeStrategy> stateTypeStrategies;
     private final TypeStrategy outputTypeStrategy;
+    private final boolean allowSystemArguments;
 
     private TypeInference(
             @Nullable List<StaticArgument> staticArguments,
             InputTypeStrategy inputTypeStrategy,
             LinkedHashMap<String, StateTypeStrategy> stateTypeStrategies,
-            TypeStrategy outputTypeStrategy) {
+            TypeStrategy outputTypeStrategy,
+            boolean allowSystemArguments) {
         this.staticArguments = staticArguments;
         this.inputTypeStrategy = inputTypeStrategy;
         this.stateTypeStrategies = stateTypeStrategies;
         this.outputTypeStrategy = outputTypeStrategy;
+        this.allowSystemArguments = allowSystemArguments;
         checkStateEntries();
     }
 
@@ -91,6 +94,10 @@ public final class TypeInference {
 
     public TypeStrategy getOutputTypeStrategy() {
         return outputTypeStrategy;
+    }
+
+    public boolean allowSystemArguments() {
+        return allowSystemArguments;
     }
 
     /**
@@ -180,6 +187,8 @@ public final class TypeInference {
                 new LinkedHashMap<>();
         private @Nullable TypeStrategy outputTypeStrategy;
 
+        private boolean allowSystemArguments = true;
+
         // Legacy
         private @Nullable List<String> namedArguments;
         private @Nullable List<Boolean> optionalArguments;
@@ -251,6 +260,11 @@ public final class TypeInference {
             return this;
         }
 
+        public Builder allowSystemArguments(boolean allowSystemArguments) {
+            this.allowSystemArguments = allowSystemArguments;
+            return this;
+        }
+
         /**
          * Sets the strategy for inferring the final output data type of a function call.
          *
@@ -269,7 +283,8 @@ public final class TypeInference {
                     inputTypeStrategy,
                     stateTypeStrategies,
                     Preconditions.checkNotNull(
-                            outputTypeStrategy, "Output type strategy must not be null."));
+                            outputTypeStrategy, "Output type strategy must not be null."),
+                    allowSystemArguments);
         }
 
         /**

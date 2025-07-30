@@ -73,6 +73,7 @@ public class StaticArgument {
         checkTraits(traits);
         checkOptionalType();
         checkTableType();
+        checkModelType();
     }
 
     /**
@@ -144,6 +145,45 @@ public class StaticArgument {
         return new StaticArgument(name, dataType, null, isOptional, enrichTableTraits(traits));
     }
 
+    /**
+     * Declares a model argument such as {@code f(m => myModel)} or {@code f(m => MODEL myModel))}.
+     *
+     * <p>By only providing a conversion class, the argument supports a "polymorphic" behavior. In
+     * other words: it accepts models with arbitrary schemas or types. For this case, a class
+     * satisfying the model's conversion requirements must be used.
+     *
+     * @param name name for the assignment operator e.g. {@code f(myArg => myModel)}
+     * @param isOptional whether the argument is optional
+     * @param traits set of {@link StaticArgumentTrait} requiring {@link StaticArgumentTrait#MODEL}
+     */
+    public static StaticArgument model(
+            String name, boolean isOptional, EnumSet<StaticArgumentTrait> traits) {
+        final EnumSet<StaticArgumentTrait> enrichedTraits = EnumSet.copyOf(traits);
+        enrichedTraits.add(StaticArgumentTrait.MODEL);
+        return new StaticArgument(name, null, null, isOptional, enrichedTraits);
+    }
+
+    /**
+     * Declares a model argument such as {@code f(m => myModel)} or {@code f(m => MODEL myModel))}.
+     *
+     * <p>By providing a concrete data type, the argument only accepts models with corresponding
+     * schema or type structure. The data type must be appropriate for the specific model type.
+     *
+     * @param name name for the assignment operator e.g. {@code f(myArg => myModel)}
+     * @param dataType explicit type to which the argument is cast if necessary
+     * @param isOptional whether the argument is optional, if optional the corresponding data type
+     *     must be nullable
+     * @param traits set of {@link StaticArgumentTrait} requiring {@link StaticArgumentTrait#MODEL}
+     */
+    public static StaticArgument model(
+            String name,
+            DataType dataType,
+            boolean isOptional,
+            EnumSet<StaticArgumentTrait> traits) {
+        Preconditions.checkNotNull(dataType, "Data type must not be null.");
+        return new StaticArgument(name, dataType, null, isOptional, enrichModelTraits(traits));
+    }
+
     private static EnumSet<StaticArgumentTrait> enrichTableTraits(
             EnumSet<StaticArgumentTrait> traits) {
         final EnumSet<StaticArgumentTrait> enrichedTraits = EnumSet.copyOf(traits);
@@ -151,6 +191,13 @@ public class StaticArgument {
         if (!enrichedTraits.contains(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
             enrichedTraits.add(StaticArgumentTrait.ROW_SEMANTIC_TABLE);
         }
+        return enrichedTraits;
+    }
+
+    private static EnumSet<StaticArgumentTrait> enrichModelTraits(
+            EnumSet<StaticArgumentTrait> traits) {
+        final EnumSet<StaticArgumentTrait> enrichedTraits = EnumSet.copyOf(traits);
+        enrichedTraits.add(StaticArgumentTrait.MODEL);
         return enrichedTraits;
     }
 
@@ -283,6 +330,13 @@ public class StaticArgument {
         checkTypedTableType();
     }
 
+    private void checkModelType() {
+        if (!traits.contains(StaticArgumentTrait.MODEL)) {
+            return;
+        }
+        checkModelNotOptional();
+    }
+
     private void checkTableNotOptional() {
         if (isOptional) {
             throw new ValidationException("Table arguments must not be optional.");
@@ -321,6 +375,12 @@ public class StaticArgument {
                             "Invalid data type '%s' for table argument '%s'. "
                                     + "Table arguments that support updates must use a row type.",
                             type, name));
+        }
+    }
+
+    private void checkModelNotOptional() {
+        if (isOptional) {
+            throw new ValidationException("Model arguments must not be optional.");
         }
     }
 }

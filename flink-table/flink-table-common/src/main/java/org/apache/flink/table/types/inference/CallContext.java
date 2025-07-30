@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.ChangelogFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.ModelSemantics;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
@@ -75,6 +76,18 @@ public interface CallContext {
      * {@code @ArgumentHint(SET_SEMANTIC_TABLE)} or {@code @ArgumentHint(ROW_SEMANTIC_TABLE)}).
      */
     default Optional<TableSemantics> getTableSemantics(int pos) {
+        return Optional.empty();
+    }
+
+    /**
+     * Returns information about the model that has been passed to a model argument.
+     *
+     * <p>This method applies only to {@link ProcessTableFunction}s.
+     *
+     * <p>Semantics are only available for model arguments that are annotated with
+     * {@code @ArgumentHint(MODEL)}).
+     */
+    default Optional<ModelSemantics> getModelSemantics(int pos) {
         return Optional.empty();
     }
 

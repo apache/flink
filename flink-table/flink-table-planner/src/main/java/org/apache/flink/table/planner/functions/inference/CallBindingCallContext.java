@@ -23,6 +23,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.ModelSemantics;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
@@ -39,10 +40,12 @@ import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlModelCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.validate.SqlValidator;
 
 import javax.annotation.Nullable;
 
@@ -62,6 +65,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
     private final List<DataType> argumentDataTypes;
     private final @Nullable DataType outputType;
     private final @Nullable List<StaticArgument> staticArguments;
+    private final SqlValidator validator;
 
     public CallBindingCallContext(
             DataTypeFactory dataTypeFactory,
@@ -75,6 +79,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                 binding.getOperator().getNameAsId().toString(),
                 binding.getGroupCount() > 0);
         this.adaptedArguments = binding.operands(); // reorders the operands
+        validator = binding.getValidator();
         this.argumentDataTypes =
                 new AbstractList<>() {
                     @Override
@@ -149,6 +154,21 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         }
         return Optional.of(
                 CallBindingTableSemantics.create(argumentDataTypes.get(pos), staticArg, sqlNode));
+    }
+
+    @Override
+    public Optional<ModelSemantics> getModelSemantics(int pos) {
+        final StaticArgument staticArg =
+                Optional.ofNullable(staticArguments).map(args -> args.get(pos)).orElse(null);
+        if (staticArg == null || !staticArg.is(StaticArgumentTrait.MODEL)) {
+            return Optional.empty();
+        }
+        final SqlNode sqlNode = adaptedArguments.get(pos);
+        // SqlModelCall is parsed by parser for syntax `MODEL identifier` and model is looked up
+        if (!(sqlNode instanceof SqlModelCall)) {
+            return Optional.empty();
+        }
+        return Optional.of(CallBindingModelSemantics.create((SqlModelCall) sqlNode, validator));
     }
 
     @Override
@@ -259,6 +279,58 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         @Override
         public Optional<ChangelogMode> changelogMode() {
             return Optional.empty();
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // ModelSemantics
+    // --------------------------------------------------------------------------------------------
+
+    private static class CallBindingModelSemantics implements ModelSemantics {
+
+        private final DataType inputDataType;
+        private final DataType outputDataType;
+
+        public static CallBindingModelSemantics create(
+                SqlModelCall sqlModelCall, SqlValidator validator) {
+            return new CallBindingModelSemantics(
+                    createInputDataType(sqlModelCall, validator),
+                    createOutputDataType(sqlModelCall, validator));
+        }
+
+        private static DataType createInputDataType(
+                SqlModelCall sqlModelCall, SqlValidator validator) {
+            final RelDataType inputType = sqlModelCall.getInputType(validator);
+            if (inputType != null) {
+                final LogicalType logicalType = FlinkTypeFactory.toLogicalType(inputType);
+                return TypeConversions.fromLogicalToDataType(logicalType);
+            }
+            throw new ValidationException("Cannot infer input data type for model");
+        }
+
+        private static DataType createOutputDataType(
+                SqlModelCall sqlModelCall, SqlValidator validator) {
+            final RelDataType outputType = sqlModelCall.getOutputType(validator);
+            if (outputType != null) {
+                final LogicalType logicalType = FlinkTypeFactory.toLogicalType(outputType);
+                return TypeConversions.fromLogicalToDataType(logicalType);
+            }
+            throw new ValidationException("Cannot infer output data type for model");
+        }
+
+        private CallBindingModelSemantics(DataType inputDataType, DataType outputDataType) {
+            this.inputDataType = inputDataType;
+            this.outputDataType = outputDataType;
+        }
+
+        @Override
+        public DataType inputDataType() {
+            return inputDataType;
+        }
+
+        @Override
+        public DataType outputDataType() {
+            return outputDataType;
         }
     }
 
