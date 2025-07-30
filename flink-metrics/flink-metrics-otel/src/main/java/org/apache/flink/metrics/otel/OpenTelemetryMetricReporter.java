@@ -61,7 +61,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureEndpoint;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureTimeout;
-import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.validateAndGetProtocol;
 
 /**
  * A Flink {@link org.apache.flink.metrics.reporter.MetricReporter} which is made to export metrics
@@ -97,15 +97,7 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
         LOG.info("Starting OpenTelemetryMetricReporter");
         super.open(metricConfig);
 
-        final String protocolConfKey = OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key();
-        String protocol = metricConfig.getProperty(protocolConfKey);
-        checkArgument(
-                Protocol.gRPC.name().equalsIgnoreCase(protocol)
-                        || Protocol.HTTP.name().equalsIgnoreCase(protocol),
-                "Invalid %s. Must be one of %s or %s.",
-                protocolConfKey,
-                Protocol.gRPC.name(),
-                Protocol.HTTP.name());
+        final String protocol = validateAndGetProtocol(metricConfig);
 
         if (Protocol.HTTP.name().equalsIgnoreCase(protocol)) {
             OtlpHttpMetricExporterBuilder builder = OtlpHttpMetricExporter.builder();

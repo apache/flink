@@ -27,6 +27,8 @@ import org.apache.flink.metrics.otel.VariableNameUtil;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.logs.LogRecordBuilder;
 import io.opentelemetry.api.logs.Severity;
+import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
+import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporterBuilder;
 import io.opentelemetry.exporter.otlp.logs.OtlpGrpcLogRecordExporter;
 import io.opentelemetry.exporter.otlp.logs.OtlpGrpcLogRecordExporterBuilder;
 import io.opentelemetry.sdk.logs.SdkLoggerProvider;
@@ -38,8 +40,10 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
+import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.Protocol;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureEndpoint;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureTimeout;
+import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.validateAndGetProtocol;
 
 /**
  * A Flink {@link EventReporter} which is made to export log records/events using Open Telemetry's
@@ -60,11 +64,20 @@ public class OpenTelemetryEventReporter extends OpenTelemetryReporterBase implem
     @Override
     public void open(MetricConfig metricConfig) {
         LOG.info("Starting OpenTelemetryEventReporter");
-        OtlpGrpcLogRecordExporterBuilder builder = OtlpGrpcLogRecordExporter.builder();
-        tryConfigureEndpoint(metricConfig, builder::setEndpoint);
-        tryConfigureTimeout(metricConfig, builder::setTimeout);
+        final String protocol = validateAndGetProtocol(metricConfig);
 
-        logRecordExporter = builder.build();
+        if (Protocol.HTTP.name().equalsIgnoreCase(protocol)) {
+            OtlpHttpLogRecordExporterBuilder builder = OtlpHttpLogRecordExporter.builder();
+            tryConfigureEndpoint(metricConfig, builder::setEndpoint);
+            tryConfigureTimeout(metricConfig, builder::setTimeout);
+            logRecordExporter = builder.build();
+        } else {
+            OtlpGrpcLogRecordExporterBuilder builder = OtlpGrpcLogRecordExporter.builder();
+            tryConfigureEndpoint(metricConfig, builder::setEndpoint);
+            tryConfigureTimeout(metricConfig, builder::setTimeout);
+            logRecordExporter = builder.build();
+        }
+
         logRecordProcessor = BatchLogRecordProcessor.builder(logRecordExporter).build();
         loggerProvider =
                 SdkLoggerProvider.builder()
