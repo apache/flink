@@ -20,7 +20,6 @@ package org.apache.flink.client.python;
 
 import org.apache.flink.client.deployment.application.UnsuccessfulExecutionException;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.python.util.CompressionUtils;
@@ -371,8 +370,8 @@ final class PythonEnvUtils {
         }
 
         LOG.info(
-                "Starting Python process with environment variables: {{}}, command: {}",
-                ConfigurationUtils.hideSensitiveValues(env).entrySet().stream()
+                "Test - Starting Python process with environment variables: {{}}, command: {}",
+                env.entrySet().stream()
                         .map(e -> e.getKey() + "=" + e.getValue())
                         .collect(Collectors.joining(", ")),
                 String.join(" ", commands));
