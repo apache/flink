@@ -28,6 +28,4 @@ import { TaskManagerStatusComponent } from '@flink-runtime-web/pages/task-manage
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TaskManagerStatusComponent, RouterOutlet]
 })
-export class TaskManagerComponent {
-  constructor() {}
-}
+export class TaskManagerComponent {}

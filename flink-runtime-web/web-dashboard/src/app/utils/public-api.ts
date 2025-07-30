@@ -17,3 +17,4 @@
  */
 
 export * from './is-nil';
+export * from './strong-type';

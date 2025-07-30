@@ -38,8 +38,6 @@ export class ConfigurationCardsComponent {
   @Input() environmentInfo?: EnvironmentInfo;
   @Input() loading = true;
 
-  constructor() {}
-
   convertJVMToKV(jvm: JvmInfo): Array<{ key: string; value: string }> {
     return [
       {

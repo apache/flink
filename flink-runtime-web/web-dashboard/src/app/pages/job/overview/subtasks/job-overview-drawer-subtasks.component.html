@@ -15,7 +15,7 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<nz-tabset [nzTabBarGutter]="16" [nzSize]="'small'">
+<nz-tabs [nzTabBarGutter]="16" [nzSize]="'small'">
   <nz-tab nzTitle="Subtask Metrics">
     <nz-table
       nzSize="small"
@@ -208,7 +208,7 @@
       [aggregated]="aggregated"
     ></flink-table-aggregated-metrics>
   </nz-tab>
-</nz-tabset>
+</nz-tabs>
 
 <ng-template #loadingTemplate>
   <span class="text-secondary">loading...</span>
