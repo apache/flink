@@ -21,8 +21,7 @@ import { Pipe, PipeTransform } from '@angular/core';
 import { ConfigService } from '@flink-runtime-web/services';
 
 @Pipe({
-  name: 'humanizeWatermark',
-  standalone: true
+  name: 'humanizeWatermark'
 })
 export class HumanizeWatermarkPipe implements PipeTransform {
   constructor(private readonly configService: ConfigService) {}
@@ -37,8 +36,7 @@ export class HumanizeWatermarkPipe implements PipeTransform {
 }
 
 @Pipe({
-  name: 'humanizeWatermarkToDatetime',
-  standalone: true
+  name: 'humanizeWatermarkToDatetime'
 })
 export class HumanizeWatermarkToDatetimePipe implements PipeTransform {
   constructor(private readonly configService: ConfigService) {}

@@ -51,8 +51,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
     NzCodeEditorModule,
     FormsModule,
     AutoResizeDirective
-  ],
-  standalone: true
+  ]
 })
 export class JobManagerLogDetailComponent implements OnInit, OnDestroy {
   public logs = '';

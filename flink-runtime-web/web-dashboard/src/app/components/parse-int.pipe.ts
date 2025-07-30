@@ -19,8 +19,7 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
 @Pipe({
-  name: 'parseInt',
-  standalone: true
+  name: 'parseInt'
 })
 export class ParseIntPipe implements PipeTransform {
   transform(value: string): number | null {

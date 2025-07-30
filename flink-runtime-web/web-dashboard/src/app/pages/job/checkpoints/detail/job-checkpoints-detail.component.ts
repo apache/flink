@@ -52,8 +52,7 @@ import { JobLocalService } from '../../job-local.service';
     HumanizeBytesPipe,
     JobCheckpointsSubtaskComponent,
     DatePipe
-  ],
-  standalone: true
+  ]
 })
 export class JobCheckpointsDetailComponent implements OnInit, OnDestroy {
   public readonly trackById = (_: number, node: VerticesItem): string => node.id;

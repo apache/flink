@@ -61,8 +61,7 @@ import { NzTableModule } from 'ng-zorro-antd/table';
     NzProgressModule,
     NzDrawerModule,
     DagreComponent
-  ],
-  standalone: true
+  ]
 })
 export class SubmitComponent implements OnInit, OnDestroy {
   public readonly trackById = (_: number, node: JarFilesItem): string => node.id;

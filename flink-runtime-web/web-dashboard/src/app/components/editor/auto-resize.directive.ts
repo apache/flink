@@ -23,8 +23,7 @@ import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 import { NzCodeEditorComponent } from 'ng-zorro-antd/code-editor';
 
 @Directive({
-  selector: 'nz-code-editor[flinkAutoResize]',
-  standalone: true
+  selector: 'nz-code-editor[flinkAutoResize]'
 })
 export class AutoResizeDirective implements OnDestroy, OnInit {
   private destroy$ = new Subject<void>();
