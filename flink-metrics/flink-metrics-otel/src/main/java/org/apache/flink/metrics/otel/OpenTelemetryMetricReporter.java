@@ -28,7 +28,6 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.Protocol;
 import org.apache.flink.metrics.reporter.AbstractReporter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
@@ -59,9 +58,9 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.Protocol;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureEndpoint;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureTimeout;
-import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.validateAndGetProtocol;
 
 /**
  * A Flink {@link org.apache.flink.metrics.reporter.MetricReporter} which is made to export metrics
@@ -97,7 +96,8 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
         LOG.info("Starting OpenTelemetryMetricReporter");
         super.open(metricConfig);
 
-        final String protocol = validateAndGetProtocol(metricConfig);
+        final String protocol =
+                metricConfig.getProperty(OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key());
 
         if (Protocol.HTTP.name().equalsIgnoreCase(protocol)) {
             OtlpHttpMetricExporterBuilder builder = OtlpHttpMetricExporter.builder();

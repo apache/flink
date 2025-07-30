@@ -48,11 +48,6 @@ public class OpenTelemetryMetricReporterProtocolTest
     }
 
     @Override
-    protected void openReporter(MetricConfig config) {
-        reporter.open(config);
-    }
-
-    @Override
     protected void closeReporter(OpenTelemetryMetricReporter reporter) {
         reporter.close();
     }

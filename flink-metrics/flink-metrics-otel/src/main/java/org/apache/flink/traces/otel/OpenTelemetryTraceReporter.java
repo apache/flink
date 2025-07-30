@@ -20,6 +20,7 @@ package org.apache.flink.traces.otel;
 
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.otel.OpenTelemetryReporterBase;
+import org.apache.flink.metrics.otel.OpenTelemetryReporterOptions;
 import org.apache.flink.metrics.otel.VariableNameUtil;
 import org.apache.flink.traces.Span;
 import org.apache.flink.traces.reporter.TraceReporter;
@@ -44,7 +45,6 @@ import java.util.function.BiConsumer;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.Protocol;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureEndpoint;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureTimeout;
-import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.validateAndGetProtocol;
 
 /**
  * A Flink {@link org.apache.flink.traces.reporter.TraceReporter} which is made to export spans
@@ -61,7 +61,8 @@ public class OpenTelemetryTraceReporter extends OpenTelemetryReporterBase implem
         LOG.info("Starting OpenTelemetryTraceReporter");
         super.open(metricConfig);
 
-        final String protocol = validateAndGetProtocol(metricConfig);
+        final String protocol =
+                metricConfig.getProperty(OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key());
 
         if (Protocol.HTTP.name().equalsIgnoreCase(protocol)) {
             OtlpHttpSpanExporterBuilder builder = OtlpHttpSpanExporter.builder();

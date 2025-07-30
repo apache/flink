@@ -45,10 +45,10 @@ public final class OpenTelemetryReporterOptions {
 
     private OpenTelemetryReporterOptions() {}
 
-    public static final ConfigOption<String> EXPORTER_PROTOCOL =
+    public static final ConfigOption<Protocol> EXPORTER_PROTOCOL =
             ConfigOptions.key("exporter.protocol")
-                    .stringType()
-                    .defaultValue(Protocol.gRPC.name())
+                    .enumType(Protocol.class)
+                    .defaultValue(Protocol.gRPC)
                     .withDescription(
                             Description.builder()
                                     .text("Protocol for the OpenTelemetry Reporters.")
@@ -106,19 +106,5 @@ public final class OpenTelemetryReporterOptions {
         checkArgument(
                 metricConfig.containsKey(endpointConfKey), "Must set " + EXPORTER_ENDPOINT.key());
         builder.accept(metricConfig.getProperty(endpointConfKey));
-    }
-
-    @Internal
-    public static String validateAndGetProtocol(MetricConfig metricConfig) {
-        final String protocolConfKey = EXPORTER_PROTOCOL.key();
-        final String protocol = metricConfig.getProperty(protocolConfKey);
-        checkArgument(
-                Protocol.gRPC.name().equalsIgnoreCase(protocol)
-                        || Protocol.HTTP.name().equalsIgnoreCase(protocol),
-                "Invalid %s. Must be one of %s or %s.",
-                protocolConfKey,
-                Protocol.gRPC.name(),
-                Protocol.HTTP.name());
-        return protocol;
     }
 }

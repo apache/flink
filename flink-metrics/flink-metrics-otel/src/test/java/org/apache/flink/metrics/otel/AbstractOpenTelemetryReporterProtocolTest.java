@@ -26,8 +26,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 /** Base class for OpenTelemetry reporter protocol configuration tests. */
 @ExtendWith(TestLoggerExtension.class)
 public abstract class AbstractOpenTelemetryReporterProtocolTest<T> extends OpenTelemetryTestBase {
@@ -78,31 +76,6 @@ public abstract class AbstractOpenTelemetryReporterProtocolTest<T> extends OpenT
         assertReported();
     }
 
-    @Test
-    public void testMissingProtocolThrowsException() {
-        MetricConfig config = createMetricConfig();
-        // Don't set protocol property, should throw exception
-
-        assertThatThrownBy(() -> openReporter(config))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Invalid exporter.protocol")
-                .hasMessageContaining("gRPC")
-                .hasMessageContaining("HTTP");
-    }
-
-    @Test
-    public void testInvalidProtocolThrowsException() {
-        MetricConfig config = createMetricConfig();
-        config.setProperty(
-                OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key(), "INVALID_PROTOCOL");
-
-        assertThatThrownBy(() -> openReporter(config))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Invalid exporter.protocol")
-                .hasMessageContaining("gRPC")
-                .hasMessageContaining("HTTP");
-    }
-
     protected MetricConfig createConfig(String protocol) {
         boolean isHttp = protocol.equalsIgnoreCase("HTTP");
         MetricConfig config = isHttp ? new MetricConfig() : createMetricConfig();
@@ -117,8 +90,6 @@ public abstract class AbstractOpenTelemetryReporterProtocolTest<T> extends OpenT
     }
 
     protected abstract T createReporter();
-
-    protected abstract void openReporter(MetricConfig config);
 
     protected abstract void closeReporter(T reporter);
 
