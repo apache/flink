@@ -457,6 +457,38 @@ counter = getRuntimeContext()
 {{< /tab >}}
 {{< /tabs >}}
 
+### Additional Variables for operators
+
+You can define custom variables that will be assigned to all metrics reported by a given operator
+using `Transformation.addMetricVariable`. For example:
+
+{{< tabs "32c0ba7f-3acd-831f-4a8b-a2de81b0126e" >}}
+{{< tab "Java" >}}
+```java
+
+fooSource =
+  execEnv.fromSource(
+    kafkaSource,
+    getWatermarkStrategy(),
+    "KafkaSource-Foo")
+      .addMetricVariable("table_name", "Foo");
+
+barSource =
+  execEnv.fromSource(
+    kafkaSource,
+    getWatermarkStrategy(),
+    "KafkaSource-Bar")
+      .addMetricVariable("table_name", "Bar");
+
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+Will assign `table_name` variable with respective values `Foo` and `Bar`
+to all metrics reported by the `KafkaSource`, like `numRecordsOut` or `currentOutputWatermark`.
+If supported by your chosen metric reporter, those additional variables will be then converted to
+labels or tags.
+
 ## Reporter
 
 For information on how to set up Flink's metric reporters please take a look at the [metric reporters documentation]({{< ref "docs/deployment/metric_reporters" >}}).
