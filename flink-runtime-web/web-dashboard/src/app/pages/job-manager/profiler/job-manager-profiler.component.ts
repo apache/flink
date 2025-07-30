@@ -33,7 +33,7 @@ import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSpaceModule } from 'ng-zorro-antd/space';
 import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
 @Component({
   selector: 'flink-job-manager-profiler',
@@ -52,7 +52,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
     NzSpaceModule,
     HumanizeWatermarkToDatetimePipe,
     NzSelectModule,
-    NzToolTipModule,
+    NzTooltipModule,
     NzIconModule
   ]
 })
