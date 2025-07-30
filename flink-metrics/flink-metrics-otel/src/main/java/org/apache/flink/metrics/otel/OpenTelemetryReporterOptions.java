@@ -38,7 +38,21 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 @Documentation.SuffixOption(ConfigConstants.METRICS_REPORTER_PREFIX + "OpenTelemetry")
 public final class OpenTelemetryReporterOptions {
 
+    protected enum Protocol {
+        gRPC,
+        HTTP
+    }
+
     private OpenTelemetryReporterOptions() {}
+
+    public static final ConfigOption<String> EXPORTER_PROTOCOL =
+            ConfigOptions.key("exporter.protocol")
+                    .stringType()
+                    .defaultValue(Protocol.gRPC.name())
+                    .withDescription(
+                            Description.builder()
+                                    .text("Protocol for the OpenTelemetry Reporters.")
+                                    .build());
 
     public static final ConfigOption<String> EXPORTER_ENDPOINT =
             ConfigOptions.key("exporter.endpoint")

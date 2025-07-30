@@ -28,10 +28,13 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.Protocol;
 import org.apache.flink.metrics.reporter.AbstractReporter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporterBuilder;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporterBuilder;
 import io.opentelemetry.sdk.common.CompletableResultCode;
@@ -58,6 +61,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureEndpoint;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureTimeout;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A Flink {@link org.apache.flink.metrics.reporter.MetricReporter} which is made to export metrics
@@ -92,10 +96,28 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
     public void open(MetricConfig metricConfig) {
         LOG.info("Starting OpenTelemetryMetricReporter");
         super.open(metricConfig);
-        OtlpGrpcMetricExporterBuilder builder = OtlpGrpcMetricExporter.builder();
-        tryConfigureEndpoint(metricConfig, builder::setEndpoint);
-        tryConfigureTimeout(metricConfig, builder::setTimeout);
-        exporter = builder.build();
+
+        final String protocolConfKey = OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key();
+        String protocol = metricConfig.getProperty(protocolConfKey);
+        checkArgument(
+                Protocol.gRPC.name().equalsIgnoreCase(protocol)
+                        || Protocol.HTTP.name().equalsIgnoreCase(protocol),
+                "Invalid %s. Must be one of %s or %s.",
+                protocolConfKey,
+                Protocol.gRPC.name(),
+                Protocol.HTTP.name());
+
+        if (Protocol.HTTP.name().equalsIgnoreCase(protocol)) {
+            OtlpHttpMetricExporterBuilder builder = OtlpHttpMetricExporter.builder();
+            tryConfigureEndpoint(metricConfig, builder::setEndpoint);
+            tryConfigureTimeout(metricConfig, builder::setTimeout);
+            exporter = builder.build();
+        } else {
+            OtlpGrpcMetricExporterBuilder builder = OtlpGrpcMetricExporter.builder();
+            tryConfigureEndpoint(metricConfig, builder::setEndpoint);
+            tryConfigureTimeout(metricConfig, builder::setTimeout);
+            exporter = builder.build();
+        }
     }
 
     @Override
