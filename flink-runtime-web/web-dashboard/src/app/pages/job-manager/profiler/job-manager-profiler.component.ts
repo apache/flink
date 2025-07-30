@@ -20,10 +20,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { mergeMap, startWith, takeUntil } from 'rxjs/operators';
 
-import {
-  HumanizeWatermarkPipe,
-  HumanizeWatermarkToDatetimePipe
-} from '@flink-runtime-web/components/humanize-watermark.pipe';
+import { HumanizeWatermarkToDatetimePipe } from '@flink-runtime-web/components/humanize-watermark.pipe';
 import { ProfilingDetail } from '@flink-runtime-web/interfaces/job-profiler';
 import { JobManagerService, StatusService } from '@flink-runtime-web/services';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
@@ -31,8 +28,8 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
-import { NzMessageModule, NzMessageService } from 'ng-zorro-antd/message';
+import { NzInputNumberLegacyModule } from 'ng-zorro-antd/input-number-legacy';
+import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSpaceModule } from 'ng-zorro-antd/space';
 import { NzTableModule } from 'ng-zorro-antd/table';
@@ -46,21 +43,18 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
   imports: [
     NzCardModule,
     NzFormModule,
-    NzInputNumberModule,
-    HumanizeWatermarkPipe,
+    NzInputNumberLegacyModule,
     FormsModule,
     NzButtonModule,
     NzAlertModule,
     NzTableModule,
-    NzMessageModule,
     CommonModule,
     NzSpaceModule,
     HumanizeWatermarkToDatetimePipe,
     NzSelectModule,
     NzToolTipModule,
     NzIconModule
-  ],
-  standalone: true
+  ]
 })
 export class JobManagerProfilerComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();

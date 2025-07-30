@@ -38,8 +38,7 @@ import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
   templateUrl: './task-manager-stdout.component.html',
   styleUrls: ['./task-manager-stdout.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
-  standalone: true
+  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent]
 })
 export class TaskManagerStdoutComponent implements OnInit, OnDestroy {
   public editorOptions: EditorOptions;

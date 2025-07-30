@@ -57,8 +57,7 @@ function createSortFn(
     HumanizeDatePipe,
     HumanizeDurationPipe,
     DynamicHostComponent
-  ],
-  standalone: true
+  ]
 })
 export class JobOverviewDrawerTaskmanagersComponent implements OnInit, OnDestroy {
   public readonly trackByEndpoint = (_: number, node: VertexTaskManagerDetail): string => node.endpoint;

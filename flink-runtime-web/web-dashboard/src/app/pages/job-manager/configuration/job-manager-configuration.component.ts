@@ -29,8 +29,7 @@ import { JobManagerService } from '@flink-runtime-web/services';
   templateUrl: './job-manager-configuration.component.html',
   styleUrls: ['./job-manager-configuration.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ConfigurationCardsComponent],
-  standalone: true
+  imports: [ConfigurationCardsComponent]
 })
 export class JobManagerConfigurationComponent implements OnInit, OnDestroy {
   listOfConfig: ClusterConfiguration[] = [];

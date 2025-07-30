@@ -32,8 +32,7 @@ import { NzGridModule } from 'ng-zorro-antd/grid';
   templateUrl: './overview-statistic.component.html',
   styleUrls: ['./overview-statistic.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzGridModule, NgIf, NzCardModule, NzDividerModule, DecimalPipe],
-  standalone: true
+  imports: [NzGridModule, NgIf, NzCardModule, NzDividerModule, DecimalPipe]
 })
 export class OverviewStatisticComponent implements OnInit, OnDestroy {
   public statistic: Overview | null;
