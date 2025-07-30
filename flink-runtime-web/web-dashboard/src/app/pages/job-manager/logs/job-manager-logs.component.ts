@@ -35,12 +35,11 @@ import {
 } from "@flink-runtime-web/components/addon-compact/addon-compact.component";
 
 @Component({
-  selector: 'flink-job-manager-logs',
-  templateUrl: './job-manager-logs.component.html',
-  styleUrls: ['./job-manager-logs.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
-  standalone: true
+    selector: 'flink-job-manager-logs',
+    templateUrl: './job-manager-logs.component.html',
+    styleUrls: ['./job-manager-logs.component.less'],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent]
 })
 export class JobManagerLogsComponent implements OnInit, OnDestroy {
   public readonly downloadName = `jobmanager_log`;

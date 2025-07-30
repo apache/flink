@@ -28,8 +28,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
   templateUrl: './task-badge.component.html',
   styleUrls: ['./task-badge.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgForOf, NgIf, NzToolTipModule],
-  standalone: true
+  imports: [NgForOf, NgIf, NzToolTipModule]
 })
 export class TaskBadgeComponent {
   @Input() tasks: TaskStatus | JobStatusCounts;

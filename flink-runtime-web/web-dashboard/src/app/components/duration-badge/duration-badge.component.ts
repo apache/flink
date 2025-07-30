@@ -30,8 +30,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
   host: {
     '[style.backgroundColor]': 'backgroundColor'
   },
-  imports: [NzToolTipModule, HumanizeDurationPipe],
-  standalone: true
+  imports: [NzToolTipModule, HumanizeDurationPipe]
 })
 export class DurationBadgeComponent {
   @Input() public state: string;

@@ -25,13 +25,12 @@ import {
   HumanizeWatermarkPipe,
   HumanizeWatermarkToDatetimePipe
 } from '@flink-runtime-web/components/humanize-watermark.pipe';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { MetricsService } from '@flink-runtime-web/services';
-import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
+import { typeDefinition } from '@flink-runtime-web/utils';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
-
-import { JobLocalService } from '../../job-local.service';
 
 interface WatermarkData {
   subTaskIndex: number;
@@ -43,8 +42,7 @@ interface WatermarkData {
   templateUrl: './job-overview-drawer-watermarks.component.html',
   styleUrls: ['./job-overview-drawer-watermarks.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NgIf, HumanizeWatermarkPipe, HumanizeWatermarkToDatetimePipe, NzIconModule, NzToolTipModule],
-  standalone: true
+  imports: [NzTableModule, NgIf, HumanizeWatermarkPipe, HumanizeWatermarkToDatetimePipe, NzIconModule, NzToolTipModule]
 })
 export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
   public readonly trackBySubtaskIndex = (_: number, node: { subTaskIndex: number; watermark: number }): number =>
@@ -79,9 +77,7 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
               }
               return list;
             }),
-            catchError(() => {
-              return of([] as WatermarkData[]);
-            })
+            catchError(() => of([] as WatermarkData[]))
           )
         ),
         takeUntil(this.destroy$)

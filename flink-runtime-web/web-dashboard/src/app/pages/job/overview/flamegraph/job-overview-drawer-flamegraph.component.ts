@@ -25,13 +25,12 @@ import { mergeMap, takeUntil, tap } from 'rxjs/operators';
 import { FlameGraphComponent } from '@flink-runtime-web/components/flame-graph/flame-graph.component';
 import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
 import { FlameGraphType, JobFlameGraph, NodesItemCorrect } from '@flink-runtime-web/interfaces';
+import { JobLocalService } from '@flink-runtime-web/pages/job/job-local.service';
 import { JobService } from '@flink-runtime-web/services';
 import { isNil } from '@flink-runtime-web/utils';
 import { NzRadioModule } from 'ng-zorro-antd/radio';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
-
-import { JobLocalService } from '../../job-local.service';
 
 @Component({
   selector: 'flink-job-overview-drawer-flamegraph',
@@ -50,8 +49,7 @@ import { JobLocalService } from '../../job-local.service';
     NgSwitchCase,
     NgSwitchDefault,
     NzSpinModule
-  ],
-  standalone: true
+  ]
 })
 export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
   readonly FlameGraphType = FlameGraphType;
@@ -102,8 +100,8 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
         }),
         takeUntil(this.destroy$)
       )
-      .subscribe(
-        data => {
+      .subscribe({
+        next: data => {
           this.now = Date.now();
           if (this.flameGraph.endTimestamp !== data['endTimestamp']) {
             this.isLoading = false;
@@ -112,11 +110,11 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
           }
           this.cdr.markForCheck();
         },
-        () => {
+        error: () => {
           this.isLoading = false;
           this.cdr.markForCheck();
         }
-      );
+      });
   }
 
   private requestRunningSubtasks(): void {
@@ -124,13 +122,11 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
       .jobWithVertexChanges()
       .pipe(
         tap(data => (this.selectedVertex = data.vertex)),
-        mergeMap(data => {
-          return this.jobService.loadSubTasks(data.job.jid, data.vertex!.id);
-        }),
+        mergeMap(data => this.jobService.loadSubTasks(data.job.jid, data.vertex!.id)),
         takeUntil(this.destroy$)
       )
-      .subscribe(
-        data => {
+      .subscribe({
+        next: data => {
           const sampleableSubtasks = data?.subtasks
             .filter(subtaskInfo => subtaskInfo.status === 'RUNNING' || subtaskInfo.status === 'INITIALIZING')
             .map(subtaskInfo => subtaskInfo.subtask.toString());
@@ -140,11 +136,11 @@ export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
           this.listOfSampleableSubtasks = [this.allSubtasks, ...sampleableSubtasks];
           this.cdr.markForCheck();
         },
-        () => {
+        error: () => {
           this.listOfSampleableSubtasks = [this.allSubtasks];
           this.cdr.markForCheck();
         }
-      );
+      });
   }
 
   public selectSubtask(subtaskIndex: string): void {

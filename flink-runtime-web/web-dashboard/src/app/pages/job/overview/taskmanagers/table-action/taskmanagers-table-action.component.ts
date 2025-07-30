@@ -35,8 +35,7 @@ export interface JobOverviewTaskManagersTableAction {
   templateUrl: './taskmanagers-table-action.component.html',
   styleUrls: ['./taskmanagers-table-action.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, NzDropDownModule, NzIconModule, NzModalModule, TableAggregatedMetricsComponent, RouterLinkWithHref],
-  standalone: true
+  imports: [NgIf, NzDropDownModule, NzIconModule, NzModalModule, TableAggregatedMetricsComponent, RouterLinkWithHref]
 })
 export class TaskmanagersTableActionComponent implements JobOverviewTaskManagersTableAction {
   @Input() taskManager?: VertexTaskManagerDetail;

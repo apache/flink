@@ -68,7 +68,7 @@ export class AppInterceptor implements HttpInterceptor {
           this.statusService.listOfErrorMessage.push(errorMessage);
           this.notificationService.info('Server Response Message:', errorMessage.replaceAll(' at ', '\n at '), option);
         }
-        return throwError(res);
+        return throwError(() => res);
       })
     );
   }

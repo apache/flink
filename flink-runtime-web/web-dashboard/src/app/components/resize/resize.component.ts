@@ -47,8 +47,7 @@ export type ResizeMode = ResizeModeEnums | 'vertical' | 'horizontal';
   templateUrl: './resize.component.html',
   styleUrls: ['./resize.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzIconModule],
-  standalone: true
+  imports: [NzIconModule]
 })
 export class ResizeComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();

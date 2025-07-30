@@ -28,17 +28,15 @@ import {
   TaskManagerModuleConfig
 } from '@flink-runtime-web/pages/task-manager/task-manager.config';
 import { TaskManagerService } from '@flink-runtime-web/services';
+import { typeDefinition } from '@flink-runtime-web/utils';
 import { NzTableModule } from 'ng-zorro-antd/table';
-
-import { typeDefinition } from '../../../utils/strong-type';
 
 @Component({
   selector: 'flink-task-manager-log-list',
   templateUrl: './task-manager-log-list.component.html',
   styleUrls: ['./task-manager-log-list.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NgIf, RouterLinkWithHref, HumanizeDatePipe, DecimalPipe],
-  standalone: true
+  imports: [NzTableModule, NgIf, RouterLinkWithHref, HumanizeDatePipe, DecimalPipe]
 })
 export class TaskManagerLogListComponent implements OnInit, OnDestroy {
   public readonly trackByName = (_: number, log: TaskManagerLogItem): string => log.name;

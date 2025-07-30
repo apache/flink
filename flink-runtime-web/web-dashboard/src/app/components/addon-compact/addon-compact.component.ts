@@ -26,14 +26,11 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
   templateUrl: './addon-compact.component.html',
   styleUrls: ['./addon-compact.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzButtonModule, NzIconModule],
-  standalone: true
+  imports: [NzButtonModule, NzIconModule]
 })
 export class AddonCompactComponent {
   @Input() downloadName: string;
   @Input() downloadHref: string;
   @Input() loading = false;
   @Output() reload = new EventEmitter<void>();
-
-  constructor() {}
 }

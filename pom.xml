@@ -1645,7 +1645,6 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/angular.json</exclude>
 						<exclude>flink-runtime-web/web-dashboard/proxy.conf.json</exclude>
 						<exclude>flink-runtime-web/web-dashboard/tsconfig.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/src/browserslist</exclude>
 						<exclude>flink-runtime-web/web-dashboard/src/tsconfig.app.json</exclude>
 
 						<!-- web dashboard non-binary assets -->
