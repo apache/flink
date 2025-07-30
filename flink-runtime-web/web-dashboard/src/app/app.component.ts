@@ -50,8 +50,7 @@ import { NzMenuModule } from 'ng-zorro-antd/menu';
     NzAlertModule,
     NgIf,
     NgForOf
-  ],
-  standalone: true
+  ]
 })
 export class AppComponent {
   collapsed = false;

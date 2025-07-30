@@ -62,8 +62,7 @@ const rescaleTimeout = 2500;
     NzButtonModule,
     NzIconModule,
     NzBadgeModule
-  ],
-  standalone: true
+  ]
 })
 export class JobOverviewListComponent {
   public readonly trackById = (_: number, node: NodesItemCorrect): string => node.id;

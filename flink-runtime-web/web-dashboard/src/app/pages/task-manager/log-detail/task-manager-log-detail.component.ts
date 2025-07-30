@@ -49,8 +49,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
     NzCodeEditorModule,
     AutoResizeDirective,
     FormsModule
-  ],
-  standalone: true
+  ]
 })
 export class TaskManagerLogDetailComponent implements OnInit, OnDestroy {
   public editorOptions: EditorOptions;

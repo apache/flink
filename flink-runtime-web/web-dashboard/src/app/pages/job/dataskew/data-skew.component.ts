@@ -35,8 +35,7 @@ import { JobLocalService } from '../job-local.service';
   templateUrl: './data-skew.component.html',
   styleUrls: ['./data-skew.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzButtonModule, NzCardModule, NzTableModule, NgForOf, NzIconModule],
-  standalone: true
+  imports: [NzButtonModule, NzCardModule, NzTableModule, NgForOf, NzIconModule]
 })
 export class DataSkewComponent implements OnInit, OnDestroy {
   public listOfVerticesAndSkew: Array<{ vertexName: string; skewPct: number }> = [];

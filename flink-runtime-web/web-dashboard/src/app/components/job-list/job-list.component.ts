@@ -56,8 +56,7 @@ import { NzTableModule } from 'ng-zorro-antd/table';
     HumanizeDatePipe,
     HumanizeDurationPipe,
     NzMessageModule
-  ],
-  standalone: true
+  ]
 })
 export class JobListComponent implements OnInit, OnDestroy, OnChanges {
   listOfJob: JobsItem[] = [];

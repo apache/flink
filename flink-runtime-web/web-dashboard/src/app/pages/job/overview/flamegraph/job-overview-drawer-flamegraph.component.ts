@@ -50,8 +50,7 @@ import { JobLocalService } from '../../job-local.service';
     NgSwitchCase,
     NgSwitchDefault,
     NzSpinModule
-  ],
-  standalone: true
+  ]
 })
 export class JobOverviewDrawerFlameGraphComponent implements OnInit, OnDestroy {
   readonly FlameGraphType = FlameGraphType;

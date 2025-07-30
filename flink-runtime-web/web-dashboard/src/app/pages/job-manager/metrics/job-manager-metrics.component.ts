@@ -49,8 +49,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
     NzCardModule,
     NzGridModule,
     NgForOf
-  ],
-  standalone: true
+  ]
 })
 export class JobManagerMetricsComponent implements OnInit, OnDestroy {
   public metrics: { [id: string]: number } = {};
