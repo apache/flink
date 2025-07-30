@@ -44,7 +44,6 @@ export class DynamicHostComponent implements OnChanges {
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   componentRef?: ComponentRef<any>;
   @ViewChild(DynamicDirective, { static: true }) host!: DynamicDirective;
-  constructor() {}
 
   ngOnChanges(simpleChanges: SimpleChanges): void {
     if (simpleChanges.component) {

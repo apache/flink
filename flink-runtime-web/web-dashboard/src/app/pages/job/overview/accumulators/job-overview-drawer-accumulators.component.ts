@@ -23,7 +23,7 @@ import { catchError, mergeMap, takeUntil } from 'rxjs/operators';
 
 import { JobAccumulators, SubTaskAccumulators, UserAccumulators } from '@flink-runtime-web/interfaces';
 import { JobService } from '@flink-runtime-web/services';
-import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
+import { typeDefinition } from '@flink-runtime-web/utils';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
 

@@ -29,8 +29,7 @@ import {
   JobManagerModuleConfig
 } from '@flink-runtime-web/pages/job-manager/job-manager.config';
 import { ConfigService, JobManagerService } from '@flink-runtime-web/services';
-import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { NzCodeEditorModule, EditorOptions } from 'ng-zorro-antd/code-editor';
 
 @Component({
   selector: 'flink-job-manager-thread-dump',

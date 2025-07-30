@@ -31,8 +31,7 @@ import {
 } from '@flink-runtime-web/pages/task-manager/task-manager.config';
 import { ConfigService, TaskManagerService } from '@flink-runtime-web/services';
 import { editor } from 'monaco-editor';
-import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { NzCodeEditorModule, EditorOptions } from 'ng-zorro-antd/code-editor';
 
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 

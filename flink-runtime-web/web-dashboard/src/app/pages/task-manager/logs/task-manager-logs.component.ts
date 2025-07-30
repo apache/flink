@@ -19,7 +19,7 @@
 import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestroy, Inject } from '@angular/core';
 import {catchError, takeUntil} from 'rxjs/operators';
 import { ConfigService, TaskManagerService } from '@flink-runtime-web/services';
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { EditorOptions } from 'ng-zorro-antd/code-editor';
 import {of, Subject} from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
 import {

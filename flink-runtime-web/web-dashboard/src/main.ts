@@ -18,15 +18,14 @@
 import { registerLocaleData } from '@angular/common';
 import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import en from '@angular/common/locales/en';
-import { enableProdMode, Injector, inject, provideAppInitializer } from '@angular/core';
+import { enableProdMode, inject, provideAppInitializer } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { provideRouter, Router, withHashLocation } from '@angular/router';
+import { provideRouter, withHashLocation } from '@angular/router';
 
 import { APP_ICONS } from '@flink-runtime-web/app-icons';
 import { AppComponent } from '@flink-runtime-web/app.component';
 import { AppInterceptor } from '@flink-runtime-web/app.interceptor';
-import { Configuration } from '@flink-runtime-web/interfaces';
 import { APP_ROUTES } from '@flink-runtime-web/routes';
 import { StatusService } from '@flink-runtime-web/services';
 import { NzConfig, provideNzConfig } from 'ng-zorro-antd/core/config';
@@ -41,15 +40,6 @@ if (environment.production) {
 
 registerLocaleData(en);
 
-export function AppInitServiceFactory(
-  statusService: StatusService,
-  injector: Injector
-): () => Promise<Configuration | undefined> {
-  return () => {
-    return statusService.boot(injector.get<Router>(Router));
-  };
-}
-
 const ngZorroConfig: NzConfig = {
   notification: { nzMaxStack: 1 }
 };
@@ -61,10 +51,7 @@ bootstrapApplication(AppComponent, {
       useClass: AppInterceptor,
       multi: true
     },
-    provideAppInitializer(() => {
-      const initializerFn = AppInitServiceFactory(inject(StatusService), inject(Injector));
-      return initializerFn();
-    }),
+    provideAppInitializer(() => inject(StatusService).boot()),
     provideNzI18n(en_US),
     provideNzIcons(APP_ICONS),
     provideNzConfig(ngZorroConfig),

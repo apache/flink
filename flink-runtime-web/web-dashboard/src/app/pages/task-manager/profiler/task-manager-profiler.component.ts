@@ -29,12 +29,12 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzInputNumberLegacyModule } from 'ng-zorro-antd/input-number-legacy';
+import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSpaceModule } from 'ng-zorro-antd/space';
 import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
 @Component({
   selector: 'flink-task-manager-profiler',
@@ -44,7 +44,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
   imports: [
     NzCardModule,
     NzFormModule,
-    NzInputNumberLegacyModule,
+    NzInputNumberModule,
     FormsModule,
     NzButtonModule,
     NzAlertModule,
@@ -53,7 +53,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
     NzSpaceModule,
     HumanizeWatermarkToDatetimePipe,
     NzSelectModule,
-    NzToolTipModule,
+    NzTooltipModule,
     NzIconModule
   ]
 })
