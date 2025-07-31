@@ -34,7 +34,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.tools.RelBuilder;
-import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.mapping.Mappings;
@@ -81,11 +80,6 @@ public class ProjectMultiJoinTransposeRule extends RelRule<ProjectMultiJoinTrans
 
     public ProjectMultiJoinTransposeRule(Config config) {
         super(config);
-    }
-
-    @Deprecated // to be removed before 2.0
-    public ProjectMultiJoinTransposeRule(RelBuilderFactory relFactory) {
-        this(Config.DEFAULT.withRelBuilderFactory(relFactory).as(Config.class));
     }
 
     @Override
