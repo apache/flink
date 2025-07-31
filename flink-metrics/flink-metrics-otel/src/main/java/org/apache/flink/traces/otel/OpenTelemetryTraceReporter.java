@@ -70,6 +70,12 @@ public class OpenTelemetryTraceReporter extends OpenTelemetryReporterBase implem
             tryConfigureTimeout(metricConfig, builder::setTimeout);
             spanExporter = builder.build();
         } else {
+            if (!Protocol.gRPC.name().equalsIgnoreCase(protocol)) {
+                LOG.warn(
+                        "Unknown protocol '{}' for OpenTelemetryEventReporter, defaulting to gRPC",
+                        protocol);
+            }
+
             OtlpGrpcSpanExporterBuilder builder = OtlpGrpcSpanExporter.builder();
             tryConfigureEndpoint(metricConfig, builder::setEndpoint);
             tryConfigureTimeout(metricConfig, builder::setTimeout);

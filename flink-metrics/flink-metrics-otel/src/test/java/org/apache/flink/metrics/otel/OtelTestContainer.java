@@ -31,7 +31,7 @@ import java.nio.file.Paths;
 import java.util.Locale;
 
 /** {@link OtelTestContainer} provides an {@code Otel} test instance. */
-public class OtelTestContainer extends GenericContainer<OtelTestContainer> {
+class OtelTestContainer extends GenericContainer<OtelTestContainer> {
     private static final int DEFAULT_HTTP_PORT = 4318;
     private static final int DEFAULT_GRPC_PORT = 4317;
 

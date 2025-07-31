@@ -105,6 +105,12 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
             tryConfigureTimeout(metricConfig, builder::setTimeout);
             exporter = builder.build();
         } else {
+            if (!Protocol.gRPC.name().equalsIgnoreCase(protocol)) {
+                LOG.warn(
+                        "Unknown protocol '{}' for OpenTelemetryEventReporter, defaulting to gRPC",
+                        protocol);
+            }
+
             OtlpGrpcMetricExporterBuilder builder = OtlpGrpcMetricExporter.builder();
             tryConfigureEndpoint(metricConfig, builder::setEndpoint);
             tryConfigureTimeout(metricConfig, builder::setTimeout);
