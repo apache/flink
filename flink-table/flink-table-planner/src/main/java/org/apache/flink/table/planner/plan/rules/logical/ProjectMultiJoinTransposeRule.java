@@ -73,12 +73,13 @@ import java.util.Map;
  * potentially reducing the amount of data processed in the join operation.
  */
 @Value.Enclosing
-public class ProjectMultiJoinTransposeRule extends RelRule<ProjectMultiJoinTransposeRule.Config> {
+public class ProjectMultiJoinTransposeRule
+        extends RelRule<ProjectMultiJoinTransposeRule.ProjectMultiJoinTransposeRuleConfig> {
 
     public static final ProjectMultiJoinTransposeRule INSTANCE =
-            ProjectMultiJoinTransposeRule.Config.DEFAULT.toRule();
+            ProjectMultiJoinTransposeRuleConfig.DEFAULT.toRule();
 
-    public ProjectMultiJoinTransposeRule(Config config) {
+    public ProjectMultiJoinTransposeRule(ProjectMultiJoinTransposeRuleConfig config) {
         super(config);
     }
 
@@ -324,7 +325,8 @@ public class ProjectMultiJoinTransposeRule extends RelRule<ProjectMultiJoinTrans
                 originalMultiJoin.getRowType().getFieldList();
 
         int globalFieldId = 0;
-        for (final RelNode originalInput : originalInputs) {
+        for (int inputIndex = 0; inputIndex < originalInputs.size(); inputIndex++) {
+            final RelNode originalInput = originalInputs.get(inputIndex);
             final List<RelDataTypeField> inputFields = originalInput.getRowType().getFieldList();
 
             for (int localFieldIndex = 0; localFieldIndex < inputFields.size(); localFieldIndex++) {
@@ -429,22 +431,24 @@ public class ProjectMultiJoinTransposeRule extends RelRule<ProjectMultiJoinTrans
     /** Calculates the global field index for a field within a specific input. */
     private int calculateGlobalFieldIndex(
             int inputIndex, int localFieldIndex, List<RelNode> inputs) {
-        int globalFieldIndex = 0;
-        for (int i = 0; i < inputIndex; i++) {
-            globalFieldIndex += inputs.get(i).getRowType().getFieldCount();
-        }
-        globalFieldIndex += localFieldIndex;
-        return globalFieldIndex;
+        final int globalFieldIndex = calculateFieldOffset(inputIndex, inputs);
+        return globalFieldIndex + localFieldIndex;
     }
 
     /** Calculates the local field index within a specific input from a global field index. */
     private int calculateLocalFieldIndex(
             int globalFieldIndex, List<RelNode> inputs, int currentInputIndex) {
+        final int offset = calculateFieldOffset(currentInputIndex, inputs);
+        return globalFieldIndex - offset;
+    }
+
+    /** Calculates the field offset for a given input index. */
+    private int calculateFieldOffset(int inputIndex, List<RelNode> inputs) {
         int offset = 0;
-        for (int i = 0; i < currentInputIndex; i++) {
+        for (int i = 0; i < inputIndex; i++) {
             offset += inputs.get(i).getRowType().getFieldCount();
         }
-        return globalFieldIndex - offset;
+        return offset;
     }
 
     /** Container class for transformed inputs and their metadata. */
@@ -464,13 +468,13 @@ public class ProjectMultiJoinTransposeRule extends RelRule<ProjectMultiJoinTrans
     }
 
     /** Configuration for {@link ProjectMultiJoinTransposeRule}. */
-    @Value.Immutable()
-    public interface Config extends RelRule.Config {
-        Config DEFAULT =
-                ImmutableProjectMultiJoinTransposeRule.Config.builder()
+    @Value.Immutable
+    public interface ProjectMultiJoinTransposeRuleConfig extends RelRule.Config {
+        ProjectMultiJoinTransposeRuleConfig DEFAULT =
+                ImmutableProjectMultiJoinTransposeRule.ProjectMultiJoinTransposeRuleConfig.builder()
                         .build()
                         .withRelBuilderFactory(RelFactories.LOGICAL_BUILDER)
-                        .as(Config.class)
+                        .as(ProjectMultiJoinTransposeRuleConfig.class)
                         .withOperandFor(Project.class, MultiJoin.class);
 
         @Override
@@ -479,13 +483,13 @@ public class ProjectMultiJoinTransposeRule extends RelRule<ProjectMultiJoinTrans
         }
 
         /** Defines an operand tree for the given classes. */
-        default Config withOperandFor(
+        default ProjectMultiJoinTransposeRuleConfig withOperandFor(
                 Class<? extends Project> projectClass, Class<? extends MultiJoin> multiJoinClass) {
             return withOperandSupplier(
                             b0 ->
                                     b0.operand(projectClass)
                                             .oneInput(b1 -> b1.operand(multiJoinClass).anyInputs()))
-                    .as(Config.class);
+                    .as(ProjectMultiJoinTransposeRuleConfig.class);
         }
     }
 }
