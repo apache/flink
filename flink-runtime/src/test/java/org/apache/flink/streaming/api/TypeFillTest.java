@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -30,7 +31,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.test.util.source.AbstractTestSource;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
@@ -51,7 +52,13 @@ class TypeFillTest {
     void test() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        assertThatThrownBy(() -> env.addSource(new TestSource<Integer>()).print())
+        assertThatThrownBy(
+                        () ->
+                                env.fromSource(
+                                                new TestSource<Integer>(),
+                                                WatermarkStrategy.noWatermarks(),
+                                                "")
+                                        .print())
                 .isInstanceOf(InvalidTypesException.class);
 
         DataStream<Long> source = env.fromSequence(1, 10);
@@ -110,7 +117,8 @@ class TypeFillTest {
                                         .print())
                 .isInstanceOf(InvalidTypesException.class);
 
-        env.addSource(new TestSource<Integer>()).returns(Integer.class);
+        env.fromSource(new TestSource<Integer>(), WatermarkStrategy.noWatermarks(), "")
+                .returns(Integer.class);
         source.map(new TestMap<Long, Long>()).returns(Long.class).print();
         source.flatMap(new TestFlatMap<Long, Long>()).returns(new TypeHint<Long>() {}).print();
         source.connect(source)
@@ -157,15 +165,7 @@ class TypeFillTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
-    private static class TestSource<T> implements SourceFunction<T> {
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        public void run(SourceContext<T> ctx) throws Exception {}
-
-        @Override
-        public void cancel() {}
-    }
+    private static class TestSource<T> extends AbstractTestSource<T> {}
 
     private static class TestMap<T, O> implements MapFunction<T, O> {
         @Override
