@@ -25,6 +25,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -66,7 +67,9 @@ public class SlotPoolUtils {
         return CompletableFuture.supplyAsync(
                         () ->
                                 slotPool.requestNewAllocatedBatchSlot(
-                                        new SlotRequestId(), resourceProfile),
+                                        new SlotRequestId(),
+                                        resourceProfile,
+                                        DefaultLoadingWeight.EMPTY),
                         mainThreadExecutor)
                 .thenCompose(Function.identity());
     }
