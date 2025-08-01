@@ -729,7 +729,7 @@ public class DateTimeUtils {
     private static String formatTimestamp(TimestampData ts, String format, ZoneId zoneId) {
         DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
         Instant instant = ts.toInstant();
-        return LocalDateTime.ofInstant(instant, zoneId).format(formatter);
+        return instant.atZone(zoneId).format(formatter);
     }
 
     public static String formatTimestampMillis(long ts, String format, TimeZone tz) {
