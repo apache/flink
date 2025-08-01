@@ -21,10 +21,7 @@ import { ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
 import { mergeMap, startWith, takeUntil } from 'rxjs/operators';
 
-import {
-  HumanizeWatermarkPipe,
-  HumanizeWatermarkToDatetimePipe
-} from '@flink-runtime-web/components/humanize-watermark.pipe';
+import { HumanizeWatermarkToDatetimePipe } from '@flink-runtime-web/components/humanize-watermark.pipe';
 import { ProfilingDetail } from '@flink-runtime-web/interfaces/job-profiler';
 import { StatusService, TaskManagerService } from '@flink-runtime-web/services';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
@@ -33,11 +30,11 @@ import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
-import { NzMessageModule, NzMessageService } from 'ng-zorro-antd/message';
+import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSpaceModule } from 'ng-zorro-antd/space';
 import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
 @Component({
   selector: 'flink-task-manager-profiler',
@@ -48,20 +45,17 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
     NzCardModule,
     NzFormModule,
     NzInputNumberModule,
-    HumanizeWatermarkPipe,
     FormsModule,
     NzButtonModule,
     NzAlertModule,
     NzTableModule,
-    NzMessageModule,
     CommonModule,
     NzSpaceModule,
     HumanizeWatermarkToDatetimePipe,
     NzSelectModule,
-    NzToolTipModule,
+    NzTooltipModule,
     NzIconModule
-  ],
-  standalone: true
+  ]
 })
 export class TaskManagerProfilerComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();

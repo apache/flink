@@ -34,7 +34,7 @@ import {
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzGridModule } from 'ng-zorro-antd/grid';
 import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
 import { JobLocalService } from '../../job-local.service';
 
@@ -53,9 +53,8 @@ import { JobLocalService } from '../../job-local.service';
     DecimalPipe,
     HumanizeBytesPipe,
     NzIconModule,
-    NzToolTipModule
-  ],
-  standalone: true
+    NzTooltipModule
+  ]
 })
 export class JobOverviewDrawerDetailComponent implements OnInit, OnDestroy {
   public node: NodesItemCorrect | null;

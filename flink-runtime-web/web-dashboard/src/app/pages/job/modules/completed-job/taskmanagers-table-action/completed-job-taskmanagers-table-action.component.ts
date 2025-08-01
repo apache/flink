@@ -35,8 +35,7 @@ import { NzModalModule } from 'ng-zorro-antd/modal';
   templateUrl: './completed-job-taskmanagers-table-action.component.html',
   styleUrls: ['./completed-job-taskmanagers-table-action.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, NzDropDownModule, NzIconModule, NzModalModule, TableAggregatedMetricsComponent],
-  standalone: true
+  imports: [NgIf, NzDropDownModule, NzIconModule, NzModalModule, TableAggregatedMetricsComponent]
 })
 export class CompletedJobTaskmanagersTableActionComponent
   implements OnInit, OnDestroy, JobOverviewTaskManagersTableAction

@@ -30,7 +30,7 @@ import { NzGridModule } from 'ng-zorro-antd/grid';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
 @Component({
   selector: 'flink-task-manager-metrics',
@@ -40,7 +40,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
   imports: [
     NzCardModule,
     NzTableModule,
-    NzToolTipModule,
+    NzTooltipModule,
     NzProgressModule,
     DecimalPipe,
     HumanizeBytesPipe,
@@ -49,8 +49,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
     NgForOf,
     NgIf,
     NgTemplateOutlet
-  ],
-  standalone: true
+  ]
 })
 export class TaskManagerMetricsComponent implements OnInit, OnDestroy {
   public taskManagerDetail?: TaskManagerDetail;
