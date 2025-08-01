@@ -22,7 +22,6 @@ import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary._
-import org.apache.flink.table.data.binary.BinaryRowDataUtil.BYTE_ARRAY_BASE_OFFSET
 import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.util.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.data.utils.JoinedRowData
@@ -301,7 +300,9 @@ object CodeGenUtils {
     // ordered by type root definition
     case CHAR | VARCHAR => s"$BINARY_STRING.EMPTY_UTF8"
     case BOOLEAN => "false"
-    case TINYINT | SMALLINT | INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH => "-1"
+    case TINYINT => "((byte) -1)"
+    case SMALLINT => "((short) -1)"
+    case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH => "-1"
     case BIGINT | INTERVAL_DAY_TIME => "-1L"
     case FLOAT => "-1.0f"
     case DOUBLE => "-1.0d"
