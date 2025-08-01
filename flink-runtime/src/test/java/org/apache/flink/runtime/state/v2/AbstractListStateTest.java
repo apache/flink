@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.v2;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.v2.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
@@ -35,8 +36,9 @@ public class AbstractListStateTest extends AbstractKeyedStateTestBase {
     public void testEachOperation() {
         ListStateDescriptor<Integer> descriptor =
                 new ListStateDescriptor<>("testState", BasicTypeInfo.INT_TYPE_INFO);
+        descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
         AbstractListState<String, Void, Integer> listState =
-                new AbstractListState<>(aec, descriptor);
+                new AbstractListState<>(aec, descriptor.getSerializer());
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         listState.asyncClear();

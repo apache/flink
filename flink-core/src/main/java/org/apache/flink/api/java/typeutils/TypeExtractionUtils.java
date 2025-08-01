@@ -34,6 +34,7 @@ import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.apache.flink.shaded.asm9.org.objectweb.asm.Type.getConstructorDescriptor;
 import static org.apache.flink.shaded.asm9.org.objectweb.asm.Type.getMethodDescriptor;
@@ -372,5 +373,29 @@ public class TypeExtractionUtils {
                             + "' interface. "
                             + "Otherwise the type has to be specified explicitly using type information.");
         }
+    }
+
+    /**
+     * Will return true if the type of the given generic class type matches clazz.
+     *
+     * @param clazz The generic class to check against
+     * @param type The type to be checked
+     */
+    public static boolean isGenericOfClass(Class<?> clazz, Type type) {
+        Optional<ParameterizedType> parameterized = getParameterizedType(type);
+        return clazz.equals(type)
+                || parameterized.isPresent() && clazz.equals(parameterized.get().getRawType());
+    }
+
+    /**
+     * Returns an optional of a ParameterizedType, if that's what the type is.
+     *
+     * @param type The type to check
+     * @return optional which is present if the type is a ParameterizedType
+     */
+    public static Optional<ParameterizedType> getParameterizedType(Type type) {
+        return Optional.of(type)
+                .filter(p -> p instanceof ParameterizedType)
+                .map(ParameterizedType.class::cast);
     }
 }

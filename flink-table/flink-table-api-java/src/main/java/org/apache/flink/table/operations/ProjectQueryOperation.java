@@ -23,6 +23,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
@@ -75,7 +76,7 @@ public class ProjectQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
         return String.format(
                 "SELECT %s FROM (%s\n) " + INPUT_ALIAS,
                 IntStream.range(0, projectList.size())
@@ -84,9 +85,11 @@ public class ProjectQueryOperation implements QueryOperation {
                                 expr ->
                                         OperationExpressionsUtils.scopeReferencesWithAlias(
                                                 INPUT_ALIAS, expr))
-                        .map(ResolvedExpression::asSerializableString)
+                        .map(
+                                resolvedExpression ->
+                                        resolvedExpression.asSerializableString(sqlFactory))
                         .collect(Collectors.joining(", ")),
-                OperationUtils.indent(child.asSerializableString()));
+                OperationUtils.indent(child.asSerializableString(sqlFactory)));
     }
 
     private ResolvedExpression alias(int index) {

@@ -24,7 +24,10 @@ import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.StateHint;
+import org.apache.flink.table.api.dataview.ListView;
+import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Collector;
@@ -33,15 +36,17 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 
 /**
- * Base class for a user-defined process table function. A process table function (PTF) maps zero,
- * one, or multiple tables to zero, one, or multiple rows (or structured types). Scalar arguments
- * are also supported. If the output record consists of only one field, the wrapper can be omitted,
- * and a scalar value can be emitted that will be implicitly wrapped into a row by the runtime.
+ * Base class for a user-defined process table function (PTF).
  *
  * <p>PTFs are the most powerful function kind for Flink SQL and Table API. They enable implementing
- * user-defined operators that can be as feature-rich as built-in operations. PTFs have access to
- * Flink's managed state, event-time and timer services, underlying table changelogs, and can take
- * multiple partitioned tables to produce a new table.
+ * user-defined operators that can be as feature-rich as built-in operations. PTFs can take
+ * (partitioned) tables to produce a new table. They have access to Flink's managed state,
+ * event-time and timer services, and underlying table changelogs.
+ *
+ * <p>A process table function (PTF) maps zero, one, or multiple tables to zero, one, or multiple
+ * rows (or structured types). Scalar arguments are also supported. If the output record consists of
+ * only one field, the wrapper can be omitted, and a scalar value can be emitted that will be
+ * implicitly wrapped into a row by the runtime.
  *
  * <h1>Table Semantics and Virtual Processors</h1>
  *
@@ -49,7 +54,7 @@ import java.time.LocalDateTime;
  * are distributed across so-called "virtual processors". A virtual processor, as defined by the SQL
  * standard, executes a PTF instance and has access only to a portion of the entire table. The
  * argument declaration decides about the size of the portion and co-location of data. Conceptually,
- * tables can be processed either "as row" (i.e. with row semantics) or "as set" (i.e. with set
+ * tables can be processed either "per row" (i.e. with row semantics) or "per set" (i.e. with set
  * semantics).
  *
  * <h2>Table Argument with Row Semantics</h2>
@@ -99,9 +104,9 @@ import java.time.LocalDateTime;
  *   }
  * }
  *
- * // Function that produces an explicit ROW < i INT, s STRING > from arguments, the function hint helps in
+ * // Function that produces an explicit ROW < i INT, s STRING > from scalar arguments, the function hint helps in
  * // declaring the row's fields
- * @FunctionHint(output = @DataTypeHint("ROW< i INT, s STRING >"))
+ * @DataTypeHint("ROW< i INT, s STRING >")
  * class DuplicatorFunction extends ProcessTableFunction<Row> {
  *   public void eval(Integer i, String s) {
  *     collect(Row.of(i, s));
@@ -109,9 +114,9 @@ import java.time.LocalDateTime;
  *   }
  * }
  *
- * // Function that accepts DECIMAL(10, 4) and emits it as an explicit ROW < DECIMAL(10, 4) >
- * @FunctionHint(output = @DataTypeHint("ROW< DECIMAL(10, 4) >"))
- * class DuplicatorFunction extends TableFunction<Row> {
+ * // Function that accepts a scalar DECIMAL(10, 4) and emits it as an explicit ROW < d DECIMAL(10, 4) >
+ * @FunctionHint(output = @DataTypeHint("ROW< d DECIMAL(10, 4) >"))
+ * class DuplicatorFunction extends ProcessTableFunction<Row> {
  *   public void eval(@DataTypeHint("DECIMAL(10, 4)") BigDecimal d) {
  *     collect(Row.of(d));
  *     collect(Row.of(d));
@@ -122,8 +127,8 @@ import java.time.LocalDateTime;
  * <h2>Arguments</h2>
  *
  * <p>The {@link ArgumentHint} annotation enables declaring the name, data type, and kind of each
- * argument (i.e. ArgumentTrait.SCALAR, ArgumentTrait.TABLE_AS_SET, or ArgumentTrait.TABLE_AS_ROW).
- * It allows specifying other traits for table arguments as well:
+ * argument (i.e. ArgumentTrait.SCALAR, ArgumentTrait.ROW_SEMANTIC_TABLE, or
+ * ArgumentTrait.SET_SEMANTIC_TABLE). It allows specifying other traits for table arguments as well:
  *
  * <pre>{@code
  * // Function that has two arguments:
@@ -131,7 +136,7 @@ import java.time.LocalDateTime;
  * class ThresholdFunction extends ProcessTableFunction<Integer> {
  *   public void eval(
  *       // For table arguments, a data type for Row is optional (leading to polymorphic behavior)
- *       @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET, name = "input_table") Row t,
+ *       @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE, name = "input_table") Row t,
  *       // Scalar arguments require a data type either explicit or via reflection
  *       @ArgumentHint(value = ArgumentTrait.SCALAR, name = "threshold") Integer threshold) {
  *     int amount = t.getFieldAs("amount");
@@ -143,12 +148,12 @@ import java.time.LocalDateTime;
  * }</pre>
  *
  * <p>Table arguments can declare a concrete data type (of either row or structured type) or accept
- * any type of row in polymorphic fashion:
+ * any type of row in a polymorphic fashion:
  *
  * <pre>{@code
  * // Function with explicit table argument type of row
  * class MyPTF extends ProcessTableFunction<String> {
- *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET, type = @DataTypeHint("ROW < s STRING >")) Row t) {
+ *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE, type = @DataTypeHint("ROW < s STRING >")) Row t) {
  *     TableSemantics semantics = ctx.tableSemanticsFor("t");
  *     // Always returns "ROW < s STRING >"
  *     semantics.dataType();
@@ -158,7 +163,7 @@ import java.time.LocalDateTime;
  *
  * // Function with explicit table argument type of structured type "Customer"
  * class MyPTF extends ProcessTableFunction<String> {
- *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET) Customer c) {
+ *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE) Customer c) {
  *     TableSemantics semantics = ctx.tableSemanticsFor("c");
  *     // Always returns structured type of "Customer"
  *     semantics.dataType();
@@ -168,7 +173,7 @@ import java.time.LocalDateTime;
  *
  * // Function with polymorphic table argument
  * class MyPTF extends ProcessTableFunction<String> {
- *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET) Row t) {
+ *   public void eval(Context ctx, @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE) Row t) {
  *     TableSemantics semantics = ctx.tableSemanticsFor("t");
  *     // Always returns "ROW" but content depends on the table that is passed into the call
  *     semantics.dataType();
@@ -183,10 +188,10 @@ import java.time.LocalDateTime;
  * information about the input tables and other services provided by the framework:
  *
  * <pre>{@code
- * // a function that accesses the Context for reading the PARTITION BY columns and
+ * // Function that accesses the Context for reading the PARTITION BY columns and
  * // excluding them when building a result string
  * class ConcatNonKeysFunction extends ProcessTableFunction<String> {
- *   public void eval(Context ctx, @ArgumentHint(ArgumentTrait.TABLE_AS_SET) Row inputTable) {
+ *   public void eval(Context ctx, @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row inputTable) {
  *     TableSemantics semantics = ctx.tableSemanticsFor("inputTable");
  *     List<Integer> keys = Arrays.asList(semantics.partitionByColumns());
  *     return IntStream.range(0, inputTable.getArity())
@@ -222,26 +227,26 @@ import java.time.LocalDateTime;
  * efficiency, it is recommended to keep all fields nullable.
  *
  * <pre>{@code
- * // a function that counts and stores its intermediate result in the CountState object
+ * // Function that counts and stores its intermediate result in the CountState object
  * // which will be persisted by Flink
  * class CountingFunction extends ProcessTableFunction<String> {
  *   public static class CountState {
  *     public long count = 0L;
  *   }
  *
- *   public void eval(@StateHint CountState memory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *   public void eval(@StateHint CountState memory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
  *     memory.count++;
  *     collect("Seen rows: " + memory.count);
  *   }
  * }
  *
- * // a function that waits for a second event coming in
+ * // Function that waits for a second event coming in
  * class CountingFunction extends ProcessTableFunction<String> {
  *   public static class SeenState {
  *     public String first;
  *   }
  *
- *   public void eval(@StateHint SeenState memory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *   public void eval(@StateHint SeenState memory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
  *     if (memory.first == null) {
  *       memory.first = input.toString();
  *     } else {
@@ -250,9 +255,9 @@ import java.time.LocalDateTime;
  *   }
  * }
  *
- * // a function that uses Row for state
+ * // Function that uses Row for state
  * class CountingFunction extends ProcessTableFunction<String> {
- *   public void eval(@StateHint(type = @DataTypeHint("ROW < count BIGINT >")) Row memory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *   public void eval(@StateHint(type = @DataTypeHint("ROW < count BIGINT >")) Row memory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
  *     Long newCount = 1L;
  *     if (memory.getField("count") != null) {
  *       newCount += memory.getFieldAs("count");
@@ -271,18 +276,66 @@ import java.time.LocalDateTime;
  * Context#clearAllState()} eventually:
  *
  * <pre>{@code
- * // a function that waits for a second event coming in BUT with better state efficiency
+ * // Function that waits for a second event coming in BUT with better state efficiency
  * class CountingFunction extends ProcessTableFunction<String> {
  *   public static class SeenState {
  *     public String first;
  *   }
  *
- *   public void eval(Context ctx, @StateHint(ttl = "1 day") SeenState memory, @ArgumentHint(TABLE_AS_SET) Row input) {
+ *   public void eval(Context ctx, @StateHint(ttl = "1 day") SeenState memory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
  *     if (memory.first == null) {
  *       memory.first = input.toString();
  *     } else {
  *       collect("Event 1: " + memory.first + " and Event 2: " + input.toString());
  *       ctx.clearAllState();
+ *     }
+ *   }
+ * }
+ * }</pre>
+ *
+ * <h2>Large State</h2>
+ *
+ * <p>Flink's state backends provide different types of state to efficiently handle large state.
+ *
+ * <p>Currently, PTFs support three types of state:
+ *
+ * <ul>
+ *   <li><b>Value state</b>: Represents a single value.
+ *   <li><b>List state</b>: Represents a list of values, supporting operations like appending,
+ *       removing, and iterating.
+ *   <li><b>Map state</b>: Represents a map (key-value pair) for efficient lookups, modifications,
+ *       and removal of individual entries.
+ * </ul>
+ *
+ * <p>By default, state entries in a PTF are represented as value state. This means that every state
+ * entry is fully read from the state backend when the evaluation method is called, and the value is
+ * written back to the state backend once the evaluation method finishes.
+ *
+ * <p>To optimize state access and avoid unnecessary (de)serialization, state entries can be
+ * declared as {@link ListView} or {@link MapView}. These provide direct views to the underlying
+ * Flink state backend.
+ *
+ * <p>For example, when using a {@link MapView}, accessing a value via {@link MapView#get(Object)}
+ * will only deserialize the value associated with the specified key. This allows for efficient
+ * access to individual entries without needing to load the entire map. This approach is
+ * particularly useful when the map does not fit entirely into memory.
+ *
+ * <p>State TTL is applied individually to each entry in a list or map, allowing for fine-grained
+ * expiration control over state elements.
+ *
+ * <pre>{@code
+ * // Function that uses a map view for storing a large map for an event history per user
+ * class HistoryFunction extends ProcessTableFunction<String> {
+ *   public void eval(@StateHint MapView<String, Integer> largeMemory, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
+ *     String eventId = input.getFieldAs("eventId");
+ *     Integer count = largeMemory.get(eventId);
+ *     if (count == null) {
+ *       largeMemory.put(eventId, 1);
+ *     } else {
+ *       if (count > 1000) {
+ *         collect("Anomaly detected: " + eventId);
+ *       }
+ *       largeMemory.put(eventId, count + 1);
  *     }
  *   }
  * }
@@ -326,25 +379,25 @@ import java.time.LocalDateTime;
  * PARTITION BY clause. A timer can only be registered and deleted in the current virtual processor.
  *
  * <pre>{@code
- * // a function that waits for a second event or timeouts after 60 seconds
+ * // Function that waits for a second event or timeouts after 60 seconds
  * class TimerFunction extends ProcessTableFunction<String> {
  *   public static class SeenState {
  *     public String seen = null;
  *   }
  *
- *   public void eval(Context ctx, @StateHint SeenState memory, @ArgumentHint( { TABLE_AS_SET, REQUIRE_ON_TIME } ) Row input) {
+ *   public void eval(Context ctx, @StateHint SeenState memory, @ArgumentHint( { SET_SEMANTIC_TABLE, REQUIRE_ON_TIME } ) Row input) {
  *     TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
  *     if (memory.seen == null) {
  *       memory.seen = input.getField(0).toString();
  *       timeCtx.registerOnTimer("timeout", timeCtx.time().plusSeconds(60));
  *     } else {
- *       collect("Second event arrived for: " + memory.seen)
+ *       collect("Second event arrived for: " + memory.seen);
  *       ctx.clearAll();
  *     }
  *   }
  *
  *   public void onTimer(SeenState memory) {
- *     collect("Timeout for: " + memory.seen)
+ *     collect("Timeout for: " + memory.seen);
  *   }
  * }
  * }</pre>
@@ -448,6 +501,17 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
 
         /** Clears the virtual partition including timers and state. */
         void clearAll();
+
+        /**
+         * Returns the {@link ChangelogMode} that the framework expects from this function.
+         *
+         * <p>By default, a PTF can only emit insert-only (append-only) changes and this method will
+         * therefore return {@link ChangelogMode#insertOnly()}. If the PTF needs to emit update or
+         * delete changes, it should implement {@link ChangelogFunction}.
+         *
+         * @return the produced {@link ChangelogMode}
+         */
+        ChangelogMode getChangelogMode();
     }
 
     /**
@@ -528,8 +592,8 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
          * Registering a timer under the same name twice will replace an existing timer.
          *
          * <p>Note: Because only PTFs taking set semantic tables support state, and timers are a
-         * special kind of state, at least one {@link ArgumentTrait#TABLE_AS_SET} table argument
-         * must be declared.
+         * special kind of state, at least one {@link ArgumentTrait#SET_SEMANTIC_TABLE} table
+         * argument must be declared.
          *
          * @param name identifier of the timer
          * @param time timestamp when the timer should fire
@@ -547,8 +611,8 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
          * <p>Only one timer can be registered for a given time.
          *
          * <p>Note: Because only PTFs taking set semantic tables support state, and timers are a
-         * special kind of state, at least one {@link ArgumentTrait#TABLE_AS_SET} table argument
-         * must be declared.
+         * special kind of state, at least one {@link ArgumentTrait#SET_SEMANTIC_TABLE} table
+         * argument must be declared.
          *
          * @param time timestamp when the timer should fire
          */

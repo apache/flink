@@ -88,7 +88,7 @@ make_python_release() {
   # use lint-python.sh script to create a python environment.
   dev/lint-python.sh -s basic
   source dev/.uv/bin/activate
-  uv pip install -r dev/dev-requirements.txt
+  uv pip install --group dev
 
   # build apache-flink-libraries sdist
   pushd apache-flink-libraries
@@ -122,7 +122,7 @@ make_python_release() {
   cp ${pyflink_actual_name} "${PYTHON_RELEASE_DIR}/${pyflink_release_name}"
 
   wheel_packages_num=0
-  # py38,py39,py310,py311 for mac 10.9, 11.0 and linux (12 wheel packages)
+  # py39,py310,py311,py312 for mac 10.9, 11.0 and linux (12 wheel packages)
   EXPECTED_WHEEL_PACKAGES_NUM=12
   # Need to move the downloaded wheel packages from Azure CI to the directory flink-python/dist manually.
   for wheel_file in *.whl; do

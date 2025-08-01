@@ -18,15 +18,18 @@
 
 package org.apache.flink.runtime.state.v2;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
-import org.apache.flink.runtime.asyncprocessing.MockStateRequestContainer;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
+import org.apache.flink.runtime.asyncprocessing.AsyncRequestContainer;
+import org.apache.flink.runtime.asyncprocessing.EpochManager;
+import org.apache.flink.runtime.asyncprocessing.MockAsyncRequestContainer;
+import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
-import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
@@ -51,8 +54,10 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
         ReduceFunction<Integer> reducer = Integer::sum;
         ReducingStateDescriptor<Integer> descriptor =
                 new ReducingStateDescriptor<>("testState", reducer, BasicTypeInfo.INT_TYPE_INFO);
+        descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
         AbstractReducingState<String, Void, Integer> reducingState =
-                new AbstractReducingState<>(aec, descriptor);
+                new AbstractReducingState<>(
+                        aec, descriptor.getReduceFunction(), descriptor.getSerializer());
         aec.setCurrentContext(aec.buildContext("test", "test"));
 
         reducingState.asyncClear();
@@ -81,12 +86,14 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
         ReduceFunction<Integer> reducer = Integer::sum;
         ReducingStateDescriptor<Integer> descriptor =
                 new ReducingStateDescriptor<>("testState", reducer, BasicTypeInfo.INT_TYPE_INFO);
-        AsyncExecutionController<String> aec =
-                new AsyncExecutionController<>(
+        descriptor.initializeSerializerUnlessSet(new ExecutionConfig());
+        StateExecutionController<String> aec =
+                new StateExecutionController<>(
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         new ReducingStateExecutor(),
                         new DeclarationManager(),
+                        EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                         1,
                         100,
                         10000,
@@ -94,7 +101,8 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
                         null,
                         null);
         AbstractReducingState<String, String, Integer> reducingState =
-                new AbstractReducingState<>(aec, descriptor);
+                new AbstractReducingState<>(
+                        aec, descriptor.getReduceFunction(), descriptor.getSerializer());
         aec.setCurrentContext(aec.buildContext("test", "test"));
         aec.setCurrentNamespaceForState(reducingState, "1");
         reducingState.asyncAdd(1);
@@ -154,16 +162,17 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
         @Override
         @SuppressWarnings({"unchecked", "rawtypes"})
         public CompletableFuture<Void> executeBatchRequests(
-                StateRequestContainer stateRequestContainer) {
-            Preconditions.checkArgument(stateRequestContainer instanceof MockStateRequestContainer);
+                AsyncRequestContainer asyncRequestContainer) {
+            Preconditions.checkArgument(asyncRequestContainer instanceof MockAsyncRequestContainer);
             CompletableFuture<Void> future = new CompletableFuture<>();
-            for (StateRequest request :
-                    ((MockStateRequestContainer) stateRequestContainer).getStateRequestList()) {
+            for (StateRequest<?, ?, ?, ?> request :
+                    ((MockAsyncRequestContainer<StateRequest<?, ?, ?, ?>>) asyncRequestContainer)
+                            .getStateRequestList()) {
                 if (request.getRequestType() == StateRequestType.REDUCING_GET) {
                     String key = (String) request.getRecordContext().getKey();
                     String namespace = (String) request.getNamespace();
                     Integer val = hashMap.get(Tuple2.of(key, namespace));
-                    request.getFuture().complete(val);
+                    ((InternalAsyncFuture<Integer>) request.getFuture()).complete(val);
                 } else if (request.getRequestType() == StateRequestType.REDUCING_ADD) {
                     String key = (String) request.getRecordContext().getKey();
                     String namespace = (String) request.getNamespace();
@@ -183,8 +192,8 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
         }
 
         @Override
-        public StateRequestContainer createStateRequestContainer() {
-            return new MockStateRequestContainer();
+        public AsyncRequestContainer<StateRequest<?, ?, ?, ?>> createRequestContainer() {
+            return new MockAsyncRequestContainer<>();
         }
 
         @Override

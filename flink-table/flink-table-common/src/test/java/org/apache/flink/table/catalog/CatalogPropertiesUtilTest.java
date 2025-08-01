@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 
 import org.junit.jupiter.api.Test;
 
@@ -67,7 +68,8 @@ public class CatalogPropertiesUtilTest {
                 ResolvedCatalogModel.of(catalogModel, inputSchema, outputSchema);
 
         final Map<String, String> serializedMap =
-                CatalogPropertiesUtil.serializeResolvedCatalogModel(testModel);
+                CatalogPropertiesUtil.serializeResolvedCatalogModel(
+                        testModel, DefaultSqlFactory.INSTANCE);
         final CatalogModel deserializedModel =
                 CatalogPropertiesUtil.deserializeCatalogModel(serializedMap);
 
@@ -98,6 +100,7 @@ public class CatalogPropertiesUtilTest {
                                                         .getLogicalType()
                                                         .asSerializableString())
                                         .primaryKey("f1")
+                                        .indexNamed("f1", Collections.singletonList("f1"))
                                         .build())
                         .comment("some comment")
                         .options(options)
@@ -108,13 +111,16 @@ public class CatalogPropertiesUtilTest {
         List<Column> columns = Arrays.asList(f1, f2);
         final UniqueConstraint primaryKey =
                 UniqueConstraint.primaryKey("PK_f1", Collections.singletonList("f1"));
+        List<Index> indexes =
+                Collections.singletonList(
+                        DefaultIndex.newIndex("f1", Collections.singletonList("f1")));
         final ResolvedSchema schema =
-                new ResolvedSchema(columns, Collections.emptyList(), primaryKey);
+                new ResolvedSchema(columns, Collections.emptyList(), primaryKey, indexes);
 
         final ResolvedCatalogTable testTable = new ResolvedCatalogTable(catalogTable, schema);
 
         final Map<String, String> serializedMap =
-                CatalogPropertiesUtil.serializeCatalogTable(testTable);
+                CatalogPropertiesUtil.serializeCatalogTable(testTable, DefaultSqlFactory.INSTANCE);
         final CatalogTable deserializedTable =
                 CatalogPropertiesUtil.deserializeCatalogTable(serializedMap);
 

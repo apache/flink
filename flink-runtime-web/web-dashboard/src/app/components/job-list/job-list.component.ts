@@ -39,7 +39,7 @@ import { TaskBadgeComponent } from '@flink-runtime-web/components/task-badge/tas
 import { JobsItem } from '@flink-runtime-web/interfaces';
 import { JobService, StatusService } from '@flink-runtime-web/services';
 import { NzCardModule } from 'ng-zorro-antd/card';
-import { NzMessageModule, NzMessageService } from 'ng-zorro-antd/message';
+import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzTableModule } from 'ng-zorro-antd/table';
 
 @Component({
@@ -54,10 +54,8 @@ import { NzTableModule } from 'ng-zorro-antd/table';
     JobBadgeComponent,
     NgForOf,
     HumanizeDatePipe,
-    HumanizeDurationPipe,
-    NzMessageModule
-  ],
-  standalone: true
+    HumanizeDurationPipe
+  ]
 })
 export class JobListComponent implements OnInit, OnDestroy, OnChanges {
   listOfJob: JobsItem[] = [];

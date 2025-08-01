@@ -182,6 +182,24 @@ AsyncCalc(select=[func1(1) AS EXPR$0])
 ]]>
 		</Resource>
 	</TestCase>
+	<TestCase name="testNestedSystemCall">
+		<Resource name="sql">
+			<![CDATA[SELECT func1(ABS(1))]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(EXPR$0=[func1(ABS(1))])
++- LogicalValues(tuples=[[{ 0 }]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+AsyncCalc(select=[func1(f0) AS EXPR$0])
++- Calc(select=[ABS(1) AS f0])
+   +- Values(tuples=[[{ 0 }]])
+]]>
+		</Resource>
+	</TestCase>
 	<TestCase name="testWhereCondition">
 		<Resource name="sql">
 			<![CDATA[SELECT a from MyTable where REGEXP(func2(a), 'string (2|3)')]]>

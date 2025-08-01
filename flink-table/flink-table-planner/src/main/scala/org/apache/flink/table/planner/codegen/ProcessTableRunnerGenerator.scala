@@ -18,7 +18,9 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.functions.OpenContext
+import org.apache.flink.api.common.state.{ListState, MapState}
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.dataview.{DataView, ListView, MapView}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.conversion.RowRowConverter
@@ -32,22 +34,23 @@ import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.{verifyFunctionAwareOutputType, DefaultExpressionEvaluatorFactory}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
-import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
-import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
+import org.apache.flink.table.runtime.dataview.DataViewUtils
+import org.apache.flink.table.runtime.dataview.StateListView.KeyedStateListView
+import org.apache.flink.table.runtime.dataview.StateMapView.KeyedStateMapViewWithKeysNotNull
 import org.apache.flink.table.runtime.generated.{GeneratedProcessTableRunner, ProcessTableRunner}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.ExtractionUtils
-import org.apache.flink.table.types.inference.{StaticArgument, StaticArgumentTrait, SystemTypeInference, TypeInferenceUtil}
+import org.apache.flink.table.types.inference.TypeInferenceUtil
 import org.apache.flink.table.types.inference.TypeInferenceUtil.StateInfo
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
 import org.apache.flink.types.Row
 
-import org.apache.calcite.rex.{RexCall, RexCallBinding, RexLiteral, RexNode, RexUtil}
-import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.rex.{RexCall, RexNode}
 
 import java.util
-import java.util.Collections
 
 import scala.collection.JavaConverters._
 
@@ -60,32 +63,25 @@ object ProcessTableRunnerGenerator {
 
   def generate(
       ctx: CodeGeneratorContext,
-      invocation: RexCall,
+      udfCall: RexCall,
       inputTimeColumns: java.util.List[Integer],
-      inputChangelogModes: java.util.List[ChangelogMode]): GeneratedRunnerResult = {
-    val function: BridgingSqlFunction = invocation.getOperator.asInstanceOf[BridgingSqlFunction]
+      inputChangelogModes: java.util.List[ChangelogMode],
+      outputChangelogMode: ChangelogMode): GeneratedRunnerResult = {
+    val function: BridgingSqlFunction = udfCall.getOperator.asInstanceOf[BridgingSqlFunction]
     val definition: FunctionDefinition = function.getDefinition
     val dataTypeFactory = function.getDataTypeFactory
-    val typeFactory = function.getTypeFactory
     val rexFactory = function.getRexFactory
     val functionName = function.getName
+    val returnType = FlinkTypeFactory.toLogicalType(udfCall.getType)
 
-    val call = removeSystemTypeInference(
-      invocation,
-      function.getTypeInference.getStaticArguments.get().asScala,
-      typeFactory)
-    val returnType = FlinkTypeFactory.toLogicalType(call.getType)
-
-    // For specialized functions, this call context is able to provide the final input changelog modes.
+    // For specialized functions, this call context is able to provide the final changelog modes.
     // Thus, functions can reconfigure themselves for the exact use case.
     // Including updating their state layout.
-    val callContext = new OperatorBindingCallContext(
-      dataTypeFactory,
-      definition,
-      RexCallBinding.create(typeFactory, call, Collections.emptyList()),
-      call.getType,
+    val callContext = StreamPhysicalProcessTableFunction.toCallContext(
+      udfCall,
       inputTimeColumns,
-      inputChangelogModes)
+      inputChangelogModes,
+      outputChangelogMode)
 
     // Create the final UDF for runtime
     val udf = UserDefinedFunctionHelper.createSpecializedFunction(
@@ -116,16 +112,19 @@ object ProcessTableRunnerGenerator {
     val stateDataTypes = stateInfos.asScala.values.map(_.getDataType).toSeq
     stateDataTypes.foreach(ExtractionUtils.checkStateDataType)
 
-    val stateToFunctionTerm = "stateToFunction"
+    val stateHandlesTerm = "stateHandles"
+    val valueStateToFunctionTerm = "valueStateToFunction"
     val stateClearedTerm = "stateCleared"
-    val stateFromFunctionTerm = "stateFromFunction"
-    val externalStateOperands = generateStateToFunction(ctx, stateDataTypes, stateToFunctionTerm)
+    val valueStateFromFunctionTerm = "valueStateFromFunction"
+    val stateEntries = stateInfos.asScala.values.zipWithIndex.toSeq
+    val externalStateOperands =
+      generateStateToFunction(ctx, stateEntries, stateHandlesTerm, valueStateToFunctionTerm)
     val stateFromFunctionCode = generateStateFromFunction(
       ctx,
-      stateDataTypes,
+      stateEntries,
       externalStateOperands,
       stateClearedTerm,
-      stateFromFunctionTerm)
+      valueStateFromFunctionTerm)
 
     // Generate result collector
     val resultCollectorTerm =
@@ -136,7 +135,7 @@ object ProcessTableRunnerGenerator {
     // Generate call to eval()
     val evalCallCode = generateEvalCode(
       ctx,
-      call,
+      udfCall,
       enrichedArgumentDataTypes,
       externalStateOperands,
       stateDataTypes,
@@ -202,98 +201,120 @@ object ProcessTableRunnerGenerator {
     GeneratedRunnerResult(generatedRunner, stateInfos)
   }
 
-  private def removeSystemTypeInference(
-      invocation: RexCall,
-      staticArgs: Seq[StaticArgument],
-      typeFactory: FlinkTypeFactory): RexCall = {
-    val operands = invocation.getOperands.asScala
-    // Remove system arguments
-    val newOperands = operands
-      .dropRight(SystemTypeInference.PROCESS_TABLE_FUNCTION_SYSTEM_ARGS.size())
-    // Remove system output columns
-    val prefixOutputSystemFields = newOperands.zipWithIndex.map {
-      case (tableArgCall: RexTableArgCall, pos) =>
-        val staticArg = staticArgs(pos)
-        if (staticArg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
-          tableArgCall.getType.getFieldCount
-        } else {
-          tableArgCall.getPartitionKeys.length
-        }
-      case _ => 0
-    }.sum
-    val onTimeArg = operands(
-      operands.size - 1 - SystemTypeInference.PROCESS_TABLE_FUNCTION_ARG_ON_TIME_OFFSET)
-    val suffixOutputSystemFields =
-      if (onTimeArg.getKind == SqlKind.DEFAULT || RexUtil.isNullLiteral(onTimeArg, true)) {
-        0
-      } else {
-        1
-      }
-    val projectedFields = invocation.getType.getFieldList.asScala
-      .drop(prefixOutputSystemFields)
-      .dropRight(suffixOutputSystemFields)
-    val newReturnType = typeFactory.createStructType(projectedFields.asJava)
-    invocation.clone(newReturnType, newOperands.asJava)
-  }
-
   private def generateStateToFunction(
       ctx: CodeGeneratorContext,
-      stateDataTypes: Seq[DataType],
-      stateToFunctionTerm: String): Seq[GeneratedExpression] = {
-    stateDataTypes.zipWithIndex
-      .map {
-        case (stateDataType, pos) =>
-          val stateEntryTerm = s"$stateToFunctionTerm[$pos]"
-          val externalStateTypeTerm = typeTerm(stateDataType.getConversionClass)
-          val externalStateTerm = newName(ctx, "externalState")
+      stateEntries: Seq[(StateInfo, Int)],
+      stateHandlesTerm: String,
+      valueStateToFunctionTerm: String): Seq[GeneratedExpression] = {
+    stateEntries.map {
+      case (stateInfo, pos) =>
+        val stateDataType = stateInfo.getDataType
+        val stateType = stateDataType.getLogicalType
+        val externalStateTypeTerm = typeTerm(stateDataType.getConversionClass)
+        val externalStateTerm = newName(ctx, "externalState")
 
-          val converterCode = genToExternalConverter(ctx, stateDataType, stateEntryTerm)
+        val externalStateCode = if (DataViewUtils.isDataView(stateType, classOf[DataView])) {
+          generateDataViewStateToFunction(
+            ctx,
+            stateHandlesTerm,
+            pos,
+            stateType,
+            externalStateTypeTerm,
+            externalStateTerm)
+          NO_CODE
+        } else {
+          DataViewUtils.checkForInvalidDataViews(stateType)
+          generateValueStateToFunction(
+            ctx,
+            valueStateToFunctionTerm,
+            pos,
+            externalStateTypeTerm,
+            externalStateTerm,
+            stateDataType)
+        }
 
-          val constructorCode = stateDataType.getConversionClass match {
-            case rowType if rowType == classOf[Row] =>
-              // This allows us to retrieve the converter term that has been generated
-              // in genToExternalConverter(). The converter is able to created named positions
-              // for row fields.
-              val converterTerm = ctx.addReusableConverter(stateDataType)
-              s"((${className[RowRowConverter]}) $converterTerm).createEmptyRow()"
-            case rowType if rowType == classOf[RowData] =>
-              val fieldCount = LogicalTypeChecks.getFieldCount(stateDataType.getLogicalType)
-              s"new $GENERIC_ROW($fieldCount)"
-            case structuredType @ _ => s"new ${className(structuredType)}()"
-          }
+        GeneratedExpression(s"$externalStateTerm", NEVER_NULL, externalStateCode, stateType)
+    }
+  }
 
-          val externalStateCode =
-            s"""
-               |final $externalStateTypeTerm $externalStateTerm;
-               |if ($stateEntryTerm == null) {
-               |  $externalStateTerm = $constructorCode;
-               |} else {
-               |  $externalStateTerm = $converterCode;
-               |}
-               |""".stripMargin
+  private def generateDataViewStateToFunction(
+      ctx: CodeGeneratorContext,
+      stateHandlesTerm: String,
+      pos: Int,
+      stateType: LogicalType,
+      externalStateTypeTerm: String,
+      externalStateTerm: String): Unit = {
+    ctx.addReusableMember(s"private $externalStateTypeTerm $externalStateTerm;")
 
-          GeneratedExpression(
-            s"$externalStateTerm",
-            NEVER_NULL,
-            externalStateCode,
-            stateDataType.getLogicalType)
+    val (constructor, stateHandleTypeTerm) =
+      if (DataViewUtils.isDataView(stateType, classOf[ListView[_]])) {
+        (className[KeyedStateListView[_, _]], className[ListState[_]])
+      } else if (DataViewUtils.isDataView(stateType, classOf[MapView[_, _]])) {
+        (className[KeyedStateMapViewWithKeysNotNull[_, _, _]], className[MapState[_, _]])
       }
+
+    val openCode =
+      s"""
+         |$externalStateTerm = new $constructor(($stateHandleTypeTerm) $stateHandlesTerm[$pos]);
+         """.stripMargin
+    ctx.addReusableOpenStatement(openCode)
+  }
+
+  private def generateValueStateToFunction(
+      ctx: CodeGeneratorContext,
+      valueStateToFunctionTerm: String,
+      pos: Int,
+      externalStateTypeTerm: String,
+      externalStateTerm: String,
+      stateDataType: DataType): String = {
+    val stateEntryTerm = s"$valueStateToFunctionTerm[$pos]"
+    val converterCode = genToExternalConverter(ctx, stateDataType, stateEntryTerm)
+
+    val constructorCode = stateDataType.getConversionClass match {
+      case rowType if rowType == classOf[Row] =>
+        // This allows us to retrieve the converter term that has been generated
+        // in genToExternalConverter(). The converter is able to create named positions
+        // for row fields.
+        val converterTerm = ctx.addReusableConverter(stateDataType)
+        s"((${className[RowRowConverter]}) $converterTerm).createEmptyRow()"
+      case rowType if rowType == classOf[RowData] =>
+        val fieldCount = LogicalTypeChecks.getFieldCount(stateDataType.getLogicalType)
+        s"new $GENERIC_ROW($fieldCount)"
+      case structuredType @ _ => s"new ${className(structuredType)}()"
+    }
+
+    s"""
+       |final $externalStateTypeTerm $externalStateTerm;
+       |if ($stateEntryTerm == null) {
+       |  $externalStateTerm = $constructorCode;
+       |} else {
+       |  $externalStateTerm = $converterCode;
+       |}
+       |""".stripMargin
   }
 
   private def generateStateFromFunction(
       ctx: CodeGeneratorContext,
-      stateDataTypes: Seq[DataType],
+      stateEntries: Seq[(StateInfo, Int)],
       externalStateOperands: Seq[GeneratedExpression],
       stateClearedTerm: String,
       stateFromFunctionTerm: String): String = {
-    stateDataTypes.zipWithIndex
+    stateEntries
       .map {
-        case (stateDataType, pos) =>
-          val stateEntryTerm = s"$stateFromFunctionTerm[$pos]"
-          val externalStateOperandTerm = externalStateOperands(pos).resultTerm
-          s"$stateEntryTerm = $stateClearedTerm[$pos] ? null : " +
-            s"${genToInternalConverter(ctx, stateDataType)(externalStateOperandTerm)};"
+        case (stateInfo, pos) =>
+          val stateDataType = stateInfo.getDataType
+          val stateType = stateDataType.getLogicalType
+
+          if (DataViewUtils.isDataView(stateType, classOf[DataView])) {
+            NO_CODE
+          } else {
+            val stateEntryTerm = s"$stateFromFunctionTerm[$pos]"
+            val externalStateOperandTerm = externalStateOperands(pos).resultTerm
+            s"$stateEntryTerm = $stateClearedTerm[$pos] ? null : " +
+              s"${genToInternalConverter(ctx, stateDataType)(externalStateOperandTerm)};"
+          }
       }
+      .filter(c => c != NO_CODE)
       .mkString("\n")
   }
 

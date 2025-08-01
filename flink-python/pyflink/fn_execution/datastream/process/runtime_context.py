@@ -112,7 +112,7 @@ class StreamingRuntimeContext(RuntimeContext):
 
     def get_list_state(self, state_descriptor: ListStateDescriptor) -> ListState:
         if self._keyed_state_backend:
-            array_coder = from_type_info(state_descriptor.type_info)  # type: GenericArrayCoder
+            array_coder: GenericArrayCoder = from_type_info(state_descriptor.type_info)
             return self._keyed_state_backend.get_list_state(
                 state_descriptor.name,
                 array_coder._elem_coder,
@@ -122,7 +122,7 @@ class StreamingRuntimeContext(RuntimeContext):
 
     def get_map_state(self, state_descriptor: MapStateDescriptor) -> MapState:
         if self._keyed_state_backend:
-            map_coder = from_type_info(state_descriptor.type_info)  # type: MapCoder
+            map_coder: MapCoder = from_type_info(state_descriptor.type_info)
             key_coder = map_coder._key_coder
             value_coder = map_coder._value_coder
             return self._keyed_state_backend.get_map_state(

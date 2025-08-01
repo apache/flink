@@ -23,5 +23,9 @@ org.apache.flink.table.factories.TestConflictingDynamicTableFactory1
 org.apache.flink.table.factories.TestConflictingDynamicTableFactory2
 org.apache.flink.table.factories.TestCatalogFactory
 org.apache.flink.table.factories.TestCatalogStoreFactory
+org.apache.flink.table.factories.TestModelProviderFactory
+org.apache.flink.table.factories.TestNonPredictModelProviderFactory
+org.apache.flink.table.factories.TestConflictingModelProviderFactory1
+org.apache.flink.table.factories.TestConflictingModelProviderFactory2
 org.apache.flink.table.factories.module.DummyModuleFactory
 org.apache.flink.table.factories.workflow.TestWorkflowSchedulerFactory

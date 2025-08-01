@@ -22,6 +22,7 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.rules.FlinkStreamRuleSets
 import org.apache.flink.table.planner.plan.rules.logical.EventTimeTemporalJoinRewriteRule
+import org.apache.flink.table.planner.plan.rules.physical.stream.{FlinkDuplicateChangesTraitInitProgram, FlinkMarkChangelogNormalizeProgram}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 
@@ -34,6 +35,7 @@ object FlinkStreamProgram {
   val DEFAULT_REWRITE = "default_rewrite"
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
   val JOIN_REORDER = "join_reorder"
+  val MULTI_JOIN = "multi_join"
   val PROJECT_REWRITE = "project_rewrite"
   val LOGICAL = "logical"
   val LOGICAL_REWRITE = "logical_rewrite"
@@ -230,6 +232,24 @@ object FlinkStreamProgram {
       )
     }
 
+    // multi-join
+    if (tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED)) {
+      chainedProgram.addLast(
+        MULTI_JOIN,
+        FlinkGroupProgramBuilder
+          .newBuilder[StreamOptimizeContext]
+          .addProgram(
+            FlinkHepRuleSetProgramBuilder.newBuilder
+              .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+              .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+              .add(FlinkStreamRuleSets.MULTI_JOIN_RULES)
+              .build(),
+            "merge binary regular joins into MultiJoin"
+          )
+          .build()
+      )
+    }
+
     // project rewrite
     chainedProgram.addLast(
       PROJECT_REWRITE,
@@ -286,12 +306,23 @@ object FlinkStreamProgram {
       PHYSICAL_REWRITE,
       FlinkGroupProgramBuilder
         .newBuilder[StreamOptimizeContext]
+        .addProgram(
+          new FlinkMarkChangelogNormalizeProgram,
+          "mark changelog normalize reusing same source")
         // add a HEP program for watermark transpose rules to make this optimization deterministic
+        // Applying these rules before the changelog mode inference is important because
+        // 1. if we transpose calc and projection before we infer the changelog mode, we
+        //    can, e.g., project out metadata columns which may potentially allow us to drop the
+        //    changelog normalize node
+        // 2. if we push a condition into a changelog normalize we may emit only UPDATE_AFTER, if
+        //    the downstream operators don't need UPDATE_BEFORE, without the push we need to emit
+        //    UPDATE_BEFORE. With the condition evaluated inside of changelog normalize we can
+        //    emit DELETEs instead of UPDATE_BEFORE if the condition is not met.
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-            .add(FlinkStreamRuleSets.WATERMARK_TRANSPOSE_RULES)
+            .add(FlinkStreamRuleSets.CHANGELOG_NORMALIZE_TRANSPOSE_RULES)
             .build(),
           "watermark transpose"
         )
@@ -306,6 +337,17 @@ object FlinkStreamProgram {
             .add(FlinkStreamRuleSets.MINI_BATCH_RULES)
             .build(),
           "mini-batch interval rules"
+        )
+        .addProgram(
+          new FlinkDuplicateChangesTraitInitProgram,
+          "initialization for duplicate changes inference")
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.TOP_DOWN)
+            .add(FlinkStreamRuleSets.DUPLICATE_CHANGES_RULES)
+            .build(),
+          "duplicate changes rules"
         )
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder

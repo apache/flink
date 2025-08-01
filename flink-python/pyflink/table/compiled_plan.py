@@ -21,11 +21,13 @@ from typing import Union
 from pyflink.java_gateway import get_gateway
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.table_result import TableResult
+from pyflink.util.api_stability_decorators import Experimental
 from pyflink.util.java_utils import to_j_explain_detail_arr
 
 __all__ = ["CompiledPlan"]
 
 
+@Experimental()
 class CompiledPlan(object):
     """
     Represents an immutable, fully optimized, and executable entity that has been compiled from a

@@ -369,7 +369,8 @@ public class PendingCheckpoint implements Checkpoint {
             CompletedCheckpointStorageLocation finalizedLocation) {
         return pendingCheckpointStats != null
                 ? pendingCheckpointStats.toCompletedCheckpointStats(
-                        finalizedLocation.getExternalPointer())
+                        finalizedLocation.getExternalPointer(),
+                        finalizedLocation.getMetadataHandle().getStateSize())
                 : null;
     }
 

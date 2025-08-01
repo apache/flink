@@ -20,9 +20,9 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.state.InternalStateFuture;
 
 import org.forstdb.RocksDB;
 import org.forstdb.RocksDBException;
@@ -58,7 +58,7 @@ public class ForStDBBunchPutRequest<K, N, UK, UV> extends ForStDBPutRequest<K, N
             ContextKey<K, N> key,
             Map<UK, UV> value,
             ForStMapState<K, N, UK, UV> table,
-            InternalStateFuture<Void> future) {
+            InternalAsyncFuture<Void> future) {
         super(key, value, false, (ForStInnerTable<K, N, Map<UK, UV>>) table, future);
         this.userValueSerializer = table.userValueSerializer;
         this.valueSerializerView = table.valueSerializerView;

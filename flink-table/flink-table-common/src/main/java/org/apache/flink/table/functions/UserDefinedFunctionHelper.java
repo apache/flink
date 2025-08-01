@@ -48,13 +48,17 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getParameterizedType;
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.isGenericOfClass;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -477,11 +481,12 @@ public final class UserDefinedFunctionHelper {
             validateImplementationMethod(functionClass, false, false, SCALAR_EVAL);
         } else if (AsyncScalarFunction.class.isAssignableFrom(functionClass)) {
             validateImplementationMethod(functionClass, false, false, ASYNC_SCALAR_EVAL);
-            validateAsyncImplementationMethod(functionClass, ASYNC_SCALAR_EVAL);
+            validateAsyncImplementationMethod(functionClass, false, ASYNC_SCALAR_EVAL);
         } else if (TableFunction.class.isAssignableFrom(functionClass)) {
             validateImplementationMethod(functionClass, true, false, TABLE_EVAL);
         } else if (AsyncTableFunction.class.isAssignableFrom(functionClass)) {
             validateImplementationMethod(functionClass, true, false, ASYNC_TABLE_EVAL);
+            validateAsyncImplementationMethod(functionClass, true, ASYNC_TABLE_EVAL);
         } else if (AggregateFunction.class.isAssignableFrom(functionClass)) {
             validateImplementationMethod(functionClass, true, false, AGGREGATE_ACCUMULATE);
             validateImplementationMethod(functionClass, true, true, AGGREGATE_RETRACT);
@@ -541,7 +546,9 @@ public final class UserDefinedFunctionHelper {
     }
 
     private static void validateAsyncImplementationMethod(
-            Class<? extends UserDefinedFunction> clazz, String... methodNameOptions) {
+            Class<? extends UserDefinedFunction> clazz,
+            boolean verifyFutureContainsCollection,
+            String... methodNameOptions) {
         final Set<String> nameSet = new HashSet<>(Arrays.asList(methodNameOptions));
         final List<Method> methods = getAllDeclaredMethods(clazz);
         for (Method method : methods) {
@@ -558,18 +565,31 @@ public final class UserDefinedFunctionHelper {
             if (method.getParameterCount() >= 1) {
                 Type firstParam = method.getGenericParameterTypes()[0];
                 firstParam = ExtractionUtils.resolveVariableWithClassContext(clazz, firstParam);
-                if (CompletableFuture.class.equals(firstParam)
-                        || firstParam instanceof ParameterizedType
-                                && CompletableFuture.class.equals(
-                                        ((ParameterizedType) firstParam).getRawType())) {
-                    foundParam = true;
+                if (isGenericOfClass(CompletableFuture.class, firstParam)) {
+                    Optional<ParameterizedType> parameterized = getParameterizedType(firstParam);
+                    if (!verifyFutureContainsCollection) {
+                        foundParam = true;
+                    } else if (parameterized.isPresent()
+                            && parameterized.get().getActualTypeArguments().length > 0) {
+                        Type firstTypeArgument = parameterized.get().getActualTypeArguments()[0];
+                        if (isGenericOfClass(Collection.class, firstTypeArgument)) {
+                            foundParam = true;
+                        }
+                    }
                 }
             }
             if (!foundParam) {
-                throw new ValidationException(
-                        String.format(
-                                "Method '%s' of function class '%s' must have a first argument of type java.util.concurrent.CompletableFuture.",
-                                method.getName(), clazz.getName()));
+                if (!verifyFutureContainsCollection) {
+                    throw new ValidationException(
+                            String.format(
+                                    "Method '%s' of function class '%s' must have a first argument of type java.util.concurrent.CompletableFuture.",
+                                    method.getName(), clazz.getName()));
+                } else {
+                    throw new ValidationException(
+                            String.format(
+                                    "Method '%s' of function class '%s' must have a first argument of type java.util.concurrent.CompletableFuture<java.util.Collection>.",
+                                    method.getName(), clazz.getName()));
+                }
             }
         }
     }

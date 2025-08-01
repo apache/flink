@@ -47,6 +47,8 @@ import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
+import org.apache.hadoop.yarn.api.records.LogAggregationContext;
+import org.apache.hadoop.yarn.api.records.impl.pb.ApplicationSubmissionContextPBImpl;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Records;
@@ -1020,6 +1022,81 @@ class YarnClusterDescriptorTest {
                     .contains(TestYarnAMDelegationTokenProvider.TEST_YARN_AM_TOKEN);
         } catch (Exception e) {
             fail("Should not throw exception when setting tokens for AM container.");
+        }
+    }
+
+    @Test
+    void testSetRolledLogConfigs() {
+        final String includePattern = "(jobmanager|taskmanager).*";
+        final String excludePattern = "(jobmanager|taskmanager)\\.(out|err)";
+
+        // Both include and exclude patterns are given.
+        Configuration flinkConfig = new Configuration();
+        flinkConfig.set(YarnConfigOptions.ROLLED_LOGS_INCLUDE_PATTERN, includePattern);
+        flinkConfig.set(YarnConfigOptions.ROLLED_LOGS_EXCLUDE_PATTERN, excludePattern);
+
+        try (final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(flinkConfig)) {
+
+            final TestApplicationSubmissionContext testAppCtx =
+                    new TestApplicationSubmissionContext();
+            yarnClusterDescriptor.setRolledLogConfigs(testAppCtx);
+            assertThat(testAppCtx.logAggregationContext.getRolledLogsIncludePattern())
+                    .isEqualTo(includePattern);
+            assertThat(testAppCtx.logAggregationContext.getRolledLogsExcludePattern())
+                    .isEqualTo(excludePattern);
+        }
+
+        // Only include pattern is given.
+        flinkConfig = new Configuration();
+        flinkConfig.set(YarnConfigOptions.ROLLED_LOGS_INCLUDE_PATTERN, includePattern);
+        try (final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(flinkConfig)) {
+
+            final TestApplicationSubmissionContext testAppCtx =
+                    new TestApplicationSubmissionContext();
+            yarnClusterDescriptor.setRolledLogConfigs(testAppCtx);
+            assertThat(testAppCtx.logAggregationContext.getRolledLogsIncludePattern())
+                    .isEqualTo(includePattern);
+            assertThat(testAppCtx.logAggregationContext.getRolledLogsExcludePattern()).isNull();
+        }
+
+        // Only exclude pattern is given.
+        flinkConfig = new Configuration();
+        flinkConfig.set(YarnConfigOptions.ROLLED_LOGS_EXCLUDE_PATTERN, excludePattern);
+        try (final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(flinkConfig)) {
+
+            final TestApplicationSubmissionContext testAppCtx =
+                    new TestApplicationSubmissionContext();
+            yarnClusterDescriptor.setRolledLogConfigs(testAppCtx);
+            assertThat(testAppCtx.logAggregationContext.getRolledLogsIncludePattern()).isNull();
+            assertThat(testAppCtx.logAggregationContext.getRolledLogsExcludePattern())
+                    .isEqualTo(excludePattern);
+        }
+
+        // Blank values are ignored.
+        flinkConfig = new Configuration();
+        flinkConfig.set(YarnConfigOptions.ROLLED_LOGS_INCLUDE_PATTERN, "   ");
+        flinkConfig.set(YarnConfigOptions.ROLLED_LOGS_EXCLUDE_PATTERN, "   ");
+        try (final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(flinkConfig)) {
+
+            final TestApplicationSubmissionContext testAppCtx =
+                    new TestApplicationSubmissionContext();
+            yarnClusterDescriptor.setRolledLogConfigs(testAppCtx);
+            assertThat(testAppCtx.logAggregationContext).isNull();
+        }
+    }
+
+    private static class TestApplicationSubmissionContext
+            extends ApplicationSubmissionContextPBImpl {
+
+        private LogAggregationContext logAggregationContext = null;
+
+        @Override
+        public void setLogAggregationContext(LogAggregationContext logAggregationContext) {
+            this.logAggregationContext = logAggregationContext;
         }
     }
 }

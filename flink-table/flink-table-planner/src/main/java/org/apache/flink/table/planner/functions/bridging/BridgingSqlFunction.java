@@ -126,13 +126,16 @@ public class BridgingSqlFunction extends SqlFunction {
                 functionKind == FunctionKind.SCALAR
                         || functionKind == FunctionKind.ASYNC_SCALAR
                         || functionKind == FunctionKind.TABLE
+                        || functionKind == FunctionKind.ASYNC_TABLE
                         || functionKind == FunctionKind.PROCESS_TABLE,
                 "Scalar or table function kind expected.");
 
         final TypeInference systemTypeInference =
                 SystemTypeInference.of(functionKind, typeInference);
 
-        if (functionKind == FunctionKind.TABLE || functionKind == FunctionKind.PROCESS_TABLE) {
+        if (functionKind == FunctionKind.TABLE
+                || functionKind == FunctionKind.ASYNC_TABLE
+                || functionKind == FunctionKind.PROCESS_TABLE) {
             return new BridgingSqlFunction.WithTableFunction(
                     dataTypeFactory,
                     typeFactory,
@@ -270,9 +273,9 @@ public class BridgingSqlFunction extends SqlFunction {
             }
             final StaticArgument arg = args.get(ordinal);
             final TableCharacteristic.Semantics semantics;
-            if (arg.is(StaticArgumentTrait.TABLE_AS_ROW)) {
+            if (arg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)) {
                 semantics = TableCharacteristic.Semantics.ROW;
-            } else if (arg.is(StaticArgumentTrait.TABLE_AS_SET)) {
+            } else if (arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
                 semantics = TableCharacteristic.Semantics.SET;
             } else {
                 return null;

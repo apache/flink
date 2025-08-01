@@ -43,8 +43,7 @@ import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
     HumanizeBytesPipe,
     NavigationComponent,
     NzSkeletonModule
-  ],
-  standalone: true
+  ]
 })
 export class TaskManagerStatusComponent implements OnInit, OnDestroy {
   public readonly listOfNavigation = [

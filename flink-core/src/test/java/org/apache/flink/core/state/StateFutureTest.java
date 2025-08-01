@@ -19,7 +19,8 @@
 package org.apache.flink.core.state;
 
 import org.apache.flink.api.common.state.v2.StateFuture;
-import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
+import org.apache.flink.core.asyncprocessing.AsyncFutureImpl;
+import org.apache.flink.core.asyncprocessing.AsyncFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -45,16 +46,16 @@ class StateFutureTest {
 
     @Test
     void basicSyncComplete() {
-        StateFutureImpl.CallbackRunner runner = new TestCallbackRunner(null);
+        AsyncFutureImpl.CallbackRunner runner = new TestCallbackRunner(null);
         final AtomicInteger counter = new AtomicInteger(0);
 
-        StateFutureImpl<Integer> stateFuture1 = new StateFutureImpl<>(runner, exceptionHandler);
+        AsyncFutureImpl<Integer> stateFuture1 = new AsyncFutureImpl<>(runner, exceptionHandler);
         stateFuture1.thenAccept(counter::addAndGet);
         assertThat(counter).hasValue(0);
         stateFuture1.complete(5);
         assertThat(counter).hasValue(5);
 
-        StateFutureImpl<Integer> stateFuture2 = new StateFutureImpl<>(runner, exceptionHandler);
+        AsyncFutureImpl<Integer> stateFuture2 = new AsyncFutureImpl<>(runner, exceptionHandler);
         StateFuture<String> stateFuture3 =
                 stateFuture2.thenApply((v) -> String.valueOf(counter.addAndGet(v)));
         assertThat(counter).hasValue(5);
@@ -64,8 +65,8 @@ class StateFutureTest {
         stateFuture3.thenAccept((v) -> counter.addAndGet(-Integer.parseInt(v)));
         assertThat(counter).hasValue(0);
 
-        StateFutureImpl<Integer> stateFuture4 = new StateFutureImpl<>(runner, exceptionHandler);
-        StateFutureImpl<Integer> stateFuture5 = new StateFutureImpl<>(runner, exceptionHandler);
+        AsyncFutureImpl<Integer> stateFuture4 = new AsyncFutureImpl<>(runner, exceptionHandler);
+        AsyncFutureImpl<Integer> stateFuture5 = new AsyncFutureImpl<>(runner, exceptionHandler);
         stateFuture4
                 .thenCompose(
                         (v) -> {
@@ -79,8 +80,8 @@ class StateFutureTest {
         stateFuture5.complete(3);
         assertThat(counter).hasValue(9);
 
-        StateFutureImpl<Integer> stateFuture6 = new StateFutureImpl<>(runner, exceptionHandler);
-        StateFutureImpl<Integer> stateFuture7 = new StateFutureImpl<>(runner, exceptionHandler);
+        AsyncFutureImpl<Integer> stateFuture6 = new AsyncFutureImpl<>(runner, exceptionHandler);
+        AsyncFutureImpl<Integer> stateFuture7 = new AsyncFutureImpl<>(runner, exceptionHandler);
         stateFuture6.thenCombine(
                 stateFuture7,
                 (v1, v2) -> {
@@ -97,9 +98,9 @@ class StateFutureTest {
         assertThat(counter).hasValue(3);
 
         counter.set(0);
-        ArrayList<StateFutureImpl<Integer>> futures = new ArrayList<>();
+        ArrayList<AsyncFutureImpl<Integer>> futures = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
-            futures.add(new StateFutureImpl<>(runner, exceptionHandler));
+            futures.add(new AsyncFutureImpl<>(runner, exceptionHandler));
         }
         StateFutureUtils.combineAll(futures)
                 .thenAccept(
@@ -205,11 +206,11 @@ class StateFutureTest {
 
     @Test
     void testConditionally() {
-        StateFutureImpl.CallbackRunner runner = new TestCallbackRunner(null);
+        AsyncFutureImpl.CallbackRunner runner = new TestCallbackRunner(null);
         final AtomicInteger counter = new AtomicInteger(0);
 
         // accept
-        StateFutureImpl<Integer> stateFuture1 = new StateFutureImpl<>(runner, exceptionHandler);
+        AsyncFutureImpl<Integer> stateFuture1 = new AsyncFutureImpl<>(runner, exceptionHandler);
         stateFuture1
                 .thenConditionallyAccept(e -> e > 0, counter::addAndGet, v -> counter.addAndGet(-v))
                 .thenConditionallyAccept(
@@ -219,7 +220,7 @@ class StateFutureTest {
         assertThat(counter).hasValue(6);
 
         // apply
-        StateFutureImpl<Integer> stateFuture2 = new StateFutureImpl<>(runner, exceptionHandler);
+        AsyncFutureImpl<Integer> stateFuture2 = new AsyncFutureImpl<>(runner, exceptionHandler);
         stateFuture2
                 .thenConditionallyApply(
                         v -> v > 0,
@@ -234,9 +235,9 @@ class StateFutureTest {
         assertThat(counter).hasValue(27);
 
         // compose
-        StateFutureImpl<Integer> stateFuture3 = new StateFutureImpl<>(runner, exceptionHandler);
-        StateFutureImpl<Integer> stateFuture4 = new StateFutureImpl<>(runner, exceptionHandler);
-        StateFutureImpl<Integer> stateFuture5 = new StateFutureImpl<>(runner, exceptionHandler);
+        AsyncFutureImpl<Integer> stateFuture3 = new AsyncFutureImpl<>(runner, exceptionHandler);
+        AsyncFutureImpl<Integer> stateFuture4 = new AsyncFutureImpl<>(runner, exceptionHandler);
+        AsyncFutureImpl<Integer> stateFuture5 = new AsyncFutureImpl<>(runner, exceptionHandler);
         stateFuture3
                 .thenConditionallyCompose(
                         v -> v > 0,
@@ -276,14 +277,14 @@ class StateFutureTest {
     private static class MockValueState {
         AtomicInteger value = new AtomicInteger(0);
         ExecutorService stateExecutor = Executors.newFixedThreadPool(3);
-        StateFutureImpl.CallbackRunner runner;
+        AsyncFutureImpl.CallbackRunner runner;
 
         MockValueState(ExecutorService executor) {
             this.runner = new TestCallbackRunner(executor);
         }
 
         StateFuture<Integer> get() {
-            StateFutureImpl<Integer> ret = new StateFutureImpl<>(runner, exceptionHandler);
+            AsyncFutureImpl<Integer> ret = new AsyncFutureImpl<>(runner, exceptionHandler);
             stateExecutor.submit(
                     () -> {
                         int a = ThreadLocalRandom.current().nextInt();
@@ -300,7 +301,7 @@ class StateFutureTest {
         }
     }
 
-    private static class TestCallbackRunner implements StateFutureImpl.CallbackRunner {
+    private static class TestCallbackRunner implements AsyncFutureImpl.CallbackRunner {
         private final ExecutorService stateExecutor;
 
         TestCallbackRunner(ExecutorService stateExecutor) {

@@ -33,8 +33,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
   templateUrl: './completed-job-subtasks-table-action.component.html',
   styleUrls: ['./completed-job-subtasks-table-action.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, NzDropDownModule, NzIconModule],
-  standalone: true
+  imports: [NgIf, NzDropDownModule, NzIconModule]
 })
 export class CompletedJobSubtasksTableActionComponent implements OnInit, OnDestroy, JobOverviewSubtasksTableAction {
   @Input() subtask?: JobVertexSubTask;

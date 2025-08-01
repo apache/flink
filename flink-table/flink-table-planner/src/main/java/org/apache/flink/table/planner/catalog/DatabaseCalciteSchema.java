@@ -69,6 +69,13 @@ class DatabaseCalciteSchema extends FlinkSchema {
     }
 
     @Override
+    public CatalogSchemaModel getModel(String modelName) {
+        final ObjectIdentifier identifier =
+                ObjectIdentifier.of(catalogName, databaseName, modelName);
+        return catalogManager.getModel(identifier).map(CatalogSchemaModel::new).orElse(null);
+    }
+
+    @Override
     public Table getTable(String tableName) {
         final ObjectIdentifier identifier =
                 ObjectIdentifier.of(catalogName, databaseName, tableName);
@@ -133,6 +140,11 @@ class DatabaseCalciteSchema extends FlinkSchema {
                             tablePath.getObjectName()),
                     e);
         }
+    }
+
+    @Override
+    public Set<String> getModelNames() {
+        return catalogManager.listModels(catalogName, databaseName);
     }
 
     @Override

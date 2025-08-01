@@ -400,7 +400,9 @@ public class ExpressionSerializationTest {
 
         assertThat(resolved)
                 .hasSize(1)
-                .extracting(ResolvedExpression::asSerializableString)
+                .extracting(
+                        resolvedExpression ->
+                                resolvedExpression.asSerializableString(DefaultSqlFactory.INSTANCE))
                 .containsOnly(spec.expectedStr);
     }
 

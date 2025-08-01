@@ -42,7 +42,6 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
-import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.legacy.sources.LookupableTableSource;
 import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.operations.AggregateQueryOperation;
@@ -100,6 +99,7 @@ import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.ViewExpanders;
@@ -302,7 +302,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             final RelDataType outputRelDataType =
                     typeFactory.buildRelNodeRowType((RowType) outputType);
 
-            final List<RelNode> inputs = new ArrayList<>();
+            final List<RelNode> inputStack = new ArrayList<>();
             final List<RexNode> rexNodeArgs =
                     resolvedArgs.stream()
                             .map(
@@ -329,15 +329,18 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                                             final RexTableArgCall tableArgCall =
                                                     new RexTableArgCall(
                                                             rowType,
-                                                            inputs.size(),
+                                                            inputStack.size(),
                                                             partitionKeys,
                                                             new int[0]);
-                                            inputs.add(relBuilder.build());
+                                            inputStack.add(relBuilder.build());
                                             return tableArgCall;
                                         }
                                         return convertExprToRexNode(resolvedArg);
                                     })
                             .collect(Collectors.toList());
+
+            // relBuilder.build() works in LIFO fashion, this restores the original input order
+            Collections.reverse(inputStack);
 
             final BridgingSqlFunction sqlFunction =
                     BridgingSqlFunction.of(relBuilder.getCluster(), contextFunction);
@@ -349,7 +352,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             final RelNode functionScan =
                     LogicalTableFunctionScan.create(
                             relBuilder.getCluster(),
-                            inputs,
+                            inputStack,
                             call,
                             null,
                             outputRelDataType,
@@ -446,7 +449,11 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                     relBuilder
                             .getTypeFactory()
                             .buildRelNodeRowType(
-                                    TableSchema.fromResolvedSchema(values.getResolvedSchema()));
+                                    (RowType)
+                                            DataTypeUtils
+                                                    .fromResolvedSchemaPreservingTimeAttributes(
+                                                            values.getResolvedSchema())
+                                                    .getLogicalType());
             if (values.getValues().isEmpty()) {
                 relBuilder.values(rowType);
                 return relBuilder.build();

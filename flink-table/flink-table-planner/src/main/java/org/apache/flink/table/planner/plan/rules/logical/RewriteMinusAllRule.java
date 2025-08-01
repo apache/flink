@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.plan.utils.SetOpRewriteUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -73,8 +74,10 @@ public class RewriteMinusAllRule extends RelRule<RewriteMinusAllRule.RewriteMinu
 
         List<Integer> fields = Util.range(minus.getRowType().getFieldCount());
 
-        // 1. add vcol_marker to left rel node
-        RelBuilder leftBuilder = call.builder();
+        final FlinkRelBuilder flinkRelBuilder = FlinkRelBuilder.of(call.rel(0).getCluster(), null);
+        // 1. add marker to left rel node
+        RelBuilder leftBuilder =
+                flinkRelBuilder.transform(u -> u.withConvertCorrelateToJoin(false));
         RelNode leftWithAddedVirtualCols =
                 leftBuilder
                         .push(left)
@@ -91,7 +94,8 @@ public class RewriteMinusAllRule extends RelRule<RewriteMinusAllRule.RewriteMinu
                         .build();
 
         // 2. add vcol_marker to right rel node
-        RelBuilder rightBuilder = call.builder();
+        RelBuilder rightBuilder =
+                flinkRelBuilder.transform(u -> u.withConvertCorrelateToJoin(false));
         RelNode rightWithAddedVirtualCols =
                 rightBuilder
                         .push(right)
@@ -108,7 +112,7 @@ public class RewriteMinusAllRule extends RelRule<RewriteMinusAllRule.RewriteMinu
                         .build();
 
         // 3. add union all and aggregate
-        RelBuilder builder = call.builder();
+        RelBuilder builder = flinkRelBuilder.transform(u -> u.withConvertCorrelateToJoin(false));
         builder.push(leftWithAddedVirtualCols)
                 .push(rightWithAddedVirtualCols)
                 .union(true)

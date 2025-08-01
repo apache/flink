@@ -101,7 +101,7 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
     @Override
     public void close() {
         exporter.flush();
-        lastResult.join(1, TimeUnit.MINUTES);
+        waitForLastReportToComplete();
         exporter.close();
     }
 
@@ -266,6 +266,13 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
                     "Failed to call export for {} metrics using {}",
                     metricData.size(),
                     exporter.getClass().getName());
+        }
+    }
+
+    @VisibleForTesting
+    void waitForLastReportToComplete() {
+        if (lastResult != null) {
+            lastResult.join(1, TimeUnit.MINUTES);
         }
     }
 }

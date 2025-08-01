@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.util.asyncprocessing;
 
-import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncKeyOrderedStreamOperator;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.function.RunnableWithException;
@@ -30,14 +30,14 @@ import java.util.concurrent.ExecutorService;
 /** Utility class for async test harness. */
 public class AsyncProcessingTestUtil {
     public static <OUT> void drain(StreamOperator<OUT> operator) {
-        if (operator instanceof AbstractAsyncStateStreamOperator) {
-            ((AbstractAsyncStateStreamOperator<OUT>) operator).drainStateRequests();
+        if (operator instanceof AbstractAsyncKeyOrderedStreamOperator) {
+            ((AbstractAsyncKeyOrderedStreamOperator<OUT>) operator).drainStateRequests();
         } else if (operator instanceof AbstractAsyncStateStreamOperatorV2) {
             ((AbstractAsyncStateStreamOperatorV2<OUT>) operator)
-                    .getAsyncExecutionController()
+                    .getStateExecutionController()
                     .drainInflightRecords(0);
         } else {
-            throw new IllegalStateException("Operator is not an AsyncStateProcessingOperator");
+            throw new IllegalStateException("Operator is not an AsyncKeyOrderedProcessingOperator");
         }
     }
 

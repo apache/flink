@@ -79,7 +79,7 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
 
     private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
 
-    @Nullable AsyncExecutionController<K> asyncExecutionController;
+    @Nullable AsyncExecutionController<K, ?> asyncExecutionController;
 
     private InternalTimeServiceManagerImpl(
             TaskIOMetricGroup taskIOMetricGroup,

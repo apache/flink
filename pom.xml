@@ -28,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>2.1-SNAPSHOT</version>
+	<version>2.2-SNAPSHOT</version>
 
 	<name>Flink : </name>
 	<packaging>pom</packaging>
@@ -50,6 +50,12 @@ under the License.
 	</scm>
 
 	<repositories>
+		<!-- Add Redhat GA repository for jackson-mapper-asl -->
+		<repository>
+			<id>redhat</id>
+			<url>https://maven.repository.redhat.com/ga/</url>
+		</repository>
+
 		<repository>
 			<id>repository.jboss.org</id>
 			<url>https://repository.jboss.org/nexus/content/groups/public/</url>
@@ -100,6 +106,7 @@ under the License.
 		<module>tools/ci/flink-ci-tools</module>
 		<module>flink-datastream</module>
 		<module>flink-datastream-api</module>
+		<module>flink-models</module>
 	</modules>
 
 	<properties>
@@ -127,7 +134,7 @@ under the License.
 		<source.java.version>11</source.java.version>
 		<target.java.version>17</target.java.version>
 		<slf4j.version>1.7.36</slf4j.version>
-		<log4j.version>2.24.1</log4j.version>
+		<log4j.version>2.24.3</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 IntelliJ IDEA is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
@@ -143,6 +150,7 @@ under the License.
 		<curator.version>5.4.0</curator.version>
 		<avro.version>1.11.4</avro.version>
 		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
+		<jackson.mapper.asl.version>1.9.14.jdk17-redhat-00001</jackson.mapper.asl.version>
 		<jackson-bom.version>2.18.2</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
@@ -151,7 +159,7 @@ under the License.
 		<archunit.version>1.2.0</archunit.version>
 		<mockito.version>5.14.2</mockito.version>
 		<hamcrest.version>1.3</hamcrest.version>
-		<assertj.version>3.23.1</assertj.version>
+		<assertj.version>3.27.3</assertj.version>
 		<py4j.version>0.10.9.7</py4j.version>
 		<beam.version>2.54.0</beam.version>
 		<protoc.version>3.21.7</protoc.version>
@@ -170,7 +178,7 @@ under the License.
 		<minikdc.version>3.2.4</minikdc.version>
 		<hive.version>2.3.10</hive.version>
 		<orc.version>1.5.6</orc.version>
-		<japicmp.referenceVersion>1.20.0</japicmp.referenceVersion>
+		<japicmp.referenceVersion>2.0.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<checkstyle.version>10.18.2</checkstyle.version>
 		<spotless.skip>false</spotless.skip>
@@ -325,6 +333,13 @@ under the License.
 			separatly in the flink-shaded-hadoop-2 dependency).
 		-->
 		<dependencies>
+
+			<!-- Setting default version for jackson-mapper-asl -->
+			<dependency>
+				<groupId>org.codehaus.jackson</groupId>
+				<artifactId>jackson-mapper-asl</artifactId>
+				<version>${jackson.mapper.asl.version}</version>
+			</dependency>
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
@@ -1047,11 +1062,6 @@ under the License.
 				<pluginManagement>
 					<plugins>
 						<plugin>
-							<groupId>org.codehaus.mojo</groupId>
-							<artifactId>build-helper-maven-plugin</artifactId>
-							<version>1.7</version>
-						</plugin>
-						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
@@ -1133,7 +1143,6 @@ under the License.
 							<source>17</source>
 							<target>17</target>
 							<compilerArgs combine.children="append">
-								<arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
 								<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
 								<arg>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</arg>
 								<arg>--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED</arg>
@@ -1180,7 +1189,6 @@ under the License.
 							<source>21</source>
 							<target>21</target>
 							<compilerArgs combine.children="append">
-								<arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
 								<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
 								<arg>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</arg>
 								<arg>--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED</arg>
@@ -1593,11 +1601,8 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/angular.json</exclude>
 						<exclude>flink-runtime-web/web-dashboard/proxy.conf.json</exclude>
 						<exclude>flink-runtime-web/web-dashboard/tsconfig.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/tslint.json</exclude>
 						<exclude>flink-runtime-web/web-dashboard/src/browserslist</exclude>
 						<exclude>flink-runtime-web/web-dashboard/src/tsconfig.app.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/src/tsconfig.spec.json</exclude>
-						<exclude>flink-runtime-web/web-dashboard/src/tslint.json</exclude>
 
 						<!-- web dashboard non-binary assets -->
 						<exclude>flink-runtime-web/web-dashboard/src/assets/**</exclude>
@@ -2076,7 +2081,7 @@ under the License.
 			<plugin>
 				<groupId>org.cyclonedx</groupId>
 				<artifactId>cyclonedx-maven-plugin</artifactId>
-				<version>2.7.7</version>
+				<version>2.9.1</version>
 				<executions>
 					<execution>
 						<phase>package</phase>
@@ -2103,7 +2108,6 @@ under the License.
 						<compilerArgs>
 							<!-- Prevents recompilation due to missing package-info.class, see MCOMPILER-205 -->
 							<arg>-Xpkginfo:always</arg>
-							<arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
 							<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
 							<arg>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</arg>
 							<arg>--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED</arg>
@@ -2261,6 +2265,12 @@ under the License.
 					<artifactId>maven-remote-resources-plugin</artifactId>
 					<version>3.2.0</version>
 				</plugin>
+				<!-- Pin the version of the build helper plugin -->
+				<plugin>
+					<groupId>org.codehaus.mojo</groupId>
+					<artifactId>build-helper-maven-plugin</artifactId>
+					<version>3.6.0</version>
+				</plugin>
 
 				<plugin>
 					<!-- Inherited from Apache parent, but not actually used. Disable to reduce noise. -->
@@ -2323,88 +2333,6 @@ under the License.
 								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
 								<exclude>@org.apache.flink.annotation.Internal</exclude>
 								<!-- MARKER: start exclusions; these will be wiped by tools/releasing/update_japicmp_configuration.sh -->
-								<!-- Mark these 2 methods to @Internal. Tracked under FLINK-34130, should be removed in 2.0 -->
-								<exclude>org.apache.flink.configuration.Configuration#getBytes(java.lang.String,byte[])</exclude>
-								<exclude>org.apache.flink.configuration.Configuration#setBytes(java.lang.String,byte[])</exclude>
-								<!-- FLIP-344: Remove parameter in RichFunction#open in 2.0 -->
-								<exclude>org.apache.flink.api.common.functions.AbstractRichFunction#open(org.apache.flink.configuration.Configuration)</exclude>
-								<exclude>org.apache.flink.api.common.functions.RichCoGroupFunction</exclude>
-								<exclude>org.apache.flink.api.common.functions.RichCrossFunction</exclude>
-								<exclude>org.apache.flink.api.common.functions.RichFilterFunction</exclude>
-								<exclude>org.apache.flink.api.common.functions.RichFlatJoinFunction</exclude>
-								<exclude>org.apache.flink.api.common.functions.RichFlatMapFunction</exclude>
-								<exclude>org.apache.flink.api.common.functions.RichGroupCombineFunction</exclude>
-								<exclude>org.apache.flink.api.common.functions.RichGroupReduceFunction</exclude>
-								<exclude>org.apache.flink.api.common.functions.RichJoinFunction</exclude>
-								<exclude>org.apache.flink.api.common.functions.RichMapFunction</exclude>
-								<exclude>org.apache.flink.api.common.functions.RichMapPartitionFunction</exclude>
-								<exclude>org.apache.flink.api.common.functions.RichReduceFunction</exclude>
-								<!-- FLINK-35886: WatermarksWithIdleness constructor was marked as deprecated -->
-								<exclude>org.apache.flink.api.common.eventtime.WatermarksWithIdleness</exclude>
-								<!-- FLINK-35812 move tuple interfaces into flink-core-api, should be removed in 2.0 -->
-								<exclude>org.apache.flink.api.java.tuple.*</exclude>
-								<exclude>org.apache.flink.types.NullFieldException</exclude>
-								<!-- The following exclusions are due to classes being relocated from the flink-streaming-java
-									module to the flink-runtime module. -->
-								<exclude>org.apache.flink.streaming.api.functions.windowing.AllWindowFunction</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.CoGroupedStreams</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.ConnectedStreams</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.DataStream</exclude>
-								<exclude>apache.flink.streaming.api.datastream.JoinedStreams</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.WindowedStream</exclude>
-								<exclude>org.apache.flink.streaming.api.environment.StreamExecutionEnvironment</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.AllWindowedStream</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.JoinedStreams</exclude>
-								<exclude>org.apache.flink.streaming.api.checkpoint.CheckpointedFunction</exclude>
-								<exclude>org.apache.flink.streaming.api.CheckpointingMode</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.DataStreamSink</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.DataStreamSource</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.KeyedStream</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.SideOutputDataStream</exclude>
-								<exclude>org.apache.flink.streaming.api.environment.CheckpointConfig</exclude>
-								<exclude>org.apache.flink.streaming.api.environment.LocalStreamEnvironment</exclude>
-								<exclude>org.apache.flink.streaming.api.environment.RemoteStreamEnvironment</exclude>
-								<exclude>org.apache.flink.streaming.api.functions.co.CoFlatMapFunction</exclude>
-								<exclude>org.apache.flink.streaming.api.functions.co.CoMapFunction</exclude>
-								<exclude>org.apache.flink.streaming.api.functions.sink.RichSinkFunction</exclude>
-								<exclude>org.apache.flink.streaming.api.functions.sink.SinkFunction</exclude>
-								<exclude>org.apache.flink.streaming.api.functions.source.SourceFunction</exclude>
-								<exclude>org.apache.flink.streaming.api.functions.windowing.WindowFunction</exclude>
-								<exclude>org.apache.flink.streaming.api.functions.source.RichSourceFunction</exclude>
-								<exclude>org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction</exclude>
-								<exclude>org.apache.flink.streaming.api.functions.source.ParallelSourceFunction</exclude>
-								<!-- FLINK-3992 Do not implement deprecated Key interface in flink 2.0 -->
-								<exclude>org.apache.flink.types.DoubleValue</exclude>
-								<exclude>org.apache.flink.types.FloatValue</exclude>
-								<exclude>org.apache.flink.types.NormalizableKey</exclude>
-								<!-- FLINK-36366 Remove deprecate API in flink-core -->
-								<exclude>org.apache.flink.api.common.io.SerializedOutputFormat</exclude>
-								<exclude>org.apache.flink.api.common.io.OutputFormat</exclude>
-								<exclude>org.apache.flink.api.common.io.FinalizeOnMaster</exclude>
-								<exclude>org.apache.flink.api.common.io.FileOutputFormat</exclude>
-								<exclude>org.apache.flink.api.common.io.BinaryOutputFormat</exclude>
-								<!-- FLINK-5336 Remove IOReadableWritable from Path in flink-2.0. -->
-								<exclude>org.apache.flink.core.fs.Path</exclude>
-								<!-- The following exclusions are due to the flink-hadoop-compatibility_${scala.binary.version} module has renamed to flink-hadoop-compatibility. -->
-								<exclude>org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat</exclude>
-								<exclude>org.apache.flink.api.java.hadoop.mapred.HadoopOutputFormat</exclude>
-								<exclude>org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat</exclude>
-								<exclude>org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat</exclude>
-								<exclude>org.apache.flink.api.java.typeutils.WritableTypeInfo</exclude>
-								<!-- The following exclusions are due to classes being relocated from the flink-java
-									module to the flink-core module. -->
-								<exclude>org.apache.flink.api.java.utils.AbstractParameterTool</exclude>
-								<exclude>org.apache.flink.api.java.utils.ParameterTool</exclude>
-								<!-- FLINK-36327 Remove dependency about flink-scala and flink-streaming-scala in table module in flink-2.0 -->
-								<exclude>org.apache.flink.table.api.typeutils.*</exclude>
-								<!-- FLINK-36245 Remove Sink.InitContext in flink-2.0. -->
-								<exclude>org.apache.flink.api.connector.sink2.Sink</exclude>
-								<!-- FLINK-36245 move SourceFunction to legacy package in flink-2.0. -->
-								<exclude>org.apache.flink.walkthrough.common.source.TransactionSource</exclude>
-								<!-- FLIP-467 Introduce Generalized Watermarks in flink-2.0. -->
-								<exclude>org.apache.flink.api.connector.source.Source</exclude>
-								<exclude>org.apache.flink.api.connector.source.SourceReaderContext</exclude>
 								<!-- MARKER: end exclusions -->
 							</excludes>
 							<accessModifier>public</accessModifier>

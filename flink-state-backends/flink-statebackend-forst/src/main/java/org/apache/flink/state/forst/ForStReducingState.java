@@ -18,11 +18,11 @@
 
 package org.apache.flink.state.forst;
 
-import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
@@ -72,13 +72,14 @@ public class ForStReducingState<K, N, V> extends AbstractReducingState<K, N, V>
     public ForStReducingState(
             StateRequestHandler stateRequestHandler,
             ColumnFamilyHandle columnFamily,
-            ReducingStateDescriptor<V> reducingStateDescriptor,
+            ReduceFunction<V> reduceFunction,
+            TypeSerializer<V> valueSerializer,
             Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilderInitializer,
             N defaultNamespace,
             Supplier<TypeSerializer<N>> namespaceSerializerInitializer,
             Supplier<DataOutputSerializer> valueSerializerViewInitializer,
             Supplier<DataInputDeserializer> valueDeserializerViewInitializer) {
-        super(stateRequestHandler, reducingStateDescriptor);
+        super(stateRequestHandler, reduceFunction, valueSerializer);
         this.columnFamilyHandle = columnFamily;
         this.serializedKeyBuilder = ThreadLocal.withInitial(serializedKeyBuilderInitializer);
         this.defaultNamespace = defaultNamespace;
@@ -131,7 +132,7 @@ public class ForStReducingState<K, N, V> extends AbstractReducingState<K, N, V>
                         (RecordContext<K>) stateRequest.getRecordContext(),
                         (N) stateRequest.getNamespace());
         return new ForStDBSingleGetRequest<>(
-                contextKey, this, (InternalStateFuture<V>) stateRequest.getFuture());
+                contextKey, this, (InternalAsyncFuture<V>) stateRequest.getFuture());
     }
 
     @SuppressWarnings("unchecked")
@@ -149,6 +150,6 @@ public class ForStReducingState<K, N, V> extends AbstractReducingState<K, N, V>
                         ? null // "Delete(key)" is equivalent to "Put(key, null)"
                         : (V) stateRequest.getPayload();
         return ForStDBPutRequest.of(
-                contextKey, value, this, (InternalStateFuture<Void>) stateRequest.getFuture());
+                contextKey, value, this, (InternalAsyncFuture<Void>) stateRequest.getFuture());
     }
 }

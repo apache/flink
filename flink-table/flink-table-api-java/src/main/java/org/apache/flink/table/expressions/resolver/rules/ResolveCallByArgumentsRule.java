@@ -414,7 +414,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                 return actualArgs;
             }
             final List<Expression> enrichedArgs = new ArrayList<>(actualArgs);
-            IntStream.range(actualArgs.size() - 1, declaredArgs.size())
+            IntStream.range(actualArgs.size(), declaredArgs.size())
                     .forEach(
                             pos -> {
                                 final StaticArgument declaredArg = declaredArgs.get(pos);
@@ -725,11 +725,6 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         @Override
         public int timeColumn() {
             return -1;
-        }
-
-        @Override
-        public List<String> coPartitionArgs() {
-            return List.of();
         }
 
         @Override

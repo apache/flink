@@ -80,6 +80,7 @@ public final class Documentation {
         public static final String STATE_BACKEND_FORST = "state_backend_forst";
 
         public static final String STATE_LATENCY_TRACKING = "state_latency_tracking";
+        public static final String STATE_SIZE_TRACKING = "state_size_tracking";
 
         public static final String STATE_CHANGELOG = "state_changelog";
 
@@ -109,6 +110,8 @@ public final class Documentation {
         public static final String METRIC_REPORTERS = "metric_reporters";
 
         public static final String TRACE_REPORTERS = "trace_reporters";
+
+        public static final String EVENT_REPORTERS = "event_reporters";
 
         public static final String CHECKPOINT_FILE_MERGING = "checkpoint_file_merging";
 

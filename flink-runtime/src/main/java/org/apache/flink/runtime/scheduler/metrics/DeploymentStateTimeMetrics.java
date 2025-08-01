@@ -22,7 +22,6 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
@@ -43,7 +42,7 @@ import java.util.function.Predicate;
  * From that point on checkpoints can be triggered, and thus progress be made.
  */
 public class DeploymentStateTimeMetrics
-        implements ExecutionStateUpdateListener, StateTimeMetric, MetricsRegistrar {
+        implements ExecutionStatusMetricsRegistrar, StateTimeMetric {
 
     private static final long NOT_STARTED = -1L;
 

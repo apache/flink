@@ -21,6 +21,7 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SqlFactory;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 
 import java.util.Arrays;
@@ -111,7 +112,7 @@ public class JoinQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SqlFactory sqlFactory) {
 
         Map<Integer, String> inputAliases = new HashMap<>();
         inputAliases.put(0, INPUT_1_ALIAS);
@@ -121,12 +122,12 @@ public class JoinQueryOperation implements QueryOperation {
         return String.format(
                 "SELECT %s FROM (%s\n) %s %s JOIN %s ON %s",
                 getSelectList(),
-                OperationUtils.indent(left.asSerializableString()),
+                OperationUtils.indent(left.asSerializableString(sqlFactory)),
                 INPUT_1_ALIAS,
                 joinType.toString().replaceAll("_", " "),
-                rightToSerializable(),
+                rightToSerializable(sqlFactory),
                 OperationExpressionsUtils.scopeReferencesWithAlias(inputAliases, condition)
-                        .asSerializableString());
+                        .asSerializableString(sqlFactory));
     }
 
     private String getSelectList() {
@@ -139,12 +140,12 @@ public class JoinQueryOperation implements QueryOperation {
         return leftColumns + ", " + rightColumns;
     }
 
-    private String rightToSerializable() {
+    private String rightToSerializable(SqlFactory sqlFactory) {
         final StringBuilder s = new StringBuilder();
         if (!correlated) {
             s.append("(");
         }
-        s.append(OperationUtils.indent(right.asSerializableString()));
+        s.append(OperationUtils.indent(right.asSerializableString(sqlFactory)));
         if (!correlated) {
             s.append("\n)");
             s.append(" ");

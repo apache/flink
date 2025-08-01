@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.abilities.source;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
+import org.apache.flink.table.planner.utils.PartitionUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -30,7 +31,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -74,9 +74,7 @@ public final class PartitionPushDownSpec extends SourceAbilitySpecBase {
 
     @Override
     public String getDigests(SourceAbilityContext context) {
-        return "partitions=["
-                + this.partitions.stream().map(Object::toString).collect(Collectors.joining(", "))
-                + "]";
+        return "partitions=[" + PartitionUtils.sortPartitionsByKey(this.partitions) + "]";
     }
 
     @Override

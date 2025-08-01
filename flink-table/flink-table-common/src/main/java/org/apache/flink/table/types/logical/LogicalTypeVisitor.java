@@ -93,5 +93,9 @@ public interface LogicalTypeVisitor<R> {
         return visit((LogicalType) descriptorType);
     }
 
+    default R visit(VariantType variantType) {
+        return visit((LogicalType) variantType);
+    }
+
     R visit(LogicalType other);
 }

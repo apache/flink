@@ -203,8 +203,8 @@ function install_uv() {
 
     if [ ! -d "$CURRENT_DIR/.uv/venv" ]; then
         print_function "STEP" "setup uv virtualenv"
-        # Create a Python 3.11 virtual environment as the base environment.
-        $CURRENT_DIR/download/uv venv "$CURRENT_DIR/.uv" --seed --python 3.11
+        # Create a Python 3.12 virtual environment as the base environment.
+        $CURRENT_DIR/download/uv venv "$CURRENT_DIR/.uv" --seed --python 3.12
         print_function "STEP" "setup uv virtualenv... [SUCCESS]"
         # orjson depend on pip >= 20.3
         print_function "STEP" "upgrade pip..."
@@ -217,7 +217,7 @@ function install_uv() {
 
 # Create different Python virtual environments for different Python versions
 function install_py_env() {
-    py_env=("3.8" "3.9" "3.10" "3.11")
+    py_env=("3.9" "3.10" "3.11" "3.12")
     for ((i=0;i<${#py_env[@]};i++)) do
         if [ -d "$CURRENT_DIR/.uv/envs/${py_env[i]}" ]; then
             rm -rf "$CURRENT_DIR/.uv/envs/${py_env[i]}"
@@ -267,7 +267,7 @@ function install_tox() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q tox==3.14.0 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q --group "${PYPROJECT_PATH}:tox" 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "uv pip install tox failed \
         please try to exec the script again.\
@@ -291,7 +291,7 @@ function install_flake8() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q flake8==4.0.1 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q --group "${PYPROJECT_PATH}:flake8" 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "uv pip install flake8 failed \
         please try to exec the script again.\
@@ -315,7 +315,7 @@ function install_sphinx() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q Sphinx==4.5.0 importlib-metadata==4.4.0 Docutils==0.17.1 pydata_sphinx_theme==0.11.0 sphinx_mdinclude==0.5.3 "Jinja2<3.1.0" "sphinxcontrib-applehelp<1.0.8" "sphinxcontrib.devhelp<1.0.6" "sphinxcontrib.htmlhelp<2.0.5" "sphinxcontrib-serializinghtml<1.1.10" "sphinxcontrib-qthelp<1.0.7" 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q --group "${PYPROJECT_PATH}:sphinx" 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "uv pip install sphinx failed \
         please try to exec the script again.\
@@ -339,7 +339,7 @@ function install_mypy() {
             exit 1
         fi
     fi
-    ${CURRENT_DIR}/install_command.sh -q mypy==1.5.1 types-pytz types-python-dateutil 2>&1 >/dev/null
+    ${CURRENT_DIR}/install_command.sh -q --group "${PYPROJECT_PATH}:mypy" 2>&1 >/dev/null
     if [[ $? -ne 0 ]]; then
         echo "uv pip install mypy failed \
         please try to exec the script again.\
@@ -378,7 +378,7 @@ function install_environment() {
     fi
 
     # step-2 install python environment which includes
-    # 3.8 3.9 3.10 3.11
+    # 3.9 3.10 3.11 3.12
     if [ $STEP -lt 2 ] && [ `need_install_component "py_env"` = true ]; then
         print_function "STEP" "installing python environment..."
         install_py_env
@@ -559,7 +559,7 @@ function check_stage() {
 #########################
 # Tox check
 function tox_check() {
-    LATEST_PYTHON="py311"
+    LATEST_PYTHON="py312"
     print_function "STAGE" "tox checks"
     # Set created py-env in $PATH for tox's creating virtual env
     activate
@@ -677,6 +677,8 @@ CURRENT_DIR="$(cd "$( dirname "$0" )" && pwd)"
 # FLINK_PYTHON_DIR is "flink/flink-python"
 FLINK_PYTHON_DIR=$(dirname "$CURRENT_DIR")
 
+PYPROJECT_PATH="${FLINK_PYTHON_DIR}/pyproject.toml"
+
 # uv home path
 if [ -z "${FLINK_UV_HOME+x}" ]; then
     UV_HOME="$CURRENT_DIR/.uv"
@@ -731,7 +733,7 @@ create_dir $LOG_DIR
 echo >$LOG_FILE
 
 # static version of uv that we use across all envs
-UV_VERSION=0.5.23
+UV_VERSION=0.7.20
 
 # location of uv installation script
 UV_INSTALL_SH=$CURRENT_DIR/download/uv.sh

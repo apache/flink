@@ -27,12 +27,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.core.asyncprocessing.AsyncFutureImpl;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.state.StateFutureImpl;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.EpochManager;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
@@ -224,7 +225,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
         ArrayList<RecordContext<Integer>> recordContexts = new ArrayList<>(mockRecordCount);
 
         AsyncKeyedStateBackend<Integer> backend = null;
-        AsyncExecutionController<Integer> aec;
+        StateExecutionController<Integer> aec;
 
         TestAsyncFrameworkExceptionHandler testExceptionHandler =
                 new TestAsyncFrameworkExceptionHandler();
@@ -240,11 +241,12 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             new KeyGroupRange(0, jobMaxParallelism - 1),
                             env);
             aec =
-                    new AsyncExecutionController<>(
+                    new StateExecutionController<>(
                             new SyncMailboxExecutor(),
                             testExceptionHandler,
                             backend.createStateExecutor(),
                             new DeclarationManager(),
+                            EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                             jobMaxParallelism,
                             aecBatchSize,
                             aecBufferTimeout,
@@ -334,11 +336,12 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             Collections.singletonList(stateHandle),
                             env);
             aec =
-                    new AsyncExecutionController<>(
+                    new StateExecutionController<>(
                             new SyncMailboxExecutor(),
                             testExceptionHandler,
                             backend.createStateExecutor(),
                             new DeclarationManager(),
+                            EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                             jobMaxParallelism,
                             aecBatchSize,
                             aecBufferTimeout,
@@ -407,7 +410,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
 
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
-        AsyncExecutionController<Integer> aec;
+        StateExecutionController<Integer> aec;
 
         TestAsyncFrameworkExceptionHandler testExceptionHandler =
                 new TestAsyncFrameworkExceptionHandler();
@@ -422,11 +425,12 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                     createAsyncKeyedBackend(
                             i, sourceParallelism, IntSerializer.INSTANCE, range, env);
             aec =
-                    new AsyncExecutionController<>(
+                    new StateExecutionController<>(
                             new SyncMailboxExecutor(),
                             testExceptionHandler,
                             backend.createStateExecutor(),
                             new DeclarationManager(),
+                            EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                             maxParallelism,
                             aecBatchSize,
                             aecBufferTimeout,
@@ -494,11 +498,12 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             keyGroupStatesAfterDistribute.get(i),
                             env);
             aec =
-                    new AsyncExecutionController<>(
+                    new StateExecutionController<>(
                             new SyncMailboxExecutor(),
                             testExceptionHandler,
                             backend.createStateExecutor(),
                             new DeclarationManager(),
+                            EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                             maxParallelism,
                             aecBatchSize,
                             aecBufferTimeout,
@@ -601,12 +606,13 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
         AsyncKeyedStateBackend<Long> backend =
                 createAsyncKeyedBackend(
                         0, 1, LongSerializer.INSTANCE, new KeyGroupRange(0, 127), env);
-        AsyncExecutionController<Long> aec =
-                new AsyncExecutionController<>(
+        StateExecutionController<Long> aec =
+                new StateExecutionController<>(
                         new SyncMailboxExecutor(),
                         testExceptionHandler,
                         backend.createStateExecutor(),
                         new DeclarationManager(),
+                        EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                         128,
                         1,
                         -1,
@@ -685,7 +691,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
     }
 
     static class TestAsyncFrameworkExceptionHandler
-            implements StateFutureImpl.AsyncFrameworkExceptionHandler {
+            implements AsyncFutureImpl.AsyncFrameworkExceptionHandler {
         String message = null;
         Throwable exception = null;
 

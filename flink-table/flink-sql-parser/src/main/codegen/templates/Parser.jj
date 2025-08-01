@@ -54,6 +54,7 @@ import org.apache.calcite.sql.SqlDynamicParam;
 import org.apache.calcite.sql.SqlExplain;
 import org.apache.calcite.sql.SqlExplainFormat;
 import org.apache.calcite.sql.SqlExplainLevel;
+import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlHint;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -75,6 +76,7 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlMatchRecognize;
 import org.apache.calcite.sql.SqlMerge;
+import org.apache.calcite.sql.SqlMapTypeNameSpec;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlNumericLiteral;
@@ -113,6 +115,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.parser.SqlParserUtil;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlConformance;
+import org.apache.calcite.sql.validate.SqlConformanceEnum;
 import org.apache.calcite.util.Glossary;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.SourceStringReader;
@@ -155,6 +158,7 @@ public class ${parser.class} extends SqlAbstractParserImpl
         SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO);
     private static final SqlLiteral LITERAL_MINUS_ONE =
         SqlLiteral.createExactNumeric("-1", SqlParserPos.ZERO);
+    private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100L);
 
     private static Metadata metadata;
 
@@ -756,18 +760,28 @@ void FetchClause(SqlNode[] offsetFetch) :
  */
 void LimitClause(Span s, SqlNode[] offsetFetch) :
 {
+    final String error;
 }
 {
     // Postgres-style syntax. "LIMIT ... OFFSET ..."
     <LIMIT> { s.add(this); }
     (
-        // MySQL-style syntax. "LIMIT start, count"
+        // MySQL-style syntax. "LIMIT start, count" or "LIMIT start, ALL"
         LOOKAHEAD(2)
         offsetFetch[0] = UnsignedNumericLiteralOrParam()
-        <COMMA> offsetFetch[1] = UnsignedNumericLiteralOrParam() {
+        <COMMA>
+        (
+            offsetFetch[1] = UnsignedNumericLiteralOrParam() {
+                error = "count";
+            }
+        |
+            <ALL> {
+                error = "ALL";
+            }
+        ) {
             if (!this.conformance.isLimitStartCountAllowed()) {
                 throw SqlUtil.newContextException(s.end(this),
-                    RESOURCE.limitStartCountNotAllowed());
+                    RESOURCE.limitStartCountOrAllNotAllowed(error));
             }
         }
     |
@@ -1133,6 +1147,11 @@ SqlNode SqlStmt() :
 </#if>
 <#if (parser.dropStatementParserMethods!default.parser.dropStatementParserMethods)?size != 0>
         stmt = SqlDrop()
+    |
+</#if>
+<#if (parser.truncateStatementParserMethods!default.parser.truncateStatementParserMethods)?size != 0>
+        LOOKAHEAD(2)
+        stmt = SqlTruncate()
     |
 </#if>
         stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
@@ -1970,8 +1989,8 @@ SqlLiteral JoinType() :
 }
 {
     (
-    LOOKAHEAD(3) // required for "LEFT SEMI JOIN" in Babel
 <#list (parser.joinTypes!default.parser.joinTypes) as method>
+        LOOKAHEAD(3) // required for "LEFT SEMI JOIN" and "LEFT ANTI JOIN" in Babel
         joinType = ${method}()
     |
 </#list>
@@ -2269,7 +2288,7 @@ SqlNode Tablesample(SqlNode tableRef) :
             SqlSampleSpec sampleSpec = SqlSampleSpec.createNamed(sampleName);
             final SqlLiteral sampleLiteral =
                 SqlLiteral.createSample(sampleSpec, s.end(this));
-            tableRef = SqlStdOperatorTable.TABLESAMPLE.createCall(
+            return SqlStdOperatorTable.TABLESAMPLE.createCall(
                 s.add(tableRef).end(this), tableRef, sampleLiteral);
         }
     |
@@ -2286,36 +2305,19 @@ SqlNode Tablesample(SqlNode tableRef) :
             }
         ]
         {
-            final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100L);
-            BigDecimal rate = samplePercentage.bigDecimalValue();
-            if (rate.compareTo(BigDecimal.ZERO) < 0
-                || rate.compareTo(ONE_HUNDRED) > 0)
-            {
-                throw SqlUtil.newContextException(getPos(), RESOURCE.invalidSampleSize());
-            }
-
-            // Treat TABLESAMPLE(0) and TABLESAMPLE(100) as no table
-            // sampling at all.  Not strictly correct: TABLESAMPLE(0)
-            // should produce no output, but it simplifies implementation
-            // to know that some amount of sampling will occur.
-            // In practice values less than ~1E-43% are treated as 0.0 and
-            // values greater than ~99.999997% are treated as 1.0
-            float fRate = rate.divide(ONE_HUNDRED).floatValue();
-            if (fRate > 0.0f && fRate < 1.0f) {
-                SqlSampleSpec tableSampleSpec =
-                    isRepeatable
-                        ? SqlSampleSpec.createTableSample(
-                            isBernoulli, fRate, repeatableSeed)
-                        : SqlSampleSpec.createTableSample(isBernoulli, fRate);
-
-                SqlLiteral tableSampleLiteral =
-                    SqlLiteral.createSample(tableSampleSpec, s.end(this));
-                tableRef = SqlStdOperatorTable.TABLESAMPLE.createCall(
-                    s.end(this), tableRef, tableSampleLiteral);
-            }
+            BigDecimal rate =
+                samplePercentage.bigDecimalValue().divide(ONE_HUNDRED);
+            SqlSampleSpec tableSampleSpec =
+                isRepeatable
+                    ? SqlSampleSpec.createTableSample(isBernoulli, rate,
+                        repeatableSeed)
+                    : SqlSampleSpec.createTableSample(isBernoulli, rate);
+            SqlLiteral tableSampleLiteral =
+                SqlLiteral.createSample(tableSampleSpec, s.end(this));
+            return SqlStdOperatorTable.TABLESAMPLE.createCall(
+                s.end(this), tableRef, tableSampleLiteral);
         }
     )
-    { return tableRef; }
 }
 
 /** Wraps a table reference in a call to EXTEND if an optional "EXTEND" clause
@@ -3523,14 +3525,16 @@ SqlNodeList WithList() :
 {
     final Span s;
     final List<SqlWithItem> list = new ArrayList<SqlWithItem>();
+    boolean recursive = false;
 }
 {
-    <WITH> { s = span(); }
-    AddWithItem(list) ( <COMMA> AddWithItem(list) )*
+    <WITH> [ <RECURSIVE> { recursive = true; } ]{ s = span(); }
+    AddWithItem(list, SqlLiteral.createBoolean(recursive, getPos()))
+    ( <COMMA> AddWithItem(list, SqlLiteral.createBoolean(recursive, getPos())) )*
     { return new SqlNodeList(list, s.end(this)); }
 }
 
-void AddWithItem(List<SqlWithItem> list) :
+void AddWithItem(List<SqlWithItem> list, SqlLiteral recursive) :
 {
     final SqlIdentifier id;
     final SqlNodeList columnList;
@@ -3541,7 +3545,7 @@ void AddWithItem(List<SqlWithItem> list) :
     ( columnList = ParenthesizedSimpleIdentifierList() | { columnList = null; } )
     <AS>
     definition = ParenthesizedExpression(ExprContext.ACCEPT_QUERY)
-    { list.add(new SqlWithItem(id.getParserPosition(), id, columnList, definition)); }
+    { list.add(new SqlWithItem(id.getParserPosition(), id, columnList, definition, recursive)); }
 }
 
 /**
@@ -3627,6 +3631,7 @@ List<Object> Expression2(ExprContext exprContext) :
     final List<Object> list3 = new ArrayList();
     SqlNodeList nodeList;
     SqlNode e;
+    SqlOperator itemOp;
     SqlOperator op;
     SqlIdentifier p;
     final Span s = span();
@@ -3767,11 +3772,12 @@ List<Object> Expression2(ExprContext exprContext) :
                 AddExpression2b(list, ExprContext.ACCEPT_SUB_QUERY)
             |
                 <LBRACKET>
+                itemOp = getItemOp()
                 e = Expression(ExprContext.ACCEPT_SUB_QUERY)
                 <RBRACKET> {
                     list.add(
                         new SqlParserUtil.ToTreeListItem(
-                            SqlStdOperatorTable.ITEM, getPos()));
+                            itemOp, getPos()));
                     list.add(e);
                 }
                 (
@@ -3800,6 +3806,22 @@ List<Object> Expression2(ExprContext exprContext) :
             return list;
         }
     )
+}
+
+/** Returns the appropriate ITEM operator for indexing arrays. */
+SqlOperator getItemOp() :
+{
+}
+{
+    <OFFSET> { return SqlLibraryOperators.OFFSET; }
+|
+    <ORDINAL> { return SqlLibraryOperators.ORDINAL; }
+|
+    <SAFE_OFFSET> { return SqlLibraryOperators.SAFE_OFFSET; }
+|
+    <SAFE_ORDINAL> { return SqlLibraryOperators.SAFE_ORDINAL; }
+|
+    { return SqlStdOperatorTable.ITEM; }
 }
 
 /** Parses a comparison operator inside a SOME / ALL predicate. */
@@ -4077,6 +4099,59 @@ SqlCall StringAggFunctionCall() :
 }
 
 /**
+ * Parses both the standard and the BigQuery PERCENTILE_CONT/PERCENTILE_DISC
+ * functions.
+ *
+ * <p>The standard is of the form "PERCENTILE_CONT(fraction)" while BigQuery is
+ * of the form "PERCENTILE_CONT(value, fraction [ {RESPECT | IGNORE} NULLS ] )".
+ * Handles the parsing of the operator and its operands but not the WITHIN GROUP
+ * (for the standard) or OVER (for BigQuery) clauses.
+ */
+SqlCall PercentileFunctionCall() :
+{
+   final Span s;
+   SqlOperator op;
+   final SqlNode e;
+   final List<SqlNode> args = new ArrayList<SqlNode>();
+   final Pair<SqlParserPos, SqlOperator> nullTreatment;
+}
+{
+   (
+       <PERCENTILE_CONT> { op = SqlStdOperatorTable.PERCENTILE_CONT; }
+   |   <PERCENTILE_DISC> { op = SqlStdOperatorTable.PERCENTILE_DISC; }
+   )
+   { s = span(); }
+   <LPAREN>
+   AddArg(args, ExprContext.ACCEPT_SUB_QUERY)
+   (
+       <RPAREN> {
+           return op.createCall(s.end(this), args);
+       }
+   |
+       <COMMA>
+       e = NumericLiteral() { args.add(e); }
+       (
+           nullTreatment = NullTreatment()
+       |   { nullTreatment = null; }
+       )
+       <RPAREN>
+       {
+           op =
+               op == SqlStdOperatorTable.PERCENTILE_CONT
+                   ? SqlLibraryOperators.PERCENTILE_CONT2
+                   : SqlLibraryOperators.PERCENTILE_DISC2;
+           SqlCall call = op.createCall(s.end(this), args);
+           if (nullTreatment != null) {
+               // Wrap in RESPECT_NULLS or IGNORE_NULLS.
+               call = nullTreatment.right.createCall(nullTreatment.left, call);
+           }
+           return call;
+       }
+   )
+}
+
+
+/**
  * Parses an atomic row expression.
  */
 SqlNode AtomicRowExpression() :
@@ -4320,6 +4395,30 @@ SqlDrop SqlDrop() :
 }
 </#if>
 
+<#if (parser.truncateStatementParserMethods!default.parser.truncateStatementParserMethods)?size != 0>
+/**
+ * Parses a TRUNCATE statement.
+ */
+SqlTruncate SqlTruncate() :
+{
+    final Span s;
+    final SqlTruncate truncate;
+}
+{
+    <TRUNCATE> { s = span(); }
+    (
+<#-- additional literal parser methods are included here -->
+<#list (parser.truncateStatementParserMethods!default.parser.truncateStatementParserMethods) as method>
+        truncate = ${method}(s)
+        <#sep>|</#sep>
+</#list>
+    )
+    {
+        return truncate;
+    }
+}
+</#if>
+
 /**
  * Parses a literal expression, allowing continued string literals.
  * Usually returns an SqlLiteral, but a continued string literal
@@ -4390,6 +4489,7 @@ SqlNode LiteralOrIntervalExpression() :
 /** Parses a unsigned numeric literal */
 SqlNumericLiteral UnsignedNumericLiteral() :
 {
+final String p;
 }
 {
     <UNSIGNED_INTEGER_LITERAL> {
@@ -4398,6 +4498,11 @@ SqlNumericLiteral UnsignedNumericLiteral() :
 |
     <DECIMAL_NUMERIC_LITERAL> {
         return SqlLiteral.createExactNumeric(token.image, getPos());
+    }
+|
+    <DECIMAL>
+    p = SimpleStringLiteral() {
+        return SqlParserUtil.parseDecimalLiteral(SqlParserUtil.trim(p, " "), getPos());
     }
 |
     <APPROX_NUMERIC_LITERAL> {
@@ -4738,7 +4843,7 @@ SqlNode MultisetConstructor() :
 /** Parses an ARRAY constructor */
 SqlNode ArrayConstructor() :
 {
-    SqlNodeList args;
+    final SqlNodeList args;
     SqlNode e;
     final Span s;
     final String p;
@@ -4746,14 +4851,22 @@ SqlNode ArrayConstructor() :
 {
     <ARRAY> { s = span(); }
     (
-        LOOKAHEAD(1)
-        <LPAREN>
-        // by sub query "MULTISET(SELECT * FROM T)"
-        e = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
-        <RPAREN>
+        (
+            // nullary array function call: "array()" (Apache Spark)
+            LOOKAHEAD(2)
+            <LPAREN> <RPAREN> { args = SqlNodeList.EMPTY; }
+        |
+            args = ParenthesizedQueryOrCommaList(ExprContext.ACCEPT_ALL)
+        )
         {
-            return SqlStdOperatorTable.ARRAY_QUERY.createCall(
-                s.end(this), e);
+            if (args.size() == 1 && args.get(0).isA(SqlKind.QUERY)) {
+                // Array query constructor, 'ARRAY (SELECT * FROM t)'
+                return SqlStdOperatorTable.ARRAY_QUERY.createCall(s.end(this), args.get(0));
+            } else {
+                // Spark ARRAY function, 'ARRAY(1, 2)',
+                // equivalent to standard 'ARRAY [1, 2]'
+                return SqlLibraryOperators.ARRAY.createCall(s.end(this), args.getList());
+            }
         }
     |
         // by enumeration "ARRAY[e0, e1, ..., eN]"
@@ -4814,14 +4927,21 @@ SqlNode MapConstructor() :
 {
     <MAP> { s = span(); }
     (
-        LOOKAHEAD(1)
-        <LPAREN>
-        // by sub query "MAP (SELECT empno, deptno FROM emp)"
-        e = LeafQueryOrExpr(ExprContext.ACCEPT_QUERY)
-        <RPAREN>
+        (
+            // empty map function call: "map()"
+            LOOKAHEAD(2)
+            <LPAREN> <RPAREN> { args = SqlNodeList.EMPTY; }
+        |
+            args = ParenthesizedQueryOrCommaList(ExprContext.ACCEPT_ALL)
+        )
         {
-            return SqlStdOperatorTable.MAP_QUERY.createCall(
-                s.end(this), e);
+            if (args.size() == 1 && args.get(0).isA(SqlKind.QUERY)) {
+                // MAP query constructor e.g. "MAP (SELECT empno, deptno FROM emps)"
+                return SqlStdOperatorTable.MAP_QUERY.createCall(s.end(this), args.get(0));
+            } else {
+                // MAP function e.g. "MAP(1, 2)" equivalent to standard "MAP[1, 2]"
+                return SqlLibraryOperators.MAP.createCall(s.end(this), args.getList());
+            }
         }
     |
         // by enumeration "MAP[k0, v0, ..., kN, vN]"
@@ -5165,6 +5285,8 @@ SqlIntervalQualifier TimeUnit() : {
 |   <MINUTE> { return new SqlIntervalQualifier(TimeUnit.MINUTE, null, getPos()); }
 |   <HOUR> { return new SqlIntervalQualifier(TimeUnit.HOUR, null, getPos()); }
 |   <DAY> { return new SqlIntervalQualifier(TimeUnit.DAY, null, getPos()); }
+|   <DAYOFWEEK> { return new SqlIntervalQualifier(TimeUnit.DOW, null, getPos()); }
+|   <DAYOFYEAR> { return new SqlIntervalQualifier(TimeUnit.DOY, null, getPos()); }
 |   <DOW> { return new SqlIntervalQualifier(TimeUnit.DOW, null, getPos()); }
 |   <DOY> { return new SqlIntervalQualifier(TimeUnit.DOY, null, getPos()); }
 |   <ISODOW> { return new SqlIntervalQualifier(TimeUnit.ISODOW, null, getPos()); }
@@ -5617,6 +5739,9 @@ SqlTypeNameSpec TypeName() :
     |
         typeNameSpec = RowTypeName()
     |
+        LOOKAHEAD(2)
+        typeNameSpec = MapTypeName()
+    |
         typeName = CompoundIdentifier() {
             typeNameSpec = new SqlUserDefinedTypeNameSpec(typeName, s.end(this));
         }
@@ -5680,6 +5805,8 @@ SqlTypeNameSpec SqlTypeName1(Span s) :
         [ <PRECISION> ] { sqlTypeName = SqlTypeName.DOUBLE; }
     |
         <FLOAT> { s.add(this); sqlTypeName = SqlTypeName.FLOAT; }
+    |
+        <VARIANT> { s.add(this); sqlTypeName = SqlTypeName.VARIANT; }
     )
     {
         return new SqlBasicTypeNameSpec(sqlTypeName, s.end(this));
@@ -5889,6 +6016,23 @@ SqlTypeNameSpec RowTypeName() :
     }
 }
 
+SqlTypeNameSpec MapTypeName() :
+{
+    SqlDataTypeSpec keyType = null;
+    SqlDataTypeSpec valType = null;
+}
+{
+    <MAP>
+    <LT>
+    keyType = DataType()
+    <COMMA>
+    valType = DataType()
+    <GT>
+    {
+        return new SqlMapTypeNameSpec(keyType, valType, getPos());
+    }
+}
+
 /**
 * Parse character types: char, varchar.
 */
@@ -6032,11 +6176,17 @@ SqlNode BuiltinFunctionCall() :
     SqlDataTypeSpec dt;
     final SqlIntervalQualifier unit;
     final SqlNode node;
+    final SqlLiteral style; // mssql convert 'style' operand
+    final SqlFunction f;
 }
 {
     //~ FUNCTIONS WITH SPECIAL SYNTAX ---------------------------------------
     (
-        <CAST> { s = span(); }
+        (  <CAST> { f = SqlStdOperatorTable.CAST; }
+        | <SAFE_CAST> { f = SqlLibraryOperators.SAFE_CAST; }
+        | <TRY_CAST> { f = SqlLibraryOperators.TRY_CAST; }
+        )
+        { s = span(); }
         <LPAREN> AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
         <AS>
         (
@@ -6045,7 +6195,7 @@ SqlNode BuiltinFunctionCall() :
             <INTERVAL> e = IntervalQualifier() { args.add(e); }
         )
         <RPAREN> {
-            return SqlStdOperatorTable.CAST.createCall(s.end(this), args);
+            return f.createCall(s.end(this), args);
         }
     |
         <EXTRACT> { s = span(); }
@@ -6073,11 +6223,47 @@ SqlNode BuiltinFunctionCall() :
     |
         <CONVERT> { s = span(); }
         <LPAREN>
-        AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
-        <USING> name = SimpleIdentifier() { args.add(name); }
-        <RPAREN> {
-            return SqlStdOperatorTable.CONVERT.createCall(s.end(this), args);
-        }
+        (
+            // CONVERT in the form of CONVERT(x USING y)
+
+            // "AddExpression" matches INTERVAL,
+            // which can also be 1st token in args of MSSQL CONVERT
+            // So lookahead another token (to match <USING> vs. <COMMA>)
+            LOOKAHEAD(2)
+            AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
+            (
+                <USING> name = SimpleIdentifier() { args.add(name); }
+                <RPAREN> {
+                    return SqlStdOperatorTable.TRANSLATE.createCall(s.end(this), args);
+                }
+            |
+                <COMMA> e = SimpleIdentifier() { args.add(e); }
+                <COMMA> e = SimpleIdentifier() { args.add(e); }
+                <RPAREN> {
+                    return SqlStdOperatorTable.CONVERT.createCall(s.end(this), args);
+                }
+            )
+        |
+            // MSSql CONVERT(type, val [,style])
+            (
+                dt = DataType() { args.add(dt); }
+            |
+                <INTERVAL> e = IntervalQualifier() { args.add(e); }
+            )
+            <COMMA>
+            AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
+            [
+                <COMMA>
+                (
+                    style = UnsignedNumericLiteral() { args.add(style); }
+                |
+                    <NULL> { args.add(SqlLiteral.createNull(getPos())); }
+                )
+            ]
+            <RPAREN> {
+                return SqlLibraryOperators.MSSQL_CONVERT.createCall(s.end(this), args);
+            }
+        )
     |
         <TRANSLATE> { s = span(); }
         <LPAREN>
@@ -6188,11 +6374,15 @@ SqlNode BuiltinFunctionCall() :
             return SqlStdOperatorTable.TRIM.createCall(s.end(this), args);
         }
     |
+        node = ContainsSubstrFunctionCall() { return node; }
+    |
         node = DateTimeConstructorCall() { return node; }
     |
         node = DateDiffFunctionCall() { return node; }
     |
         node = DateTruncFunctionCall() { return node; }
+    |
+        node = DatetimeTruncFunctionCall() { return node; }
     |
         node = TimestampAddFunctionCall() { return node; }
     |
@@ -6711,6 +6901,32 @@ SqlCall JsonArrayAggFunctionCall() :
     }
 }
 
+ /**
+ * Parses the CONTAINS_SUBSTR function, which has a unique optional third argument "JSON_SCOPE"
+ * that specifies what scope to search if the first argument is a JSON string.
+ */
+ SqlCall ContainsSubstrFunctionCall() :
+ {
+    final List<SqlNode> args = new ArrayList<SqlNode>();
+    final Span s;
+    SqlNode e;
+ }
+ {
+     <CONTAINS_SUBSTR> { s = span(); }
+     <LPAREN>
+     AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
+     <COMMA>
+     AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
+     (
+        <RPAREN>
+     |
+        <COMMA>
+        <JSON_SCOPE>
+        <NAMED_ARGUMENT_ASSIGNMENT> e = Expression(ExprContext.ACCEPT_SUB_QUERY)  { args.add(e); }
+        <RPAREN>
+     ) { return SqlLibraryOperators.CONTAINS_SUBSTR.createCall(s.end(this), args); }
+ }
+
 /**
  * Parses a call to BigQuery's DATE_DIFF.
  */
@@ -6895,6 +7111,27 @@ SqlCall TimeDiffFunctionCall() :
     unit = TimeUnitOrName() { args.add(unit); }
     <RPAREN> {
         return SqlLibraryOperators.TIME_DIFF.createCall(s.end(this), args);
+    }
+}
+
+/**
+ * Parses a call to DATETIME_TRUNC.
+ */
+SqlNode DatetimeTruncFunctionCall() :
+{
+    final List<SqlNode> args = new ArrayList<SqlNode>();
+    final Span s;
+    final SqlIntervalQualifier unit;
+    final SqlNode literal;
+}
+{
+    <DATETIME_TRUNC> { s = span(); }
+    <LPAREN>
+    AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
+    <COMMA>
+    unit = TimeUnitOrName() { args.add(unit); }
+    <RPAREN> {
+        return SqlLibraryOperators.DATETIME_TRUNC.createCall(s.end(this), args);
     }
 }
 
@@ -7133,6 +7370,9 @@ SqlNode NamedFunctionCall() :
         LOOKAHEAD(2)
         call = StringAggFunctionCall()
     |
+        LOOKAHEAD(1)
+        call = PercentileFunctionCall()
+    |
         call = NamedCall()
     )
     [
@@ -7229,9 +7469,7 @@ SqlNode StandardFloorCeilOptions(Span s, boolean floorFlag) :
         }
     )?
     <RPAREN> {
-        SqlOperator op = floorFlag
-            ? SqlStdOperatorTable.FLOOR
-            : SqlStdOperatorTable.CEIL;
+        SqlOperator op = SqlStdOperatorTable.floorCeil(floorFlag, this.conformance);
         function =  op.createCall(s.end(this), args);
     }
     (
@@ -7334,9 +7572,9 @@ SqlIdentifier ReservedFunctionName() :
     |   <NTILE>
     |   <NULLIF>
     |   <OCTET_LENGTH>
-    |   <PERCENT_RANK>
     |   <PERCENTILE_CONT>
     |   <PERCENTILE_DISC>
+    |   <PERCENT_RANK>
     |   <POWER>
     |   <RANK>
     |   <REGR_COUNT>
@@ -7405,6 +7643,12 @@ SqlNode JdbcFunctionCall() :
         s = span();
     }
     (
+        LOOKAHEAD(1)
+        call = ContainsSubstrFunctionCall() {
+            name = call.getOperator().getName();
+            args = new SqlNodeList(call.getOperandList(), getPos());
+        }
+    |
         LOOKAHEAD(1)
         call = DateDiffFunctionCall() {
             name = call.getOperator().getName();
@@ -7792,6 +8036,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < CONSTRAINTS: "CONSTRAINTS" >
 |   < CONSTRUCTOR: "CONSTRUCTOR" >
 |   < CONTAINS: "CONTAINS" >
+|   < CONTAINS_SUBSTR: "CONTAINS_SUBSTR" >
 |   < CONTINUE: "CONTINUE" >
 |   < CONVERT: "CONVERT" >
 |   < CORR: "CORR" >
@@ -7821,13 +8066,16 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < DATA: "DATA" >
 |   < DATABASE: "DATABASE" >
 |   < DATE: "DATE" >
+|   < DATE_DIFF: "DATE_DIFF" >
 |   < DATE_TRUNC: "DATE_TRUNC" >
 |   < DATETIME: "DATETIME" >
 |   < DATETIME_DIFF: "DATETIME_DIFF" >
 |   < DATETIME_INTERVAL_CODE: "DATETIME_INTERVAL_CODE" >
 |   < DATETIME_INTERVAL_PRECISION: "DATETIME_INTERVAL_PRECISION" >
-|   < DATE_DIFF: "DATE_DIFF" >
+|   < DATETIME_TRUNC: "DATETIME_TRUNC" >
 |   < DAY: "DAY" >
+|   < DAYOFWEEK: "DAYOFWEEK" >
+|   < DAYOFYEAR: "DAYOFYEAR" >
 |   < DAYS: "DAYS" >
 |   < DEALLOCATE: "DEALLOCATE" >
 |   < DEC: "DEC" >
@@ -7975,6 +8223,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < JSON_OBJECT: "JSON_OBJECT">
 |   < JSON_OBJECTAGG: "JSON_OBJECTAGG">
 |   < JSON_QUERY: "JSON_QUERY" >
+|   < JSON_SCOPE: "JSON_SCOPE" >
 |   < JSON_VALUE: "JSON_VALUE" >
 |   < K: "K" >
 |   < KEY: "KEY" >
@@ -8074,6 +8323,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < OR: "OR" >
 |   < ORDER: "ORDER" >
 |   < ORDERING: "ORDERING" >
+|   < ORDINAL: "ORDINAL" >
 |   < ORDINALITY: "ORDINALITY" >
 |   < OTHERS: "OTHERS" >
 |   < OUT: "OUT" >
@@ -8177,6 +8427,9 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < ROW_NUMBER: "ROW_NUMBER" >
 |   < ROWS: "ROWS" >
 |   < RUNNING: "RUNNING" >
+|   < SAFE_CAST: "SAFE_CAST" >
+|   < SAFE_OFFSET: "SAFE_OFFSET" >
+|   < SAFE_ORDINAL: "SAFE_ORDINAL" >
 |   < SATURDAY: "SATURDAY" >
 |   < SAVEPOINT: "SAVEPOINT" >
 |   < SCALAR: "SCALAR" >
@@ -8335,6 +8588,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < TRIM_ARRAY: "TRIM_ARRAY" >
 |   < TRUE: "TRUE" >
 |   < TRUNCATE: "TRUNCATE" >
+|   < TRY_CAST: "TRY_CAST" >
 |   < TUESDAY: "TUESDAY" >
 |   < TUMBLE: "TUMBLE" >
 |   < TYPE: "TYPE" >
@@ -8369,6 +8623,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < VAR_SAMP: "VAR_SAMP" >
 |   < VARBINARY: "VARBINARY" >
 |   < VARCHAR: "VARCHAR" >
+|   < VARIANT: "VARIANT" >
 |   < VARYING: "VARYING" >
 |   < VERSION: "VERSION" >
 |   < VERSIONING: "VERSIONING" >
@@ -8777,7 +9032,11 @@ MORE :
 
 <DEFAULT, DQID, BTID, BQID> TOKEN :
 {
-    < IDENTIFIER: <LETTER> (<LETTER>|<DIGIT>)* >
+    <#if parser.customIdentifierToken?has_content>
+        ${parser.customIdentifierToken}
+    <#else>
+        < IDENTIFIER: <LETTER> (<LETTER>|<DIGIT>)* >
+    </#if>
 }
 
 <DEFAULT, DQID, BTID, BQID, BQHID> TOKEN :

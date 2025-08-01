@@ -93,7 +93,8 @@ public class CachedDataInputStream extends FSDataInputStream implements ByteBuff
      * Retrieves the appropriate input stream for reading data. This method attempts to use the
      * cached stream if it is available and valid. If the cached stream is not available, it falls
      * back to the original stream. The method also handles the transition between cached and
-     * original streams based on the current status of the stream.
+     * original streams based on the current status of the stream. The invoker must ensure to
+     * release the cache stream after use.
      *
      * @return the input stream to be used for reading data
      * @throws IOException if an I/O error occurs while accessing the stream
@@ -102,15 +103,18 @@ public class CachedDataInputStream extends FSDataInputStream implements ByteBuff
         if (isFlinkThread()) {
             cacheEntry.touch();
         }
-        FSDataInputStream stream = tryGetCacheStream();
-        if (stream != null) {
-            fileBasedCache.incHitCounter();
-            return stream;
-        }
-
-        if (streamStatus == StreamStatus.CACHED_CLOSED
-                || streamStatus == StreamStatus.CACHED_CLOSING) {
+        int round = 0;
+        // Repeat at most 3 times. If fails, we will get the original stream for read.
+        while (round++ < 3) {
+            // Firstly, we try to get cache stream
+            FSDataInputStream stream = tryGetCacheStream();
+            if (stream != null) {
+                fileBasedCache.incHitCounter();
+                return stream;
+            }
+            // No cache stream
             if (streamStatus == StreamStatus.CACHED_CLOSING) {
+                // if closing, update the position
                 try {
                     semaphore.acquire(1);
                 } catch (InterruptedException e) {
@@ -119,62 +123,78 @@ public class CachedDataInputStream extends FSDataInputStream implements ByteBuff
                 originalStream.seek(position);
                 position = -1;
                 LOG.trace(
-                        "Stream {} status from {} to {}",
+                        "Cached Stream {} status from {} to {}",
                         cacheEntry.cachePath,
                         streamStatus,
                         StreamStatus.CACHED_CLOSED);
                 streamStatus = StreamStatus.CACHED_CLOSED;
             }
-            // try reopen
-            tryReopen();
-            stream = tryGetCacheStream();
-            if (stream != null) {
-                fileBasedCache.incHitCounter();
-                return stream;
-            }
-            fileBasedCache.incMissCounter();
-            return originalStream;
-        } else if (streamStatus == StreamStatus.ORIGINAL) {
-            fileBasedCache.incMissCounter();
-            return originalStream;
-        } else {
-            if (streamStatus == StreamStatus.CACHED_OPEN) {
-                stream = tryGetCacheStream();
+            // if it is CACHED_CLOSED, we try to reopen it
+            if (streamStatus == StreamStatus.CACHED_CLOSED) {
+                stream = tryReopenCachedStream();
                 if (stream != null) {
                     fileBasedCache.incHitCounter();
                     return stream;
                 }
+                fileBasedCache.incMissCounter();
+                return originalStream;
+            } else if (streamStatus == StreamStatus.ORIGINAL) {
+                fileBasedCache.incMissCounter();
+                return originalStream;
+            } else {
+                // The stream is not closed, but we cannot get the cache stream.
+                // Meaning that it is in the process of closing, but the status has not been
+                // updated. Thus, we'd better retry here until it reach a stable state (CLOSING).
+                Thread.yield();
             }
-            fileBasedCache.incMissCounter();
-            return originalStream;
         }
+        return originalStream;
     }
 
+    /**
+     * Attempts to retrieve the cached stream if it is open and the reference count is greater than
+     * zero. If successful, it retains the reference count and returns the cached stream. The
+     * invoker must ensure to release the stream after use.
+     *
+     * @return the cached stream if available, or null if not
+     */
     private FSDataInputStream tryGetCacheStream() {
         if (streamStatus == StreamStatus.CACHED_OPEN && cacheEntry.tryRetain() > 0) {
-            return fsdis;
+            // Double-check the status as it may change after retain.
+            if (streamStatus == StreamStatus.CACHED_OPEN) {
+                return fsdis;
+            }
         }
         return null;
     }
 
-    private void tryReopen() {
+    /**
+     * Attempts to reopen the cached stream if it is closed and the current thread is a Flink
+     * thread. If successful, it updates the stream status and seeks to the original stream's
+     * position. Reference counting is retained, the invoked thread must dereference the stream
+     * after use.
+     *
+     * @return the reopened cached stream, or null if reopening fails
+     */
+    private FSDataInputStream tryReopenCachedStream() {
         if (streamStatus == StreamStatus.CACHED_CLOSED && isFlinkThread()) {
             try {
                 fsdis = cacheEntry.getCacheStream();
                 if (fsdis != null) {
                     LOG.trace(
-                            "Stream {} status from {} to {}",
+                            "Cached Stream {} status from {} to {}",
                             cacheEntry.cachePath,
                             streamStatus,
                             StreamStatus.CACHED_OPEN);
                     fsdis.seek(originalStream.getPos());
                     streamStatus = StreamStatus.CACHED_OPEN;
-                    cacheEntry.release();
+                    return fsdis;
                 }
             } catch (IOException e) {
                 LOG.warn("Reopen stream error.", e);
             }
         }
+        return null;
     }
 
     /**
@@ -196,72 +216,87 @@ public class CachedDataInputStream extends FSDataInputStream implements ByteBuff
         }
     }
 
-    private void finish() {
-        if (streamStatus == StreamStatus.CACHED_OPEN) {
-            cacheEntry.release();
-        }
-    }
-
     @Override
     public void seek(long desired) throws IOException {
+        FSDataInputStream stream = getStream();
         try {
-            getStream().seek(desired);
+            stream.seek(desired);
         } finally {
-            finish();
+            if (stream != originalStream) {
+                cacheEntry.release();
+            }
         }
     }
 
     @Override
     public long getPos() throws IOException {
+        FSDataInputStream stream = getStream();
         try {
-            return getStream().getPos();
+            return stream.getPos();
         } finally {
-            finish();
+            if (stream != originalStream) {
+                cacheEntry.release();
+            }
         }
     }
 
     @Override
     public int read() throws IOException {
+        FSDataInputStream stream = getStream();
         try {
-            return getStream().read();
+            return stream.read();
         } finally {
-            finish();
+            if (stream != originalStream) {
+                cacheEntry.release();
+            }
         }
     }
 
     @Override
     public int read(byte[] b) throws IOException {
+        FSDataInputStream stream = getStream();
         try {
-            return getStream().read(b);
+            return stream.read(b);
         } finally {
-            finish();
+            if (stream != originalStream) {
+                cacheEntry.release();
+            }
         }
     }
 
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
+        FSDataInputStream stream = getStream();
         try {
-            return getStream().read(b, off, len);
+            return stream.read(b, off, len);
         } finally {
-            finish();
+            if (stream != originalStream) {
+                cacheEntry.release();
+            }
         }
     }
 
     @Override
     public long skip(long n) throws IOException {
+        FSDataInputStream stream = getStream();
         try {
-            return getStream().skip(n);
+            return stream.skip(n);
         } finally {
-            finish();
+            if (stream != originalStream) {
+                cacheEntry.release();
+            }
         }
     }
 
     @Override
     public int available() throws IOException {
+        FSDataInputStream stream = getStream();
         try {
-            return getStream().available();
+            return stream.available();
         } finally {
-            finish();
+            if (stream != originalStream) {
+                cacheEntry.release();
+            }
         }
     }
 
@@ -281,32 +316,45 @@ public class CachedDataInputStream extends FSDataInputStream implements ByteBuff
     @Override
     public void mark(int readlimit) {
         try {
-            getStream().mark(readlimit);
+            FSDataInputStream stream = getStream();
+            try {
+                stream.mark(readlimit);
+            } finally {
+                if (stream != originalStream) {
+                    cacheEntry.release();
+                }
+            }
         } catch (Exception e) {
             LOG.warn("Mark error.", e);
-        } finally {
-            finish();
         }
     }
 
     @Override
     public void reset() throws IOException {
+        FSDataInputStream stream = getStream();
         try {
-            getStream().reset();
+            stream.reset();
         } finally {
-            finish();
+            if (stream != originalStream) {
+                cacheEntry.release();
+            }
         }
     }
 
     @Override
     public boolean markSupported() {
         try {
-            return getStream().markSupported();
+            FSDataInputStream stream = getStream();
+            try {
+                return stream.markSupported();
+            } finally {
+                if (stream != originalStream) {
+                    cacheEntry.release();
+                }
+            }
         } catch (IOException e) {
             LOG.warn("MarkSupported error.", e);
             return false;
-        } finally {
-            finish();
         }
     }
 
@@ -317,20 +365,22 @@ public class CachedDataInputStream extends FSDataInputStream implements ByteBuff
         } else if (bb.remaining() == 0) {
             return 0;
         }
+        FSDataInputStream stream = getStream();
         try {
-            FSDataInputStream stream = getStream();
             return stream instanceof ByteBufferReadable
                     ? ((ByteBufferReadable) stream).read(bb)
                     : readFullyFromFSDataInputStream(stream, bb);
         } finally {
-            finish();
+            if (stream != originalStream) {
+                cacheEntry.release();
+            }
         }
     }
 
     @Override
     public int read(long position, ByteBuffer bb) throws IOException {
+        FSDataInputStream stream = getStream();
         try {
-            FSDataInputStream stream = getStream();
             if (stream instanceof ByteBufferReadable) {
                 return ((ByteBufferReadable) stream).read(position, bb);
             } else {
@@ -338,7 +388,9 @@ public class CachedDataInputStream extends FSDataInputStream implements ByteBuff
                 return readFullyFromFSDataInputStream(stream, bb);
             }
         } finally {
-            finish();
+            if (stream != originalStream) {
+                cacheEntry.release();
+            }
         }
     }
 

@@ -20,46 +20,11 @@ package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.annotation.Internal;
 
-import java.util.concurrent.CompletableFuture;
-
 /**
  * Executor for executing batch {@link StateRequest}s.
  *
- * <p>Notice that the owner who create the {@code StateExecutor} is responsible for shutting down it
+ * <p>Notice that the owner who create the {@code AsyncExecutor} is responsible for shutting down it
  * when it is no longer in use.
  */
 @Internal
-public interface StateExecutor {
-    /**
-     * Execute a batch of state requests.
-     *
-     * @param stateRequestContainer The StateRequestContainer which holds the given batch of
-     *     processing requests.
-     * @return A future can determine whether execution has completed.
-     */
-    CompletableFuture<Void> executeBatchRequests(StateRequestContainer stateRequestContainer);
-
-    /**
-     * Create a {@link StateRequestContainer} which is used to hold the batched {@link
-     * StateRequest}.
-     */
-    StateRequestContainer createStateRequestContainer();
-
-    /**
-     * Execute a single state request *synchronously*. This is for synchronous APIs.
-     *
-     * @param stateRequest the request to run.
-     */
-    void executeRequestSync(StateRequest<?, ?, ?, ?> stateRequest);
-
-    /**
-     * Check if this executor is fully loaded. Will be invoked to determine whether to give more
-     * requests to run or wait for a while.
-     *
-     * @return the count.
-     */
-    boolean fullyLoaded();
-
-    /** Shutdown the StateExecutor, and new committed state execution requests will be rejected. */
-    void shutdown();
-}
+public interface StateExecutor extends AsyncExecutor<StateRequest<?, ?, ?, ?>> {}

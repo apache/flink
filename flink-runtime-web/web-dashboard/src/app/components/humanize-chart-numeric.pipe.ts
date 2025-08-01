@@ -24,8 +24,7 @@ import { HumanizeBytesPipe } from './humanize-bytes.pipe';
 import { HumanizeDurationPipe } from './humanize-duration.pipe';
 
 @Pipe({
-  name: 'humanizeChartNumeric',
-  standalone: true
+  name: 'humanizeChartNumeric'
 })
 export class HumanizeChartNumericPipe implements PipeTransform {
   transform(value: number, id: string): string {

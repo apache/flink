@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalC
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogNormalize;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCorrelateBase;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDataStreamScan;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeltaJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExpand;
@@ -191,6 +192,8 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         } else if (rel instanceof StreamPhysicalWindowTableFunction) {
             return visitWindowTableFunction(
                     (StreamPhysicalWindowTableFunction) rel, requireDeterminism);
+        } else if (rel instanceof StreamPhysicalDeltaJoin) {
+            return visitDeltaJoin((StreamPhysicalDeltaJoin) rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalChangelogNormalize
                 || rel instanceof StreamPhysicalDropUpdateBefore
                 || rel instanceof StreamPhysicalMiniBatchAssigner
@@ -421,6 +424,17 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         }
     }
 
+    /** Currently, DeltaJoin only supports consuming append only stream. */
+    private StreamPhysicalRel visitDeltaJoin(
+            final StreamPhysicalDeltaJoin deltaJoin, final ImmutableBitSet requireDeterminism) {
+        if (inputInsertOnly(deltaJoin) || requireDeterminism.isEmpty()) {
+            return transmitDeterminismRequirement(deltaJoin, NO_REQUIRED_DETERMINISM);
+        } else {
+            throw new TableException(
+                    "Currently DeltaJoin only supports consuming append only stream");
+        }
+    }
+
     private StreamPhysicalRel visitTableSourceScan(
             final StreamPhysicalTableSourceScan tableScan,
             final ImmutableBitSet requireDeterminism) {
@@ -475,6 +489,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                                                 true,
                                                 false,
                                                 true,
+                                                false,
                                                 false);
                         throw new TableException(errorMsg);
                     }
@@ -630,10 +645,9 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             }
             return transmitDeterminismRequirement(overAgg, NO_REQUIRED_DETERMINISM);
         } else {
-            // OverAgg does not support input with updates currently, so this branch will not be
-            // reached for now.
-
-            // We should append partition keys and order key to requireDeterminism
+            // OverAgg does not support input with updates when order by column is a time-attribute
+            // Only non-time order by attribute can support updates
+            // Append partition and order keys to requireDeterminism
             return transmitDeterminismRequirement(
                     overAgg, mappingRequireDeterminismToInput(requireDeterminism, overAgg));
         }
@@ -900,6 +914,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                                 true,
                                 false,
                                 true,
+                                false,
                                 false);
 
         throw new TableException(errorMsg);
@@ -942,6 +957,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                                 true,
                                 false,
                                 true,
+                                false,
                                 false));
 
         throw new TableException(errorMsg.toString());
@@ -967,6 +983,10 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             // add aggCall's input
             int aggOutputIndex = inputFieldCnt;
             for (OverSpec.GroupSpec groupSpec : overSpec.getGroups()) {
+                // Add sort fields
+                Arrays.stream(groupSpec.getSort().getFieldIndices())
+                        .forEach(allRequiredInputSet::add);
+                // Add aggregation fields
                 for (AggregateCall aggCall : groupSpec.getAggCalls()) {
                     if (requireDeterminism.get(aggOutputIndex)) {
                         requiredSourceInput(aggCall, allRequiredInputSet);

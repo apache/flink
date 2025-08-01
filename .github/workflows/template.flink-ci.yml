@@ -209,6 +209,16 @@ jobs:
           source_directory: ${{ env.MOUNTED_WORKING_DIR }}
           target_directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
 
+      - name: "Setup python"
+        if: matrix.module == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: "Install Python header files"
+        if: matrix.module == 'python'
+        run: sudo apt-get update && sudo apt-get -y install python3-dev
+
       - name: "Set coredump pattern"
         working-directory: ${{ env.CONTAINER_LOCAL_WORKING_DIR }}
         run: sudo sysctl -w kernel.core_pattern=core.%p
@@ -315,8 +325,13 @@ jobs:
           jdk_version: ${{ inputs.jdk_version }}
           maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
 
+      - name: "Setup python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: "Install missing packages"
-        run: sudo apt-get install -y net-tools docker-compose zip
+        run: sudo apt-get install -y net-tools docker zip
 
       # netty-tcnative requires OpenSSL v1.0.0
       - name: "Install OpenSSL"

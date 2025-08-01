@@ -276,7 +276,7 @@ class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBase {
         assertThat(restServiceCandidates).hasSize(1);
 
         final Service resultInternalService = internalServiceCandidates.get(0);
-        assertThat(resultInternalService.getMetadata().getLabels()).hasSize(2);
+        assertThat(resultInternalService.getMetadata().getLabels()).hasSize(4);
 
         assertThat(resultInternalService.getSpec().getType()).isNull();
         assertThat(resultInternalService.getSpec().getClusterIP())

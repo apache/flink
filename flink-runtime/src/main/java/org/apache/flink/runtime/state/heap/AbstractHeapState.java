@@ -24,6 +24,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.state.ttl.TtlValue;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -110,6 +113,18 @@ public abstract class AbstractHeapState<K, N, SV> implements InternalKvState<K, 
             return null;
         }
         return KvStateSerializer.serializeValue(result, safeValueSerializer);
+    }
+
+    @SuppressWarnings("unchecked")
+    public SV migrateTtlValue(
+            SV stateValue,
+            TtlAwareSerializer<SV, ?> currentTtlAwareSerializer,
+            TtlTimeProvider ttlTimeProvider) {
+        if (currentTtlAwareSerializer.isTtlEnabled()) {
+            return (SV) new TtlValue<>(stateValue, ttlTimeProvider.currentTimestamp());
+        }
+
+        return (SV) ((TtlValue<?>) stateValue).getUserValue();
     }
 
     /** This should only be used for testing. */

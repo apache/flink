@@ -226,6 +226,19 @@ Calc(select=[a, b, c, name, age, nominal_age])
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testJoinAsyncTableWithKeyOrderedDisabled">
+		<Resource name="sql">
+			<![CDATA[SELECT /*+ LOOKUP('table'='D', 'async'='true', 'output-mode'='allow_unordered') */ * FROM (SELECT * FROM MyTable) AS T JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.AsyncLookupTable], joinType=[InnerJoin], lookup=[id=a], select=[a, b, c, proctime, id, name, age], async=[UNORDERED, KEY_ORDERED: false, 180000ms, 100])
+   +- Calc(select=[a, b, c, PROCTIME() AS proctime])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+]]>
+		</Resource>
+	</TestCase>
   <TestCase name="testJoinTemporalTableWithFilterPushDown">
     <Resource name="sql">
       <![CDATA[

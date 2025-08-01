@@ -55,6 +55,7 @@ Expressions
     row
     map_
     map_from_arrays
+    object_of
     row_interval
     pi
     e
@@ -261,6 +262,7 @@ advanced type helper functions
     Expression.array_intersect
     Expression.split
 
+
 time definition functions
 -------------------------
 
@@ -322,3 +324,13 @@ JSON functions
     Expression.json_query
     Expression.json_quote
     Expression.json_unquote
+
+value modification functions
+----------------------------
+
+.. currentmodule:: pyflink.table.expression
+
+.. autosummary::
+    :toctree: api/
+
+    Expression.object_update

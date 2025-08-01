@@ -320,7 +320,8 @@ object MetadataTestUtil {
         Column.physical("d", DataTypes.BIGINT().notNull())
       ),
       Collections.emptyList(),
-      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "d")))
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "d")),
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
@@ -364,7 +365,8 @@ object MetadataTestUtil {
         Column.physical("d", DataTypes.BIGINT().notNull())
       ),
       Collections.emptyList(),
-      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")))
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")),
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val typeFactory = new FlinkTypeFactory(Thread.currentThread().getContextClassLoader)
     val rowType = typeFactory.buildRelNodeRowType(
@@ -391,7 +393,8 @@ object MetadataTestUtil {
         Column.physical("d", DataTypes.BIGINT().notNull())
       ),
       Collections.emptyList(),
-      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("b")))
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("b")),
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
@@ -420,7 +423,8 @@ object MetadataTestUtil {
         Column.physical("d", DataTypes.BIGINT().notNull())
       ),
       Collections.emptyList(),
-      null)
+      null,
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
@@ -446,7 +450,8 @@ object MetadataTestUtil {
         Column.physical("a", DataTypes.BIGINT().notNull()),
         Column.physical("b", DataTypes.BIGINT().notNull())),
       Collections.emptyList(),
-      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")))
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")),
+      Collections.singletonList(DefaultIndex.newIndex("idx", Collections.singletonList("a"))))
 
     val catalogTable = getCatalogTable(resolvedSchema)
 

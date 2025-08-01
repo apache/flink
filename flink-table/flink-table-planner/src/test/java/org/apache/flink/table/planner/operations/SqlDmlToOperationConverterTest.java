@@ -228,6 +228,19 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
+    public void testSqlRichExplainWithExecuteStatementSet() {
+        final String sql =
+                "EXPLAIN EXECUTE STATEMENT SET BEGIN "
+                        + "INSERT INTO t1 SELECT a, b, c, d FROM t2 WHERE a > 1;"
+                        + "INSERT INTO t1 SELECT a, b, c, d FROM t2 WHERE a > 2;"
+                        + "END";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertThat(operation).isInstanceOf(ExplainOperation.class);
+    }
+
+    @Test
     public void testSqlExecuteWithInsert() {
         final String sql = "execute insert into t1 select a, b, c, d from t2 where a > 1";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
@@ -237,12 +250,30 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
+    public void testSqlRichExplainWithExecuteInsert() {
+        final String sql = "EXPLAIN EXECUTE INSERT INTO t1 SELECT a, b, c, d FROM t2";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertThat(operation).isInstanceOf(ExplainOperation.class);
+    }
+
+    @Test
     public void testSqlExecuteWithSelect() {
         final String sql = "execute select a, b, c, d from t2 where a > 1";
         FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         Operation operation = parse(sql, planner, parser);
         assertThat(operation).isInstanceOf(QueryOperation.class);
+    }
+
+    @Test
+    public void testSqlRichExplainWithExecuteSelect() {
+        final String sql = "EXPLAIN EXECUTE SELECT a, b, c, d FROM t2";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertThat(operation).isInstanceOf(ExplainOperation.class);
     }
 
     @Test

@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.operators.{OneInputStreamOperator, SimpleOperatorFactory}
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, PartitionTransformation}
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncKeyOrderedProcessingOperator
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, OneInputStreamOperatorTestHarness}
 import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.data.RowData
@@ -74,7 +74,7 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
       operator: OneInputStreamOperator[IN, OUT],
       keySelector: KeySelector[IN, KEY],
       keyType: TypeInformation[KEY]): KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT] = {
-    val harness = if (operator.isInstanceOf[AsyncStateProcessingOperator]) {
+    val harness = if (operator.isInstanceOf[AsyncKeyOrderedProcessingOperator]) {
       AsyncKeyedOneInputStreamOperatorTestHarness.create(operator, keySelector, keyType)
     } else {
       new KeyedOneInputStreamOperatorTestHarness[KEY, IN, OUT](operator, keySelector, keyType)

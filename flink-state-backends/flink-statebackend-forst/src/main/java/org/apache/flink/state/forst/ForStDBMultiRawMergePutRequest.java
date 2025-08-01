@@ -18,7 +18,7 @@
 
 package org.apache.flink.state.forst;
 
-import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 
 import org.forstdb.RocksDB;
 import org.forstdb.RocksDBException;
@@ -41,7 +41,7 @@ public class ForStDBMultiRawMergePutRequest<K, N, V> extends ForStDBPutRequest<K
             ContextKey<K, N> key,
             Collection<byte[]> value,
             ForStInnerTable<K, N, V> table,
-            InternalStateFuture<Void> future) {
+            InternalAsyncFuture<Void> future) {
         super(key, null, true, table, future);
         this.rawValue = value;
     }

@@ -29,11 +29,10 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 
-import javax.annotation.Nullable;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -46,10 +45,6 @@ import static java.util.stream.Collectors.toMap;
 public class StateSizeEstimates {
     private final Map<ExecutionVertexID, Long> stateSizes;
 
-    public StateSizeEstimates() {
-        this(emptyMap());
-    }
-
     public StateSizeEstimates(Map<ExecutionVertexID, Long> stateSizes) {
         this.stateSizes = stateSizes;
     }
@@ -58,22 +53,14 @@ public class StateSizeEstimates {
         return Optional.ofNullable(stateSizes.get(jobVertexId));
     }
 
-    static StateSizeEstimates empty() {
-        return new StateSizeEstimates();
-    }
-
-    public static StateSizeEstimates fromGraph(@Nullable ExecutionGraph executionGraph) {
-        return Optional.ofNullable(executionGraph)
-                .flatMap(graph -> Optional.ofNullable(graph.getCheckpointCoordinator()))
-                .flatMap(coordinator -> Optional.ofNullable(coordinator.getCheckpointStore()))
-                .flatMap(store -> Optional.ofNullable(store.getLatestCheckpoint()))
-                .map(
-                        cp ->
-                                new StateSizeEstimates(
-                                        merge(
-                                                fromCompletedCheckpoint(cp),
-                                                mapVerticesToOperators(executionGraph))))
-                .orElse(empty());
+    public static StateSizeEstimates fromGraphAndState(
+            final ExecutionGraph executionGraph, final CompletedCheckpoint latestCheckpoint) {
+        Objects.requireNonNull(executionGraph);
+        Objects.requireNonNull(latestCheckpoint);
+        return new StateSizeEstimates(
+                merge(
+                        fromCompletedCheckpoint(latestCheckpoint),
+                        mapVerticesToOperators(executionGraph)));
     }
 
     /**

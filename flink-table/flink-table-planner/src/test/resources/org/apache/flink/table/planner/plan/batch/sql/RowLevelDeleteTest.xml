@@ -135,8 +135,7 @@ LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalFilter(condition=[AND(=($1, _UTF-16LE'123'), =(CAST($0):BIGINT, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-  LogicalProject($f0=[0])
-    LogicalTableScan(table=[[default_catalog, default_database, t]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 })))])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
@@ -150,8 +149,7 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
          +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-                  +- Calc(select=[0 AS $f0])
-                     +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+                  +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.t], fields=[a, b])
@@ -164,8 +162,7 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
          +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-                  +- Calc(select=[0 AS $f0])
-                     +- Reused(reference_id=[1])
+                  +- Reused(reference_id=[1])
 
 == Physical Execution Plan ==
 {
@@ -180,17 +177,6 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
     "type" : "Calc[]",
     "pact" : "Operator",
     "contents" : "[]:Calc(select=[a, CAST(a AS BIGINT) AS a0], where=[(b = '123')])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "Calc[]",
-    "pact" : "Operator",
-    "contents" : "[]:Calc(select=[0 AS $f0])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -495,8 +481,7 @@ LogicalSink(table=[default_catalog.default_database.t], fields=[a, b])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalFilter(condition=[NOT(AND(=($1, _UTF-16LE'123'), =(CAST($0):BIGINT, $SCALAR_QUERY({
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-  LogicalProject($f0=[0])
-    LogicalTableScan(table=[[default_catalog, default_database, t]])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
 }))))])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
@@ -509,8 +494,7 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
          +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-                  +- Calc(select=[0 AS $f0])
-                     +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+                  +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.t], fields=[a, b])
@@ -522,8 +506,7 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
          +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
             +- Exchange(distribution=[single])
                +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-                  +- Calc(select=[0 AS $f0])
-                     +- Reused(reference_id=[1])
+                  +- Reused(reference_id=[1])
 
 == Physical Execution Plan ==
 {
@@ -533,17 +516,6 @@ Sink(table=[default_catalog.default_database.t], fields=[a, b])
     "pact" : "Data Source",
     "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])",
     "parallelism" : 1
-  }, {
-    "id" : ,
-    "type" : "Calc[]",
-    "pact" : "Operator",
-    "contents" : "[]:Calc(select=[0 AS $f0])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
   }, {
     "id" : ,
     "type" : "HashAggregate[]",

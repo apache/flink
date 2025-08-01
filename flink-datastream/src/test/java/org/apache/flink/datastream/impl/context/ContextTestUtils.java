@@ -28,7 +28,6 @@ import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 public final class ContextTestUtils {
     public static StreamingRuntimeContext createStreamingRuntimeContext() {
         return new MockStreamingRuntimeContext(
-                false,
                 2,
                 1,
                 new MockEnvironmentBuilder()

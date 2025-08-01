@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.function.Predicate;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,8 +54,36 @@ public class TestingUtils {
         return Duration.ofDays(365L);
     }
 
+    // To make debugging logs easier, we use a custom thread factory that names the thread.
+    static class JmMainSingleThreadPoolFactory implements ThreadFactory {
+        public Thread newThread(final Runnable r) {
+            return new Thread(r, "jm-main-thread");
+        }
+    }
+
+    // To make debugging logs easier, we use a custom thread factory that names the thread.
+    static class AsyncSingleThreadPoolFactory implements ThreadFactory {
+        public Thread newThread(final Runnable r) {
+            return new Thread(r, "async-single-thread-pool");
+        }
+    }
+
     public static TestExecutorExtension<ScheduledExecutorService> defaultExecutorExtension() {
         return new TestExecutorExtension<>(Executors::newSingleThreadScheduledExecutor);
+    }
+
+    public static TestExecutorExtension<ScheduledExecutorService> jmMainThreadExecutorExtension() {
+        return new TestExecutorExtension<>(
+                () ->
+                        Executors.newSingleThreadScheduledExecutor(
+                                new JmMainSingleThreadPoolFactory()));
+    }
+
+    public static TestExecutorExtension<ScheduledExecutorService> jmAsyncThreadExecutorExtension() {
+        return new TestExecutorExtension<>(
+                () ->
+                        Executors.newSingleThreadScheduledExecutor(
+                                new AsyncSingleThreadPoolFactory()));
     }
 
     public static TestExecutorResource<ScheduledExecutorService> defaultExecutorResource() {

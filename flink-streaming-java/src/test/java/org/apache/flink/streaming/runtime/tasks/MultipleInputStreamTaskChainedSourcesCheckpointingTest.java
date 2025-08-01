@@ -25,6 +25,9 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -42,7 +45,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
@@ -67,6 +69,7 @@ import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -253,7 +256,8 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .setCollectNetworkEvents()
                         .modifyExecutionConfig(applyObjectReuse(objectReuse))
-                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO)
                         .addSourceInput(
                                 new SourceOperatorFactory<>(
@@ -384,13 +388,13 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             try (StreamTaskMailboxTestHarness<String> testHarness =
                     new StreamTaskMailboxTestHarnessBuilder<>(
                                     MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                            .modifyStreamConfig(
-                                    config -> {
-                                        config.setCheckpointingEnabled(true);
-                                        config.setUnalignedCheckpointsEnabled(
-                                                checkpointOptions.isUnalignedCheckpoint()
-                                                        || checkpointOptions.isTimeoutable());
-                                    })
+                            .addJobConfig(
+                                    CheckpointingOptions.CHECKPOINTING_INTERVAL,
+                                    Duration.ofSeconds(1))
+                            .addJobConfig(
+                                    CheckpointingOptions.ENABLE_UNALIGNED,
+                                    checkpointOptions.isUnalignedCheckpoint()
+                                            || checkpointOptions.isTimeoutable())
                             .modifyExecutionConfig(applyObjectReuse(objectReuse))
                             .setCheckpointResponder(checkpointResponder)
                             .addInput(BasicTypeInfo.INT_TYPE_INFO)
@@ -476,7 +480,8 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .modifyExecutionConfig(applyObjectReuse(objectReuse))
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
                         .addAdditionalOutput(
@@ -547,14 +552,15 @@ class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
     }
 
     private CheckpointBarrier createBarrier(StreamTaskMailboxTestHarness<String> testHarness) {
-        StreamConfig config = testHarness.getStreamTask().getConfiguration();
+        Configuration jobConf = testHarness.getStreamTask().getJobConfiguration();
         CheckpointOptions checkpointOptions =
                 CheckpointOptions.forConfig(
                         CheckpointType.CHECKPOINT,
                         CheckpointStorageLocationReference.getDefault(),
-                        config.isExactlyOnceCheckpointMode(),
-                        config.isUnalignedCheckpointsEnabled(),
-                        config.getAlignedCheckpointTimeout().toMillis());
+                        CheckpointingOptions.getCheckpointingMode(jobConf)
+                                == CheckpointingMode.EXACTLY_ONCE,
+                        CheckpointingOptions.isUnalignedCheckpointEnabled(jobConf),
+                        jobConf.get(CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT).toMillis());
 
         return new CheckpointBarrier(
                 metaData.getCheckpointId(), metaData.getTimestamp(), checkpointOptions);

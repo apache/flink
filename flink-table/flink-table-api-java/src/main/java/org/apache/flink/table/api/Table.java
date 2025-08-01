@@ -23,6 +23,7 @@ import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -102,7 +103,7 @@ public interface Table extends Explainable<Table>, Executable {
      */
     @Deprecated
     default TableSchema getSchema() {
-        return TableSchema.fromResolvedSchema(getResolvedSchema());
+        return TableSchema.fromResolvedSchema(getResolvedSchema(), DefaultSqlFactory.INSTANCE);
     }
 
     /** Returns the resolved schema of this table. */
@@ -1103,7 +1104,7 @@ public interface Table extends Explainable<Table>, Executable {
      *
      * <p>Currently, partitioned table objects are intended for table arguments of process table
      * functions (PTFs) that take table arguments with set semantics (see {@link
-     * ArgumentTrait#TABLE_AS_SET}).
+     * ArgumentTrait#SET_SEMANTIC_TABLE}).
      *
      * <p>Example:
      *

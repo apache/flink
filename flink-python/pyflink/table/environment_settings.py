@@ -17,6 +17,7 @@
 ################################################################################
 
 from pyflink.java_gateway import get_gateway
+from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import create_url_class_loader
 
 from pyflink.common import Configuration
@@ -24,6 +25,7 @@ from pyflink.common import Configuration
 __all__ = ['EnvironmentSettings']
 
 
+@PublicEvolving()
 class EnvironmentSettings(object):
     """
     Defines all parameters that initialize a table environment. Those parameters are used only
@@ -43,6 +45,7 @@ class EnvironmentSettings(object):
     might be convenient as shortcuts.
     """
 
+    @PublicEvolving()
     class Builder(object):
         """
         A builder for :class:`~EnvironmentSettings`.

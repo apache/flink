@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -73,6 +74,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -350,7 +352,8 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                     .execute(
                             () ->
                                     assertThat(testHarness.getTask().isRunning())
-                                            .as("This should never execute before task cancelation")
+                                            .as(
+                                                    "This should never execute before task cancellation")
                                             .isFalse(),
                             "Test");
         }
@@ -528,7 +531,9 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
             try (StreamTaskMailboxTestHarness<String> testHarness =
                     new StreamTaskMailboxTestHarnessBuilder<>(
                                     SourceStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                            .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                            .addJobConfig(
+                                    CheckpointingOptions.CHECKPOINTING_INTERVAL,
+                                    Duration.ofSeconds(1))
                             .setCheckpointResponder(
                                     new TestCheckpointResponder() {
                                         @Override

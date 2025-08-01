@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.AttributeBuilder;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.events.EventBuilder;
+import org.apache.flink.events.Events;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -249,20 +252,20 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
 
     private void logCheckpointStatistics(AbstractCheckpointStats checkpointStats) {
         try {
-            metricGroup.addSpan(
+            EventBuilder eventBuilder =
+                    Events.CheckpointEvent.builder(CheckpointStatsTracker.class)
+                            .setObservedTsMillis(checkpointStats.getLatestAckTimestamp())
+                            .setSeverity("INFO");
+            addCommonCheckpointStatsAttributes(eventBuilder, checkpointStats);
+            metricGroup.addEvent(eventBuilder);
+
+            SpanBuilder spanBuilder =
                     Span.builder(CheckpointStatsTracker.class, "Checkpoint")
                             .setStartTsMillis(checkpointStats.getTriggerTimestamp())
-                            .setEndTsMillis(checkpointStats.getLatestAckTimestamp())
-                            .setAttribute("checkpointId", checkpointStats.getCheckpointId())
-                            .setAttribute("fullSize", checkpointStats.getStateSize())
-                            .setAttribute("checkpointedSize", checkpointStats.getCheckpointedSize())
-                            .setAttribute("checkpointStatus", checkpointStats.getStatus().name())
-                            .setAttribute(
-                                    "isUnaligned",
-                                    Boolean.toString(checkpointStats.isUnalignedCheckpoint()))
-                            .setAttribute(
-                                    "checkpointType",
-                                    checkpointStats.getProperties().getCheckpointType().getName()));
+                            .setEndTsMillis(checkpointStats.getLatestAckTimestamp());
+            addCommonCheckpointStatsAttributes(spanBuilder, checkpointStats);
+            metricGroup.addSpan(spanBuilder);
+
             if (LOG.isDebugEnabled()) {
                 StringWriter sw = new StringWriter();
                 MAPPER.writeValue(
@@ -278,6 +281,23 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
         } catch (Exception ex) {
             LOG.warn("Fail to log CheckpointStatistics", ex);
         }
+    }
+
+    private AttributeBuilder addCommonCheckpointStatsAttributes(
+            AttributeBuilder attributeBuilder, AbstractCheckpointStats checkpointStats) {
+        attributeBuilder
+                .setAttribute("checkpointId", checkpointStats.getCheckpointId())
+                .setAttribute("fullSize", checkpointStats.getStateSize())
+                .setAttribute("checkpointedSize", checkpointStats.getCheckpointedSize())
+                .setAttribute("metadataSize", checkpointStats.getMetadataSize())
+                .setAttribute("checkpointStatus", checkpointStats.getStatus().name())
+                .setAttribute(
+                        "isUnaligned", Boolean.toString(checkpointStats.isUnalignedCheckpoint()))
+                .setAttribute(
+                        "checkpointType",
+                        checkpointStats.getProperties().getCheckpointType().getName());
+
+        return attributeBuilder;
     }
 
     @Override
@@ -423,6 +443,10 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
     static final String LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC = "lastCheckpointFullSize";
 
     @VisibleForTesting
+    static final String LATEST_COMPLETED_CHECKPOINT_METADATA_SIZE_METRIC =
+            "lastCheckpointMetadataSize";
+
+    @VisibleForTesting
     static final String LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC = "lastCheckpointDuration";
 
     @VisibleForTesting
@@ -463,6 +487,9 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
         metricGroup.gauge(
                 LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC,
                 new LatestCompletedCheckpointFullSizeGauge());
+        metricGroup.gauge(
+                LATEST_COMPLETED_CHECKPOINT_METADATA_SIZE_METRIC,
+                new LatestCompletedCheckpointMetadataSizeGauge());
         metricGroup.gauge(
                 LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC,
                 new LatestCompletedCheckpointDurationGauge());
@@ -540,6 +567,14 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
             } else {
                 return -1L;
             }
+        }
+    }
+
+    private class LatestCompletedCheckpointMetadataSizeGauge implements Gauge<Long> {
+        @Override
+        public Long getValue() {
+            CompletedCheckpointStats completed = latestCompletedCheckpoint;
+            return completed != null ? completed.getMetadataSize() : -1L;
         }
     }
 

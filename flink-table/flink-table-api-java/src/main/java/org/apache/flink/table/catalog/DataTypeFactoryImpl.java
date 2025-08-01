@@ -19,7 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -35,8 +34,7 @@ import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.table.types.extraction.DataTypeExtractor;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeDuplicator;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 
@@ -50,8 +48,6 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 @Internal
 final class DataTypeFactoryImpl implements DataTypeFactory {
 
-    private final LogicalTypeResolver resolver = new LogicalTypeResolver();
-
     private final ClassLoader classLoader;
 
     private final Supplier<SerializerConfig> serializerConfig;
@@ -62,6 +58,11 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
             @Nullable SerializerConfig serializerConfig) {
         this.classLoader = classLoader;
         this.serializerConfig = createSerializerConfig(classLoader, config, serializerConfig);
+    }
+
+    @Override
+    public ClassLoader getClassLoader() {
+        return classLoader;
     }
 
     @Override
@@ -110,23 +111,26 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
     @Override
     public LogicalType createLogicalType(String typeString) {
         final LogicalType parsedType = LogicalTypeParser.parse(typeString, classLoader);
-        return parsedType.accept(resolver);
+        if (LogicalTypeChecks.hasNested(parsedType, t -> t.is(LogicalTypeRoot.UNRESOLVED))) {
+            throw unsupportedUserDefinedTypes();
+        }
+        return parsedType;
     }
 
     @Override
     public LogicalType createLogicalType(UnresolvedIdentifier identifier) {
-        if (!identifier.getDatabaseName().isPresent()) {
+        if (identifier.getDatabaseName().isEmpty()) {
             return createLogicalType(identifier.getObjectName());
         }
-        return resolveType(identifier);
+        throw unsupportedUserDefinedTypes();
     }
 
     // --------------------------------------------------------------------------------------------
 
     /**
-     * Creates a lazy {@link ExecutionConfig} that contains options for {@link TypeSerializer}s with
-     * information from existing {@link ExecutionConfig} (if available) enriched with table {@link
-     * ReadableConfig}.
+     * Creates a lazy {@link SerializerConfig} that contains options for {@link TypeSerializer}s
+     * with information from existing {@link SerializerConfig} (if available) enriched with table
+     * {@link ReadableConfig}.
      */
     private static Supplier<SerializerConfig> createSerializerConfig(
             ClassLoader classLoader, ReadableConfig config, SerializerConfig serializerConfig) {
@@ -142,25 +146,7 @@ final class DataTypeFactoryImpl implements DataTypeFactory {
         };
     }
 
-    /** Resolves all {@link UnresolvedUserDefinedType}s. */
-    private class LogicalTypeResolver extends LogicalTypeDuplicator {
-
-        @Override
-        protected LogicalType defaultMethod(LogicalType logicalType) {
-            if (logicalType.is(LogicalTypeRoot.UNRESOLVED)) {
-                final UnresolvedUserDefinedType unresolvedType =
-                        (UnresolvedUserDefinedType) logicalType;
-                return resolveType(unresolvedType.getUnresolvedIdentifier())
-                        .copy(unresolvedType.isNullable());
-            }
-            return logicalType;
-        }
-    }
-
-    private LogicalType resolveType(UnresolvedIdentifier identifier) {
-        assert identifier != null;
-        // TODO validate implementation class of structured types when converting from LogicalType
-        //  to DataType
-        throw new TableException("User-defined types are not supported yet.");
+    private TableException unsupportedUserDefinedTypes() {
+        return new TableException("User-defined types are not supported yet.");
     }
 }

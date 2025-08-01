@@ -18,7 +18,7 @@
 
 import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestroy, Inject } from '@angular/core';
 import { ConfigService, JobManagerService } from '@flink-runtime-web/services';
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { EditorOptions } from 'ng-zorro-antd/code-editor';
 import { flinkEditorOptions } from '@flink-runtime-web/components/editor/editor-config';
 import {of, Subject} from 'rxjs';
 import {catchError, takeUntil} from 'rxjs/operators';
@@ -35,12 +35,11 @@ import {
 } from "@flink-runtime-web/components/addon-compact/addon-compact.component";
 
 @Component({
-  selector: 'flink-job-manager-logs',
-  templateUrl: './job-manager-logs.component.html',
-  styleUrls: ['./job-manager-logs.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
-  standalone: true
+    selector: 'flink-job-manager-logs',
+    templateUrl: './job-manager-logs.component.html',
+    styleUrls: ['./job-manager-logs.component.less'],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent]
 })
 export class JobManagerLogsComponent implements OnInit, OnDestroy {
   public readonly downloadName = `jobmanager_log`;

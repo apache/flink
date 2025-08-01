@@ -179,7 +179,7 @@ Hybrid shuffle mode is still experimental and has some known limitations, which 
 | Read buffer request timeout | 这个问题只会出现在 `Sort Shuffle`，它意味着对数据读取缓冲区的激烈竞争。要解决这一问题，你可以增大 [taskmanager.memory.framework.off-heap.batch-shuffle.size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-framework-off-heap-batch-shuffle-size) 和 [taskmanager.memory.framework.off-heap.size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-framework-off-heap-size)。|
 | No space left on device | 这通常意味着磁盘存储空间或者 inodes 被耗尽。你可以考虑扩展磁盘存储空间或者做一些数据清理。|
 | Out of memory error | 如果你使用的是 `Hash Shuffle`，请切换到 `Sort Shuffle`。如果你已经在使用 `Sort Shuffle` 并且遵循了上面章节的建议，你可以考虑增大相应的内存大小。对于堆上内存，你可以增大 [taskmanager.memory.task.heap.size]({{< ref "docs/deployment/config" >}}#ttaskmanager-memory-task-heap-size)，对于直接内存，你可以增大 [taskmanager.memory.task.off-heap.size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-task-off-heap-size)。|
-| Container killed by external resource manger | 多种原因可能会导致容器被杀，比如，杀掉一个低优先级容器以释放资源启动高优先级容器，或者容器占用了过多的资源，比如内存、磁盘空间等。像上面章节所提到的那样，`Hash Shuffle` 可能会使用过多的内存而被 YARN 杀掉。所以，如果你使用的是 `Hash Shuffle`，请切换到 `Sort Shuffle`。如果你已经在使用 `Sort Shuffle`，你可能需要同时检查 Flink 日志以及资源管理框架的日志以找出容器被杀的根因，并且做出相应的修复。|
+| Container killed by external resource manager | 多种原因可能会导致容器被杀，比如，杀掉一个低优先级容器以释放资源启动高优先级容器，或者容器占用了过多的资源，比如内存、磁盘空间等。像上面章节所提到的那样，`Hash Shuffle` 可能会使用过多的内存而被 YARN 杀掉。所以，如果你使用的是 `Hash Shuffle`，请切换到 `Sort Shuffle`。如果你已经在使用 `Sort Shuffle`，你可能需要同时检查 Flink 日志以及资源管理框架的日志以找出容器被杀的根因，并且做出相应的修复。|
 
 {{< /tab >}}
 

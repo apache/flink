@@ -30,6 +30,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -291,12 +292,12 @@ public abstract class AbstractStreamOperator<OUT>
                                 runtimeContext.getTaskManagerRuntimeInfo().getConfiguration(),
                                 runtimeContext.getUserCodeClassLoader()),
                         isUsingCustomRawKeyedState(),
-                        isAsyncStateProcessingEnabled());
+                        isAsyncKeyOrderedProcessingEnabled());
         stateHandler =
                 new StreamOperatorStateHandler(
                         context, getExecutionConfig(), streamTaskCloseableRegistry);
         timeServiceManager =
-                isAsyncStateProcessingEnabled()
+                isAsyncKeyOrderedProcessingEnabled()
                         ? context.asyncInternalTimerServiceManager()
                         : context.internalTimerServiceManager();
 
@@ -333,7 +334,7 @@ public abstract class AbstractStreamOperator<OUT>
      * Indicates whether this operator is enabling the async state. Can be overridden by subclasses.
      */
     @Internal
-    public boolean isAsyncStateProcessingEnabled() {
+    public boolean isAsyncKeyOrderedProcessingEnabled() {
         return false;
     }
 
@@ -348,24 +349,18 @@ public abstract class AbstractStreamOperator<OUT>
      * option is enabled. By default, splittable timers are disabled.
      *
      * @return {@code true} if splittable timers should be used (subject to {@link
-     *     StreamConfig#isUnalignedCheckpointsEnabled()} and {@link
-     *     StreamConfig#isUnalignedCheckpointsSplittableTimersEnabled()}. {@code false} if
-     *     splittable timers should never be used.
+     *     CheckpointingOptions#isUnalignedCheckpointInterruptibleTimersEnabled(Configuration)}.
+     *     {@code false} if splittable timers should never be used.
      */
     @Internal
-    public boolean useSplittableTimers() {
+    public boolean useInterruptibleTimers() {
         return false;
     }
 
     @Internal
-    private boolean areSplittableTimersConfigured() {
-        return areSplittableTimersConfigured(config);
-    }
-
-    static boolean areSplittableTimersConfigured(StreamConfig config) {
-        return config.isCheckpointingEnabled()
-                && config.isUnalignedCheckpointsEnabled()
-                && config.isUnalignedCheckpointsSplittableTimersEnabled();
+    private boolean areInterruptibleTimersConfigured() {
+        return CheckpointingOptions.isUnalignedCheckpointInterruptibleTimersEnabled(
+                getContainingTask().getJobConfiguration());
     }
 
     /**
@@ -378,8 +373,8 @@ public abstract class AbstractStreamOperator<OUT>
      */
     @Override
     public void open() throws Exception {
-        if (useSplittableTimers()
-                && areSplittableTimersConfigured()
+        if (useInterruptibleTimers()
+                && areInterruptibleTimersConfigured()
                 && getTimeServiceManager().isPresent()) {
             this.watermarkProcessor =
                     new MailboxWatermarkProcessor(
@@ -419,7 +414,7 @@ public abstract class AbstractStreamOperator<OUT>
                 checkpointOptions,
                 factory,
                 isUsingCustomRawKeyedState(),
-                isAsyncStateProcessingEnabled());
+                isAsyncKeyOrderedProcessingEnabled());
     }
 
     /**

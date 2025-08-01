@@ -34,8 +34,8 @@ import java.util.TimeZone;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_BUFFER_CAPACITY;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_MAX_ATTEMPTS;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_MAX_CONCURRENT_OPERATIONS;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_RETRY_DELAY;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -172,7 +172,7 @@ public class AsyncCalcTestPrograms {
                             "validates async calc node that fails some number of times and then recovers after restore")
                     .setupConfig(TABLE_EXEC_ASYNC_SCALAR_RETRY_DELAY, Duration.ofMillis(3000))
                     .setupConfig(TABLE_EXEC_ASYNC_SCALAR_MAX_ATTEMPTS, 3)
-                    .setupConfig(TABLE_EXEC_ASYNC_SCALAR_BUFFER_CAPACITY, 5)
+                    .setupConfig(TABLE_EXEC_ASYNC_SCALAR_MAX_CONCURRENT_OPERATIONS, 5)
                     .setupTemporaryCatalogFunction("udf1", TwosFailFunction.class)
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")

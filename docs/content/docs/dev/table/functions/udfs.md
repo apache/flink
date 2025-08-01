@@ -40,10 +40,12 @@ Overview
 Currently, Flink distinguishes between the following kinds of functions:
 
 - *Scalar functions* map scalar values to a new scalar value.
+- *Asynchronous scalar functions* asynchronously map scalar values to a new scalar value.
 - *Table functions* map scalar values to new rows.
 - *Aggregate functions* map scalar values of multiple rows to a new scalar value.
 - *Table aggregate functions* map scalar values of multiple rows to new rows.
 - *Async table functions* are special functions for table sources that perform a lookup.
+- *Process table functions* map tables to new rows. Enabling user-defined operators with state and timers.
 
 The following example shows how to create a simple scalar function and how to call the function in both Table API and SQL.
 
@@ -240,7 +242,7 @@ env.from("MyTable").select(call(classOf[MyConcatFunction], $"a", $"b", $"c"));
 It is recommended to use `functionClass` over `functionInstance` as far as user-defined functions provide no args constructor, 
 because Flink as the framework underneath can add more logic to control the process of creating new instance.
 Current built-in standard logic in `TableEnvironmentImpl` will validate the class and methods in the class 
-based on different subclass types of `UserDefinedFunction`, e.g. `ScalaFunction`, `TableFunction`. 
+based on different subclass types of `UserDefinedFunction`, e.g. `ScalarFunction`, `TableFunction`.
 More logic or optimization could be added in the framework in the future with no need to change any users' existing code. 
 {{< /hint >}}
 
@@ -1013,6 +1015,109 @@ env.sqlQuery("SELECT HashFunction(myField) FROM MyTable")
 {{< /tabs >}}
 
 If you intend to implement or call functions in Python, please refer to the [Python Scalar Functions]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions) documentation for more details.
+
+{{< top >}}
+
+Asynchronous Scalar Functions
+----------------
+
+When interacting with external systems (for example when enriching stream events with data stored in a database), one needs to take care that network or other latency does not dominate the streaming application’s running time.
+
+Naively accessing data in the external database, for example using a `ScalarFunction`, typically means **synchronous** interaction: A request is sent to the database and the `ScalarFunction` waits until the response has been received. In many cases, this waiting makes up the vast majority of the function’s time.
+
+To address this inefficiency, there is an `AsyncScalarFunction`. Asynchronous interaction with the database means that a single function instance can handle many requests concurrently and receive the responses concurrently. That way, the waiting time can be overlaid with sending other requests and receiving responses. At the very least, the waiting time is amortized over multiple requests. This leads in most cases to much higher streaming throughput.
+
+{{< img src="/fig/async_io.svg" width="50%" >}}
+
+#### Defining an AsyncScalarFunction
+
+A user-defined asynchronous scalar function maps zero, one, or multiple scalar values to a new scalar value. Any data type listed in the [data types section]({{< ref "docs/dev/table/types" >}}) can be used as a parameter or return type of an evaluation method.
+
+In order to define an asynchronous scalar function, extend the base class `AsyncScalarFunction` in `org.apache.flink.table.functions` and implement one or more evaluation methods named `eval(...)`.  The first argument must be a `CompletableFuture<...>` which is used to return the result, with subsequent arguments being the parameters passed to the function.
+
+The number of outstanding calls to `eval` may be configured by [`table.exec.async-scalar.max-concurrent-operations`]({{< ref "docs/dev/table/config#table-exec-async-scalar-max-concurrent-operations" >}}).
+
+The following example shows how to do work on a thread pool in the background, though any libraries exposing an async interface may be directly used to complete the `CompletableFuture` from a callback. See the [Implementation Guide](#implementation-guide) for more details.
+
+```java
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.functions.AsyncScalarFunction;
+
+import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+
+import static org.apache.flink.table.api.Expressions.*;
+
+/**
+ * A function which simulates looking up a beverage name from a database.
+ * Since such lookups are often slow, we use an AsyncScalarFunction.
+ */
+public static class BeverageNameLookupFunction extends AsyncScalarFunction {
+    private transient Executor executor;
+
+    @Override
+    public void open(FunctionContext context) {
+        // Create a thread pool for executing the background lookup.
+        executor = Executors.newFixedThreadPool(10);
+    }
+
+    // The eval method takes a future for the result and the beverage ID to lookup.
+    public void eval(CompletableFuture<String> future, Integer beverageId) {
+        // Submit a task to the thread pool. We don't want to block this main 
+        // thread since that would prevent concurrent execution. The future can be 
+        // completed from another thread when the lookup is done.
+        executor.execute(() -> {
+            // Simulate a database lookup by sleeping for 1s.
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {}
+            // Complete the future with the right beverage name.
+            switch (beverageId) {
+                case 0:
+                    future.complete("Latte");
+                    break;
+                case 1:
+                    future.complete("Cappuccino");
+                    break;
+                case 2:
+                    future.complete("Espresso");
+                    break;
+                default:
+                    // In the exceptional case, return an error.
+                    future.completeExceptionally(new IllegalArgumentException("Bad beverageId: " + beverageId));
+            }
+        });
+    }
+}
+
+TableEnvironment env = TableEnvironment.create(...);
+env.getConfig().set("table.exec.async-scalar.max-concurrent-operations", "5");
+env.getConfig().set("table.exec.async-scalar.timeout", "1m");
+
+// call function "inline" without registration in Table API
+env.from("Beverages").select(call(BeverageNameLookupFunction.class, $("beverageId")));
+
+// register function
+env.createTemporarySystemFunction("GetBeverageName", BeverageNameLookupFunction.class);
+
+// call registered function in Table API
+env.from("Beverages").select(call("GetBeverageName", $("beverageId")));
+
+// call registered function in SQL
+env.sqlQuery("SELECT GetBeverageName(beverageId) FROM Beverages");
+
+```
+
+#### Asynchronous Semantics
+While calls to an `AsyncScalarFunction` may be completed out of the original input order, to maintain correct semantics, the outputs of the function are guaranteed to maintain that input order to downstream components of the query. The data itself could reveal completion order (e.g. by containing fetch timestamps), so the user should consider whether this is acceptable for their use-case.
+
+#### Error Handling
+The primary way for a user to indicate an error is to call `CompletableFuture.completeExceptionally(Throwable)`. Similarly, if an exception is encountered by the system when invoking `eval`, that will also result in an error. When an error occurs, the system will consider the retry strategy, configured by [`table.exec.async-scalar.retry-strategy`]({{< ref "docs/dev/table/config#table-exec-async-scalar-retry-strategy" >}}). If this is `NO_RETRY`, the job is failed. If it is set to `FIXED_DELAY`, a period of [`table.exec.async-scalar.retry-delay`]({{< ref "docs/dev/table/config#table-exec-async-scalar-retry-delay" >}}) will be waited, and the function call will be retried. If there have been [`table.exec.async-scalar.max-attempts`]({{< ref "docs/dev/table/config#table-exec-async-scalar-max-attempts" >}}) failed attempts or if the timeout [`table.exec.async-scalar.timeout`]({{< ref "docs/dev/table/config#table-exec-async-scalar-timeout" >}}) expires (including all retry attempts), the job will fail.
+
+#### AsyncScalarFunction vs. ScalarFunction
+One thing to consider is if the UDF contains CPU intensive logic with no blocking calls. If so, it likely doesn't require asynchronous functionality and could use a `ScalarFunction`. If the logic involves waiting for things like network or background operations (e.g. database lookups, RPCs, or REST calls), this may be a useful way to speed things up. There are also some queries that don't support `AsyncScalarFunction`, so when in doubt, `ScalarFunction` should be used.
 
 {{< top >}}
 
@@ -2069,5 +2174,27 @@ class Top2WithRetract
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+{{< top >}}
+
+Process Table Functions
+-----------------------
+
+Process Table Functions (PTFs) are the most powerful function kind for Flink SQL and Table API. They enable implementing
+user-defined operators that can be as feature-rich as built-in operations. PTFs can take (partitioned) tables to produce
+a new table. They have access to Flink's managed state, event-time and timer services, and underlying table changelogs.
+
+Conceptually, a PTF is a superset of all other user-defined functions. It maps zero, one, or multiple tables to zero, one,
+or multiple rows (or structured types). Scalar arguments are supported. Due to its stateful nature, implementing aggregating
+behavior is possible as well.
+
+A PTF enables the following tasks:
+- Apply transformations on each row of a table.
+- Logically partition the table into distinct sets and apply transformations per set.
+- Store seen events for repeated access.
+- Continue the processing at a later point in time enabling waiting, synchronization, or timeouts.
+- Buffer and aggregate events using complex state machines or rule-based conditional logic.
+
+See the [dedicated page for PTFs]({{< ref "docs/dev/table/functions/ptfs" >}}) for more details.
 
 {{< top >}}

@@ -121,9 +121,6 @@ Currently, it still doesn't support to execute Python UDFs in `THREAD` execution
 It will fall back to `PROCESS` execution mode in these cases. So it may happen that you configure a job
 to execute in `THREAD` execution mode, however, it's actually executed in `PROCESS` execution mode.
 {{< /hint >}}
-{{< hint info >}}
-`THREAD` execution mode is only supported in Python 3.8+.
-{{< /hint >}}
 
 ## Execution Behavior
 

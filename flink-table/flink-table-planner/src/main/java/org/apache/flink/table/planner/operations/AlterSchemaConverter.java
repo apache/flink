@@ -979,28 +979,34 @@ public class AlterSchemaConverter {
         oldColumn.getComment().ifPresent(builder::withComment);
     }
 
+    private TableDistribution getTableDistribution(
+            SqlAlterTable alterTable, ResolvedCatalogTable oldTable) {
+        if (alterTable instanceof SqlAlterTableSchema) {
+            final Optional<TableDistribution> tableDistribution =
+                    ((SqlAlterTableSchema) alterTable)
+                            .getDistribution()
+                            .map(OperationConverterUtils::getDistributionFromSqlDistribution);
+            if (tableDistribution.isPresent()) {
+                return tableDistribution.get();
+            }
+        }
+        return oldTable.getDistribution().orElse(null);
+    }
+
     private Operation buildAlterTableChangeOperation(
             SqlAlterTable alterTable,
             List<TableChange> tableChanges,
             Schema newSchema,
             ResolvedCatalogTable oldTable) {
+        final TableDistribution tableDistribution = getTableDistribution(alterTable, oldTable);
+
         CatalogTable.Builder builder =
                 CatalogTable.newBuilder()
                         .schema(newSchema)
                         .comment(oldTable.getComment())
                         .partitionKeys(oldTable.getPartitionKeys())
+                        .distribution(tableDistribution)
                         .options(oldTable.getOptions());
-
-        if (alterTable instanceof SqlAlterTableSchema) {
-            ((SqlAlterTableSchema) alterTable)
-                    .getDistribution()
-                    .ifPresent(
-                            distribution ->
-                                    builder.distribution(
-                                            OperationConverterUtils
-                                                    .getDistributionFromSqlDistribution(
-                                                            distribution)));
-        }
 
         return new AlterTableChangeOperation(
                 catalogManager.qualifyIdentifier(

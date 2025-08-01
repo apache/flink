@@ -33,8 +33,8 @@ import java.util.stream.Collectors;
 
 /**
  * A special {@link RexCall} that represents a table argument in a signature of {@link
- * StaticArgument}s. The table arguments describe a {@link StaticArgumentTrait#TABLE_AS_SET} or
- * {@link StaticArgumentTrait#TABLE_AS_ROW}.
+ * StaticArgument}s. The table arguments describe a {@link StaticArgumentTrait#SET_SEMANTIC_TABLE}
+ * or {@link StaticArgumentTrait#ROW_SEMANTIC_TABLE}.
  *
  * @see FlinkConvertletTable
  */

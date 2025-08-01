@@ -26,6 +26,7 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDescriptor;
+import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.expressions.Expression;
@@ -869,6 +870,82 @@ public interface TableEnvironment {
     boolean createView(String path, Table view, boolean ignoreIfExists);
 
     /**
+     * Registers the given {@link ModelDescriptor} as a catalog model similar to SQL models.
+     *
+     * <p>The {@link ModelDescriptor descriptor} is converted into a {@link CatalogModel} and stored
+     * in the catalog.
+     *
+     * <p>If the model should not be permanently stored in a catalog, use {@link
+     * #createTemporaryModel(String, ModelDescriptor)} instead.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a temporary object in a given path exists,
+     * the permanent one will be inaccessible in the current session. To make the permanent object
+     * available again one can drop the corresponding temporary object.
+     *
+     * @param path The path under which the model will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor The descriptor of the model to register.
+     */
+    void createModel(String path, ModelDescriptor descriptor);
+
+    /**
+     * Registers the given {@link ModelDescriptor} as a catalog model similar to SQL models.
+     *
+     * <p>The {@link ModelDescriptor descriptor} is converted into a {@link CatalogModel} and stored
+     * in the catalog.
+     *
+     * <p>If the model should not be permanently stored in a catalog, use {@link
+     * #createTemporaryModel(String, ModelDescriptor)} instead.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a temporary object in a given path exists,
+     * the permanent one will be inaccessible in the current session. To make the permanent object
+     * available again one can drop the corresponding temporary object.
+     *
+     * @param path The path under which the model will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor Template for creating a {@link CatalogModel} instance.
+     * @param ignoreIfExists If a model exists and the given flag is set, no operation is executed.
+     *     An exception is thrown otherwise.
+     */
+    void createModel(String path, ModelDescriptor descriptor, boolean ignoreIfExists);
+
+    /**
+     * Registers the given {@link ModelDescriptor} as a temporary catalog model similar to SQL
+     * models.
+     *
+     * <p>The {@link ModelDescriptor descriptor} is converted into a {@link CatalogModel} and stored
+     * in the catalog.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+     * it will be inaccessible in the current session. To make the permanent object available again
+     * one can drop the corresponding temporary object.
+     *
+     * @param path The path under which the model will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor Template for creating a {@link CatalogModel} instance.
+     */
+    void createTemporaryModel(String path, ModelDescriptor descriptor);
+
+    /**
+     * Registers the given {@link ModelDescriptor} as a temporary catalog model similar to SQL
+     * models.
+     *
+     * <p>The {@link ModelDescriptor descriptor} is converted into a {@link CatalogModel} and stored
+     * in the catalog.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+     * it will be inaccessible in the current session. To make the permanent object available again
+     * one can drop the corresponding temporary object.
+     *
+     * @param path The path under which the model will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor Template for creating a {@link CatalogModel} instance.
+     * @param ignoreIfExists If a model exists and the given flag is set, no operation is executed.
+     *     An exception is thrown otherwise.
+     */
+    void createTemporaryModel(String path, ModelDescriptor descriptor, boolean ignoreIfExists);
+
+    /**
      * Scans a registered table and returns the resulting {@link Table}.
      *
      * <p>A table to scan must be registered in the {@link TableEnvironment}. It can be either
@@ -992,8 +1069,8 @@ public interface TableEnvironment {
      * }</pre>
      *
      * <p>A PTF can digest tables either per row (with row semantics) or per set (with set
-     * semantics). For set semantics ({@link ArgumentTrait#TABLE_AS_SET}), make sure to partition
-     * the table first using {@link Table#partitionBy(Expression...)}.
+     * semantics). For set semantics ({@link ArgumentTrait#SET_SEMANTIC_TABLE}), make sure to
+     * partition the table first using {@link Table#partitionBy(Expression...)}.
      *
      * @param path The path of a function.
      * @param arguments Table and scalar argument {@link Expressions}.
@@ -1024,8 +1101,8 @@ public interface TableEnvironment {
      * }</pre>
      *
      * <p>A PTF can digest tables either per row (with row semantics) or per set (with set
-     * semantics). For set semantics ({@link ArgumentTrait#TABLE_AS_SET}), make sure to partition
-     * the table first using {@link Table#partitionBy(Expression...)}.
+     * semantics). For set semantics ({@link ArgumentTrait#SET_SEMANTIC_TABLE}), make sure to
+     * partition the table first using {@link Table#partitionBy(Expression...)}.
      *
      * @param function The class containing the function's logic.
      * @param arguments Table and scalar argument {@link Expressions}.
@@ -1123,6 +1200,26 @@ public interface TableEnvironment {
     String[] listFunctions();
 
     /**
+     * Gets the names of all models available in the current namespace (the current database of the
+     * current catalog). It returns both temporary and permanent models.
+     *
+     * @return A list of the names of all registered models in the current database of the current
+     *     catalog.
+     * @see #listTemporaryModels()
+     */
+    String[] listModels();
+
+    /**
+     * Gets the names of all temporary Models available in the current namespace (the current
+     * database of the current catalog).
+     *
+     * @return A list of the names of all registered temporary models in the current database of the
+     *     current catalog.
+     * @see #listModels()
+     */
+    String[] listTemporaryModels();
+
+    /**
      * Drops a temporary table registered in the given path.
      *
      * <p>If a permanent table with a given path exists, it will be used from now on for any queries
@@ -1211,6 +1308,48 @@ public interface TableEnvironment {
      *     the given path and ignoreIfNotExists was true.
      */
     boolean dropView(String path, boolean ignoreIfNotExists);
+
+    /**
+     * Drops a model registered in the given path.
+     *
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryModel}.
+     *
+     * @param path The given path under which the model will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @return true if model existed in the given path and was dropped, false if model didn't exist
+     *     in the given path.
+     */
+    boolean dropModel(String path);
+
+    /**
+     * Drops a model registered in the given path.
+     *
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryModel}.
+     *
+     * @param path The given path under which the model will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param ignoreIfNotExists If false exception will be thrown if the model to drop does not
+     *     exist.
+     * @return true if model existed in the given path and was dropped, false if model didn't exist
+     *     in the given path.
+     */
+    boolean dropModel(String path, boolean ignoreIfNotExists);
+
+    /**
+     * Drops a temporary model registered in the given path.
+     *
+     * <p>If a permanent model with a given path exists, it will be used from now on for any queries
+     * that reference this path.
+     *
+     * @param path The given path under which the temporary model will be dropped. See also the
+     *     {@link TableEnvironment} class description for the format of the path.
+     * @return true if a model existed in the given path and was removed
+     */
+    boolean dropTemporaryModel(String path);
 
     /**
      * Returns the AST of the specified statement and the execution plan to compute the result of

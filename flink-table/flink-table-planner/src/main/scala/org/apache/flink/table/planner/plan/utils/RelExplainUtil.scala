@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.functions.{AggregateFunction, DeclarativeAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.CalcitePair
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
@@ -25,12 +25,14 @@ import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionForm
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import com.google.common.collect.ImmutableMap
+import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelCollation, RelWriter}
-import org.apache.calcite.rel.core.{AggregateCall, Window}
+import org.apache.calcite.rel.core.{AggregateCall, Calc, Window}
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.`type`.SqlTypeFamily
 import org.apache.calcite.sql.{SqlExplainLevel, SqlKind}
 import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
 
@@ -592,11 +594,25 @@ object RelExplainUtil {
       window.getRowType.getFieldCount - window.groups.flatMap(_.aggCalls).size
     }
 
+    def calcBoundOffset(bound: RexWindowBound, window: Window): AnyRef = {
+      val ref = bound.getOffset.asInstanceOf[RexInputRef]
+      val boundIndex = ref.getIndex - calcOriginInputRows(window)
+      if (window.constants.isEmpty || boundIndex >= window.constants.size) {
+        throw new ValidationException("Expressions for window boundary are not allowed")
+      } else {
+        val literal = window.constants.get(boundIndex)
+        val typeFamily = literal.getType.getSqlTypeName.getFamily
+        if (typeFamily != SqlTypeFamily.NUMERIC && typeFamily != SqlTypeFamily.INTERVAL_DAY_TIME) {
+          throw new ValidationException(
+            literal.getType.getSqlTypeName.getFamily + " type is not allowed for window boundary")
+        }
+        literal.getValue2
+      }
+    }
+
     def boundString(bound: RexWindowBound, window: Window): String = {
       if (bound.getOffset != null) {
-        val ref = bound.getOffset.asInstanceOf[RexInputRef]
-        val boundIndex = ref.getIndex - calcOriginInputRows(window)
-        val offset = window.constants.get(boundIndex).getValue2
+        val offset = calcBoundOffset(bound, window)
         val offsetKind = if (bound.isPreceding) "PRECEDING" else "FOLLOWING"
         s"$offset $offsetKind"
       } else {
@@ -605,7 +621,7 @@ object RelExplainUtil {
     }
 
     val buf = new StringBuilder
-    buf.append(if (groupWindow.isRows) " ROWS " else " RANG ")
+    buf.append(if (groupWindow.isRows) " ROWS " else " RANGE ")
     val lowerBound = groupWindow.lowerBound
     val upperBound = groupWindow.upperBound
     if (lowerBound != null) {

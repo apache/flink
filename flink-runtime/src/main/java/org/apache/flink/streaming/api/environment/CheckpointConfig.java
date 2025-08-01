@@ -110,7 +110,7 @@ public class CheckpointConfig implements java.io.Serializable {
     @Deprecated
     public org.apache.flink.streaming.api.CheckpointingMode getCheckpointingMode() {
         return org.apache.flink.streaming.api.CheckpointingMode.convertFromCheckpointingMode(
-                configuration.get(CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE));
+                getCheckpointingConsistencyMode());
     }
 
     /**
@@ -134,7 +134,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * @return The checkpointing mode.
      */
     public CheckpointingMode getCheckpointingConsistencyMode() {
-        return configuration.get(CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE);
+        return CheckpointingOptions.getCheckpointingMode(configuration);
     }
 
     /**
@@ -456,7 +456,7 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     @PublicEvolving
     public boolean isUnalignedCheckpointsEnabled() {
-        return configuration.get(CheckpointingOptions.ENABLE_UNALIGNED);
+        return CheckpointingOptions.isUnalignedCheckpointEnabled(configuration);
     }
 
     @Experimental
@@ -466,7 +466,7 @@ public class CheckpointConfig implements java.io.Serializable {
 
     @Experimental
     public boolean isUnalignedCheckpointsInterruptibleTimersEnabled() {
-        return configuration.get(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS);
+        return CheckpointingOptions.isUnalignedCheckpointInterruptibleTimersEnabled(configuration);
     }
 
     /**

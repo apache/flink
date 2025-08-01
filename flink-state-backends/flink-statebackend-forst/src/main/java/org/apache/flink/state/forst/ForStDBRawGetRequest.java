@@ -18,7 +18,7 @@
 
 package org.apache.flink.state.forst;
 
-import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 
 import java.io.IOException;
 import java.util.List;
@@ -35,7 +35,7 @@ public class ForStDBRawGetRequest<K, N, V> extends ForStDBGetRequest<K, N, List<
     ForStDBRawGetRequest(
             ContextKey<K, N> key,
             ForStInnerTable<K, N, List<V>> table,
-            InternalStateFuture<byte[]> future) {
+            InternalAsyncFuture<byte[]> future) {
         super(key, table, future);
     }
 

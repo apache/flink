@@ -153,6 +153,44 @@ Sink(table=[default_catalog.default_database.appendSink2], fields=[long, sum])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoin">
+    <Resource name="sql">
+      <![CDATA[
+SELECT T1.rowtime, T2.proctime, T1.long, T2.`int`, T3.long
+FROM MyTable1 T1
+JOIN MyTable2 T2 ON T1.long = T2.long AND T1.`int` > 10
+JOIN MyTable1 T3 ON T1.long = T3.long AND T3.`int` < 20
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(rowtime=[$0], proctime=[$5], long=[$1], int=[$4], long0=[$7])
++- LogicalJoin(condition=[AND(=($1, $7), <($8, 20))], joinType=[inner])
+   :- LogicalJoin(condition=[AND(=($1, $3), >($2, 10))], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[rowtime, proctime, long, int0 AS int, long0])
++- Join(joinType=[InnerJoin], where=[(long = long0)], select=[rowtime, long, int0, proctime, long0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[long]])
+   :  +- Calc(select=[rowtime, long, int AS int0, proctime])
+   :     +- Join(joinType=[InnerJoin], where=[(long = long0)], select=[rowtime, long, long0, int, proctime], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :        :- Exchange(distribution=[hash[long]])
+   :        :  +- Calc(select=[CAST(rowtime AS TIMESTAMP(3)) AS rowtime, long], where=[(int > 10)])
+   :        :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])(reuse_id=[1])
+   :        +- Exchange(distribution=[hash[long]])
+   :           +- Calc(select=[long, int, PROCTIME_MATERIALIZE(proctime) AS proctime])
+   :              +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[long, int, proctime])
+   +- Exchange(distribution=[hash[long]])
+      +- Calc(select=[long], where=[(int < 20)])
+         +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMultiWindow">
     <Resource name="sql">
       <![CDATA[

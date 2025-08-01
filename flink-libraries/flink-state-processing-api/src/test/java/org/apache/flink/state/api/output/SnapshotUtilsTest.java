@@ -19,6 +19,7 @@
 package org.apache.flink.state.api.output;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
@@ -77,7 +78,15 @@ public class SnapshotUtilsTest {
         Path path = new Path(folder.newFolder().getAbsolutePath());
 
         SnapshotUtils.snapshot(
-                0L, operator, 0, 0L, true, false, new Configuration(), path, savepointFormatType);
+                0L,
+                operator,
+                0,
+                0L,
+                CheckpointingMode.EXACTLY_ONCE,
+                false,
+                new Configuration(),
+                path,
+                savepointFormatType);
 
         Assert.assertEquals(SavepointType.savepoint(savepointFormatType), actualSnapshotType);
         Assert.assertEquals(EXPECTED_CALL_OPERATOR_SNAPSHOT, ACTUAL_ORDER_TRACKING);

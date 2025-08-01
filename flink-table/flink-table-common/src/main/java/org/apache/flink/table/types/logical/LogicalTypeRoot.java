@@ -141,7 +141,9 @@ public enum LogicalTypeRoot {
 
     UNRESOLVED(LogicalTypeFamily.EXTENSION),
 
-    DESCRIPTOR(LogicalTypeFamily.DESCRIPTOR);
+    DESCRIPTOR(LogicalTypeFamily.DESCRIPTOR),
+
+    VARIANT(LogicalTypeFamily.EXTENSION);
 
     private final Set<LogicalTypeFamily> families;
 

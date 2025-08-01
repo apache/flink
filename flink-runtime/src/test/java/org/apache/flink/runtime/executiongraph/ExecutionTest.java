@@ -18,13 +18,19 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.blob.TestingBlobWriter;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
@@ -41,7 +47,10 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -121,7 +130,7 @@ class ExecutionTest {
         final SchedulerBase scheduler =
                 new DefaultSchedulerBuilder(
                                 JobGraphTestUtils.streamingJobGraph(jobVertex),
-                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                testMainThreadUtil.getMainThreadExecutor(),
                                 EXECUTOR_RESOURCE.getExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
@@ -142,9 +151,14 @@ class ExecutionTest {
         assertThat(execution.getTaskRestore()).isNotNull();
 
         // schedule the execution vertex and wait for its deployment
-        scheduler.startScheduling();
+        testMainThreadUtil.execute(scheduler::startScheduling);
 
-        assertThat(execution.getTaskRestore()).isNull();
+        // After the execution has been deployed, the task restore state should be nulled.
+        while (execution.getTaskRestore() != null) {
+            // Using busy waiting because there is no `future` that would indicate the completion
+            // of the deployment and I want to keep production code clean.
+            Thread.sleep(10);
+        }
     }
 
     @Test
@@ -233,6 +247,102 @@ class ExecutionTest {
 
                     assertThat(execution.getReleaseFuture()).isDone();
                 });
+    }
+
+    @Test
+    void testExecutionCancelledDuringTaskRestoreOffload() {
+        final CountDownLatch offloadLatch = new CountDownLatch(1);
+
+        final Execution cancelledExecution =
+                testMainThreadUtil.execute(
+                        () -> {
+                            final ConditionalLatchBlockingBlobWriter blobWriter =
+                                    new ConditionalLatchBlockingBlobWriter(offloadLatch);
+
+                            final JobVertex jobVertex = createNoOpJobVertex();
+                            final JobGraph jobGraph =
+                                    JobGraphTestUtils.streamingJobGraph(jobVertex);
+                            final ExecutionGraph executionGraph =
+                                    TestingDefaultExecutionGraphBuilder.newBuilder()
+                                            .setJobGraph(jobGraph)
+                                            .setBlobWriter(blobWriter)
+                                            .build(EXECUTOR_RESOURCE.getExecutor());
+                            executionGraph.start(testMainThreadUtil.getMainThreadExecutor());
+
+                            final ExecutionJobVertex executionJobVertex =
+                                    executionGraph.getJobVertex(jobVertex.getID());
+                            final ExecutionVertex executionVertex =
+                                    executionJobVertex.getTaskVertices()[0];
+                            final Execution execution =
+                                    executionVertex.getCurrentExecutionAttempt();
+
+                            final JobManagerTaskRestore taskRestoreState =
+                                    new JobManagerTaskRestore(1L, new TaskStateSnapshot());
+                            execution.setInitialState(taskRestoreState);
+                            execution.tryAssignResource(
+                                    new TestingLogicalSlotBuilder().createTestingLogicalSlot());
+                            execution.transitionState(ExecutionState.SCHEDULED);
+
+                            blobWriter.enableBlocking();
+                            execution.deploy();
+                            execution.cancel();
+
+                            return execution;
+                        });
+
+        offloadLatch.countDown();
+
+        cancelledExecution
+                .getTddCreationDuringDeployFuture()
+                .handle(
+                        (result, exception) -> {
+                            assertThat(exception)
+                                    .isNotNull()
+                                    .describedAs("Expected IllegalStateException to be thrown");
+
+                            final Throwable rootCause = exception.getCause();
+                            assertThat(rootCause).isInstanceOf(IllegalStateException.class);
+                            assertThat(rootCause.getMessage())
+                                    .contains("execution state has switched");
+                            assertThat(rootCause.getMessage())
+                                    .contains("during task restore offload");
+                            return null;
+                        })
+                .join();
+    }
+
+    /**
+     * Custom BlobWriter that conditionally blocks putPermanent calls on a latch to simulate slow
+     * offloading.
+     */
+    private static class ConditionalLatchBlockingBlobWriter extends TestingBlobWriter {
+        private final CountDownLatch offloadLatch;
+        private volatile boolean blockingEnabled = false;
+
+        public ConditionalLatchBlockingBlobWriter(CountDownLatch offloadLatch) {
+            super();
+            this.offloadLatch = offloadLatch;
+        }
+
+        public void enableBlocking() {
+            this.blockingEnabled = true;
+        }
+
+        @Override
+        public PermanentBlobKey putPermanent(JobID jobId, InputStream inputStream)
+                throws IOException {
+            if (blockingEnabled) {
+                try {
+                    // Block until the latch is released
+                    offloadLatch.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted while waiting for offload latch", e);
+                }
+            }
+            // Delegate to parent implementation
+            return super.putPermanent(jobId, inputStream);
+        }
     }
 
     @Nonnull

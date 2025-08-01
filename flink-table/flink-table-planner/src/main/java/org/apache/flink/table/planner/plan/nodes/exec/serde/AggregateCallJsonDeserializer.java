@@ -85,6 +85,7 @@ final class AggregateCallJsonDeserializer extends StdDeserializer<AggregateCall>
                 distinct,
                 approximate,
                 ignoreNulls,
+                new ArrayList<>(),
                 argList,
                 filterArg,
                 null,

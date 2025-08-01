@@ -93,7 +93,7 @@ public class BaseKeyedTwoInputNonBroadcastProcessOperator<KEY, IN1, IN2, OUT>
     }
 
     @Override
-    public boolean isAsyncStateProcessingEnabled() {
+    public boolean isAsyncKeyOrderedProcessingEnabled() {
         return true;
     }
 }

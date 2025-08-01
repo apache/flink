@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncKeyOrderedProcessing;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -30,7 +30,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 /** {@link Input} for {@link OneInputStreamOperator}. */
-public class OneInput extends InputBase implements AsyncStateProcessing {
+public class OneInput extends InputBase implements AsyncKeyOrderedProcessing {
 
     private final OneInputStreamOperator<RowData, RowData> operator;
 
@@ -60,14 +60,14 @@ public class OneInput extends InputBase implements AsyncStateProcessing {
 
     @Internal
     @Override
-    public final boolean isAsyncStateProcessingEnabled() {
-        return (operator instanceof AsyncStateProcessing)
-                && ((AsyncStateProcessing) operator).isAsyncStateProcessingEnabled();
+    public final boolean isAsyncKeyOrderedProcessingEnabled() {
+        return (operator instanceof AsyncKeyOrderedProcessing)
+                && ((AsyncKeyOrderedProcessing) operator).isAsyncKeyOrderedProcessingEnabled();
     }
 
     @Internal
     @Override
     public final <T> ThrowingConsumer<StreamRecord<T>, Exception> getRecordProcessor(int inputId) {
-        return ((AsyncStateProcessing) operator).getRecordProcessor(1);
+        return ((AsyncKeyOrderedProcessing) operator).getRecordProcessor(1);
     }
 }

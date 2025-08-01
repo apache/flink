@@ -20,15 +20,16 @@ package org.apache.flink.table.runtime.generated;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator;
+import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator.RunnerContext;
+import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator.RunnerOnTimerContext;
 import org.apache.flink.table.runtime.operators.process.PassAllCollector;
 import org.apache.flink.table.runtime.operators.process.PassThroughCollectorBase;
-import org.apache.flink.table.runtime.operators.process.ProcessTableOperator;
-import org.apache.flink.table.runtime.operators.process.ProcessTableOperator.RunnerContext;
-import org.apache.flink.table.runtime.operators.process.ProcessTableOperator.RunnerOnTimerContext;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -39,13 +40,13 @@ import java.util.Arrays;
 
 /**
  * Abstraction of code-generated calls to {@link ProcessTableFunction} to be used within {@link
- * ProcessTableOperator}.
+ * AbstractProcessTableOperator}.
  */
 @Internal
 public abstract class ProcessTableRunner extends AbstractRichFunction {
 
     // Constant references after initialization
-    private ValueState<RowData>[] stateHandles;
+    protected State[] stateHandles;
     private HashFunction[] stateHashCode;
     private RecordEqualiser[] stateEquals;
     private boolean emitRowtime;
@@ -68,7 +69,7 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     private @Nullable StringData timerName;
 
     /** State entries to be converted into external data structure; null if state is empty. */
-    protected RowData[] stateToFunction;
+    protected RowData[] valueStateToFunction;
 
     /**
      * Reference to whether the state has been cleared within the function; if yes, a conversion
@@ -77,10 +78,10 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     protected boolean[] stateCleared;
 
     /** State ready for persistence; null if {@link #stateCleared} was true during conversion. */
-    protected RowData[] stateFromFunction;
+    protected RowData[] valueStateFromFunction;
 
     public void initialize(
-            ValueState<RowData>[] stateHandles,
+            State[] stateHandles,
             HashFunction[] stateHashCode,
             RecordEqualiser[] stateEquals,
             boolean emitRowtime,
@@ -98,13 +99,13 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
         this.runnerOnTimerContext = runnerOnTimerContext;
         this.evalCollector = evalCollector;
         this.onTimerCollector = onTimerCollector;
-        this.stateToFunction = new RowData[stateHandles.length];
+        this.valueStateToFunction = new RowData[stateHandles.length];
         this.stateCleared = new boolean[stateHandles.length];
-        this.stateFromFunction = new RowData[stateHandles.length];
+        this.valueStateFromFunction = new RowData[stateHandles.length];
     }
 
     public void ingestTableEvent(int pos, RowData row, int timeColumn) {
-        evalCollector.setPrefix(row);
+        evalCollector.setPrefix(pos, row);
         if (timeColumn == -1) {
             rowtime = null;
         } else {
@@ -119,7 +120,7 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
     }
 
     public void ingestTimerEvent(RowData key, @Nullable StringData name, long timerTime) {
-        onTimerCollector.setPrefix(key);
+        onTimerCollector.setPrefix(-1, key);
         if (emitRowtime) {
             onTimerCollector.setRowtime(timerTime);
         }
@@ -183,30 +184,48 @@ public abstract class ProcessTableRunner extends AbstractRichFunction {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void moveStateToFunction() throws IOException {
         Arrays.fill(stateCleared, false);
         for (int i = 0; i < stateHandles.length; i++) {
-            final RowData value = stateHandles[i].value();
-            stateToFunction[i] = value;
+            final State stateHandle = stateHandles[i];
+            if (!(stateHandle instanceof ValueState)) {
+                continue;
+            }
+            final ValueState<RowData> valueState = (ValueState<RowData>) stateHandle;
+            final RowData value = valueState.value();
+            valueStateToFunction[i] = value;
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void moveStateFromFunction() throws IOException {
         for (int i = 0; i < stateHandles.length; i++) {
-            final RowData fromFunction = stateFromFunction[i];
-            if (fromFunction == null || isEmpty(fromFunction)) {
-                // Reduce state size
-                stateHandles[i].clear();
+            final State stateHandle = stateHandles[i];
+            if (stateHandle instanceof ValueState) {
+                moveValueStateFromFunction((ValueState<RowData>) stateHandle, i);
             } else {
-                final HashFunction hashCode = stateHashCode[i];
-                final RecordEqualiser equals = stateEquals[i];
-                final RowData toFunction = stateToFunction[i];
-                // Reduce state updates by checking if something has changed
-                if (toFunction == null
-                        || hashCode.hashCode(toFunction) != hashCode.hashCode(fromFunction)
-                        || !equals.equals(toFunction, fromFunction)) {
-                    stateHandles[i].update(fromFunction);
+                if (stateCleared[i]) {
+                    stateHandle.clear();
                 }
+            }
+        }
+    }
+
+    private void moveValueStateFromFunction(ValueState<RowData> valueState, int pos)
+            throws IOException {
+        final RowData fromFunction = valueStateFromFunction[pos];
+        if (fromFunction == null || isEmpty(fromFunction)) {
+            valueState.clear();
+        } else {
+            final HashFunction hashCode = stateHashCode[pos];
+            final RecordEqualiser equals = stateEquals[pos];
+            final RowData toFunction = valueStateToFunction[pos];
+            // Reduce state updates by checking if something has changed
+            if (toFunction == null
+                    || hashCode.hashCode(toFunction) != hashCode.hashCode(fromFunction)
+                    || !equals.equals(toFunction, fromFunction)) {
+                valueState.update(fromFunction);
             }
         }
     }

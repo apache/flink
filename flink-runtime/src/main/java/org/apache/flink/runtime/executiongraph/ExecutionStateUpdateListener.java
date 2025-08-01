@@ -23,4 +23,12 @@ import org.apache.flink.runtime.execution.ExecutionState;
 public interface ExecutionStateUpdateListener {
     void onStateUpdate(
             ExecutionAttemptID execution, ExecutionState previousState, ExecutionState newState);
+
+    static ExecutionStateUpdateListener combine(ExecutionStateUpdateListener... listeners) {
+        return (execution, previousState, newState) -> {
+            for (ExecutionStateUpdateListener listener : listeners) {
+                listener.onStateUpdate(execution, previousState, newState);
+            }
+        };
+    }
 }

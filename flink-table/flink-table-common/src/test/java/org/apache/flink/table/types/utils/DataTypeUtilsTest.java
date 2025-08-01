@@ -19,7 +19,9 @@
 package org.apache.flink.table.types.utils;
 
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
@@ -233,5 +235,41 @@ class DataTypeUtilsTest {
                         "Data type 'MAP<INT, STRING>' does not support an output conversion to class '"
                                 + java.util.HashMap.class.getName()
                                 + "'.");
+    }
+
+    @Test
+    void testStructuredTypeAlignment() {
+        final DataTypeFactoryMock factoryMock = new DataTypeFactoryMock();
+
+        final DataType expectedDataType = DataTypes.of(NestedPojo.class).toDataType(factoryMock);
+
+        // Erases conversion classes and uses default conversion classes
+        final DataType defaultDataType = DataTypes.of(expectedDataType.getLogicalType());
+
+        final DataType dataType =
+                DataTypeUtils.alignStructuredTypes(
+                        factoryMock, DataTypes.ROW(DataTypes.INT(), defaultDataType));
+        assertThat(dataType).isEqualTo(DataTypes.ROW(DataTypes.INT(), expectedDataType));
+    }
+
+    /** POJO that does not use default conversions for certain data types. */
+    public static class Pojo {
+        // Primitive instead of boxed class
+        public int i;
+
+        // List instead of array and java.sql.Timestamp instead of java.time.LocalDateTime
+        public List<Timestamp> timestamps;
+
+        // byte[] as annotated STRING data type
+        @DataTypeHint("STRING")
+        public byte[] string;
+    }
+
+    /** Nested POJO that does not use default conversions for certain data types. */
+    public static class NestedPojo {
+
+        public Tuple2<Boolean, Double> tuple;
+
+        public List<Pojo> pojoList;
     }
 }

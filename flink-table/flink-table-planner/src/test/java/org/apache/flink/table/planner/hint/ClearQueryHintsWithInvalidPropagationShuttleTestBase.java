@@ -130,7 +130,14 @@ abstract class ClearQueryHintsWithInvalidPropagationShuttleTestBase extends Tabl
     protected String buildRelPlanWithQueryBlockAlias(RelNode node) {
         return System.lineSeparator()
                 + FlinkRelOptUtil.toString(
-                        node, SqlExplainLevel.EXPPLAN_ATTRIBUTES, false, false, true, false, true);
+                        node,
+                        SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+                        false,
+                        false,
+                        true,
+                        false,
+                        true,
+                        false);
     }
 
     protected void verifyRelPlan(RelNode node) {

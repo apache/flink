@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
@@ -84,6 +85,7 @@ class CatalogBaseTableResolutionTest {
                     .withComment("This is a computed column")
                     .watermark("ts", WATERMARK_SQL)
                     .primaryKeyNamed("primary_constraint", "id")
+                    .indexNamed("idx", Collections.singletonList("id"))
                     .build();
 
     private static final Schema MATERIALIZED_TABLE_SCHEMA =
@@ -95,6 +97,7 @@ class CatalogBaseTableResolutionTest {
                     .column("topic", DataTypes.VARCHAR(200))
                     .withComment("") // empty column comment
                     .primaryKeyNamed("primary_constraint", "id")
+                    .indexNamed("idx", Collections.singletonList("id"))
                     .build();
 
     private static final TableSchema LEGACY_TABLE_SCHEMA =
@@ -130,7 +133,9 @@ class CatalogBaseTableResolutionTest {
                                     .withComment("This is a computed column")),
                     Collections.singletonList(WatermarkSpec.of("ts", WATERMARK_RESOLVED)),
                     UniqueConstraint.primaryKey(
-                            "primary_constraint", Collections.singletonList("id")));
+                            "primary_constraint", Collections.singletonList("id")),
+                    Collections.singletonList(
+                            DefaultIndex.newIndex("idx", Collections.singletonList("id"))));
 
     private static final ResolvedSchema RESOLVED_MATERIALIZED_TABLE_SCHEMA =
             new ResolvedSchema(
@@ -142,7 +147,9 @@ class CatalogBaseTableResolutionTest {
                             Column.physical("topic", DataTypes.VARCHAR(200)).withComment("")),
                     Collections.emptyList(),
                     UniqueConstraint.primaryKey(
-                            "primary_constraint", Collections.singletonList("id")));
+                            "primary_constraint", Collections.singletonList("id")),
+                    Collections.singletonList(
+                            DefaultIndex.newIndex("idx", Collections.singletonList("id"))));
 
     private static final ContinuousRefreshHandler CONTINUOUS_REFRESH_HANDLER =
             new ContinuousRefreshHandler(
@@ -159,7 +166,8 @@ class CatalogBaseTableResolutionTest {
                             Column.physical("region", DataTypes.VARCHAR(200)),
                             Column.physical("county", DataTypes.VARCHAR(200))),
                     Collections.emptyList(),
-                    null);
+                    null,
+                    Collections.emptyList());
 
     @Test
     void testCatalogTableResolution() {
@@ -216,7 +224,8 @@ class CatalogBaseTableResolutionTest {
         final ResolvedCatalogTable resolvedTable =
                 resolveCatalogBaseTable(ResolvedCatalogTable.class, table);
 
-        assertThat(resolvedTable.toProperties()).isEqualTo(catalogTableAsProperties());
+        assertThat(resolvedTable.toProperties(DefaultSqlFactory.INSTANCE))
+                .isEqualTo(catalogTableAsProperties());
 
         assertThat(resolvedTable.getResolvedSchema()).isEqualTo(RESOLVED_TABLE_SCHEMA);
 
@@ -229,7 +238,7 @@ class CatalogBaseTableResolutionTest {
                         ResolvedCatalogMaterializedTable.class, catalogMaterializedTable);
         assertThat(
                         CatalogPropertiesUtil.serializeCatalogMaterializedTable(
-                                resolvedCatalogMaterializedTable))
+                                resolvedCatalogMaterializedTable, DefaultSqlFactory.INSTANCE))
                 .isEqualTo(catalogMaterializedTableAsProperties());
 
         assertThat(resolvedCatalogMaterializedTable.getResolvedSchema())
@@ -378,6 +387,8 @@ class CatalogBaseTableResolutionTest {
         properties.put("schema.watermark.0.strategy.expr", "ts - INTERVAL '5' SECOND");
         properties.put("schema.primary-key.name", "primary_constraint");
         properties.put("schema.primary-key.columns", "id");
+        properties.put("schema.index.0.name", "idx");
+        properties.put("schema.index.0.columns", "id");
         properties.put("partition.keys.0.name", "region");
         properties.put("partition.keys.1.name", "county");
         properties.put("version", "12");
@@ -403,6 +414,8 @@ class CatalogBaseTableResolutionTest {
         properties.put("schema.3.comment", "");
         properties.put("schema.primary-key.name", "primary_constraint");
         properties.put("schema.primary-key.columns", "id");
+        properties.put("schema.index.0.name", "idx");
+        properties.put("schema.index.0.columns", "id");
         properties.put("freshness-interval", "30");
         properties.put("freshness-unit", "SECOND");
         properties.put("logical-refresh-mode", "CONTINUOUS");

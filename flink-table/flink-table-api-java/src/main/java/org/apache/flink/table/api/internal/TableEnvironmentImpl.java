@@ -32,6 +32,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.Expressions;
+import org.apache.flink.table.api.ModelDescriptor;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.SqlParserException;
@@ -73,6 +74,7 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.execution.StagingSinkJobStatusHook;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
@@ -283,6 +285,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                         .config(tableConfig)
                                         .classloader(userClassLoader)
                                         .build())
+                        .sqlFactory(
+                                settings.getSqlFactory()
+                                        .orElseGet(() -> DefaultSqlFactory.INSTANCE))
                         .build();
 
         final FunctionCatalog functionCatalog =
@@ -496,8 +501,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         Preconditions.checkNotNull(path, "Path must not be null.");
         Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
 
-        final ObjectIdentifier tableIdentifier =
-                catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
+        final ObjectIdentifier tableIdentifier = getObjectIdentifierFromPath(path);
         catalogManager.createTemporaryTable(
                 descriptor.toCatalogTable(), tableIdentifier, ignoreIfExists);
     }
@@ -512,8 +516,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         Preconditions.checkNotNull(path, "Path must not be null.");
         Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
 
-        final ObjectIdentifier tableIdentifier =
-                catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
+        final ObjectIdentifier tableIdentifier = getObjectIdentifierFromPath(path);
         return catalogManager.createTable(
                 descriptor.toCatalogTable(), tableIdentifier, ignoreIfExists);
     }
@@ -562,6 +565,34 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 qualifyQueryOperation(viewIdentifier, view.getQueryOperation());
         CatalogBaseTable tableTable = new QueryOperationCatalogView(queryOperation);
         return catalogManager.createTable(tableTable, viewIdentifier, ignoreIfExists);
+    }
+
+    @Override
+    public void createModel(String path, ModelDescriptor descriptor, boolean ignoreIfExists) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        Preconditions.checkNotNull(descriptor, "Model descriptor must not be null.");
+        final ObjectIdentifier objectIdentifier = getObjectIdentifierFromPath(path);
+        catalogManager.createModel(descriptor.toCatalogModel(), objectIdentifier, ignoreIfExists);
+    }
+
+    @Override
+    public void createModel(String path, ModelDescriptor descriptor) {
+        createModel(path, descriptor, false);
+    }
+
+    @Override
+    public void createTemporaryModel(String path, ModelDescriptor descriptor) {
+        createTemporaryModel(path, descriptor, false);
+    }
+
+    @Override
+    public void createTemporaryModel(
+            String path, ModelDescriptor descriptor, boolean ignoreIfExists) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        Preconditions.checkNotNull(descriptor, "Model descriptor must not be null.");
+        final ObjectIdentifier objectIdentifier = getObjectIdentifierFromPath(path);
+        catalogManager.createTemporaryModel(
+                descriptor.toCatalogModel(), objectIdentifier, ignoreIfExists);
     }
 
     @Override
@@ -720,6 +751,30 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
+    public boolean dropModel(String path) {
+        return dropModel(path, true);
+    }
+
+    @Override
+    public boolean dropModel(String path, boolean ignoreIfNotExists) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        ObjectIdentifier objectIdentifier = getObjectIdentifierFromPath(path);
+        return catalogManager.dropModel(objectIdentifier, ignoreIfNotExists);
+    }
+
+    @Override
+    public boolean dropTemporaryModel(String path) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        ObjectIdentifier objectIdentifier = getObjectIdentifierFromPath(path);
+        try {
+            catalogManager.dropTemporaryModel(objectIdentifier, false);
+            return true;
+        } catch (ValidationException e) {
+            return false;
+        }
+    }
+
+    @Override
     public String[] listUserDefinedFunctions() {
         String[] functions = functionCatalog.getUserDefinedFunctions();
         Arrays.sort(functions);
@@ -731,6 +786,16 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         String[] functions = functionCatalog.getFunctions();
         Arrays.sort(functions);
         return functions;
+    }
+
+    @Override
+    public String[] listModels() {
+        return catalogManager.listModels().stream().sorted().toArray(String[]::new);
+    }
+
+    @Override
+    public String[] listTemporaryModels() {
+        return catalogManager.listTemporaryModels().stream().sorted().toArray(String[]::new);
     }
 
     @Override
@@ -1257,7 +1322,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         String defaultJobName = "collect";
 
         try {
-            defaultJobName = operation.asSerializableString();
+            defaultJobName = operation.asSerializableString(catalogManager.getSqlFactory());
         } catch (Throwable e) {
             // ignore error for unsupported operations and use 'collect' as default job name
         }
@@ -1389,6 +1454,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return sinkModifyOperation.isDelete() || sinkModifyOperation.isUpdate();
         }
         return false;
+    }
+
+    private ObjectIdentifier getObjectIdentifierFromPath(String path) {
+        return catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
     }
 
     /** A utility for {@link #fromCall} to check that all references belong to this environment. */

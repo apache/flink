@@ -32,4 +32,14 @@ public interface JobStatusListener {
      * @param timestamp The timestamp when the status transition occurred.
      */
     void jobStatusChanges(JobID jobId, JobStatus newJobStatus, long timestamp);
+
+    static JobStatusListener combine(JobStatusListener... jobStatusListeners) {
+        return (jobId, newJobStatus, timestamp) -> {
+            for (JobStatusListener jobStatusListener : jobStatusListeners) {
+                if (jobStatusListener != null) {
+                    jobStatusListener.jobStatusChanges(jobId, newJobStatus, timestamp);
+                }
+            }
+        };
+    }
 }

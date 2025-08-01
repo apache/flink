@@ -50,6 +50,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
+import org.apache.flink.streaming.api.operators.SimpleUdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -59,7 +60,9 @@ import org.apache.flink.streaming.api.transformations.CacheTransformation;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
+import org.apache.flink.streaming.api.transformations.StubTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
@@ -76,6 +79,8 @@ import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
+import org.assertj.core.api.Assertions;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hamcrest.Description;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
@@ -898,6 +903,106 @@ class StreamGraphGeneratorTest {
         sideOutputCache.print();
 
         verifyCacheConsumeNode(env, upstreamParallelism, cacheTransformation);
+    }
+
+    @Test
+    void testStubTransformation() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        env.setParallelism(2);
+
+        env.fromData(1, 2, 3)
+                .setParallelism(2)
+                .name("source")
+                .map(i -> i)
+                .name("mapper")
+                .sinkTo(new DiscardingSink<>())
+                .name("primary output");
+        new DataStream<>(
+                        env,
+                        StubTransformation.create(
+                                BasicTypeInfo.INT_TYPE_INFO, t -> t.getName().equals("mapper")))
+                .sinkTo(new DiscardingSink<>())
+                .name("secondary output");
+        new DataStream<>(
+                        env,
+                        StubTransformation.create(
+                                BasicTypeInfo.INT_TYPE_INFO, t -> t.getName().equals("mapper")))
+                .sinkTo(new DiscardingSink<>())
+                .name("tertiary output");
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        Assertions.assertThat(streamGraph.getStreamNodes()).hasSize(5);
+        Assertions
+                // source node
+                .assertThat(streamGraph.getSourceIDs())
+                .singleElement()
+                .extracting(streamGraph::getStreamNode)
+                .returns(SourceOperatorFactory.class, node -> node.getOperatorFactory().getClass())
+                .returns(2, StreamNode::getParallelism)
+                .extracting(
+                        StreamNode::getOutEdges, InstanceOfAssertFactories.list(StreamEdge.class))
+                // connection to mapper
+                .singleElement()
+                .returns(ForwardPartitioner.class, edge -> edge.getPartitioner().getClass())
+                .extracting(edge -> streamGraph.getStreamNode(edge.getTargetId()))
+                // mapper node
+                .returns(
+                        SimpleUdfStreamOperatorFactory.class,
+                        node -> node.getOperatorFactory().getClass())
+                .returns(2, StreamNode::getParallelism)
+                .extracting(
+                        StreamNode::getOutEdges, InstanceOfAssertFactories.list(StreamEdge.class))
+                // connection to outputs
+                .hasSize(3)
+                .allMatch(edge -> edge.getPartitioner() instanceof ForwardPartitioner)
+                // sinks
+                .map(edge -> streamGraph.getStreamNode(edge.getTargetId()))
+                .allMatch(sink -> sink.getOperatorFactory() instanceof SinkWriterOperatorFactory);
+    }
+
+    @Test
+    void testStubTransformationFailsWithoutMatch() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        env.setParallelism(2);
+
+        new DataStream<>(
+                        env,
+                        StubTransformation.create(
+                                BasicTypeInfo.INT_TYPE_INFO, t -> t.getName().equals("mapper")))
+                .sinkTo(new DiscardingSink<>())
+                .name("secondary output");
+
+        assertThatThrownBy(env::getStreamGraph)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No upstream transformation found for StubTransformation");
+    }
+
+    @Test
+    void testStubTransformationFailWithTypeMismatch() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        env.setParallelism(2);
+
+        env.fromData(1, 2, 3)
+                .setParallelism(2)
+                .name("source")
+                .map(i -> i)
+                .name("mapper")
+                .sinkTo(new DiscardingSink<>())
+                .name("primary output");
+        new DataStream<>(
+                        env,
+                        StubTransformation.create(
+                                BasicTypeInfo.LONG_TYPE_INFO, t -> t.getName().equals("mapper")))
+                .sinkTo(new DiscardingSink<>())
+                .name("secondary output");
+
+        assertThatThrownBy(env::getStreamGraph)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(
+                        "The output type of the input transformation does not match the expected output type of the StubTransformation");
     }
 
     private void verifyCacheProduceNode(

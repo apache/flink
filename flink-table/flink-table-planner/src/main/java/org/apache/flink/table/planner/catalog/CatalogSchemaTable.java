@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
 import org.apache.flink.table.legacy.api.TableSchema;
@@ -116,7 +117,8 @@ public class CatalogSchemaTable extends AbstractTable implements TemporalTable {
                 && sourceOpt.isPresent()
                 && schema.getColumns().stream().allMatch(Column::isPhysical)
                 && schema.getWatermarkSpecs().isEmpty()) {
-            TableSchema tableSchema = TableSchema.fromResolvedSchema(schema);
+            TableSchema tableSchema =
+                    TableSchema.fromResolvedSchema(schema, DefaultSqlFactory.INSTANCE);
             TableSource<?> source = sourceOpt.get();
             if (TableSourceValidation.hasProctimeAttribute(source)
                     || TableSourceValidation.hasRowtimeAttribute(source)) {

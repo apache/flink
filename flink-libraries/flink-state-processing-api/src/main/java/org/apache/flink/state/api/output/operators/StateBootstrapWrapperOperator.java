@@ -19,6 +19,8 @@
 package org.apache.flink.state.api.output.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -176,6 +178,7 @@ public final class StateBootstrapWrapperOperator<
 
     @Override
     public void endInput() throws Exception {
+        Configuration jobConf = operator.getContainingTask().getJobConfiguration();
         TaggedOperatorSubtaskState state =
                 SnapshotUtils.snapshot(
                         checkpointId,
@@ -185,12 +188,8 @@ public final class StateBootstrapWrapperOperator<
                                 .getTaskInfo()
                                 .getIndexOfThisSubtask(),
                         timestamp,
-                        operator.getContainingTask()
-                                .getConfiguration()
-                                .isExactlyOnceCheckpointMode(),
-                        operator.getContainingTask()
-                                .getConfiguration()
-                                .isUnalignedCheckpointsEnabled(),
+                        CheckpointingOptions.getCheckpointingMode(jobConf),
+                        CheckpointingOptions.isUnalignedCheckpointEnabled(jobConf),
                         operator.getContainingTask().getConfiguration().getConfiguration(),
                         savepointPath);
 

@@ -31,13 +31,20 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * A {@link DataView} that provides {@link List}-like functionality in the accumulator of an {@link
- * AggregateFunction} or {@link TableAggregateFunction} when large amounts of data are expected.
+ * A {@link DataView} that provides {@link List}-like functionality in state entries.
  *
  * <p>A {@link ListView} can be backed by a Java {@link ArrayList} or can leverage Flink's state
- * backends depending on the context in which the aggregate function is used. In many unbounded data
- * scenarios, the {@link ListView} delegates all calls to a {@link ListState} instead of the {@link
+ * backends depending on the context. In many unbounded data scenarios, the {@link ListView}
+ * delegates all calls to a {@link ListState} instead of the {@link ArrayList}.
+ *
+ * <p>For aggregating functions, the view can be used as a field in the accumulator of an {@link
+ * AggregateFunction} or {@link TableAggregateFunction} when large amounts of data are expected.
+ * Aggregate functions might be used at various locations (pre-aggregation, combiners, merging of
+ * window slides, etc.) for some of these locations the data view is not backed by state but {@link
  * ArrayList}.
+ *
+ * <p>For process table functions, the view can be used as a top-level state entry. Data views in
+ * PTFs are always backed by state.
  *
  * <p>Note: Elements of a {@link ListView} must not be null. For heap-based state backends, {@code
  * hashCode/equals} of the original (i.e. external) class are used. However, the serialization
@@ -57,7 +64,7 @@ import java.util.Objects;
  *    public ListView<String> list = new ListView<>();
  *
  *    // or explicit:
- *    // {@literal @}DataTypeHint("ARRAY<STRING>")
+ *    // @DataTypeHint("ARRAY < STRING >")
  *    // public ListView<String> list = new ListView<>();
  *
  *    public long count = 0L;
@@ -65,7 +72,7 @@ import java.util.Objects;
  *
  *  public class MyAggregateFunction extends AggregateFunction<String, MyAccumulator> {
  *
- *   {@literal @}Override
+ *   @Override
  *   public MyAccumulator createAccumulator() {
  *     return new MyAccumulator();
  *   }
@@ -75,7 +82,7 @@ import java.util.Objects;
  *     accumulator.count++;
  *   }
  *
- *   {@literal @}Override
+ *   @Override
  *   public String getValue(MyAccumulator accumulator) {
  *     // return the count and the joined elements
  *     return count + ": " + String.join("|", acc.list.get());
@@ -83,9 +90,6 @@ import java.util.Objects;
  * }
  *
  * }</pre>
- *
- * <p>{@code ListView(TypeInformation<?> elementType)} method was deprecated and then removed.
- * Please use a {@link DataTypeHint} instead.
  *
  * @param <T> element type
  */
@@ -152,7 +156,7 @@ public class ListView<T> implements DataView {
         return list.remove(value);
     }
 
-    /** Removes all of the elements from this list view. */
+    /** Removes all elements from this list view. */
     @Override
     public void clear() {
         list.clear();

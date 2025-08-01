@@ -215,7 +215,7 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
     }
 
     protected BiConsumer<Runnable, Object> getProcessorWithKey() {
-        if (isAsyncStateProcessingEnabled()) {
+        if (isAsyncKeyOrderedProcessingEnabled()) {
             return (r, k) -> asyncProcessWithKey(k, r::run);
         } else {
             return (r, k) -> {
@@ -240,7 +240,7 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
     }
 
     @Override
-    public boolean isAsyncStateProcessingEnabled() {
+    public boolean isAsyncKeyOrderedProcessingEnabled() {
         // For non-keyed operators, we disable async state processing.
         return false;
     }

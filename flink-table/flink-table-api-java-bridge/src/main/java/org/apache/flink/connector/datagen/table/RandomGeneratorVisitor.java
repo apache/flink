@@ -74,7 +74,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 
     public static final int RANDOM_BYTES_LENGTH_DEFAULT = 100;
 
-    private static final int RANDOM_COLLECTION_LENGTH_DEFAULT = 3;
+    public static final int RANDOM_COLLECTION_LENGTH_DEFAULT = 3;
 
     private static final float NULL_RATE_DEFAULT = 0f;
 
@@ -352,6 +352,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
                 RandomGenerator.arrayGenerator(container.getGenerator(), config.get(lenOption));
         Set<ConfigOption<?>> options = container.getOptions();
         options.add(nr);
+        options.add(lenOption);
         return DataGeneratorContainer.of(
                 new DataGeneratorMapper<>(generator, (GenericArrayData::new), config.get(nr)),
                 options.toArray(new ConfigOption<?>[0]));
@@ -374,6 +375,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         Set<ConfigOption<?>> options = container.getOptions();
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
         options.add(nr);
+        options.add(lenOption);
 
         return DataGeneratorContainer.of(
                 new DataGeneratorMapper<>(mapGenerator, GenericMapData::new, config.get(nr)),
@@ -397,6 +399,7 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         Set<ConfigOption<?>> options = keyContainer.getOptions();
         options.addAll(valContainer.getOptions());
         options.add(nr);
+        options.add(lenOption);
 
         DataGenerator<Map<Object, Object>> mapGenerator =
                 RandomGenerator.mapGenerator(

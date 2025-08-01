@@ -209,7 +209,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
     }
 
     @Override
-    public boolean useSplittableTimers() {
+    public boolean useInterruptibleTimers() {
         return true;
     }
 

@@ -57,8 +57,12 @@ class SinkV2TransformationTranslatorITCase {
     static final String UID = "FileUid";
     static final int PARALLELISM = 2;
 
-    protected static void assertNoUnalignedOutput(StreamNode src) {
+    private static void assertNoUnalignedOutput(StreamNode src) {
         assertThat(src.getOutEdges()).allMatch(e -> !e.supportsUnalignedCheckpoints());
+    }
+
+    private static void assertUnalignedOutput(StreamNode src) {
+        assertThat(src.getOutEdges()).allMatch(StreamEdge::supportsUnalignedCheckpoints);
     }
 
     Sink<Integer> simpleSink() {
@@ -66,12 +70,17 @@ class SinkV2TransformationTranslatorITCase {
     }
 
     Sink<Integer> sinkWithCommitter() {
-        return TestSinkV2.<Integer>newBuilder().setDefaultCommitter().build();
+        return TestSinkV2.<Integer>newBuilder()
+                .setCommitter(new TestSinkV2.DefaultCommitter<>(), TestSinkV2.RecordSerializer::new)
+                .build();
     }
 
     Sink<Integer> sinkWithCommitterAndGlobalCommitter() {
-        return TestSinkV2.<Integer>newBuilder()
-                .setDefaultCommitter()
+        return ((TestSinkV2.Builder<Integer, TestSinkV2.Record<Integer>>)
+                        TestSinkV2.<Integer>newBuilder()
+                                .setCommitter(
+                                        new TestSinkV2.DefaultCommitter<>(),
+                                        TestSinkV2.RecordSerializer::new))
                 .setWithPostCommitTopology(true)
                 .build();
     }
@@ -176,6 +185,7 @@ class SinkV2TransformationTranslatorITCase {
 
         assertThat(streamGraph.getStreamNodes()).hasSize(3);
         assertNoUnalignedOutput(writerNode);
+        assertUnalignedOutput(sourceNode);
 
         validateTopology(
                 writerNode,

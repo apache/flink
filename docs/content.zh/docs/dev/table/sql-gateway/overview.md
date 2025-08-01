@@ -40,7 +40,7 @@ SQL Gateway 由插件化的 endpoint 和 `SqlGatewayService` 组成。多个 end
 这个章节描述如何通过命令行启动和执行你的第一个 Flink SQL 作业。
 SQL Gateway 和 Flink 版本一起发布，开箱即用。它只需要一个正在运行的 Flink 集群，可以执行 Flink SQL 作业。
 更多启动 Flink 集群的信息可以查看 [Cluster & Deployment]({{< ref "docs/deployment/resource-providers/standalone/overview" >}})。
-如果你只是想简单尝试 SQL Client，你也可以使用以下命令启动只有一个 worker 的本地集群。
+如果你只是想简单尝试 SQL Gateway，你也可以使用以下命令启动只有一个 worker 的本地集群。
 
 ```bash
 $ ./bin/start-cluster.sh
@@ -81,6 +81,13 @@ $ curl --request POST http://localhost:8083/v1/sessions/${sessionHandle}/stateme
 ```
 
 SQL Gateway 返回结果中的 `operationHandle` 用来唯一标识提交的 SQL。
+
+The Flink SQL Gateway allows clients to specify which Flink cluster to submit jobs to, enabling remote execution of SQL statements and facilitating easier interaction with Flink clusters through a REST API. Enrich the POST request body with [rest.address](https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/config/#rest-address) and [rest.port](https://nightlies.apache.org/flink/flink-docs-master/docs/deployment/config/#rest-port) inside the `executionConfig` variable to set the Flink cluster address. For example:
+
+```bash
+$ curl --request POST http://localhost:8083/v1/sessions/${sessionHandle}/statements/ --data '{"executionConfig": {"rest.address":"jobmanager-host", "rest.port":8081},"statement": "SELECT 1"}'
+{"operationHandle":"..."}
+```
 
 
 **Step 3: Fetch results**

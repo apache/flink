@@ -40,6 +40,7 @@ class CheckpointConfigTests(PyFlinkTestCase):
 
     def test_get_set_checkpointing_mode(self):
 
+        self.env.enable_checkpointing(1000)
         self.assertEqual(self.checkpoint_config.get_checkpointing_mode(),
                          CheckpointingMode.EXACTLY_ONCE)
 
@@ -128,6 +129,7 @@ class CheckpointConfigTests(PyFlinkTestCase):
         self.assertFalse(self.checkpoint_config.is_force_unaligned_checkpoints())
         self.assertEqual(self.checkpoint_config.get_alignment_timeout(), Duration.of_millis(0))
 
+        self.checkpoint_config.set_checkpoint_interval(10000)
         self.checkpoint_config.enable_unaligned_checkpoints()
         self.assertTrue(self.checkpoint_config.is_unaligned_checkpoints_enabled())
 

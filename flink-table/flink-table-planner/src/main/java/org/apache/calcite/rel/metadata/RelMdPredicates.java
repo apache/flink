@@ -35,6 +35,7 @@ import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.Minus;
 import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.core.Sample;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.core.TableScan;
@@ -512,6 +513,12 @@ public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicat
         return mq.getPulledUpPredicates(minus.getInput(0));
     }
 
+    /** Infers predicates for a Sample. */
+    public RelOptPredicateList getPredicates(Sample sample, RelMetadataQuery mq) {
+        RelNode input = sample.getInput();
+        return mq.getPulledUpPredicates(input);
+    }
+
     /** Infers predicates for a Sort. */
     public RelOptPredicateList getPredicates(Sort sort, RelMetadataQuery mq) {
         RelNode input = sort.getInput();
@@ -685,6 +692,7 @@ public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicat
                 case SEMI:
                 case INNER:
                 case LEFT:
+                case ANTI:
                     infer(
                             leftChildPredicates,
                             allExprs,
@@ -762,6 +770,7 @@ public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicat
                             leftInferredPredicates,
                             rightInferredPredicates);
                 case LEFT:
+                case ANTI:
                     return RelOptPredicateList.of(
                             rexBuilder,
                             RelOptUtil.conjunctions(leftChildPredicates),

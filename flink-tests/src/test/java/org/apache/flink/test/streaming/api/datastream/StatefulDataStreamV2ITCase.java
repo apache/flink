@@ -229,10 +229,10 @@ class StatefulDataStreamV2ITCase {
             if (!maybeState.isPresent()) {
                 throw new FlinkRuntimeException("State not found: " + stateDeclaration);
             }
-            Long curOccurence = maybeState.get().get(record);
-            curOccurence = curOccurence == null ? 1L : curOccurence + 1L;
-            maybeState.get().put(record, curOccurence);
-            output.collect(Long.toString(curOccurence));
+            Long curOccurrence = maybeState.get().get(record);
+            curOccurrence = curOccurrence == null ? 1L : curOccurrence + 1L;
+            maybeState.get().put(record, curOccurrence);
+            output.collect(Long.toString(curOccurrence));
         }
     }
 

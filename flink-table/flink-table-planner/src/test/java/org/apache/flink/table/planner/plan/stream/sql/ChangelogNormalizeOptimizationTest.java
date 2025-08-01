@@ -30,9 +30,13 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Plan tests for removal of redundant changelog normalize. */
 public class ChangelogNormalizeOptimizationTest extends TableTestBase {
@@ -86,7 +90,15 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
                         SourceTable.UPSERT_SOURCE_PARTIAL_DELETES_METADATA,
                         SinkTable.UPSERT_SINK_METADATA),
                 TestSpec.selectWithoutMetadata(
-                        SourceTable.UPSERT_SOURCE_PARTIAL_DELETES_METADATA, SinkTable.UPSERT_SINK));
+                        SourceTable.UPSERT_SOURCE_PARTIAL_DELETES_METADATA, SinkTable.UPSERT_SINK),
+                TestSpec.select(
+                        SourceTable.UPSERT_SOURCE_PARTIAL_DELETES_METADATA_NO_PUSHDOWN,
+                        SinkTable.UPSERT_SINK_METADATA),
+                TestSpec.selectWithoutMetadata(
+                        SourceTable.UPSERT_SOURCE_PARTIAL_DELETES_METADATA_NO_PUSHDOWN,
+                        SinkTable.UPSERT_SINK),
+                TestSpec.select(SourceTable.RETRACT_SOURCE_PARTIAL_DELETES, SinkTable.UPSERT_SINK)
+                        .withSessionOption("table.exec.source.cdc-events-duplicate", "true"));
     }
 
     @AfterEach
@@ -98,6 +110,7 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
     @ParameterizedTest()
     @MethodSource("getTests")
     void testChangelogNormalizePlan(TestSpec spec) {
+        spec.sessionOptions.forEach((key, value) -> util.tableEnv().getConfig().set(key, value));
         for (TableProperties tableProperties : spec.tablesToCreate) {
             final String additionalColumns =
                     String.join(",\n", tableProperties.getAdditionalColumns());
@@ -133,19 +146,27 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
     public enum SourceTable implements TableProperties {
         UPSERT_SOURCE_PARTIAL_DELETES(
                 "upsert_table_partial_deletes",
-                "'connector' = 'values'",
                 "'changelog-mode' = 'UA,D'",
                 "'source.produces-delete-by-key'='true'"),
         UPSERT_SOURCE_PARTIAL_DELETES_METADATA(
                 "upsert_table_partial_deletes_metadata",
                 List.of("`offset` BIGINT METADATA"),
-                "'connector' = 'values'",
                 "'changelog-mode' = 'UA,D'",
                 "'source.produces-delete-by-key'='true'",
                 "'readable-metadata' = 'offset:BIGINT'"),
+        RETRACT_SOURCE_PARTIAL_DELETES(
+                "retract_table_partial_deletes",
+                "'changelog-mode' = 'I,UA,UB,D'",
+                "'source.produces-delete-by-key'='true'"),
+        UPSERT_SOURCE_PARTIAL_DELETES_METADATA_NO_PUSHDOWN(
+                "upsert_table_partial_deletes_metadata_no_pushdown",
+                List.of("`offset` BIGINT METADATA"),
+                "'changelog-mode' = 'UA,D'",
+                "'source.produces-delete-by-key'='true'",
+                "'enable-projection-push-down'='false'",
+                "'readable-metadata' = 'offset:BIGINT'"),
         UPSERT_SOURCE_FULL_DELETES(
                 "upsert_table_full_deletes",
-                "'connector' = 'values'",
                 "'changelog-mode' = 'UA,D'",
                 "'source.produces-delete-by-key'='false'");
 
@@ -160,7 +181,14 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
         SourceTable(String tableName, List<String> additionalColumns, String... options) {
             this.tableName = tableName;
             this.additionalColumns = additionalColumns;
-            this.options = Arrays.asList(options);
+            this.options =
+                    Stream.concat(
+                                    Stream.of(options),
+                                    Stream.of(
+                                            "'connector' = 'values'",
+                                            "'disable-lookup'='true'",
+                                            "'runtime-source'='NewSource'"))
+                            .collect(Collectors.toList());
         }
 
         @Override
@@ -235,6 +263,7 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
     private static class TestSpec {
 
         private final Set<TableProperties> tablesToCreate;
+        private final Map<String, String> sessionOptions = new HashMap<>();
         private final String query;
         private final String description;
 
@@ -291,6 +320,11 @@ public class ChangelogNormalizeOptimizationTest extends TableTestBase {
                             sinkTable.getTableName(),
                             leftTable.getTableName(),
                             rightTable.getTableName()));
+        }
+
+        public TestSpec withSessionOption(String key, String value) {
+            this.sessionOptions.put(key, value);
+            return this;
         }
 
         @Override

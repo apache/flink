@@ -29,8 +29,7 @@ import {
 } from '@flink-runtime-web/pages/task-manager/task-manager.config';
 import { TaskManagerService } from '@flink-runtime-web/services';
 import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
-import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { NzCodeEditorModule, EditorOptions } from 'ng-zorro-antd/code-editor';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 
 @Component({
@@ -49,8 +48,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
     NzCodeEditorModule,
     AutoResizeDirective,
     FormsModule
-  ],
-  standalone: true
+  ]
 })
 export class TaskManagerLogDetailComponent implements OnInit, OnDestroy {
   public editorOptions: EditorOptions;

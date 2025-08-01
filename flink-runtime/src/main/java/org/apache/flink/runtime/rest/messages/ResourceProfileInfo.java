@@ -89,22 +89,22 @@ public class ResourceProfileInfo implements ResponseBody, Serializable {
                 resourceProfile.getTaskOffHeapMemory().getMebiBytes(),
                 resourceProfile.getManagedMemory().getMebiBytes(),
                 resourceProfile.getNetworkMemory().getMebiBytes(),
-                getExetendedResources(resourceProfile.getExtendedResources()));
+                getExtendedResources(resourceProfile.getExtendedResources()));
     }
 
     private ResourceProfileInfo() {
         this(-1.0, -1, -1, -1, -1, Collections.emptyMap());
     }
 
-    public static ResourceProfileInfo fromResrouceProfile(ResourceProfile resourceProfile) {
+    public static ResourceProfileInfo fromResourceProfile(ResourceProfile resourceProfile) {
         return resourceProfile.equals(ResourceProfile.UNKNOWN)
                 ? new ResourceProfileInfo()
                 : new ResourceProfileInfo(resourceProfile);
     }
 
-    private static Map<String, Double> getExetendedResources(
-            Map<String, ExternalResource> exetendedResources) {
-        return exetendedResources.entrySet().stream()
+    private static Map<String, Double> getExtendedResources(
+            Map<String, ExternalResource> extendedResources) {
+        return extendedResources.entrySet().stream()
                 .collect(
                         Collectors.toMap(
                                 Map.Entry::getKey, e -> e.getValue().getValue().doubleValue()));

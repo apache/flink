@@ -51,6 +51,27 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testArrayFunction() {}
+
+    @Test
+    void testArrayQueryConstructor() {}
+
+    @Test
+    void testPercentileCont() {}
+
+    @Test
+    void testPercentileContBigQuery() {}
+
+    @Test
+    void testPercentileDisc() {}
+
+    @Test
+    void testPercentileDiscBigQuery() {}
+
+    @Test
+    void testMapQueryConstructor() {}
+
+    @Test
     void testShowCatalogs() {
         sql("show catalogs").ok("SHOW CATALOGS");
 
@@ -107,6 +128,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + " ARRAY_AGG(`ENAME`) AS `C4`\n"
                                 + "FROM `EMP`\n"
                                 + "GROUP BY `GENDER`");
+    }
+
+    @Test
+    void testCastAsMapType() {
+        this.expr("cast(a as map<int, int>)").ok("CAST(`A` AS MAP< INTEGER, INTEGER >)");
+        this.expr("cast(a as map<int, varchar array>)")
+                .ok("CAST(`A` AS MAP< INTEGER, VARCHAR ARRAY >)");
+        this.expr("cast(a as map<varchar multiset, map<int, int>>)")
+                .ok("CAST(`A` AS MAP< VARCHAR MULTISET, MAP< INTEGER, INTEGER > >)");
     }
 
     // DESCRIBE SCHEMA
@@ -2564,6 +2594,33 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testExplainExecuteStatementSet() {
+        sql("explain execute statement set begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "EXPLAIN EXECUTE STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "SELECT *\n"
+                                + "FROM `T2`\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "SELECT *\n"
+                                + "FROM `T3`\n"
+                                + ";\n"
+                                + "END");
+    }
+
+    @Test
+    void testExplainExecuteSelect() {
+        sql("explain execute select * from emps").ok("EXPLAIN EXECUTE SELECT *\nFROM `EMPS`");
+    }
+
+    @Test
+    void testExplainExecuteInsert() {
+        sql("explain execute insert into emps1 select * from emps2")
+                .ok("EXPLAIN EXECUTE INSERT INTO `EMPS1`\nSELECT *\nFROM `EMPS2`");
+    }
+
+    @Test
     void testExplain() {
         String sql = "explain select * from emps";
         String expected = "EXPLAIN SELECT *\nFROM `EMPS`";
@@ -2823,15 +2880,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testTryCast() {
         // Simple types
-        expr("try_cast(a as timestamp)").ok("TRY_CAST(`A` AS TIMESTAMP)");
-        expr("try_cast('abc' as timestamp)").ok("TRY_CAST('abc' AS TIMESTAMP)");
+        expr("try_cast(a as timestamp)").ok("(TRY_CAST(`A` AS TIMESTAMP))");
+        expr("try_cast('abc' as timestamp)").ok("(TRY_CAST('abc' AS TIMESTAMP))");
 
         // Complex types
         expr("try_cast(a as row(f0 int, f1 varchar))")
-                .ok("TRY_CAST(`A` AS ROW(`F0` INTEGER, `F1` VARCHAR))");
+                .ok("(TRY_CAST(`A` AS ROW(`F0` INTEGER, `F1` VARCHAR)))");
         expr("try_cast(a as row(f0 int array, f1 map<string, decimal(10, 2)>, f2 STRING NOT NULL))")
                 .ok(
-                        "TRY_CAST(`A` AS ROW(`F0` INTEGER ARRAY, `F1` MAP< STRING, DECIMAL(10, 2) >, `F2` STRING NOT NULL))");
+                        "(TRY_CAST(`A` AS ROW(`F0` INTEGER ARRAY, `F1` MAP< STRING, DECIMAL(10, 2) >, `F2` STRING NOT NULL)))");
     }
 
     @Test
@@ -3179,7 +3236,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    void testAlterModel() {
+    void testAlterModelSet() {
         final String sql = "alter model m1 set ('key1' = 'value1','key2' = 'value2')";
         final String expected =
                 "ALTER MODEL `M1` SET (\n"
@@ -3211,6 +3268,20 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     void testAlterModelRenameIfExists() {
         final String sql = "alter model if exists m1 rename to m2";
         final String expected = "ALTER MODEL IF EXISTS `M1` RENAME TO `M2`";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testAlterModelReset() {
+        final String sql = "alter model m1 reset ('key1', 'key2')";
+        final String expected = "ALTER MODEL `M1` RESET (\n  'key1',\n  'key2'\n)";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testAlterModelResetIfExists() {
+        final String sql = "alter model if exists m1 reset ('key1', 'key2')";
+        final String expected = "ALTER MODEL IF EXISTS `M1` RESET (\n  'key1',\n  'key2'\n)";
         sql(sql).ok(expected);
     }
 
@@ -3346,6 +3417,30 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                         "CREATE MODEL AS SELECT syntax does not support to specify explicit output columns."));
     }
 
+    @Test
+    void testModelInFunction() {
+        sql("select * from table(ml_predict(TABLE my_table, MODEL my_model))")
+                .ok(
+                        "SELECT *\n"
+                                + "FROM TABLE(`ML_PREDICT`((TABLE `MY_TABLE`), MODEL `MY_MODEL`))");
+    }
+
+    @Test
+    void testModelInFunctionWithoutTable() {
+        sql("select * from func(TABLE my_table, MODEL cat.db.my_model)")
+                .ok(
+                        "SELECT *\n"
+                                + "FROM TABLE(`FUNC`((TABLE `MY_TABLE`), MODEL `CAT`.`DB`.`MY_MODEL`))");
+    }
+
+    @Test
+    void testModelInFunctionNamedArgs() {
+        sql("select * from table(ml_predict(INPUT => TABLE my_table, model => MODEL my_model))")
+                .ok(
+                        "SELECT *\n"
+                                + "FROM TABLE(`ML_PREDICT`(`INPUT` => (TABLE `MY_TABLE`), `MODEL` => (MODEL `MY_MODEL`)))");
+    }
+
     /*
      * This test was backported from Calcite 1.38 (CALCITE-6266).
      * Remove it together with upgrade to Calcite 1.38.
@@ -3417,6 +3512,15 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         final String sql = "select * from dept outer apply ramp(deptno)^)^";
         sql(sql).withConformance(SqlConformanceEnum.SQL_SERVER_2008)
                 .fails("(?s).*Encountered \"\\)\" at .*");
+    }
+
+    @Test
+    void testVariantType() {
+        sql("CREATE TABLE t (\n" + "v variant" + "\n)")
+                .ok("CREATE TABLE `T` (\n" + "  `V` VARIANT\n" + ")");
+
+        sql("CREATE TABLE t (\n" + "v VARIANT NOT NULL" + "\n)")
+                .ok("CREATE TABLE `T` (\n" + "  `V` VARIANT NOT NULL\n" + ")");
     }
 
     /** Matcher that invokes the #validate() of the {@link ExtendedSqlNode} instance. * */

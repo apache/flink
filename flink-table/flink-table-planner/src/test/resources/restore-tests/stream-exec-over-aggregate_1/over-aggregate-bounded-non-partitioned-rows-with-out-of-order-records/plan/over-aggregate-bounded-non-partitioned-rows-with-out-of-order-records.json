@@ -357,7 +357,7 @@
         "fieldType" : "BIGINT NOT NULL"
       } ]
     },
-    "description" : "OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[ts, a, b, c, rowtime, $5, LTCNT(a, $5) AS w0$o0, COUNT(a) AS w0$o1, $SUM0(a) AS w0$o2])"
+    "description" : "OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANGE BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[ts, a, b, c, rowtime, $5, LTCNT(a, $5) AS w0$o0, COUNT(a) AS w0$o1, $SUM0(a) AS w0$o2])"
   }, {
     "id" : 15,
     "type" : "stream-exec-calc_1",

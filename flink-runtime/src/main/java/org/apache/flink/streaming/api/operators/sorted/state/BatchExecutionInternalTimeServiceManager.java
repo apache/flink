@@ -51,7 +51,8 @@ public class BatchExecutionInternalTimeServiceManager<K>
     private final Map<String, BatchExecutionInternalTimeService<K, ?>> timerServices =
             new HashMap<>();
 
-    // In batch mode, there is a chance that the operator is {@link AsyncStateProcessing} and we
+    // In batch mode, there is a chance that the operator is {@link AsyncKeyOrderedProcessing} and
+    // we
     // should perform correctly when the timer fires.
     private final boolean asyncStateProcessingMode;
 

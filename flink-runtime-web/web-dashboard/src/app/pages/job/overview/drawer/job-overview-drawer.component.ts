@@ -55,8 +55,7 @@ import { JobLocalService } from '../../job-local.service';
     '[class.full-width]': 'fullScreen'
   },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NavigationComponent, RouterOutlet, NzIconModule],
-  standalone: true
+  imports: [NavigationComponent, RouterOutlet, NzIconModule]
 })
 export class JobOverviewDrawerComponent implements OnInit, OnDestroy {
   public readonly listOfNavigation: RouterTab[] = [];

@@ -57,7 +57,7 @@ public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OU
     }
 
     @Override
-    public boolean useSplittableTimers() {
+    public boolean useInterruptibleTimers() {
         return true;
     }
 

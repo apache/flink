@@ -185,6 +185,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
     private volatile boolean wasFailedExternally = false;
 
+    private long restoredCheckpointId = 0;
+
     public AbstractStreamOperatorTestHarness(
             StreamOperator<OUT> operator, int maxParallelism, int parallelism, int subtaskIndex)
             throws Exception {
@@ -288,7 +290,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
         Configuration underlyingConfig = env.getTaskConfiguration();
         this.config = new StreamConfig(underlyingConfig);
-        this.config.setCheckpointingEnabled(true);
         this.config.setOperatorID(operatorID);
         this.config.setStateBackendUsesManagedMemory(true);
         this.config.setManagedMemoryFractionOperatorOfUseCase(
@@ -395,6 +396,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
     public StreamConfig getStreamConfig() {
         return config;
+    }
+
+    public void setRestoredCheckpointId(long restoredCheckpointId) {
+        this.restoredCheckpointId = restoredCheckpointId;
     }
 
     /** Get all the output from the task. This contains StreamRecords and Events interleaved. */
@@ -614,16 +619,16 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
             jmTaskStateSnapshot.putSubtaskStateByOperatorID(
                     operator.getOperatorID(), jmOperatorStateHandles);
 
-            taskStateManager.setReportedCheckpointId(0);
+            taskStateManager.setReportedCheckpointId(restoredCheckpointId);
             taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
-                    Collections.singletonMap(0L, jmTaskStateSnapshot));
+                    Collections.singletonMap(restoredCheckpointId, jmTaskStateSnapshot));
 
             if (tmOperatorStateHandles != null) {
                 TaskStateSnapshot tmTaskStateSnapshot = new TaskStateSnapshot();
                 tmTaskStateSnapshot.putSubtaskStateByOperatorID(
                         operator.getOperatorID(), tmOperatorStateHandles);
                 taskStateManager.setTaskManagerTaskStateSnapshotsByCheckpointId(
-                        Collections.singletonMap(0L, tmTaskStateSnapshot));
+                        Collections.singletonMap(restoredCheckpointId, tmTaskStateSnapshot));
             }
         }
 

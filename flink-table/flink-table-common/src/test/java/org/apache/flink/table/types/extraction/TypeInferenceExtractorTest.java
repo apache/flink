@@ -31,6 +31,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AsyncScalarFunction;
+import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
@@ -58,6 +59,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -179,6 +181,11 @@ class TypeInferenceExtractorTest {
                         .expectEmptyStaticArguments()
                         .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
                 // ---
+                // no arguments async table
+                TestSpec.forAsyncTableFunction(ZeroArgFunctionAsyncTable.class)
+                        .expectEmptyStaticArguments()
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 // test primitive arguments extraction
                 TestSpec.forScalarFunction(MixedArgFunction.class)
                         .expectStaticArgument(
@@ -189,6 +196,14 @@ class TypeInferenceExtractorTest {
                 // ---
                 // test primitive arguments extraction async
                 TestSpec.forAsyncScalarFunction(MixedArgFunctionAsync.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "i", DataTypes.INT().notNull().bridgedTo(int.class), false))
+                        .expectStaticArgument(StaticArgument.scalar("d", DataTypes.DOUBLE(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                // test primitive arguments extraction async table
+                TestSpec.forAsyncTableFunction(MixedArgFunctionAsyncTable.class)
                         .expectStaticArgument(
                                 StaticArgument.scalar(
                                         "i", DataTypes.INT().notNull().bridgedTo(int.class), false))
@@ -234,6 +249,25 @@ class TypeInferenceExtractorTest {
                                         }),
                                 TypeStrategies.explicit(DataTypes.BIGINT())),
                 // ---
+                // test overloaded arguments extraction async
+                TestSpec.forAsyncTableFunction(OverloadedFunctionAsyncTable.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"i", "d"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.INT().notNull().bridgedTo(int.class)),
+                                            InputTypeStrategies.explicit(DataTypes.DOUBLE())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.INT()))
+                        .expectOutputMapping(
+                                InputTypeStrategies.sequence(
+                                        new String[] {"s"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(DataTypes.STRING())
+                                        }),
+                                TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 // test varying arguments extraction
                 TestSpec.forScalarFunction(VarArgFunction.class)
                         .expectOutputMapping(
@@ -249,6 +283,19 @@ class TypeInferenceExtractorTest {
                 // ---
                 // test varying arguments extraction async
                 TestSpec.forAsyncScalarFunction(VarArgFunctionAsync.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.varyingSequence(
+                                        new String[] {"i", "more"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.INT().notNull().bridgedTo(int.class)),
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.INT().notNull().bridgedTo(int.class))
+                                        }),
+                                TypeStrategies.explicit(DataTypes.STRING())),
+                // ---
+                // test varying arguments extraction async table
+                TestSpec.forAsyncTableFunction(VarArgFunctionAsyncTable.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.varyingSequence(
                                         new String[] {"i", "more"},
@@ -286,6 +333,19 @@ class TypeInferenceExtractorTest {
                                         }),
                                 TypeStrategies.explicit(DataTypes.STRING())),
                 // ---
+                // test varying arguments extraction with byte async
+                TestSpec.forAsyncTableFunction(VarArgWithByteFunctionAsyncTable.class)
+                        .expectOutputMapping(
+                                InputTypeStrategies.varyingSequence(
+                                        new String[] {"bytes"},
+                                        new ArgumentTypeStrategy[] {
+                                            InputTypeStrategies.explicit(
+                                                    DataTypes.TINYINT()
+                                                            .notNull()
+                                                            .bridgedTo(byte.class))
+                                        }),
+                                TypeStrategies.explicit(DataTypes.STRING())),
+                // ---
                 // output hint with input extraction
                 TestSpec.forScalarFunction(ExtractWithOutputHintFunction.class)
                         .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
@@ -293,6 +353,11 @@ class TypeInferenceExtractorTest {
                 // ---
                 // output hint with input extraction
                 TestSpec.forAsyncScalarFunction(ExtractWithOutputHintFunctionAsync.class)
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                // output hint with input extraction
+                TestSpec.forAsyncTableFunction(ExtractWithOutputHintFunctionAsyncTable.class)
                         .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
                         .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
                 // ---
@@ -309,7 +374,7 @@ class TypeInferenceExtractorTest {
                 TestSpec.forScalarFunction(TableArgScalarFunction.class)
                         .expectErrorMessage(
                                 "Only scalar arguments are supported at this location. "
-                                        + "But argument 't' declared the following traits: [TABLE_AS_ROW]"),
+                                        + "But argument 't' declared the following traits: [ROW_SEMANTIC_TABLE]"),
                 // ---
                 // different accumulator depending on input
                 TestSpec.forAggregateFunction(InputDependentAccumulatorFunction.class)
@@ -394,6 +459,25 @@ class TypeInferenceExtractorTest {
                         .expectErrorMessage(
                                 "Considering all hints, the method should comply with the signature:\n"
                                         + "eval(java.util.concurrent.CompletableFuture, int[])"),
+                // ---
+                // mismatch between hints and implementation regarding return type
+                TestSpec.forAsyncTableFunction(InvalidMethodTableFunctionAsync.class)
+                        .expectErrorMessage(
+                                "Considering all hints, the method should comply with the signature:\n"
+                                        + "eval(java.util.concurrent.CompletableFuture, int[])"),
+                // ---
+                TestSpec.forAsyncTableFunction(InvalidMethodTableFunctionMissingCollection.class)
+                        .expectErrorMessage(
+                                "The method 'eval' expects nested generic type CompletableFuture<Collection> for the 0 arg."),
+                // ---
+                TestSpec.forAsyncTableFunction(InvalidMethodTableFunctionWrongGeneric.class)
+                        .expectErrorMessage(
+                                "The method 'eval' expects nested generic type CompletableFuture<Collection> for the 0 arg."),
+                // ---
+                TestSpec.forAsyncTableFunction(ConflictingReturnTypesAsyncTable.class)
+                        .expectErrorMessage(
+                                "Considering all hints, the method should comply with the signature:\n"
+                                        + "eval(java.util.concurrent.CompletableFuture, int)"),
                 // ---
                 // mismatch between hints and implementation regarding accumulator
                 TestSpec.forAggregateFunction(InvalidMethodAggregateFunction.class)
@@ -508,6 +592,15 @@ class TypeInferenceExtractorTest {
                 TestSpec.forAsyncScalarFunction(
                                 "A data type hint on the method is used for enriching (not a function output hint)",
                                 DataTypeHintOnScalarFunctionAsync.class)
+                        .expectEmptyStaticArguments()
+                        .expectOutput(
+                                TypeStrategies.explicit(
+                                        DataTypes.ROW(DataTypes.FIELD("i", DataTypes.INT()))
+                                                .bridgedTo(RowData.class))),
+                // ---
+                TestSpec.forAsyncTableFunction(
+                                "A data type hint on the method is used for enriching (not a function output hint)",
+                                DataTypeHintOnTableFunctionAsync.class)
                         .expectEmptyStaticArguments()
                         .expectOutput(
                                 TypeStrategies.explicit(
@@ -641,7 +734,7 @@ class TypeInferenceExtractorTest {
                                         "t",
                                         Row.class,
                                         false,
-                                        EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
+                                        EnumSet.of(StaticArgumentTrait.ROW_SEMANTIC_TABLE)))
                         .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
                 // ---
                 TestSpec.forProcessTableFunction(TypedTableArgProcessTableFunction.class)
@@ -650,7 +743,7 @@ class TypeInferenceExtractorTest {
                                         "t",
                                         TypedTableArgProcessTableFunction.Customer.TYPE,
                                         false,
-                                        EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
+                                        EnumSet.of(StaticArgumentTrait.ROW_SEMANTIC_TABLE)))
                         .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
                 // ---
                 TestSpec.forProcessTableFunction(ComplexProcessTableFunction.class)
@@ -660,7 +753,7 @@ class TypeInferenceExtractorTest {
                                         RowData.class,
                                         false,
                                         EnumSet.of(
-                                                StaticArgumentTrait.TABLE_AS_SET,
+                                                StaticArgumentTrait.SET_SEMANTIC_TABLE,
                                                 StaticArgumentTrait.OPTIONAL_PARTITION_BY)))
                         .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
                         .expectStaticArgument(
@@ -668,7 +761,7 @@ class TypeInferenceExtractorTest {
                                         "rowTable",
                                         Row.class,
                                         false,
-                                        EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
+                                        EnumSet.of(StaticArgumentTrait.ROW_SEMANTIC_TABLE)))
                         .expectStaticArgument(StaticArgument.scalar("s", DataTypes.STRING(), true))
                         .expectState("s1", TypeStrategies.explicit(MyFirstState.TYPE))
                         .expectState(
@@ -686,7 +779,7 @@ class TypeInferenceExtractorTest {
                                         RowData.class,
                                         false,
                                         EnumSet.of(
-                                                StaticArgumentTrait.TABLE_AS_SET,
+                                                StaticArgumentTrait.SET_SEMANTIC_TABLE,
                                                 StaticArgumentTrait.OPTIONAL_PARTITION_BY)))
                         .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
                         .expectStaticArgument(
@@ -694,7 +787,7 @@ class TypeInferenceExtractorTest {
                                         "rowTable",
                                         Row.class,
                                         false,
-                                        EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
+                                        EnumSet.of(StaticArgumentTrait.ROW_SEMANTIC_TABLE)))
                         .expectStaticArgument(StaticArgument.scalar("s", DataTypes.STRING(), true))
                         .expectState("s1", TypeStrategies.explicit(MyFirstState.TYPE))
                         .expectState(
@@ -739,7 +832,7 @@ class TypeInferenceExtractorTest {
                 TestSpec.forProcessTableFunction(WrongArgumentTraitsProcessTableFunction.class)
                         .expectErrorMessage(
                                 "Invalid argument traits for argument 'r'. "
-                                        + "Trait OPTIONAL_PARTITION_BY requires TABLE_AS_SET."),
+                                        + "Trait OPTIONAL_PARTITION_BY requires SET_SEMANTIC_TABLE."),
                 // ---
                 TestSpec.forProcessTableFunction(
                                 MixingStaticAndInputGroupProcessTableFunction.class)
@@ -1200,6 +1293,21 @@ class TypeInferenceExtractorTest {
                     description == null ? function.getSimpleName() : description,
                     () ->
                             TypeInferenceExtractor.forAsyncScalarFunction(
+                                    new DataTypeFactoryMock(), function));
+        }
+
+        @SuppressWarnings("rawtypes")
+        static TestSpec forAsyncTableFunction(Class<? extends AsyncTableFunction<?>> function) {
+            return forAsyncTableFunction(null, function);
+        }
+
+        @SuppressWarnings("rawtypes")
+        static TestSpec forAsyncTableFunction(
+                String description, Class<? extends AsyncTableFunction<?>> function) {
+            return new TestSpec(
+                    description == null ? function.getSimpleName() : description,
+                    () ->
+                            TypeInferenceExtractor.forAsyncTableFunction(
                                     new DataTypeFactoryMock(), function));
         }
 
@@ -2046,8 +2154,16 @@ class TypeInferenceExtractorTest {
         public void eval(CompletableFuture<Integer> f) {}
     }
 
+    private static class ZeroArgFunctionAsyncTable extends AsyncTableFunction<Integer> {
+        public void eval(CompletableFuture<Collection<Integer>> f) {}
+    }
+
     private static class MixedArgFunctionAsync extends AsyncScalarFunction {
         public void eval(CompletableFuture<Integer> f, int i, Double d) {}
+    }
+
+    private static class MixedArgFunctionAsyncTable extends AsyncTableFunction<Integer> {
+        public void eval(CompletableFuture<Collection<Integer>> f, int i, Double d) {}
     }
 
     private static class OverloadedFunctionAsync extends AsyncScalarFunction {
@@ -2056,12 +2172,30 @@ class TypeInferenceExtractorTest {
         public void eval(CompletableFuture<Long> f, String s) {}
     }
 
+    private static class OverloadedFunctionAsyncTable extends AsyncTableFunction<Integer> {
+        public void eval(CompletableFuture<Collection<Integer>> f, int i, Double d) {}
+
+        public void eval(CompletableFuture<Collection<Integer>> f, String s) {}
+    }
+
+    private static class ConflictingReturnTypesAsyncTable extends AsyncTableFunction<Integer> {
+        public void eval(CompletableFuture<Collection<Long>> f, int i) {}
+    }
+
     private static class VarArgFunctionAsync extends AsyncScalarFunction {
         public void eval(CompletableFuture<String> f, int i, int... more) {}
     }
 
+    private static class VarArgFunctionAsyncTable extends AsyncTableFunction<String> {
+        public void eval(CompletableFuture<Collection<String>> f, int i, int... more) {}
+    }
+
     private static class VarArgWithByteFunctionAsync extends AsyncScalarFunction {
         public void eval(CompletableFuture<String> f, byte... bytes) {}
+    }
+
+    private static class VarArgWithByteFunctionAsyncTable extends AsyncTableFunction<String> {
+        public void eval(CompletableFuture<Collection<String>> f, byte... bytes) {}
     }
 
     @FunctionHint(output = @DataTypeHint("INT"))
@@ -2069,13 +2203,38 @@ class TypeInferenceExtractorTest {
         public void eval(CompletableFuture<Object> f, Integer i) {}
     }
 
+    @FunctionHint(output = @DataTypeHint("INT"))
+    private static class ExtractWithOutputHintFunctionAsyncTable
+            extends AsyncTableFunction<Object> {
+        public void eval(CompletableFuture<Collection<Object>> f, Integer i) {}
+    }
+
     @FunctionHint(output = @DataTypeHint("STRING"))
     private static class InvalidMethodScalarFunctionAsync extends AsyncScalarFunction {
         public void eval(CompletableFuture<Long> f, int[] i) {}
     }
 
+    @FunctionHint(output = @DataTypeHint("STRING"))
+    private static class InvalidMethodTableFunctionAsync extends AsyncTableFunction<Long> {
+        public void eval(CompletableFuture<Collection<Long>> f, int[] i) {}
+    }
+
+    private static class InvalidMethodTableFunctionMissingCollection
+            extends AsyncTableFunction<Long> {
+        public void eval(CompletableFuture<Long> f, int[] i) {}
+    }
+
+    private static class InvalidMethodTableFunctionWrongGeneric extends AsyncTableFunction<Long> {
+        public void eval(CompletableFuture<Optional<Long>> f, int[] i) {}
+    }
+
     private static class DataTypeHintOnScalarFunctionAsync extends AsyncScalarFunction {
         public void eval(@DataTypeHint("ROW<i INT>") CompletableFuture<RowData> f) {}
+    }
+
+    private static class DataTypeHintOnTableFunctionAsync extends AsyncTableFunction<String> {
+        @DataTypeHint(value = "ROW<i INT>", bridgedTo = RowData.class)
+        public void eval(CompletableFuture<Collection<RowData>> f) {}
     }
 
     private static class ArgumentHintScalarFunction extends ScalarFunction {
@@ -2295,7 +2454,7 @@ class TypeInferenceExtractorTest {
     }
 
     private static class UntypedTableArgProcessTableFunction extends ProcessTableFunction<Integer> {
-        public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row t) {}
+        public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row t) {}
     }
 
     private static class TypedTableArgProcessTableFunction extends ProcessTableFunction<Integer> {
@@ -2309,7 +2468,7 @@ class TypeInferenceExtractorTest {
             public Integer age;
         }
 
-        public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Customer t) {}
+        public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Customer t) {}
     }
 
     @DataTypeHint("ROW<b BOOLEAN>")
@@ -2320,14 +2479,14 @@ class TypeInferenceExtractorTest {
                 @StateHint(name = "other", type = @DataTypeHint("ROW<f FLOAT>")) Row s2,
                 @ArgumentHint(
                                 value = {
-                                    ArgumentTrait.TABLE_AS_SET,
+                                    ArgumentTrait.SET_SEMANTIC_TABLE,
                                     ArgumentTrait.OPTIONAL_PARTITION_BY
                                 },
                                 name = "setTable")
                         RowData t1,
                 @ArgumentHint(name = "i") Integer i,
                 @ArgumentHint(
-                                value = {ArgumentTrait.TABLE_AS_ROW},
+                                value = {ArgumentTrait.ROW_SEMANTIC_TABLE},
                                 name = "rowTable")
                         Row t2,
                 @ArgumentHint(isOptional = true, name = "s") String s) {}
@@ -2341,12 +2500,15 @@ class TypeInferenceExtractorTest {
             arguments = {
                 @ArgumentHint(
                         name = "setTable",
-                        value = {ArgumentTrait.TABLE_AS_SET, ArgumentTrait.OPTIONAL_PARTITION_BY},
+                        value = {
+                            ArgumentTrait.SET_SEMANTIC_TABLE,
+                            ArgumentTrait.OPTIONAL_PARTITION_BY
+                        },
                         type = @DataTypeHint(bridgedTo = RowData.class)),
                 @ArgumentHint(name = "i", type = @DataTypeHint("INT")),
                 @ArgumentHint(
                         name = "rowTable",
-                        value = {ArgumentTrait.TABLE_AS_ROW}),
+                        value = {ArgumentTrait.ROW_SEMANTIC_TABLE}),
                 @ArgumentHint(name = "s", isOptional = true, type = @DataTypeHint("STRING"))
             },
             output = @DataTypeHint("ROW<b BOOLEAN>"))
@@ -2395,20 +2557,23 @@ class TypeInferenceExtractorTest {
     }
 
     private static class WrongTypedTableProcessTableFunction extends ProcessTableFunction<Integer> {
-        public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_SET) Integer i) {}
+        public void eval(@ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Integer i) {}
     }
 
     private static class WrongArgumentTraitsProcessTableFunction
             extends ProcessTableFunction<Integer> {
         public void eval(
-                @ArgumentHint({ArgumentTrait.TABLE_AS_ROW, ArgumentTrait.OPTIONAL_PARTITION_BY})
+                @ArgumentHint({
+                            ArgumentTrait.ROW_SEMANTIC_TABLE,
+                            ArgumentTrait.OPTIONAL_PARTITION_BY
+                        })
                         Row r) {}
     }
 
     private static class MixingStaticAndInputGroupProcessTableFunction
             extends ProcessTableFunction<Integer> {
         public void eval(
-                @ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row r,
+                @ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row r,
                 @DataTypeHint(inputGroup = InputGroup.ANY) Object o) {}
     }
 
@@ -2416,7 +2581,7 @@ class TypeInferenceExtractorTest {
             extends ProcessTableFunction<Integer> {
         public void eval(
                 @ArgumentHint(
-                                value = ArgumentTrait.TABLE_AS_ROW,
+                                value = ArgumentTrait.ROW_SEMANTIC_TABLE,
                                 type = @DataTypeHint(inputGroup = InputGroup.ANY))
                         Row r) {}
     }
@@ -2439,7 +2604,7 @@ class TypeInferenceExtractorTest {
             }
         }
 
-        public int eval(@StateHint Score s, @ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row t) {
+        public int eval(@StateHint Score s, @ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row t) {
             return 0;
         }
     }
@@ -2447,13 +2612,14 @@ class TypeInferenceExtractorTest {
     private static class NonCompositeStateProcessTableFunction
             extends ProcessTableFunction<Integer> {
 
-        public int eval(@StateHint Integer i, @ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row t) {
+        public int eval(
+                @StateHint Integer i, @ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row t) {
             return 0;
         }
     }
 
     private static class TableArgScalarFunction extends ScalarFunction {
-        public int eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row t) {
+        public int eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row t) {
             return 0;
         }
     }

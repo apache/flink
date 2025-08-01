@@ -276,7 +276,7 @@ public class WindowReaderTest {
         KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
         List<OUT> data = new ArrayList<>();
 
-        format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+        format.setRuntimeContext(new MockStreamingRuntimeContext(1, 0));
 
         format.openInputFormat();
         format.open(split);

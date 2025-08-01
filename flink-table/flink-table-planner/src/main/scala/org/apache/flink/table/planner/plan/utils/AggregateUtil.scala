@@ -38,11 +38,10 @@ import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTrait, ModifyKi
 import org.apache.flink.table.planner.plan.logical.{HoppingWindowSpec, WindowSpec}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
-import org.apache.flink.table.planner.typeutils.DataViewUtils
 import org.apache.flink.table.planner.typeutils.LegacyDataViewUtils.useNullSerializerForStateViewFieldsFromAccType
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
-import org.apache.flink.table.runtime.dataview.DataViewSpec
+import org.apache.flink.table.runtime.dataview.{DataViewSpec, DataViewUtils}
 import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
 import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -57,6 +56,7 @@ import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.RelCollations
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.core.Aggregate.AggCallBinding
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 import org.apache.calcite.sql.fun._
@@ -783,6 +783,7 @@ object AggregateUtil extends Enumeration {
         false,
         false,
         false,
+        new util.ArrayList[RexNode](),
         new util.ArrayList[Integer](),
         -1,
         null,
@@ -861,12 +862,14 @@ object AggregateUtil extends Enumeration {
             false,
             false,
             call.ignoreNulls,
+            call.rexList,
             call.getArgList,
             -1, // remove filterArg
             null,
             RelCollations.EMPTY,
             call.getType,
-            call.getName)
+            call.getName
+          )
         } else {
           call
         }
@@ -913,7 +916,8 @@ object AggregateUtil extends Enumeration {
         // ordered by type root definition
         case CHAR | VARCHAR | BOOLEAN | DECIMAL | TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT |
             DOUBLE | DATE | TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE |
-            TIMESTAMP_WITH_LOCAL_TIME_ZONE | INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME | ARRAY =>
+            TIMESTAMP_WITH_LOCAL_TIME_ZONE | INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME | ARRAY |
+            VARIANT =>
           argTypes(0)
         case t =>
           throw new TableException(

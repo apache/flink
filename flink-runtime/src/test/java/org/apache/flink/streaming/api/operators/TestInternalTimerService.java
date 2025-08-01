@@ -68,6 +68,11 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
     }
 
     @Override
+    public void initializeWatermark(long watermark) {
+        this.currentWatermark = watermark;
+    }
+
+    @Override
     public void registerProcessingTimeTimer(N namespace, long time) {
         @SuppressWarnings("unchecked")
         Timer<K, N> timer = new Timer<>(time, (K) keyContext.getCurrentKey(), namespace);

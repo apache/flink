@@ -25,6 +25,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.types.variant.Variant;
 
 import java.math.BigDecimal;
 import java.util.Objects;
@@ -90,6 +91,8 @@ public final class ValueDataTypeConverter {
             // don't let the class-based extraction kick in if array elements differ
             return convertToArrayType((Object[]) value)
                     .map(dt -> dt.notNull().bridgedTo(value.getClass()));
+        } else if (value instanceof Variant) {
+            convertedDataType = DataTypes.VARIANT();
         }
 
         final Optional<DataType> resultType;
@@ -119,16 +122,17 @@ public final class ValueDataTypeConverter {
     }
 
     private static DataType convertToDecimalType(BigDecimal decimal) {
-        final int precision = decimal.precision();
-        final int scale = decimal.scale();
+        int precision = decimal.precision();
+        int scale = decimal.scale();
         // let underlying layers check if precision and scale are supported
         if (scale < 0) {
             // negative scale is not supported, normalize it
-            return DataTypes.DECIMAL(precision - scale, 0);
-        }
-
-        if (scale > precision) {
-            return DataTypes.DECIMAL(precision + scale, scale);
+            precision -= scale;
+            scale = 0;
+        } else if (scale >= precision) {
+            // if scale >= precision, it implies that abs(decimal) < 1
+            // in this case, the SQL precision becomes scale + 1 to account for the leading zero
+            precision = scale + 1;
         }
         return DataTypes.DECIMAL(precision, scale);
     }

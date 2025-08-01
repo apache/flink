@@ -21,32 +21,43 @@ package org.apache.flink.table.runtime.operators.process;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.api.TableRuntimeException;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
+import org.apache.flink.types.RowKind;
 
 /** Base class for collectors that pass input columns. */
 @Internal
 public abstract class PassThroughCollectorBase extends StreamRecordCollector<RowData> {
 
-    private final JoinedRowData withPrefix;
+    private final RepeatedRowData repeatedPrefix;
+    private final JoinedRowData withFunctionOutput;
     private final JoinedRowData withRowtime;
+    private final ChangelogMode changelogMode;
 
-    private RowData rowtime;
     protected RowData prefix;
 
-    public PassThroughCollectorBase(Output<StreamRecord<RowData>> output) {
+    private RowData rowtime;
+
+    public PassThroughCollectorBase(
+            Output<StreamRecord<RowData>> output,
+            ChangelogMode changelogMode,
+            int prefixRepetition) {
         super(output);
-        // constructs a flattened row of [[prefix | function output] | rowtime]
-        withPrefix = new JoinedRowData();
+        this.changelogMode = changelogMode;
+        // constructs a flattened row of [[[prefix]{1,n} | function output] | rowtime]
+        repeatedPrefix = new RepeatedRowData(prefixRepetition);
+        withFunctionOutput = new JoinedRowData();
         withRowtime = new JoinedRowData();
         prefix = GenericRowData.of();
         rowtime = GenericRowData.of();
     }
 
-    public abstract void setPrefix(RowData input);
+    public abstract void setPrefix(int pos, RowData input);
 
     public void setRowtime(Long time) {
         rowtime = GenericRowData.of(TimestampData.fromEpochMillis(time));
@@ -54,8 +65,19 @@ public abstract class PassThroughCollectorBase extends StreamRecordCollector<Row
 
     @Override
     public void collect(RowData functionOutput) {
-        withPrefix.replace(prefix, functionOutput);
-        withRowtime.replace(withPrefix, rowtime);
+        repeatedPrefix.replace(prefix);
+        withFunctionOutput.replace(repeatedPrefix, functionOutput);
+        withRowtime.replace(withFunctionOutput, rowtime);
+        // Forward supported change flags.
+        final RowKind kind = functionOutput.getRowKind();
+        if (!changelogMode.contains(kind)) {
+            throw new TableRuntimeException(
+                    String.format(
+                            "Invalid row kind received: %s. "
+                                    + "Expected produced changelog mode: %s",
+                            kind, changelogMode));
+        }
+        withRowtime.setRowKind(kind);
         super.collect(withRowtime);
     }
 }

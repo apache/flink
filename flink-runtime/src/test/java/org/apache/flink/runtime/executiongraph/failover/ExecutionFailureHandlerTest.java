@@ -19,8 +19,9 @@
 package org.apache.flink.runtime.executiongraph.failover;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TraceOptions;
 import org.apache.flink.core.failure.TestingFailureEnricher;
+import org.apache.flink.events.Event;
+import org.apache.flink.events.EventBuilder;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
@@ -33,8 +34,6 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
-import org.apache.flink.traces.Span;
-import org.apache.flink.traces.SpanBuilder;
 import org.apache.flink.util.IterableUtils;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -75,7 +74,7 @@ class ExecutionFailureHandlerTest {
 
     private TestingFailureEnricher testingFailureEnricher;
 
-    private List<Span> spanCollector;
+    private List<Event> eventCollector;
 
     @BeforeEach
     void setUp() {
@@ -88,9 +87,8 @@ class ExecutionFailureHandlerTest {
         isNewAttempt = new AtomicBoolean(true);
         backoffTimeStrategy =
                 new TestRestartBackoffTimeStrategy(true, RESTART_DELAY_MS, isNewAttempt::get);
-        spanCollector = new CopyOnWriteArrayList<>();
+        eventCollector = new CopyOnWriteArrayList<>();
         Configuration configuration = new Configuration();
-        configuration.set(TraceOptions.REPORT_EVENTS_AS_SPANS, Boolean.TRUE);
         executionFailureHandler =
                 new ExecutionFailureHandler(
                         configuration,
@@ -103,8 +101,8 @@ class ExecutionFailureHandlerTest {
                         null,
                         new UnregisteredMetricsGroup() {
                             @Override
-                            public void addSpan(SpanBuilder spanBuilder) {
-                                spanCollector.add(spanBuilder.build());
+                            public void addEvent(EventBuilder eventBuilder) {
+                                eventCollector.add(eventBuilder.build());
                             }
                         });
     }
@@ -136,7 +134,7 @@ class ExecutionFailureHandlerTest {
         assertThat(result.getFailureLabels().get())
                 .isEqualTo(testingFailureEnricher.getFailureLabels());
         assertThat(executionFailureHandler.getNumberOfRestarts()).isOne();
-        checkMetrics(spanCollector, false, true);
+        checkMetrics(eventCollector, false, true);
     }
 
     /** Tests the case that task restarting is suppressed. */
@@ -173,7 +171,7 @@ class ExecutionFailureHandlerTest {
                 .isInstanceOf(IllegalStateException.class);
 
         assertThat(executionFailureHandler.getNumberOfRestarts()).isZero();
-        checkMetrics(spanCollector, false, false);
+        checkMetrics(eventCollector, false, false);
     }
 
     /** Tests the case that the failure is non-recoverable type. */
@@ -215,7 +213,7 @@ class ExecutionFailureHandlerTest {
                 .isInstanceOf(IllegalStateException.class);
 
         assertThat(executionFailureHandler.getNumberOfRestarts()).isZero();
-        checkMetrics(spanCollector, false, false);
+        checkMetrics(eventCollector, false, false);
     }
 
     @Test
@@ -241,7 +239,7 @@ class ExecutionFailureHandlerTest {
         isNewAttempt.set(false);
         testHandlingConcurrentException(execution, error);
         testHandlingConcurrentException(execution, error);
-        checkMetrics(spanCollector, false, true);
+        checkMetrics(eventCollector, false, true);
     }
 
     private void testHandlingRootException(Execution execution, Throwable error) {
@@ -308,7 +306,7 @@ class ExecutionFailureHandlerTest {
         assertThat(testingFailureEnricher.getSeenThrowables()).containsExactly(error);
         assertThat(result.getFailureLabels().get())
                 .isEqualTo(testingFailureEnricher.getFailureLabels());
-        checkMetrics(spanCollector, true, true);
+        checkMetrics(eventCollector, true, true);
     }
 
     // ------------------------------------------------------------------------
@@ -337,13 +335,13 @@ class ExecutionFailureHandlerTest {
         }
     }
 
-    private void checkMetrics(List<Span> results, boolean global, boolean canRestart) {
+    private void checkMetrics(List<Event> results, boolean global, boolean canRestart) {
         assertThat(results).isNotEmpty();
-        for (Span span : results) {
-            assertThat(span.getScope())
+        for (Event event : results) {
+            assertThat(event.getClassScope())
                     .isEqualTo(JobFailureMetricReporter.class.getCanonicalName());
-            assertThat(span.getName()).isEqualTo("JobFailure");
-            Map<String, Object> attributes = span.getAttributes();
+            assertThat(event.getName()).isEqualTo("JobFailureEvent");
+            Map<String, Object> attributes = event.getAttributes();
             assertThat(attributes).containsEntry("failureLabel.failKey", "failValue");
             assertThat(attributes).containsEntry("canRestart", String.valueOf(canRestart));
             assertThat(attributes).containsEntry("isGlobalFailure", String.valueOf(global));
