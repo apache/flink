@@ -29,6 +29,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.security.FlinkSecurityManager;
@@ -612,6 +613,8 @@ public class Task
         // need to be undone in the end
         Map<String, Future<Path>> distributedCacheEntries = new HashMap<>();
         TaskInvokable invokable = null;
+        // Registry that can be used to execute actions after the task has already failed.
+        AutoCloseableRegistry postFailureCleanUpRegistry = new AutoCloseableRegistry();
 
         try {
             // ----------------------------
@@ -753,7 +756,7 @@ public class Task
             // by the time we switched to running.
             this.invokable = invokable;
 
-            restoreAndInvoke(invokable);
+            restoreAndInvoke(invokable, postFailureCleanUpRegistry);
 
             // make sure, we enter the catch block if the task leaves the invoke() method due
             // to the fact that it has been canceled
@@ -787,6 +790,7 @@ public class Task
 
             try {
                 transitionStateOnFailure(t);
+                postFailureCleanUpRegistry.close();
             } catch (Throwable tt) {
                 String message =
                         String.format(
@@ -919,7 +923,8 @@ public class Task
         return t;
     }
 
-    private void restoreAndInvoke(TaskInvokable finalInvokable) throws Exception {
+    private void restoreAndInvoke(
+            TaskInvokable finalInvokable, AutoCloseableRegistry cleanUpRegistry) throws Exception {
         try {
             // switch to the INITIALIZING state, if that fails, we have been canceled/failed in the
             // meantime
@@ -945,11 +950,8 @@ public class Task
 
             runWithSystemExitMonitoring(finalInvokable::invoke);
         } catch (Throwable throwable) {
-            try {
-                runWithSystemExitMonitoring(() -> finalInvokable.cleanUp(throwable));
-            } catch (Throwable cleanUpThrowable) {
-                throwable.addSuppressed(cleanUpThrowable);
-            }
+            cleanUpRegistry.registerCloseable(
+                    () -> runWithSystemExitMonitoring(() -> finalInvokable.cleanUp(throwable)));
             throw throwable;
         }
         runWithSystemExitMonitoring(() -> finalInvokable.cleanUp(null));
