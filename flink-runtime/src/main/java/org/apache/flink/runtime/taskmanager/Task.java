@@ -613,8 +613,9 @@ public class Task
         // need to be undone in the end
         Map<String, Future<Path>> distributedCacheEntries = new HashMap<>();
         TaskInvokable invokable = null;
-        // Registry that can be used to execute actions after the task has already failed.
-        AutoCloseableRegistry postFailureCleanUpRegistry = new AutoCloseableRegistry();
+        // Registry that can be used to execute actions after the task has already failed. This
+        // actions are fired in the registration order.
+        AutoCloseableRegistry postFailureCleanUpRegistry = new AutoCloseableRegistry(false);
 
         try {
             // ----------------------------
@@ -789,7 +790,7 @@ public class Task
             t = preProcessException(t);
 
             try {
-                transitionStateOnFailure(t);
+                transitionStateOnFailure(t, postFailureCleanUpRegistry);
                 postFailureCleanUpRegistry.close();
             } catch (Throwable tt) {
                 String message =
@@ -854,7 +855,8 @@ public class Task
      * INITIALIZING, RUNNING, CANCELING, or FAILED loop for multiple retries during concurrent state
      * changes via calls to cancel() or to failExternally()
      */
-    private void transitionStateOnFailure(Throwable t) {
+    private void transitionStateOnFailure(
+            Throwable t, AutoCloseableRegistry postFailureCleanUpRegistry) throws IOException {
         while (true) {
             ExecutionState current = this.executionState;
 
@@ -863,12 +865,14 @@ public class Task
                     || current == ExecutionState.DEPLOYING) {
                 if (ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
                     if (transitionState(current, ExecutionState.CANCELED, t)) {
-                        cancelInvokable(invokable);
+                        postFailureCleanUpRegistry.registerCloseable(
+                                () -> cancelInvokable(invokable));
                         break;
                     }
                 } else {
                     if (transitionState(current, ExecutionState.FAILED, t)) {
-                        cancelInvokable(invokable);
+                        postFailureCleanUpRegistry.registerCloseable(
+                                () -> cancelInvokable(invokable));
                         break;
                     }
                 }
