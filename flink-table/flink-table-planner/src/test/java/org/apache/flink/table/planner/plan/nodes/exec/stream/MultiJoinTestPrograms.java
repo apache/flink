@@ -61,6 +61,92 @@ public class MultiJoinTestPrograms {
                                     + "LEFT JOIN Payments p ON u.user_id = p.user_id")
                     .build();
 
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_RIGHT_INNER_JOIN =
+            TableTestProgram.of("three-way-right-inner-join", "three way right inner join")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(USERS_SOURCE)
+                    .setupTableSource(ORDERS_SOURCE)
+                    .setupTableSource(PAYMENTS_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "user_id STRING",
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "payment_id STRING")
+                                    .consumedValues(
+                                            "+I[1, Gus, order1, payment1]",
+                                            "+I[2, Bob, order2, payment2]",
+                                            "+I[2, Bob, order3, payment2]",
+                                            "+I[1, Gus, order1, payment3]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id "
+                                    + "FROM Users u "
+                                    + "RIGHT JOIN Orders o ON u.user_id = o.user_id "
+                                    + "INNER JOIN Payments p ON u.user_id = p.user_id")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_RIGHT_RIGHT_JOIN =
+            TableTestProgram.of("three-way-right-right-join", "three way right right join")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(USERS_SOURCE)
+                    .setupTableSource(ORDERS_SOURCE)
+                    .setupTableSource(PAYMENTS_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "user_id STRING",
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "payment_id STRING")
+                                    .consumedValues(
+                                            "+I[1, Gus, order1, payment1]",
+                                            "+I[2, Bob, order2, payment2]",
+                                            "+I[2, Bob, order3, payment2]",
+                                            "+I[1, Gus, order1, payment3]",
+                                            "+I[null, null, null, payment5]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id "
+                                    + "FROM Users u "
+                                    + "RIGHT JOIN Orders o ON u.user_id = o.user_id "
+                                    + "RIGHT JOIN Payments p ON o.user_id = p.user_id")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_RIGHT_JOIN =
+            TableTestProgram.of("three-way-inner-right-join", "three way inner right join")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(USERS_SOURCE)
+                    .setupTableSource(ORDERS_SOURCE)
+                    .setupTableSource(PAYMENTS_SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "user_id STRING",
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "payment_id STRING")
+                                    .consumedValues(
+                                            "+I[1, Gus, order1, payment1]",
+                                            "+I[2, Bob, order2, payment2]",
+                                            "+I[2, Bob, order3, payment2]",
+                                            "+I[1, Gus, order1, payment3]",
+                                            "+I[null, null, null, payment5]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id "
+                                    + "FROM Users u "
+                                    + "INNER JOIN Orders o ON u.user_id = o.user_id "
+                                    + "RIGHT JOIN Payments p ON o.user_id = p.user_id")
+                    .build();
+
     public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN_UPDATING =
             TableTestProgram.of(
                             "three-way-left-outer-join-updating",
@@ -269,6 +355,384 @@ public class MultiJoinTestPrograms {
                                     + "LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
                                     + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
                                     + "LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_FOUR_WAY_RIGHT_INNER_RIGHT =
+            TableTestProgram.of(
+                            "four-way-right-inner-right-join", "four way right inner right join")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Users")
+                                    .addSchema(
+                                            "name STRING",
+                                            "cash INT",
+                                            "user_id_0 STRING PRIMARY KEY NOT ENFORCED")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Gus", 100, "1"),
+                                            Row.ofKind(RowKind.INSERT, "Joe no order", 10, "8"),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20, "2"),
+                                            Row.ofKind(RowKind.INSERT, "Nomad", 50, "3"),
+                                            Row.ofKind(RowKind.INSERT, "David", 5, "4"),
+                                            Row.ofKind(RowKind.INSERT, "Eve", 0, "5"),
+                                            Row.ofKind(RowKind.INSERT, "Frank", 70, "6"),
+                                            Row.ofKind(RowKind.INSERT, "Welcher", 100, "7"),
+                                            Row.ofKind(RowKind.INSERT, "Charlie Smith", 50, "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Orders")
+                                    .addSchema(
+                                            "order_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "product STRING",
+                                            "user_id_1 STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
+                                            Row.ofKind(RowKind.INSERT, "order6", "ProdF", "6"),
+                                            Row.ofKind(RowKind.INSERT, "order1", "ProdA", "1"),
+                                            Row.ofKind(RowKind.INSERT, "order2", "ProdB", "2"),
+                                            Row.ofKind(RowKind.INSERT, "order3", "ProdC", "3"),
+                                            Row.ofKind(RowKind.INSERT, "order4", "ProdD", "4"),
+                                            Row.ofKind(RowKind.INSERT, "order7", "ProdG", "7"),
+                                            Row.ofKind(RowKind.INSERT, "order9", "ProdA", "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Payments")
+                                    .addSchema(
+                                            "payment_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "price INT",
+                                            "user_id_2 STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "payment1", 50, "1"),
+                                            Row.ofKind(RowKind.INSERT, "payment5", -1, "5"),
+                                            Row.ofKind(RowKind.INSERT, "payment2", -5, "2"),
+                                            Row.ofKind(RowKind.INSERT, "payment3", 30, "3"),
+                                            Row.ofKind(RowKind.INSERT, "payment4", 40, "4"),
+                                            Row.ofKind(RowKind.INSERT, "payment6", 60, "6"),
+                                            Row.ofKind(RowKind.INSERT, "payment9", 30, "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Shipments")
+                                    .addSchema("location STRING", "user_id_3 STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "London", "1"),
+                                            Row.ofKind(RowKind.INSERT, "Paris", "2"),
+                                            Row.ofKind(RowKind.INSERT, "Brasília", "3"),
+                                            Row.ofKind(RowKind.INSERT, "New York", "3"),
+                                            Row.ofKind(RowKind.INSERT, "Melbourne", "9"),
+                                            Row.ofKind(RowKind.INSERT, "Lost Shipment", "10"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "user_id STRING",
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "payment_id STRING",
+                                            "location STRING")
+                                    .addOption("changelog-mode", "I, D")
+                                    .consumedValues(
+                                            "+I[null, null, null, null, Lost Shipment]",
+                                            "+I[1, Gus, order0, payment1, London]",
+                                            "+I[1, Gus, order1, payment1, London]",
+                                            "+I[2, Bob, order2, payment2, Paris]",
+                                            "+I[3, Nomad, order3, payment3, Brasília]",
+                                            "+I[3, Nomad, order3, payment3, New York]",
+                                            "+I[9, Charlie Smith, order9, payment9, Melbourne]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                                    + "FROM Users u "
+                                    + "RIGHT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                                    + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
+                                    + "RIGHT JOIN Shipments s ON p.user_id_2 = s.user_id_3")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_FOUR_WAY_INNER_RIGHT_RIGHT =
+            TableTestProgram.of(
+                            "four-way-inner-right-right-join", "four way inner right right join")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Users")
+                                    .addSchema(
+                                            "name STRING",
+                                            "cash INT",
+                                            "user_id_0 STRING PRIMARY KEY NOT ENFORCED")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Gus", 100, "1"),
+                                            Row.ofKind(RowKind.INSERT, "Joe no order", 10, "8"),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20, "2"),
+                                            Row.ofKind(RowKind.INSERT, "Nomad", 50, "3"),
+                                            Row.ofKind(RowKind.INSERT, "David", 5, "4"),
+                                            Row.ofKind(RowKind.INSERT, "Eve", 0, "5"),
+                                            Row.ofKind(RowKind.INSERT, "Frank", 70, "6"),
+                                            Row.ofKind(RowKind.INSERT, "Welcher", 100, "7"),
+                                            Row.ofKind(RowKind.INSERT, "Charlie Smith", 50, "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Orders")
+                                    .addSchema(
+                                            "order_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "product STRING",
+                                            "user_id_1 STRING")
+                                    .addOption("changelog-mode", "I,D")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
+                                            Row.ofKind(RowKind.INSERT, "order6", "ProdF", "6"),
+                                            Row.ofKind(RowKind.INSERT, "order1", "ProdA", "1"),
+                                            Row.ofKind(RowKind.INSERT, "order2", "ProdB", "2"),
+                                            Row.ofKind(RowKind.INSERT, "order3", "ProdC", "3"),
+                                            Row.ofKind(RowKind.INSERT, "order4", "ProdD", "4"),
+                                            Row.ofKind(RowKind.INSERT, "order7", "ProdG", "7"),
+                                            Row.ofKind(RowKind.INSERT, "order9", "ProdA", "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Payments")
+                                    .addSchema(
+                                            "payment_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "price INT",
+                                            "user_id_2 STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "payment1", 50, "1"),
+                                            Row.ofKind(RowKind.INSERT, "payment5", -1, "5"),
+                                            Row.ofKind(RowKind.INSERT, "payment2", -5, "2"),
+                                            Row.ofKind(RowKind.INSERT, "payment3", 30, "3"),
+                                            Row.ofKind(RowKind.INSERT, "payment4", 40, "4"),
+                                            Row.ofKind(RowKind.INSERT, "payment6", 60, "6"),
+                                            Row.ofKind(RowKind.INSERT, "payment9", 30, "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Shipments")
+                                    .addSchema("location STRING", "user_id_3 STRING")
+                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "London", "1"),
+                                            Row.ofKind(RowKind.INSERT, "Paris", "2"),
+                                            Row.ofKind(RowKind.INSERT, "Brasília", "3"),
+                                            Row.ofKind(RowKind.INSERT, "New York", "3"),
+                                            Row.ofKind(RowKind.INSERT, "Melbourne", "9"),
+                                            Row.ofKind(RowKind.INSERT, "Lost Shipment", "10"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "user_id STRING",
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "payment_id STRING",
+                                            "location STRING")
+                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .consumedValues(
+                                            "+I[null, null, null, null, Lost Shipment]",
+                                            "+I[1, Gus, order0, payment1, London]",
+                                            "+I[1, Gus, order1, payment1, London]",
+                                            "+I[2, Bob, order2, payment2, Paris]",
+                                            "+I[3, Nomad, order3, payment3, Brasília]",
+                                            "+I[3, Nomad, order3, payment3, New York]",
+                                            "+I[9, Charlie Smith, order9, payment9, Melbourne]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                                    + "FROM Users u "
+                                    + "INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                                    + "RIGHT JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
+                                    + "RIGHT JOIN Shipments s ON p.user_id_2 = s.user_id_3")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_FOUR_WAY_RIGHT_RIGHT_INNER =
+            TableTestProgram.of(
+                            "four-way-right-right-inner-join", "four way right right inner join")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Users")
+                                    .addSchema(
+                                            "name STRING",
+                                            "cash INT",
+                                            "user_id_0 STRING PRIMARY KEY NOT ENFORCED")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Gus", 100, "1"),
+                                            Row.ofKind(RowKind.INSERT, "Joe no order", 10, "8"),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20, "2"),
+                                            Row.ofKind(RowKind.INSERT, "Nomad", 50, "3"),
+                                            Row.ofKind(RowKind.INSERT, "David", 5, "4"),
+                                            Row.ofKind(RowKind.INSERT, "Eve", 0, "5"),
+                                            Row.ofKind(RowKind.INSERT, "Frank", 70, "6"),
+                                            Row.ofKind(RowKind.INSERT, "Welcher", 100, "7"),
+                                            Row.ofKind(RowKind.INSERT, "Charlie Smith", 50, "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Orders")
+                                    .addSchema(
+                                            "order_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "product STRING",
+                                            "user_id_1 STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
+                                            Row.ofKind(RowKind.INSERT, "order6", "ProdF", "6"),
+                                            Row.ofKind(RowKind.INSERT, "order1", "ProdA", "1"),
+                                            Row.ofKind(RowKind.INSERT, "order2", "ProdB", "2"),
+                                            Row.ofKind(RowKind.INSERT, "order3", "ProdC", "3"),
+                                            Row.ofKind(RowKind.INSERT, "order4", "ProdD", "4"),
+                                            Row.ofKind(RowKind.INSERT, "order7", "ProdG", "7"),
+                                            Row.ofKind(RowKind.INSERT, "order9", "ProdA", "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Payments")
+                                    .addSchema(
+                                            "payment_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "price INT",
+                                            "user_id_2 STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "payment1", 50, "1"),
+                                            Row.ofKind(RowKind.INSERT, "payment5", -1, "5"),
+                                            Row.ofKind(RowKind.INSERT, "payment2", -5, "2"),
+                                            Row.ofKind(RowKind.INSERT, "payment3", 30, "3"),
+                                            Row.ofKind(RowKind.INSERT, "payment4", 40, "4"),
+                                            Row.ofKind(RowKind.INSERT, "payment6", 60, "6"),
+                                            Row.ofKind(RowKind.INSERT, "payment9", 30, "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Shipments")
+                                    .addSchema("location STRING", "user_id_3 STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "London", "1"),
+                                            Row.ofKind(RowKind.INSERT, "Paris", "2"),
+                                            Row.ofKind(RowKind.INSERT, "Brasília", "3"),
+                                            Row.ofKind(RowKind.INSERT, "New York", "3"),
+                                            Row.ofKind(RowKind.INSERT, "Melbourne", "9"),
+                                            Row.ofKind(RowKind.INSERT, "Lost Shipment", "10"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "user_id STRING",
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "payment_id STRING",
+                                            "location STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .consumedValues(
+                                            "+I[1, Gus, order0, payment1, London]",
+                                            "+I[1, Gus, order1, payment1, London]",
+                                            "+I[2, Bob, order2, payment2, Paris]",
+                                            "+I[3, Nomad, order3, payment3, Brasília]",
+                                            "+I[3, Nomad, order3, payment3, New York]",
+                                            "+I[9, Charlie Smith, order9, payment9, Melbourne]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                                    + "FROM Users u "
+                                    + "RIGHT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                                    + "RIGHT JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
+                                    + "INNER JOIN Shipments s ON p.user_id_2 = s.user_id_3")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_FOUR_WAY_RIGHT_RIGHT_RIGHT =
+            TableTestProgram.of(
+                            "four-way-right-right-right-join", "four way right right right join")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Users")
+                                    .addSchema(
+                                            "name STRING",
+                                            "cash INT",
+                                            "user_id_0 STRING PRIMARY KEY NOT ENFORCED")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Gus", 100, "1"),
+                                            Row.ofKind(RowKind.INSERT, "Joe no order", 10, "8"),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20, "2"),
+                                            Row.ofKind(RowKind.INSERT, "Nomad", 50, "3"),
+                                            Row.ofKind(RowKind.INSERT, "David", 5, "4"),
+                                            Row.ofKind(RowKind.INSERT, "Eve", 0, "5"),
+                                            Row.ofKind(RowKind.INSERT, "Frank", 70, "6"),
+                                            Row.ofKind(RowKind.INSERT, "Welcher", 100, "7"),
+                                            Row.ofKind(RowKind.INSERT, "Charlie Smith", 50, "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Orders")
+                                    .addSchema(
+                                            "order_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "product STRING",
+                                            "user_id_1 STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
+                                            Row.ofKind(RowKind.INSERT, "order6", "ProdF", "6"),
+                                            Row.ofKind(RowKind.INSERT, "order1", "ProdA", "1"),
+                                            Row.ofKind(RowKind.INSERT, "order2", "ProdB", "2"),
+                                            Row.ofKind(RowKind.INSERT, "order3", "ProdC", "3"),
+                                            Row.ofKind(RowKind.INSERT, "order4", "ProdD", "4"),
+                                            Row.ofKind(RowKind.INSERT, "order7", "ProdG", "7"),
+                                            Row.ofKind(RowKind.INSERT, "order9", "ProdA", "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Payments")
+                                    .addSchema(
+                                            "payment_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "price INT",
+                                            "user_id_2 STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "payment1", 50, "1"),
+                                            Row.ofKind(RowKind.INSERT, "payment5", -1, "5"),
+                                            Row.ofKind(RowKind.INSERT, "payment2", -5, "2"),
+                                            Row.ofKind(RowKind.INSERT, "payment3", 30, "3"),
+                                            Row.ofKind(RowKind.INSERT, "payment4", 40, "4"),
+                                            Row.ofKind(RowKind.INSERT, "payment6", 60, "6"),
+                                            Row.ofKind(RowKind.INSERT, "payment9", 30, "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Shipments")
+                                    .addSchema("location STRING", "user_id_3 STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "London", "1"),
+                                            Row.ofKind(RowKind.INSERT, "Paris", "2"),
+                                            Row.ofKind(RowKind.INSERT, "Brasília", "3"),
+                                            Row.ofKind(RowKind.INSERT, "New York", "3"),
+                                            Row.ofKind(RowKind.INSERT, "Melbourne", "9"),
+                                            Row.ofKind(RowKind.INSERT, "Lost Shipment", "10"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "user_id STRING",
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "payment_id STRING",
+                                            "location STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .consumedValues(
+                                            "+I[1, Gus, order0, payment1, London]",
+                                            "+I[1, Gus, order1, payment1, London]",
+                                            "+I[2, Bob, order2, payment2, Paris]",
+                                            "+I[3, Nomad, order3, payment3, Brasília]",
+                                            "+I[3, Nomad, order3, payment3, New York]",
+                                            "+I[9, Charlie Smith, order9, payment9, Melbourne]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                                    + "FROM Users u "
+                                    + "RIGHT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                                    + "RIGHT JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
+                                    + "RIGHT JOIN Shipments s ON p.user_id_2 = s.user_id_3")
                     .build();
 
     public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN_WITH_RESTORE =
@@ -660,6 +1124,108 @@ public class MultiJoinTestPrograms {
                                     + "LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
                                     + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 "
                                     + "LEFT JOIN Shipments s ON p.payment_id = s.user_id_3")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_FOUR_WAY_NO_COMMON_JOIN_KEY_RIGHT_JOINS =
+            TableTestProgram.of(
+                            "four-way-no-common-join-key-with-right-joins",
+                            "four way no common join key with right joins")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Users")
+                                    .addSchema(
+                                            "name STRING",
+                                            "cash INT",
+                                            "user_id_0 STRING PRIMARY KEY NOT ENFORCED")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Gus", 100, "1"),
+                                            Row.ofKind(RowKind.INSERT, "Joe no order", 10, "8"),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20, "2"),
+                                            Row.ofKind(RowKind.INSERT, "Nomad", 50, "3"),
+                                            Row.ofKind(RowKind.INSERT, "David", 5, "4"),
+                                            Row.ofKind(RowKind.INSERT, "Eve", 0, "5"),
+                                            Row.ofKind(RowKind.INSERT, "Frank", 70, "6"),
+                                            Row.ofKind(RowKind.INSERT, "Welcher", 100, "7"),
+                                            Row.ofKind(RowKind.INSERT, "Charlie Smith", 50, "9"),
+                                            Row.ofKind(RowKind.DELETE, "Bob", 20, "2"),
+                                            Row.ofKind(
+                                                    RowKind.UPDATE_AFTER,
+                                                    "Charlie Taylor",
+                                                    50,
+                                                    "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Orders")
+                                    .addSchema(
+                                            "order_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "product STRING",
+                                            "user_id_1 STRING")
+                                    .addOption("changelog-mode", "I,D")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
+                                            Row.ofKind(RowKind.INSERT, "order6", "ProdF", "6"),
+                                            Row.ofKind(RowKind.INSERT, "order1", "ProdA", "1"),
+                                            Row.ofKind(RowKind.INSERT, "order2", "ProdB", "2"),
+                                            Row.ofKind(RowKind.INSERT, "order3", "ProdC", "3"),
+                                            Row.ofKind(RowKind.INSERT, "order4", "ProdD", "4"),
+                                            Row.ofKind(RowKind.INSERT, "order7", "ProdG", "7"),
+                                            Row.ofKind(RowKind.INSERT, "order9", "ProdA", "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Payments")
+                                    .addSchema(
+                                            "payment_id STRING PRIMARY KEY NOT ENFORCED",
+                                            "price INT",
+                                            "user_id_2 STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "1", 50, "1"),
+                                            Row.ofKind(RowKind.INSERT, "5", -1, "5"),
+                                            Row.ofKind(RowKind.INSERT, "2", -5, "2"),
+                                            Row.ofKind(RowKind.INSERT, "3", 30, "3"),
+                                            Row.ofKind(RowKind.INSERT, "4", 40, "4"),
+                                            Row.ofKind(RowKind.INSERT, "6", 60, "6"),
+                                            Row.ofKind(RowKind.INSERT, "9", 30, "9"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Shipments")
+                                    .addSchema("location STRING", "user_id_3 STRING")
+                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "London", "1"),
+                                            Row.ofKind(RowKind.INSERT, "Paris", "2"),
+                                            Row.ofKind(RowKind.INSERT, "Brasília", "3"),
+                                            Row.ofKind(RowKind.INSERT, "New York", "3"),
+                                            Row.ofKind(RowKind.INSERT, "Melbourne", "9"),
+                                            Row.ofKind(RowKind.INSERT, "Lost Shipment", "10"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "user_id STRING",
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "payment_id STRING",
+                                            "location STRING")
+                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .consumedValues(
+                                            "+I[1, Gus, order0, 1, London]",
+                                            "+I[1, Gus, order1, 1, London]",
+                                            "+I[3, Nomad, order3, 3, Brasília]",
+                                            "+I[3, Nomad, order3, 3, New York]",
+                                            "+I[9, Charlie Taylor, order9, 9, Melbourne]",
+                                            "+I[null, null, null, null, Lost Shipment]",
+                                            "+I[null, null, null, null, Paris]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                                    + "FROM Users u "
+                                    + "RIGHT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                                    + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 "
+                                    + "RIGHT JOIN Shipments s ON p.payment_id = s.user_id_3")
                     .build();
 
     public static final TableTestProgram MULTI_JOIN_FOUR_WAY_COMPLEX_WITH_RESTORE =

@@ -315,6 +315,46 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    void testFourWayRightRightRightJoinRelPlan() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                        + "FROM Users u "
+                        + "RIGHT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "RIGHT JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
+                        + "RIGHT JOIN Shipments s ON p.user_id_2 = s.user_id_3");
+    }
+
+    @Test
+    void testFourWayRightRightInnerJoinRelPlan() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                        + "FROM Users u "
+                        + "RIGHT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "RIGHT JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
+                        + "INNER JOIN Shipments s ON p.user_id_2 = s.user_id_3");
+    }
+
+    @Test
+    void testFourWayRightInnerRightJoinRelPlan() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                        + "FROM Users u "
+                        + "RIGHT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
+                        + "RIGHT JOIN Shipments s ON p.user_id_2 = s.user_id_3");
+    }
+
+    @Test
+    void testFourWayInnerRightRightJoinRelPlan() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                        + "FROM Users u "
+                        + "INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "RIGHT JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
+                        + "RIGHT JOIN Shipments s ON p.user_id_2 = s.user_id_3");
+    }
+
+    @Test
     void testThreeWayInnerRightJoin() {
         util.verifyRelPlan(
                 "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "

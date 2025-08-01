@@ -52,6 +52,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -265,21 +267,60 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 new GeneratedJoinCondition[joinConditions.size()];
         for (int i = 0; i < joinConditions.size(); i++) {
             final RexNode rexCond = joinConditions.get(i);
-            if (rexCond == null) {
-                // No condition for this input, which is valid e.g. for the first input.
+            if (rexCond == null || i == 0) {
                 continue;
             }
 
-            final GeneratedJoinCondition generatedCondition =
-                    generateJoinConditionForInput(config, classLoader, rexCond, inputRowTypes, i);
+            final GeneratedJoinCondition generatedCondition;
+            final RowType leftRowType;
+            final RowType rightRowType;
 
-            // For the first input (i=0), there is no preceding input to join with,
-            // so no join condition is generated.
+            if (rexCond instanceof RexCall) {
+                int rightIndex = getTargetInputIndex(inputRowTypes, getMaxInputRefIndex(rexCond));
+                leftRowType = leftTypeForIndex(inputRowTypes, rightIndex);
+                rightRowType = inputRowTypes.get(rightIndex);
+            } else {
+                leftRowType = leftTypeForIndex(inputRowTypes, i);
+                rightRowType = inputRowTypes.get(i);
+            }
+
+            generatedCondition =
+                    generateJoinConditionForInput(
+                            config, classLoader, rexCond, leftRowType, rightRowType);
+
             if (generatedCondition != null) {
                 generatedJoinConditions[i] = generatedCondition;
             }
         }
         return generatedJoinConditions;
+    }
+
+    private int getMaxInputRefIndex(RexNode node) {
+        if (node instanceof RexInputRef) {
+            return ((RexInputRef) node).getIndex();
+        } else if (node instanceof RexCall) {
+            int max = -1;
+            for (RexNode operand : ((RexCall) node).getOperands()) {
+                max = Math.max(max, getMaxInputRefIndex(operand));
+            }
+            return max;
+        }
+
+        return -1;
+    }
+
+    private int getTargetInputIndex(List<RowType> inputRowTypes, int inputRefIndex) {
+        int targetInputIndex = 0;
+        int inputFieldEnd = 0;
+        for (int i = 0; i < inputRowTypes.size(); i++) {
+            inputFieldEnd += inputRowTypes.get(i).getFieldCount();
+            if (inputRefIndex < inputFieldEnd) {
+                targetInputIndex = i;
+                break;
+            }
+        }
+
+        return targetInputIndex;
     }
 
     private StreamOperatorFactory<RowData> createOperatorFactory(
@@ -343,19 +384,11 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             final ExecNodeConfig config,
             final ClassLoader classLoader,
             final RexNode joinCondition,
-            final List<RowType> inputRowTypes,
-            final int inputIndex) {
-        // Our join conditions are always associated with the left side (with the inputs to the
-        // left). For input 0, there is no input to the left, so there is no join condition.
-        if (inputIndex == 0) {
-            return null;
-        }
-
-        final RowType leftType = leftTypeForIndex(inputRowTypes, inputIndex);
-        final RowType rightType = inputRowTypes.get(inputIndex);
+            final RowType leftRowType,
+            final RowType rightRowType) {
 
         return JoinUtil.generateConditionFunction(
-                config, classLoader, joinCondition, leftType, rightType);
+                config, classLoader, joinCondition, leftRowType, rightRowType);
     }
 
     /**

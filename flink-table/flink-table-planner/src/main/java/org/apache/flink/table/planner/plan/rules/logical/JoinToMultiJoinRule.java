@@ -54,6 +54,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
@@ -195,11 +196,18 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
         if (left instanceof FlinkOrderPreservingProjection) {
             Project project = (Project) left;
             if (!RexUtil.isIdentity(project.getProjects(), project.getInput().getRowType())) {
-                leftProject = project;
-                left = ((HepRelVertex) left.getInput(0)).getCurrentRel();
+                leftProject = mergeOrderPreservingProjections(project);
+                left = ((HepRelVertex) leftProject.getInput(0)).getCurrentRel();
 
                 createNewProjects(
-                        origJoin, rexBuilder, newProjects, fieldNames, left, right, project, true);
+                        origJoin,
+                        rexBuilder,
+                        newProjects,
+                        fieldNames,
+                        left,
+                        right,
+                        leftProject,
+                        true);
             }
         }
 
@@ -207,11 +215,18 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
         if (right instanceof FlinkOrderPreservingProjection) {
             Project project = (Project) right;
             if (!RexUtil.isIdentity(project.getProjects(), project.getInput().getRowType())) {
-                rightProject = project;
-                right = ((HepRelVertex) right.getInput(0)).getCurrentRel();
+                rightProject = mergeOrderPreservingProjections(project);
+                right = ((HepRelVertex) rightProject.getInput(0)).getCurrentRel();
 
                 createNewProjects(
-                        origJoin, rexBuilder, newProjects, fieldNames, left, right, project, false);
+                        origJoin,
+                        rexBuilder,
+                        newProjects,
+                        fieldNames,
+                        left,
+                        right,
+                        rightProject,
+                        false);
             }
         }
 
@@ -229,7 +244,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
         // Combine the join information from the left and right inputs, and include the
         // join information from the current join.
         final List<Pair<JoinRelType, RexNode>> joinSpecs = new ArrayList<>();
-        combineJoinInfo(origJoin, left, right, joinSpecs);
+        int origJoinIdx = combineJoinInfo(origJoin, left, right, joinSpecs);
         List<RexNode> joinConditions = Pair.right(joinSpecs);
         List<JoinRelType> joinTypes = Pair.left(joinSpecs);
 
@@ -254,6 +269,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
                         relBuilder,
                         rexBuilder,
                         origJoin,
+                        origJoinIdx,
                         newInputs,
                         joinConditions,
                         newJoinFilters,
@@ -270,12 +286,52 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
     }
 
     /**
+     * Merge consecutive projections to get real input.
+     *
+     * @param topProject topmost projection
+     * @return bottommost FlinkOrderPreservingProjection
+     */
+    private Project mergeOrderPreservingProjections(Project topProject) {
+        RelNode input = ((HepRelVertex) topProject.getInput(0)).getCurrentRel();
+
+        while (input instanceof FlinkOrderPreservingProjection) {
+            Project botProject = (Project) input;
+
+            List<RexNode> topProjects = topProject.getProjects();
+            List<RexNode> botProjects = botProject.getProjects();
+
+            List<RexNode> mergedProjects = new ArrayList<>();
+            for (RexNode project : topProjects) {
+                mergedProjects.add(
+                        project.accept(
+                                new RexShuttle() {
+                                    @Override
+                                    public RexNode visitInputRef(RexInputRef inputRef) {
+                                        return botProjects.get(inputRef.getIndex());
+                                    }
+                                }));
+            }
+
+            topProject =
+                    topProject.copy(
+                            topProject.getTraitSet(),
+                            botProject.getInput(),
+                            mergedProjects,
+                            topProject.getRowType());
+            input = ((HepRelVertex) topProject.getInput(0)).getCurrentRel();
+        }
+
+        return topProject;
+    }
+
+    /**
      * Creates a RelNode that the original RelNode will be transformed into. Typically, this is a
      * MultiJoin, or a Projection when a RIGHT JOIN is involved.
      *
      * @param relBuilder a rel builder
      * @param rexBuilder a rex builder
      * @param origJoin an original join node
+     * @param origJoinIdx index of original join condition
      * @param newInputs combined inputs
      * @param joinConditions combined join conditions
      * @param newJoinFilters combined join filters
@@ -293,6 +349,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
             RelBuilder relBuilder,
             RexBuilder rexBuilder,
             Join origJoin,
+            int origJoinIdx,
             List<RelNode> newInputs,
             List<RexNode> joinConditions,
             List<RexNode> newJoinFilters,
@@ -308,7 +365,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
         if (leftProject != null || rightProject != null) {
             RelDataType newRowType =
                     combineRowTypes(relBuilder.getTypeFactory(), newProjects, fieldNames);
-            joinConditions = convertJoinConditions(joinConditions, newProjects);
+            joinConditions = convertJoinConditions(joinConditions, newProjects, origJoinIdx);
             newJoinFilters =
                     convertJoinFilters(origJoin.getJoinType(), newJoinFilters, newProjects);
 
@@ -542,11 +599,13 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
      *
      * @param joinConditions conditions of multi join node
      * @param newProjections list of rex nodes for new projection
+     * @param origJoinIdx integer value represents original join condition index in the new join
+     *     conditions
      * @return a list of converted join conditions
      */
     private List<RexNode> convertJoinConditions(
-            List<RexNode> joinConditions, List<RexNode> newProjections) {
-        RexNode origJoinCondition = joinConditions.get(joinConditions.size() - 1);
+            List<RexNode> joinConditions, List<RexNode> newProjections, int origJoinIdx) {
+        RexNode origJoinCondition = joinConditions.get(origJoinIdx);
         RexShuttle shuttle =
                 new RexShuttle() {
                     @Override
@@ -557,7 +616,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
                 };
 
         List<RexNode> result = new ArrayList<>(joinConditions);
-        result.set(joinConditions.size() - 1, origJoinCondition.accept(shuttle));
+        result.set(origJoinIdx, origJoinCondition.accept(shuttle));
         return result;
     }
 
@@ -671,34 +730,58 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
      * @param right right child of the joinrel
      * @param joinSpecs the list where the join types and conditions will be copied
      */
-    private void combineJoinInfo(
+    private int combineJoinInfo(
             Join joinRel, RelNode left, RelNode right, List<Pair<JoinRelType, RexNode>> joinSpecs) {
         JoinRelType joinType = joinRel.getJoinType();
         final RexBuilder rexBuilder = joinRel.getCluster().getRexBuilder();
+        int idx = 0;
         boolean leftCombined = canCombine(left, joinRel);
         boolean rightCombined = canCombine(right, joinRel);
         switch (joinType) {
             case LEFT:
             case INNER:
                 if (leftCombined) {
-                    copyJoinInfo((MultiJoin) left, joinSpecs, 0, null, null);
-                } else if (rightCombined) {
+                    MultiJoin leftMultiJoin = (MultiJoin) left;
                     copyJoinInfo(
-                            (MultiJoin) right,
+                            leftMultiJoin,
+                            leftMultiJoin.getJoinTypes(),
+                            leftMultiJoin.getOuterJoinConditions(),
                             joinSpecs,
-                            left.getRowType().getFieldCount(),
-                            right.getRowType().getFieldList(),
-                            joinRel.getRowType().getFieldList());
+                            0,
+                            null,
+                            null);
                 } else {
                     joinSpecs.add(Pair.of(JoinRelType.INNER, rexBuilder.makeLiteral(true)));
                 }
 
                 joinSpecs.add(Pair.of(joinType, joinRel.getCondition()));
+                idx = joinSpecs.size() - 1;
+
+                if (rightCombined) {
+                    MultiJoin rightMultiJoin = (MultiJoin) right;
+                    List<RexNode> joinConditions = rightMultiJoin.getOuterJoinConditions();
+                    List<JoinRelType> joinTypes = rightMultiJoin.getJoinTypes();
+                    if (rightMultiJoin.getOuterJoinConditions().get(0) instanceof RexLiteral) {
+                        joinTypes = joinTypes.subList(1, joinTypes.size());
+                        joinConditions = joinConditions.subList(1, joinConditions.size());
+                    }
+                    copyJoinInfo(
+                            rightMultiJoin,
+                            joinTypes,
+                            joinConditions,
+                            joinSpecs,
+                            left.getRowType().getFieldCount(),
+                            right.getRowType().getFieldList(),
+                            joinRel.getRowType().getFieldList());
+                }
+
                 break;
             default:
                 throw new TableException(
                         "This is a bug. This rule only supports left and inner joins");
         }
+
+        return idx;
     }
 
     /**
@@ -706,17 +789,20 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
      * to reflect the new position of an input if that input ends up being shifted to the right.
      *
      * @param multiJoin the source MultiJoin
+     * @param joinTypes src join types
+     * @param joinConditions src join conditions
      * @param destJoinSpecs the list where the join types and conditions will be copied
      */
     private void copyJoinInfo(
             MultiJoin multiJoin,
+            List<JoinRelType> joinTypes,
+            List<RexNode> joinConditions,
             List<Pair<JoinRelType, RexNode>> destJoinSpecs,
             int adjustmentAmount,
             List<RelDataTypeField> srcFields,
             List<RelDataTypeField> destFields) {
 
-        final List<Pair<JoinRelType, RexNode>> srcJoinSpecs =
-                Pair.zip(multiJoin.getJoinTypes(), multiJoin.getOuterJoinConditions());
+        final List<Pair<JoinRelType, RexNode>> srcJoinSpecs = Pair.zip(joinTypes, joinConditions);
 
         if (adjustmentAmount == 0) {
             destJoinSpecs.addAll(srcJoinSpecs);
