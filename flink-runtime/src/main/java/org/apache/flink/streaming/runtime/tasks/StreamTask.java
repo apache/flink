@@ -1070,9 +1070,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     @Override
     public final void cleanUp(Throwable throwable) throws Exception {
         LOG.debug(
-                "Cleanup StreamTask (operators closed: {}, cancelled: {})",
-                closedOperators,
-                canceled);
+                String.format(
+                        "Cleanup StreamTask (operators closed: %b, cancelled: %b)",
+                        closedOperators, canceled),
+                throwable);
 
         failing = !canceled && throwable != null;
 
