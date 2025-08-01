@@ -786,47 +786,7 @@ public class Task
             t = preProcessException(t);
 
             try {
-                // transition into our final state. we should be either in DEPLOYING, INITIALIZING,
-                // RUNNING, CANCELING, or FAILED
-                // loop for multiple retries during concurrent state changes via calls to cancel()
-                // or to failExternally()
-                while (true) {
-                    ExecutionState current = this.executionState;
-
-                    if (current == ExecutionState.RUNNING
-                            || current == ExecutionState.INITIALIZING
-                            || current == ExecutionState.DEPLOYING) {
-                        if (ExceptionUtils.findThrowable(t, CancelTaskException.class)
-                                .isPresent()) {
-                            if (transitionState(current, ExecutionState.CANCELED, t)) {
-                                cancelInvokable(invokable);
-                                break;
-                            }
-                        } else {
-                            if (transitionState(current, ExecutionState.FAILED, t)) {
-                                cancelInvokable(invokable);
-                                break;
-                            }
-                        }
-                    } else if (current == ExecutionState.CANCELING) {
-                        if (transitionState(current, ExecutionState.CANCELED)) {
-                            break;
-                        }
-                    } else if (current == ExecutionState.FAILED) {
-                        // in state failed already, no transition necessary any more
-                        break;
-                    }
-                    // unexpected state, go to failed
-                    else if (transitionState(current, ExecutionState.FAILED, t)) {
-                        LOG.error(
-                                "Unexpected state in task {} ({}) during an exception: {}.",
-                                taskNameWithSubtask,
-                                executionId,
-                                current);
-                        break;
-                    }
-                    // else fall through the loop and
-                }
+                transitionStateOnFailure(t);
             } catch (Throwable tt) {
                 String message =
                         String.format(
@@ -882,6 +842,50 @@ public class Task
                         executionId,
                         t);
             }
+        }
+    }
+
+    /**
+     * Transition into our final state in case of failure. We should be either in DEPLOYING,
+     * INITIALIZING, RUNNING, CANCELING, or FAILED loop for multiple retries during concurrent state
+     * changes via calls to cancel() or to failExternally()
+     */
+    private void transitionStateOnFailure(Throwable t) {
+        while (true) {
+            ExecutionState current = this.executionState;
+
+            if (current == ExecutionState.RUNNING
+                    || current == ExecutionState.INITIALIZING
+                    || current == ExecutionState.DEPLOYING) {
+                if (ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
+                    if (transitionState(current, ExecutionState.CANCELED, t)) {
+                        cancelInvokable(invokable);
+                        break;
+                    }
+                } else {
+                    if (transitionState(current, ExecutionState.FAILED, t)) {
+                        cancelInvokable(invokable);
+                        break;
+                    }
+                }
+            } else if (current == ExecutionState.CANCELING) {
+                if (transitionState(current, ExecutionState.CANCELED)) {
+                    break;
+                }
+            } else if (current == ExecutionState.FAILED) {
+                // in state failed already, no transition necessary any more
+                break;
+            }
+            // unexpected state, go to failed
+            else if (transitionState(current, ExecutionState.FAILED, t)) {
+                LOG.error(
+                        "Unexpected state in task {} ({}) during an exception: {}.",
+                        taskNameWithSubtask,
+                        executionId,
+                        current);
+                break;
+            }
+            // else fall through the loop
         }
     }
 
