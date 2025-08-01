@@ -50,8 +50,15 @@ public class AutoCloseableRegistry
 
     private static final Object DUMMY = new Object();
 
+    private final boolean reverse;
+
     public AutoCloseableRegistry() {
+        this(true);
+    }
+
+    public AutoCloseableRegistry(boolean reverse) {
         super(new LinkedHashMap<>());
+        this.reverse = reverse;
     }
 
     @Override
@@ -69,6 +76,6 @@ public class AutoCloseableRegistry
     /** This implementation implies that any exception is possible during closing. */
     @Override
     protected void doClose(List<AutoCloseable> toClose) throws Exception {
-        IOUtils.closeAll(reverse(toClose), Throwable.class);
+        IOUtils.closeAll(this.reverse ? reverse(toClose) : toClose, Throwable.class);
     }
 }
