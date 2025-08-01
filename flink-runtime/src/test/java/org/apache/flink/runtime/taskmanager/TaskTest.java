@@ -450,6 +450,7 @@ public class TaskTest extends TestLogger {
 
         task.cancelExecution();
         assertTrue(
+                task.getExecutionState().toString(),
                 task.getExecutionState() == ExecutionState.CANCELING
                         || task.getExecutionState() == ExecutionState.CANCELED);
 
@@ -480,6 +481,7 @@ public class TaskTest extends TestLogger {
 
         task.cancelExecution();
         assertTrue(
+                task.getExecutionState().toString(),
                 task.getExecutionState() == ExecutionState.CANCELING
                         || task.getExecutionState() == ExecutionState.CANCELED);
 
