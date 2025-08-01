@@ -90,25 +90,35 @@ make_python_release() {
   source dev/.uv/bin/activate
   uv pip install --group dev
 
-  # build apache-flink-libraries sdist
+  # build apache-flink-libraries distributions
   pushd apache-flink-libraries
-  python setup.py sdist
+  uv build
   pushd dist/
-  apache_flink_libraries_actual_name=`echo *.tar.gz`
-  apache_flink_libraries_release_name="apache_flink_libraries-${PYFLINK_VERSION}.tar.gz"
+  apache_flink_libraries_actual_sdist_name=`echo *.tar.gz`
+  apache_flink_libraries_release_sdist_name="apache_flink_libraries-${PYFLINK_VERSION}.tar.gz"
 
-  if [[ "$apache_flink_libraries_actual_name" != "$apache_flink_libraries_release_name" ]] ; then
-    echo -e "\033[31;1mThe file name of the python package: ${apache_flink_libraries_actual_name} is not consistent with given release version: ${PYFLINK_VERSION}!\033[0m"
+  if [[ "$apache_flink_libraries_actual_sdist_name" != "$apache_flink_libraries_release_sdist_name" ]] ; then
+    echo -e "\033[31;1mThe file name of the python package: ${apache_flink_libraries_actual_sdist_name} is not consistent with given release version: ${PYFLINK_VERSION}!\033[0m"
     exit 1
   fi
 
-  cp ${apache_flink_libraries_actual_name} "${PYTHON_RELEASE_DIR}/${apache_flink_libraries_release_name}"
+  cp ${apache_flink_libraries_actual_sdist_name} "${PYTHON_RELEASE_DIR}/${apache_flink_libraries_release_sdist_name}"
+
+  apache_flink_libraries_actual_wheel_name=`echo *.whl`
+  apache_flink_libraries_release_wheel_name="apache_flink_libraries-${PYFLINK_VERSION}-py2.py3-none-any.whl"
+
+  if [[ "$apache_flink_libraries_actual_wheel_name" != "$apache_flink_libraries_release_wheel_name" ]] ; then
+    echo -e "\033[31;1mThe file name of the python package: ${apache_flink_libraries_actual_wheel_name} is not consistent with given release version: ${PYFLINK_VERSION}!\033[0m"
+    exit 1
+  fi
+
+  cp ${apache_flink_libraries_actual_wheel_name} "${PYTHON_RELEASE_DIR}/${apache_flink_libraries_release_wheel_name}"
 
   popd
 
   popd
 
-  python setup.py sdist
+  uv build --sdist
   deactivate
   cd dist/
   pyflink_actual_name=`echo *.tar.gz`
@@ -142,13 +152,13 @@ make_python_release() {
 
   # Sign sha the tgz and wheel packages
   if [ "$SKIP_GPG" == "false" ] ; then
-    gpg --armor --detach-sig "${apache_flink_libraries_release_name}"
+    gpg --armor --detach-sig "${apache_flink_libraries_release_sdist_name}"
     gpg --armor --detach-sig "${pyflink_release_name}"
     for wheel_file in *.whl; do
       gpg --armor --detach-sig "${wheel_file}"
     done
   fi
-  $SHASUM "${apache_flink_libraries_release_name}" > "${apache_flink_libraries_release_name}.sha512"
+  $SHASUM "${apache_flink_libraries_release_sdist_name}" > "${apache_flink_libraries_release_sdist_name}.sha512"
   $SHASUM "${pyflink_release_name}" > "${pyflink_release_name}.sha512"
 
   for wheel_file in *.whl; do
