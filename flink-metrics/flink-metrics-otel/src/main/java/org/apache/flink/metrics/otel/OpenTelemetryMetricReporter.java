@@ -107,7 +107,7 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
         } else {
             if (!Protocol.gRPC.name().equalsIgnoreCase(protocol)) {
                 LOG.warn(
-                        "Unknown protocol '{}' for OpenTelemetryEventReporter, defaulting to gRPC",
+                        "Unknown protocol '{}' for OpenTelemetryMetricReporter, defaulting to gRPC",
                         protocol);
             }
 

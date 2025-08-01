@@ -72,7 +72,7 @@ public class OpenTelemetryTraceReporter extends OpenTelemetryReporterBase implem
         } else {
             if (!Protocol.gRPC.name().equalsIgnoreCase(protocol)) {
                 LOG.warn(
-                        "Unknown protocol '{}' for OpenTelemetryEventReporter, defaulting to gRPC",
+                        "Unknown protocol '{}' for OpenTelemetryTraceReporter, defaulting to gRPC",
                         protocol);
             }
 
