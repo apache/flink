@@ -202,6 +202,8 @@ object FlinkStreamRuleSets {
     new FlinkProjectJoinTransposeRule(
       PushProjector.ExprCondition.FALSE,
       RelFactories.LOGICAL_BUILDER),
+    // push a projection to the children of a multi join
+    ProjectMultiJoinTransposeRule.INSTANCE,
     // push a projection to the children of a semi/anti Join
     ProjectSemiAntiJoinTransposeRule.INSTANCE,
     // merge projections
