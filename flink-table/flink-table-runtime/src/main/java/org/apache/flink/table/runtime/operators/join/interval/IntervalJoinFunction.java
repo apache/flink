@@ -87,7 +87,7 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
         return returnTypeInfo;
     }
 
-    public void setJoinKey(RowData currentKey) {
-        this.joinKey = (NullAwareGetters) currentKey;
+    public void setJoinKey(NullAwareGetters currentKey) {
+        this.joinKey = currentKey;
     }
 }
