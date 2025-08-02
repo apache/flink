@@ -229,7 +229,13 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 lit("Hello world").encode($("f2")),
                                 "ENCODE('Hello world', f2)",
                                 "Hello world".getBytes(StandardCharsets.UTF_8),
-                                DataTypes.BYTES().nullable()),
+                                DataTypes.BYTES().nullable())
+                        .testResult(
+                                // test for nullability of return type
+                                lit("Hello world").encode("utf-8"),
+                                "ENCODE('Hello world', 'utf-8')",
+                                "Hello world".getBytes(StandardCharsets.UTF_8),
+                                DataTypes.BYTES().notNull()),
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.DECODE)
                         .onFieldsWithData(
                                 null, "Hello world".getBytes(StandardCharsets.UTF_8), "utf-8")
@@ -250,7 +256,13 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                                 lit("Hello world".getBytes(StandardCharsets.UTF_8)).decode($("f2")),
                                 "DECODE(x'" + EncodingUtils.hex("Hello world") + "', f2)",
                                 "Hello world",
-                                DataTypes.STRING().nullable()));
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                // test for nullability of return type
+                                lit("Hello world".getBytes(StandardCharsets.UTF_8)).decode("utf-8"),
+                                "DECODE(x'" + EncodingUtils.hex("Hello world") + "', 'utf-8')",
+                                "Hello world",
+                                DataTypes.STRING().notNull()));
     }
 
     // --------------------------------------------------------------------------------------------

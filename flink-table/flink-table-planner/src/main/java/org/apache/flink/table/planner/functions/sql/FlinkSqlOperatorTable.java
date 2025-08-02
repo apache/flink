@@ -888,7 +888,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     SqlKind.OTHER_FUNCTION,
                     ReturnTypes.cascade(
                             ReturnTypes.explicit(SqlTypeName.VARBINARY),
-                            SqlTypeTransforms.FORCE_NULLABLE),
+                            SqlTypeTransforms.TO_NULLABLE),
                     null,
                     OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER),
                     SqlFunctionCategory.STRING);
@@ -897,7 +897,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "DECODE",
                     SqlKind.OTHER_FUNCTION,
-                    VARCHAR_FORCE_NULLABLE,
+                    ReturnTypes.cascade(
+                            ReturnTypes.explicit(SqlTypeName.VARCHAR),
+                            SqlTypeTransforms.TO_NULLABLE),
                     null,
                     OperandTypes.family(SqlTypeFamily.BINARY, SqlTypeFamily.CHARACTER),
                     SqlFunctionCategory.STRING);
