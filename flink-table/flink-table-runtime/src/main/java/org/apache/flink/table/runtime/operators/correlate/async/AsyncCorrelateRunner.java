@@ -24,10 +24,14 @@ import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -44,13 +48,22 @@ public class AsyncCorrelateRunner extends RichAsyncFunction<RowData, RowData> {
 
     private final GeneratedFunction<AsyncFunction<RowData, Object>> generatedFetcher;
     private final DataStructureConverter<RowData, Object> fetcherConverter;
+    private final FlinkJoinType joinType;
+    private final RowType resultType;
     private transient AsyncFunction<RowData, Object> fetcher;
 
     public AsyncCorrelateRunner(
             GeneratedFunction<AsyncFunction<RowData, Object>> generatedFetcher,
-            DataStructureConverter<RowData, Object> fetcherConverter) {
+            DataStructureConverter<RowData, Object> fetcherConverter,
+            FlinkJoinType joinType,
+            RowType resultType) {
+        Preconditions.checkArgument(
+                joinType == FlinkJoinType.LEFT || joinType == FlinkJoinType.INNER,
+                "Only LEFT and INNER join types are supported.");
         this.generatedFetcher = generatedFetcher;
         this.fetcherConverter = fetcherConverter;
+        this.joinType = joinType;
+        this.resultType = resultType;
     }
 
     @Override
@@ -84,7 +97,7 @@ public class AsyncCorrelateRunner extends RichAsyncFunction<RowData, RowData> {
         FunctionUtils.closeFunction(fetcher);
     }
 
-    private static final class JoinedRowResultFuture implements ResultFuture<Object> {
+    private final class JoinedRowResultFuture implements ResultFuture<Object> {
         private final DataStructureConverter<RowData, Object> resultConverter;
 
         private RowData leftRow;
@@ -102,17 +115,24 @@ public class AsyncCorrelateRunner extends RichAsyncFunction<RowData, RowData> {
         @Override
         public void complete(Collection<Object> result) {
             try {
-                Collection<RowData> rightRows = wrapPrimitivesAndConvert(result);
-                completeResultFuture(rightRows);
+                completeResultFuture(result);
             } catch (Throwable t) {
                 realOutput.completeExceptionally(t);
             }
         }
 
-        private void completeResultFuture(Collection<RowData> rightRows) {
+        private void completeResultFuture(Collection<Object> result) {
             realOutput.complete(
                     () -> {
+                        Collection<RowData> rightRows = wrapPrimitivesAndConvert(result);
                         if (rightRows == null || rightRows.isEmpty()) {
+                            if (joinType == FlinkJoinType.LEFT) {
+                                GenericRowData nulls =
+                                        new GenericRowData(resultType.getFieldCount());
+                                RowData outRow =
+                                        new JoinedRowData(leftRow.getRowKind(), leftRow, nulls);
+                                return Collections.singletonList(outRow);
+                            }
                             return Collections.emptyList();
                         } else {
                             List<RowData> outRows = new ArrayList<>();
