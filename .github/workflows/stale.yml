@@ -35,6 +35,7 @@ permissions:
 
 jobs:
   stale:
+    if: github.repository_owner == 'apache'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/stale@v9
