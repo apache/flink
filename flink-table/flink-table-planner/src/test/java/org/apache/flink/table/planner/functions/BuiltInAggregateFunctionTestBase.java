@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
-import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
@@ -33,6 +34,7 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.Expression;
@@ -132,7 +134,11 @@ abstract class BuiltInAggregateFunctionTestBase {
                 final DataStructureConverter converter =
                         context.createDataStructureConverter(producedDataType);
 
-                return SourceFunctionProvider.of(new Source(rows, converter), true);
+                return SourceProvider.of(
+                        new DataGeneratorSource<>(
+                                new SourceGeneratorFunction(rows, converter),
+                                (long) rows.size(), // Generate exactly rows.size() elements
+                                TypeInformation.of(RowData.class)));
             }
         };
     }
@@ -689,22 +695,24 @@ abstract class BuiltInAggregateFunctionTestBase {
 
     // ---------------------------------------------------------------------------------------------
 
-    private static class Source implements SourceFunction<RowData> {
+    private static class SourceGeneratorFunction implements GeneratorFunction<Long, RowData> {
 
         private final List<Row> rows;
         private final DynamicTableSource.DataStructureConverter converter;
 
-        public Source(List<Row> rows, DynamicTableSource.DataStructureConverter converter) {
+        public SourceGeneratorFunction(
+                List<Row> rows, DynamicTableSource.DataStructureConverter converter) {
             this.rows = rows;
             this.converter = converter;
         }
 
         @Override
-        public void run(SourceContext<RowData> ctx) throws Exception {
-            rows.stream().map(row -> (RowData) converter.toInternal(row)).forEach(ctx::collect);
+        public RowData map(Long index) throws Exception {
+            int idx = index.intValue();
+            if (idx < rows.size()) {
+                return (RowData) converter.toInternal(rows.get(idx));
+            }
+            throw new IllegalArgumentException("Index out of bounds: " + index);
         }
-
-        @Override
-        public void cancel() {}
     }
 }
