@@ -110,16 +110,16 @@ public class YarnConfigOptions {
     public static final ConfigOption<Long> APPLICATION_ATTEMPT_FAILURE_VALIDITY_INTERVAL =
             key("yarn.application-attempt-failures-validity-interval")
                     .longType()
-                    .defaultValue(10000L)
+                    .defaultValue(-1L)
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "Time window in milliseconds which defines the number of application attempt failures when restarting the AM. "
                                                     + "Failures which fall outside of this window are not being considered. "
-                                                    + "Set this value to -1 in order to count globally. "
+                                                    + "The default (-1) counts globally."
                                                     + "See %s for more information.",
                                             link(
-                                                    "https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/ResourceManagerRest.html#Cluster_Application_Attempts_API",
+                                                    "https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/ResourceManagerRest.html#Cluster_Applications_API.28Submit_Application.29",
                                                     "here"))
                                     .build());
 
