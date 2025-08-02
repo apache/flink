@@ -47,10 +47,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public final class PojoSerializer<T> extends TypeSerializer<T> {
 
     // Flags for the header
-    private static byte IS_NULL = 1;
-    private static byte NO_SUBCLASS = 2;
-    private static byte IS_SUBCLASS = 4;
-    private static byte IS_TAGGED_SUBCLASS = 8;
+    private static final byte IS_NULL = 1;
+    private static final byte NO_SUBCLASS = 2;
+    private static final byte IS_SUBCLASS = 4;
+    private static final byte IS_TAGGED_SUBCLASS = 8;
 
     private static final long serialVersionUID = 1L;
 
