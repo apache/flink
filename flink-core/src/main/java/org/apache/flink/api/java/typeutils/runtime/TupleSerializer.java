@@ -27,11 +27,17 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.NullFieldException;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 
 @Internal
 public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 
     private static final long serialVersionUID = 1L;
+
+    /**
+     * The cached constructor, which is not serializable and kept as a separate transient member.
+     */
+    private transient Constructor<T> constructor;
 
     public TupleSerializer(Class<T> tupleClass, TypeSerializer<?>[] fieldSerializers) {
         super(tupleClass, fieldSerializers);
@@ -61,7 +67,7 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
     @Override
     public T createInstance() {
         try {
-            T t = tupleClass.newInstance();
+            T t = instantiateRaw();
 
             for (int i = 0; i < arity; i++) {
                 t.setField(fieldSerializers[i].createInstance(), i);
@@ -77,7 +83,7 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
     public T createInstance(Object[] fields) {
 
         try {
-            T t = tupleClass.newInstance();
+            T t = instantiateRaw();
 
             for (int i = 0; i < arity; i++) {
                 t.setField(fields[i], i);
@@ -163,7 +169,11 @@ public class TupleSerializer<T extends Tuple> extends TupleSerializerBase<T> {
 
     private T instantiateRaw() {
         try {
-            return tupleClass.newInstance();
+            if (constructor == null) {
+                constructor = tupleClass.getDeclaredConstructor();
+                constructor.setAccessible(true);
+            }
+            return constructor.newInstance();
         } catch (Exception e) {
             throw new RuntimeException("Cannot instantiate tuple.", e);
         }
