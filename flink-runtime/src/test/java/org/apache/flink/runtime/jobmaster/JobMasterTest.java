@@ -563,7 +563,7 @@ class JobMasterTest {
         public Collection<SlotOffer> offerSlots(
                 TaskManagerLocation taskManagerLocation,
                 TaskManagerGateway taskManagerGateway,
-                Collection<SlotOffer> offers) {
+                Collection<SlotOffer> slotOffers) {
             hasReceivedSlotOffers.trigger();
             final Collection<PhysicalSlot> slotInfos =
                     Optional.ofNullable(registeredSlots.get(taskManagerLocation.getResourceID()))
@@ -572,7 +572,7 @@ class JobMasterTest {
 
             int slotIndex = slotInfos.size();
 
-            for (SlotOffer offer : offers) {
+            for (SlotOffer offer : slotOffers) {
                 slotInfos.add(
                         TestingPhysicalSlot.builder()
                                 .withAllocationID(offer.getAllocationId())
@@ -583,7 +583,7 @@ class JobMasterTest {
                 slotIndex++;
             }
 
-            return offers;
+            return slotOffers;
         }
 
         @Override
