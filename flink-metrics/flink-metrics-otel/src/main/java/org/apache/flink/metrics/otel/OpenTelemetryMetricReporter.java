@@ -32,6 +32,8 @@ import org.apache.flink.metrics.reporter.AbstractReporter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporterBuilder;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporterBuilder;
 import io.opentelemetry.sdk.common.CompletableResultCode;
@@ -56,6 +58,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.Protocol;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureEndpoint;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureTimeout;
 
@@ -92,10 +95,27 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
     public void open(MetricConfig metricConfig) {
         LOG.info("Starting OpenTelemetryMetricReporter");
         super.open(metricConfig);
-        OtlpGrpcMetricExporterBuilder builder = OtlpGrpcMetricExporter.builder();
-        tryConfigureEndpoint(metricConfig, builder::setEndpoint);
-        tryConfigureTimeout(metricConfig, builder::setTimeout);
-        exporter = builder.build();
+
+        final String protocol =
+                metricConfig.getProperty(OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key());
+
+        if (Protocol.HTTP.name().equalsIgnoreCase(protocol)) {
+            OtlpHttpMetricExporterBuilder builder = OtlpHttpMetricExporter.builder();
+            tryConfigureEndpoint(metricConfig, builder::setEndpoint);
+            tryConfigureTimeout(metricConfig, builder::setTimeout);
+            exporter = builder.build();
+        } else {
+            if (!Protocol.gRPC.name().equalsIgnoreCase(protocol)) {
+                LOG.warn(
+                        "Unknown protocol '{}' for OpenTelemetryMetricReporter, defaulting to gRPC",
+                        protocol);
+            }
+
+            OtlpGrpcMetricExporterBuilder builder = OtlpGrpcMetricExporter.builder();
+            tryConfigureEndpoint(metricConfig, builder::setEndpoint);
+            tryConfigureTimeout(metricConfig, builder::setTimeout);
+            exporter = builder.build();
+        }
     }
 
     @Override

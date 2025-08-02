@@ -22,11 +22,14 @@ import org.apache.flink.events.Event;
 import org.apache.flink.events.reporter.EventReporter;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.otel.OpenTelemetryReporterBase;
+import org.apache.flink.metrics.otel.OpenTelemetryReporterOptions;
 import org.apache.flink.metrics.otel.VariableNameUtil;
 
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.logs.LogRecordBuilder;
 import io.opentelemetry.api.logs.Severity;
+import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporter;
+import io.opentelemetry.exporter.otlp.http.logs.OtlpHttpLogRecordExporterBuilder;
 import io.opentelemetry.exporter.otlp.logs.OtlpGrpcLogRecordExporter;
 import io.opentelemetry.exporter.otlp.logs.OtlpGrpcLogRecordExporterBuilder;
 import io.opentelemetry.sdk.logs.SdkLoggerProvider;
@@ -38,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
+import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.Protocol;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureEndpoint;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureTimeout;
 
@@ -60,11 +64,27 @@ public class OpenTelemetryEventReporter extends OpenTelemetryReporterBase implem
     @Override
     public void open(MetricConfig metricConfig) {
         LOG.info("Starting OpenTelemetryEventReporter");
-        OtlpGrpcLogRecordExporterBuilder builder = OtlpGrpcLogRecordExporter.builder();
-        tryConfigureEndpoint(metricConfig, builder::setEndpoint);
-        tryConfigureTimeout(metricConfig, builder::setTimeout);
+        final String protocol =
+                metricConfig.getProperty(OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key());
 
-        logRecordExporter = builder.build();
+        if (Protocol.HTTP.name().equalsIgnoreCase(protocol)) {
+            OtlpHttpLogRecordExporterBuilder builder = OtlpHttpLogRecordExporter.builder();
+            tryConfigureEndpoint(metricConfig, builder::setEndpoint);
+            tryConfigureTimeout(metricConfig, builder::setTimeout);
+            logRecordExporter = builder.build();
+        } else {
+            if (!Protocol.gRPC.name().equalsIgnoreCase(protocol)) {
+                LOG.warn(
+                        "Unknown protocol '{}' for OpenTelemetryEventReporter, defaulting to gRPC",
+                        protocol);
+            }
+
+            OtlpGrpcLogRecordExporterBuilder builder = OtlpGrpcLogRecordExporter.builder();
+            tryConfigureEndpoint(metricConfig, builder::setEndpoint);
+            tryConfigureTimeout(metricConfig, builder::setTimeout);
+            logRecordExporter = builder.build();
+        }
+
         logRecordProcessor = BatchLogRecordProcessor.builder(logRecordExporter).build();
         loggerProvider =
                 SdkLoggerProvider.builder()

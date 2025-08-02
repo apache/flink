@@ -277,17 +277,22 @@ metrics.reporter.dghttp.useLogicalIdentifier: true
 ### OpenTelemetry
 #### (org.apache.flink.metrics.otel.OpenTelemetryMetricReporterFactory)
 
-`OpenTelemetryMetricReporterFactory` currently supports only gRPC.
-
 Parameters:
 
 {{< include_reporter_config "layouts/shortcodes/generated/open_telemetry_reporter_configuration.html" >}}
 
-Example configuration:
+Example configurations:
 
 ```yaml
 metrics.reporter.otel.factory.class: org.apache.flink.metrics.otel.OpenTelemetryMetricReporterFactory
 metrics.reporter.otel.exporter.endpoint: http://127.0.0.1:1337
+metrics.reporter.otel.exporter.protocol: gRPC
+```
+
+```yaml
+metrics.reporter.otel.factory.class: org.apache.flink.metrics.otel.OpenTelemetryMetricReporterFactory
+metrics.reporter.otel.exporter.endpoint: http://127.0.0.1:9090
+metrics.reporter.otel.exporter.protocol: HTTP
 ```
 
 ### Slf4j
