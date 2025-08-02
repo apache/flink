@@ -21,12 +21,14 @@ import org.apache.flink.api.common.typeutils.base.VoidSerializer
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.catalog.ObjectIdentifier
 import org.apache.flink.table.types.logical._
+
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.{Arguments, MethodSource}
 
 import java.util.stream
+
 import scala.collection.mutable.ArrayBuffer
 
 class CodeGenUtilsTest {

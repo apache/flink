@@ -93,24 +93,23 @@ class RowFunctionITCase extends BuiltInFunctionTestBase {
     }
 
     @Test
-    public void testCastToSmallIntAndTinyIntIfInputIsNonLiteral() throws Exception {
+    void testRowFromNonLiteralInput() throws Exception {
         final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
         TableResult result =
                 env.executeSql(
-                        "SELECT ROW(CAST(a AS SMALLINT), CAST(b AS TINYINT)) FROM (VALUES (1, 2)) AS T(a, b)");
+                        "SELECT "
+                                + "CAST(ROW(CAST(a AS SMALLINT), CAST(b AS TINYINT)) AS ROW<a SMALLINT, b TINYINT>) "
+                                + "AS `row` "
+                                + "FROM (VALUES (1, 2)) AS T(a, b)");
         assertThat(result.getResolvedSchema())
                 .isEqualTo(
                         ResolvedSchema.of(
                                 Column.physical(
-                                        "EXPR$0",
+                                        "row",
                                         DataTypes.ROW(
-                                                        DataTypes.FIELD(
-                                                                "EXPR$0",
-                                                                DataTypes.SMALLINT().notNull()),
-                                                        DataTypes.FIELD(
-                                                                "EXPR$1",
-                                                                DataTypes.TINYINT().notNull()))
+                                                        DataTypes.FIELD("a", DataTypes.SMALLINT()),
+                                                        DataTypes.FIELD("b", DataTypes.TINYINT()))
                                                 .notNull())));
 
         try (CloseableIterator<Row> it = result.collect()) {
