@@ -29,6 +29,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.fs.FileSystemContext;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.security.FlinkSecurityManager;
@@ -82,6 +83,7 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotPayload;
+import org.apache.flink.runtime.util.ContextGetter;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
@@ -619,6 +621,11 @@ public class Task
             //  check for canceling as a shortcut
             // ----------------------------
 
+            // activate fileSystem Context for task thread
+            LOG.debug("Creating FileSystem caller context for task {}", this);
+            FileSystemContext.initializeContextForThread(
+                    ContextGetter.getContext(jobId.toString(), taskInfo.getTaskName()));
+
             // activate safety net for task thread
             LOG.debug("Creating FileSystem stream leak safety net for task {}", this);
             FileSystemSafetyNet.initializeSafetyNetForThread();
@@ -855,6 +862,7 @@ public class Task
                 // remove all of the tasks resources
                 fileCache.releaseJob(jobId, executionId);
 
+                FileSystemContext.clearContext();
                 // close and de-activate safety net for task thread
                 LOG.debug("Ensuring all FileSystem streams are closed for task {}", this);
                 FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
