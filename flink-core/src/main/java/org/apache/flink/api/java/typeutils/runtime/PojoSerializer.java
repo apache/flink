@@ -31,6 +31,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
@@ -60,6 +61,11 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
     /** The POJO type class. */
     private final Class<T> clazz;
+
+    /**
+     * The cached constructor, which is not serializable and kept as a separate transient member.
+     */
+    private transient Constructor<T> constructor;
 
     /**
      * Fields of the POJO and their serializers.
@@ -212,9 +218,21 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
             return null;
         }
         try {
-            T t = clazz.newInstance();
+            T t = instantiateRaw();
             initializeFields(t);
             return t;
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot instantiate class.", e);
+        }
+    }
+
+    private T instantiateRaw() {
+        try {
+            if (constructor == null) {
+                constructor = clazz.getDeclaredConstructor();
+                constructor.setAccessible(true);
+            }
+            return constructor.newInstance();
         } catch (Exception e) {
             throw new RuntimeException("Cannot instantiate class.", e);
         }
@@ -256,7 +274,7 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
         } else if (actualType == clazz) {
             T target;
             try {
-                target = (T) from.getClass().newInstance();
+                target = instantiateRaw();
             } catch (Throwable t) {
                 throw new RuntimeException("Cannot instantiate class.", t);
             }
