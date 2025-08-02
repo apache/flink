@@ -20,7 +20,7 @@ import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
 
 import { HumanizeDurationPipe } from '@flink-runtime-web/components/humanize-duration.pipe';
 import { ColorKey, ConfigService } from '@flink-runtime-web/services';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
 @Component({
   selector: 'flink-duration-badge',
@@ -30,8 +30,7 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
   host: {
     '[style.backgroundColor]': 'backgroundColor'
   },
-  imports: [NzToolTipModule, HumanizeDurationPipe],
-  standalone: true
+  imports: [NzTooltipModule, HumanizeDurationPipe]
 })
 export class DurationBadgeComponent {
   @Input() public state: string;

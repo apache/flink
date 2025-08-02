@@ -19,7 +19,7 @@
 import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestroy, Inject } from '@angular/core';
 import {catchError, takeUntil} from 'rxjs/operators';
 import { ConfigService, TaskManagerService } from '@flink-runtime-web/services';
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { EditorOptions } from 'ng-zorro-antd/code-editor';
 import {of, Subject} from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
 import {
@@ -35,12 +35,11 @@ import {
 } from "@flink-runtime-web/components/addon-compact/addon-compact.component";
 
 @Component({
-  selector: 'flink-task-manager-logs',
-  templateUrl: './task-manager-logs.component.html',
-  styleUrls: ['./task-manager-logs.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
-  standalone: true
+    selector: 'flink-task-manager-logs',
+    templateUrl: './task-manager-logs.component.html',
+    styleUrls: ['./task-manager-logs.component.less'],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent]
 })
 export class TaskManagerLogsComponent implements OnInit, OnDestroy {
   public editorOptions: EditorOptions;

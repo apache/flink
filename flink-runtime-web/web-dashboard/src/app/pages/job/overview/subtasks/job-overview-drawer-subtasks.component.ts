@@ -39,9 +39,8 @@ import {
   JobOverviewModuleConfig
 } from '@flink-runtime-web/pages/job/overview/job-overview.config';
 import { JobService } from '@flink-runtime-web/services';
-import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
-import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+import { typeDefinition } from '@flink-runtime-web/utils';
+import { NzTableModule, NzTableSortFn } from 'ng-zorro-antd/table';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
 
 import { JobLocalService } from '../../job-local.service';
@@ -66,8 +65,7 @@ function createSortFn(selector: (item: JobVertexSubTask) => number | string): Nz
     DynamicHostComponent,
     NgForOf,
     TableAggregatedMetricsComponent
-  ],
-  standalone: true
+  ]
 })
 export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
   readonly trackBySubtask = (_: number, node: JobVertexSubTask): number => node.subtask;

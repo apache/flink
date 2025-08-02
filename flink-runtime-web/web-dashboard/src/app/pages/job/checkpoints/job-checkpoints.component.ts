@@ -34,7 +34,7 @@ import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
 import { JobLocalService } from '../job-local.service';
 
@@ -59,9 +59,8 @@ import { JobLocalService } from '../job-local.service';
     NzButtonModule,
     NzEmptyModule,
     NzCollapseModule,
-    NzToolTipModule
-  ],
-  standalone: true
+    NzTooltipModule
+  ]
 })
 export class JobCheckpointsComponent implements OnInit, OnDestroy {
   disabledInterval = 0x7fffffffffffffff;

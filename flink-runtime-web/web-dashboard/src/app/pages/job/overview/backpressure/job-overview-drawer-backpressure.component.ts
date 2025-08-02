@@ -38,7 +38,7 @@ import {
   JobOverviewModuleConfig
 } from '@flink-runtime-web/pages/job/overview/job-overview.config';
 import { JobService } from '@flink-runtime-web/services';
-import { typeDefinition } from '@flink-runtime-web/utils/strong-type';
+import { typeDefinition } from '@flink-runtime-web/utils';
 import { NzDividerModule } from 'ng-zorro-antd/divider';
 import { NzTableModule } from 'ng-zorro-antd/table';
 
@@ -49,8 +49,7 @@ import { JobLocalService } from '../../job-local.service';
   templateUrl: './job-overview-drawer-backpressure.component.html',
   styleUrls: ['./job-overview-drawer-backpressure.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NgIf, HumanizeDurationPipe, NzDividerModule, DynamicHostComponent, NgForOf, RouterModule],
-  standalone: true
+  imports: [NzTableModule, NgIf, HumanizeDurationPipe, NzDividerModule, DynamicHostComponent, NgForOf, RouterModule]
 })
 export class JobOverviewDrawerBackpressureComponent implements OnInit, OnDestroy {
   readonly trackBySubtask = (_: number, node: JobBackpressureSubtask): number => node.subtask;

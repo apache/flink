@@ -37,8 +37,7 @@ import { typeDefinition } from '../../../utils/strong-type';
   templateUrl: './task-manager-log-list.component.html',
   styleUrls: ['./task-manager-log-list.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, NgIf, RouterLinkWithHref, HumanizeDatePipe, DecimalPipe],
-  standalone: true
+  imports: [NzTableModule, NgIf, RouterLinkWithHref, HumanizeDatePipe, DecimalPipe]
 })
 export class TaskManagerLogListComponent implements OnInit, OnDestroy {
   public readonly trackByName = (_: number, log: TaskManagerLogItem): string => log.name;

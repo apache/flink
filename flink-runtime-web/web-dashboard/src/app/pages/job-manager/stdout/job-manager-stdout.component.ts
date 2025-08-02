@@ -29,16 +29,14 @@ import {
   JobManagerModuleConfig
 } from '@flink-runtime-web/pages/job-manager/job-manager.config';
 import { ConfigService, JobManagerService } from '@flink-runtime-web/services';
-import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { NzCodeEditorModule, EditorOptions } from 'ng-zorro-antd/code-editor';
 
 @Component({
   selector: 'flink-job-manager-stdout',
   templateUrl: './job-manager-stdout.component.html',
   styleUrls: ['./job-manager-stdout.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent],
-  standalone: true
+  imports: [NzCodeEditorModule, AutoResizeDirective, FormsModule, AddonCompactComponent]
 })
 export class JobManagerStdoutComponent implements OnInit, OnDestroy {
   public readonly downloadName = `jobmanager_stdout`;

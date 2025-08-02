@@ -24,8 +24,7 @@ import { ColorKey, ConfigService } from '@flink-runtime-web/services';
   selector: 'flink-checkpoint-badge',
   templateUrl: './checkpoint-badge.component.html',
   styleUrls: ['./checkpoint-badge.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CheckpointBadgeComponent {
   @Input() public state: string;

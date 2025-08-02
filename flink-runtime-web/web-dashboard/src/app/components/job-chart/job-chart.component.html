@@ -20,7 +20,7 @@
   <div class="title">
     <div class="text" [attr.title]="title">{{ title }}</div>
     <div class="operate">
-      <nz-button-group [nzSize]="'small'">
+      <nz-space-compact [nzSize]="'small'">
         <button nz-button [nzType]="size === 'big' ? 'primary' : 'default'" (click)="resize('big')">
           Big
         </button>
@@ -31,7 +31,7 @@
         >
           Small
         </button>
-      </nz-button-group>
+      </nz-space-compact>
       <button nz-button class="close" [nzSize]="'small'" (click)="close()">
         <i nz-icon nzType="close" nzTheme="outline"></i>
       </button>
@@ -43,7 +43,7 @@
       {{ latestValue | humanizeChartNumeric: title }}
     </div>
     <div class="type-switch">
-      <nz-button-group [nzSize]="'small'">
+      <nz-space-compact [nzSize]="'small'">
         <button
           nz-button
           [nzType]="displayMode === 'chart' ? 'primary' : 'default'"
@@ -58,7 +58,7 @@
         >
           Numeric
         </button>
-      </nz-button-group>
+      </nz-space-compact>
     </div>
   </div>
 </div>

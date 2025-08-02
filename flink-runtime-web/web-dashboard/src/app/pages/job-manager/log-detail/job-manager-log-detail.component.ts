@@ -31,8 +31,7 @@ import {
 } from '@flink-runtime-web/pages/job-manager/job-manager.config';
 import { JobManagerService } from '@flink-runtime-web/services';
 import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
-import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { NzCodeEditorModule, EditorOptions } from 'ng-zorro-antd/code-editor';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 
 @Component({
@@ -51,8 +50,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
     NzCodeEditorModule,
     FormsModule,
     AutoResizeDirective
-  ],
-  standalone: true
+  ]
 })
 export class JobManagerLogDetailComponent implements OnInit, OnDestroy {
   public logs = '';

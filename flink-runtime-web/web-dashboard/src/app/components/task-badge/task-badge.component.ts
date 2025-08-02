@@ -21,15 +21,14 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 
 import { JobStatusCounts, TaskStatus } from '@flink-runtime-web/interfaces';
 import { ConfigService } from '@flink-runtime-web/services';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
 @Component({
   selector: 'flink-task-badge',
   templateUrl: './task-badge.component.html',
   styleUrls: ['./task-badge.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgForOf, NgIf, NzToolTipModule],
-  standalone: true
+  imports: [NgForOf, NgIf, NzTooltipModule]
 })
 export class TaskBadgeComponent {
   @Input() tasks: TaskStatus | JobStatusCounts;

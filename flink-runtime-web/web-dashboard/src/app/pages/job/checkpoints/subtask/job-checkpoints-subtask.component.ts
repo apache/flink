@@ -43,8 +43,7 @@ import {
   VerticesItem
 } from '@flink-runtime-web/interfaces';
 import { JobService } from '@flink-runtime-web/services';
-import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+import { NzTableModule, NzTableSortFn } from 'ng-zorro-antd/table';
 
 import { JobLocalService } from '../../job-local.service';
 
@@ -63,8 +62,7 @@ function createSortFn(
   templateUrl: './job-checkpoints-subtask.component.html',
   styleUrls: ['./job-checkpoints-subtask.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzTableModule, HumanizeDurationPipe, HumanizeBytesPipe, NgIf, DatePipe, NgForOf, RouterModule],
-  standalone: true
+  imports: [NzTableModule, HumanizeDurationPipe, HumanizeBytesPipe, NgIf, DatePipe, NgForOf, RouterModule]
 })
 export class JobCheckpointsSubtaskComponent implements OnInit, OnChanges, OnDestroy {
   @Input() public vertex: VerticesItem;
