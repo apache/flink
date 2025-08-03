@@ -132,7 +132,7 @@ public class ProcessTableFunctionTest extends TableTestBase {
 
     @Test
     void testViewOfDifferentPartitionKey() {
-        util.addTemporarySystemFunction("f", TableAsSetFunction.class);
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
         // Parses create view in `SqlNodeConvertUtils#toCatalogView` will trigger
         // [CALCITE-6944] Align toSqlString with SQL std for Table Args in PTF
         util.tableEnv()

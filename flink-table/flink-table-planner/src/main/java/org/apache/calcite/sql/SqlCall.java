@@ -40,9 +40,11 @@ import static org.apache.calcite.linq4j.Nullness.castNonNull;
  * describe any syntactic construct, so in practice, every non-leaf node in a SQL parse tree is a
  * <code>SqlCall</code> of some kind.)
  *
- * <p>The class was copied over because of CALCITE-6944, in order to align {@link
- * SqlNode#toSqlString} with SQL std for Table Args in PTF. Line 132 in {@link #unparse(SqlWriter,
- * int, int)} and new method {@link #needsParentheses(SqlWriter, int, int)}.
+ * <p>FLINK modifications are at lines
+ *
+ * <ol>
+ *   <li>Should be removed after fixing CALCITE-6944 (Calcite 1.40.0): Lines 121-139
+ * </ol>
  */
 public abstract class SqlCall extends SqlNode {
     // ~ Constructors -----------------------------------------------------------
@@ -116,6 +118,7 @@ public abstract class SqlCall extends SqlNode {
         return getOperator().createCall(getFunctionQuantifier(), pos, getOperandList());
     }
 
+    // FLINK MODIFICATION BEGIN
     private boolean needsParentheses(SqlWriter writer, int leftPrec, int rightPrec) {
         if (getKind() == SqlKind.SET_SEMANTICS_TABLE) {
             return false;
@@ -133,6 +136,7 @@ public abstract class SqlCall extends SqlNode {
             final SqlWriter.Frame frame = writer.startList("(", ")");
             dialect.unparseCall(writer, this, 0, 0);
             writer.endList(frame);
+            // FLINK MODIFICATION END
         } else {
             dialect.unparseCall(writer, this, leftPrec, rightPrec);
         }
@@ -215,8 +219,7 @@ public abstract class SqlCall extends SqlNode {
     }
 
     @Override
-    public SqlMonotonicity getMonotonicity(@Nullable SqlValidatorScope scope) {
-        Objects.requireNonNull(scope, "scope");
+    public SqlMonotonicity getMonotonicity(SqlValidatorScope scope) {
         // Delegate to operator.
         final SqlCallBinding binding = new SqlCallBinding(scope.getValidator(), scope, this);
         return getOperator().getMonotonicity(binding);
