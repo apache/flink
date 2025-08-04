@@ -20,24 +20,15 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.catalog.Column;
-import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.CloseableIterator;
-
-import org.junit.jupiter.api.Test;
 
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.row;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for different combinations around {@link BuiltInFunctionDefinitions#ROW}. */
 class RowFunctionITCase extends BuiltInFunctionTestBase {
@@ -89,36 +80,42 @@ class RowFunctionITCase extends BuiltInFunctionTestBase {
                                 DataTypes.ROW(
                                                 DataTypes.FIELD("i", DataTypes.INT()),
                                                 DataTypes.FIELD("s", DataTypes.STRING()))
+                                        .notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ROW, "cast row inputs")
+                        .onFieldsWithData(1, 2, 3, "true")
+                        .andDataTypes(
+                                DataTypes.INT(),
+                                DataTypes.INT(),
+                                DataTypes.INT(),
+                                DataTypes.STRING())
+                        .testResult(
+                                row(
+                                                $("f0").cast(DataTypes.SMALLINT().notNull()),
+                                                $("f1").cast(DataTypes.TINYINT().notNull()),
+                                                $("f2").cast(DataTypes.BIGINT().notNull()),
+                                                $("f3").cast(DataTypes.BOOLEAN().notNull()))
+                                        .cast(
+                                                DataTypes.ROW(
+                                                                DataTypes.FIELD(
+                                                                        "a", DataTypes.SMALLINT()),
+                                                                DataTypes.FIELD(
+                                                                        "b", DataTypes.TINYINT()),
+                                                                DataTypes.FIELD(
+                                                                        "c", DataTypes.BIGINT()),
+                                                                DataTypes.FIELD(
+                                                                        "d", DataTypes.BOOLEAN()))
+                                                        .notNull()),
+                                "CAST("
+                                        + "ROW("
+                                        + "CAST(f0 AS SMALLINT), CAST(f1 AS TINYINT), CAST(f2 AS BIGINT), CAST(f3 AS BOOLEAN)"
+                                        + ") AS ROW<a SMALLINT, b TINYINT, c BIGINT, d BOOLEAN>)",
+                                Row.of((short) 1, (byte) 2, 3L, true),
+                                DataTypes.ROW(
+                                                DataTypes.FIELD("a", DataTypes.SMALLINT()),
+                                                DataTypes.FIELD("b", DataTypes.TINYINT()),
+                                                DataTypes.FIELD("c", DataTypes.BIGINT()),
+                                                DataTypes.FIELD("d", DataTypes.BOOLEAN()))
                                         .notNull()));
-    }
-
-    @Test
-    void testRowFromNonLiteralInput() throws Exception {
-        final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-
-        TableResult result =
-                env.executeSql(
-                        "SELECT "
-                                + "CAST(ROW(CAST(a AS SMALLINT), CAST(b AS TINYINT)) AS ROW<a SMALLINT, b TINYINT>) "
-                                + "AS `row` "
-                                + "FROM (VALUES (1, 2)) AS T(a, b)");
-        assertThat(result.getResolvedSchema())
-                .isEqualTo(
-                        ResolvedSchema.of(
-                                Column.physical(
-                                        "row",
-                                        DataTypes.ROW(
-                                                        DataTypes.FIELD("a", DataTypes.SMALLINT()),
-                                                        DataTypes.FIELD("b", DataTypes.TINYINT()))
-                                                .notNull())));
-
-        try (CloseableIterator<Row> it = result.collect()) {
-            final Row row = (Row) it.next().getField(0);
-            assertThat(row).isNotNull();
-            assertThat(row.getField(0)).isEqualTo((short) 1);
-            assertThat(row.getField(1)).isEqualTo((byte) 2);
-            assertThat(it).isExhausted();
-        }
     }
 
     // --------------------------------------------------------------------------------------------
