@@ -82,11 +82,6 @@ class CodeGenUtilsTest {
     assertEquals(expectedDefault, CodeGenUtils.primitiveDefaultValue(distinctType))
   }
 
-  @ParameterizedTest
-  @MethodSource(Array("primitiveDefaultValueWithCastData"))
-  def testPrimitiveDefaultValueForType(logicalType: LogicalType, expectedDefault: String): Unit = {
-    assertEquals(expectedDefault, CodeGenUtils.primitiveDefaultValueWithCast(logicalType))
-  }
 }
 
 object CodeGenUtilsTest {
@@ -96,8 +91,8 @@ object CodeGenUtilsTest {
     java.util.stream.Stream.of(
       // Basic primitive types
       Arguments.of(new BooleanType(), "false"),
-      Arguments.of(new TinyIntType(), "-1"),
-      Arguments.of(new SmallIntType(), "-1"),
+      Arguments.of(new TinyIntType(), "((byte)-1)"),
+      Arguments.of(new SmallIntType(), "((short)-1)"),
       Arguments.of(new IntType(), "-1"),
       Arguments.of(new BigIntType(), "-1L"),
       Arguments.of(new FloatType(), "-1.0f"),
@@ -133,29 +128,6 @@ object CodeGenUtilsTest {
   }
 
   @MethodSource
-  def primitiveDefaultValueWithCastData(): stream.Stream[Arguments] = {
-    java.util.stream.Stream.of(
-      Arguments.of(new BooleanType(), "((boolean) false)"),
-      Arguments.of(new TinyIntType(), "((byte) -1)"),
-      Arguments.of(new SmallIntType(), "((short) -1)"),
-      Arguments.of(new IntType(), "((int) -1)"),
-      Arguments.of(new BigIntType(), "((long) -1L)"),
-      Arguments.of(new FloatType(), "((float) -1.0f)"),
-      Arguments.of(new DoubleType(), "((double) -1.0d)"),
-
-      // Additional test cases for other types
-      Arguments.of(new DateType(), "((int) -1)"),
-      Arguments.of(new TimeType(), "((int) -1)"),
-      Arguments.of(
-        new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH),
-        "((int) -1)"),
-      Arguments.of(
-        new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND),
-        "((long) -1L)")
-    )
-  }
-
-  @MethodSource
   def distinctTypeTestData(): stream.Stream[Arguments] = {
     val objectIdentifier = ObjectIdentifier.of("catalog", "database", "distinct_type")
     java.util.stream.Stream.of(
@@ -169,12 +141,12 @@ object CodeGenUtilsTest {
         DistinctType
           .newBuilder(objectIdentifier, new SmallIntType())
           .build(),
-        "-1"),
+        "((short)-1)"),
       Arguments.of(
         DistinctType
           .newBuilder(objectIdentifier, new TinyIntType())
           .build(),
-        "-1"),
+        "((byte)-1)"),
       Arguments.of(
         DistinctType
           .newBuilder(objectIdentifier, new BigIntType())

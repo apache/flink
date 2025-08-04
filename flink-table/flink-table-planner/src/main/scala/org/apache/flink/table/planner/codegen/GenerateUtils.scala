@@ -265,7 +265,7 @@ object GenerateUtils {
 
   def generateNullLiteral(resultType: LogicalType): GeneratedExpression = {
     GeneratedExpression(
-      primitiveDefaultValueWithCast(resultType),
+      primitiveDefaultValue(resultType),
       ALWAYS_NULL,
       NO_CODE,
       resultType,

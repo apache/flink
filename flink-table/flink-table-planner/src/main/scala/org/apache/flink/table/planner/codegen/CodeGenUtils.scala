@@ -193,12 +193,13 @@ object CodeGenUtils {
     name
   }
 
-  // when casting we first need to unbox Primitives, for example,
-  // float a = 1.0f;
-  // byte b = (byte) a;
-  // works, but for boxed types we need this:
-  // Float a = 1.0f;
-  // Byte b = (byte)(float) a;
+  /**
+   * Returns the primitive Java type name for a given logical type.
+   *
+   * <p>For primitive logical types, returns the corresponding Java primitive type name (e.g.,
+   * "byte", "short", "int", "long", "float", "double", "boolean"). For non-primitive types, falls
+   * back to [[boxedTypeTermForType]].
+   */
   @tailrec
   def primitiveTypeTermForType(t: LogicalType): String = t.getTypeRoot match {
     // ordered by type root definition
@@ -300,7 +301,9 @@ object CodeGenUtils {
     // ordered by type root definition
     case CHAR | VARCHAR => s"$BINARY_STRING.EMPTY_UTF8"
     case BOOLEAN => "false"
-    case TINYINT | SMALLINT | INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH => "-1"
+    case TINYINT => "((byte)-1)"
+    case SMALLINT => "((short)-1)"
+    case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH => "-1"
     case BIGINT | INTERVAL_DAY_TIME => "-1L"
     case FLOAT => "-1.0f"
     case DOUBLE => "-1.0d"
@@ -308,17 +311,6 @@ object CodeGenUtils {
     case DISTINCT_TYPE => primitiveDefaultValue(t.asInstanceOf[DistinctType].getSourceType)
 
     case _ => "null"
-  }
-
-  /**
-   * Gets a properly typed default value for a primitive type. For example: ((short) -1) for
-   * SMALLINT, ((byte) -1) for TINYINT. This ensures the generated code compiles correctly when the
-   * default value is used in method calls expecting specific primitive types.
-   */
-  def primitiveDefaultValueWithCast(logicalType: LogicalType): String = {
-    val resultTerm = primitiveDefaultValue(logicalType)
-    val resultTypeTerm = primitiveTypeTermForType(logicalType)
-    s"(($resultTypeTerm) $resultTerm)"
   }
 
   @tailrec
