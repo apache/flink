@@ -64,22 +64,24 @@ public class OpenTelemetryTraceReporter extends OpenTelemetryReporterBase implem
         final String protocol =
                 metricConfig.getProperty(OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key());
 
-        if (Protocol.HTTP.name().equalsIgnoreCase(protocol)) {
-            OtlpHttpSpanExporterBuilder builder = OtlpHttpSpanExporter.builder();
-            tryConfigureEndpoint(metricConfig, builder::setEndpoint);
-            tryConfigureTimeout(metricConfig, builder::setTimeout);
-            spanExporter = builder.build();
-        } else {
-            if (!Protocol.gRPC.name().equalsIgnoreCase(protocol)) {
+        switch (protocol.toLowerCase()) {
+            case "http":
+                OtlpHttpSpanExporterBuilder httpBuilder = OtlpHttpSpanExporter.builder();
+                tryConfigureEndpoint(metricConfig, httpBuilder::setEndpoint);
+                tryConfigureTimeout(metricConfig, httpBuilder::setTimeout);
+                spanExporter = httpBuilder.build();
+                break;
+            default:
                 LOG.warn(
                         "Unknown protocol '{}' for OpenTelemetryTraceReporter, defaulting to gRPC",
                         protocol);
-            }
-
-            OtlpGrpcSpanExporterBuilder builder = OtlpGrpcSpanExporter.builder();
-            tryConfigureEndpoint(metricConfig, builder::setEndpoint);
-            tryConfigureTimeout(metricConfig, builder::setTimeout);
-            spanExporter = builder.build();
+                // Fall through to the "gRPC" case
+            case "grpc":
+                OtlpGrpcSpanExporterBuilder grpcBuilder = OtlpGrpcSpanExporter.builder();
+                tryConfigureEndpoint(metricConfig, grpcBuilder::setEndpoint);
+                tryConfigureTimeout(metricConfig, grpcBuilder::setTimeout);
+                spanExporter = grpcBuilder.build();
+                break;
         }
 
         spanProcessor = BatchSpanProcessor.builder(spanExporter).build();

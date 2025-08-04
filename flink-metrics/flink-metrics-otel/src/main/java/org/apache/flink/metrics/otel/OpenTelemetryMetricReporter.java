@@ -99,22 +99,24 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
         final String protocol =
                 metricConfig.getProperty(OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key());
 
-        if (Protocol.HTTP.name().equalsIgnoreCase(protocol)) {
-            OtlpHttpMetricExporterBuilder builder = OtlpHttpMetricExporter.builder();
-            tryConfigureEndpoint(metricConfig, builder::setEndpoint);
-            tryConfigureTimeout(metricConfig, builder::setTimeout);
-            exporter = builder.build();
-        } else {
-            if (!Protocol.gRPC.name().equalsIgnoreCase(protocol)) {
+        switch (protocol.toLowerCase()) {
+            case "http":
+                OtlpHttpMetricExporterBuilder httpBuilder = OtlpHttpMetricExporter.builder();
+                tryConfigureEndpoint(metricConfig, httpBuilder::setEndpoint);
+                tryConfigureTimeout(metricConfig, httpBuilder::setTimeout);
+                exporter = httpBuilder.build();
+                break;
+            default:
                 LOG.warn(
                         "Unknown protocol '{}' for OpenTelemetryMetricReporter, defaulting to gRPC",
                         protocol);
-            }
-
-            OtlpGrpcMetricExporterBuilder builder = OtlpGrpcMetricExporter.builder();
-            tryConfigureEndpoint(metricConfig, builder::setEndpoint);
-            tryConfigureTimeout(metricConfig, builder::setTimeout);
-            exporter = builder.build();
+                // Fall through to the "gRPC" case
+            case "grpc":
+                OtlpGrpcMetricExporterBuilder grpcBuilder = OtlpGrpcMetricExporter.builder();
+                tryConfigureEndpoint(metricConfig, grpcBuilder::setEndpoint);
+                tryConfigureTimeout(metricConfig, grpcBuilder::setTimeout);
+                exporter = grpcBuilder.build();
+                break;
         }
     }
 

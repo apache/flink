@@ -67,22 +67,24 @@ public class OpenTelemetryEventReporter extends OpenTelemetryReporterBase implem
         final String protocol =
                 metricConfig.getProperty(OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key());
 
-        if (Protocol.HTTP.name().equalsIgnoreCase(protocol)) {
-            OtlpHttpLogRecordExporterBuilder builder = OtlpHttpLogRecordExporter.builder();
-            tryConfigureEndpoint(metricConfig, builder::setEndpoint);
-            tryConfigureTimeout(metricConfig, builder::setTimeout);
-            logRecordExporter = builder.build();
-        } else {
-            if (!Protocol.gRPC.name().equalsIgnoreCase(protocol)) {
+        switch (protocol.toLowerCase()) {
+            case "http":
+                OtlpHttpLogRecordExporterBuilder httpBuilder = OtlpHttpLogRecordExporter.builder();
+                tryConfigureEndpoint(metricConfig, httpBuilder::setEndpoint);
+                tryConfigureTimeout(metricConfig, httpBuilder::setTimeout);
+                logRecordExporter = httpBuilder.build();
+                break;
+            default:
                 LOG.warn(
                         "Unknown protocol '{}' for OpenTelemetryEventReporter, defaulting to gRPC",
                         protocol);
-            }
-
-            OtlpGrpcLogRecordExporterBuilder builder = OtlpGrpcLogRecordExporter.builder();
-            tryConfigureEndpoint(metricConfig, builder::setEndpoint);
-            tryConfigureTimeout(metricConfig, builder::setTimeout);
-            logRecordExporter = builder.build();
+                // Fall through to the "gRPC" case
+            case "grpc":
+                OtlpGrpcLogRecordExporterBuilder grpcBuilder = OtlpGrpcLogRecordExporter.builder();
+                tryConfigureEndpoint(metricConfig, grpcBuilder::setEndpoint);
+                tryConfigureTimeout(metricConfig, grpcBuilder::setTimeout);
+                logRecordExporter = grpcBuilder.build();
+                break;
         }
 
         logRecordProcessor = BatchLogRecordProcessor.builder(logRecordExporter).build();
