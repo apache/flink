@@ -754,7 +754,7 @@ abstract class BuiltInFunctionTestBase {
                 tableApiExpression, sqlExpression, result, tableApiDataType, sqlQueryDataType);
     }
 
-    /** Identity function that forces the parser to skip constant folding. */
+    /** Identity function that forces the planner to skip constant folding. */
     public static class IdentityFunction extends ScalarFunction {
         public Object eval(Object input) {
             return input;
