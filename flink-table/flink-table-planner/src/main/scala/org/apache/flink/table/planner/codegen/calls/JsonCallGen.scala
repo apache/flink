@@ -35,8 +35,13 @@ class JsonCallGen extends CallGenerator {
 
     val resultCode =
       s"""
-         |Object $rawResultTerm =
-         |    ${qualifyMethod(BuiltInMethods.JSON)}(${stringArg.resultTerm}.toString());
+         |${stringArg.code}
+         |Object $rawResultTerm;
+         |if (${stringArg.nullTerm}) {
+         |  $rawResultTerm = null;
+         |} else {
+         |  $rawResultTerm = ${qualifyMethod(BuiltInMethods.JSON)}(${stringArg.resultTerm}.toString());
+         |}
          |$nullTerm = $rawResultTerm == null;
          |$resultTerm = $BINARY_STRING.fromString(java.lang.String.valueOf($rawResultTerm));
          |""".stripMargin

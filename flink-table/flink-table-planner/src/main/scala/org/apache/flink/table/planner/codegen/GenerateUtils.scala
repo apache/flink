@@ -264,8 +264,10 @@ object GenerateUtils {
   }
 
   def generateNullLiteral(resultType: LogicalType): GeneratedExpression = {
+    val defaultValue = primitiveDefaultValue(resultType)
+    val resultTypeTerm = primitiveTypeTermForType(resultType)
     GeneratedExpression(
-      primitiveDefaultValue(resultType),
+      s"(($resultTypeTerm) $defaultValue)",
       ALWAYS_NULL,
       NO_CODE,
       resultType,
