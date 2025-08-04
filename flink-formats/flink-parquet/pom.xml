@@ -326,7 +326,7 @@ under the License.
 			<plugin>
 				<groupId>org.xolstice.maven.plugins</groupId>
 				<artifactId>protobuf-maven-plugin</artifactId>
-				<version>0.5.1</version>
+				<version>0.6.1</version>
 				<extensions>true</extensions>
 				<configuration>
 					<!-- Currently Flink azure test pipeline would first pre-compile and then upload the compiled
