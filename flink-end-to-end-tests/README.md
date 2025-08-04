@@ -5,6 +5,11 @@ This module contains tests that verify end-to-end behaviour of Flink.
 The tests defined in `run-nightly-tests.sh` are run by the CI system on every pull request
 and push to master.
 
+**Before running end-to-end tests, make sure you have built Flink and all modules using:**
+ ```
+ mvn clean install -DskipTests
+ ```
+This ensures all necessary jars and scripts are available for the test run.
 
 ## Running Tests
 You can run all tests by executing
