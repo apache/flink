@@ -100,7 +100,7 @@ public class ProjectMultiJoinTransposeRule
             }
         }
 
-        return super.matches(call);
+        return true;
     }
 
     @Override
@@ -414,7 +414,7 @@ public class ProjectMultiJoinTransposeRule
         return newJoinFieldRefCountsMap;
     }
 
-    /** Safely checks if a RelNode is a Project, handling both HepRelVertex and RelSubset. */
+    /** Safely checks if a RelNode is a Project, handling both HepRelVertex. */
     private boolean isProject(RelNode relNode) {
         if (relNode instanceof Project) {
             return true;
