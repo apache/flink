@@ -18,12 +18,14 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -59,7 +61,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        DataStream<String> source = env.addSource(new InfiniteTestSource());
+        DataStream<String> source = infiniteHelloSource(env);
 
         source.transform("Custom Operator", BasicTypeInfo.STRING_TYPE_INFO, new TimerOperator());
 
@@ -95,7 +97,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        DataStream<String> source = env.addSource(new InfiniteTestSource());
+        DataStream<String> source = infiniteHelloSource(env);
 
         source.transform("Custom Operator", BasicTypeInfo.STRING_TYPE_INFO, new TimerOperator());
 
@@ -111,7 +113,7 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        DataStream<String> source = env.addSource(new InfiniteTestSource());
+        DataStream<String> source = infiniteHelloSource(env);
 
         source.connect(source)
                 .transform(
@@ -259,20 +261,13 @@ public class StreamTaskTimerITCase extends AbstractTestBaseJUnit4 {
         }
     }
 
-    private static class InfiniteTestSource implements SourceFunction<String> {
-        private static final long serialVersionUID = 1L;
-        private volatile boolean running = true;
-
-        @Override
-        public void run(SourceContext<String> ctx) throws Exception {
-            while (running) {
-                ctx.collect("hello");
-            }
-        }
-
-        @Override
-        public void cancel() {
-            running = false;
-        }
+    private static DataStream<String> infiniteHelloSource(StreamExecutionEnvironment env) {
+        return env.fromSource(
+                new DataGeneratorSource<>(
+                        (GeneratorFunction<Long, String>) idx -> "hello",
+                        Long.MAX_VALUE,
+                        BasicTypeInfo.STRING_TYPE_INFO),
+                WatermarkStrategy.noWatermarks(),
+                "InfiniteHelloSource");
     }
 }
