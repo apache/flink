@@ -7,7 +7,7 @@ and push to master.
 
 **Before running end-to-end tests, make sure you have built Flink and all modules using:**
  ```
- mvn clean install -DskipTests
+ mvn clean install -Dfast -T 1C -DskipTests -Denforcer.skip=true
  ```
 This ensures all necessary jars and scripts are available for the test run.
 
