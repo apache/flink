@@ -28,7 +28,7 @@ numpy>=1.22.4,!=2.3.0
 fastavro>=1.1.0,!=1.8.0
 grpcio>=1.29.0,<=1.51.3
 grpcio-tools>=1.29.0,<=1.51.3
-pemja>=0.5.0,<0.6.0; platform_system != 'Windows'
+pemja>=0.5.0,<0.5.4; platform_system != 'Windows'
 httplib2>=0.19.0
 protobuf>=3.19.0
 pytest~=7.0
