@@ -31,12 +31,26 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -46,7 +60,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -67,7 +80,9 @@ import org.junit.rules.TemporaryFolder;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.test.checkpointing.SavepointITCase.waitUntilAllTasksAreRunning;
@@ -104,6 +119,44 @@ public class TimestampITCase extends TestLogger {
         return config;
     }
 
+    private static final SimpleVersionedSerializer<Void> VOID_SERIALIZER =
+            new SimpleVersionedSerializer<Void>() {
+                @Override
+                public int getVersion() {
+                    return 1;
+                }
+
+                @Override
+                public byte[] serialize(Void obj) {
+                    return new byte[0];
+                }
+
+                @Override
+                public Void deserialize(int version, byte[] serialized) {
+                    return null;
+                }
+            };
+
+    public static final TestSplit SPLIT = new TestSplit();
+
+    public static final SimpleVersionedSerializer<TestSplit> SPLIT_SERIALIZER =
+            new SimpleVersionedSerializer<TestSplit>() {
+                @Override
+                public int getVersion() {
+                    return 1;
+                }
+
+                @Override
+                public byte[] serialize(TestSplit split) {
+                    return new byte[0];
+                }
+
+                @Override
+                public TestSplit deserialize(int version, byte[] serialized) {
+                    return SPLIT;
+                }
+            };
+
     @Before
     public void setupLatch() {
         // ensure that we get a fresh latch for each test
@@ -131,9 +184,15 @@ public class TimestampITCase extends TestLogger {
         env.setParallelism(PARALLELISM);
 
         DataStream<Integer> source1 =
-                env.addSource(new MyTimestampSource(initialTime, numWatermarks));
+                env.fromSource(
+                        timestampSource(numWatermarks, initialTime, true),
+                        WatermarkStrategy.noWatermarks(),
+                        "TimestampSource1");
         DataStream<Integer> source2 =
-                env.addSource(new MyTimestampSource(initialTime, numWatermarks / 2));
+                env.fromSource(
+                        timestampSource(numWatermarks / 2, initialTime, true),
+                        WatermarkStrategy.noWatermarks(),
+                        "TimestampSource2");
 
         source1.union(source2)
                 .map(new IdentityMap())
@@ -205,9 +264,15 @@ public class TimestampITCase extends TestLogger {
         env.setParallelism(PARALLELISM);
 
         DataStream<Integer> source1 =
-                env.addSource(new MyTimestampSourceInfinite(initialTime, numWatermarks));
+                env.fromSource(
+                        timestampSource(numWatermarks, initialTime, false),
+                        WatermarkStrategy.noWatermarks(),
+                        "InfiniteTimestampSource1");
         DataStream<Integer> source2 =
-                env.addSource(new MyTimestampSourceInfinite(initialTime, numWatermarks / 2));
+                env.fromSource(
+                        timestampSource(numWatermarks / 2, initialTime, false),
+                        WatermarkStrategy.noWatermarks(),
+                        "InfiniteTimestampSource2");
 
         source1.union(source2)
                 .map(new IdentityMap())
@@ -309,8 +374,16 @@ public class TimestampITCase extends TestLogger {
 
         env.setParallelism(PARALLELISM);
 
-        DataStream<Integer> source1 = env.addSource(new MyTimestampSource(0L, numElements));
-        DataStream<Integer> source2 = env.addSource(new MyTimestampSource(0L, numElements));
+        DataGeneratorSource<Integer> generator =
+                new DataGeneratorSource<>(
+                        (GeneratorFunction<Long, Integer>) Long::intValue, numElements, Types.INT);
+
+        WatermarkStrategy<Integer> timestamped =
+                WatermarkStrategy.<Integer>forMonotonousTimestamps()
+                        .withTimestampAssigner((ctx) -> (element, ts) -> element);
+
+        DataStream<Integer> source1 = env.fromSource(generator, timestamped, "GenSource1");
+        DataStream<Integer> source2 = env.fromSource(generator, timestamped, "GenSource2");
 
         source1.map(new IdentityMap())
                 .connect(source2)
@@ -335,8 +408,23 @@ public class TimestampITCase extends TestLogger {
 
         env.setParallelism(PARALLELISM);
 
-        DataStream<Integer> source1 = env.addSource(new MyNonWatermarkingSource(numElements));
-        DataStream<Integer> source2 = env.addSource(new MyNonWatermarkingSource(numElements));
+        DataGeneratorSource<Integer> generator =
+                new DataGeneratorSource<>(
+                        (GeneratorFunction<Long, Integer>) Long::intValue, numElements, Types.INT);
+
+        DataStream<Integer> source1 =
+                env.fromSource(generator, WatermarkStrategy.noWatermarks(), "GenSource1")
+                        .transform(
+                                "Erase Timestamps",
+                                BasicTypeInfo.INT_TYPE_INFO,
+                                new TimestampErasingOperator());
+
+        DataStream<Integer> source2 =
+                env.fromSource(generator, WatermarkStrategy.noWatermarks(), "GenSource2")
+                        .transform(
+                                "Erase Timestamps",
+                                BasicTypeInfo.INT_TYPE_INFO,
+                                new TimestampErasingOperator());
 
         source1.map(new IdentityMap())
                 .connect(source2)
@@ -363,22 +451,14 @@ public class TimestampITCase extends TestLogger {
         env.getConfig().setAutoWatermarkInterval(10);
         env.setParallelism(1);
 
+        DataGeneratorSource<Integer> generator =
+                new DataGeneratorSource<>(
+                        (GeneratorFunction<Long, Integer>) idx -> (int) (idx + 1),
+                        numElements,
+                        RateLimiterStrategy.perSecond(5),
+                        Types.INT);
         DataStream<Integer> source1 =
-                env.addSource(
-                        new SourceFunction<Integer>() {
-                            @Override
-                            public void run(SourceContext<Integer> ctx) throws Exception {
-                                int index = 1;
-                                while (index <= numElements) {
-                                    ctx.collect(index);
-                                    latch.await();
-                                    index++;
-                                }
-                            }
-
-                            @Override
-                            public void cancel() {}
-                        });
+                env.fromSource(generator, WatermarkStrategy.noWatermarks(), "AutoIntervalSource");
 
         DataStream<Integer> extractOp =
                 source1.assignTimestampsAndWatermarks(
@@ -432,22 +512,15 @@ public class TimestampITCase extends TestLogger {
         env.getConfig().setAutoWatermarkInterval(10);
         env.setParallelism(1);
 
-        DataStream<Integer> source1 =
-                env.addSource(
-                        new SourceFunction<Integer>() {
-                            @Override
-                            public void run(SourceContext<Integer> ctx) throws Exception {
-                                int index = 1;
-                                while (index <= numElements) {
-                                    ctx.collect(index);
-                                    latch.await();
-                                    index++;
-                                }
-                            }
+        DataGeneratorSource<Integer> source =
+                new DataGeneratorSource<>(
+                        (GeneratorFunction<Long, Integer>) idx -> (int) (idx + 1),
+                        numElements,
+                        Types.INT);
 
-                            @Override
-                            public void cancel() {}
-                        });
+        DataStream<Integer> source1 =
+                env.fromSource(
+                        source, WatermarkStrategy.noWatermarks(), "CustomWatermarkEmitSource");
 
         source1.assignTimestampsAndWatermarks(
                         new WatermarkStrategy<Integer>() {
@@ -508,24 +581,26 @@ public class TimestampITCase extends TestLogger {
         env.getConfig().setAutoWatermarkInterval(1);
         env.setParallelism(1);
 
+        // Creates a source that emits a sequence of interleaved values: i, i - 1 for i in
+        // [1..numElements].
+        // For example: 1, 0, 2, 1, 3, 2, ...
+        // This simulates out-of-order timestamps to test whether the watermark generator
+        // correctly suppresses decreasing watermarks.
+        // The source emits 2 × numElements records, with a rate limiter to allow watermark
+        // propagation.
         DataStream<Integer> source1 =
-                env.addSource(
-                        new SourceFunction<Integer>() {
-                            @Override
-                            public void run(SourceContext<Integer> ctx) throws Exception {
-                                int index = 1;
-                                while (index <= numElements) {
-                                    ctx.collect(index);
-                                    Thread.sleep(100);
-                                    ctx.collect(index - 1);
-                                    latch.await();
-                                    index++;
-                                }
-                            }
-
-                            @Override
-                            public void cancel() {}
-                        });
+                env.fromSource(
+                        new DataGeneratorSource<>(
+                                (GeneratorFunction<Long, Integer>)
+                                        idx ->
+                                                (idx % 2 == 0)
+                                                        ? (int) (idx / 2 + 1)
+                                                        : (int) (idx / 2),
+                                numElements * 2,
+                                RateLimiterStrategy.perSecond(5),
+                                Types.INT),
+                        WatermarkStrategy.noWatermarks(),
+                        "DecreasingWatermarkSource");
 
         source1.assignTimestampsAndWatermarks(
                         new WatermarkStrategy<Integer>() {
@@ -586,28 +661,10 @@ public class TimestampITCase extends TestLogger {
         env.setParallelism(2);
 
         DataStream<Integer> source1 =
-                env.addSource(
-                        new SourceFunction<Integer>() {
-                            @Override
-                            public void run(SourceContext<Integer> ctx) throws Exception {
-                                int index = 1;
-                                while (index <= numElements) {
-                                    ctx.collectWithTimestamp(index, index);
-                                    ctx.collectWithTimestamp(index - 1, index - 1);
-                                    index++;
-                                    ctx.emitWatermark(new Watermark(index - 2));
-                                }
-
-                                // emit the final Long.MAX_VALUE watermark, do it twice and verify
-                                // that
-                                // we only see one in the result
-                                ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
-                                ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
-                            }
-
-                            @Override
-                            public void cancel() {}
-                        });
+                env.fromSource(
+                        new LongMaxWatermarkSource(numElements),
+                        WatermarkStrategy.noWatermarks(),
+                        "LongMaxWatermarkSource");
 
         source1.assignTimestampsAndWatermarks(
                         (WatermarkStrategy<Integer>) context -> new NoWatermarksGenerator<>())
@@ -636,28 +693,10 @@ public class TimestampITCase extends TestLogger {
         env.setParallelism(2);
 
         DataStream<Integer> source1 =
-                env.addSource(
-                        new SourceFunction<Integer>() {
-                            @Override
-                            public void run(SourceContext<Integer> ctx) throws Exception {
-                                int index = 1;
-                                while (index <= numElements) {
-                                    ctx.collectWithTimestamp(index, index);
-                                    ctx.collectWithTimestamp(index - 1, index - 1);
-                                    index++;
-                                    ctx.emitWatermark(new Watermark(index - 2));
-                                }
-
-                                // emit the final Long.MAX_VALUE watermark, do it twice and verify
-                                // that
-                                // we only see one in the result
-                                ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
-                                ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
-                            }
-
-                            @Override
-                            public void cancel() {}
-                        });
+                env.fromSource(
+                        new LongMaxWatermarkSource(numElements),
+                        WatermarkStrategy.noWatermarks(),
+                        "LongMaxWatermarkSource2");
 
         source1.assignTimestampsAndWatermarks(
                         (WatermarkStrategy<Integer>) context -> new NoWatermarksGenerator<>())
@@ -808,6 +847,17 @@ public class TimestampITCase extends TestLogger {
         }
     }
 
+    /** A test operator that explicitly erases the timestamp of incoming records. */
+    private static class TimestampErasingOperator extends AbstractStreamOperator<Integer>
+            implements OneInputStreamOperator<Integer, Integer> {
+
+        @Override
+        public void processElement(StreamRecord<Integer> element) throws Exception {
+            element.eraseTimestamp();
+            output.collect(element);
+        }
+    }
+
     private static class IdentityCoMap implements CoMapFunction<Integer, Integer, Integer> {
         @Override
         public Integer map1(Integer value) throws Exception {
@@ -825,77 +875,6 @@ public class TimestampITCase extends TestLogger {
         public Integer map(Integer value) throws Exception {
             return value;
         }
-    }
-
-    private static class MyTimestampSource implements SourceFunction<Integer> {
-
-        private final long initialTime;
-        private final int numWatermarks;
-
-        public MyTimestampSource(long initialTime, int numWatermarks) {
-            this.initialTime = initialTime;
-            this.numWatermarks = numWatermarks;
-        }
-
-        @Override
-        public void run(SourceContext<Integer> ctx) throws Exception {
-            for (int i = 0; i < numWatermarks; i++) {
-                ctx.collectWithTimestamp(i, initialTime + i);
-                ctx.emitWatermark(new Watermark(initialTime + i));
-            }
-        }
-
-        @Override
-        public void cancel() {}
-    }
-
-    private static class MyTimestampSourceInfinite implements SourceFunction<Integer> {
-
-        private final long initialTime;
-        private final int numWatermarks;
-
-        private volatile boolean running = true;
-
-        public MyTimestampSourceInfinite(long initialTime, int numWatermarks) {
-            this.initialTime = initialTime;
-            this.numWatermarks = numWatermarks;
-        }
-
-        @Override
-        public void run(SourceContext<Integer> ctx) throws Exception {
-            for (int i = 0; i < numWatermarks; i++) {
-                ctx.collectWithTimestamp(i, initialTime + i);
-                ctx.emitWatermark(new Watermark(initialTime + i));
-            }
-
-            while (running) {
-                Thread.sleep(20);
-            }
-        }
-
-        @Override
-        public void cancel() {
-            running = false;
-        }
-    }
-
-    private static class MyNonWatermarkingSource implements SourceFunction<Integer> {
-
-        int numWatermarks;
-
-        public MyNonWatermarkingSource(int numWatermarks) {
-            this.numWatermarks = numWatermarks;
-        }
-
-        @Override
-        public void run(SourceContext<Integer> ctx) throws Exception {
-            for (int i = 0; i < numWatermarks; i++) {
-                ctx.collect(i);
-            }
-        }
-
-        @Override
-        public void cancel() {}
     }
 
     private static List<JobID> getRunningJobs(ClusterClient<?> client) throws Exception {
@@ -931,5 +910,256 @@ public class TimestampITCase extends TestLogger {
                 TimestampAssignerSupplier.Context context) {
             return (event, ignore) -> timestampExtractor.apply(event);
         }
+    }
+
+    private static class LongMaxWatermarkSource implements Source<Integer, TestSplit, Void> {
+
+        private final int numElements;
+
+        public LongMaxWatermarkSource(int numElements) {
+            this.numElements = numElements;
+        }
+
+        @Override
+        public Boundedness getBoundedness() {
+            return Boundedness.BOUNDED;
+        }
+
+        @Override
+        public SourceReader<Integer, TestSplit> createReader(SourceReaderContext context) {
+            return new LongMaxWatermarkSourceReader(numElements);
+        }
+
+        @Override
+        public SplitEnumerator<TestSplit, Void> createEnumerator(
+                SplitEnumeratorContext<TestSplit> context) {
+            return new TestSplitEnumerator(context);
+        }
+
+        @Override
+        public SplitEnumerator<TestSplit, Void> restoreEnumerator(
+                SplitEnumeratorContext<TestSplit> context, Void checkpoint) {
+            return createEnumerator(context);
+        }
+
+        @Override
+        public SimpleVersionedSerializer<TestSplit> getSplitSerializer() {
+            return SPLIT_SERIALIZER;
+        }
+
+        @Override
+        public SimpleVersionedSerializer<Void> getEnumeratorCheckpointSerializer() {
+            return VOID_SERIALIZER;
+        }
+    }
+
+    public static Source<Integer, TestSplit, Void> timestampSource(
+            int numElements, long initialTs, boolean bounded) {
+        return new Source<>() {
+            @Override
+            public Boundedness getBoundedness() {
+                return bounded ? Boundedness.BOUNDED : Boundedness.CONTINUOUS_UNBOUNDED;
+            }
+
+            @Override
+            public SourceReader<Integer, TestSplit> createReader(SourceReaderContext ctx) {
+                return new TimestampSourceReader(initialTs, numElements, bounded);
+            }
+
+            @Override
+            public SplitEnumerator<TestSplit, Void> createEnumerator(
+                    SplitEnumeratorContext<TestSplit> ctx) {
+                return new TestSplitEnumerator(ctx);
+            }
+
+            @Override
+            public SplitEnumerator<TestSplit, Void> restoreEnumerator(
+                    SplitEnumeratorContext<TestSplit> ctx, Void checkpoint) {
+                return createEnumerator(ctx);
+            }
+
+            @Override
+            public SimpleVersionedSerializer<TestSplit> getSplitSerializer() {
+                return SPLIT_SERIALIZER;
+            }
+
+            @Override
+            public SimpleVersionedSerializer<Void> getEnumeratorCheckpointSerializer() {
+                return VOID_SERIALIZER;
+            }
+        };
+    }
+
+    public static class TimestampSourceReader implements SourceReader<Integer, TestSplit> {
+        private final long initialTime;
+        private final int numWatermarks;
+        private final boolean bounded;
+        private int currentIndex = 0;
+        private volatile boolean running = true;
+
+        public TimestampSourceReader(long initialTime, int numWatermarks, boolean bounded) {
+            this.initialTime = initialTime;
+            this.numWatermarks = numWatermarks;
+            this.bounded = bounded;
+        }
+
+        @Override
+        public void start() {}
+
+        @Override
+        public InputStatus pollNext(ReaderOutput<Integer> output) throws Exception {
+            if (bounded && currentIndex >= numWatermarks) {
+                return InputStatus.END_OF_INPUT;
+            }
+            if (!bounded && currentIndex >= numWatermarks) {
+                Thread.sleep(20);
+                return InputStatus.NOTHING_AVAILABLE;
+            }
+
+            long ts = initialTime + currentIndex;
+            output.collect(currentIndex, ts);
+            output.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(ts));
+            currentIndex++;
+            return InputStatus.MORE_AVAILABLE;
+        }
+
+        @Override
+        public List<TestSplit> snapshotState(long checkpointId) {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public void addSplits(List<TestSplit> splits) {}
+
+        @Override
+        public void notifyNoMoreSplits() {}
+
+        @Override
+        public CompletableFuture<Void> isAvailable() {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public void close() throws Exception {
+            running = false;
+        }
+    }
+
+    private static class LongMaxWatermarkSourceReader implements SourceReader<Integer, TestSplit> {
+
+        private final int numElements;
+        private int currentIndex = 1;
+        private boolean finished = false;
+        private boolean emittedSecond = false;
+        private boolean emittedFinalWatermarks = false;
+
+        public LongMaxWatermarkSourceReader(int numElements) {
+            this.numElements = numElements;
+        }
+
+        @Override
+        public void start() {}
+
+        @Override
+        public InputStatus pollNext(ReaderOutput<Integer> output) throws Exception {
+            if (finished) {
+                return InputStatus.END_OF_INPUT;
+            }
+
+            if (currentIndex <= numElements) {
+                if (!emittedSecond) {
+                    // First emit index with timestamp index
+                    output.collect(currentIndex, currentIndex);
+                    emittedSecond = true;
+                    return InputStatus.MORE_AVAILABLE;
+                } else {
+                    // Then emit index-1 with timestamp index-1
+                    output.collect(currentIndex - 1, currentIndex - 1);
+
+                    // Emit watermark with timestamp index-2
+                    if (currentIndex >= 2) {
+                        output.emitWatermark(
+                                new org.apache.flink.api.common.eventtime.Watermark(
+                                        currentIndex - 2));
+                    }
+
+                    currentIndex++;
+                    emittedSecond = false;
+                    return InputStatus.MORE_AVAILABLE;
+                }
+            } else if (!emittedFinalWatermarks) {
+                // Emit final Long.MAX_VALUE watermarks twice
+                output.emitWatermark(
+                        new org.apache.flink.api.common.eventtime.Watermark(Long.MAX_VALUE));
+                output.emitWatermark(
+                        new org.apache.flink.api.common.eventtime.Watermark(Long.MAX_VALUE));
+                emittedFinalWatermarks = true;
+                finished = true;
+                return InputStatus.END_OF_INPUT;
+            } else {
+                finished = true;
+                return InputStatus.END_OF_INPUT;
+            }
+        }
+
+        @Override
+        public List<TestSplit> snapshotState(long checkpointId) {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public void addSplits(List<TestSplit> splits) {}
+
+        @Override
+        public void notifyNoMoreSplits() {}
+
+        @Override
+        public CompletableFuture<Void> isAvailable() {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public void close() throws Exception {}
+    }
+
+    private static class TestSplit implements SourceSplit {
+        @Override
+        public String splitId() {
+            return "single-split";
+        }
+    }
+
+    private static class TestSplitEnumerator implements SplitEnumerator<TestSplit, Void> {
+        private final SplitEnumeratorContext<TestSplit> context;
+        private boolean splitAssigned = false;
+
+        public TestSplitEnumerator(SplitEnumeratorContext<TestSplit> context) {
+            this.context = context;
+        }
+
+        @Override
+        public void start() {}
+
+        @Override
+        public void handleSplitRequest(int subtaskId, String requesterHostname) {
+            if (!splitAssigned) {
+                context.assignSplit(SPLIT, subtaskId);
+                splitAssigned = true;
+            }
+        }
+
+        @Override
+        public void addSplitsBack(List<TestSplit> splits, int subtaskId) {}
+
+        @Override
+        public void addReader(int subtaskId) {}
+
+        @Override
+        public Void snapshotState(long checkpointId) {
+            return null;
+        }
+
+        @Override
+        public void close() {}
     }
 }
