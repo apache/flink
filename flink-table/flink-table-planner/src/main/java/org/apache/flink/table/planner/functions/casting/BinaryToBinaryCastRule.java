@@ -43,37 +43,38 @@ class BinaryToBinaryCastRule extends AbstractExpressionCodeGeneratorCastRule<byt
                         .build());
     }
 
-    /* Example generated code for BINARY(2):
-
-    // legacy behavior
-    ((byte[])(inputValue))
-
-    // new behavior
-    ((((byte[])(inputValue)).length == 2) ? (((byte[])(inputValue))) : (java.util.Arrays.copyOf(((byte[])(inputValue)), 2)))
-
-    */
-
+    /**
+     * Generates code for casting between BINARY and VARBINARY types.
+     *
+     * <p>For VARBINARY targets: preserves original length if it fits within the target constraint,
+     * otherwise truncates to target length.
+     *
+     * <p>For BINARY targets: pads shorter inputs to exact target length, truncates longer inputs.
+     *
+     * <p>Example generated code for {@code CAST(input AS VARBINARY(4))}:
+     *
+     * <pre>
+     * ((input.length <= 4) ? input : java.util.Arrays.copyOf(input, 4))
+     * </pre>
+     */
     @Override
     public String generateExpression(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        int inputLength = LogicalTypeChecks.getLength(inputLogicalType);
-        int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
+        final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
 
-        if (context.legacyBehaviour()
-                || ((!couldTrim(targetLength)
-                                // Assume input length is respected by the source
-                                || (inputLength <= targetLength))
-                        && !couldPad(targetLogicalType, targetLength))) {
+        // Legacy behavior or no length constraints - return as-is
+        if (context.legacyBehaviour() || !couldTrim(targetLength)) {
             return inputTerm;
-        } else {
-            return ternaryOperator(
-                    arrayLength(inputTerm) + " == " + targetLength,
-                    inputTerm,
-                    staticCall(Arrays.class, "copyOf", inputTerm, targetLength));
         }
+
+        final String operand = couldPad(targetLogicalType, targetLength) ? " == " : " <= ";
+        return ternaryOperator(
+                arrayLength(inputTerm) + operand + targetLength,
+                inputTerm,
+                staticCall(Arrays.class, "copyOf", inputTerm, targetLength));
     }
 
     static boolean couldTrim(int targetLength) {

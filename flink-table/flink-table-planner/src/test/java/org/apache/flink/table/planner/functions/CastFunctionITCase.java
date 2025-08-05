@@ -551,7 +551,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failRuntime(STRING(), "Apache", NumberFormatException.class)
                         .fromCase(STRING(), "1.234", 1.234f)
                         .fromCase(STRING(), "123", 123.0f)
-                        .fromCase(STRING(), "-3276913443134", -3.27691403E12f)
+                        .fromCase(STRING(), "-3276913443134", -3.2769135E12f)
                         .fromCase(BOOLEAN(), true, 1.0f)
                         .fromCase(BOOLEAN(), false, 0.0f)
                         // Not supported - no fix
@@ -649,9 +649,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 BIGINT(), DEFAULT_POSITIVE_BIGINT, (double) DEFAULT_POSITIVE_BIGINT)
                         .fromCase(
                                 BIGINT(), DEFAULT_NEGATIVE_BIGINT, (double) DEFAULT_NEGATIVE_BIGINT)
-                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, 123.456d)
-                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, -123.456)
-                        .fromCase(FLOAT(), 9234567891.12, 9234567891.12d)
+                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, 123.45600128173828)
+                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, -123.45600128173828)
+                        .fromCase(FLOAT(), 9234567891.12, 9.234568192E9)
                         .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, DEFAULT_POSITIVE_DOUBLE)
                         .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, DEFAULT_NEGATIVE_DOUBLE)
                         .fromCase(DOUBLE(), 1239234567891.1234567891234, 1.2392345678911235E12d)
@@ -720,13 +720,16 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failRuntime(CHAR(3), "foo", DateTimeException.class)
                         .failRuntime(VARCHAR(5), "Flink", DateTimeException.class)
                         .failRuntime(STRING(), "Flink", DateTimeException.class)
-                        .fromCase(STRING(), "123", LocalTime.of(23, 0, 0))
-                        .fromCase(STRING(), "123:45", LocalTime.of(23, 45, 0))
+                        .failRuntime(STRING(), "123", DateTimeException.class)
+                        .failRuntime(STRING(), "123:45", DateTimeException.class)
                         .failRuntime(STRING(), "2021-09-27", DateTimeException.class)
                         .failRuntime(STRING(), "2021-09-27 12:34:56", DateTimeException.class)
                         // https://issues.apache.org/jira/browse/FLINK-17224 Fractional seconds are
                         // lost
-                        .fromCase(STRING(), "12:34:56.123456789", LocalTime.of(12, 34, 56, 0))
+                        .fromCase(
+                                STRING(),
+                                "12:34:56.123456789",
+                                LocalTime.of(12, 34, 56, 123_000_000))
                         .failRuntime(
                                 STRING(), "2021-09-27 12:34:56.123456789", DateTimeException.class)
                         // Not supported - no fix
@@ -742,18 +745,28 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
                         .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
                         .failValidation(DATE(), DEFAULT_DATE)
-                        //
                         .fromCase(TIME(5), DEFAULT_TIME, LocalTime.of(12, 34, 56, 0))
-                        .fromCase(TIMESTAMP(), DEFAULT_TIMESTAMP, LocalTime.of(12, 34, 56, 0))
-                        .fromCase(TIMESTAMP(4), DEFAULT_TIMESTAMP, LocalTime.of(12, 34, 56, 0))
+                        .fromCase(
+                                TIMESTAMP(),
+                                DEFAULT_TIMESTAMP,
+                                LocalTime.of(12, 34, 56, 123_000_000))
+                        .fromCase(
+                                TIMESTAMP(4),
+                                DEFAULT_TIMESTAMP,
+                                LocalTime.of(12, 34, 56, 123_000_000))
 
                         // https://issues.apache.org/jira/browse/FLINK-20869
                         // TIMESTAMP_WITH_TIME_ZONE
 
                         // https://issues.apache.org/jira/browse/FLINK-24422 - Accept only Instant
-                        .fromCase(TIMESTAMP_LTZ(4), DEFAULT_TIMESTAMP, LocalTime.of(12, 34, 56, 0))
                         .fromCase(
-                                TIMESTAMP_LTZ(4), DEFAULT_TIMESTAMP_LTZ, LocalTime.of(7, 54, 56, 0))
+                                TIMESTAMP_LTZ(4),
+                                DEFAULT_TIMESTAMP,
+                                LocalTime.of(12, 34, 56, 123_000_000))
+                        .fromCase(
+                                TIMESTAMP_LTZ(4),
+                                DEFAULT_TIMESTAMP_LTZ,
+                                LocalTime.of(7, 54, 56, 123_000_000))
                         // Not supported - no fix
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
                         .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)

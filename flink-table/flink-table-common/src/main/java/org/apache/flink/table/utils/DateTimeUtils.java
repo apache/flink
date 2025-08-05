@@ -568,7 +568,26 @@ public class DateTimeUtils {
         return ymdToUnixDate(y, m, d);
     }
 
-    public static Integer parseTime(String v) {
+    /**
+     * Parses a time string into milliseconds since midnight.
+     *
+     * <p>Supports various time formats:
+     *
+     * <ul>
+     *   <li>HH - hour only (e.g., "14")
+     *   <li>HH:mm - hour and minute (e.g., "14:30")
+     *   <li>HH:mm:ss - hour, minute, and second (e.g., "14:30:45")
+     *   <li>HH:mm:ss.fff - with fractional seconds (e.g., "14:30:45.123")
+     *   <li>Any of the above with timezone offset: [+|-]HH:mm (e.g., "14:30:45+02:00")
+     * </ul>
+     *
+     * <p>Follows W3C datetime format specification.
+     *
+     * @param v the time string to parse
+     * @return milliseconds since midnight (0-86399999), or {@code null} if parsing fails
+     * @see <a href="https://www.w3.org/TR/NOTE-datetime">W3C Date and Time Formats</a>
+     */
+    public static Integer parseTime(final String v) {
         final int start = 0;
         final int colon1 = v.indexOf(':', start);
         // timezone hh:mm:ss[.ssssss][[+|-]hh:mm:ss]
@@ -651,12 +670,34 @@ public class DateTimeUtils {
                 }
             }
         }
+
+        if (!isValidTime(hour, minute, second)) {
+            return null;
+        }
+
         hour += operator * timezoneHour;
         minute += operator * timezoneMinute;
         return hour * (int) MILLIS_PER_HOUR
                 + minute * (int) MILLIS_PER_MINUTE
                 + second * (int) MILLIS_PER_SECOND
                 + milli;
+    }
+
+    /**
+     * Validates time components are within valid ranges.
+     *
+     * @param hour hour component (0-23)
+     * @param minute minute component (0-59)
+     * @param second second component (0-59)
+     * @return true if all components are valid, false otherwise
+     */
+    private static boolean isValidTime(int hour, int minute, int second) {
+        return hour >= 0
+                && hour <= 23
+                && minute >= 0
+                && minute <= 59
+                && second >= 0
+                && second <= 59;
     }
 
     /**

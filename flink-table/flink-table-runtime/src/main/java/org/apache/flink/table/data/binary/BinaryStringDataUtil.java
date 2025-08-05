@@ -597,7 +597,11 @@ public class BinaryStringDataUtil {
     public static int toTime(BinaryStringData input) throws DateTimeException {
         Integer date = DateTimeUtils.parseTime(input.toString());
         if (date == null) {
-            throw new DateTimeException("For input string: '" + input + "'.");
+            throw new DateTimeException(
+                    "Invalid time format: '"
+                            + input
+                            + "'. "
+                            + "Expected format: HH:mm:ss[.fff] where HH is 00-23, mm is 00-59, ss is 00-59");
         }
 
         return date;
