@@ -370,7 +370,7 @@ final class PythonEnvUtils {
         }
 
         LOG.info(
-                "Starting Python process with environment variables: {{}}, command: {}",
+                "Test - Starting Python process with environment variables: {{}}, command: {}",
                 env.entrySet().stream()
                         .map(e -> e.getKey() + "=" + e.getValue())
                         .collect(Collectors.joining(", ")),
