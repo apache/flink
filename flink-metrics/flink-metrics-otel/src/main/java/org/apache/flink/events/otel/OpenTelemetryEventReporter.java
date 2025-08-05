@@ -41,7 +41,6 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
-import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.Protocol;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureEndpoint;
 import static org.apache.flink.metrics.otel.OpenTelemetryReporterOptions.tryConfigureTimeout;
 
@@ -78,7 +77,7 @@ public class OpenTelemetryEventReporter extends OpenTelemetryReporterBase implem
                 LOG.warn(
                         "Unknown protocol '{}' for OpenTelemetryEventReporter, defaulting to gRPC",
                         protocol);
-                // Fall through to the "gRPC" case
+            // Fall through to the "gRPC" case
             case "grpc":
                 OtlpGrpcLogRecordExporterBuilder grpcBuilder = OtlpGrpcLogRecordExporter.builder();
                 tryConfigureEndpoint(metricConfig, grpcBuilder::setEndpoint);
