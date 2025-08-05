@@ -618,6 +618,16 @@ public class SecurityOptions {
                                     + "forcibly. (-1 = use system default)")
                     .withDeprecatedKeys("security.ssl.close-notify-flush-timeout");
 
+    // TODO check all documentation are well updated (explain mechanism)
+    /** Indicate if changes on keystore/truststore should leads to reload of the certificate. */
+    @Documentation.Section(Documentation.Sections.SECURITY_SSL)
+    public static final ConfigOption<Boolean> SSL_RELOAD =
+            key("security.ssl.reload")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Indicate if changes on keystore/truststore should leads to reload of the certificate.");
+
     /**
      * Checks whether SSL for internal communication (rpc, data transport, blob server) is enabled.
      */
@@ -634,5 +644,10 @@ public class SecurityOptions {
     public static boolean isRestSSLAuthenticationEnabled(Configuration sslConfig) {
         checkNotNull(sslConfig, "sslConfig");
         return isRestSSLEnabled(sslConfig) && sslConfig.get(SSL_REST_AUTHENTICATION_ENABLED);
+    }
+
+    /** Checks whether certificates must be reloaded in case of keytstore or trusttore changes. */
+    public static boolean isReloadCertificate(Configuration sslConfig) {
+        return sslConfig.get(SSL_RELOAD);
     }
 }
