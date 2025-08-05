@@ -23,12 +23,14 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.RpcOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.core.security.FlinkSecurityManager;
+import org.apache.flink.core.security.watch.LocalFSWatchService;
 import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobCacheService;
@@ -190,6 +192,12 @@ public class TaskManagerRunner implements FatalErrorHandler {
                     Executors.newScheduledThreadPool(
                             Hardware.getNumberCPUCores(),
                             new ExecutorThreadFactory("taskmanager-future"));
+
+            if (SecurityOptions.isReloadCertificate(configuration)) {
+                LOG.debug("Initialize local file system watch service for certificate reloading.");
+                LocalFSWatchService localFSWatchService = new LocalFSWatchService();
+                localFSWatchService.start();
+            }
 
             highAvailabilityServices =
                     HighAvailabilityServicesUtils.createHighAvailabilityServices(

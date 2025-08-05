@@ -31,12 +31,14 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.core.security.FlinkSecurityManager;
+import org.apache.flink.core.security.watch.LocalFSWatchService;
 import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobUtils;
@@ -348,6 +350,12 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                                     () ->
                                             DeterminismEnvelope.nondeterministicValue(
                                                     ResourceID.generate()));
+
+            if (SecurityOptions.isReloadCertificate(configuration)) {
+                LOG.debug("Initialize local file system watch service for certificate reloading.");
+                LocalFSWatchService localFSWatchService = new LocalFSWatchService();
+                localFSWatchService.start();
+            }
 
             LOG.debug(
                     "Initialize cluster entrypoint {} with resource id {}.",
