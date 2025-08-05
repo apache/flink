@@ -38,6 +38,7 @@ import io.opentelemetry.sdk.logs.export.LogRecordExporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
@@ -64,7 +65,10 @@ public class OpenTelemetryEventReporter extends OpenTelemetryReporterBase implem
     public void open(MetricConfig metricConfig) {
         LOG.info("Starting OpenTelemetryEventReporter");
         final String protocol =
-                metricConfig.getProperty(OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key());
+                Optional.ofNullable(
+                                metricConfig.getProperty(
+                                        OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key()))
+                        .orElse("");
 
         switch (protocol.toLowerCase()) {
             case "http":

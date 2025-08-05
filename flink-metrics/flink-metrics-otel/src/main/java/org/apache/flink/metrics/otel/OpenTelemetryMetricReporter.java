@@ -96,7 +96,10 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
         super.open(metricConfig);
 
         final String protocol =
-                metricConfig.getProperty(OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key());
+                Optional.ofNullable(
+                                metricConfig.getProperty(
+                                        OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key()))
+                        .orElse("");
 
         switch (protocol.toLowerCase()) {
             case "http":

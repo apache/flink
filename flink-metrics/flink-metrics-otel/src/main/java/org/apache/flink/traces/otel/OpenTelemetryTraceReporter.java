@@ -39,6 +39,7 @@ import io.opentelemetry.sdk.trace.export.SpanExporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
@@ -61,7 +62,10 @@ public class OpenTelemetryTraceReporter extends OpenTelemetryReporterBase implem
         super.open(metricConfig);
 
         final String protocol =
-                metricConfig.getProperty(OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key());
+                Optional.ofNullable(
+                                metricConfig.getProperty(
+                                        OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key()))
+                        .orElse("");
 
         switch (protocol.toLowerCase()) {
             case "http":
