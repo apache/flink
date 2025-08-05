@@ -28,9 +28,7 @@ import _d3Tip from 'd3-tip';
 @Component({
   selector: 'flink-flame-graph',
   templateUrl: './flame-graph.component.html',
-  styleUrls: [],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FlameGraphComponent {
   @ViewChild('flameGraphContainer', { static: true }) flameGraphContainer: ElementRef<Element>;

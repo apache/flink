@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import { DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -27,7 +26,8 @@ import {
   OnDestroy,
   OnInit,
   Output,
-  ViewChild
+  ViewChild,
+  DOCUMENT
 } from '@angular/core';
 import { fromEvent, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -47,8 +47,7 @@ export type ResizeMode = ResizeModeEnums | 'vertical' | 'horizontal';
   templateUrl: './resize.component.html',
   styleUrls: ['./resize.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzIconModule],
-  standalone: true
+  imports: [NzIconModule]
 })
 export class ResizeComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();

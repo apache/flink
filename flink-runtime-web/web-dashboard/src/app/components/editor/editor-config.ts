@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { EditorOptions } from 'ng-zorro-antd/code-editor';
 
 export const flinkEditorOptions: EditorOptions = {
   scrollBeyondLastLine: false,

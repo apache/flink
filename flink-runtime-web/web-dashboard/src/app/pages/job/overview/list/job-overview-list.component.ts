@@ -30,9 +30,8 @@ import { StatusService } from '@flink-runtime-web/services';
 import { NzBadgeModule } from 'ng-zorro-antd/badge';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
-import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzTableModule, NzTableSortFn } from 'ng-zorro-antd/table';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
 function createSortFn(
   selector: (item: NodesItemCorrect) => number | string | undefined
@@ -50,7 +49,7 @@ const rescaleTimeout = 2500;
   imports: [
     NzTableModule,
     NgForOf,
-    NzToolTipModule,
+    NzTooltipModule,
     JobBadgeComponent,
     NgIf,
     HumanizeBytesPipe,
@@ -62,8 +61,7 @@ const rescaleTimeout = 2500;
     NzButtonModule,
     NzIconModule,
     NzBadgeModule
-  ],
-  standalone: true
+  ]
 })
 export class JobOverviewListComponent {
   public readonly trackById = (_: number, node: NodesItemCorrect): string => node.id;

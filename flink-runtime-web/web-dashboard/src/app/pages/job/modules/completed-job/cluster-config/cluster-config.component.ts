@@ -30,8 +30,7 @@ import { JobManagerService } from '@flink-runtime-web/services';
   templateUrl: './cluster-config.component.html',
   styleUrls: ['./cluster-config.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ConfigurationCardsComponent],
-  standalone: true
+  imports: [ConfigurationCardsComponent]
 })
 export class ClusterConfigComponent implements OnInit, OnDestroy {
   jobId: string;

@@ -38,8 +38,6 @@ export class JobLocalService {
   /** Current activated vertex. */
   private readonly selectedVertex$ = new ReplaySubject<NodesItemCorrect | null>(1);
 
-  constructor() {}
-
   /** Current activated job with vertex. */
   jobWithVertexChanges(): Observable<JobWithVertex> {
     return this.selectedVertex$.pipe(

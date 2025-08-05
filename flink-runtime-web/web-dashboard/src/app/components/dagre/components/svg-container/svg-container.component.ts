@@ -39,8 +39,7 @@ type SafeAny = any;
   selector: 'flink-svg-container',
   templateUrl: './svg-container.component.html',
   styleUrls: ['./svg-container.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SvgContainerComponent implements OnInit, AfterContentInit {
   public zoom = 1;

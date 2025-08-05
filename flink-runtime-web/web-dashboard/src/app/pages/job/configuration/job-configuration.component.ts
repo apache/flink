@@ -33,8 +33,7 @@ import { JobLocalService } from '../job-local.service';
   templateUrl: './job-configuration.component.html',
   styleUrls: ['./job-configuration.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzCardModule, NzTableModule, NgIf, NgForOf],
-  standalone: true
+  imports: [NzCardModule, NzTableModule, NgIf, NgForOf]
 })
 export class JobConfigurationComponent implements OnInit, OnDestroy {
   public config: JobConfig;
