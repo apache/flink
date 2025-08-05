@@ -394,7 +394,7 @@ If you observe unexpected behavior, manually specify the return type using the `
 #### Serialization of POJO types
 
 The `PojoTypeInfo` is creating serializers for all the fields inside the POJO. Standard types such as
-int, long, String etc. are handled by serializers we ship with Flink.
+int, long, String, etc. are handled by serializers we ship with Flink.
 For all other types, we fall back to [Kryo](https://github.com/EsotericSoftware/kryo).
 
 If Kryo is not able to handle the type, you can ask the `PojoTypeInfo` to serialize the POJO using [Avro](https://avro.apache.org).
@@ -429,6 +429,15 @@ or via user-defined custom serializers. To do that, set:
 ```yaml
 pipeline.generic-types: false 
 ```
+
+{{< hint warning >}}
+Note that Kryo will deserialize any class on the classpath 
+ * when `pipeline.generic-types: true`
+ * the Flink job has a type definition such as `DataStream<Object>`, or `DataStream<Tuple2<Integer,Object>>`. 
+
+A malicious actor who knows the Flink job and controls the data input to Kryo will be able to instantiate classes which are 
+not intended for instantiation.
+{{< /hint >}}
 
 An exception will be raised whenever a data type is encountered that would go through Kryo.
 
