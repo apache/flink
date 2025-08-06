@@ -53,8 +53,16 @@ class BinaryToBinaryCastRule extends AbstractExpressionCodeGeneratorCastRule<byt
      *
      * <p>Example generated code for {@code CAST(input AS VARBINARY(4))}:
      *
+     * <p>New behavior:
+     *
      * <pre>
      * ((input.length <= 4) ? input : java.util.Arrays.copyOf(input, 4))
+     * </pre>
+     *
+     * <p>Legacy behavior:
+     *
+     * <pre>
+     * ((byte[])(inputValue))
      * </pre>
      */
     @Override
@@ -63,10 +71,16 @@ class BinaryToBinaryCastRule extends AbstractExpressionCodeGeneratorCastRule<byt
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
+        final int inputLength = LogicalTypeChecks.getLength(inputLogicalType);
         final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
 
         // Legacy behavior or no length constraints - return as-is
-        if (context.legacyBehaviour() || !couldTrim(targetLength)) {
+
+        if (context.legacyBehaviour()
+                || ((!couldTrim(targetLength)
+                                // Assume input length is respected by the source
+                                || (inputLength <= targetLength))
+                        && !couldPad(targetLogicalType, targetLength))) {
             return inputTerm;
         }
 
