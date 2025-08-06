@@ -131,7 +131,7 @@ testing.
 Users can deal these cases with `EventTimeWatermarkGeneratorBuilder#withMaxOutOfOrderTime`,
 i.e. the maximum amount of time an element is allowed to be late before being ignored when
 computing the final result for the given window. Lateness corresponds to the
-result of `t - t_w`, where `t` is the (event-time) timestamp of an element, and
+result of `t_w - t`, where `t` is the (event-time) timestamp of an element, and
 `t_w` that of the previous event time watermark.  If `lateness > 0` then the element is
 considered late and is, by default, ignored when computing the result of the
 job for its corresponding window.
