@@ -217,6 +217,8 @@ under the License.
 
 		<!-- Can be set to any value to reproduce a specific build. -->
 		<test.randomization.seed/>
+		<!-- default value taken from https://docs.junit.org/snapshot/user-guide/#writing-tests-parallel-execution-config-properties -->
+		<test.dynamic.max-pool-size-factor>256</test.dynamic.max-pool-size-factor>
 		<test.unit.pattern>**/*Test.*</test.unit.pattern>
 		<snappy.java.version>1.1.10.7</snappy.java.version>
 	</properties>
@@ -1771,8 +1773,10 @@ under the License.
 						<junit.jupiter.execution.parallel.mode.default>same_thread</junit.jupiter.execution.parallel.mode.default>
 						<!-- Tests suites are by default executed by a single thread; parallel execution is opt-in. -->
 						<junit.jupiter.execution.parallel.mode.classes.default>same_thread</junit.jupiter.execution.parallel.mode.classes.default>
-						<!-- automatically adjust parallelism based on available cpu/processor cores-->
+						<!-- automatically adjust parallelism based on available cpu/processor cores -->
 						<junit.jupiter.execution.parallel.config.strategy>dynamic</junit.jupiter.execution.parallel.config.strategy>
+						<!-- configuration parameter can be used to limit the maximum number of threads -->
+						<junit.jupiter.execution.parallel.config.dynamic.max-pool-size-factor>${test.dynamic.max-pool-size-factor}</junit.jupiter.execution.parallel.config.dynamic.max-pool-size-factor>
 					</systemPropertyVariables>
 					<!-- This is picked up by IntelliJ -->
 					<argLine>${flink.surefire.baseArgLine}</argLine>
