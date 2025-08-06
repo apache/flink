@@ -48,7 +48,7 @@ public final class OpenTelemetryReporterOptions {
     public static final ConfigOption<Protocol> EXPORTER_PROTOCOL =
             ConfigOptions.key("exporter.protocol")
                     .enumType(Protocol.class)
-                    .noDefaultValue()
+                    .defaultValue(Protocol.gRPC)
                     .withDescription(
                             Description.builder()
                                     .text("Protocol for the OpenTelemetry Reporters.")
