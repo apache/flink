@@ -23,6 +23,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.table.api.FunctionDescriptor;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -385,7 +386,12 @@ public class ResourceManagerTest {
                         new ModuleManager());
 
         functionCatalog.registerCatalogFunction(
-                FULL_UNRESOLVED_IDENTIFIER1, GENERATED_LOWER_UDF_CLASS, resourceUris, false);
+                FULL_UNRESOLVED_IDENTIFIER1,
+                FunctionDescriptor.forClassName(GENERATED_LOWER_UDF_CLASS)
+                        .language(FunctionLanguage.JAVA)
+                        .resourceUris(resourceUris)
+                        .build(),
+                false);
 
         Map<ResourceUri, ResourceManager.ResourceCounter> functionResourceInfos =
                 resourceManager.functionResourceInfos();
@@ -396,7 +402,12 @@ public class ResourceManagerTest {
         // Register catalog function again to validate that unregister catalog function will not
         // decrease the reference count of resourceUris.
         functionCatalog.registerCatalogFunction(
-                FULL_UNRESOLVED_IDENTIFIER1, GENERATED_LOWER_UDF_CLASS, resourceUris, false);
+                FULL_UNRESOLVED_IDENTIFIER1,
+                FunctionDescriptor.forClassName(GENERATED_LOWER_UDF_CLASS)
+                        .language(FunctionLanguage.JAVA)
+                        .resourceUris(resourceUris)
+                        .build(),
+                false);
         functionCatalog.registerTemporaryCatalogFunction(
                 FULL_UNRESOLVED_IDENTIFIER2,
                 new CatalogFunctionImpl(

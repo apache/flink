@@ -492,7 +492,7 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
             assert identifier.getIdentifier().isPresent();
             serializeCatalogFunction(
                     identifier.getIdentifier().get(),
-                    resolvedFunction.getDefinition(),
+                    resolvedFunction,
                     gen,
                     serializerProvider,
                     serializeCatalogObjects);
@@ -501,7 +501,7 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
 
     private static void serializeCatalogFunction(
             ObjectIdentifier objectIdentifier,
-            FunctionDefinition definition,
+            ContextResolvedFunction resolvedFunction,
             JsonGenerator gen,
             SerializerProvider serializerProvider,
             boolean serializeCatalogObjects)
@@ -512,6 +512,18 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
             return;
         }
 
+        if (resolvedFunction.getCatalogFunction() != null
+                && !resolvedFunction.getCatalogFunction().getOptions().isEmpty()) {
+            throw new TableException(
+                    String.format(
+                            "Catalog functions with custom options can not be serialized into the "
+                                    + "compiled plan. Please set the option '%s'='%s' to only"
+                                    + " serialize the function's identifier.",
+                            TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS.key(),
+                            CatalogPlanCompilation.IDENTIFIER));
+        }
+
+        final FunctionDefinition definition = resolvedFunction.getDefinition();
         if (!(definition instanceof UserDefinedFunction)
                 || !isClassNameSerializable((UserDefinedFunction) definition)) {
             throw cannotSerializePermanentCatalogFunction(objectIdentifier);
