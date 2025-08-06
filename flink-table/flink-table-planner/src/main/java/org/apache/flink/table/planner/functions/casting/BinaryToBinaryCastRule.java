@@ -56,7 +56,7 @@ class BinaryToBinaryCastRule extends AbstractExpressionCodeGeneratorCastRule<byt
      * <p>New behavior:
      *
      * <pre>
-     * ((input.length <= 4) ? input : java.util.Arrays.copyOf(input, 4))
+     * ((input.length <= 4) ? ((byte[])(inputValue)): java.util.Arrays.copyOf(((byte[])(inputValue)), 4))
      * </pre>
      *
      * <p>Legacy behavior:
@@ -71,19 +71,15 @@ class BinaryToBinaryCastRule extends AbstractExpressionCodeGeneratorCastRule<byt
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        final int inputLength = LogicalTypeChecks.getLength(inputLogicalType);
         final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
 
-        // Legacy behavior or no length constraints - return as-is
-
+        // Legacy behavior: always return input unchanged
         if (context.legacyBehaviour()
-                || ((!couldTrim(targetLength)
-                                // Assume input length is respected by the source
-                                || (inputLength <= targetLength))
-                        && !couldPad(targetLogicalType, targetLength))) {
+                || noTransformationNeeded(inputLogicalType, targetLogicalType)) {
             return inputTerm;
         }
 
+        // Generate runtime transformation code
         final String operand = couldPad(targetLogicalType, targetLength) ? " == " : " <= ";
         return ternaryOperator(
                 arrayLength(inputTerm) + operand + targetLength,
@@ -91,10 +87,41 @@ class BinaryToBinaryCastRule extends AbstractExpressionCodeGeneratorCastRule<byt
                 staticCall(Arrays.class, "copyOf", inputTerm, targetLength));
     }
 
+    /**
+     * Determines if no runtime transformation is needed for the cast.
+     *
+     * <p>No transformation is needed when:
+     *
+     * <ul>
+     *   <li>Target has no length constraint (unlimited length)
+     *   <li>Target is VARBINARY and input's declared length fits within target constraint
+     * </ul>
+     *
+     * <p>Transformation is always needed for BINARY targets (for padding/truncation).
+     */
+    private static boolean noTransformationNeeded(
+            LogicalType inputLogicalType, LogicalType targetLogicalType) {
+        final int inputLength = LogicalTypeChecks.getLength(inputLogicalType);
+        final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
+
+        // Target has no length constraint - always use input as-is
+        // or
+        // BINARY targets always need transformation for exact length semantics
+        if (!couldTrim(targetLength) || couldPad(targetLogicalType, targetLength)) {
+            return false;
+        }
+
+        // VARBINARY targets: no transformation if input fits within constraint
+        // (assumes input respects its declared length)
+        return inputLength <= targetLength;
+    }
+
+    /** Determines if the target has a length constraint that could lead to trimming. */
     static boolean couldTrim(int targetLength) {
         return targetLength < BinaryType.MAX_LENGTH;
     }
 
+    /** Determines if the target is a BINARY with length constraint. */
     static boolean couldPad(LogicalType targetType, int targetLength) {
         return targetType.is(LogicalTypeRoot.BINARY) && targetLength < BinaryType.MAX_LENGTH;
     }

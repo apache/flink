@@ -1541,10 +1541,53 @@ public class DateTimeUtils {
                         .toLocalDate());
     }
 
-    public static int timestampWithLocalZoneToTime(TimestampData ts, TimeZone tz) {
-        return toInternal(
-                LocalDateTime.ofInstant(Instant.ofEpochMilli(ts.getMillisecond()), tz.toZoneId())
-                        .toLocalTime());
+    public static int timestampWithOutLocalZoneToTime(TimestampData ts, int precision) {
+        final int millisecond = (int) (ts.getMillisecond() % DateTimeUtils.MILLIS_PER_DAY);
+        return applyTimePrecisionTruncation(millisecond, precision);
+    }
+
+    public static int timestampWithLocalZoneToTime(TimestampData ts, TimeZone tz, int precision) {
+        final int internal =
+                toInternal(
+                        LocalDateTime.ofInstant(
+                                        Instant.ofEpochMilli(ts.getMillisecond()), tz.toZoneId())
+                                .toLocalTime());
+        return applyTimePrecisionTruncation(internal, precision);
+    }
+
+    /**
+     * Applies precision truncation to time milliseconds.
+     *
+     * <p>This method truncates (not rounds) the time value to the specified precision. For
+     * precision 3 or higher, no truncation is needed since the input is already in millisecond
+     * resolution.
+     *
+     * <p>Examples with timeMillis = 12345 (representing 00:00:12.345):
+     *
+     * <table border="1">
+     *   <tr><th>Target Precision</th><th>Factor</th><th>Result</th><th>Time String</th></tr>
+     *   <tr><td>0</td><td>1000</td><td>12000</td><td>00:00:12.000</td></tr>
+     *   <tr><td>1</td><td>100</td><td>12300</td><td>00:00:12.300</td></tr>
+     *   <tr><td>2</td><td>10</td><td>12340</td><td>00:00:12.340</td></tr>
+     *   <tr><td>3</td><td>-</td><td>12345</td><td>00:00:12.345</td></tr>
+     * </table>
+     *
+     * @param timeMillis time value as milliseconds since midnight (0-86399999)
+     * @param targetPrecision the target precision for fractional seconds (0-9)
+     * @return the truncated time value in milliseconds
+     */
+    public static int applyTimePrecisionTruncation(int timeMillis, int targetPrecision) {
+        if (targetPrecision >= 3) {
+            // Precision 3 or higher: no truncation needed (millisecond resolution or finer)
+            return timeMillis;
+        } else {
+            // Truncate to the target precision:
+            // - Precision 0: truncate to whole seconds (remove milliseconds)
+            // - Precision 1: truncate to deciseconds (100ms resolution)
+            // - Precision 2: truncate to centiseconds (10ms resolution)
+            final int factor = (int) Math.pow(10, 3 - targetPrecision);
+            return (timeMillis / factor) * factor;
+        }
     }
 
     public static TimestampData dateToTimestampWithLocalZone(int date, TimeZone tz) {

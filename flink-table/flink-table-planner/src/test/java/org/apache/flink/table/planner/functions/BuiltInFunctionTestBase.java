@@ -155,6 +155,8 @@ abstract class BuiltInFunctionTestBase {
 
         private @Nullable AbstractDataType<?>[] fieldDataTypes;
 
+        private boolean supportsConstantFolding = false;
+
         private TestSetSpec(
                 @Nullable BuiltInFunctionDefinition definition, @Nullable String description) {
             this.definition = definition;
@@ -201,9 +203,6 @@ abstract class BuiltInFunctionTestBase {
          * <p>If called with arguments, creates an input table with the provided data as a single
          * row. SQL queries will include {@code FROM <inputTable>}. If called with no arguments or
          * not called, no input table is created and SQL queries run as standalone expressions.
-         *
-         * <p>When used together with {@link #andDataTypes(AbstractDataType...)}, constant folding
-         * is disabled by wrapping field accesses in {@link IdentityFunction}.
          */
         TestSetSpec onFieldsWithData(Object... fieldData) {
             this.fieldData = fieldData;
@@ -228,6 +227,23 @@ abstract class BuiltInFunctionTestBase {
          */
         TestSetSpec withFunction(Class<? extends UserDefinedFunction> functionClass) {
             this.functions.add(functionClass);
+            return this;
+        }
+
+        /**
+         * Enables constant folding for this test set.
+         *
+         * <p>When enabled, expressions can be optimized by the optimizer at compile time, allowing
+         * constants to be folded. This is useful for testing the optimizer's behavior with constant
+         * expressions.
+         *
+         * <p>When disabled (default), field accesses are wrapped with {@link IdentityFunction} to
+         * force runtime code generation and prevent constant folding.
+         *
+         * @see IdentityFunction
+         */
+        TestSetSpec withConstantFoldingEnabled() {
+            this.supportsConstantFolding = true;
             return this;
         }
 
@@ -424,9 +440,12 @@ abstract class BuiltInFunctionTestBase {
                                                                     .as(fields[i].getName()))
                                             .toArray(Expression[]::new);
 
+                            final Table table =
+                                    env.fromValues(DataTypes.ROW(fields), Row.of(fieldData));
                             inputTable =
-                                    env.fromValues(DataTypes.ROW(fields), Row.of(fieldData))
-                                            .select(aliasedExpressions);
+                                    this.supportsConstantFolding
+                                            ? table
+                                            : table.select(aliasedExpressions);
                         }
 
                         testItem.test(env, inputTable, clusterClient);

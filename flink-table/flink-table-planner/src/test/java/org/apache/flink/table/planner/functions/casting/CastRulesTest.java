@@ -480,7 +480,7 @@ class CastRulesTest {
                         .fromCase(
                                 STRING(),
                                 fromString("12:34:56.123456789"),
-                                DateTimeUtils.toInternal(LocalTime.of(12, 34, 56, 123_000_000)))
+                                DateTimeUtils.toInternal(LocalTime.of(12, 34, 56, 0)))
                         .fail(
                                 STRING(),
                                 fromString("2021-09-27 12:34:56.123456789"),
@@ -488,11 +488,11 @@ class CastRulesTest {
                         .fromCase(
                                 TIMESTAMP(6),
                                 TIMESTAMP,
-                                DateTimeUtils.toInternal(LocalTime.of(12, 34, 56, 123_000_000)))
+                                DateTimeUtils.toInternal(LocalTime.of(12, 34, 56, 0)))
                         .fromCase(
                                 TIMESTAMP_LTZ(8),
                                 TIMESTAMP_LTZ,
-                                DateTimeUtils.toInternal(LocalTime.of(11, 34, 56, 123_000_000))),
+                                DateTimeUtils.toInternal(LocalTime.of(11, 34, 56, 0))),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP(9))
                         .fail(CHAR(3), fromString("foo"), TableRuntimeException.class)
                         .fail(VARCHAR(5), fromString("Flink"), TableRuntimeException.class)
