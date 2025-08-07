@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfileTestingUtils;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import org.junit.jupiter.api.Test;
@@ -84,6 +85,7 @@ class PhysicalSlotProviderImplWithSpreadOutStrategyTest {
                         SlotProfileTestingUtils.preferredLocality(
                                 ResourceProfile.ANY,
                                 Collections.singleton(preferredTaskManagerLocation)),
+                        DefaultLoadingWeight.EMPTY,
                         false);
         PhysicalSlotRequest.Result result1 =
                 physicalSlotProviderExtension.allocateSlot(request1).get();

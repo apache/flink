@@ -135,6 +135,11 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
+    public boolean isResourceRequestStable() {
+        return true;
+    }
+
+    @Override
     public void increaseResourceRequirementsBy(ResourceCounter increment) {
         increaseResourceRequirementsByConsumer.accept(increment);
     }
@@ -223,6 +228,11 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
 
     @Override
     public void registerNewSlotsListener(NewSlotsListener listener) {
+        // noop
+    }
+
+    @Override
+    public void registerResourceRequestStableListener(ResourceRequestStableListener listener) {
         // noop
     }
 
