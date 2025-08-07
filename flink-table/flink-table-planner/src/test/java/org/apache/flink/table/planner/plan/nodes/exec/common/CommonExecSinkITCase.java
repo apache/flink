@@ -18,13 +18,21 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
-import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.table.api.DataTypes;
@@ -42,6 +50,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.factories.TableFactoryHarness;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -55,11 +64,13 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -574,8 +585,10 @@ class CommonExecSinkITCase {
         }
     }
 
-    private static class TestSource extends TableFactoryHarness.ScanSourceBase {
+    private static class TestSource extends TableFactoryHarness.ScanSourceBase
+            implements Serializable {
 
+        private static final String SPLIT_ID = "single";
         private final List<Row> rows;
 
         private TestSource(List<Row> rows) {
@@ -584,34 +597,146 @@ class CommonExecSinkITCase {
         }
 
         @Override
-        public ScanTableSource.ScanRuntimeProvider getScanRuntimeProvider(
-                ScanTableSource.ScanContext context) {
-            final DynamicTableSource.DataStructureConverter converter =
+        public ScanTableSource.ScanRuntimeProvider getScanRuntimeProvider(ScanContext context) {
+            DynamicTableSource.DataStructureConverter converter =
                     context.createDataStructureConverter(
                             getFactoryContext().getPhysicalRowDataType());
 
-            return SourceFunctionProvider.of(new TestSourceFunction(rows, converter), false);
+            // Can't use DataGeneratorSource distributes work across parallel readers causing
+            // timestamp reordering
+            return SourceProvider.of(
+                    new Source<RowData, SourceSplit, Void>() {
+
+                        @Override
+                        public Boundedness getBoundedness() {
+                            return Boundedness.BOUNDED;
+                        }
+
+                        @Override
+                        public SourceReader<RowData, SourceSplit> createReader(
+                                SourceReaderContext ctx) {
+                            return new SourceReader<>() {
+                                final int subtask = ctx.getIndexOfSubtask();
+                                boolean emitted = false;
+
+                                @Override
+                                public void start() {}
+
+                                @Override
+                                public InputStatus pollNext(ReaderOutput<RowData> output) {
+                                    // Only subtask 0 is allowed to emit; all others immediately
+                                    // finish
+                                    // Also emit only once per subtask (guarded by `emitted` flag)
+                                    if (subtask != 0 || emitted) {
+                                        return InputStatus.END_OF_INPUT;
+                                    }
+
+                                    // Emit all rows in original order
+                                    rows.forEach(
+                                            row ->
+                                                    output.collect(
+                                                            (RowData) converter.toInternal(row)));
+
+                                    // Mark that we've finished emitting to avoid duplicates
+                                    emitted = true;
+                                    return InputStatus.END_OF_INPUT;
+                                }
+
+                                @Override
+                                public List<SourceSplit> snapshotState(long checkpointId) {
+                                    return Collections.emptyList();
+                                }
+
+                                @Override
+                                public CompletableFuture<Void> isAvailable() {
+                                    return CompletableFuture.completedFuture(null);
+                                }
+
+                                @Override
+                                public void notifyNoMoreSplits() {}
+
+                                @Override
+                                public void addSplits(List<SourceSplit> splits) {}
+
+                                @Override
+                                public void close() {}
+                            };
+                        }
+
+                        @Override
+                        public SplitEnumerator<SourceSplit, Void> createEnumerator(
+                                SplitEnumeratorContext<SourceSplit> ctx) {
+                            return new SplitEnumerator<>() {
+                                @Override
+                                public void start() {}
+
+                                @Override
+                                public void handleSplitRequest(int subtaskId, String hostname) {}
+
+                                @Override
+                                public void addSplitsBack(
+                                        List<SourceSplit> splits, int subtaskId) {}
+
+                                @Override
+                                public void addReader(int subtaskId) {}
+
+                                @Override
+                                public Void snapshotState(long checkpointId) {
+                                    return null;
+                                }
+
+                                @Override
+                                public void close() {}
+                            };
+                        }
+
+                        @Override
+                        public SplitEnumerator<SourceSplit, Void> restoreEnumerator(
+                                SplitEnumeratorContext<SourceSplit> ctx, Void checkpoint) {
+                            return createEnumerator(ctx);
+                        }
+
+                        @Override
+                        public SimpleVersionedSerializer<SourceSplit> getSplitSerializer() {
+                            return new SimpleVersionedSerializer<>() {
+                                @Override
+                                public int getVersion() {
+                                    return 1;
+                                }
+
+                                @Override
+                                public byte[] serialize(SourceSplit split) {
+                                    return new byte[0];
+                                }
+
+                                @Override
+                                public SourceSplit deserialize(int version, byte[] bytes) {
+                                    return () -> SPLIT_ID;
+                                }
+                            };
+                        }
+
+                        @Override
+                        public SimpleVersionedSerializer<Void> getEnumeratorCheckpointSerializer() {
+                            return new SimpleVersionedSerializer<>() {
+                                @Override
+                                public int getVersion() {
+                                    return 1;
+                                }
+
+                                @Override
+                                public byte[] serialize(Void obj) {
+                                    return new byte[0];
+                                }
+
+                                @Override
+                                public Void deserialize(int version, byte[] bytes) {
+                                    return null;
+                                }
+                            };
+                        }
+                    });
         }
-    }
-
-    private static class TestSourceFunction implements SourceFunction<RowData> {
-
-        private final List<Row> rows;
-        private final DynamicTableSource.DataStructureConverter converter;
-
-        public TestSourceFunction(
-                List<Row> rows, DynamicTableSource.DataStructureConverter converter) {
-            this.rows = rows;
-            this.converter = converter;
-        }
-
-        @Override
-        public void run(SourceContext<RowData> ctx) throws Exception {
-            rows.stream().map(row -> (RowData) converter.toInternal(row)).forEach(ctx::collect);
-        }
-
-        @Override
-        public void cancel() {}
     }
 
     private static class TestTimestampWriter extends TestSinkV2.DefaultSinkWriter<RowData> {
