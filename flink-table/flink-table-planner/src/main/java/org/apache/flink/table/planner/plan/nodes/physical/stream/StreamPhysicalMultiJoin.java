@@ -25,6 +25,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultiJoin;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
@@ -50,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -159,13 +162,21 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         for (final Ord<RelNode> ord : Ord.zip(inputs)) {
             pw.input("input#" + ord.i, ord.e);
         }
-        return pw.item("joinFilter", joinFilter)
+
+        return pw.item("commonJoinKey", getCommonJoinKeyFieldNames())
                 .item("joinTypes", joinTypes)
-                .item("joinConditions", joinConditions)
-                .item("joinAttributeMap", joinAttributeMap)
-                .itemIf("postJoinFilter", postJoinFilter, postJoinFilter != null)
+                .item("joinConditions", formatJoinConditionsWithFieldNames(pw))
+                .item("inputUniqueKeys", formatInputUniqueKeysWithFieldNames())
+                .itemIf(
+                        "joinFilter",
+                        formatExpressionWithFieldNames(joinFilter, pw),
+                        joinFilter != null)
+                .itemIf(
+                        "postJoinFilter",
+                        formatExpressionWithFieldNames(postJoinFilter, pw),
+                        postJoinFilter != null)
                 .item("select", String.join(",", getRowType().getFieldNames()))
-                .item("rowType", getRowType());
+                .item("outputRowType", getRowType());
     }
 
     @Override
@@ -266,6 +277,103 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
 
     public List<JoinRelType> getJoinTypes() {
         return joinTypes;
+    }
+
+    /**
+     * Returns the common join key field names as a comma-separated string. Uses the field names
+     * from the first input to map the common join key indices.
+     *
+     * @return comma-separated string of common join key field names, or empty string if no common
+     *     join key
+     */
+    private String getCommonJoinKeyFieldNames() {
+        final int[] commonJoinKeyIndices = keyExtractor.getCommonJoinKeyIndices(0);
+        final RelNode firstInput = inputs.get(0);
+        final List<String> fieldNames = firstInput.getRowType().getFieldNames();
+        final List<String> commonJoinKey = new ArrayList<>();
+
+        for (final int index : commonJoinKeyIndices) {
+            if (index < fieldNames.size()) {
+                commonJoinKey.add(fieldNames.get(index));
+            }
+        }
+
+        if (commonJoinKey.isEmpty()) {
+            commonJoinKey.add("noCommonJoinKey");
+        }
+
+        return String.join(", ", commonJoinKey);
+    }
+
+    /**
+     * Formats a RexNode expression with field names for better readability in explain output.
+     *
+     * @param expression the expression to format
+     * @param pw the RelWriter for determining format preferences
+     * @return formatted expression string with field names
+     */
+    private String formatExpressionWithFieldNames(final RexNode expression, final RelWriter pw) {
+        if (expression == null) {
+            return "";
+        }
+
+        return getExpressionString(
+                expression,
+                JavaScalaConversionUtil.toScala(getRowType().getFieldNames()).toList(),
+                JavaScalaConversionUtil.toScala(Optional.empty()),
+                RelExplainUtil.preferExpressionFormat(pw),
+                RelExplainUtil.preferExpressionDetail(pw));
+    }
+
+    /**
+     * Formats join conditions with field names for better readability in explain output.
+     *
+     * @param pw the RelWriter for determining format preferences
+     * @return formatted join conditions string with field names
+     */
+    private String formatJoinConditionsWithFieldNames(final RelWriter pw) {
+        if (joinConditions.isEmpty()) {
+            return "";
+        }
+
+        final List<String> formattedConditions = new ArrayList<>();
+        for (final RexNode condition : joinConditions) {
+            if (condition != null) {
+                formattedConditions.add(formatExpressionWithFieldNames(condition, pw));
+            }
+        }
+
+        return String.join(" AND ", formattedConditions);
+    }
+
+    private String formatInputUniqueKeysWithFieldNames() {
+        final List<String> inputUniqueKeyStrings = new ArrayList<>();
+        for (int i = 0; i < inputs.size(); i++) {
+            final RelNode input = inputs.get(i);
+            final List<String> fieldNames = input.getRowType().getFieldNames();
+            final Set<ImmutableBitSet> uniqueKeys = getUniqueKeys(input);
+
+            if (uniqueKeys != null && !uniqueKeys.isEmpty()) {
+                final List<String> uniqueKeyStrings = new ArrayList<>();
+                for (final ImmutableBitSet uniqueKey : uniqueKeys) {
+                    final List<String> keyFieldNames = new ArrayList<>();
+                    for (final int index : uniqueKey.toArray()) {
+                        if (index < fieldNames.size()) {
+                            keyFieldNames.add(fieldNames.get(index));
+                        }
+                    }
+                    if (!keyFieldNames.isEmpty()) {
+                        uniqueKeyStrings.add("(" + String.join(", ", keyFieldNames) + ")");
+                    }
+                }
+                if (!uniqueKeyStrings.isEmpty()) {
+                    inputUniqueKeyStrings.add(
+                            "input#" + i + ": " + String.join(", ", uniqueKeyStrings));
+                }
+            }
+        }
+
+        return String.join(" ", inputUniqueKeyStrings);
     }
 
     /**
