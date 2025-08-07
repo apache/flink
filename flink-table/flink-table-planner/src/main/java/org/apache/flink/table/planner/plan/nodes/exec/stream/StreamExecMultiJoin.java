@@ -108,6 +108,12 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private final List<List<int[]>> inputUniqueKeys;
 
+    // Why List<List<int[]>> as a type
+    // Each unique key can be also a composite key with multiple fields, thus -> int[].
+    // Theoretically, each input can have multiple unique keys, thus -> List<int[]>
+    // Since we have multiple inputs -> List<List<int[]>>
+    private final List<List<int[]>> inputUniqueKeys;
+
     @JsonProperty(FIELD_NAME_STATE)
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private final List<StateMetadata> stateMetadataList;
