@@ -378,7 +378,7 @@ object CodeGenUtils {
             tirt.getTypeInformation.createSerializer(new SerializerConfigImpl)
         }
         val serTerm = ctx.addReusableObject(serializer, "serializer")
-        s"$BINARY_RAW_VALUE.getJavaObjectFromRawValueData($term, $serTerm).hashCode()"
+        s"$term.toObject($serTerm).hashCode()"
       case NULL | SYMBOL | UNRESOLVED =>
         throw new IllegalArgumentException("Illegal type: " + t)
     }

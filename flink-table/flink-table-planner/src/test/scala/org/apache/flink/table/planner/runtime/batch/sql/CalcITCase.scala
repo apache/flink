@@ -2333,4 +2333,19 @@ class CalcITCase extends BatchTestBase {
     // reported in FLINK-35832
     checkResult("SELECT IFNULL(JSON_VALUE('{\"a\":16}','$.a'),'0')", Seq(row("16")));
   }
+
+  @Test
+  def testRawHash(): Unit = {
+    // reported in FLINK-38135
+    tEnv.createTemporarySystemFunction("RawOutUDF", RawOutUDF)
+    checkResult(
+      s"""
+         |SELECT str, COUNT(1) FROM (
+         |  SELECT RawOutUDF(id) AS str FROM (VALUES (0), (1), (2), (2), (1), (2)) AS t(id)
+         |)
+         |GROUP BY str
+         |""".stripMargin,
+      Seq(row(0, 1), row(1, 2), row(2, 3))
+    );
+  }
 }
