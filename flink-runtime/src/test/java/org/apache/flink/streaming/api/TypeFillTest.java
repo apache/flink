@@ -17,25 +17,37 @@
 
 package org.apache.flink.streaming.api;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -51,7 +63,13 @@ class TypeFillTest {
     void test() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        assertThatThrownBy(() -> env.addSource(new TestSource<Integer>()).print())
+        assertThatThrownBy(
+                        () ->
+                                env.fromSource(
+                                                new NoopSource<Integer>(),
+                                                WatermarkStrategy.noWatermarks(),
+                                                "NoopSource")
+                                        .print())
                 .isInstanceOf(InvalidTypesException.class);
 
         DataStream<Long> source = env.fromSequence(1, 10);
@@ -110,7 +128,8 @@ class TypeFillTest {
                                         .print())
                 .isInstanceOf(InvalidTypesException.class);
 
-        env.addSource(new TestSource<Integer>()).returns(Integer.class);
+        env.fromSource(new NoopSource<Integer>(), WatermarkStrategy.noWatermarks(), "NoopSource")
+                .returns(Integer.class);
         source.map(new TestMap<Long, Long>()).returns(Long.class).print();
         source.flatMap(new TestFlatMap<Long, Long>()).returns(new TypeHint<Long>() {}).print();
         source.connect(source)
@@ -155,16 +174,6 @@ class TypeFillTest {
         map.print();
         assertThatThrownBy(() -> map.returns(String.class))
                 .isInstanceOf(IllegalStateException.class);
-    }
-
-    private static class TestSource<T> implements SourceFunction<T> {
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        public void run(SourceContext<T> ctx) throws Exception {}
-
-        @Override
-        public void cancel() {}
     }
 
     private static class TestMap<T, O> implements MapFunction<T, O> {
@@ -216,6 +225,131 @@ class TypeFillTest {
         public void processElement(IN1 left, IN2 right, Context ctx, Collector<OUT> out)
                 throws Exception {
             // nothing to do
+        }
+    }
+
+    private static class NoopSource<T> implements Source<T, SourceSplit, Void> {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public Boundedness getBoundedness() {
+            return Boundedness.BOUNDED;
+        }
+
+        @Override
+        public SourceReader<T, SourceSplit> createReader(SourceReaderContext readerContext) {
+            return new NoopSourceReader<>();
+        }
+
+        @Override
+        public SplitEnumerator<SourceSplit, Void> createEnumerator(
+                SplitEnumeratorContext<SourceSplit> enumContext) {
+            return new NoopSplitEnumerator(enumContext);
+        }
+
+        @Override
+        public SplitEnumerator<SourceSplit, Void> restoreEnumerator(
+                SplitEnumeratorContext<SourceSplit> enumContext, Void checkpoint) {
+            return createEnumerator(enumContext);
+        }
+
+        @Override
+        public SimpleVersionedSerializer<SourceSplit> getSplitSerializer() {
+            return new NoopSplitSerializer();
+        }
+
+        @Override
+        public SimpleVersionedSerializer<Void> getEnumeratorCheckpointSerializer() {
+            return new SimpleVersionedSerializer<Void>() {
+                @Override
+                public int getVersion() {
+                    return 1;
+                }
+
+                @Override
+                public byte[] serialize(Void obj) {
+                    return new byte[0];
+                }
+
+                @Override
+                public Void deserialize(int version, byte[] serialized) {
+                    return null;
+                }
+            };
+        }
+    }
+
+    private static class NoopSourceReader<T> implements SourceReader<T, SourceSplit> {
+        @Override
+        public void start() {}
+
+        @Override
+        public InputStatus pollNext(ReaderOutput<T> output) {
+            return InputStatus.END_OF_INPUT;
+        }
+
+        @Override
+        public List<SourceSplit> snapshotState(long checkpointId) {
+            return java.util.Collections.emptyList();
+        }
+
+        @Override
+        public void addSplits(List<SourceSplit> splits) {}
+
+        @Override
+        public void notifyNoMoreSplits() {}
+
+        @Override
+        public CompletableFuture<Void> isAvailable() {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public void close() {}
+    }
+
+    private static class NoopSplitEnumerator implements SplitEnumerator<SourceSplit, Void> {
+        private final SplitEnumeratorContext<SourceSplit> context;
+
+        public NoopSplitEnumerator(SplitEnumeratorContext<SourceSplit> context) {
+            this.context = context;
+        }
+
+        @Override
+        public void start() {}
+
+        @Override
+        public void handleSplitRequest(int subtaskId, String requesterHostname) {}
+
+        @Override
+        public void addSplitsBack(List<SourceSplit> splits, int subtaskId) {}
+
+        @Override
+        public void addReader(int subtaskId) {}
+
+        @Override
+        public Void snapshotState(long checkpointId) {
+            return null;
+        }
+
+        @Override
+        public void close() {}
+    }
+
+    private static class NoopSplitSerializer implements SimpleVersionedSerializer<SourceSplit> {
+        @Override
+        public int getVersion() {
+            return 1;
+        }
+
+        @Override
+        public byte[] serialize(SourceSplit split) {
+            return new byte[0];
+        }
+
+        @Override
+        public SourceSplit deserialize(int version, byte[] serialized) {
+            return null;
         }
     }
 }
