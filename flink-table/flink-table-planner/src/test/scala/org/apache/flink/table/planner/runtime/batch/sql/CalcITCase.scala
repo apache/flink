@@ -2341,11 +2341,11 @@ class CalcITCase extends BatchTestBase {
     checkResult(
       s"""
          |SELECT str, COUNT(1) FROM (
-         |  SELECT RawOutUDF(id) AS str FROM (VALUES (0), (1), (2)) AS t(id)
+         |  SELECT RawOutUDF(id) AS str FROM (VALUES (0), (1), (2), (2), (1), (2)) AS t(id)
          |)
          |GROUP BY str
          |""".stripMargin,
-      Seq(row(0, 1), row(1, 1), row(2, 1))
+      Seq(row(0, 1), row(1, 2), row(2, 3))
     );
   }
 }
