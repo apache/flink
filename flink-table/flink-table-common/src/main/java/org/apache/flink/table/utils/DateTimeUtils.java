@@ -1541,7 +1541,7 @@ public class DateTimeUtils {
                         .toLocalDate());
     }
 
-    public static int timestampWithOutLocalZoneToTime(TimestampData ts, int precision) {
+    public static int timestampWithoutLocalZoneToTime(TimestampData ts, int precision) {
         final int millisecond = (int) (ts.getMillisecond() % DateTimeUtils.MILLIS_PER_DAY);
         return applyTimePrecisionTruncation(millisecond, precision);
     }
@@ -1573,20 +1573,20 @@ public class DateTimeUtils {
      * </table>
      *
      * @param timeMillis time value as milliseconds since midnight (0-86399999)
-     * @param targetPrecision the target precision for fractional seconds (0-9)
+     * @param precision the target precision for fractional seconds (0-9)
      * @return the truncated time value in milliseconds
      */
-    public static int applyTimePrecisionTruncation(int timeMillis, int targetPrecision) {
-        if (targetPrecision >= 3) {
-            // Precision 3 or higher: no truncation needed (millisecond resolution or finer)
-            return timeMillis;
-        } else {
-            // Truncate to the target precision:
-            // - Precision 0: truncate to whole seconds (remove milliseconds)
-            // - Precision 1: truncate to deciseconds (100ms resolution)
-            // - Precision 2: truncate to centiseconds (10ms resolution)
-            final int factor = (int) Math.pow(10, 3 - targetPrecision);
-            return (timeMillis / factor) * factor;
+    public static int applyTimePrecisionTruncation(int timeMillis, int precision) {
+        switch (precision) {
+            case 0:
+                return (timeMillis / 1000) * 1000;
+            case 1:
+                return (timeMillis / 100) * 100;
+            case 2:
+                return (timeMillis / 10) * 10;
+            default:
+                // precision 3 or higher, no truncation needed
+                return timeMillis;
         }
     }
 

@@ -340,9 +340,9 @@ object BuiltInMethods {
     classOf[TimestampData],
     classOf[TimeZone])
 
-  val TIMESTAMP_WITH_OUT_LOCAL_TIME_ZONE_TO_TIME = Types.lookupMethod(
+  val TIMESTAMP_WITHOUT_LOCAL_TIME_ZONE_TO_TIME = Types.lookupMethod(
     classOf[DateTimeUtils],
-    "timestampWithOutLocalZoneToTime",
+    "timestampWithoutLocalZoneToTime",
     classOf[TimestampData],
     classOf[Int])
 

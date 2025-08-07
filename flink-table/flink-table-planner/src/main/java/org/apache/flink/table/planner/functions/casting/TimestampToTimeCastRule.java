@@ -55,7 +55,7 @@ class TimestampToTimeCastRule
 
         if (inputLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
             return staticCall(
-                    BuiltInMethods.TIMESTAMP_WITH_OUT_LOCAL_TIME_ZONE_TO_TIME(),
+                    BuiltInMethods.TIMESTAMP_WITHOUT_LOCAL_TIME_ZONE_TO_TIME(),
                     inputTerm,
                     targetPrecision);
         } else if (inputLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
