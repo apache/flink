@@ -1155,8 +1155,14 @@ object ScalarOperatorGens {
               element
             } else {
               val tpe = fieldTypes(idx)
-              val resultTerm = primitiveDefaultValue(tpe)
-              GeneratedExpression(resultTerm, ALWAYS_NULL, NO_CODE, tpe, Some(null))
+              val defaultValue = primitiveDefaultValue(tpe)
+              val resultTypeTerm = primitiveTypeTermForType(tpe)
+              GeneratedExpression(
+                s"(($resultTypeTerm) $defaultValue)",
+                ALWAYS_NULL,
+                NO_CODE,
+                tpe,
+                Some(null))
             }
         }
         val row = generateLiteralRow(ctx, rowType, mapped)

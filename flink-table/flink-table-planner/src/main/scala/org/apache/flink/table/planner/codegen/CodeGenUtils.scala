@@ -22,7 +22,6 @@ import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary._
-import org.apache.flink.table.data.binary.BinaryRowDataUtil.BYTE_ARRAY_BASE_OFFSET
 import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.util.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.data.utils.JoinedRowData
@@ -194,12 +193,13 @@ object CodeGenUtils {
     name
   }
 
-  // when casting we first need to unbox Primitives, for example,
-  // float a = 1.0f;
-  // byte b = (byte) a;
-  // works, but for boxed types we need this:
-  // Float a = 1.0f;
-  // Byte b = (byte)(float) a;
+  /**
+   * Returns the primitive Java type name for a given logical type.
+   *
+   * <p>For primitive logical types, returns the corresponding Java primitive type name (e.g.,
+   * "byte", "short", "int", "long", "float", "double", "boolean"). For non-primitive types, falls
+   * back to [[boxedTypeTermForType]].
+   */
   @tailrec
   def primitiveTypeTermForType(t: LogicalType): String = t.getTypeRoot match {
     // ordered by type root definition

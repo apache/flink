@@ -43,43 +43,85 @@ class BinaryToBinaryCastRule extends AbstractExpressionCodeGeneratorCastRule<byt
                         .build());
     }
 
-    /* Example generated code for BINARY(2):
-
-    // legacy behavior
-    ((byte[])(inputValue))
-
-    // new behavior
-    ((((byte[])(inputValue)).length == 2) ? (((byte[])(inputValue))) : (java.util.Arrays.copyOf(((byte[])(inputValue)), 2)))
-
-    */
-
+    /**
+     * Generates code for casting between BINARY and VARBINARY types.
+     *
+     * <p>For VARBINARY targets: preserves original length if it fits within the target constraint,
+     * otherwise truncates to target length.
+     *
+     * <p>For BINARY targets: pads shorter inputs to exact target length, truncates longer inputs.
+     *
+     * <p>Example generated code for {@code CAST(input AS VARBINARY(4))}:
+     *
+     * <p>New behavior:
+     *
+     * <pre>
+     * ((input.length <= 4) ? ((byte[])(inputValue)): java.util.Arrays.copyOf(((byte[])(inputValue)), 4))
+     * </pre>
+     *
+     * <p>Legacy behavior:
+     *
+     * <pre>
+     * ((byte[])(inputValue))
+     * </pre>
+     */
     @Override
     public String generateExpression(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        int inputLength = LogicalTypeChecks.getLength(inputLogicalType);
-        int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
+        final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
 
+        // Legacy behavior: always return input unchanged
         if (context.legacyBehaviour()
-                || ((!couldTrim(targetLength)
-                                // Assume input length is respected by the source
-                                || (inputLength <= targetLength))
-                        && !couldPad(targetLogicalType, targetLength))) {
+                || noTransformationNeeded(inputLogicalType, targetLogicalType)) {
             return inputTerm;
-        } else {
-            return ternaryOperator(
-                    arrayLength(inputTerm) + " == " + targetLength,
-                    inputTerm,
-                    staticCall(Arrays.class, "copyOf", inputTerm, targetLength));
         }
+
+        // Generate runtime transformation code
+        final String operand = couldPad(targetLogicalType, targetLength) ? " == " : " <= ";
+        return ternaryOperator(
+                arrayLength(inputTerm) + operand + targetLength,
+                inputTerm,
+                staticCall(Arrays.class, "copyOf", inputTerm, targetLength));
     }
 
+    /**
+     * Determines if no runtime transformation is needed for the cast.
+     *
+     * <p>No transformation is needed when:
+     *
+     * <ul>
+     *   <li>Target has no length constraint (unlimited length)
+     *   <li>Target is VARBINARY and input's declared length fits within target constraint
+     * </ul>
+     *
+     * <p>Transformation is always needed for BINARY targets (for padding/truncation).
+     */
+    private static boolean noTransformationNeeded(
+            LogicalType inputLogicalType, LogicalType targetLogicalType) {
+        final int inputLength = LogicalTypeChecks.getLength(inputLogicalType);
+        final int targetLength = LogicalTypeChecks.getLength(targetLogicalType);
+
+        // Target has no length constraint - always use input as-is
+        // or
+        // BINARY targets always need transformation for exact length semantics
+        if (!couldTrim(targetLength) || couldPad(targetLogicalType, targetLength)) {
+            return false;
+        }
+
+        // VARBINARY targets: no transformation if input fits within constraint
+        // (assumes input respects its declared length)
+        return inputLength <= targetLength;
+    }
+
+    /** Determines if the target has a length constraint that could lead to trimming. */
     static boolean couldTrim(int targetLength) {
         return targetLength < BinaryType.MAX_LENGTH;
     }
 
+    /** Determines if the target is a BINARY with length constraint. */
     static boolean couldPad(LogicalType targetType, int targetLength) {
         return targetType.is(LogicalTypeRoot.BINARY) && targetLength < BinaryType.MAX_LENGTH;
     }
