@@ -219,6 +219,8 @@ under the License.
 		<test.randomization.seed/>
 		<!-- default value taken from https://docs.junit.org/snapshot/user-guide/#writing-tests-parallel-execution-config-properties -->
 		<test.dynamic.max-pool-size-factor>256</test.dynamic.max-pool-size-factor>
+		<!-- default value taken from https://docs.junit.org/snapshot/user-guide/#writing-tests-parallel-execution-config-properties -->
+		<test.dynamic.factor>1.0</test.dynamic.factor>
 		<test.unit.pattern>**/*Test.*</test.unit.pattern>
 		<snappy.java.version>1.1.10.7</snappy.java.version>
 	</properties>
@@ -1777,6 +1779,8 @@ under the License.
 						<junit.jupiter.execution.parallel.config.strategy>dynamic</junit.jupiter.execution.parallel.config.strategy>
 						<!-- configuration parameter can be used to limit the maximum number of threads -->
 						<junit.jupiter.execution.parallel.config.dynamic.max-pool-size-factor>${test.dynamic.max-pool-size-factor}</junit.jupiter.execution.parallel.config.dynamic.max-pool-size-factor>
+						<!-- factor to be multiplied by the number of available processors/cores to determine the desired parallelism for the dynamic configuration strategy -->
+						<junit.jupiter.execution.parallel.config.dynamic.factor>${test.dynamic.factor}</junit.jupiter.execution.parallel.config.dynamic.factor>
 					</systemPropertyVariables>
 					<!-- This is picked up by IntelliJ -->
 					<argLine>${flink.surefire.baseArgLine}</argLine>
