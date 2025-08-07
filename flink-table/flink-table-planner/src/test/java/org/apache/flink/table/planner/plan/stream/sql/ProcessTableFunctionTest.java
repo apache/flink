@@ -131,6 +131,17 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testViewOfDifferentPartitionKey() {
+        util.addTemporarySystemFunction("f", SetSemanticTableFunction.class);
+        // Parses create view in `SqlNodeConvertUtils#toCatalogView` will trigger
+        // [CALCITE-6944] Align toSqlString with SQL std for Table Args in PTF
+        util.tableEnv()
+                .executeSql(
+                        "CREATE VIEW v AS SELECT * FROM f(r => TABLE t PARTITION BY score, i => 1)");
+        util.verifyRelPlan("SELECT * FROM v");
+    }
+
+    @Test
     void testEmptyArgs() {
         util.addTemporarySystemFunction("f", EmptyArgFunction.class);
         util.verifyRelPlan("SELECT * FROM f(uid => 'my-ptf')");
