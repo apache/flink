@@ -822,7 +822,7 @@ catalog 属性一般用于存储关于这个 catalog 的额外的信息。
 ```sql
 CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name
   [COMMENT database_comment]
-  WITH (key1=val1, key2=val2, ...)
+  [WITH (key1=val1, key2=val2, ...)]
 ```
 
 根据给定的表属性创建数据库。若数据库中已存在同名表会抛出异常。
