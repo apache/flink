@@ -1072,7 +1072,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         LOG.debug(
                 "Cleanup StreamTask (operators closed: {}, cancelled: {})",
                 closedOperators,
-                canceled);
+                canceled,
+                throwable);
 
         failing = !canceled && throwable != null;
 
