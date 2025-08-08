@@ -21,6 +21,7 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -36,6 +37,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.security.MessageDigest;
@@ -242,7 +244,8 @@ class BlobClientTest {
             byte[] digest = md.digest();
 
             InetSocketAddress serverAddress =
-                    new InetSocketAddress("localhost", getBlobServer().getPort());
+                    new InetSocketAddress(
+                            getBlobServer().getAddress().getHostName(), getBlobServer().getPort());
             client = new BlobClient(serverAddress, getBlobClientConfig());
 
             JobID jobId = new JobID();
@@ -329,7 +332,9 @@ class BlobClientTest {
 
         try (BlobClient client =
                 new BlobClient(
-                        new InetSocketAddress("localhost", getBlobServer().getPort()),
+                        new InetSocketAddress(
+                                getBlobServer().getAddress().getHostName(),
+                                getBlobServer().getPort()),
                         getBlobClientConfig())) {
 
             JobID jobId = new JobID();
@@ -403,7 +408,9 @@ class BlobClientTest {
 
         try (BlobClient client =
                 new BlobClient(
-                        new InetSocketAddress("localhost", getBlobServer().getPort()),
+                        new InetSocketAddress(
+                                getBlobServer().getAddress().getHostName(),
+                                getBlobServer().getPort()),
                         getBlobClientConfig())) {
 
             byte[] data = new byte[5000000];
@@ -462,7 +469,8 @@ class BlobClientTest {
         testFile.deleteOnExit();
         prepareTestFile(testFile);
 
-        InetSocketAddress serverAddress = new InetSocketAddress("localhost", blobServer.getPort());
+        InetSocketAddress serverAddress =
+                new InetSocketAddress(blobServer.getAddress().getHostName(), blobServer.getPort());
 
         uploadJarFile(serverAddress, blobClientConfig, testFile);
         uploadJarFile(serverAddress, blobClientConfig, testFile);
@@ -504,7 +512,8 @@ class BlobClientTest {
                         10_000L)) {
             testBlobServer.start();
             InetSocketAddress serverAddress =
-                    new InetSocketAddress("localhost", testBlobServer.getPort());
+                    new InetSocketAddress(
+                            getBlobServer().getAddress().getHostName(), testBlobServer.getPort());
 
             try (BlobClient client = new BlobClient(serverAddress, clientConfig)) {
                 client.getInternal(new JobID(), BlobKey.createKey(TRANSIENT_BLOB));
@@ -523,9 +532,50 @@ class BlobClientTest {
     void testUnresolvedInetSocketAddress() throws Exception {
         try (BlobClient client =
                 new BlobClient(
-                        InetSocketAddress.createUnresolved("localhost", getBlobServer().getPort()),
+                        InetSocketAddress.createUnresolved(
+                                getBlobServer().getAddress().getHostName(),
+                                getBlobServer().getPort()),
                         getBlobClientConfig())) {
             assertThat(client.isConnected()).isTrue();
+        }
+    }
+
+    /** BlobServer should return routable address when bound to wildcard. */
+    @Test
+    void testWildcardBindingAddress() throws Exception {
+        Configuration config = new Configuration();
+        config.set(JobManagerOptions.BIND_HOST, "0.0.0.0");
+
+        File tempServerDir = tempDir.resolve("wildcard_test").toFile();
+        tempServerDir.mkdirs();
+
+        try (BlobServer testServer = new BlobServer(config, tempServerDir, new VoidBlobStore())) {
+            testServer.start();
+
+            InetAddress address = testServer.getAddress();
+            assertThat(address.getHostAddress())
+                    .as("Should not return wildcard address")
+                    .isNotEqualTo("0.0.0.0");
+        }
+    }
+
+    /** BlobServer should return the configured bind address. */
+    @Test
+    void testReturnsConfiguredBindAddress() throws Exception {
+        String loopbackAddress = InetAddress.getLoopbackAddress().getHostAddress();
+        Configuration config = new Configuration();
+        config.set(JobManagerOptions.BIND_HOST, loopbackAddress);
+
+        File tempServerDir = tempDir.resolve("bind_address_test").toFile();
+        tempServerDir.mkdirs();
+
+        try (BlobServer testServer = new BlobServer(config, tempServerDir, new VoidBlobStore())) {
+            testServer.start();
+
+            InetAddress address = testServer.getAddress();
+            assertThat(address.getHostAddress())
+                    .as("Should return the bound address")
+                    .isEqualTo(loopbackAddress);
         }
     }
 

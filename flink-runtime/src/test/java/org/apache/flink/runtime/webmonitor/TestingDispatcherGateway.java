@@ -46,6 +46,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.TriFunction;
 
+import java.net.InetAddress;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
@@ -93,6 +94,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
             submitFailedFunction;
     private final Supplier<CompletableFuture<Collection<JobID>>> listFunction;
     private final int blobServerPort;
+    private InetAddress blobServerAddress;
     private final DispatcherId fencingToken;
     private final Function<JobID, CompletableFuture<ArchivedExecutionGraph>>
             requestArchivedJobFunction;
@@ -206,6 +208,11 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
         this.submitFailedFunction = submitFailedFunction;
         this.listFunction = listFunction;
         this.blobServerPort = blobServerPort;
+        try {
+            this.blobServerAddress = InetAddress.getByName(hostname);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to resolve hostname: " + hostname, e);
+        }
         this.fencingToken = fencingToken;
         this.requestArchivedJobFunction = requestArchivedJobFunction;
         this.clusterShutdownWithStatusFunction = clusterShutdownWithStatusFunction;
@@ -234,6 +241,11 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
     @Override
     public CompletableFuture<Integer> getBlobServerPort(Duration timeout) {
         return CompletableFuture.completedFuture(blobServerPort);
+    }
+
+    @Override
+    public CompletableFuture<InetAddress> getBlobServerAddress(Duration timeout) {
+        return CompletableFuture.completedFuture(blobServerAddress);
     }
 
     @Override
