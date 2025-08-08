@@ -164,9 +164,13 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         }
 
         return pw.item("commonJoinKey", getCommonJoinKeyFieldNames())
-                .item("joinTypes", joinTypes)
-                .item("joinConditions", formatJoinConditionsWithFieldNames(pw))
+                .item(
+                        "joinTypes",
+                        joinTypes.stream()
+                                .map(JoinRelType::toString)
+                                .collect(Collectors.joining(", ")))
                 .item("inputUniqueKeys", formatInputUniqueKeysWithFieldNames())
+                .item("joinConditions", formatJoinConditionsWithFieldNames(pw))
                 .itemIf(
                         "joinFilter",
                         formatExpressionWithFieldNames(joinFilter, pw),
@@ -343,7 +347,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
             }
         }
 
-        return String.join(" AND ", formattedConditions);
+        return String.join(", ", formattedConditions);
     }
 
     private String formatInputUniqueKeysWithFieldNames() {
@@ -367,13 +371,14 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                     }
                 }
                 if (!uniqueKeyStrings.isEmpty()) {
-                    inputUniqueKeyStrings.add(
-                            "input#" + i + ": " + String.join(", ", uniqueKeyStrings));
+                    inputUniqueKeyStrings.add(String.join(", ", uniqueKeyStrings));
                 }
+            } else {
+                inputUniqueKeyStrings.add("noUniqueKey");
             }
         }
 
-        return String.join(" ", inputUniqueKeyStrings);
+        return String.join(", ", inputUniqueKeyStrings);
     }
 
     /**

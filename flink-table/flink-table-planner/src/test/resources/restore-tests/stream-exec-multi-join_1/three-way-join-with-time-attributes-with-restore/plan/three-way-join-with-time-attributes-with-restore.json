@@ -357,7 +357,7 @@
       "priority" : 2
     } ],
     "outputType" : "ROW<`user_id_0` VARCHAR(2147483647) NOT NULL, `name` VARCHAR(2147483647), `order_id` VARCHAR(2147483647) NOT NULL, `user_id_1` VARCHAR(2147483647), `rowtime` TIMESTAMP(3), `price` INT, `user_id_2` VARCHAR(2147483647)>",
-    "description" : "MultiJoin(commonJoinKey=[user_id_0], joinTypes=[[INNER, INNER, INNER]], joinConditions=[true AND (user_id_0 = user_id_1) AND (user_id_0 = user_id_2)], inputUniqueKeys=[input#0: (user_id_0) input#1: (order_id)], joinFilter=[((user_id_0 = user_id_2) AND (user_id_0 = user_id_1))], select=[user_id_0,name,order_id,user_id_1,rowtime,price,user_id_2], outputRowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, TIMESTAMP(3) rowtime, INTEGER price, VARCHAR(2147483647) user_id_2)])"
+    "description" : "MultiJoin(commonJoinKey=[user_id_0], joinTypes=[INNER, INNER, INNER], inputUniqueKeys=[(user_id_0), (order_id), noUniqueKey], joinConditions=[true, (user_id_0 = user_id_1), (user_id_0 = user_id_2)], joinFilter=[((user_id_0 = user_id_2) AND (user_id_0 = user_id_1))], select=[user_id_0,name,order_id,user_id_1,rowtime,price,user_id_2], outputRowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, TIMESTAMP(3) rowtime, INTEGER price, VARCHAR(2147483647) user_id_2)])"
   }, {
     "id" : 57,
     "type" : "stream-exec-calc_1",
