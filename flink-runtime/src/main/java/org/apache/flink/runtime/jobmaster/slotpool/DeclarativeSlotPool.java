@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -41,6 +42,13 @@ import java.util.Collection;
  * resources can be returned.
  */
 public interface DeclarativeSlotPool {
+
+    /**
+     * Whether the resources request is stable.
+     *
+     * @return True if the resources request is stable, false else.
+     */
+    boolean isResourceRequestStable();
 
     /**
      * Increases the resource requirements by increment.
@@ -108,6 +116,13 @@ public interface DeclarativeSlotPool {
             long currentTime);
 
     /**
+     * Returns the task executors loading information.
+     *
+     * @return the task executors loading information.
+     */
+    TaskExecutorsLoadInformation getTaskExecutorsLoadInformation();
+
+    /**
      * Returns the free slot tracker.
      *
      * @return free slot tracker
@@ -137,11 +152,15 @@ public interface DeclarativeSlotPool {
      *
      * @param allocationId allocationId identifies the free slot to allocate
      * @param requiredSlotProfile requiredSlotProfile specifying the resource requirement
+     * @param loadingWeight loading weight.
      * @return a PhysicalSlot representing the allocated slot
      * @throws IllegalStateException if no free slot with the given allocationId exists or if the
      *     specified slot cannot fulfill the requiredSlotProfile
      */
-    PhysicalSlot reserveFreeSlot(AllocationID allocationId, ResourceProfile requiredSlotProfile);
+    PhysicalSlot reserveFreeSlot(
+            AllocationID allocationId,
+            ResourceProfile requiredSlotProfile,
+            LoadingWeight loadingWeight);
 
     /**
      * Frees the reserved slot identified by the given allocationId. If no slot with allocationId
@@ -228,5 +247,31 @@ public interface DeclarativeSlotPool {
         @Override
         public void notifyNewSlotsAreAvailable(
                 Collection<? extends PhysicalSlot> newlyAvailableSlots) {}
+    }
+
+    /**
+     * Registers a listener which is called whenever no more resource requests in the specified
+     * duration.
+     *
+     * @param listener which is called whenever no more resource requests in the specified duration.
+     */
+    void registerResourceRequestStableListener(ResourceRequestStableListener listener);
+
+    /**
+     * Listener interface for no more resource requests in the {@link
+     * org.apache.flink.configuration.JobManagerOptions#SLOT_REQUEST_MAX_INTERVAL}.
+     */
+    interface ResourceRequestStableListener {
+
+        /** Notifies the listener about no more resource requests in the specified duration. */
+        void notifyResourceRequestStable();
+    }
+
+    /** No-op {@link ResourceRequestStableListener} implementation. */
+    enum NoOpResourceRequestStableListener implements ResourceRequestStableListener {
+        INSTANCE;
+
+        @Override
+        public void notifyResourceRequestStable() {}
     }
 }
