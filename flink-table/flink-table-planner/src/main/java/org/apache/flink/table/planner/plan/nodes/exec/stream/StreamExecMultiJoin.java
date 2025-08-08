@@ -99,13 +99,12 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
 
-    @JsonProperty(FIELD_NAME_INPUT_UNIQUE_KEYS)
-    @JsonInclude(JsonInclude.Include.NON_EMPTY)
-
     // Why List<List<int[]>> as a type
     // Each unique key can be also a composite key with multiple fields, thus -> int[].
     // Theoretically, each input can have multiple unique keys, thus -> List<int[]>
     // Since we have multiple inputs -> List<List<int[]>>
+    @JsonProperty(FIELD_NAME_INPUT_UNIQUE_KEYS)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private final List<List<int[]>> inputUniqueKeys;
 
     @JsonProperty(FIELD_NAME_STATE)

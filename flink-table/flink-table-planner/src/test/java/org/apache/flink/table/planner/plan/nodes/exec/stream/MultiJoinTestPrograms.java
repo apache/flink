@@ -907,4 +907,65 @@ public class MultiJoinTestPrograms {
                                             + "INNER JOIN OrdersWithRowtime o ON u.user_id_0 = o.user_id_1 "
                                             + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2")
                             .build();
+
+    public static final TableTestProgram MULTI_JOIN_MIXED_CHANGELOG_MODES =
+            TableTestProgram.of(
+                            "three-way-mixed-changelog-modes",
+                            "three way join with mixed changelog modes and primary key configurations")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("AppendTable")
+                                    .addSchema("id STRING PRIMARY KEY NOT ENFORCED, val STRING")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "1", "append1"),
+                                            Row.ofKind(RowKind.INSERT, "2", "append2"),
+                                            Row.ofKind(RowKind.INSERT, "3", "append3"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("RetractTable")
+                                    .addSchema("ref_id STRING, data STRING")
+                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "1", "retract1"),
+                                            Row.ofKind(RowKind.INSERT, "2", "retract2"),
+                                            Row.ofKind(RowKind.INSERT, "3", "retract3"),
+                                            Row.ofKind(RowKind.DELETE, "3", "retract3"),
+                                            Row.ofKind(RowKind.INSERT, "1", "retract1_new"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("UpsertTable")
+                                    .addSchema(
+                                            "key_id STRING PRIMARY KEY NOT ENFORCED, status STRING")
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "1", "active"),
+                                            Row.ofKind(RowKind.INSERT, "2", "pending"),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "2", "pending"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "2", "active"),
+                                            Row.ofKind(RowKind.INSERT, "3", "inactive"),
+                                            Row.ofKind(RowKind.DELETE, "3", "inactive"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "id STRING",
+                                            "val STRING",
+                                            "data STRING",
+                                            "status STRING")
+                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .consumedValues(
+                                            "+I[1, append1, retract1, active]",
+                                            "+I[2, append2, retract2, active]",
+                                            "+I[1, append1, retract1_new, active]",
+                                            "+I[3, append3, null, null]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT a.id, a.val, r.data, u.status "
+                                    + "FROM AppendTable a "
+                                    + "LEFT JOIN RetractTable r ON a.id = r.ref_id "
+                                    + "LEFT JOIN UpsertTable u ON a.id = u.key_id")
+                    .build();
 }
