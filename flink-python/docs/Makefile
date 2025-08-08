@@ -27,9 +27,9 @@ endif
 # If SPHINXBUILD is set, the command is 'sphinx-build'.
 # Elseif SPHINXPYTHON is set, the command is 'python -m sphinx'.
 ifdef SPHINXBUILD
-# Check whether sphinx-build is installed
-ifeq ($(shell hash $(SPHINXBUILD) >/dev/null 2>&1; echo $$?), 1)
-$(error The command '$(SPHINXBUILD)' was not found.If you don't have Sphinx installed, grab it from http://sphinx-doc.org/)
+# Check whether sphinx-build command works (supports compound commands like "uv run sphinx-build")
+ifeq ($(shell $(SPHINXBUILD) --help >/dev/null 2>&1; echo $$?), 1)
+$(error The command '$(SPHINXBUILD)' was not found or failed. If you don't have Sphinx installed, grab it from http://sphinx-doc.org/)
 endif
 else
 ifeq ($(shell $(SPHINXPYTHON) -c 'import sphinx' >/dev/null 2>&1; echo $$?), 1)

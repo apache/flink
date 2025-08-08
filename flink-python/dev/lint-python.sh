@@ -137,7 +137,7 @@ function parse_component_args() {
         if [[ `contains_element "${SUPPORTED_INSTALLATION_COMPONENTS[*]}" "${component}"` = true ]]; then
             REAL_COMPONENTS+=(${component})
         else
-            echo "unknown install component ${component}, currently we only support installing basic,py_env,tox,flake8,sphinx,mypy,all."
+            echo "unknown install component ${component}, currently we only support installing basic,all."
             exit 1
         fi
     done
@@ -215,140 +215,6 @@ function install_uv() {
     fi
 }
 
-# Create different Python virtual environments for different Python versions
-function install_py_env() {
-    py_env=("3.9" "3.10" "3.11" "3.12")
-    for ((i=0;i<${#py_env[@]};i++)) do
-        if [ -d "$CURRENT_DIR/.uv/envs/${py_env[i]}" ]; then
-            rm -rf "$CURRENT_DIR/.uv/envs/${py_env[i]}"
-            if [ $? -ne 0 ]; then
-                echo "rm -rf $CURRENT_DIR/.uv/envs/${py_env[i]} failed, please \
-                rm -rf $CURRENT_DIR/.uv/envs/${py_env[i]} manually.\
-                Then retry to exec the script."
-                exit 1
-            fi
-        fi
-        print_function "STEP" "installing python${py_env[i]}..."
-        max_retry_times=3
-        retry_times=0
-        install_command="$UV_PATH venv $CURRENT_DIR/.uv/envs/${py_env[i]} -q --python=${py_env[i]} --seed"
-        ${install_command} 2>&1 >/dev/null
-        status=$?
-        while [[ ${status} -ne 0 ]] && [[ ${retry_times} -lt ${max_retry_times} ]]; do
-            retry_times=$((retry_times+1))
-            # sleep 3 seconds and then reinstall.
-            sleep 3
-            echo "uv venv ${py_env[i]} retrying ${retry_times}/${max_retry_times}"
-            ${install_command} 2>&1 >/dev/null
-            status=$?
-        done
-        if [[ ${status} -ne 0 ]]; then
-            echo "uv venv ${py_env[i]} failed after retrying ${max_retry_times} times.\
-            You can retry to execute the script again."
-            exit 1
-        fi
-
-        $CURRENT_DIR/.uv/envs/${py_env[i]}/bin/pip install -q uv==${UV_VERSION}
-        print_function "STEP" "install python${py_env[i]}... [SUCCESS]"
-    done
-}
-
-# Install tox.
-# In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
-function install_tox() {
-    source $ENV_HOME/bin/activate
-    if [ -f "$TOX_PATH" ]; then
-        $UV_PATH pip uninstall tox -q 2>&1 >/dev/null
-        if [ $? -ne 0 ]; then
-            echo "uv pip uninstall tox failed \
-            please try to exec the script again.\
-            if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
-            exit 1
-        fi
-    fi
-
-    $CURRENT_DIR/install_command.sh -q --group "${PYPROJECT_PATH}:tox" 2>&1 >/dev/null
-    if [ $? -ne 0 ]; then
-        echo "uv pip install tox failed \
-        please try to exec the script again.\
-        if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
-        exit 1
-    fi
-    deactivate
-}
-
-# Install flake8.
-# In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
-function install_flake8() {
-    source $UV_HOME/bin/activate
-    if [ -f "$FLAKE8_PATH" ]; then
-        $UV_PATH pip uninstall flake8 -q 2>&1 >/dev/null
-        if [ $? -ne 0 ]; then
-            echo "uv pip uninstall flake8 failed \
-            please try to exec the script again.\
-            if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
-            exit 1
-        fi
-    fi
-
-    $CURRENT_DIR/install_command.sh -q --group "${PYPROJECT_PATH}:flake8" 2>&1 >/dev/null
-    if [ $? -ne 0 ]; then
-        echo "uv pip install flake8 failed \
-        please try to exec the script again.\
-        if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
-        exit 1
-    fi
-    deactivate
-}
-
-# Install sphinx.
-# In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
-function install_sphinx() {
-    source $UV_HOME/bin/activate
-    if [ -f "$SPHINX_PATH" ]; then
-        $UV_PATH pip uninstall Sphinx -q 2>&1 >/dev/null
-        if [ $? -ne 0 ]; then
-            echo "uv pip uninstall sphinx failed \
-            please try to exec the script again.\
-            if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
-            exit 1
-        fi
-    fi
-
-    $CURRENT_DIR/install_command.sh -q --group "${PYPROJECT_PATH}:sphinx" 2>&1 >/dev/null
-    if [ $? -ne 0 ]; then
-        echo "uv pip install sphinx failed \
-        please try to exec the script again.\
-        if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
-        exit 1
-    fi
-    deactivate
-}
-
-
-# Install mypy.
-# In some situations, you need to run the script with "sudo". e.g. sudo ./lint-python.sh
-function install_mypy() {
-    source ${UV_HOME}/bin/activate
-    if [[ -f "$MYPY_PATH" ]]; then
-        ${UV_PATH} pip uninstall mypy -q 2>&1 >/dev/null
-        if [[ $? -ne 0 ]]; then
-            echo "uv pip uninstall mypy failed \
-            please try to exec the script again.\
-            if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
-            exit 1
-        fi
-    fi
-    ${CURRENT_DIR}/install_command.sh -q --group "${PYPROJECT_PATH}:mypy" 2>&1 >/dev/null
-    if [[ $? -ne 0 ]]; then
-        echo "uv pip install mypy failed \
-        please try to exec the script again.\
-        if failed many times, you can try to exec in the form of sudo ./lint-python.sh -f"
-        exit 1
-    fi
-    deactivate
-}
-
 function need_install_component() {
     if [[ `contains_element "${SUPPORTED_INSTALLATION_COMPONENTS[*]}" "$1"` = true ]]; then
         echo true
@@ -375,52 +241,6 @@ function install_environment() {
         STEP=1
         checkpoint_stage $STAGE $STEP
         print_function "STEP" "install uv... [SUCCESS]"
-    fi
-
-    # step-2 install python environment which includes
-    # 3.9 3.10 3.11 3.12
-    if [ $STEP -lt 2 ] && [ `need_install_component "py_env"` = true ]; then
-        print_function "STEP" "installing python environment..."
-        install_py_env
-        STEP=2
-        checkpoint_stage $STAGE $STEP
-        print_function "STEP" "install python environment... [SUCCESS]"
-    fi
-
-    # step-3 install tox
-    if [ $STEP -lt 3 ] && [ `need_install_component "tox"` = true ]; then
-        print_function "STEP" "installing tox..."
-        install_tox
-        STEP=3
-        checkpoint_stage $STAGE $STEP
-        print_function "STEP" "install tox... [SUCCESS]"
-    fi
-
-    # step-4 install  flake8
-    if [ $STEP -lt 4 ] && [ `need_install_component "flake8"` = true ]; then
-        print_function "STEP" "installing flake8..."
-        install_flake8
-        STEP=4
-        checkpoint_stage $STAGE $STEP
-        print_function "STEP" "install flake8... [SUCCESS]"
-    fi
-
-    # step-5 install sphinx
-    if [ $STEP -lt 5 ] && [ `need_install_component "sphinx"` = true ]; then
-        print_function "STEP" "installing sphinx..."
-        install_sphinx
-        STEP=5
-        checkpoint_stage $STAGE $STEP
-        print_function "STEP" "install sphinx... [SUCCESS]"
-    fi
-
-    # step-5 install mypy
-    if [[ ${STEP} -lt 6 ]] && [[ `need_install_component "mypy"` = true ]]; then
-        print_function "STEP" "installing mypy..."
-        install_mypy
-        STEP=6
-        checkpoint_stage ${STAGE} ${STEP}
-        print_function "STEP" "install mypy... [SUCCESS]"
     fi
 
     print_function "STAGE"  "install environment... [SUCCESS]"
@@ -559,20 +379,20 @@ function check_stage() {
 #########################
 # Tox check
 function tox_check() {
+    local TOX="$UV_PATH run --group tox tox"
     LATEST_PYTHON="py312"
     print_function "STAGE" "tox checks"
-    # Set created py-env in $PATH for tox's creating virtual env
-    activate
+
     # Ensure the permission of the scripts set correctly
     chmod +x $FLINK_PYTHON_DIR/../build-target/bin/*
     chmod +x $FLINK_PYTHON_DIR/dev/*
 
     if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
         # Only run test in latest python version triggered by a Git push
-        $TOX_PATH -vv -c $FLINK_PYTHON_DIR/tox.ini -e ${LATEST_PYTHON} --recreate 2>&1 | tee -a $LOG_FILE
+        $TOX -vv -c $FLINK_PYTHON_DIR/tox.ini -e ${LATEST_PYTHON} --recreate 2>&1 | tee -a $LOG_FILE
     else
         # Only run random selected python version in nightly CI.
-        ENV_LIST_STRING=`$TOX_PATH -l -c $FLINK_PYTHON_DIR/tox.ini`
+        ENV_LIST_STRING=`$TOX -l -c $FLINK_PYTHON_DIR/tox.ini`
         _OLD_IFS=$IFS
         IFS=$'\n'
         ENV_LIST=(${ENV_LIST_STRING})
@@ -580,7 +400,7 @@ function tox_check() {
 
         ENV_LIST_SIZE=${#ENV_LIST[@]}
         index=$(($RANDOM % ENV_LIST_SIZE))
-        $TOX_PATH -vv -c $FLINK_PYTHON_DIR/tox.ini -e ${ENV_LIST[$index]} --recreate 2>&1 | tee -a $LOG_FILE
+        $TOX -vv -c $FLINK_PYTHON_DIR/tox.ini -e ${ENV_LIST[$index]} --recreate 2>&1 | tee -a $LOG_FILE
     fi
 
     TOX_RESULT=$((grep -c "congratulations :)" "$LOG_FILE") 2>&1)
@@ -589,8 +409,6 @@ function tox_check() {
     else
         print_function "STAGE" "tox checks... [SUCCESS]"
     fi
-    # Reset the $PATH
-    deactivate
 
     # If check failed, stop the running script.
     if [ $TOX_RESULT -eq '0' ]; then
@@ -600,13 +418,10 @@ function tox_check() {
 
 # Flake8 check
 function flake8_check() {
+    local FLAKE8="$UV_PATH run --group flake8 flake8"
     local PYTHON_SOURCE="$(find . \( -path ./dev -o -path ./.tox \) -prune -o -type f -name "*.py" -print )"
 
     print_function "STAGE" "flake8 checks"
-    if [ ! -f "$FLAKE8_PATH" ]; then
-        echo "For some unknown reasons, the flake8 package is not complete,\
-        you should exec the script with the parameter: -f"
-    fi
 
     if [[ ! "$PYTHON_SOURCE" ]]; then
         echo "No python files found!  Something is wrong exiting."
@@ -616,7 +431,7 @@ function flake8_check() {
     # the return value of a pipeline is the status of the last command to exit
     # with a non-zero status or zero if no command exited with a non-zero status
     set -o pipefail
-    ($FLAKE8_PATH  --config=tox.ini $PYTHON_SOURCE) 2>&1 | tee -a $LOG_FILE
+    ($FLAKE8 --config=tox.ini $PYTHON_SOURCE) 2>&1 | tee -a $LOG_FILE
 
     PYCODESTYLE_STATUS=$?
     if [ $PYCODESTYLE_STATUS -ne 0 ]; then
@@ -630,7 +445,9 @@ function flake8_check() {
 
 # Sphinx check
 function sphinx_check() {
-    export SPHINXBUILD=$SPHINX_PATH
+    export SPHINXBUILD="$UV_PATH run --group sphinx sphinx-build"
+    print_function "STAGE" "sphinx checks"
+
     # cd to $FLINK_PYTHON_DIR
     pushd "$FLINK_PYTHON_DIR"/docs &> /dev/null
     make clean
@@ -653,13 +470,14 @@ function sphinx_check() {
 
 # mypy check
 function mypy_check() {
+    local MYPY="$UV_PATH run --group mypy mypy"
     print_function "STAGE" "mypy checks"
 
     # the return value of a pipeline is the status of the last command to exit
     # with a non-zero status or zero if no command exited with a non-zero status
     set -o pipefail
 
-    (${MYPY_PATH} --install-types --non-interactive --config-file tox.ini) 2>&1 | tee -a ${LOG_FILE}
+    ($MYPY --install-types --non-interactive --config-file tox.ini) 2>&1 | tee -a ${LOG_FILE}
     TYPE_HINT_CHECK_STATUS=$?
     if [ ${TYPE_HINT_CHECK_STATUS} -ne 0 ]; then
         print_function "STAGE" "mypy checks... [FAILED]"
@@ -694,18 +512,6 @@ UV_PATH=$UV_HOME/bin/uv
 # pip path
 PIP_PATH=$ENV_HOME/bin/pip
 
-# tox path
-TOX_PATH=$ENV_HOME/bin/tox
-
-# flake8 path
-FLAKE8_PATH=$ENV_HOME/bin/flake8
-
-# sphinx path
-SPHINX_PATH=$ENV_HOME/bin/sphinx-build
-
-# mypy path
-MYPY_PATH=$ENV_HOME/bin/mypy
-
 _OLD_PATH="$PATH"
 
 SUPPORT_OS=("Darwin" "Linux")
@@ -739,7 +545,7 @@ UV_VERSION=0.7.20
 UV_INSTALL_SH=$CURRENT_DIR/download/uv.sh
 
 # stage "install" includes the num of steps.
-STAGE_INSTALL_STEPS=6
+STAGE_INSTALL_STEPS=1
 
 # whether force to restart the script.
 FORCE_START=0
@@ -768,11 +574,12 @@ USAGE="
 usage: $0 [options]
 -h          print this help message and exit
 -f          force to exec from the progress of installing environment
--s [basic,py_env,tox,flake8,sphinx,mypy,all]
+-s [basic,all]
             install environment with specified components which split by comma(,)
             note:
                 This option is used to install environment components and will skip all subsequent checks,
                 so do not use this option with -e,-i simultaneously.
+                Tools like tox, flake8, sphinx, mypy are run via 'uv run' and don't need separate installation.
 -e [tox,flake8,sphinx,mypy]
             exclude checks which split by comma(,)
 -i [tox,flake8,sphinx,mypy]
@@ -780,13 +587,11 @@ usage: $0 [options]
 -l          list all checks supported.
 Examples:
   ./lint-python.sh -s basic        =>  install environment with basic components.
-  ./lint-python.sh -s all          =>  install environment with all components such as python env,tox,flake8,sphinx,mypy etc.
-  ./lint-python.sh -s tox,flake8   =>  install environment with tox,flake8.
-  ./lint-python.sh -s tox -f       =>  reinstall environment with tox.
+  ./lint-python.sh -s all          =>  install environment with all components (uv).
   ./lint-python.sh -e tox,flake8   =>  exclude checks tox,flake8.
   ./lint-python.sh -i flake8       =>  include checks flake8.
   ./lint-python.sh                 =>  exec all checks.
-  ./lint-python.sh -f              =>  reinstall environment with all components and exec all checks.
+  ./lint-python.sh -f              =>  reinstall environment and exec all checks.
   ./lint-python.sh -l              =>  list all checks supported.
   ./lint-python.sh -r              =>  clean up python environment.
 "
