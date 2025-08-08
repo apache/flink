@@ -34,10 +34,10 @@ source venv/bin/activate ""
 # install PyFlink dependency
 if [[ $1 = "" ]]; then
     # install the latest version of pyflink
-    pip install apache-flink
+    uv pip install apache-flink
 else
     # install the specified version of pyflink
-    pip install "apache-flink==$1"
+    uv pip install "apache-flink==$1"
 fi
 
 # deactivate the python virtual environment
