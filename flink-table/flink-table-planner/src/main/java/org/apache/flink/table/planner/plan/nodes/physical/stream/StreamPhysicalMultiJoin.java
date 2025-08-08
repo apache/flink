@@ -167,7 +167,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
     @Override
     public ExecNode<?> translateToExecNode() {
         final RexNode multiJoinCondition = createMultiJoinCondition();
-        final List<List<int[]>> inputUpsertKeys = getUpsertKeysForInputs();
+        final List<List<int[]>> inputUniqueKeys = getUniqueKeysForInputs();
         final List<FlinkJoinType> execJoinTypes = getExecJoinTypes();
         final List<InputProperty> inputProperties = createInputProperties();
 
@@ -177,7 +177,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                 joinConditions,
                 multiJoinCondition,
                 joinAttributeMap,
-                inputUpsertKeys,
+                inputUniqueKeys,
                 Collections.emptyMap(), // TODO Enable hint-based state ttl. See ticket
                 // TODO https://issues.apache.org/jira/browse/FLINK-37936
                 inputProperties,
@@ -194,26 +194,27 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         return RexUtil.composeConjunction(getCluster().getRexBuilder(), conjunctions, true);
     }
 
-    private List<List<int[]>> getUpsertKeysForInputs() {
+    private List<List<int[]>> getUniqueKeysForInputs() {
         return inputs.stream()
                 .map(
                         input -> {
-                            final Set<ImmutableBitSet> upsertKeys = getUpsertKeys(input);
+                            final Set<ImmutableBitSet> uniqueKeys = getUniqueKeys(input);
 
-                            if (upsertKeys == null) {
+                            if (uniqueKeys == null) {
                                 return Collections.<int[]>emptyList();
                             }
-                            return upsertKeys.stream()
+
+                            return uniqueKeys.stream()
                                     .map(ImmutableBitSet::toArray)
                                     .collect(Collectors.toList());
                         })
                 .collect(Collectors.toList());
     }
 
-    private @Nullable Set<ImmutableBitSet> getUpsertKeys(RelNode input) {
+    private @Nullable Set<ImmutableBitSet> getUniqueKeys(RelNode input) {
         final FlinkRelMetadataQuery fmq =
                 FlinkRelMetadataQuery.reuseOrCreate(input.getCluster().getMetadataQuery());
-        return fmq.getUpsertKeys(input);
+        return fmq.getUniqueKeys(input);
     }
 
     private List<FlinkJoinType> getExecJoinTypes() {
@@ -255,7 +256,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
      */
     public boolean inputUniqueKeyContainsCommonJoinKey(int inputId) {
         final RelNode input = getInputs().get(inputId);
-        final Set<ImmutableBitSet> inputUniqueKeys = getUpsertKeys(input);
+        final Set<ImmutableBitSet> inputUniqueKeys = getUniqueKeys(input);
         if (inputUniqueKeys == null || inputUniqueKeys.isEmpty()) {
             return false;
         }
