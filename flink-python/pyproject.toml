@@ -27,6 +27,27 @@ requires = [
     "cython>=0.29.24"
 ]
 
+[project]
+name = "apache-flink"
+description = "Apache Flink Python API"
+readme = "README.md"
+license = "Apache-2.0"
+authors = [
+    {name = "Apache Software Foundation", email = "dev@flink.apache.org"}
+]
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dynamic = ["version", "scripts", "dependencies"]
+
+[project.urls]
+homepage = "https://flink.apache.org"
+
 [dependency-groups]
 dev = [
   "pip>=20.3",
@@ -52,7 +73,7 @@ dev = [
   "ruamel.yaml>=0.18.4",
 ]
 tox = [
-    "tox==3.14.0"
+    "tox==3.28.0"
 ]
 flake8 = [
     "flake8==7.2.0"
@@ -75,6 +96,10 @@ mypy = [
     "types-pytz",
     "types-python-dateutil"
 ]
+auditwheel = [
+    "patchelf==0.17.2.1",
+    "auditwheel==3.2.0"
+]
 
 
 [tool.cibuildwheel]
@@ -85,3 +110,6 @@ archs = ["x86_64", "arm64"]
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64"]
+
+[tool.uv.sources]
+apache-flink-libraries = { path = "apache-flink-libraries/" }
