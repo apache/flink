@@ -67,17 +67,22 @@ The following sections list the supported reporters.
 ### OpenTelemetry
 #### (org.apache.flink.events.otel.OpenTelemetryEventReporterFactory)
 
-`OpenTelemetryEventReporterFactory` currently supports only gRPC.
-
 Parameters:
 
 {{< include_reporter_config "layouts/shortcodes/generated/open_telemetry_reporter_configuration.html" >}}
 
-Example configuration:
+Example configurations:
 
 ```yaml
 events.reporter.otel.factory.class: org.apache.flink.events.otel.OpenTelemetryEventReporterFactory
 events.reporter.otel.exporter.endpoint: http://127.0.0.1:1337
+events.reporter.otel.exporter.protocol: gRPC
+```
+
+```yaml
+events.reporter.otel.factory.class: org.apache.flink.events.otel.OpenTelemetryEventReporterFactory
+events.reporter.otel.exporter.endpoint: http://127.0.0.1:9090
+events.reporter.otel.exporter.protocol: HTTP
 ```
 
 ### Slf4j
