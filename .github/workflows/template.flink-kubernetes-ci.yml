@@ -1,0 +1,98 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Workflow template for triggering the Flink's test suite.
+
+name: "Apache Flink Test Workflow Template - for module flink-kubernetes"
+
+on:
+  workflow_call:
+    inputs:
+      http-client:
+        description: "Type of fabric8 HTTP client implementation (okhttp, vertx, jetty, jdk)"
+        default: okhttp
+        type: string
+      jdk_version:
+        description: "Java version"
+        default: "17"
+        type: string
+      cache-name:
+        description: "Suffix for artifacts name in cache"
+        default: ""
+        type: string
+      environment:
+        description: "Defines environment variables for downstream scripts."
+        required: true
+        type: string
+
+permissions: read-all
+
+env:
+  # The following environment variables need to be overwritten here because the e2e tests do not
+  # run in containers.
+  MAVEN_REPO_FOLDER: ${{ github.workspace }}/.m2/repository
+  MAVEN_ARGS: -Dmaven.repo.local=${{ github.workspace }}/.m2/repository
+  FLINK_ARTIFACT_DIR: ${{ github.workspace }}
+  DOCKER_IMAGES_CACHE_FOLDER: ${{ github.workspace }}/.docker-cache
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: "Flink Checkout"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "Initialize job"
+        uses: "./.github/actions/job_init"
+        with:
+          jdk_version: ${{ inputs.jdk_version }}
+          maven_repo_folder: ${{ env.MAVEN_REPO_FOLDER }}
+
+      - name: "Download build artifacts from compile job"
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts-${{ inputs.cache-name }}
+          path: ${{ env.FLINK_ARTIFACT_DIR }}
+
+      - name: "Unpack build artifact"
+        run: ./tools/azure-pipelines/unpack_build_artifact.sh
+
+      - name: "Build Flink"
+        uses: "./.github/actions/run_mvn"
+        timeout-minutes: 20
+        with:
+          maven-parameters: "install -DskipTests -Dfast $PROFILE -Pskip-webui-build -Phttpclient-${{ inputs.http-client }}"
+          env: "${{ inputs.environment }}"
+
+      - name: "Build flink-kubernetes with ${{ inputs.http-client }} with unit tests"
+        timeout-minutes: 20
+        run: |
+          ./mvnw install -pl flink-kubernetes -Phttpclient-${{ inputs.http-client }}
+
+      - name: "Run ITs"
+        timeout-minutes: 20
+        run: |
+          FLINK_DIR=`pwd`/build-target ./flink-end-to-end-tests/run-single-test.sh ./flink-end-to-end-tests/test-scripts/test_kubernetes_itcases.sh
+        env:
+          MAVEN_ARGS: "-Phttpclient-${{ inputs.http-client }}"
+
+      - name: "Run e2e smoke"
+        timeout-minutes: 20
+        run: |
+          FLINK_DIR=`pwd`/build-target ./flink-end-to-end-tests/run-single-test.sh ./flink-end-to-end-tests/test-scripts/test_kubernetes_application.sh
+        env:
+          MAVEN_ARGS: "-Phttpclient-${{ inputs.http-client }}"

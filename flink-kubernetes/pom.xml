@@ -32,6 +32,10 @@ under the License.
 
 	<properties>
 		<kubernetes.client.version>7.3.1</kubernetes.client.version>
+        <!-- valid options can be checked at https://central.sonatype.com/search?q=kubernetes-httpclient- currently: okhttp, jdk, jetty, vertx -->
+        <!-- when using a value other than okhttp disable the `depend-on-okhttp4` profile as well. -->
+        <kubernetes.client.httpclient.impl>okhttp</kubernetes.client.httpclient.impl>
+
 		<netty.override.version>4.1.108.Final</netty.override.version>
 		<surefire.module.config><!--
 			CommonTestUtils#setEnv
@@ -79,9 +83,15 @@ under the License.
 		<!-- Since 7.0.0, Fabric8 uses Vert.x as its HTTP client, but we want to use OkHttp to keep the same dependencies as used before this version. -->
 		<dependency>
 			<groupId>io.fabric8</groupId>
-			<artifactId>kubernetes-httpclient-okhttp</artifactId>
+			<artifactId>kubernetes-httpclient-${kubernetes.client.httpclient.impl}</artifactId>
 			<version>${kubernetes.client.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
+			<exclusions>
+				<exclusion>
+					<groupId>io.fabric8</groupId>
+					<artifactId>kubernetes-httpclient-vertx</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -252,4 +262,243 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+    <profiles>
+        <!-- OKHTTP (default) -->
+        <profile>
+            <id>httpclient-okhttp</id>
+            <activation><activeByDefault>true</activeByDefault></activation>
+            <properties>
+                <kubernetes.client.httpclient.impl>okhttp</kubernetes.client.httpclient.impl>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>kubernetes-httpclient-${kubernetes.client.httpclient.impl}</artifactId>
+                    <version>${kubernetes.client.version}</version>
+                    <optional>${flink.markBundledAsOptional}</optional>
+                    <exclusions>
+                        <exclusion>
+                            <groupId>io.fabric8</groupId>
+                            <artifactId>kubernetes-httpclient-vertx</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+            </dependencies>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>ban-non-okhttp-providers</id>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <bannedDependencies>
+                                            <searchTransitive>true</searchTransitive>
+                                            <excludes>
+                                                <!-- ban vertx, jdk, jetty -->
+                                                <exclude>io.fabric8:kubernetes-httpclient-vertx</exclude>
+                                                <exclude>io.fabric8:kubernetes-httpclient-jdk</exclude>
+                                                <exclude>io.fabric8:kubernetes-httpclient-jetty</exclude>
+                                            </excludes>
+                                        </bannedDependencies>
+                                    </rules>
+                                    <fail>true</fail>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- VERT.X -->
+        <profile>
+            <id>httpclient-vertx</id>
+            <properties>
+                <kubernetes.client.httpclient.impl>vertx</kubernetes.client.httpclient.impl>
+            </properties>
+
+            <dependencies>
+                <dependency>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>kubernetes-httpclient-${kubernetes.client.httpclient.impl}</artifactId>
+                    <version>${kubernetes.client.version}</version>
+                    <optional>${flink.markBundledAsOptional}</optional>
+                    <exclusions>
+                        <exclusion>
+                            <groupId>com.squareup.okhttp3</groupId>
+                            <artifactId>okhttp</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+                <dependency>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-codec-http</artifactId>
+                    <version>${netty.override.version}</version>
+                    <scope>compile</scope>
+                </dependency>
+            </dependencies>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>shade-flink</id>
+                                <configuration>
+                                    <!--  add Vert.x and Netty -->
+                                    <artifactSet>
+                                        <includes combine.children="append">
+                                            <include>io.vertx:*</include>
+                                            <include>io.netty:*</include>
+                                        </includes>
+                                    </artifactSet>
+                                    <!-- Vertx and Netty shading-->
+                                    <relocations combine.children="append">
+                                        <relocation>
+                                            <pattern>io.vertx</pattern>
+                                            <shadedPattern>org.apache.flink.kubernetes.shaded.io.vertx</shadedPattern>
+                                        </relocation>
+                                        <relocation>
+                                            <pattern>io.netty</pattern>
+                                            <shadedPattern>org.apache.flink.kubernetes.shaded.io.netty</shadedPattern>
+                                        </relocation>
+                                    </relocations>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- ban default OkHttp, Jetty, jdk -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>ban-okhttp-when-vertx</id>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <bannedDependencies>
+                                            <excludes>
+                                                <exclude>com.squareup.okhttp3:okhttp</exclude>
+                                                <exclude>io.fabric8:kubernetes-httpclient-jetty</exclude>
+                                                <exclude>io.fabric8:kubernetes-httpclient-jdk</exclude>
+                                            </excludes>
+                                        </bannedDependencies>
+                                    </rules>
+                                    <fail>true</fail>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- JETTY -->
+        <profile>
+            <id>httpclient-jetty</id>
+            <properties>
+                <kubernetes.client.httpclient.impl>jetty</kubernetes.client.httpclient.impl>
+            </properties>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>shade-flink</id>
+                                <configuration>
+                                    <!-- add Jetty client impl -->
+                                    <artifactSet>
+                                        <includes combine.children="append">
+                                            <include>org.eclipse.jetty:*</include>
+                                            <include>org.eclipse.jetty.http2:*</include>
+                                            <include>org.eclipse.jetty.websocket:*</include>
+                                        </includes>
+                                    </artifactSet>
+                                    <!-- Jetty shading -->
+                                    <relocations combine.children="append">
+                                        <relocation>
+                                            <pattern>org.eclipse.jetty</pattern>
+                                            <shadedPattern>org.apache.flink.kubernetes.shaded.org.eclipse.jetty</shadedPattern>
+                                        </relocation>
+                                    </relocations>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- ban OkHttp, vertx, jdk -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>ban-okhttp-when-jetty</id>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <bannedDependencies>
+                                            <excludes>
+                                                <exclude>com.squareup.okhttp3:okhttp</exclude>
+                                                <exclude>io.fabric8:kubernetes-httpclient-vertx</exclude>
+                                                <exclude>io.fabric8:kubernetes-httpclient-jdk</exclude>
+                                            </excludes>
+                                        </bannedDependencies>
+                                    </rules>
+                                    <fail>true</fail>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- JDK (java.net.http) -->
+        <profile>
+            <id>httpclient-jdk</id>
+            <properties>
+                <kubernetes.client.httpclient.impl>jdk</kubernetes.client.httpclient.impl>
+            </properties>
+            <build>
+                <plugins>
+                    <!-- ban default OkHttp -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>ban-okhttp-when-jdk</id>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <bannedDependencies>
+                                            <excludes>
+                                                <exclude>com.squareup.okhttp3:okhttp</exclude>
+                                                <exclude>io.fabric8:kubernetes-httpclient-vertx</exclude>
+                                                <exclude>io.fabric8:kubernetes-httpclient-jetty</exclude>
+                                            </excludes>
+                                        </bannedDependencies>
+                                    </rules>
+                                    <fail>true</fail>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
