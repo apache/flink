@@ -141,6 +141,6 @@ public class CatalogFunctionImpl implements CatalogFunction {
                 + "', "
                 + "options='"
                 + getOptions()
-                + "'";
+                + "'}";
     }
 }

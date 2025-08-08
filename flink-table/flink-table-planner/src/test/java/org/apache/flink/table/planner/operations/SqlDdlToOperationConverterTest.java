@@ -1075,7 +1075,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                         "CREATE TEMPORARY SYSTEM FUNCTION: (functionName: [test_udf2], "
                                 + "catalogFunction: [CatalogFunctionImpl{className='org.apache.fink.function.function2', "
                                 + "functionLanguage='SCALA', "
-                                + "functionResource='[ResourceUri{resourceType=JAR, uri='file:///path/to/test.jar'}]', options='{}'], "
+                                + "functionResource='[ResourceUri{resourceType=JAR, uri='file:///path/to/test.jar'}]', options='{}'}], "
                                 + "ignoreIfExists: [false], functionLanguage: [SCALA])");
     }
 

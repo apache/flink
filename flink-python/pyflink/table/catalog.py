@@ -1124,7 +1124,7 @@ class CatalogFunction(object):
 
         :return: Property map of the function.
 
-        .. versionadded:: 2.1.0
+        .. versionadded:: 2.2.0
         """
         return dict(self._j_catalog_function.getOptions())
 
