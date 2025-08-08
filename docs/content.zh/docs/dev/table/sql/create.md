@@ -863,6 +863,7 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   [IF NOT EXISTS] [[catalog_name.]db_name.]function_name
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
   [USING JAR '<path_to_filename>.jar' [, JAR '<path_to_filename>.jar']* ]
+  [WITH (key1=val1, key2=val2, ...)]
 ```
 
 创建一个有 catalog 和数据库命名空间的 catalog function ，需要指定一个 identifier ，可指定 language tag 。 若 catalog 中，已经有同名的函数注册了，则无法注册。

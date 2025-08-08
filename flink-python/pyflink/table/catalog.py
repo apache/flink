@@ -1118,6 +1118,16 @@ class CatalogFunction(object):
         """
         return self._j_catalog_function.getFunctionLanguage()
 
+    def get_options(self) -> Dict[str, str]:
+        """
+        Returns a map of string-based options.
+
+        :return: Property map of the function.
+
+        .. versionadded:: 2.2.0
+        """
+        return dict(self._j_catalog_function.getOptions())
+
 
 @PublicEvolving()
 class CatalogModel(object):

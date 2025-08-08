@@ -18,6 +18,8 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlUnparseUtils;
+
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -53,6 +55,7 @@ public class SqlCreateFunction extends SqlCreate {
     private final boolean isSystemFunction;
 
     private final SqlNodeList resourceInfos;
+    private final SqlNodeList propertyList;
 
     public SqlCreateFunction(
             SqlParserPos pos,
@@ -62,7 +65,8 @@ public class SqlCreateFunction extends SqlCreate {
             boolean ifNotExists,
             boolean isTemporary,
             boolean isSystemFunction,
-            SqlNodeList resourceInfos) {
+            SqlNodeList resourceInfos,
+            SqlNodeList propertyList) {
         super(OPERATOR, pos, false, ifNotExists);
         this.functionIdentifier = requireNonNull(functionIdentifier);
         this.functionClassName = requireNonNull(functionClassName);
@@ -70,6 +74,7 @@ public class SqlCreateFunction extends SqlCreate {
         this.isTemporary = isTemporary;
         this.functionLanguage = functionLanguage;
         this.resourceInfos = resourceInfos;
+        this.propertyList = requireNonNull(propertyList);
     }
 
     @Override
@@ -103,13 +108,23 @@ public class SqlCreateFunction extends SqlCreate {
             writer.keyword("LANGUAGE");
             writer.keyword(functionLanguage);
         }
-        if (resourceInfos.size() > 0) {
+        if (!resourceInfos.isEmpty()) {
             writer.keyword("USING");
             SqlWriter.Frame withFrame = writer.startList("", "");
             for (SqlNode resourcePath : resourceInfos) {
                 writer.sep(",");
                 resourcePath.unparse(writer, leftPrec, rightPrec);
             }
+            writer.endList(withFrame);
+        }
+        if (!this.propertyList.isEmpty()) {
+            writer.keyword("WITH");
+            SqlWriter.Frame withFrame = writer.startList("(", ")");
+            for (SqlNode property : propertyList) {
+                SqlUnparseUtils.printIndent(writer);
+                property.unparse(writer, leftPrec, rightPrec);
+            }
+            writer.newlineAndIndent();
             writer.endList(withFrame);
         }
     }
@@ -140,5 +155,9 @@ public class SqlCreateFunction extends SqlCreate {
 
     public List<SqlNode> getResourceInfos() {
         return resourceInfos.getList();
+    }
+
+    public SqlNodeList getPropertyList() {
+        return propertyList;
     }
 }

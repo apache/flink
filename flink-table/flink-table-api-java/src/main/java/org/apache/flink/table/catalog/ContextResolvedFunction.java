@@ -184,20 +184,23 @@ public final class ContextResolvedFunction {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
+
         ContextResolvedFunction that = (ContextResolvedFunction) o;
         return isTemporary == that.isTemporary
                 && Objects.equals(functionIdentifier, that.functionIdentifier)
-                && functionDefinition.equals(that.functionDefinition);
+                && functionDefinition.equals(that.functionDefinition)
+                && Objects.equals(catalogFunction, that.catalogFunction);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(isTemporary, functionIdentifier, functionDefinition);
+        int result = Boolean.hashCode(isTemporary);
+        result = 31 * result + Objects.hashCode(functionIdentifier);
+        result = 31 * result + functionDefinition.hashCode();
+        result = 31 * result + Objects.hashCode(catalogFunction);
+        return result;
     }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.FunctionDescriptor;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
@@ -161,7 +162,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                 UnresolvedIdentifier.of(
                         ObjectIdentifier.of(
                                 catalogManager.getCurrentCatalog(), "default", "myFunc")),
-                TableFunc0.class,
+                FunctionDescriptor.forFunctionClass(TableFunc0.class).build(),
                 true);
 
         final String sql =

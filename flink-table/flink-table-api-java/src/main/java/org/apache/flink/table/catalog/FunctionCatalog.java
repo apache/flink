@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.FunctionDescriptor;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -55,6 +56,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -115,23 +117,17 @@ public final class FunctionCatalog {
                 name, new InlineCatalogFunction(definition), ignoreIfExists);
     }
 
-    /** Registers a uninstantiated temporary system function. */
-    public void registerTemporarySystemFunction(
-            String name,
-            String fullyQualifiedName,
-            FunctionLanguage language,
-            boolean ignoreIfExists) {
-        registerTemporarySystemFunction(
-                name, new CatalogFunctionImpl(fullyQualifiedName, language), ignoreIfExists);
-    }
-
     /** Registers a temporary system function from resource uris. */
     public void registerTemporarySystemFunction(
-            String name, String className, List<ResourceUri> resourceUris) {
+            String name, FunctionDescriptor functionDescriptor, boolean ignoreIfExists) {
         registerTemporarySystemFunction(
                 name,
-                new CatalogFunctionImpl(className, FunctionLanguage.JAVA, resourceUris),
-                false);
+                new CatalogFunctionImpl(
+                        functionDescriptor.getClassName(),
+                        functionDescriptor.getLanguage(),
+                        functionDescriptor.getResourceUris(),
+                        functionDescriptor.getOptions()),
+                ignoreIfExists);
     }
 
     /** Drops a temporary system function. Returns true if a function was dropped. */
@@ -208,37 +204,18 @@ public final class FunctionCatalog {
         return dropTempCatalogFunction(identifier, ignoreIfNotExist) != null;
     }
 
-    /** Registers a catalog function by also considering temporary catalog functions. */
     public void registerCatalogFunction(
             UnresolvedIdentifier unresolvedIdentifier,
-            Class<? extends UserDefinedFunction> functionClass,
-            boolean ignoreIfExists) {
-        final ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        final CatalogFunction catalogFunction =
-                new CatalogFunctionImpl(functionClass.getName(), FunctionLanguage.JAVA);
-
-        try {
-            UserDefinedFunctionHelper.validateClass(functionClass);
-        } catch (Throwable t) {
-            throw new ValidationException(
-                    String.format(
-                            "Could not register catalog function '%s' due to implementation errors.",
-                            identifier.asSummaryString()),
-                    t);
-        }
-
-        registerCatalogFunction(identifier, catalogFunction, ignoreIfExists);
-    }
-
-    public void registerCatalogFunction(
-            UnresolvedIdentifier unresolvedIdentifier,
-            String className,
-            List<ResourceUri> resourceUris,
+            FunctionDescriptor functionDescriptor,
             boolean ignoreIfExists) {
 
         final ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
         final CatalogFunction catalogFunction =
-                new CatalogFunctionImpl(className, FunctionLanguage.JAVA, resourceUris);
+                new CatalogFunctionImpl(
+                        functionDescriptor.getClassName(),
+                        functionDescriptor.getLanguage(),
+                        functionDescriptor.getResourceUris(),
+                        functionDescriptor.getOptions());
 
         registerCatalogFunction(identifier, catalogFunction, ignoreIfExists);
     }
@@ -887,6 +864,21 @@ public final class FunctionCatalog {
 
         public FunctionDefinition getDefinition() {
             return definition;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+
+            InlineCatalogFunction that = (InlineCatalogFunction) o;
+            return Objects.equals(definition, that.definition);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(definition);
         }
     }
 }

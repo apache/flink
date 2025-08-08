@@ -48,11 +48,12 @@ public class CreateTempSystemFunctionOperation implements CreateOperation {
             String functionClass,
             boolean ignoreIfExists,
             FunctionLanguage functionLanguage,
-            List<ResourceUri> resourceUris) {
+            List<ResourceUri> resourceUris,
+            Map<String, String> options) {
         this.functionName = functionName;
         this.ignoreIfExists = ignoreIfExists;
         this.catalogFunction =
-                new CatalogFunctionImpl(functionClass, functionLanguage, resourceUris);
+                new CatalogFunctionImpl(functionClass, functionLanguage, resourceUris, options);
     }
 
     public CreateTempSystemFunctionOperation(
