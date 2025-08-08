@@ -545,7 +545,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING",
                                             "payment_id STRING",
                                             "location STRING")
-                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,UB,D")
                                     .consumedBeforeRestore(
                                             "+I[1, Gus, order0, 1, London]",
                                             "+I[1, Gus, order1, 1, London]",
@@ -650,7 +650,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING",
                                             "payment_id STRING",
                                             "location STRING")
-                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,UB,D")
                                     .consumedValues(
                                             "+I[1, Gus, order0, 1, London]",
                                             "+I[1, Gus, order1, 1, London]",
@@ -758,7 +758,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING",
                                             "payment_id STRING",
                                             "location STRING")
-                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,UB,D")
                                     .consumedBeforeRestore(
                                             "+I[1, Gus, order0, payment1, London]",
                                             "+I[1, Gus, order1, payment1, London]",
@@ -941,7 +941,6 @@ public class MultiJoinTestPrograms {
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "1", "active"),
                                             Row.ofKind(RowKind.INSERT, "2", "pending"),
-                                            Row.ofKind(RowKind.UPDATE_BEFORE, "2", "pending"),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "2", "active"),
                                             Row.ofKind(RowKind.INSERT, "3", "inactive"),
                                             Row.ofKind(RowKind.DELETE, "3", "inactive"))
@@ -953,7 +952,7 @@ public class MultiJoinTestPrograms {
                                             "val STRING",
                                             "data STRING",
                                             "status STRING")
-                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,UB,D")
                                     .consumedValues(
                                             "+I[1, append1, retract1, active]",
                                             "+I[2, append2, retract2, active]",
