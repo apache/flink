@@ -777,12 +777,15 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
     }
 
     private void addRecordToState(RowData input, int inputId) throws Exception {
+        final boolean isUpsert = isUpsert(input);
         RowData joinKey = keyExtractor.getJoinKey(input, inputId);
 
-        if (isRetraction(input)) {
-            stateHandlers.get(inputId).retractRecord(joinKey, input);
-        } else {
+        // Always use insert so we store and retract records correctly from state
+        input.setRowKind(RowKind.INSERT);
+        if (isUpsert) {
             stateHandlers.get(inputId).addRecord(joinKey, input);
+        } else {
+            stateHandlers.get(inputId).retractRecord(joinKey, input);
         }
     }
 
