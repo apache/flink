@@ -34,9 +34,11 @@ import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.core.TableFunctionScan;
+import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.core.Values;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalSnapshot;
-import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.rules.CoreRules;
@@ -546,7 +548,10 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
 
         assert targetInput != null;
 
-        if (targetInput instanceof LogicalTableScan) {
+        if (targetInput instanceof TableScan
+                || targetInput instanceof Values
+                || targetInput instanceof TableFunctionScan
+                || targetInput.getInputs().isEmpty()) {
             return new Tuple2<>(targetInput, idxInTargetInput);
         } else {
             return getTargetInputAndIdx(idxInTargetInput, targetInput.getInputs());
