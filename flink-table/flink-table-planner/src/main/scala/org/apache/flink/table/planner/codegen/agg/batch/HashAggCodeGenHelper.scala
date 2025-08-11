@@ -77,7 +77,7 @@ object HashAggCodeGenHelper {
         s" $groupKeyTypesTerm," +
         s" $aggBufferTypesTerm);")
     // close aggregate map and release memory segments
-    ctx.addReusableCloseStatement(s"$aggregateMapTerm.free();")
+    ctx.addReusableCloseStatement(s"if ($aggregateMapTerm != null) $aggregateMapTerm.free();")
     ctx.addReusableCloseStatement(s"")
   }
 
