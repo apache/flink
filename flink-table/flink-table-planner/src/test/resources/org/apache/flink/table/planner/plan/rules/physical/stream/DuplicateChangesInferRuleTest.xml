@@ -753,10 +753,10 @@ LogicalSink(table=[default_catalog.default_database.another_pk_snk], fields=[a, 
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.another_pk_snk], fields=[a, b, c], upsertMaterialize=[true], duplicateChanges=[NONE])
-+- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
-   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
-      +- TableSourceScan(table=[[default_catalog, default_database, retract_src]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+Sink(table=[default_catalog.default_database.another_pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, retract_src]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])
 ]]>
     </Resource>
   </TestCase>
