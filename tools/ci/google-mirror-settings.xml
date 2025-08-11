@@ -25,4 +25,31 @@ under the License.
       <mirrorOf>central</mirrorOf>
     </mirror>
   </mirrors>
+
+    <!-- Fallback to central repository config for BOMs that are not part of google, redhat, jboss mirrors -->
+  <profiles>
+    <profile>
+      <id>inject-central-direct</id>
+      <repositories>
+        <repository>
+          <id>central-direct</id>
+          <url>https://repo.maven.apache.org/maven2/</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>central-direct-plugins</id>
+          <url>https://repo.maven.apache.org/maven2/</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
+
+  <activeProfiles>
+    <activeProfile>inject-central-direct</activeProfile>
+  </activeProfiles>
 </settings>
