@@ -208,6 +208,30 @@ class TableSinkTest extends TableTestBase {
   }
 
   @Test
+  def testRetractSinkWithPrimaryKey(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE retractSink (
+                     |  `cnt` BIGINT,
+                     |  `a` BIGINT,
+                     |  PRIMARY KEY (a) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-changelog-mode-enforced' = 'I,UB,UA,D'
+                     |)
+                     |""".stripMargin)
+    val dml =
+      """
+        |INSERT INTO retractSink
+        |SELECT cnt, COUNT(a) AS a FROM (
+        |    SELECT a, COUNT(*) AS cnt FROM MyTable GROUP BY a) t
+        |GROUP BY cnt
+      """.stripMargin
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(dml)
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
   def testUpsertSink(): Unit = {
     util.addTable(s"""
                      |CREATE TABLE upsertSink (
