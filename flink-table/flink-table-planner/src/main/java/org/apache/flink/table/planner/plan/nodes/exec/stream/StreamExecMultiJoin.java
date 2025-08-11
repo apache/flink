@@ -58,6 +58,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -159,8 +160,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
         this.joinTypes = checkNotNull(joinTypes);
         this.joinConditions = checkNotNull(joinConditions);
         this.multiJoinCondition = multiJoinCondition;
-        this.joinAttributeMap = checkNotNull(joinAttributeMap);
         this.inputUpsertKeys = checkNotNull(inputUpsertKeys);
+        this.joinAttributeMap = Objects.requireNonNullElseGet(joinAttributeMap, Map::of);
         this.stateMetadataList = stateMetadataList;
     }
 
