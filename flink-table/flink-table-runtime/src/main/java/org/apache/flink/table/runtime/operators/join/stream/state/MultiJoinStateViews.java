@@ -32,7 +32,6 @@ import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideS
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.types.RowKind;
 import org.apache.flink.util.IterableIterator;
 
 import javax.annotation.Nonnull;
@@ -238,15 +237,15 @@ public final class MultiJoinStateViews {
 
         @Override
         public void addRecord(@Nullable RowData joinKey, RowData record) throws Exception {
-            RowData uniqueKey = uniqueKeySelector.getKey(record);
-            RowData stateKey = getStateKey(joinKey, uniqueKey);
+            final RowData uniqueKey = uniqueKeySelector.getKey(record);
+            final RowData stateKey = getStateKey(joinKey, uniqueKey);
             recordState.put(stateKey, record);
         }
 
         @Override
         public void retractRecord(@Nullable RowData joinKey, RowData record) throws Exception {
-            RowData uniqueKey = uniqueKeySelector.getKey(record);
-            RowData stateKey = getStateKey(joinKey, uniqueKey);
+            final RowData uniqueKey = uniqueKeySelector.getKey(record);
+            final RowData stateKey = getStateKey(joinKey, uniqueKey);
             recordState.remove(stateKey);
         }
 
@@ -364,25 +363,18 @@ public final class MultiJoinStateViews {
 
         @Override
         public void addRecord(@Nullable RowData joinKey, RowData record) throws Exception {
-            // Normalize RowKind for consistent state representation
-            RowKind originalKind = record.getRowKind();
-            record.setRowKind(RowKind.INSERT); // Normalize for key creation
-            RowData stateKey = getStateKey(joinKey, record);
+            final RowData stateKey = getStateKey(joinKey, record);
 
             Integer currentCount = recordState.get(stateKey);
             if (currentCount == null) {
                 currentCount = 0;
             }
             recordState.put(stateKey, currentCount + 1);
-            record.setRowKind(originalKind); // Restore original RowKind
         }
 
         @Override
         public void retractRecord(@Nullable RowData joinKey, RowData record) throws Exception {
-            // Normalize RowKind for consistent state representation and lookup
-            RowKind originalKind = record.getRowKind();
-            record.setRowKind(RowKind.INSERT); // Normalize for key lookup
-            RowData stateKey = getStateKey(joinKey, record);
+            final RowData stateKey = getStateKey(joinKey, record);
 
             Integer currentCount = recordState.get(stateKey);
             if (currentCount != null) {
@@ -392,7 +384,6 @@ public final class MultiJoinStateViews {
                     recordState.remove(stateKey);
                 }
             }
-            record.setRowKind(originalKind); // Restore original RowKind
         }
 
         @Override
